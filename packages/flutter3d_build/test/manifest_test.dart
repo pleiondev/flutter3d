@@ -5,17 +5,17 @@ import 'package:flutter3d_core/formats.dart';
 import 'package:test/test.dart';
 
 void main() {
-  group('AssetManifest.parse', () {
+  group('AssetBuildManifest.parse', () {
     test('an empty file is the empty manifest', () {
-      expect(AssetManifest.parse('').rules, isEmpty);
+      expect(AssetBuildManifest.parse('').rules, isEmpty);
     });
 
     test('an explicit, empty "rules" list is the empty manifest', () {
-      expect(AssetManifest.parse('rules: []').rules, isEmpty);
+      expect(AssetBuildManifest.parse('rules: []').rules, isEmpty);
     });
 
     test('one rule with just a glob parses, and matches by that glob', () {
-      final manifest = AssetManifest.parse('''
+      final manifest = AssetBuildManifest.parse('''
 rules:
   - glob: "characters/**"
 ''');
@@ -25,7 +25,7 @@ rules:
     });
 
     test('textures, mips, objNormals and exclude all parse', () {
-      final manifest = AssetManifest.parse('''
+      final manifest = AssetBuildManifest.parse('''
 rules:
   - glob: "**/*.obj"
     textures: etc2
@@ -44,7 +44,7 @@ rules:
         'package:glob\'s rule since 2.2.0, held here so a later glob that '
         'changes it again fails in this test and not in somebody\'s '
         'manifest', () {
-      final manifest = AssetManifest.parse('''
+      final manifest = AssetBuildManifest.parse('''
 rules:
   - glob: "**/*.obj"
     exclude: true
@@ -54,7 +54,7 @@ rules:
     });
 
     test('the last matching rule wins over an earlier, broader one', () {
-      final manifest = AssetManifest.parse('''
+      final manifest = AssetBuildManifest.parse('''
 rules:
   - glob: "**/*.glb"
     textures: bc
@@ -70,7 +70,7 @@ rules:
 
     test('an unknown top-level key names its own line', () {
       expect(
-        () => AssetManifest.parse('rules: []\ntypo: 1\n'),
+        () => AssetBuildManifest.parse('rules: []\ntypo: 1\n'),
         throwsA(
           isA<ManifestFormatException>()
               .having((e) => e.line, 'line', 2)
@@ -81,7 +81,7 @@ rules:
 
     test('an unknown key inside a rule names its own line', () {
       expect(
-        () => AssetManifest.parse('''
+        () => AssetBuildManifest.parse('''
 rules:
   - glob: "*.glb"
     compresion: bc
@@ -96,7 +96,7 @@ rules:
 
     test('a bad glob names its own line, not the top of the file', () {
       expect(
-        () => AssetManifest.parse('''
+        () => AssetBuildManifest.parse('''
 rules:
   - glob: "hero.glb"
   - glob: "["
@@ -109,7 +109,7 @@ rules:
 
     test('an unknown texture family names the line and the allowed values', () {
       expect(
-        () => AssetManifest.parse('''
+        () => AssetBuildManifest.parse('''
 rules:
   - glob: "*.glb"
     textures: astc
@@ -124,7 +124,7 @@ rules:
 
     test('a rule with no glob names its own line', () {
       expect(
-        () => AssetManifest.parse('''
+        () => AssetBuildManifest.parse('''
 rules:
   - textures: bc
 '''),
@@ -136,7 +136,7 @@ rules:
 
     test('"rules" as a scalar rather than a list names its own line', () {
       expect(
-        () => AssetManifest.parse('rules: yes'),
+        () => AssetBuildManifest.parse('rules: yes'),
         throwsA(
           isA<ManifestFormatException>().having((e) => e.line, 'line', 1),
         ),
@@ -145,15 +145,15 @@ rules:
 
     test('genuinely broken YAML syntax still names a line', () {
       expect(
-        () => AssetManifest.parse('rules: [\n'),
+        () => AssetBuildManifest.parse('rules: [\n'),
         throwsA(isA<ManifestFormatException>()),
       );
     });
   });
 
-  group('AssetManifest.readFrom', () {
+  group('AssetBuildManifest.readFrom', () {
     test('a project with no manifest file gets the empty manifest', () {
-      final manifest = AssetManifest.readFrom(
+      final manifest = AssetBuildManifest.readFrom(
         Directory.systemTemp.createTempSync('f3d_no_manifest_'),
       );
       expect(manifest.rules, isEmpty);

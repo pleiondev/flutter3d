@@ -12,6 +12,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:test/test.dart';
 
@@ -54,7 +55,7 @@ void main() {
     PanoramaSync().sync(_device(), scene, _lit(_hdr(8, 4, 200)));
 
     expect(scene.environment, isNotNull);
-    expect(scene.environmentLevels, kPanoramaCubeLevels);
+    expect(scene.environmentLevels, panoramaCubeLevels);
   });
 
   test('and a project with none leaves the scene alone', () {
@@ -65,7 +66,7 @@ void main() {
     // Mutation: clear the scene's own environment on every sync regardless.
     // A project with no panorama would then wipe an environment something
     // else had put there, and report having done work.
-    expect(sync.rebuiltLast, isFalse);
+    expect(sync.didRebuildLast, isFalse);
   });
 
   group('what it refuses to do twice', () {
@@ -74,7 +75,7 @@ void main() {
       final GraphicsDevice device = _device();
       final ModelProject project = _lit(_hdr(8, 4, 200));
       final sync = PanoramaSync()..sync(device, scene, project);
-      expect(sync.rebuiltLast, isTrue);
+      expect(sync.didRebuildLast, isTrue);
 
       sync.sync(device, scene, project);
 
@@ -82,7 +83,7 @@ void main() {
       // Mutation: rebuild every time, which is the obvious way to write
       // this — a viewport that redraws sixty times a second then spends
       // every one of them on a sky nobody moved.
-      expect(sync.rebuiltLast, isFalse);
+      expect(sync.didRebuildLast, isFalse);
     });
 
     test('and a different picture at the same index does rebuild', () {
@@ -95,7 +96,7 @@ void main() {
       // the case a bare index comparison would miss.
       sync.sync(device, scene, _lit(_hdr(16, 8, 200)));
 
-      expect(sync.rebuiltLast, isTrue);
+      expect(sync.didRebuildLast, isTrue);
     });
 
     test('and clearing it takes the cube off', () {
@@ -108,7 +109,7 @@ void main() {
 
       expect(scene.environment, isNull);
       expect(scene.environmentLevels, 0);
-      expect(sync.rebuiltLast, isTrue);
+      expect(sync.didRebuildLast, isTrue);
     });
   });
 }

@@ -3,6 +3,7 @@
 library;
 
 import 'package:flutter3d_core/flutter3d_core.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:test/test.dart';
 
@@ -28,6 +29,30 @@ const DeviceTraits _browser = DeviceTraits(
 );
 
 void main() {
+  group('DeviceClass.parse', () {
+    test('reads every class by its name', () {
+      for (final c in DeviceClass.values) {
+        expect(DeviceClass.parse(c.name), same(c));
+        expect(DeviceClass.tryParse(c.name), same(c));
+      }
+    });
+
+    // A name that is not a class is a mistake in the text read, and says so
+    // with the names that would have done; `tryParse` is the lookup that
+    // answers null.
+    test('refuses a name that is not a class, naming the ones that are', () {
+      expect(
+        () => DeviceClass.parse('console'),
+        throwsA(
+          isA<UnknownDeviceClassException>()
+              .having((e) => e.text, 'text', 'console')
+              .having((e) => e.message, 'message', contains('phone, web')),
+        ),
+      );
+      expect(DeviceClass.tryParse('console'), isNull);
+    });
+  });
+
   group('deviceClassPath', () {
     test('puts the class before the extension', () {
       expect(
@@ -87,6 +112,26 @@ void main() {
       expect(
         selector.choose(_desktopGpu, measuredMicros: 8000),
         DeviceClass.desktop,
+      );
+    });
+
+    test('the desktop limit is a Duration the caller sets', () {
+      // Mutation: compare against the default instead of `desktopLimit`, and
+      // the stricter selector keeps the 5 ms part a desktop.
+      const strict = DeviceClassSelector(
+        desktopLimit: Duration(milliseconds: 4),
+      );
+      expect(
+        strict.choose(_desktopGpu, measuredMicros: 4000),
+        DeviceClass.desktop,
+      );
+      expect(
+        strict.choose(_desktopGpu, measuredMicros: 5000),
+        DeviceClass.phone,
+      );
+      expect(
+        const DeviceClassSelector().desktopLimit,
+        const Duration(microseconds: 8000),
       );
     });
 

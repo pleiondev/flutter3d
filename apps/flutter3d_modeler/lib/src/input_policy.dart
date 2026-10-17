@@ -91,7 +91,7 @@ final class LongPressInput extends InputIntent {
 final class InputPolicy {
   const InputPolicy();
 
-  /// The minimum touch target, in logical pixels — Material's own 48dp
+  /// The minimum touch target, in logical pixels — RenderMaterial's own 48dp
   /// guideline, `ui-19`'s own "tap target 48 на тач". Kept here rather than
   /// invented again at each call site that lays out a button for touch.
   static const double touchTapTarget = 48.0;

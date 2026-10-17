@@ -1,0 +1,24 @@
+// A material in version 3 of the material language lit by the engine's
+// standard model, with its three injection points: the surface rewritten
+// before any light, a term added to the model's own answer to each light,
+// and a light type of a plugin's own lit in the model's loop. Never
+// rewritten once a release has read it.
+f3dmat 3
+material SheenStandard {
+  lighting standard;
+  uniform vec3 sheen = vec3(0.3, 0.25, 0.4);
+  uniform float wear = 0.25;
+  lighttype tube = acme.tube;
+
+  surface {
+    let worn = clamp(wear, 0.0, 1.0);
+    out roughness = mix(roughness, 1.0, worn * 0.5);
+    out albedo = albedo * (1.0 - 0.2 * worn);
+  }
+
+  light {
+    let rim = pow(1.0 - nDotV, 5.0);
+    let tubeGain = 1.0 + tube * lightParams.x;
+    return standard * tubeGain + sheen * rim * nDotL;
+  }
+}

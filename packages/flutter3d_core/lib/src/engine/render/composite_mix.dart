@@ -114,14 +114,17 @@ final class CompositeMix {
   final bool usesGlow;
 
   /// Multiplies the scene before tone mapping. One for a raw view.
+  /// A linear multiplier.
   final double exposure;
 
   /// Multiplies the bloom slot. Zero unless [usesGlow].
+  /// A unitless multiplier.
   final double bloomIntensity;
 
   /// Zero not to tone map; otherwise the chosen curve's [TonemapCurve.code].
   /// A float because it goes straight into the uniform the shader selects the
   /// curve by.
+  /// A code, not a quantity: it has no unit.
   final double tonemap;
 
   /// Whether this mix would multiply in a texture that is not a glow.

@@ -1,3 +1,5 @@
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Severity;
+
 import 'level.dart';
 import 'level_issue.dart';
 
@@ -16,7 +18,24 @@ import 'level_issue.dart';
 abstract base class LevelRule {
   const LevelRule();
 
-  void check(Level level, List<LevelIssue> out);
+  /// Adds what is wrong with the check's level to its [LevelCheck.out].
+  void check(LevelCheck check);
+}
+
+/// What [LevelRule.check] is handed: the level, and the list its problems go
+/// in.
+///
+/// **One object, so a minor can hand a rule more** — the registry of entity
+/// kinds, the document's version — without breaking a rule written against
+/// 1.0.
+final class LevelCheck {
+  const LevelCheck({required this.level, required this.out});
+
+  /// The level being checked.
+  final Level level;
+
+  /// Where its problems go.
+  final List<LevelIssue> out;
 }
 
 /// There must be exactly this many of a type, no more and no fewer.
@@ -33,12 +52,14 @@ final class ExactlyOne extends LevelRule {
   final String? because;
 
   @override
-  void check(Level level, List<LevelIssue> out) {
+  void check(LevelCheck check) {
+    final level = check.level;
+    final out = check.out;
     final count = level.ofType(type).length;
     if (count == 1) return;
     out.add(
       LevelIssue(
-        LevelIssueSeverity.error,
+        Severity.error,
         count == 0
             ? 'no $type${because == null ? '' : ': $because'}'
             : 'there are $count $type entities and nothing decides which is '
@@ -50,18 +71,16 @@ final class ExactlyOne extends LevelRule {
 
 /// There should be at least one of a type, or the level is missing something.
 final class AtLeastOne extends LevelRule {
-  const AtLeastOne(
-    this.type, {
-    this.because,
-    this.severity = LevelIssueSeverity.warning,
-  });
+  const AtLeastOne(this.type, {this.because, this.severity = Severity.warning});
 
   final String type;
   final String? because;
-  final LevelIssueSeverity severity;
+  final Severity severity;
 
   @override
-  void check(Level level, List<LevelIssue> out) {
+  void check(LevelCheck check) {
+    final level = check.level;
+    final out = check.out;
     if (level.ofType(type).isNotEmpty) return;
     out.add(
       LevelIssue(severity, 'no $type${because == null ? '' : ': $because'}'),

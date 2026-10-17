@@ -12,7 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
 Brush _brush(Vector3 at, {Vector3? size, bool solid = true}) =>
-    Brush(centre: at, size: size ?? Vector3(2.0, 2.0, 2.0), solid: solid);
+    Brush(center: at, size: size ?? Vector3(2.0, 2.0, 2.0), solid: solid);
 
 void main() {
   test('the ray finds what is in front of it', () {

@@ -55,7 +55,10 @@ const double fingerBoxSlop = 12.0;
 /// wobble as a box in replace mode throws the selection away.
 double boxSlopFor(PointerDeviceKind pointer) => switch (pointer) {
   PointerDeviceKind.touch || PointerDeviceKind.unknown => fingerBoxSlop,
-  _ => cursorBoxSlop,
+  PointerDeviceKind.mouse ||
+  PointerDeviceKind.stylus ||
+  PointerDeviceKind.invertedStylus ||
+  PointerDeviceKind.trackpad => cursorBoxSlop,
 };
 
 /// What a released rectangle does to the selection it found.

@@ -16,7 +16,8 @@ final class ParticleSizeCurve extends ParticleAffector {
   final ParticleCurve curve;
 
   @override
-  void apply(Particle particle, double dt) {
+  void apply(ParticleStep step) {
+    final particle = step.particle;
     final birth = particle.birthSize;
     if (birth <= 0.0) return;
     particle.size = birth * curve.sample(particle.life);
@@ -30,8 +31,9 @@ final class ParticleColorGradient extends ParticleAffector {
   final ParticleGradient gradient;
 
   @override
-  void apply(Particle particle, double dt) {
-    gradient.sampleInto(particle.color, particle.life);
+  void apply(ParticleStep step) {
+    final particle = step.particle;
+    gradient.sampleInto(particle.linearRgba, particle.life);
   }
 }
 
@@ -49,7 +51,7 @@ final class ParticleColorGradient extends ParticleAffector {
 final class ParticleSpin extends ParticleAffector {
   const ParticleSpin({
     required this.turnsPerSecond,
-    this.randomiseStart = true,
+    this.randomizeStart = true,
   });
 
   /// The fastest a particle spins, in whole turns a second. Each takes a signed
@@ -57,12 +59,13 @@ final class ParticleSpin extends ParticleAffector {
   final double turnsPerSecond;
 
   /// Whether a particle starts at a random angle rather than at zero.
-  final bool randomiseStart;
+  final bool randomizeStart;
 
   @override
-  void apply(Particle particle, double dt) {
+  void apply(ParticleStep step) {
+    final particle = step.particle;
     final spin = (particle.seed * 2.0 - 1.0) * turnsPerSecond;
-    final start = randomiseStart ? particle.seed * _tau : 0.0;
+    final start = randomizeStart ? particle.seed * _tau : 0.0;
     particle.rotation = start + spin * particle.age * _tau;
   }
 }

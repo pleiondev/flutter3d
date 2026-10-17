@@ -40,6 +40,7 @@ MATERIALS = [
     ("ceiling", "Concrete042A", "Mottled grey, the ceilings"),
     ("stone", "PavingStones128", "Cut ashlar, pillars and stairs"),
     ("metal", "Metal046B", "Dark worn iron, doors and lifts"),
+    ("planks", "Planks023A", "Grey weathered boards, the crates and barrels"),
 ]
 
 SOURCE = "https://ambientcg.com/get?file={asset}_1K-PNG.zip"

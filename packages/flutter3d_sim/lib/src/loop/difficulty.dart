@@ -42,13 +42,13 @@ final class Difficulty {
   /// with the same name are the same difficulty.
   final String name;
 
-  /// What the player is hurt by, multiplied.
+  /// What the player is hurt by, multiplied: a unitless multiplier.
   ///
   /// The axis every action game turns first, and the one a player feels
   /// immediately: half damage is twice as many mistakes before dying.
   final double damageTaken;
 
-  /// What the player's own attacks are worth, multiplied.
+  /// What the player's own attacks are worth: a unitless multiplier.
   ///
   /// Separate from [damageTaken] because they are not the same experience.
   /// Taking less damage makes a fight longer and more forgiving; dealing more
@@ -56,8 +56,8 @@ final class Difficulty {
   /// on its own.
   final double damageDealt;
 
-  /// How quickly the opposition reacts, multiplied — **and it is a duration,
-  /// so smaller is harder.**
+  /// How quickly the opposition reacts: a unitless multiplier — **and what
+  /// it scales is a duration, so smaller is harder.**
   ///
   /// Named for what it scales rather than for what it means, because the sign
   /// is the thing people get wrong: a monster's alert duration and a driver's

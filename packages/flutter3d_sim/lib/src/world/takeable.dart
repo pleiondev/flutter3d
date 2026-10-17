@@ -72,7 +72,7 @@ abstract base class Takeable extends Mechanism with CollisionListener {
   String? message;
 
   @override
-  Vector3 get origin => collider.position;
+  Vector3 get origin => collider.position.clone();
 
   /// Offers this to [taker], and answers whether they took it.
   ///
@@ -103,12 +103,14 @@ abstract base class Takeable extends Mechanism with CollisionListener {
   }
 
   @override
-  void onCollisionStart(Collider self, Collider other) {
+  void onCollisionStart(CollisionContext context) {
+    final other = context.other;
     activate(world.activationBy(other));
   }
 
   @override
-  void onCollision(Collider self, Collider other) {
+  void onCollision(CollisionContext context) {
+    final other = context.other;
     if (retryWhileTouching && !_taken) activate(world.activationBy(other));
   }
 

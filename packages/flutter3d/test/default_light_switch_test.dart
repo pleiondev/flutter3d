@@ -12,6 +12,11 @@
 library;
 
 import 'package:flutter3d/flutter3d.dart';
+// ignore: implementation_imports
+import 'package:flutter3d_core/src/engine/render/renderer.dart'
+    show RendererInternals;
+// ignore: implementation_imports
+import 'package:flutter3d_core/src/engine/scene/light_buffer.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -24,7 +29,7 @@ LightBuffer _framedLights(Scene scene) {
     width: 64,
     height: 64,
     scene: scene,
-    views: <RenderView>[RenderView(camera: scene.cameras.single)],
+    views: <CameraView>[CameraView(camera: scene.cameras.single)],
   );
   return renderer.lights;
 }
@@ -45,7 +50,7 @@ void main() {
     // The case that made the switch necessary: this scene has a light node in
     // it, so "there are no lights" is not what its author would say — but the
     // buffer is filled from live lights, and a hidden one is not live.
-    final scene = _scene()..add(LightNode()..visible = false);
+    final scene = _scene()..add(LightNode()..isVisible = false);
     expect(_framedLights(scene).count, 1, reason: 'the default light, still');
 
     scene.defaultLightWhenUnlit = false;
@@ -63,7 +68,7 @@ void main() {
     for (final unlitDefault in <bool>[true, false]) {
       final scene = _scene()
         ..defaultLightWhenUnlit = unlitDefault
-        ..add(LightNode(intensity: 2.0));
+        ..add(LightNode(intensity: 2.0 * LightNode.defaultIntensity));
       expect(_framedLights(scene).count, 1);
     }
   });

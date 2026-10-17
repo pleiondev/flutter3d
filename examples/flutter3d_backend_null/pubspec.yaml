@@ -1,0 +1,49 @@
+name: flutter3d_backend_null
+description: "A graphics backend written outside the engine against its published API only: a device with no GPU that keeps textures in memory, refuses every pipeline at its first draw, and passes the conformance suite."
+publish_to: 'none'
+version: 1.0.0
+resolution: workspace
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+
+# **Every engine package by path, as an outside project overrides them.** No
+# `src/` import anywhere in this package: the structure rule `an outside
+# example reaches only the published API` reads every file here and refuses
+# one, so what this backend does is what anybody's can.
+dependencies:
+  # The device contract, the handles a backend wraps its objects in
+  # (`backend.dart`), and the bundle format.
+  flutter3d_hardware:
+    path: ../../packages/flutter3d_hardware
+
+  # The shader contract: the material compiler a backend registers.
+  flutter3d_shaders:
+    path: ../../packages/flutter3d_shaders
+
+  # `Registration`, what adding the backend to a registry hands back.
+  flutter3d_foundation:
+    path: ../../packages/flutter3d_foundation
+
+# **What makes a project's build compile for this backend.** The build hook
+# finds this among a project's dependencies and runs the compiler named here
+# for this backend's section of the engine's bundle and of every plugin
+# material, as it runs `impellerc` for Impeller's. `backend` is the device's
+# `backendId` and `section` its compiler's `bundleSection`, read without
+# running anything.
+flutter3d_backend:
+  backend: 'null'
+  section: 'null'
+  compiler: bin/material_compiler.dart
+
+dev_dependencies:
+  test: ^1.25.0
+
+  # The suite a backend is held to.
+  flutter3d_conformance:
+    path: ../../packages/flutter3d_conformance
+
+  # The engine's renderer, run on this device in a test.
+  flutter3d_core:
+    path: ../../packages/flutter3d_core
+  vector_math: ^2.2.0

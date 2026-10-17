@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import '../format_exceptions.dart';
 import '../meshopt/meshopt_index_codec.dart';
 import '../meshopt/meshopt_vertex_codec.dart';
 import 'gltf_accessor_type.dart';
@@ -80,7 +81,7 @@ final class GltfAccessorReader {
   /// `KHR_draco_mesh_compression` names its payload.
   Uint8List bytesOfBufferView(int index) {
     if (index < 0 || index >= _bufferViews.length) {
-      throw FormatException('bufferViews[$index] does not exist.');
+      throw GltfFormatException('bufferViews[$index] does not exist.');
     }
     final data = _resolveView(index, -1).data;
     return Uint8List.sublistView(data);
@@ -112,7 +113,7 @@ final class GltfAccessorReader {
         countOf(accessorIndex) * typeOf(accessorIndex).componentCount;
     final actual = integers?.length ?? floats?.length;
     if (actual != expected) {
-      throw FormatException(
+      throw GltfFormatException(
         'accessors[$accessorIndex] declares $expected components and the '
         'decoded data has $actual.',
       );
@@ -147,7 +148,7 @@ final class GltfAccessorReader {
             normalized ? componentType.normalize(v) : v.toDouble(),
         ]),
         (:final floats?, integers: null) => floats,
-        (floats: null, integers: null) => throw FormatException(
+        (floats: null, integers: null) => throw GltfFormatException(
           'accessors[$accessorIndex] was supplied no data.',
         ),
       };
@@ -175,7 +176,7 @@ final class GltfAccessorReader {
     final components = type.componentCount;
 
     if (componentType == GltfComponentType.float) {
-      throw FormatException(
+      throw GltfFormatException(
         'accessors[$accessorIndex] is float but was read as integers.',
       );
     }
@@ -221,7 +222,7 @@ final class GltfAccessorReader {
       // attributes; without one, elements are tightly packed.
       final stride = view.byteStride ?? elementSize;
       if (accessorOffset < 0 || count < 0 || stride < elementSize) {
-        throw FormatException(
+        throw GltfFormatException(
           'accessors[$accessorIndex] has byteOffset $accessorOffset, count '
           '$count and a stride of $stride for $elementSize-byte elements.',
         );
@@ -230,7 +231,7 @@ final class GltfAccessorReader {
       final available = view.data.lengthInBytes - accessorOffset;
       final needed = count == 0 ? 0 : (count - 1) * stride + elementSize;
       if (needed > available) {
-        throw FormatException(
+        throw GltfFormatException(
           'accessors[$accessorIndex] needs $needed bytes at offset '
           '$accessorOffset but bufferViews[$bufferViewIndex] only provides '
           '$available.',
@@ -266,7 +267,7 @@ final class GltfAccessorReader {
     final indices = sparse['indices'];
     final values = sparse['values'];
     if (indices is! Map || values is! Map) {
-      throw FormatException(
+      throw GltfFormatException(
         'accessors[$accessorIndex].sparse needs both indices and values.',
       );
     }
@@ -303,7 +304,7 @@ final class GltfAccessorReader {
             indexView.data.lengthInBytes ||
         valueOffset + sparseCount * elementSize >
             valueView.data.lengthInBytes) {
-      throw FormatException(
+      throw GltfFormatException(
         'accessors[$accessorIndex].sparse names $sparseCount entries, more '
         'than its indices or values buffer views hold.',
       );
@@ -315,7 +316,7 @@ final class GltfAccessorReader {
         indexOffset + i * indexComponent.sizeInBytes,
       );
       if (target < 0 || target >= count) {
-        throw FormatException(
+        throw GltfFormatException(
           'accessors[$accessorIndex].sparse replaces element $target of '
           '$count.',
         );
@@ -326,7 +327,7 @@ final class GltfAccessorReader {
 
   _ResolvedView _resolveView(int index, int accessorIndex) {
     if (index < 0 || index >= _bufferViews.length) {
-      throw FormatException(
+      throw GltfFormatException(
         'accessors[$accessorIndex] references bufferViews[$index], which does '
         'not exist.',
       );
@@ -351,7 +352,7 @@ final class GltfAccessorReader {
 
     final bufferIndex = _requireInt(view, 'buffer', index);
     if (bufferIndex < 0 || bufferIndex >= buffers.length) {
-      throw FormatException(
+      throw GltfFormatException(
         'bufferViews[$index] references buffers[$bufferIndex], which was not '
         'resolved.',
       );
@@ -363,7 +364,7 @@ final class GltfAccessorReader {
     if (byteOffset < 0 ||
         byteLength < 0 ||
         byteOffset + byteLength > buffer.length) {
-      throw FormatException(
+      throw GltfFormatException(
         'bufferViews[$index] spans ${byteOffset + byteLength} bytes but '
         'buffers[$bufferIndex] holds only ${buffer.length}.',
       );
@@ -387,14 +388,14 @@ final class GltfAccessorReader {
   Uint8List _decodeMeshopt(Map<String, Object?> compression, int viewIndex) {
     final filter = compression['filter'] ?? 'NONE';
     if (filter != 'NONE') {
-      throw FormatException(
+      throw GltfFormatException(
         'bufferViews[$viewIndex]\'s EXT_meshopt_compression names filter '
         '"$filter", which this reader does not undo (only NONE).',
       );
     }
     final bufferIndex = _requireInt(compression, 'buffer', viewIndex);
     if (bufferIndex < 0 || bufferIndex >= buffers.length) {
-      throw FormatException(
+      throw GltfFormatException(
         'bufferViews[$viewIndex]\'s EXT_meshopt_compression references '
         'buffers[$bufferIndex], which was not resolved.',
       );
@@ -410,7 +411,7 @@ final class GltfAccessorReader {
         byteLength < 0 ||
         count < 0 ||
         byteOffset + byteLength > buffer.length) {
-      throw FormatException(
+      throw GltfFormatException(
         'bufferViews[$viewIndex]\'s EXT_meshopt_compression spans '
         '${byteOffset + byteLength} bytes but buffers[$bufferIndex] holds '
         'only ${buffer.length}.',
@@ -439,7 +440,7 @@ final class GltfAccessorReader {
       // no elements at all.
       'ATTRIBUTES'
           when byteStride < 4 || byteStride > 256 || byteStride % 4 != 0 =>
-        throw FormatException(
+        throw GltfFormatException(
           'bufferViews[$viewIndex]\'s EXT_meshopt_compression names an '
           'ATTRIBUTES byteStride of $byteStride; it must be a multiple of 4 '
           'from 4 to 256.',
@@ -449,7 +450,7 @@ final class GltfAccessorReader {
         count,
         byteStride,
       ),
-      _ => throw FormatException(
+      _ => throw GltfFormatException(
         'bufferViews[$viewIndex]\'s EXT_meshopt_compression names mode '
         '"$mode", which this reader does not decode (only ATTRIBUTES and '
         'TRIANGLES).',
@@ -475,7 +476,7 @@ final class GltfAccessorReader {
         }
         return narrow.buffer.asUint8List();
       default:
-        throw FormatException(
+        throw GltfFormatException(
           'bufferViews[$viewIndex]\'s EXT_meshopt_compression names a '
           'TRIANGLES byteStride of $byteStride, and an index is 2 or 4 '
           'bytes.',
@@ -485,7 +486,7 @@ final class GltfAccessorReader {
 
   Map<String, Object?> _accessor(int index) {
     if (index < 0 || index >= _accessors.length) {
-      throw FormatException('accessors[$index] does not exist.');
+      throw GltfFormatException('accessors[$index] does not exist.');
     }
     return _accessors[index];
   }
@@ -510,13 +511,13 @@ int _requireInt(Map<String, Object?> map, String key, int index) {
   final value = map[key];
   if (value is int) return value;
   if (value is double && value == value.roundToDouble()) return value.toInt();
-  throw FormatException('Entry $index is missing required int "$key".');
+  throw GltfFormatException('Entry $index is missing required int "$key".');
 }
 
 String _requireString(Map<String, Object?> map, String key, int index) {
   final value = map[key];
   if (value is String) return value;
-  throw FormatException('Entry $index is missing required string "$key".');
+  throw GltfFormatException('Entry $index is missing required string "$key".');
 }
 
 int? _optionalInt(Map<String, Object?> map, String key) {

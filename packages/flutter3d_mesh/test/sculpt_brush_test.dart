@@ -72,7 +72,7 @@ void main() {
       final mesh = cube();
       final c2 = vertexNear(mesh, Vector3(1, 1, -1));
       final c6 = vertexNear(mesh, Vector3(1, 1, 1));
-      const brush = Brush(
+      const brush = MeshBrush(
         kind: BrushKind.draw,
         radius: 1.01,
         strength: 0.2,
@@ -98,7 +98,7 @@ void main() {
         final mesh = cube();
         final c2 = vertexNear(mesh, Vector3(1, 1, -1));
         final c6 = vertexNear(mesh, Vector3(1, 1, 1));
-        const brush = Brush(
+        const brush = MeshBrush(
           kind: BrushKind.inflate,
           radius: 1.01,
           strength: 0.2,
@@ -128,7 +128,7 @@ void main() {
       () {
         final mesh = cube();
         final c6 = vertexNear(mesh, Vector3(1, 1, 1));
-        const brush = Brush(
+        const brush = MeshBrush(
           kind: BrushKind.clay,
           radius: 0.5,
           strength: 0.1,
@@ -157,7 +157,7 @@ void main() {
     test(
       'is inert with identical neighbours, moves toward a perturbed average',
       () {
-        const brush = Brush(
+        const brush = MeshBrush(
           kind: BrushKind.smooth,
           radius: 0.5,
           strength: 1.0,
@@ -196,7 +196,7 @@ void main() {
         final lowered = vertexNear(mesh, Vector3(cos(pi), sin(pi), -2.0));
         // Radius wide enough to still reach the raised/lowered ring vertices,
         // which raising or lowering has pushed further than 1 from the origin.
-        const brush = Brush(
+        const brush = MeshBrush(
           kind: BrushKind.flatten,
           radius: 2.5,
           strength: 1.0,
@@ -216,7 +216,7 @@ void main() {
   group('grab', () {
     test('drags every touched vertex by the brush\'s own rigid delta', () {
       final mesh = cube();
-      const brush = Brush(
+      const brush = MeshBrush(
         kind: BrushKind.grab,
         radius: 0.5,
         strength: 1.0,
@@ -239,7 +239,7 @@ void main() {
   group('pinch', () {
     test('pulls toward the brush centre within the tangent plane only', () {
       final mesh = cube();
-      const brush = Brush(
+      const brush = MeshBrush(
         kind: BrushKind.pinch,
         radius: 1.0,
         strength: 1.0,
@@ -265,7 +265,7 @@ void main() {
       'combines pinch\'s tangential pull with an inward fold along the normal',
       () {
         final mesh = cube();
-        const brush = Brush(
+        const brush = MeshBrush(
           kind: BrushKind.crease,
           radius: 1.0,
           strength: 1.0,
@@ -289,7 +289,7 @@ void main() {
   group('symmetry', () {
     test('mirrors a stroke across x=0 to 1e-6', () {
       final mesh = cube();
-      const brush = Brush(
+      const brush = MeshBrush(
         kind: BrushKind.grab,
         radius: 0.5,
         strength: 1.0,

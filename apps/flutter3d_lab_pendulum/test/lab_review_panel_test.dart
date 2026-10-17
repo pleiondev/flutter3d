@@ -4,7 +4,7 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:flutter3d_lab/flutter3d_lab.dart';
+import 'package:flutter3d_education/lab.dart';
 import 'package:flutter3d_lab_pendulum/src/lab_review_panel.dart';
 import 'package:flutter_test/flutter_test.dart';
 

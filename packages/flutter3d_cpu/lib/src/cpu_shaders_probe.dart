@@ -35,7 +35,7 @@ Vector3 probeFaceDirection(int face, double s, double t) {
 /// which is the same arithmetic on the host: this is the transcription the
 /// cross-backend comparison of `probe-car` rests on, and a transcription of a
 /// transcription is one drift further from the thing it stands for.
-final class ProbePrefilterShader implements CpuFragmentShader {
+final class ProbePrefilterShader extends CpuFragmentShader {
   const ProbePrefilterShader();
 
   @override

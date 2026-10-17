@@ -21,6 +21,8 @@ part of 'frame_graph.dart';
 /// order produces the next version of a name and each read binds to the version
 /// current at that moment, so a chain of passes over one target is a chain of
 /// versions and the order falls out of it rather than being special-cased.
+///
+/// A test or a tool makes one with `FrameGraph()` to compile its own passes.
 final class FrameGraph {
   final List<FrameGraphNode> _nodes = <FrameGraphNode>[];
   final Set<String> _external = <String>{};
@@ -72,24 +74,194 @@ final class FrameGraph {
   /// produces, a cycle, a requested output that does not exist. All of it at
   /// compile rather than mid-frame, which is the difference between a message
   /// naming two passes and a blank screen.
+  ///
+  /// [switchedOff] names the passes that belong to a step the caller switched
+  /// off through its settings — `RenderSettings.without`. It decides nothing
+  /// about the frame: such a pass is already inactive by its own
+  /// [FrameGraphNode.isActive], and the name only changes what that inactivity
+  /// is reported as, [PassSkip.settings] becoming [PassSkip.switchedOff]. A
+  /// pass in it that turned out active anyway runs and is not reported, since
+  /// the report is about what happened rather than about what was asked.
+  ///
+  /// **Compiled once while nothing changes.** What decides the frame is the
+  /// nodes in registration order with their names, declarations, `isActive`
+  /// and `isSupported`, the external resources, [outputs], [disabled] and
+  /// [switchedOff]; a graph that holds the same of all of them as at the
+  /// last compile gives that compile back, the same object when the nodes
+  /// are, and otherwise the same order over this call's nodes, matched by
+  /// name — a renderer builds its nodes again every frame, and a frame that
+  /// changed nothing asks the same question. [clear] keeps what the last
+  /// compile was, so one graph cleared and refilled each frame is the way
+  /// to use it.
+  ///
+  /// **What a node declares is what its [FrameGraphNode.setup] hands the
+  /// builder**, asked once per compile; the getters are what the default
+  /// `setup` hands it. Resources a node made with [FrameGraphBuilder.create]
+  /// are in [CompiledFrameGraph.created]; a node that asked where it runs
+  /// ([FrameGraphBuilder.place]) is placed by [placer] — the hook the compute
+  /// placement plugs into — and one nobody places is dropped as
+  /// [PassSkip.unsupported]; one whose placement the placer is still
+  /// working out ([FramePlacer.pending]), like a node that is not
+  /// [FrameGraphNode.isReady], as [PassSkip.pending].
+  ///
+  /// [failed] names the passes quarantined after they threw: left out like
+  /// a switched-off pass, and reported as [PassSkip.failed].
   CompiledFrameGraph compile({
     required List<ResourceId> outputs,
     Set<String> disabled = const <String>{},
+    Set<String> switchedOff = const <String>{},
+    Set<String> failed = const <String>{},
+    FramePlacer? placer,
+  }) {
+    final declared = <FrameGraphNode, NodeDeclarations>{
+      for (final node in _nodes) node: NodeDeclarations.of(node),
+    };
+    final key = _inputsOf(
+      declared,
+      outputs,
+      disabled,
+      switchedOff,
+      failed,
+      placer,
+    );
+    final last = _lastCompiled;
+    if (last != null && _sameInputs(key, _lastInputs)) {
+      return _lastCompiled = _overNodes(last, _nodes);
+    }
+    final compiled = _compileAfresh(
+      declared: declared,
+      outputs: outputs,
+      disabled: disabled,
+      switchedOff: switchedOff,
+      failed: failed,
+      placer: placer,
+    );
+    _lastInputs = key;
+    _lastNodes = List<FrameGraphNode>.of(_nodes);
+    return _lastCompiled = compiled;
+  }
+
+  /// What the last [compile] was asked, and what it answered.
+  List<Object?>? _lastInputs;
+  List<FrameGraphNode> _lastNodes = const <FrameGraphNode>[];
+  CompiledFrameGraph? _lastCompiled;
+
+  /// Everything [compile]'s answer depends on, flattened: each list is its
+  /// length followed by its members, so two inputs are the same exactly when
+  /// the flattened lists are.
+  List<Object?> _inputsOf(
+    Map<FrameGraphNode, NodeDeclarations> declared,
+    List<ResourceId> outputs,
+    Set<String> disabled,
+    Set<String> switchedOff,
+    Set<String> failed,
+    FramePlacer? placer,
+  ) {
+    final key = <Object?>[_external.length, ..._external];
+    void ids(List<ResourceId> list) {
+      key.add(list.length);
+      for (final id in list) {
+        key.add(id.name);
+      }
+    }
+
+    key.add(_nodes.length);
+    for (final node in _nodes) {
+      final d = declared[node]!;
+      key
+        ..add(node.name)
+        ..add(node.isActive)
+        ..add(node.isSupported)
+        ..add(node.isReady);
+      ids(d.reads);
+      ids(d.optionalReads);
+      ids(d.writes);
+      ids(d.keeps);
+      key
+        ..add(d.created.length)
+        ..addAll(d.created)
+        ..add(d.placement);
+    }
+    ids(outputs);
+    // A placer answers per compile, and the same placer asked the same
+    // questions answers the same; a different one may not.
+    key.add(placer);
+    key
+      ..add(disabled.length)
+      ..addAll(disabled)
+      ..add(switchedOff.length)
+      ..addAll(switchedOff)
+      ..add(failed.length)
+      ..addAll(failed);
+    return key;
+  }
+
+  static bool _sameInputs(List<Object?> a, List<Object?>? b) {
+    if (b == null || a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
+  /// [compiled] over [nodes]: itself when they are the nodes it was compiled
+  /// from, and otherwise the same answer with each node replaced by the one
+  /// of [nodes] that has its name.
+  CompiledFrameGraph _overNodes(
+    CompiledFrameGraph compiled,
+    List<FrameGraphNode> nodes,
+  ) {
+    var same = nodes.length == _lastNodes.length;
+    for (var i = 0; same && i < nodes.length; i++) {
+      same = identical(nodes[i], _lastNodes[i]);
+    }
+    if (same) return compiled;
+    _lastNodes = List<FrameGraphNode>.of(nodes);
+    final byName = <String, FrameGraphNode>{
+      for (final node in nodes) node.name: node,
+    };
+    return CompiledFrameGraph._(
+      compiled._lastUse,
+      compiled._readers,
+      compiled._bindings,
+      compiled._current,
+      compiled._kept,
+      order: <FrameGraphNode>[
+        for (final node in compiled.order) byName[node.name]!,
+      ],
+      culled: <FrameGraphNode>[
+        for (final node in compiled.culled) byName[node.name]!,
+      ],
+      outputs: compiled.outputs,
+      skipped: compiled.skipped,
+      created: compiled._created,
+      placements: compiled._placements,
+    );
+  }
+
+  CompiledFrameGraph _compileAfresh({
+    required Map<FrameGraphNode, NodeDeclarations> declared,
+    required List<ResourceId> outputs,
+    required Set<String> disabled,
+    required Set<String> switchedOff,
+    required Set<String> failed,
+    required FramePlacer? placer,
   }) {
     // Known at all, whether or not it runs this frame. The difference between
     // this and the active set is the difference between a misspelled name and
     // a feature somebody switched off, and those must not report the same way.
     final known = <String>{..._external};
     for (final node in _nodes) {
-      for (final id in <ResourceId>[...node.writes, ...node.keeps]) {
+      final d = declared[node]!;
+      for (final id in <ResourceId>[...d.writes, ...d.keeps]) {
         known.add(id.name);
       }
       // Two opposite promises about one name. Checked here rather than trusted,
       // because the reader that would suffer is in another package and the
       // symptom — a texture that is sometimes this frame's and sometimes not —
       // is the kind that gets diagnosed as a driver problem.
-      for (final id in node.keeps) {
-        if (!node.writes.any((w) => w.name == id.name)) continue;
+      for (final id in d.keeps) {
+        if (!d.writes.any((w) => w.name == id.name)) continue;
         throw FrameGraphError(
           '"${node.name}" both writes and keeps "$id". A write says the pixels '
           'are this frame\'s and a keep says they may not be; one name cannot '
@@ -99,7 +271,8 @@ final class FrameGraph {
     }
 
     for (final node in _nodes) {
-      for (final id in <ResourceId>[...node.reads, ...node.optionalReads]) {
+      final d = declared[node]!;
+      for (final id in <ResourceId>[...d.reads, ...d.optionalReads]) {
         if (known.contains(id.name)) continue;
         throw FrameGraphError(
           '"${node.name}" reads "$id", which nothing writes and which is not '
@@ -155,119 +328,192 @@ final class FrameGraph {
     // `gfx-50n` adds the third clause, beside rather than inside `isActive`:
     // a pass this device cannot run is dropped the same way, and the reason
     // it is reported by is the one thing about it a caller cannot fix.
-    final active = _nodes
-        .where((n) => n.isActive && n.supported && !disabled.contains(n.name))
+    // A node that asked where it runs is placed here, before anything is
+    // versioned: one nobody can place is as absent as one this device
+    // cannot run, and is reported the same way.
+    // A node that is still loading what it runs with — not ready, or a
+    // placement the placer has not finished — is left out as pending, and
+    // one that threw before is left out as failed: both as absent as a node
+    // this device cannot run, each reported under its own reason.
+    final placements = <String, Object>{};
+    final unplaced = <FrameGraphNode>{};
+    final waiting = <FrameGraphNode>{};
+    for (final node in _nodes) {
+      final request = declared[node]!.placement;
+      if (request == null ||
+          !node.isActive ||
+          disabled.contains(node.name) ||
+          failed.contains(node.name)) {
+        continue;
+      }
+      final placed = placer?.place(
+        FramePlacementContext._(node, request, declared[node]!),
+      );
+      if (placed == null) {
+        unplaced.add(node);
+      } else if (identical(placed, FramePlacer.pending)) {
+        waiting.add(node);
+      } else {
+        placements[node.name] = placed;
+      }
+    }
+    bool supported(FrameGraphNode node) =>
+        node.isSupported && !unplaced.contains(node);
+    bool ready(FrameGraphNode node) => node.isReady && !waiting.contains(node);
+
+    final eligible = _nodes
+        .where(
+          (n) =>
+              n.isActive &&
+              ready(n) &&
+              supported(n) &&
+              !disabled.contains(n.name) &&
+              !failed.contains(n.name),
+        )
         .toList();
 
-    // Versions, in registration order rather than in the order the frame turns
-    // out to run. Nothing else would be stable: the order is derived from these
-    // bindings, so deriving the bindings from the order would be circular.
-    final current = <String, int>{};
-    final reads = <Map<String, int>>[];
-    final hardReads = <Map<String, int>>[];
-    final writes = <Map<String, int>>[];
-    final kept = <ResourceVersion>{};
-    for (final node in active) {
-      final read = <String, int>{};
-      final hard = <String, int>{};
-      for (final id in node.reads) {
-        final version = current[id.name] ?? 0;
-        read[id.name] = version;
-        hard[id.name] = version;
-      }
-      for (final id in node.optionalReads) {
-        read[id.name] ??= current[id.name] ?? 0;
-      }
-      // Reads first, then writes: a node that does both consumes v and
-      // produces v+1, which is what "read-modify-write" means and what the
-      // edge rule used to approximate with a special case for a node reading
-      // what it also writes.
-      //
-      // Keeps are versioned exactly like writes, and deliberately in the same
-      // pass: a maintained resource is still produced by the node that
-      // maintains it, so a reader binds to that version and is ordered after
-      // it. Only the promise about the pixels differs, and that is recorded
-      // beside the version rather than changing how it is assigned.
-      final write = <String, int>{};
-      for (final id in node.writes) {
-        final version = (current[id.name] ?? 0) + 1;
-        current[id.name] = version;
-        write[id.name] = version;
-      }
-      for (final id in node.keeps) {
-        final version = (current[id.name] ?? 0) + 1;
-        current[id.name] = version;
-        write[id.name] = version;
-        kept.add(ResourceVersion(id, version));
-      }
-      reads.add(read);
-      hardReads.add(hard);
-      writes.add(write);
-    }
-
-    // A consumer registered before its producer binds to version zero, which
-    // exists only for an external resource. That is the ordinary case — the
-    // whole point of the graph is that registration order need not be run
-    // order — so such a read means "the resource as the frame finally leaves
-    // it" and binds to the last version instead.
-    void resolveForwardReferences(Map<String, int> bindings) {
-      for (final name in bindings.keys.toList()) {
-        if (bindings[name] != 0 || _external.contains(name)) continue;
-        final last = current[name] ?? 0;
-        if (last > 0) bindings[name] = last;
-      }
-    }
-
-    for (var i = 0; i < active.length; i++) {
-      resolveForwardReferences(reads[i]);
-      resolveForwardReferences(hardReads[i]);
-    }
-
-    final producer = <ResourceVersion, int>{};
-    for (var i = 0; i < active.length; i++) {
-      writes[i].forEach((name, version) {
-        producer[ResourceVersion(ResourceId(name), version)] = i;
-      });
-    }
-
     // A node whose input exists in principle but is not produced this frame
-    // cannot run, and neither can anything downstream of it. Switching bloom
-    // off has to remove the passes that only fed it, not raise an error and
-    // not leave them drawing into a texture nobody reads. Iterated to a fixed
-    // point because dropping one node can starve the next.
-    final runnable = List<bool>.filled(active.length, true);
-    bool produced(String name, int version) {
-      // Version zero is the engine's own texture, and only exists if the
-      // engine said so.
-      if (version == 0) return _external.contains(name);
-      final index = producer[ResourceVersion(ResourceId(name), version)];
-      return index != null && runnable[index];
-    }
+    // cannot run, and is then as absent as a switched-off one: it takes no
+    // version, for the reason a switched-off node takes none. A reader of
+    // its output starves after it, since nothing else produces what it
+    // makes — switching bloom off removes the passes that only fed it — but
+    // a pass it would have drawn over in place reads what the pass before
+    // it left. A plugin's node that reads the scene's colour and something
+    // still loading, or a writer that was quarantined, would otherwise take
+    // the composite down with it, and the frame with the composite.
+    // Versioned again without the starved, to a fixed point, because
+    // dropping one node can starve the next.
+    final starved = <FrameGraphNode>{};
+    ({
+      List<FrameGraphNode> active,
+      Map<String, int> current,
+      List<Map<String, int>> reads,
+      List<Map<String, int>> writes,
+      Set<ResourceVersion> kept,
+      Map<ResourceVersion, int> producer,
+    })
+    settle(List<FrameGraphNode> active) {
+      // Versions, in registration order rather than in the order the frame turns
+      // out to run. Nothing else would be stable: the order is derived from these
+      // bindings, so deriving the bindings from the order would be circular.
+      final current = <String, int>{};
+      final reads = <Map<String, int>>[];
+      final hardReads = <Map<String, int>>[];
+      final writes = <Map<String, int>>[];
+      final kept = <ResourceVersion>{};
+      for (final node in active) {
+        final d = declared[node]!;
+        final read = <String, int>{};
+        final hard = <String, int>{};
+        for (final id in d.reads) {
+          final version = current[id.name] ?? 0;
+          read[id.name] = version;
+          hard[id.name] = version;
+        }
+        for (final id in d.optionalReads) {
+          read[id.name] ??= current[id.name] ?? 0;
+        }
+        // Reads first, then writes: a node that does both consumes v and
+        // produces v+1, which is what "read-modify-write" means and what the
+        // edge rule used to approximate with a special case for a node reading
+        // what it also writes.
+        //
+        // Keeps are versioned exactly like writes, and deliberately in the same
+        // pass: a maintained resource is still produced by the node that
+        // maintains it, so a reader binds to that version and is ordered after
+        // it. Only the promise about the pixels differs, and that is recorded
+        // beside the version rather than changing how it is assigned.
+        final write = <String, int>{};
+        for (final id in d.writes) {
+          final version = (current[id.name] ?? 0) + 1;
+          current[id.name] = version;
+          write[id.name] = version;
+        }
+        for (final id in d.keeps) {
+          final version = (current[id.name] ?? 0) + 1;
+          current[id.name] = version;
+          write[id.name] = version;
+          kept.add(ResourceVersion(id, version));
+        }
+        reads.add(read);
+        hardReads.add(hard);
+        writes.add(write);
+      }
 
-    for (var changed = true; changed;) {
-      changed = false;
-      for (var i = 0; i < active.length; i++) {
-        if (!runnable[i]) continue;
-        for (final entry in hardReads[i].entries) {
-          if (produced(entry.key, entry.value)) continue;
-          runnable[i] = false;
-          changed = true;
-          break;
+      // A consumer registered before its producer binds to version zero, which
+      // exists only for an external resource. That is the ordinary case — the
+      // whole point of the graph is that registration order need not be run
+      // order — so such a read means "the resource as the frame finally leaves
+      // it" and binds to the last version instead.
+      //
+      // Never to a version the reader writes itself. A link in a chain whose
+      // producer is off — the occlusion's history with the occlusion switched
+      // off — reads version zero and writes version one, and bound forward it
+      // read its own output, counted as fed, and ran: blending a history of an
+      // effect nobody drew. Left at zero it starves, as its documentation
+      // always said it would.
+      void resolveForwardReferences(Map<String, int> bindings, int reader) {
+        for (final name in bindings.keys.toList()) {
+          if (bindings[name] != 0 || _external.contains(name)) continue;
+          final last = current[name] ?? 0;
+          if (last > 0 && writes[reader][name] != last) bindings[name] = last;
         }
       }
+
+      for (var i = 0; i < active.length; i++) {
+        resolveForwardReferences(reads[i], i);
+        resolveForwardReferences(hardReads[i], i);
+      }
+
+      final producer = <ResourceVersion, int>{};
+      for (var i = 0; i < active.length; i++) {
+        writes[i].forEach((name, version) {
+          producer[ResourceVersion(ResourceId(name), version)] = i;
+        });
+      }
+
+      // Version zero is the engine's own texture, and only exists if the
+      // engine said so; every later version has a producer among [active].
+      bool produced(String name, int version) => version == 0
+          ? _external.contains(name)
+          : producer.containsKey(ResourceVersion(ResourceId(name), version));
+
       // optionalReads deliberately do not appear here: an absent one is the
       // frame saying "not this time", not a reason to drop the pass.
+      final hungry = <FrameGraphNode>{
+        for (var i = 0; i < active.length; i++)
+          if (hardReads[i].entries.any((e) => !produced(e.key, e.value)))
+            active[i],
+      };
+      if (hungry.isNotEmpty) {
+        starved.addAll(hungry);
+        return settle(<FrameGraphNode>[
+          for (final node in active)
+            if (!hungry.contains(node)) node,
+        ]);
+      }
+      return (
+        active: active,
+        current: current,
+        reads: reads,
+        writes: writes,
+        kept: kept,
+        producer: producer,
+      );
     }
+
+    final (:active, :current, :reads, :writes, :kept, :producer) = settle(
+      eligible,
+    );
 
     // Edges, as indices into `active`. One rule now, where there used to be
     // two and a special case: a consumer of a version depends on that version's
     // producer.
     final edges = List<Set<int>>.generate(active.length, (_) => <int>{});
     for (var i = 0; i < active.length; i++) {
-      if (!runnable[i]) continue;
       reads[i].forEach((name, version) {
         final p = producer[ResourceVersion(ResourceId(name), version)];
-        if (p != null && p != i && runnable[p]) edges[i].add(p);
+        if (p != null && p != i) edges[i].add(p);
       });
       // And a version depends on the one before it, which is where two passes
       // accumulating into a single target get their order: there is no
@@ -275,11 +521,11 @@ final class FrameGraph {
       // the version chain is that order written down.
       writes[i].forEach((name, version) {
         final p = producer[ResourceVersion(ResourceId(name), version - 1)];
-        if (p != null && p != i && runnable[p]) edges[i].add(p);
+        if (p != null && p != i) edges[i].add(p);
       });
     }
 
-    final keep = _reachable(producer, runnable, current, edges, outputs);
+    final keep = _reachable(producer, current, edges, outputs);
 
     // Write-after-read, added only now because it orders and must not keep:
     // the in-place writer of v+1 does not need a reader of v, so that reader
@@ -293,10 +539,9 @@ final class FrameGraph {
     // reader after the writer now comes out as the loop it is, instead of as a
     // silently wrong read.
     for (var i = 0; i < active.length; i++) {
-      if (!runnable[i]) continue;
       reads[i].forEach((name, version) {
         final p = producer[ResourceVersion(ResourceId(name), version + 1)];
-        if (p == null || p == i || !runnable[p]) return;
+        if (p == null || p == i) return;
         if (reads[p][name] == version) edges[p].add(i);
       });
     }
@@ -350,7 +595,7 @@ final class FrameGraph {
     };
     final skipped = <SkippedPass>[
       for (final node in culled)
-        (
+        SkippedPass(
           name: node.name,
           reason: switch (activeIndex[node]) {
             // The order inside this arm is the order of causes too. A caller
@@ -358,14 +603,21 @@ final class FrameGraph {
             // have run it, because that is the answer about what they did;
             // `unsupported` comes next, ahead of `settings`, since a device
             // that cannot run a pass makes its settings beside the point.
+            // A failed pass first: it is the answer that names a cause
+            // nobody configured. Pending before unsupported, since a node
+            // whose placement is still loading cannot say yet whether
+            // anything takes it.
             null => switch (node) {
+              _ when starved.contains(node) => PassSkip.starved,
+              _ when failed.contains(node.name) => PassSkip.failed,
               _ when disabled.contains(node.name) => PassSkip.disabled,
-              _ when !node.supported => PassSkip.unsupported,
+              _ when node.isActive && !ready(node) => PassSkip.pending,
+              _ when !supported(node) => PassSkip.unsupported,
+              _ when switchedOff.contains(node.name) => PassSkip.switchedOff,
               _ => PassSkip.settings,
             },
-            final i when !runnable[i] => PassSkip.starved,
             final i when !keep.contains(i) => PassSkip.unconsumed,
-            // Runnable, kept, and yet not in `order` — unreachable unless the
+            // Active, kept, and yet not in `order` — unreachable unless the
             // walk itself dropped a node, which would be a bug in `visit`
             // rather than a decision about this frame. Reported as starved
             // because that is the reading that sends somebody upstream.
@@ -392,12 +644,19 @@ final class FrameGraph {
 
     final readers = <String>{
       for (final node in order) ...<String>[
-        for (final id in node.reads) id.name,
-        for (final id in node.optionalReads) id.name,
+        for (final id in declared[node]!.reads) id.name,
+        for (final id in declared[node]!.optionalReads) id.name,
       ],
     };
 
-    return CompiledFrameGraph(
+    // What the surviving nodes make, in the order they run; a node that
+    // did not run makes nothing, and its resource is never allocated.
+    final created = <String, ResourceDesc>{
+      for (final node in order)
+        for (final desc in declared[node]!.created) desc.id.name: desc,
+    };
+
+    return CompiledFrameGraph._(
       lastUse,
       readers,
       bindings,
@@ -407,6 +666,10 @@ final class FrameGraph {
       culled: culled,
       outputs: List<ResourceId>.unmodifiable(outputs),
       skipped: List<SkippedPass>.unmodifiable(skipped),
+      created: Map<String, ResourceDesc>.unmodifiable(created),
+      placements: Map<String, Object>.unmodifiable(<String, Object>{
+        for (final node in order) node.name: ?placements[node.name],
+      }),
     );
   }
 
@@ -417,7 +680,6 @@ final class FrameGraph {
   /// at all, instead of costing a pass that writes a texture nobody samples.
   Set<int> _reachable(
     Map<ResourceVersion, int> producer,
-    List<bool> runnable,
     Map<String, int> current,
     List<Set<int>> edges,
     List<ResourceId> outputs,
@@ -425,15 +687,11 @@ final class FrameGraph {
     final keep = <int>{};
     final pending = <int>[];
     for (final id in outputs) {
-      // The newest version anybody actually produced. Walking down rather than
-      // taking the last version outright, because the pass that would have
-      // written it may have starved — and then the output is whatever the last
-      // surviving writer left, not nothing at all.
-      for (var version = current[id.name] ?? 0; version > 0; version--) {
-        final w = producer[ResourceVersion(id, version)];
-        if (w == null || !runnable[w]) continue;
+      // The newest version: a pass that would have written a later one and
+      // starved took no version, so this is what the last surviving writer
+      // left, not nothing at all.
+      if (producer[ResourceVersion(id, current[id.name] ?? 0)] case final w?) {
         if (keep.add(w)) pending.add(w);
-        break;
       }
     }
     while (pending.isNotEmpty) {

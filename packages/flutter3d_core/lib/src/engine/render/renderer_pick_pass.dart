@@ -84,6 +84,8 @@ final class _PixelPick extends _PickRequest {
 
   /// Where, as fractions of the frame from the top left.
   final double u;
+
+  /// A 0..1 fraction of the frame's height.
   final double v;
 
   final Completer<MeshNode?> completer = Completer<MeshNode?>();
@@ -150,6 +152,7 @@ final class _FramePick extends _PickRequest {
   @override
   void abandon() => completer.completeError(
     StateError('the renderer was disposed before a frame answered'),
+    StackTrace.current,
   );
 }
 
@@ -198,17 +201,21 @@ extension _PickPass on Renderer {
     return _pipelineCache.putIfAbsent(
       key,
       () => instanced
-          ? device.createPipeline(
-              instancedVertexShader,
-              _objectIdShader,
-              layout: _kInstancedLayout,
+          ? device.createPipelineFrom(
+              PipelineDescriptor(
+                vertex: _instancedVertexShader,
+                fragment: _objectIdShader,
+                layout: _kInstancedLayout,
+              ),
             )
-          : device.createPipeline(
-              // The lightmapped stage is left out on purpose: it reads the
-              // same layout as the plain one and differs only in what it
-              // hands the fragment stage, which this one ignores.
-              skinned ? skinnedVertexShader : vertexShader,
-              _objectIdShader,
+          : device.createPipelineFrom(
+              PipelineDescriptor(
+                // The lightmapped stage is left out on purpose: it reads the
+                // same layout as the plain one and differs only in what it
+                // hands the fragment stage, which this one ignores.
+                vertex: skinned ? _skinnedVertexShader : _vertexShader,
+                fragment: _objectIdShader,
+              ),
             ),
     );
   }
@@ -225,7 +232,7 @@ extension _PickPass on Renderer {
     required FrameResources resources,
     required TextureHandle target,
     required Scene scene,
-    required List<RenderView> ordered,
+    required List<CameraView> ordered,
     required RenderSettings settings,
     required int width,
     required int height,
@@ -235,7 +242,7 @@ extension _PickPass on Renderer {
     // Scratch, through the frame's own source so the release waits out the
     // frames in flight — the same reason the shadow passes take theirs there.
     final depth = resources.transient(
-      RenderTargetSpec(
+      RenderTargetDescriptor(
         width: target.width,
         height: target.height,
         format: device.defaultDepthStencilFormat,
@@ -248,7 +255,7 @@ extension _PickPass on Renderer {
         colors: <ColorTarget>[
           // Zero is the id nothing has, so the clear is the answer for a pixel
           // no mesh reaches.
-          ColorTarget(texture: target, clearValue: vm.Vector4.zero()),
+          ColorTarget(texture: target, clearValue: ClearColor.transparentBlack),
         ],
         depth: DepthTarget(texture: depth),
       ),
@@ -268,7 +275,7 @@ extension _PickPass on Renderer {
       // wall behind every face.
       pass.setState(
         Renderer._kSceneViewState.copyWith(
-          viewport: rect,
+          viewport: PassViewport.ofRect(rect),
           scissor: rect,
           polygonMode: PolygonMode.fill,
           blend: null,
@@ -282,7 +289,7 @@ extension _PickPass on Renderer {
         scene,
         view,
         viewMatrix: camera.viewMatrix,
-        frustum: vm.Frustum.matrix(viewProjection),
+        frustum: _DepthConvention._viewFrustum(viewProjection),
       );
 
       // Opaque then transparent, the order the scene draws them, so the depth
@@ -312,7 +319,7 @@ extension _PickPass on Renderer {
 
         final material = node.material;
         pass.setWindingOrder(
-          node.worldIsMirrored
+          node.isWorldMirrored
               ? WindingOrder.clockwise
               : WindingOrder.counterClockwise,
         );
@@ -338,7 +345,7 @@ extension _PickPass on Renderer {
         // on it finds. The one way to be seen through *and* picked through is
         // the masked one below, where the fragment is discarded in both passes
         // and there is no surface at that pixel at all.
-        pass.setDepthWrite(material.depthWrite ?? true);
+        pass.setDepthWrite(enabled: material.depthWrite ?? true);
         pass.setDepthCompare(material.depthCompare ?? CompareFunction.less);
 
         pass.bindVertexBuffer(mesh.vertices, mesh.vertexCount);
@@ -352,10 +359,10 @@ extension _PickPass on Renderer {
         }
 
         final stage = batched
-            ? instancedVertexShader
+            ? _instancedVertexShader
             : skinned
-            ? skinnedVertexShader
-            : vertexShader;
+            ? _skinnedVertexShader
+            : _vertexShader;
         final modelMatrix = node.worldMatrix;
         mvp
           ..setFrom(viewProjection)
@@ -371,7 +378,7 @@ extension _PickPass on Renderer {
         if (skeleton != null) {
           skeleton.update(modelMatrix);
           _skinInfo.jointMatrices.setAll(0, skeleton.matrices);
-          pass.bindBlock(skinnedVertexShader, _skinInfo);
+          pass.bindBlock(_skinnedVertexShader, _skinInfo);
         }
 
         drawn.add(node);
@@ -405,7 +412,7 @@ extension _PickPass on Renderer {
           ..[3] = 1.0;
         _idInfo.mask
           ..[0] = masked ? cutoff : -1.0
-          ..[1] = material.baseColor.w
+          ..[1] = material.baseColor.a
           ..[2] = 0.0
           ..[3] = 0.0;
         pass.bindBlock(_objectIdShader, _idInfo);

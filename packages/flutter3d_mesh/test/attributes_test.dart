@@ -7,6 +7,7 @@
 library;
 
 import 'package:flutter3d_core/geometry.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -17,15 +18,15 @@ void main() {
       final cube = EditMesh.cuboid();
 
       expect(cube.hasLayer(MeshDomain.corner, MeshAttribute.uv0), isFalse);
-      expect(cube.hasLayer(MeshDomain.corner, MeshAttribute.colour), isFalse);
+      expect(cube.hasLayer(MeshDomain.corner, MeshAttribute.color), isFalse);
       expect(cube.hasLayer(MeshDomain.vertex, MeshAttribute.weights), isFalse);
 
       expect(cube.uvOf(0), Vector2.zero());
       // White rather than black: a corner nobody painted must not multiply the
       // surface to nothing.
-      expect(cube.colourOf(0), kNeutralColor);
+      expect(cube.colorOf(0), neutralColor);
       // All of the first joint, which is what an unskinned vertex means.
-      expect(cube.skinOf(0).weights, kNeutralWeights);
+      expect(cube.skinOf(0).weights, neutralWeights);
       expect(cube.creaseOf(0), 0);
       expect(cube.edgeHas(0, EdgeFlags.sharp), isFalse);
       expect(cube.materialSlotOf(0), 0);
@@ -34,7 +35,7 @@ void main() {
     test('is created by the first write and not by a read', () {
       final cube = EditMesh.cuboid()
         ..uvOf(0)
-        ..colourOf(0)
+        ..colorOf(0)
         ..skinOf(0);
       expect(cube.hasLayer(MeshDomain.corner, MeshAttribute.uv0), isFalse);
 
@@ -46,7 +47,7 @@ void main() {
       expect(cube.hasLayer(MeshDomain.corner, MeshAttribute.uv0), isTrue);
       expect(cube.uvOf(0), Vector2(0.25, 0.5));
       // And only that one: the other layers are still absent.
-      expect(cube.hasLayer(MeshDomain.corner, MeshAttribute.colour), isFalse);
+      expect(cube.hasLayer(MeshDomain.corner, MeshAttribute.color), isFalse);
     });
 
     test('a corner copied from a bare mesh creates nothing', () {
@@ -61,7 +62,7 @@ void main() {
       // full of the neutral values the copy had just read — a megabyte of
       // "white" and "the origin" on every mesh an extrusion touches.
       expect(cube.hasLayer(MeshDomain.corner, MeshAttribute.uv0), isFalse);
-      expect(cube.hasLayer(MeshDomain.corner, MeshAttribute.colour), isFalse);
+      expect(cube.hasLayer(MeshDomain.corner, MeshAttribute.color), isFalse);
     });
   });
 
@@ -216,12 +217,12 @@ void main() {
       cube
         ..beginStep()
         ..moveVertex(0, Vector3(9, 9, 9))
-        ..setColour(0, Vector4(1, 0, 0, 1));
+        ..setColor(0, const LinearColor(1, 0, 0));
       cube.endStep();
 
       cube.undo();
 
-      expect(cube.colourOf(0), kNeutralColor);
+      expect(cube.colorOf(0), neutralColor);
       expect(cube.positionOf(0), isNot(Vector3(9, 9, 9)));
     });
   });
@@ -230,17 +231,17 @@ void main() {
     test('a corner between two is the average of both', () {
       final a = CornerAttributes(
         uv: Vector2(0, 0),
-        colour: Vector4(1, 0, 0, 1),
+        color: const LinearColor(1, 0, 0),
       );
       final b = CornerAttributes(
         uv: Vector2(1, 1),
-        colour: Vector4(0, 1, 0, 1),
+        color: const LinearColor(0, 1, 0),
       );
 
       final middle = CornerAttributes.lerp(a, b, 0.5);
 
       expect(middle.uv, Vector2(0.5, 0.5));
-      expect(middle.colour, Vector4(0.5, 0.5, 0, 1));
+      expect(middle.color, const LinearColor(0.5, 0.5, 0));
     });
 
     test('a split between two skins keeps four joints and sums to one', () {

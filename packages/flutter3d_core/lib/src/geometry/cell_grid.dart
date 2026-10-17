@@ -3,6 +3,8 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show LinearColor;
 import 'package:vector_math/vector_math.dart';
 
 import 'box_shapes.dart';
@@ -100,7 +102,7 @@ final class CellGrid {
   MeshData? mesh({
     required Vector3 Function(double x, double y) place,
     double? depth,
-    Vector4? colour,
+    LinearColor? color,
   }) {
     final size = Vector3(cell, depth ?? cell, cell);
     final block = CuboidShape(size: size).build();
@@ -114,6 +116,6 @@ final class CellGrid {
     ];
     if (parts.isEmpty) return null;
     final merged = MeshData.merge(parts);
-    return colour == null ? merged : merged.withColor(colour);
+    return color == null ? merged : merged.withColor(color);
   }
 }

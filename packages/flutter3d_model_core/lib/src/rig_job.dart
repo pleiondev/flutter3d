@@ -42,7 +42,7 @@ import 'rig/bind_weights.dart'
     show
         BoneSegment,
         bindWeights,
-        kMaxSkinInfluences,
+        maxSkinInfluences,
         normalizeSkinWeights,
         pruneSkinWeights;
 import 'rig/bone_map.dart' show BoneMap;
@@ -73,6 +73,8 @@ final class BakeIkJobRequest {
 
   final ProjectClip clip;
   final IkConstraint constraint;
+
+  /// In frames per second.
   final double fps;
 
   Future<ProjectClip> run() async =>
@@ -193,7 +195,11 @@ final class RetargetClipJobRequest {
   final ProjectSkeleton targetSkeleton;
   final BoneMap boneMap;
   final bool lockFeet;
+
+  /// In metres.
   final double groundY;
+
+  /// In metres.
   final double footTolerance;
 
   Future<ProjectClip> run() async => retargetClip(
@@ -222,7 +228,11 @@ RetargetClipJobRequest? retargetClipJobRequestFor({
   required int targetSkeletonIndex,
   required BoneMap boneMap,
   bool lockFeet = true,
+
+  /// In metres.
   double groundY = 0.0,
+
+  /// In metres.
   double footTolerance = 1e-3,
 }) {
   if (sourceSkeletonIndex < 0 ||
@@ -278,7 +288,7 @@ final class BindWeightsJobRequest {
     this.falloffPower = 2.0,
     this.useVisibility = true,
     this.epsilon = 1e-4,
-    this.maxInfluences = kMaxSkinInfluences,
+    this.maxInfluences = maxSkinInfluences,
     this.pruneThreshold = 1e-3,
   });
 
@@ -294,10 +304,17 @@ final class BindWeightsJobRequest {
   final Uint8List meshBytes;
 
   final List<BoneSegment> bones;
+
+  /// A unitless exponent on distance.
   final double falloffPower;
   final bool useVisibility;
+
+  /// In metres, added to every distance.
   final double epsilon;
   final int maxInfluences;
+
+  /// Compared with the raw weight, 1 / (distance in metres + [epsilon]) to the
+  /// power [falloffPower].
   final double pruneThreshold;
 
   /// Binds [bones] to [meshBytes], off this isolate when one is available.
@@ -364,10 +381,17 @@ BindWeightsJobRequest? bindWeightsJobRequestFor({
   required ModelProject project,
   required int objectId,
   required List<BoneSegment> bones,
+
+  /// A unitless exponent on distance.
   double falloffPower = 2.0,
   bool useVisibility = true,
+
+  /// In metres, added to every distance.
   double epsilon = 1e-4,
-  int maxInfluences = kMaxSkinInfluences,
+  int maxInfluences = maxSkinInfluences,
+
+  /// Compared with the raw weight, 1 / (distance in metres + [epsilon]) to the
+  /// power [falloffPower].
   double pruneThreshold = 1e-3,
 }) {
   final object = project[objectId];

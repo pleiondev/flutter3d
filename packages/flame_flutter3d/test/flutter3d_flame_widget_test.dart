@@ -10,8 +10,8 @@ library;
 
 import 'package:flame/game.dart';
 import 'package:flame_flutter3d/flame_flutter3d.dart';
-import 'package:flutter/material.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter/material.dart';
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart' show SceneSurface;
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -61,7 +61,7 @@ void main() {
         home: Flutter3dFlameWidget(
           game: FlameGame(),
           camera: camera,
-          existing: (device: device, renderer: renderer),
+          existing: BorrowedRenderer(device: device, renderer: renderer),
           buildScene: (d) {
             seen = d;
             return Scene();
@@ -95,7 +95,7 @@ void main() {
       home: Flutter3dFlameWidget(
         game: game,
         camera: camera,
-        existing: (device: device, renderer: renderer),
+        existing: BorrowedRenderer(device: device, renderer: renderer),
         buildScene: (_) => scene,
       ),
     );
@@ -126,7 +126,7 @@ void main() {
         home: Flutter3dFlameWidget(
           game: FlameGame(),
           camera: camera,
-          existing: (device: device, renderer: renderer),
+          existing: BorrowedRenderer(device: device, renderer: renderer),
           buildScene: (_) => Scene(),
           overlayBuilderMap: <String, OverlayWidgetBuilder<FlameGame>>{
             'pause': (context, game) => const Text('PAUSED'),
@@ -159,7 +159,7 @@ void main() {
       home: Flutter3dFlameWidget(
         game: game,
         camera: camera,
-        existing: (device: device, renderer: renderer),
+        existing: BorrowedRenderer(device: device, renderer: renderer),
         buildScene: (_) => scene,
         overlayBuilderMap: <String, OverlayWidgetBuilder<FlameGame>>{
           'score': (context, game) => Text('score $score'),
@@ -206,7 +206,7 @@ void main() {
               child: Flutter3dFlameWidget(
                 game: game,
                 camera: CameraNode(),
-                existing: (device: device, renderer: renderer),
+                existing: BorrowedRenderer(device: device, renderer: renderer),
                 buildScene: (_) => Scene(),
                 onTick: (double _) => shown++,
               ),
@@ -215,7 +215,7 @@ void main() {
               child: Flutter3dFlameWidget(
                 game: game,
                 camera: CameraNode(),
-                existing: (device: device, renderer: renderer),
+                existing: BorrowedRenderer(device: device, renderer: renderer),
                 buildScene: (_) => throw StateError('no level'),
                 onTick: (double _) => failed++,
               ),
@@ -249,7 +249,7 @@ void main() {
       MaterialApp(
         home: Flutter3dFlameWidget(
           game: game,
-          existing: (device: device, renderer: renderer),
+          existing: BorrowedRenderer(device: device, renderer: renderer),
           buildScene: (_) => Scene(),
         ),
       ),

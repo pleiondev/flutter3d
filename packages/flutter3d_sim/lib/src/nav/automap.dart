@@ -88,7 +88,7 @@ final class Automap {
       Iterable<int>.generate(grid.cellCount).where(isRevealed).length;
 
   /// Whether a map pickup has shown the whole level.
-  bool get everythingRevealed => _all;
+  bool get isEverythingRevealed => _all;
 
   /// Reveals what a player standing at [at] can have seen.
   ///

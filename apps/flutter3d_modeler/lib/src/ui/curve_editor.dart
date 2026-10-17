@@ -28,7 +28,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter3d_core/formats.dart';
-import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Key;
+import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:vector_math/vector_math.dart' show Quaternion;
 
 import 'theme.dart';
@@ -51,9 +51,10 @@ String _componentLabel(AnimationPath path, int component) => switch (path) {
   AnimationPath.scale => const <String>['X', 'Y', 'Z'][component],
   AnimationPath.rotation => const <String>['X', 'Y', 'Z', 'W'][component],
   AnimationPath.weights => 'W$component',
-  // A `KHR_animation_pointer` track: a colour, an offset or one number,
-  // whichever property it names, so its lanes are numbered rather than named.
-  AnimationPath.pointer => '#$component',
+  // A `KHR_animation_pointer` track, or a path this list does not know: a
+  // colour, an offset or one number, whichever property it names, so its lanes
+  // are numbered rather than named.
+  _ => '#$component',
 };
 
 /// Which handle of a key is being dragged, or the key's own value.
@@ -141,13 +142,13 @@ class _CurveEditorState extends State<CurveEditor> {
 
   double get _handleLength => 10.0 / widget.pixelsPerSecond;
 
-  ({double min, double max}) _range(KeyTable table) {
+  CurveValueRange _range(KeyTable table) {
     final raw = valueRange(table, _component);
     if (raw.max > raw.min) return raw;
     // A flat curve — every key shares one value — is padded by a whole unit
     // either side so it draws as a visible line rather than a single point
     // with nowhere for a drag to go.
-    return (min: raw.min - 1.0, max: raw.max + 1.0);
+    return CurveValueRange(min: raw.min - 1.0, max: raw.max + 1.0);
   }
 
   double _valueToY(double value, double min, double max, double height) {
@@ -400,7 +401,7 @@ class _CurveEditorPainter extends CustomPainter {
   final double handleLength;
   final int? selectedKey;
   final _Drag? drag;
-  final ({double min, double max}) range;
+  final CurveValueRange range;
   final double currentTime;
   final Color lineColor;
   final Color keyColor;
@@ -428,7 +429,7 @@ class _CurveEditorPainter extends CustomPainter {
     if (samples.length > 1) {
       final path = Path();
       for (var i = 0; i < samples.length; i++) {
-        final (t, v) = samples[i];
+        final CurveSample(time: t, value: v) = samples[i];
         final point = Offset(
           timeToX(t, pixelsPerSecond),
           _valueToY(v, size.height),
@@ -476,10 +477,13 @@ class _CurveEditorPainter extends CustomPainter {
           _valueToY(handles.outHandle.y, size.height),
         );
         if (drag case final _Drag d when d.keyIndex == i) {
-          if (d.target == _DragTarget.inTangent) {
-            inHandle = Offset(inHandle.dx, d.y);
-          } else if (d.target == _DragTarget.outTangent) {
-            outHandle = Offset(outHandle.dx, d.y);
+          switch (d.target) {
+            case _DragTarget.inTangent:
+              inHandle = Offset(inHandle.dx, d.y);
+            case _DragTarget.outTangent:
+              outHandle = Offset(outHandle.dx, d.y);
+            case _DragTarget.value:
+              break;
           }
         }
         canvas.drawLine(inHandle, keyPoint, handlePaint);

@@ -20,7 +20,7 @@ import 'editor_widgets_theme.dart';
 import 'number_expression.dart';
 
 /// One labelled number.
-class NumberField extends StatefulWidget {
+final class NumberField extends StatefulWidget {
   const NumberField({
     super.key,
     required this.label,
@@ -74,7 +74,8 @@ class NumberField extends StatefulWidget {
 
   /// What it holds now. A field whose value arrives from outside rather than
   /// being kept here: the document is the truth, and a field that remembered
-  /// its own would go on showing a number an undo had taken away.
+  /// its own would go on showing a number an undo had taken away. In
+  /// [unit]'s own terms: metres, degrees, or a plain count or factor.
   final double value;
 
   /// Called with the new number when the person has finished.

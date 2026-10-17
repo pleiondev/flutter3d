@@ -18,7 +18,9 @@ final class SurfaceBufferDemo extends ShowcaseDemo {
 
   @override
   Scene build(DemoContext context) {
-    _deviceCanMsaa = context.device.supportsOffscreenMsaa;
+    _deviceCanMsaa = context.device.features.has(
+      DeviceFeature.offscreenMultisample,
+    );
     return PostStage.build(context).scene;
   }
 

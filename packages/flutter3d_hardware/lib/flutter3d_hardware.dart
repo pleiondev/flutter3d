@@ -2,10 +2,13 @@
 ///
 /// **Nothing here names a graphics API.** That is the entire content of this
 /// package: it is what a backend implements and what the engine talks to, so
-/// that neither has to know about the other. Three implement it —
-/// `flutter3d_impeller` over `flutter_gpu`, `flutter3d_webgl` over WebGL2, and
-/// `flutter3d_cpu`, a software rasteriser with no driver under it at all — and
-/// the engine did not change for any of them.
+/// that neither has to know about the other. Four implement it —
+/// `flutter3d_impeller` over `flutter_gpu`, `flutter3d_webgl` over WebGL2,
+/// `flutter3d_webgpu` over the browser's WebGPU, and `flutter3d_cpu`, a
+/// software rasteriser with no driver under it at all — and the engine did
+/// not change for any of them. `flutter3d_wgpu` is a fifth, compute-only
+/// device over wgpu-native, and `examples/flutter3d_backend_null` is the
+/// smallest complete one, for an author starting a backend of their own.
 ///
 /// Two rules hold it in shape, and both are checked rather than intended by
 /// `tool/structure.dart`'s **"the hardware layer names no graphics API"** rule,
@@ -27,34 +30,72 @@
 /// evidence offered for the load-bearing half of the claim led nowhere, in the
 /// file a fourth-backend author reads first.
 ///
-/// When a fourth backend arrives, this package does not change. A translation
+/// When another backend arrives, this package does not change. A translation
 /// file appears in the new backend, and that is all.
 library;
 
+/// What a device can do: features, limits, per-format support, and the
+/// refusal every gated call throws.
+export 'src/capabilities.dart';
+
 /// Recording a pass — state, bindings, draws.
 export 'src/command_encoder.dart';
-export 'src/compute.dart';
+export 'src/compute.dart' hide wrapComputePipeline, wrapStorageBuffer;
+
+/// Where a compute step runs — the device's own compute, a sidecar, the
+/// CPU — and the rule that picks one.
+export 'src/compute_placement.dart' hide attachCompute, computePlacementOf;
+
+/// What a piece of compute requires of where it runs, the portable kernel
+/// profile, and the tolerance each inexact operation carries.
+export 'src/compute_requirement.dart';
+
+/// A simulation's compute as kernels and buffers, which the engine places
+/// and runs: the workload, its buffers, the recorder and where it landed.
+export 'src/compute_workload.dart';
 
 /// How a build opens a `GraphicsDevice`, and how a caller finds what shows a
 /// frame from one — both as a backend registers into, not a list this
 /// package or an assembly layer has to already know every entry of.
+export 'src/device_exceptions.dart';
 export 'src/device_registry.dart';
+
+/// An encoded image decoded and uploaded by the device itself, and the
+/// size arithmetic of a decode cap.
+export 'src/encoded_image.dart';
+
+/// Facts about each format that hold on every device.
+export 'src/format_info.dart';
 
 /// Enums, one per thing a caller has to name.
 export 'src/formats.dart';
 
 /// Opaque handles for the things a backend owns.
-export 'src/geometry_buffer.dart';
+export 'src/geometry_buffer.dart' hide wrapGeometry;
 export 'src/gpu_timings.dart';
 
 /// The device: textures, buffers, pipelines, passes.
 export 'src/graphics_device.dart';
 
+/// The files this package writes, for a `FormatRegistry`.
+export 'src/hardware_formats.dart';
+
 /// How a texture is sampled.
 export 'src/mip_chain.dart';
+
+/// Several views of one frame: one multiview pass, or one pass per view.
+export 'src/multiview.dart';
 // Pass state as one value. No backend implements anything for it — see the
 // file's header for why it is here rather than in the engine.
 export 'src/pass_state.dart';
+
+/// A pipeline the backend could not build, and the device's record of them.
+export 'src/pipeline_descriptor.dart';
+export 'src/pipeline_refusal.dart';
+
+/// A platform image (on Flutter, `dart:ui`'s `Image`) taken as a texture with
+/// no copy through the host, by a device that mixes it in.
+export 'src/platform_textures.dart';
 
 /// What a readback may ask for, checked once for every backend.
 export 'src/readback.dart';
@@ -62,12 +103,22 @@ export 'src/readback.dart';
 /// Reuse of render targets, and the description that makes two of them
 /// interchangeable.
 export 'src/render_target_pool.dart';
+
+/// Texture shapes and usages, general buffers, query sets, copy locations.
+export 'src/resources.dart' hide wrapQuerySet, wrapRenderBundle;
 export 'src/sampler.dart';
-export 'src/shader.dart';
+export 'src/shader.dart' hide forgetShader, wrapPipeline, wrapShader;
 
 /// A bundle that arrives as bytes: the container every backend reads its own
 /// section of, and the refusal a device answers with when it cannot.
 export 'src/shader_bundle.dart';
-export 'src/texture.dart';
+
+/// Textures, buffers and fences two devices see: without a copy where both
+/// can, through host memory where they cannot.
+export 'src/sharing.dart' hide checkNativeImport, wrapFence;
+export 'src/texture.dart' hide wrapTexture;
+
+/// Copies between buffers and textures.
+export 'src/transfer.dart';
 export 'src/uniform_block.dart';
 export 'src/vertex_layout_spec.dart';

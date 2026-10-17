@@ -88,8 +88,8 @@ void main() {
       // than being a stand-in — the finest level is active until something
       // calls `select`.
       expect(group.activeLevel, 0);
-      expect(group.levels[0].node.visible, isTrue);
-      expect(group.levels[1].node.visible, isFalse);
+      expect(group.levels[0].node.isVisible, isTrue);
+      expect(group.levels[1].node.isVisible, isFalse);
     },
   );
 
@@ -141,7 +141,7 @@ void main() {
                 albedoImage: 0,
                 normalDepthImage: 1,
                 grid: 8,
-                centre: Vector3(0, 0.5, 0),
+                center: Vector3(0, 0.5, 0),
                 radius: 1.2,
               ),
             ),
@@ -203,7 +203,7 @@ void main() {
                 albedoImage: 0,
                 normalDepthImage: 1,
                 grid: 8,
-                centre: Vector3(0, 0.5, 0),
+                center: Vector3(0, 0.5, 0),
                 radius: 1.2,
               ),
             ),

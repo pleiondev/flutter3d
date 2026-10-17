@@ -34,6 +34,7 @@ final class FrameDifference {
   /// rounding wobble.
   final int worstChannel;
 
+  /// The share of pixels that differ, in percent.
   double get percent => pixels == 0 ? 0.0 : 100.0 * differing / pixels;
 
   @override

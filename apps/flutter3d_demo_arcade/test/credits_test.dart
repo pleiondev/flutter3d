@@ -11,12 +11,16 @@ library;
 import 'dart:io';
 
 import 'package:flutter3d_demo_arcade/src/credits.dart';
-import 'package:flutter3d_game/testing.dart'; // creditGaps
+import 'package:flutter3d_demo_content/repo_checks.dart'; // creditGaps
+import 'package:flutter3d_game_ui/screens.dart' show LicenseRecord;
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('every model the game ships is accounted for', () {
-    final gaps = creditGaps(Credits.models, shippedFrom: 'assets/models');
+    final gaps = creditGaps(
+      credits.models.map((c) => c.file),
+      shippedFrom: 'assets/models',
+    );
 
     expect(gaps.shipped, isNotEmpty, reason: 'no models found to check');
     expect(
@@ -32,23 +36,24 @@ void main() {
   });
 
   test('and nothing it ships is untraceable or owed', () {
-    expect(Credits.untraced, isEmpty);
-    expect(Credits.owed, isEmpty, reason: 'a CC0 model owes nothing');
+    expect(credits.untraced, isEmpty);
+    expect(credits.owed, isEmpty, reason: 'a CC0 model owes nothing');
   });
 
   test('and every entry names a licence somebody can read', () {
-    for (final credit in Credits.models) {
-      expect(credit.licence, isNotNull, reason: '${credit.file} has none');
-      expect(credit.licenceUrl, isNotNull, reason: '${credit.file} no URL');
+    for (final credit in credits.models) {
+      expect(credit.license, isNotNull, reason: '${credit.file} has none');
+      expect(credit.licenseUrl, isNotNull, reason: '${credit.file} no URL');
       expect(credit.line, contains(credit.work));
     }
   });
 
-  test('and the licence table on disk covers the same files', () {
-    final table = File('assets/models/LICENSES.md').readAsStringSync();
-    for (final credit in Credits.models) {
-      final name = credit.file.split('/').last;
-      expect(table, contains(name), reason: 'LICENSES.md lacks $name');
-    }
+  test('and the licence table on disk says the same', () {
+    // Read, not searched: each file's section names its author and licence,
+    // and the list above has to state the same ones.
+    final record = LicenseRecord.parse(
+      File('assets/models/LICENSES.md').readAsStringSync(),
+    );
+    expect(credits.disagreementsWith(record), isEmpty);
   });
 }

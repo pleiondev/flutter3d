@@ -176,7 +176,7 @@ final class GizmoView {
     this.perspective = true,
   });
 
-  /// A camera with a vertical field of view of [fovYRadians] looking at a
+  /// A camera with a vertical field of view of [fovY] looking at a
   /// viewport [viewportHeight] logical pixels tall.
   ///
   /// The same conversion `MeshOverlay.lookFrom` documents, written out here
@@ -185,12 +185,9 @@ final class GizmoView {
   /// test a drag without a device.
   factory GizmoView.perspective({
     required Vector3 eye,
-    required double fovYRadians,
+    required double fovY,
     required double viewportHeight,
-  }) => GizmoView(
-    eye: eye,
-    pixel: 2.0 * math.tan(fovYRadians / 2.0) / viewportHeight,
-  );
+  }) => GizmoView(eye: eye, pixel: 2.0 * math.tan(fovY / 2.0) / viewportHeight);
 
   /// An orthographic camera showing [height] metres over a viewport
   /// [viewportHeight] logical pixels tall.
@@ -275,8 +272,8 @@ final class GizmoHandle {
   /// every arrow and arm handle, which are boxes and say so with [min]/[max].
   final double? ringRadius;
 
-  /// The same colour as the linear-ish triple a `Material` wants.
-  Vector3 get colour => Vector3(
+  /// The same colour as the linear-ish triple a `RenderMaterial` wants.
+  Vector3 get color => Vector3(
     ((tint >> 16) & 0xFF) / 255.0,
     ((tint >> 8) & 0xFF) / 255.0,
     (tint & 0xFF) / 255.0,

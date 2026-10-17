@@ -29,16 +29,60 @@ import 'edit_mesh.dart';
 import 'parametric.dart';
 
 /// What a recipe belongs to, for a gallery to group by.
-enum RecipeCategory {
-  lighting('Lighting'),
-  furniture('Furniture'),
-  tableware('Tableware'),
-  architecture('Architecture');
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class RecipeCategory {
+  const RecipeCategory._(this.name, this.label);
 
-  const RecipeCategory(this.label);
+  static const RecipeCategory lighting = RecipeCategory._(
+    'lighting',
+    'Lighting',
+  );
+
+  static const RecipeCategory furniture = RecipeCategory._(
+    'furniture',
+    'Furniture',
+  );
+
+  static const RecipeCategory tableware = RecipeCategory._(
+    'tableware',
+    'Tableware',
+  );
+
+  static const RecipeCategory architecture = RecipeCategory._(
+    'architecture',
+    'Architecture',
+  );
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<RecipeCategory> values = <RecipeCategory>[
+    lighting,
+    furniture,
+    tableware,
+    architecture,
+  ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static RecipeCategory? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
 
   /// What a gallery's own section heading says.
   final String label;
+
+  @override
+  String toString() => 'RecipeCategory.$name';
 }
 
 /// One model that can be built rather than downloaded.
@@ -189,8 +233,13 @@ List<Recipe> recipes() => <Recipe>[
 
 /// A turned column on a disc, under a tapered shade.
 EditMesh floorLamp({
+  /// In metres.
   double height = 1.55,
+
+  /// The shade's top radius, in metres.
   double shadeTop = 0.16,
+
+  /// The shade's bottom radius, in metres.
   double shadeBottom = 0.24,
 }) => joinMeshes(<PlacedMesh>[
   // The base is wide and shallow, because a lamp this tall falls over
@@ -304,14 +353,21 @@ EditMesh wallSconce() => joinMeshes(<PlacedMesh>[
 
 /// Four legs, a seat at 450 and a back a person can lean on.
 EditMesh diningChair({
+  /// The seat's height, in metres.
   double seat = 0.45,
+
+  /// In metres.
   double width = 0.44,
+
+  /// In metres.
   double depth = 0.44,
+
+  /// The top of the back, in metres.
   double back = 0.85,
 }) {
   const double leg = 0.035;
-  final double x = width / 2 - leg / 2;
-  final double z = depth / 2 - leg / 2;
+  final x = width / 2 - leg / 2;
+  final z = depth / 2 - leg / 2;
   return joinMeshes(<PlacedMesh>[
     for (final (double sx, double sz) in <(double, double)>[
       (-x, -z),
@@ -341,7 +397,7 @@ EditMesh diningChair({
 
 /// Three turned legs and a round top, at counter height.
 EditMesh stool({double height = 0.65, double top = 0.32}) {
-  final double radius = top / 2 - 0.05;
+  final radius = top / 2 - 0.05;
   return joinMeshes(<PlacedMesh>[
     for (var i = 0; i < 3; i++)
       PlacedMesh(
@@ -380,13 +436,18 @@ EditMesh stool({double height = 0.65, double top = 0.32}) {
 
 /// A 1600 by 900 top at 740, on four square legs.
 EditMesh diningTable({
+  /// In metres.
   double length = 1.6,
+
+  /// In metres.
   double width = 0.9,
+
+  /// In metres.
   double height = 0.74,
 }) {
   const double leg = 0.07;
-  final double x = length / 2 - leg;
-  final double z = width / 2 - leg;
+  final x = length / 2 - leg;
+  final z = width / 2 - leg;
   return joinMeshes(<PlacedMesh>[
     for (final (double sx, double sz) in <(double, double)>[
       (-x, -z),
@@ -425,8 +486,13 @@ EditMesh bench({double length = 1.4, double height = 0.45}) =>
 
 /// Two uprights and four shelves, open at the back.
 EditMesh shelfUnit({
+  /// In metres.
   double width = 0.8,
+
+  /// In metres.
   double height = 1.8,
+
+  /// In metres.
   double depth = 0.32,
   int shelves = 4,
 }) => joinMeshes(<PlacedMesh>[
@@ -448,8 +514,13 @@ EditMesh shelfUnit({
 
 /// A closed box on a plinth, with two doors and handles.
 EditMesh cabinet({
+  /// In metres.
   double width = 0.9,
+
+  /// In metres.
   double height = 0.85,
+
+  /// In metres.
   double depth = 0.45,
 }) => joinMeshes(<PlacedMesh>[
   PlacedMesh(

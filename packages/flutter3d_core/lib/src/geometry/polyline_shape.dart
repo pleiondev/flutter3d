@@ -24,6 +24,8 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show LinearColor;
 import 'package:vector_math/vector_math.dart';
 
 import 'mesh_data.dart';
@@ -31,9 +33,10 @@ import 'vertex_layout.dart';
 
 /// [points] as one band [width] pixels across, coloured per point.
 ///
-/// [colours] is one colour per point and blends along each segment — the
+/// Colours are linear, as a vertex colour is. [colors] is one colour per
+/// point and blends along each segment — the
 /// gradient a slope or a speed is drawn with. Leave it out and every point is
-/// [colour].
+/// [color].
 ///
 /// [closed] joins the last point back to the first, with an elbow there
 /// like every other: a ship's outline, a ring. Without it the two ends are
@@ -46,8 +49,8 @@ import 'vertex_layout.dart';
 MeshData buildPolyline(
   List<Vector3> points, {
   required double width,
-  List<Vector4>? colours,
-  Vector4? colour,
+  List<LinearColor>? colors,
+  LinearColor? color,
   bool closed = false,
 }) {
   if (points.length < 2) {
@@ -55,9 +58,9 @@ MeshData buildPolyline(
       'A polyline needs at least two points; ${points.length} were given.',
     );
   }
-  if (colours != null && colours.length != points.length) {
+  if (colors != null && colors.length != points.length) {
     throw ArgumentError(
-      '${colours.length} colours for ${points.length} points. One colour per '
+      '${colors.length} colours for ${points.length} points. One colour per '
       'point, in the same order.',
     );
   }
@@ -76,11 +79,11 @@ MeshData buildPolyline(
   Vector3 afterOf(int i) => i == count - 1
       ? (closed ? points[1 % points.length] : points[last])
       : at(i + 1);
-  Vector4? tintOf(int i) => colours?[i % points.length];
+  LinearColor? tintOf(int i) => colors?[i % points.length];
 
   final stride = VertexLayout.standard.floatsPerVertex;
   final vertices = Float32List(count * 2 * stride);
-  final fallback = colour ?? Vector4(1, 1, 1, 1);
+  final fallback = color ?? LinearColor.white;
   final half = width / 2;
 
   var distance = 0.0;
@@ -106,10 +109,10 @@ MeshData buildPolyline(
         ..[at + 9] = after.y
         ..[at + 10] = after.z
         ..[at + 11] = side == 0 ? -half : half
-        ..[at + 12] = tint.x
-        ..[at + 13] = tint.y
-        ..[at + 14] = tint.z
-        ..[at + 15] = tint.w;
+        ..[at + 12] = tint.r
+        ..[at + 13] = tint.g
+        ..[at + 14] = tint.b
+        ..[at + 15] = tint.a;
     }
   }
 

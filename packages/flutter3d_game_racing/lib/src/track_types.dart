@@ -6,6 +6,8 @@ import 'package:vector_math/vector_math.dart';
 /// Filled in by [TrackSpline.frameAt] rather than returned by it: a car asks
 /// for this several times a step, and a fresh set of four vectors each time is
 /// four allocations on the hottest path the simulation has.
+///
+/// A track's query fills one the caller made, `TrackFrame()`.
 final class TrackFrame {
   /// The point on the centre line.
   final Vector3 position = Vector3.zero();
@@ -34,15 +36,18 @@ final class SurfaceBand {
   const SurfaceBand({
     required this.fromS,
     required this.toS,
-    this.centre,
+    this.center,
     this.shoulder,
   });
 
+  /// Where the stretch starts and ends, in metres along the track.
   final double fromS;
+
+  /// Where the stretch ends, in metres along the track.
   final double toS;
 
   /// The name for the road itself.
-  final String? centre;
+  final String? center;
 
   /// The name for the ground either side of it, which is usually what makes
   /// leaving the road cost something.
@@ -67,7 +72,10 @@ final class BarrierBand {
     this.right = false,
   });
 
+  /// Where the stretch starts and ends, in metres along the track.
   final double fromS;
+
+  /// Where the stretch ends, in metres along the track.
   final double toS;
 
   /// A wall on the negative-`lateral` side.
@@ -96,9 +104,11 @@ final class StartGrid {
   final int columns;
 
   /// How far back each row sits from the one in front.
+  /// In metres.
   final double rowGap;
 
   /// How far apart the cars in a row sit.
+  /// In metres.
   final double columnGap;
 
   /// Which car takes which slot, given what each of them qualified in.

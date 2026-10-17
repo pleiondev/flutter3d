@@ -26,7 +26,7 @@ RaceReadout _readout(RaceMode mode) => RaceReadout(
   lapTime: 41.5,
   bestLap: 40.25,
   record: 39.0,
-  tyres: 'slicks',
+  tireSet: 'slicks',
   damage: 0.0,
   wrongWay: false,
   countdown: null,

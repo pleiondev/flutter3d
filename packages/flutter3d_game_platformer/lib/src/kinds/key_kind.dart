@@ -1,3 +1,4 @@
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -12,24 +13,29 @@ import '../collectible.dart';
 ///
 /// What it spawns is an ordinary [Collectible] that also grants a key — the
 /// walking-over-it half is identical and only where it lands differs.
-final class KeyKind extends EntityKind {
+final class PlatformerKeyKind extends EntityKind {
   /// A player has to be able to get to one of these. See
   /// [EntityKind.mustBeReachable] — and the fourteen that were inside walls.
   @override
   bool get mustBeReachable => true;
-  const KeyKind() : super(EntityTypes.key);
+  const PlatformerKeyKind() : super(EntityTypes.key);
 
   static Vector3 get defaultSize => Vector3(0.5, 0.5, 0.5);
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     requireText(entity, scope, out, 'color');
   }
 
   @override
-  void spawn(EntityDef entity, SpawnContext context) {
-    final colour = entity.string('color');
-    if (colour == null) return;
+  void spawn(EntitySpawn spawn) {
+    final entity = spawn.entity;
+    final context = spawn.context;
+    final color = entity.string('color');
+    if (color == null) return;
     final collider = place(
       entity,
       context,
@@ -42,7 +48,7 @@ final class KeyKind extends EntityKind {
       Collectible(
         name: entity.name,
         what: 'key',
-        key: colour,
+        key: color,
         collider: collider,
       ),
     );

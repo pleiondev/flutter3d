@@ -4,25 +4,50 @@ import 'dart:typed_data';
 import 'package:flutter3d_core/geometry.dart';
 import 'package:vector_math/vector_math.dart';
 
-import '../asset_resolver.dart';
 import '../model_document.dart';
 import '../model_loader.dart';
 import '../plain_model_document.dart';
 
 /// How a facet's normal is chosen.
-enum StlNormals {
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class StlNormals {
+  const StlNormals._(this.name);
+
   /// The facet's own normal record — unless it is the zero vector, which a
   /// surprising number of exporters write instead of computing one, in which
   /// case this falls back to the triangle's own cross product for that facet
   /// alone rather than leaving a NaN in the mesh.
-  fromFile,
+  static const StlNormals fromFile = StlNormals._('fromFile');
 
   /// Always the cross product of the triangle's own edges, ignoring whatever
   /// the file recorded. STL has no shared vertices to smooth across, so this
   /// is never a worse answer than the file's own normal and is sometimes a
   /// better one — a mesh assembled by hand or converted through a lossy tool
   /// can have facets whose recorded normal simply disagrees with its winding.
-  recomputed,
+  static const StlNormals recomputed = StlNormals._('recomputed');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<StlNormals> values = <StlNormals>[fromFile, recomputed];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static StlNormals? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'StlNormals.$name';
 }
 
 /// True when [bytes] is a binary STL file.
@@ -67,7 +92,7 @@ bool looksLikeAsciiStl(Uint8List bytes) {
 /// normal is exactly the one number the format gives it. [layout]'s
 /// `texcoord`/`tangent`/`color` slots, when requested, get [MeshBuilder]'s own
 /// neutral values, since the format carries none of the three.
-final class StlLoader implements ModelDecoder {
+final class StlLoader extends ModelDecoder {
   StlLoader({
     this.layout = VertexLayout.standard,
     this.normals = StlNormals.fromFile,
@@ -77,17 +102,19 @@ final class StlLoader implements ModelDecoder {
   final StlNormals normals;
 
   @override
-  bool handles(String fileName, Uint8List bytes) =>
-      fileName.toLowerCase().endsWith('.stl') ||
-      isBinaryStl(bytes) ||
-      looksLikeAsciiStl(bytes);
+  bool handles(ModelProbe probe) {
+    final fileName = probe.fileName;
+    final bytes = probe.bytes;
+    return fileName.toLowerCase().endsWith('.stl') ||
+        isBinaryStl(bytes) ||
+        looksLikeAsciiStl(bytes);
+  }
 
   @override
-  Future<ModelDocument> decode(
-    Uint8List bytes,
-    ModelLoadRequest request,
-    AssetUriResolver resolveUri,
-  ) => load(bytes);
+  Future<ModelDocument> decode(ModelDecodeContext context) {
+    final bytes = context.bytes;
+    return load(bytes);
+  }
 
   /// Reads [bytes], choosing the dialect the same way [isBinaryStl] does.
   ///

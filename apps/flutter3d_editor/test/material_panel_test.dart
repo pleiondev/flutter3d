@@ -18,7 +18,7 @@ library;
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 import 'package:flutter3d/flutter3d.dart' show MaterialDocument, readFmat;
 import 'package:flutter3d_editor/src/material_panel.dart';
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
@@ -54,6 +54,7 @@ Widget _panel(
   Map<String, MaterialDocument> documents = const <String, MaterialDocument>{},
   void Function(String)? onChanged,
   void Function(String, MaterialDocument)? onMaterialWritten,
+  void Function(String, Map<String, Object?>)? onLive,
 }) => MaterialApp(
   home: Scaffold(
     body: MaterialPanel(
@@ -61,6 +62,7 @@ Widget _panel(
       documents: documents,
       onChanged: onChanged ?? (String _) {},
       onMaterialWritten: onMaterialWritten,
+      onLive: onLive,
     ),
   ),
 );
@@ -88,6 +90,65 @@ void main() {
       find.text('Base colour'),
       findsOneWidget,
       reason: 'the hint names it',
+    );
+  });
+
+  testWidgets('a drag reaches a running game before the level is written', (
+    WidgetTester tester,
+  ) async {
+    // `HR4`: every value the thumb passes goes out live in the engine's
+    // words, and the one the drag ends on is written to the level as well.
+    final editing = openTestDocument();
+    setLevelMaterialField(editing, 'stone', 'roughness', 0.4);
+    final live = <(String, Map<String, Object?>)>[];
+
+    await tester.pumpWidget(
+      _panel(
+        editing,
+        onLive: (String m, Map<String, Object?> f) {
+          live.add((m, f));
+        },
+      ),
+    );
+    final gesture = await tester.startGesture(
+      tester.getCenter(_in('field:roughness', Slider)),
+    );
+    await gesture.moveBy(const Offset(20, 0));
+    await tester.pump();
+    expect(live, isNotEmpty, reason: 'sent while the thumb was still down');
+    expect(editing.level.materials['stone']!.roughness, 0.4);
+
+    await gesture.moveBy(const Offset(20, 0));
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    expect(live.every((it) => it.$1 == 'stone'), isTrue);
+    expect(live.last.$2.keys, <String>['roughness']);
+    expect(
+      live.last.$2['roughness'],
+      editing.level.materials['stone']!.roughness,
+      reason: 'the last value sent is the one written',
+    );
+  });
+
+  test('a level material field in the engine’s words', () {
+    expect(liveMaterialFields('roughness', 0.3), <String, Object?>{
+      'roughness': 0.3,
+    });
+    expect(liveMaterialFields('emissive', 2.0), <String, Object?>{
+      'emissiveStrength': 2.0,
+    });
+    expect(
+      liveMaterialFields('baseColor', <num>[0.1, 0.2, 0.3]),
+      <String, Object?>{
+        'baseColor': <num>[0.1, 0.2, 0.3, 1.0],
+        'emissive': <num>[0.1, 0.2, 0.3],
+      },
+    );
+    expect(
+      liveMaterialFields('albedo', 'stone.png'),
+      isNull,
+      reason: 'a texture needs a reload, not a frame',
     );
   });
 
@@ -203,6 +264,65 @@ void main() {
 
     expect(find.text('Wind'), findsOneWidget);
     expect(_in('parameter:windStrength', Slider), findsOneWidget);
+  });
+
+  testWidgets('and dragging it reaches a running game in the engine’s words', (
+    WidgetTester tester,
+  ) async {
+    // `HR4`'s last half: the parameter row had no preview at all, so a game
+    // running beside the editor saw the wind only after a save and a reload.
+    //
+    // Mutation: drop the row's `onPreview`. Nothing is sent while the thumb
+    // is down and the first expectation fails.
+    final editing = openTestDocument();
+    setLevelMaterialField(editing, 'stone', 'roughness', 0.4);
+    final live = <(String, Map<String, Object?>)>[];
+    await tester.pumpWidget(
+      _panel(
+        editing,
+        documents: <String, MaterialDocument>{'stone': _document()},
+        onLive: (String m, Map<String, Object?> f) => live.add((m, f)),
+      ),
+    );
+
+    final gesture = await tester.startGesture(
+      tester.getCenter(_in('parameter:windStrength', Slider)),
+    );
+    await gesture.moveBy(const Offset(20, 0));
+    await tester.pump();
+    expect(live, isNotEmpty, reason: 'sent while the thumb was still down');
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    expect(live.every((it) => it.$1 == 'stone'), isTrue);
+    expect(
+      live.every(
+        (it) =>
+            it.$2.keys.single == 'parameters/windStrength' &&
+            it.$2.values.single is List<num>,
+      ),
+      isTrue,
+      reason: 'one key, and a list as the uniform is',
+    );
+
+    // And the level's own roughness is not sent for a material the game
+    // draws from its file: the next load would undo what it showed.
+    //
+    // Mutation: send `liveMaterialFields` whatever the material defers to.
+    live.clear();
+    tester.widget<Slider>(_in('field:roughness', Slider)).onChangeEnd!(0.75);
+    await tester.pump();
+    expect(live, isEmpty);
+  });
+
+  test('a parameter in the engine’s words', () {
+    expect(liveParameterFields('wind', 0.5), <String, Object?>{
+      'parameters/wind': <num>[0.5],
+    });
+    expect(liveParameterFields('tint', <num>[0.1, 0.2, 0.3]), <String, Object?>{
+      'parameters/tint': <num>[0.1, 0.2, 0.3],
+    });
+    expect(liveParameterFields('wind', 'strong'), isNull);
   });
 
   testWidgets('and writing one hands back a document, never a file', (

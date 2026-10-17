@@ -16,10 +16,10 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_shaders/compile.dart';
 import 'package:flutter3d_webgl/engine_shaders.dart';
 import 'package:flutter3d_webgl/flutter3d_webgl.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart' hide Colors;
 
 const int _width = 32;
 const int _height = 32;
@@ -70,7 +70,7 @@ const LightingModel _flatModel = LightingModel(
   usesMaterialParameters: false,
 );
 
-Future<List<int>> _centre(
+Future<List<int>> _center(
   WebGlDevice device,
   Renderer renderer,
   Scene scene,
@@ -80,12 +80,15 @@ Future<List<int>> _centre(
     width: _width,
     height: _height,
     scene: scene,
-    views: <RenderView>[
-      RenderView(camera: camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+    views: <CameraView>[
+      CameraView(
+        camera: camera,
+        clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
+      ),
     ],
     settings: const RenderSettings(tonemap: false),
   );
-  final pixels = (await device.readPixels(result.frame))!.buffer.asUint8List();
+  final pixels = (await device.readback(result.frame)).buffer.asUint8List();
   final at = ((_height ~/ 2) * _width + _width ~/ 2) * 4;
   return <int>[pixels[at], pixels[at + 1], pixels[at + 2]];
 }
@@ -93,13 +96,12 @@ Future<List<int>> _centre(
 void main() {
   late WebGlDevice device;
 
-  setUp(() {
-    final made = WebGlDevice.create(
+  setUp(() async {
+    final made = await WebGlDevice.open(
       width: _width,
       height: _height,
-      sources: engineShaders,
+      sources: webGlEngineShaders,
     );
-    if (made == null) fail('no WebGL2 context in this browser');
     device = made;
   });
 
@@ -119,21 +121,17 @@ void main() {
           device,
           CuboidShape(size: Vector3(40.0, 40.0, 1.0)).build(),
         ),
-        Material(name: 'wall', lighting: _flatModel),
+        RenderMaterial(name: 'wall', lighting: _flatModel),
       )..setPosition(0.0, 0.0, -8.0),
     );
     final camera = CameraNode(
-      projection: const PerspectiveProjection(
-        fovYRadians: 1.0,
-        near: 0.1,
-        far: 60.0,
-      ),
+      projection: const PerspectiveProjection(fovY: 1.0, near: 0.1, far: 60.0),
     );
     camera.lookAt(Vector3(0.0, 0.0, -1.0));
     scene.add(camera);
 
     final renderer = Renderer.create(device: device, materials: loaded);
-    final magenta = await _centre(device, renderer, scene, camera);
+    final magenta = await _center(device, renderer, scene, camera);
     expect(magenta[0], greaterThan(200));
     expect(magenta[1], lessThan(60));
     expect(magenta[2], greaterThan(200));
@@ -151,12 +149,12 @@ void main() {
     // deleted. Mutation: delete it in `forgetPrograms` and this frame binds
     // a deleted program — INVALID_VALUE, no draw, the clear colour.
     expect(
-      await _centre(device, renderer, scene, camera),
+      await _center(device, renderer, scene, camera),
       magenta,
       reason: 'a pipeline linked before the refresh draws the code it had',
     );
     renderer.relinkShaders();
-    final green = await _centre(device, renderer, scene, camera);
+    final green = await _center(device, renderer, scene, camera);
     expect(green[1], greaterThan(200));
     expect(green[0], lessThan(60));
     expect(green[2], lessThan(60));
@@ -170,15 +168,15 @@ void main() {
         }, name: 'broken'),
       ),
       throwsA(
-        isA<ShaderBundleRefused>()
+        isA<ShaderBundleException>()
             .having((r) => r.name, 'name', 'broken')
-            .having((r) => r.reason, 'reason', contains('did not compile')),
+            .having((r) => r.reason, 'reason', contains('could not compile')),
       ),
     );
     expect(loaded.name, 'v2');
     renderer.relinkShaders();
     expect(
-      await _centre(device, renderer, scene, camera),
+      await _center(device, renderer, scene, camera),
       green,
       reason: 'a refused reload leaves the picture as it was',
     );
@@ -189,7 +187,7 @@ void main() {
         _bundle(<String, String>{'Other': _flat('1.0, 0.0, 0.0')}),
       ),
       throwsA(
-        isA<ShaderBundleRefused>().having(
+        isA<ShaderBundleException>().having(
           (r) => r.reason,
           'reason',
           contains('"Flat"'),
@@ -199,20 +197,122 @@ void main() {
     renderer.dispose();
   });
 
+  test('a stage that does not compile is a ShaderCompileException', () async {
+    // Under the root since 1.0, where it was a StateError that `on
+    // Flutter3dException` let through: a caller reporting what the engine
+    // refused catches one type on every backend, and reads which stage from
+    // the field rather than out of the sentence.
+    //
+    // Mutation: throw the old `StateError` from `compileWebGlShader`, and
+    // this fails on the type.
+    final loaded = await device.loadShaders(
+      _bundle(<String, String>{'Broken': _flat('1.0', compiles: false)}),
+    );
+    expect(
+      () => loaded['Broken'],
+      throwsA(
+        isA<ShaderCompileException>()
+            .having((e) => e.shader, 'shader', 'Broken')
+            .having((e) => e.backend, 'backend', 'WebGL2')
+            .having((e) => e.log, 'log', isNotEmpty)
+            // Mutation: drop `diagnostics:` from the throw — a tool would
+            // have the sentence and no line to point at.
+            .having((e) => e.target, 'target', 'webgl')
+            .having((e) => e.stage, 'stage', isNotNull)
+            .having((e) => e.diagnostics, 'diagnostics', isNotEmpty),
+      ),
+    );
+  });
+
+  test('a pair that does not link is refused, carrying the linker\'s '
+      'ShaderCompileException', () async {
+    // The fragment stage reads a varying the vertex stage never writes, which
+    // compiles on its own and fails only when the two are joined.
+    //
+    // A refusal and not a throw since 1.0: thrown, it failed every frame of a
+    // renderer that drew the pair. Reported, the draws with it are skipped
+    // and the rest of the frame draws.
+    //
+    // Mutation: let `createPipeline` rethrow, and this fails at the call;
+    // throw the old `StateError` from the linker, and it fails on the cause's
+    // type.
+    final loaded = await device.loadShaders(
+      _bundle(
+        <String, String>{
+          'Reads': '''
+#version 300 es
+precision highp float;
+in vec3 v_never_written;
+layout(location = 0) out vec4 frag_color;
+void main() {
+  frag_color = vec4(v_never_written, 1.0);
+}
+''',
+        },
+        vertex: <String, String>{
+          'Writes': '''
+#version 300 es
+void main() {
+  gl_Position = vec4(0.0, 0.0, 0.0, 1.0);
+}
+''',
+        },
+      ),
+    );
+    final pipeline = device.createPipeline(loaded['Writes']!, loaded['Reads']!);
+    final refusal = device.pipelineRefusals.drain().single;
+    expect(refusal.pipeline, 'Writes+Reads');
+    expect(refusal.reason, PipelineRefusalReason.link);
+    expect(
+      refusal.cause,
+      isA<ShaderCompileException>()
+          .having((e) => e.shader, 'shader', 'Writes with Reads')
+          .having((e) => e.backend, 'backend', 'WebGL2'),
+    );
+    // Bound, it is linked again and refused again, and a draw draws nothing
+    // rather than throwing or drawing with the previous program. The
+    // vertices bound for that draw are skipped with it: there is no program
+    // to describe them against. Mutation: drop the `_pipelineRefused` return
+    // from `bindVertexBuffer`. It throws "bind a pipeline before binding
+    // vertices", which is the renderer's frame failing after all.
+    final target = device.createTexture(
+      const RenderTargetDescriptor(
+        width: 4,
+        height: 4,
+        format: TextureFormat.r8g8b8a8UNormInt,
+      ),
+    );
+    device.beginRenderPass(
+        RenderPassDescriptor(
+          colors: <ColorTarget>[ColorTarget(texture: target)],
+        ),
+      )
+      ..bindPipeline(pipeline)
+      ..bindVertexBuffer(
+        device.uploadGeometry(ByteData(36), GeometryUsage.vertices),
+        3,
+      )
+      ..bindVertexData(ByteData(36), 3)
+      ..draw()
+      ..submit();
+    expect(device.pipelineRefusals.failuresOf(pipeline), 2);
+    expect(device.pipelineRefusals.drain(), isEmpty);
+  });
+
   test('the engine\'s own sources load as a bundle and link', () async {
     final bytes = ShaderBundle(
       name: 'engine',
       sdk: '',
       stages: <ShaderBundleStage>[
-        for (final n in engineShaders.vertex.keys)
+        for (final n in webGlEngineShaders.vertex.keys)
           ShaderBundleStage(n, fragment: false),
-        for (final n in engineShaders.fragment.keys)
+        for (final n in webGlEngineShaders.fragment.keys)
           ShaderBundleStage(n, fragment: true),
       ],
       sections: <String, ByteData>{
         ShaderBundle.webglSection: encodeWebGlSection(
-          vertex: engineShaders.vertex,
-          fragment: engineShaders.fragment,
+          vertex: webGlEngineShaders.vertex,
+          fragment: webGlEngineShaders.fragment,
         ),
       },
     ).encode();
@@ -254,7 +354,7 @@ void main() {
         ).encode(),
       ),
       throwsA(
-        isA<ShaderBundleRefused>()
+        isA<ShaderBundleException>()
             .having((r) => r.name, 'name', 'impeller-only')
             .having((r) => r.reason, 'reason', contains('webgl')),
       ),
@@ -271,12 +371,12 @@ void main() {
     expect(device.debugTrackedResourceCount, greaterThan(before));
     device.dispose();
     expect(device.debugTrackedResourceCount, 0);
-    // `tearDown` would dispose twice, which the device refuses; make a fresh
-    // one for it to tear down.
-    device = WebGlDevice.create(
+    // A fresh one for `tearDown` to tear down, so the next test's device is
+    // not this disposed one.
+    device = await WebGlDevice.open(
       width: _width,
       height: _height,
-      sources: engineShaders,
-    )!;
+      sources: webGlEngineShaders,
+    );
   });
 }

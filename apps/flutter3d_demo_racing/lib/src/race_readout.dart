@@ -7,7 +7,6 @@ library;
 
 import 'package:flutter3d_game/flutter3d_game.dart'; // clockText
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
-import 'package:vector_math/vector_math.dart' show Vector2;
 
 /// Everything the display needs, gathered once a frame.
 ///
@@ -23,7 +22,7 @@ class RaceReadout {
     required this.lapTime,
     required this.bestLap,
     required this.record,
-    required this.tyres,
+    required this.tireSet,
     required this.damage,
     this.recordJustSet = false,
     this.tyresRefused = false,
@@ -58,7 +57,7 @@ class RaceReadout {
   final bool recordJustSet;
 
   /// What the car is standing on the road with.
-  final String tyres;
+  final String tireSet;
 
   /// How broken the car is, from nought to one. Shown only once there is
   /// something to show: a line reading NONE every lap of every clean race is a

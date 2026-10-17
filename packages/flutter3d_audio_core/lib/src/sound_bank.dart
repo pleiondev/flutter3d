@@ -1,5 +1,6 @@
 import 'package:vector_math/vector_math.dart';
 
+import 'mixer.dart';
 import 'sound.dart';
 
 /// Everything one game can make a noise about, as one list.
@@ -62,6 +63,13 @@ final class SoundBank extends Iterable<SoundDef> {
 
   /// Every asset path in it, for a test that wants to look on disk.
   Iterable<String> get assets => sounds.map((SoundDef s) => s.asset);
+
+  /// Every bus its sounds play on, in the order they are first met: what a
+  /// game routes, gives effects or lists on its settings screen. A bank's
+  /// sounds play through the mixer's buses as any sound does — this is
+  /// only the list of which.
+  List<AudioBus> get buses =>
+      <AudioBus>{for (final sound in sounds) sound.bus}.toList(growable: false);
 }
 
 /// One sound, and where it happened.

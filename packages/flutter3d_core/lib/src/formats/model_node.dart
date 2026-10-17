@@ -3,7 +3,7 @@ import 'package:vector_math/vector_math.dart';
 
 import 'splat/splat_cloud.dart';
 
-export 'splat/splat_cloud.dart' show SplatColourSpace;
+export 'splat/splat_cloud.dart' show SplatColorSpace;
 
 /// One drawable piece of a decoded model.
 final class ModelSurface {
@@ -167,7 +167,7 @@ final class ModelLod {
 /// [grid] × [grid] views of the node from every direction on the sphere,
 /// laid out by the octahedral map (see `impostorEncode` in
 /// `flutter3d_core`'s engine), each view an orthographic picture of a sphere
-/// of [radius] around [centre], in the node's own space.
+/// of [radius] around [center], in the node's own space.
 ///
 /// **Two images, not one**, because they are read differently: the albedo is
 /// colour and sRGB like any base colour texture, the normal-depth one is data
@@ -179,9 +179,9 @@ final class ModelImpostor {
     required this.albedoImage,
     required this.normalDepthImage,
     required this.grid,
-    required Vector3 centre,
+    required Vector3 center,
     required this.radius,
-  }) : centre = centre.clone();
+  }) : center = center.clone();
 
   /// Index into `ModelDocument.images`.
   final int albedoImage;
@@ -193,7 +193,7 @@ final class ModelImpostor {
   final int grid;
 
   /// The middle of the sphere every view frames, in the node's own space.
-  final Vector3 centre;
+  final Vector3 center;
 
   /// The sphere's radius — half the side of the card that shows a view.
   final double radius;
@@ -216,7 +216,7 @@ final class ModelSplat {
   ModelSplat({
     required this.node,
     required this.cloud,
-    required this.colourSpace,
+    required this.colorSpace,
     Matrix4? transform,
     this.meshIndex,
   }) : transform = transform ?? Matrix4.identity();
@@ -225,12 +225,12 @@ final class ModelSplat {
   final int node;
 
   /// The splats, in the node's own space, with linear colours whatever
-  /// [colourSpace] the file declared — see `gltf_loader_splats.dart`.
+  /// [colorSpace] the file declared — see `gltf_loader_splats.dart`.
   final SplatCloud cloud;
 
   /// What the file declared, kept for a writer and for anyone who wants to
   /// know why the colours were decoded.
-  final SplatColourSpace colourSpace;
+  final SplatColorSpace colorSpace;
 
   /// The node's placement relative to the model's origin, the same thing
   /// [ModelSurface.transform] is for a surface.
@@ -242,7 +242,7 @@ final class ModelSplat {
 
   @override
   String toString() =>
-      'ModelSplat(node $node, ${cloud.count} splats, ${colourSpace.name})';
+      'ModelSplat(node $node, ${cloud.count} splats, ${colorSpace.name})';
 }
 
 /// A node in a decoded model's hierarchy.

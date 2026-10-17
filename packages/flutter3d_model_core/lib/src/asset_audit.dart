@@ -13,14 +13,14 @@
 ///
 /// **Nothing here reimplements a check.** Budgets and every structural issue
 /// an export would raise are `ExportReadiness`, carried whole; the mesh counts
-/// are the `ImportReport` `importMeshData` already returns when it rebuilds
+/// are the `MeshImportReport` `importMeshData` already returns when it rebuilds
 /// topology, which is the same weld `repair` would run. What is new is the
 /// two measurements no other check makes — the overall size and where the
 /// origin sits against the bounds — and the duplicate-material grouping,
 /// which reads `material_key.dart`'s key with the name left out.
 ///
 /// **It measures and does not change anything.** Repairing is a session's
-/// business (`flutter3d_model_mcp`'s `audit` with `repair`), because it is a
+/// business (`flutter3d_mcp/model.dart`'s `audit` with `repair`), because it is a
 /// run of commands that has to land as one undo step, and an audit that could
 /// also edit would be an audit nobody could call just to look.
 library;
@@ -47,21 +47,53 @@ const double assetMinSize = 0.01;
 const double assetMaxSize = 100.0;
 
 /// Which of the audit's questions a finding answers.
-enum AuditCheck {
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class AuditCheck {
+  const AuditCheck._(this.name);
+
   /// The overall size is outside [assetMinSize]…[assetMaxSize].
-  units,
+  static const AuditCheck units = AuditCheck._('units');
 
   /// The origin is away from the base centre of the bounds.
-  pivot,
+  static const AuditCheck pivot = AuditCheck._('pivot');
 
   /// An `ExportReadiness` issue: a budget, an empty mesh, a pinch.
-  readiness,
+  static const AuditCheck readiness = AuditCheck._('readiness');
 
   /// Two or more materials identical but for their names.
-  materials,
+  static const AuditCheck materials = AuditCheck._('materials');
 
   /// What rebuilding an imported mesh's topology had to decide.
-  mesh,
+  static const AuditCheck mesh = AuditCheck._('mesh');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<AuditCheck> values = <AuditCheck>[
+    units,
+    pivot,
+    readiness,
+    materials,
+    mesh,
+  ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static AuditCheck? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'AuditCheck.$name';
 }
 
 /// One thing wrong with an asset, in a sentence with its numbers in it.
@@ -76,7 +108,7 @@ final class AuditFinding {
 }
 
 /// What rebuilding one imported object's topology had to decide — the counts
-/// from `importMeshData`'s own `ImportReport`, at its default weld.
+/// from `importMeshData`'s own `MeshImportReport`, at its default weld.
 final class MeshAudit {
   const MeshAudit({
     required this.object,
@@ -119,7 +151,7 @@ final class AssetAudit {
           :final data,
         ) when data.triangleCount > 0)
           () {
-            final (_, ImportReport report, _) = importMeshData(data);
+            final ImportedMesh(:report) = importMeshData(data);
             return MeshAudit(
               object: object,
               degenerate: report.droppedDegenerate,
@@ -159,14 +191,14 @@ final class AssetAudit {
 
   /// The middle of the bottom of [bounds]: where an asset that stands on a
   /// floor wants its origin.
-  Vector3? get baseCentre => switch (bounds) {
+  Vector3? get baseCenter => switch (bounds) {
     null => null,
     final Aabb3 box => _baseCentreOf(box),
   };
 
-  /// How far the origin is from [baseCentre], in metres. Zero when there are
+  /// How far the origin is from [baseCenter], in metres. Zero when there are
   /// no bounds.
-  double get pivotDistance => baseCentre?.length ?? 0.0;
+  double get pivotDistance => baseCenter?.length ?? 0.0;
 
   /// Groups of material indices identical but for their names, each group in
   /// table order; empty when every material is its own.
@@ -183,20 +215,20 @@ final class AssetAudit {
   final List<AuditFinding> findings;
 
   /// Whether nothing was found.
-  bool get clean => findings.isEmpty;
+  bool get isClean => findings.isEmpty;
 
   /// The measurements in one line, then each finding on its own.
   String get says {
     final Aabb3? box = bounds;
     final measured = box == null
         ? 'nothing drawn to measure'
-        : '${_metres(box.max.x - box.min.x)} × '
-              '${_metres(box.max.y - box.min.y)} × '
-              '${_metres(box.max.z - box.min.z)}, origin '
-              '${_metres(pivotDistance)} from the base centre';
+        : '${_meters(box.max.x - box.min.x)} × '
+              '${_meters(box.max.y - box.min.y)} × '
+              '${_meters(box.max.z - box.min.z)}, origin '
+              '${_meters(pivotDistance)} from the base centre';
     return <String>[
       measured,
-      if (clean)
+      if (isClean)
         'nothing to fix'
       else
         '${findings.length} ${findings.length == 1 ? 'finding' : 'findings'}:',
@@ -236,6 +268,7 @@ Aabb3? _localBoundsOf(Geometry geometry) => switch (geometry) {
     data.triangleCount == 0 ? null : data.computeBounds(),
   ParametricGeometry(:final shape) => shape.drawn.build().computeBounds(),
   SocketGeometry() => null,
+  _ => throw UnsupportedError('no bounds for $geometry'),
 };
 
 /// The origin further from the base centre than this reads as misplaced: a
@@ -245,25 +278,25 @@ double _pivotTolerance(double size) => math.max(0.001, size * 0.01);
 
 AuditFinding? _unitsFinding(Aabb3? bounds) {
   if (bounds == null) return null;
-  final double size = _sizeOf(bounds);
+  final size = _sizeOf(bounds);
   if (size > assetMaxSize) {
     final (String unit, double factor) = size / 100 <= assetMaxSize
         ? ('cm', 100.0)
         : ('mm', 1000.0);
     return AuditFinding(
       AuditCheck.units,
-      'the asset is ${_metres(size)} across, more than the '
-      '${_metres(assetMaxSize)} one asset reads as; in $unit it would be '
-      '${_metres(size / factor)}, so it was most likely written in $unit and '
+      'the asset is ${_meters(size)} across, more than the '
+      '${_meters(assetMaxSize)} one asset reads as; in $unit it would be '
+      '${_meters(size / factor)}, so it was most likely written in $unit and '
       'read as metres — import it again with unit "$unit"',
     );
   }
   if (size < assetMinSize) {
     return AuditFinding(
       AuditCheck.units,
-      'the asset is ${_metres(size)} across, less than the '
-      '${_metres(assetMinSize)} one asset reads as; scaled by 100 it would be '
-      '${_metres(size * 100)} and by 1000 ${_metres(size * 1000)}, so it was '
+      'the asset is ${_meters(size)} across, less than the '
+      '${_meters(assetMinSize)} one asset reads as; scaled by 100 it would be '
+      '${_meters(size * 100)} and by 1000 ${_meters(size * 1000)}, so it was '
       'most likely scaled down once too often on its way here',
     );
   }
@@ -273,12 +306,12 @@ AuditFinding? _unitsFinding(Aabb3? bounds) {
 AuditFinding? _pivotFinding(Aabb3? bounds) {
   if (bounds == null) return null;
   final Vector3 base = _baseCentreOf(bounds);
-  final double distance = base.length;
+  final distance = base.length;
   if (distance <= _pivotTolerance(_sizeOf(bounds))) return null;
   return AuditFinding(
     AuditCheck.pivot,
-    'the origin is ${_metres(distance)} from the middle of the asset\'s base, '
-    'at (${_metres(base.x)}, ${_metres(base.y)}, ${_metres(base.z)}); placed '
+    'the origin is ${_meters(distance)} from the middle of the asset\'s base, '
+    'at (${_meters(base.x)}, ${_meters(base.y)}, ${_meters(base.z)}); placed '
     'at a point in a level it will stand that far away from it — repair '
     'moves it so its base sits on the origin',
   );
@@ -350,5 +383,5 @@ String _count(int n, String one) => '$n $one${n == 1 ? '' : 's'}';
 
 /// Metres to two decimals, or two significant figures under a centimetre, so
 /// a millimetre model does not read as "0.00 m".
-String _metres(double value) =>
+String _meters(double value) =>
     '${value.abs() >= 0.01 || value == 0 ? value.toStringAsFixed(2) : value.toStringAsPrecision(2)} m';

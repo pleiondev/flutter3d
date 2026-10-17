@@ -24,12 +24,18 @@ in vec4 color;
 
 #include <lib/morph_instanced.glsl>
 
+// Which instance this is, through the header that makes it an attribute on
+// the one target with no built-in for it.
+#include <lib/instance_index.glsl>
+
 /// Rows of the instance's 3x4 affine transform, in the node's space.
 in vec4 i_row0;
 in vec4 i_row1;
 in vec4 i_row2;
 /// Multiplied into the vertex colour, so a batch of one mesh can vary its tint.
 in vec4 i_color;
+/// The instance's own four numbers — `P8`, `InstancedMeshNode.setInstanceData`.
+in vec4 i_data;
 
 uniform FrameInfo {
   mat4 mvp;
@@ -44,6 +50,9 @@ out vec2 v_texcoord;
 out vec4 v_tangent;
 out vec4 v_color;
 out vec2 v_lightmap_uv;
+/// `P8`: an instance's own four numbers, a material's `instance` — from
+/// slot 1 in the instanced stage, nought in every other.
+out vec4 v_instance;
 
 void main() {
   // Columns from rows: GLSL matrices are column-major, so the constructor is
@@ -61,7 +70,7 @@ void main() {
   vec3 morphed_position = position;
   vec3 morphed_normal = normal;
   vec4 morphed_tangent = tangent;
-  ApplyMorphInstanced(gl_InstanceIndex, morphed_position, morphed_normal,
+  ApplyMorphInstanced(F3dInstanceIndex(), morphed_position, morphed_normal,
                       morphed_tangent);
 
   vec4 local = instance * vec4(morphed_position, 1.0);
@@ -84,5 +93,6 @@ void main() {
       mirrored ? -morphed_tangent.w : morphed_tangent.w);
   v_color = color * i_color;
   v_lightmap_uv = vec2(0.0);
+  v_instance = i_data;
   gl_Position = frame_info.mvp * local;
 }

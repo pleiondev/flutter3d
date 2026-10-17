@@ -3,9 +3,8 @@
 /// editing) do not cover.
 ///
 /// A `part` of `command.dart` for the reason every other command file
-/// gives: [ModelCommand] is sealed, and a journal writer's exhaustive
-/// `switch` is only exhaustive if the compiler can see every case inside
-/// one library.
+/// gives: [ModelCommand] is `abstract final`, so every command lives in one
+/// library, beside the journal reader that names them all.
 ///
 /// **`SetRestPose` reads `worldTransformOf`, added alongside it.** Setting
 /// a joint's rest pose in world space and recomputing its inverse bind
@@ -519,7 +518,7 @@ final class MirrorJoints extends ModelCommand {
         jointIndex: target.key,
         worldTransform: target.value,
       ).apply(next, selection);
-      if (!outcome.ok) return outcome;
+      if (!outcome.isOk) return outcome;
       next = outcome.project!;
     }
     return Outcome.done(next);
@@ -588,15 +587,16 @@ final class BendJoint extends ModelCommand {
   const BendJoint({
     required this.skeletonIndex,
     required this.jointIndex,
-    required this.degrees,
+    required this.angle,
     this.axis = 0,
   });
 
   final int skeletonIndex;
   final int jointIndex;
 
-  /// The turn from the bind pose, in degrees.
-  final double degrees;
+  /// The turn from the bind pose, in radians. The journal and the MCP tool
+  /// keep it in degrees (`degrees`), converted where it is read and written.
+  final double angle;
 
   /// `0` for x, `1` for y, `2` for z — the same spelling [MirrorJoints] uses.
   final int axis;
@@ -611,7 +611,7 @@ final class BendJoint extends ModelCommand {
   Map<String, Object?> get arguments => <String, Object?>{
     'skeletonIndex': skeletonIndex,
     'jointIndex': jointIndex,
-    'degrees': degrees,
+    'degrees': degrees(angle),
     'axis': axis,
   };
 
@@ -652,7 +652,7 @@ final class BendJoint extends ModelCommand {
       0 => Vector3(1.0, 0.0, 0.0),
       1 => Vector3(0.0, 1.0, 0.0),
       _ => Vector3(0.0, 0.0, 1.0),
-    }, radians(degrees));
+    }, angle);
     // `bind · turn`, the order `bend_slider_bar.dart` composes: the axis
     // then reads the same whichever way the bind pose itself is turned.
     final bent = bindRotation * turn

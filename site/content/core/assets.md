@@ -194,8 +194,8 @@ if (player != null) {
 
 Advance the player **once a frame**, not once a step. The simulation runs at a fixed 60 Hz and the animation should run at whatever the display does. Which clip to play is a pure function of the simulation's state, which makes it testable on its own:
 
-```dart
-// A pure function, tested as one.
+```dart fragment
+// The platformer demo's own `RunnerClips`: a pure function, tested as one.
 final wanted = RunnerClips.forRunner(runner);
 if (wanted != current) {
   player.crossFadeToNamed(wanted, duration: wanted == RunnerClips.jump ? 0.06 : 0.14);
@@ -275,7 +275,7 @@ final pages = await PagedSplatOctree.open(
   (offset, length) => fetchRange(url, offset, length),   // an HTTP Range request
 );
 final lod = SplatLod.paged(pages, budget: 400000);
-renderer.addContributor(SplatContributor.lod(lod));
+renderer.renderSteps.addContributor(SplatContributor.lod(lod));
 ```
 
 `open` reads the header, the node table and the root's page. After that a page is fetched only when the cut wants to draw finer than what has arrived, most visible first and at most `maxInFlight` (4) requests at a time, so a distant cloud on a slow connection costs the pages it is seen at. The fetching is the caller's: a `SplatRangeReader` is one function from a byte range to its bytes, and this package depends on no network library. `splatBytesReader` wraps bytes already in memory. `SplatLod.budget` is the most splats a cut may hold, and a budget below the root's own count draws nothing.

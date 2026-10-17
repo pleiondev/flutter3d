@@ -182,7 +182,11 @@ List<RigTrack> retargetTracks({
   required RetargetRig target,
   required BoneMap boneMap,
   bool lockFeet = true,
+
+  /// In metres.
   double groundY = 0.0,
+
+  /// In metres.
   double footTolerance = 1e-3,
 }) {
   final heightRatio = _standingHeight(target) / _standingHeight(source);
@@ -309,8 +313,10 @@ AnimationTrack? _retargetTrack(
     case AnimationPath.scale:
     case AnimationPath.weights:
     case AnimationPath.pointer:
+    default:
       // Passed through unchanged: this row's own acceptance names rotation
-      // (rest-relative) and translation (height-scaled) only.
+      // (rest-relative) and translation (height-scaled) only, and a path a
+      // later release adds is not one a rest pose says anything about.
       return AnimationTrack(
         nodeIndex: track.nodeIndex,
         path: track.path,

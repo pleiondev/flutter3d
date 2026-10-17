@@ -41,7 +41,7 @@ stateDiagram-v2
     pound --> grounded: land hard
 ```
 
-Every one of those is a number in `RunnerTuning`, and each number has a reason:
+Every one of those is a number in `RunnerSettings`, and each number has a reason:
 
 | Setting | Default | Why that number |
 |---|---|---|
@@ -77,12 +77,12 @@ final runner = Runner(
 ```
 
 ```dart
-factory Surfaces.common() => const Surfaces(<String, MovementTuning>{
-      'ice': MovementTuning(
+factory Surfaces.common() => const Surfaces(<String, MovementSettings>{
+      'ice': MovementSettings(
         groundFriction: 3.0,        // almost no grip
         groundAcceleration: 12.0,   // and you gather speed slowly
       ),
-      'mud': MovementTuning(
+      'mud': MovementSettings(
         walkSpeed: 2.6, sprintSpeed: 3.4,
         groundAcceleration: 30.0, groundFriction: 70.0,
         jumpSpeed: 6.0,
@@ -109,11 +109,11 @@ EntityRegistry platformerRegistry({Dynamics? dynamics}) =>
       const PlatformKind(), const ButtonKind(), const TriggerKind(),
       const ExitKind(),
       const CollectibleKind(), const HazardKind(), const CheckpointKind(),
-      const KeyKind(), CrateKind(dynamics: dynamics), const SpringKind(),
+      const PlatformerKeyKind(), CrateKind(dynamics: dynamics), const SpringKind(),
       const OneWayKind(), const ConveyorKind(), const CrumblingKind(),
       const BreakableKind(), const ClimbableKind(), const EnemyKind(),
       LightFixtureKind(PlatformerEntities.lamp,
-          defaultBehaviour: const FlameFlicker(),
+          defaultBehavior: const FlameFlicker(),
           defaultSize: Vector3(0.4, 1.6, 0.4)),
     ]);
 ```
@@ -152,7 +152,7 @@ Both are ordinary `Brain`s driven by the engine's `ActorSystem`, with no genre-s
 The game layer has no camera type and that is deliberate. A third-person one is a caller reading `position` differently, so it lives here.
 
 ```dart
-final camera = FollowCamera(world: collision, tuning: const FollowTuning(
+final camera = FollowCamera(world: collision, tuning: const FollowSettings(
   distance: 7.0, height: 2.6, aimHeight: 1.2,
   lag: 9.0,                 // units a second of the remaining gap
   pitch: -0.22, minPitch: -1.2, maxPitch: 0.9,

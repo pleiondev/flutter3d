@@ -9,7 +9,7 @@ library;
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:flutter3d_webgl/src/webgl_bundle_section.dart';
+import 'package:flutter3d_shaders/translate.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -27,7 +27,9 @@ void main() {
     });
   });
 
-  test('a section that is not the document is a FormatException', () {
+  test('a section that is not the document is a format exception', () {
+    // `BundleSectionFormatException` since 1.0, a `Flutter3dFormatException`
+    // and deliberately not the SDK's `FormatException` (see the root's file).
     // Each shape the device would otherwise read as an empty library: not
     // JSON, JSON that is not an object, an object with a map missing, and a
     // source that is not a string. Every one is a message rather than a
@@ -40,7 +42,10 @@ void main() {
       text('{"vertex": {}}'),
       text('{"vertex": {}, "fragment": {"Stripes": 3}}'),
     ]) {
-      expect(() => decodeWebGlSection(bad), throwsFormatException);
+      expect(
+        () => decodeWebGlSection(bad),
+        throwsA(isA<BundleSectionFormatException>()),
+      );
     }
   });
 }

@@ -1,5 +1,9 @@
 import 'dart:typed_data';
 
+import 'package:flutter3d_hardware/flutter3d_hardware.dart'
+    show SamplerAddressMode;
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show LinearColor;
 import 'package:vector_math/vector_math.dart';
 
 import 'lighting_model.dart';
@@ -8,19 +12,61 @@ import 'material_extensions.dart';
 export 'material_extensions.dart';
 
 /// How a surface treats the alpha channel.
-enum SurfaceAlphaMode { opaque, mask, blend }
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class SurfaceAlphaMode {
+  const SurfaceAlphaMode._(this.name);
 
-enum TextureWrap { repeat, clampToEdge, mirroredRepeat }
+  static const SurfaceAlphaMode opaque = SurfaceAlphaMode._('opaque');
+
+  static const SurfaceAlphaMode mask = SurfaceAlphaMode._('mask');
+
+  static const SurfaceAlphaMode blend = SurfaceAlphaMode._('blend');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<SurfaceAlphaMode> values = <SurfaceAlphaMode>[
+    opaque,
+    mask,
+    blend,
+  ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static SurfaceAlphaMode? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'SurfaceAlphaMode.$name';
+}
 
 /// Filtering and wrapping requested for a texture.
+///
+/// **What a file asked for, not a sampler.** The wrap is the sampler's own
+/// [SamplerAddressMode], and `samplerOptionsFor` derives the
+/// `SamplerDescriptor` a device binds from this. It stays a type of its own
+/// for what a sampler does not hold: [useMipmaps] is a request to build a
+/// chain at upload, [mipLinear] keeps the file's mip filter for a writer to
+/// give back, and its defaults are a file's (linear, repeating), where a
+/// sampler's are the device's (nearest, clamped).
 final class TextureSampling {
   const TextureSampling({
     this.magLinear = true,
     this.minLinear = true,
     this.useMipmaps = true,
     this.mipLinear = true,
-    this.wrapS = TextureWrap.repeat,
-    this.wrapT = TextureWrap.repeat,
+    this.wrapS = SamplerAddressMode.repeat,
+    this.wrapT = SamplerAddressMode.repeat,
   });
 
   final bool magLinear;
@@ -49,8 +95,8 @@ final class TextureSampling {
   /// a decoder and a writer agree the file said.
   final bool mipLinear;
 
-  final TextureWrap wrapS;
-  final TextureWrap wrapT;
+  final SamplerAddressMode wrapS;
+  final SamplerAddressMode wrapT;
 }
 
 /// A reference from a material to one of the document's images.
@@ -82,7 +128,7 @@ final class TextureBinding {
   /// texture of the material names the same transform, which is what an
   /// atlas export writes: see `texture_transform_bake.dart`. A material whose
   /// textures disagree, or whose offset a clip moves, is read through a
-  /// matrix per map at the sampler instead — `C8`, `Material.textureTransforms`.
+  /// matrix per map at the sampler instead — `C8`, `RenderMaterial.textureTransforms`.
   /// The document keeps the coordinates the file had beside the numbers it
   /// named, so a round trip gives the file back.
   final TextureTransform? transform;
@@ -91,12 +137,50 @@ final class TextureBinding {
 /// The maps of a metal-rough material, in the order the layered stage keeps
 /// their transforms — `C8`, `LayerInfo.uv_transform` and `kMapBaseColor` and
 /// the rest in `lib/surface.glsl`.
-enum MaterialMap {
-  baseColor,
-  metallicRoughness,
-  normal,
-  occlusion,
-  emissive;
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class MaterialMap {
+  const MaterialMap._(this.name);
+
+  static const MaterialMap baseColor = MaterialMap._('baseColor');
+
+  static const MaterialMap metallicRoughness = MaterialMap._(
+    'metallicRoughness',
+  );
+
+  static const MaterialMap normal = MaterialMap._('normal');
+
+  static const MaterialMap occlusion = MaterialMap._('occlusion');
+
+  static const MaterialMap emissive = MaterialMap._('emissive');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<MaterialMap> values = <MaterialMap>[
+    baseColor,
+    metallicRoughness,
+    normal,
+    occlusion,
+    emissive,
+  ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static MaterialMap? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  /// The position in [values]: stable within a major, appended only.
+  int get index => values.indexOf(this);
 
   /// [material]'s binding for this map, or null.
   TextureBinding? of(SurfaceMaterial material) => switch (this) {
@@ -105,7 +189,11 @@ enum MaterialMap {
     normal => material.normalTexture,
     occlusion => material.occlusionTexture,
     emissive => material.emissiveTexture,
+    _ => throw UnsupportedError('a surface material has no binding for $this'),
   };
+
+  @override
+  String toString() => 'MaterialMap.$name';
 }
 
 /// `KHR_texture_transform`'s three fields — see [TextureBinding.transform].
@@ -196,7 +284,7 @@ final class EncodedImage {
 final class SurfaceMaterial {
   SurfaceMaterial({
     this.name,
-    Vector4? baseColor,
+    this.baseColor = LinearColor.white,
     this.metallic = 0.0,
     this.roughness = 0.5,
     this.baseColorTexture,
@@ -206,7 +294,7 @@ final class SurfaceMaterial {
     this.occlusionTexture,
     this.occlusionStrength = 1.0,
     this.emissiveTexture,
-    Vector3? emissive,
+    this.emissive = LinearColor.black,
     this.emissiveStrength = 1.0,
     this.alphaMode = SurfaceAlphaMode.opaque,
     this.alphaCutoff = 0.5,
@@ -215,28 +303,46 @@ final class SurfaceMaterial {
     this.lightingModel,
     this.extensions,
     this.extras,
-  }) : baseColor = baseColor ?? Vector4(1.0, 1.0, 1.0, 1.0),
-       emissive = emissive ?? Vector3.zero();
+    this.physicalMaterial,
+    this.materialVersion,
+  });
 
   final String? name;
 
-  /// RGBA tint as authored, i.e. non-linear for the colour channels.
-  final Vector4 baseColor;
+  /// RGBA tint, linear with straight alpha, as every colour the engine
+  /// holds. A format that stores it otherwise (OBJ's `Kd`, the `.f3d`
+  /// material table) converts at its reader and writer.
+  final LinearColor baseColor;
 
+  /// A 0..1 fraction.
   final double metallic;
+
+  /// Perceptual roughness, a 0..1 fraction.
   final double roughness;
 
   final TextureBinding? baseColorTexture;
   final TextureBinding? metallicRoughnessTexture;
   final TextureBinding? normalTexture;
+
+  /// A unitless multiplier on the normal map's X and Y.
   final double normalScale;
   final TextureBinding? occlusionTexture;
+
+  /// A 0..1 fraction of the occlusion texture applied.
   final double occlusionStrength;
   final TextureBinding? emissiveTexture;
-  final Vector3 emissive;
+
+  /// Linear; alpha is not read.
+  final LinearColor emissive;
+
+  /// A unitless multiplier on [emissive], as glTF's
+  /// `KHR_materials_emissive_strength`; it becomes nits where the render
+  /// material is made.
   final double emissiveStrength;
 
   final SurfaceAlphaMode alphaMode;
+
+  /// A 0..1 fraction: in the mask mode, alpha below it is cut away.
   final double alphaCutoff;
   final bool doubleSided;
 
@@ -265,6 +371,30 @@ final class SurfaceMaterial {
   /// glTF's own `extras` on this material, carried opaquely — see
   /// [ModelNode.extras] for what that means and why.
   final Map<String, Object?>? extras;
+
+  /// The id of the physical material this surface is made of —
+  /// `f3d.glass`, or a plugin's `<pluginId>.<name>` — in the engine's
+  /// `MaterialCatalog` (`flutter3d_matter`); null when the document never
+  /// said.
+  ///
+  /// **A reference, not a copy.** How the surface looks stays this
+  /// material's own; what it is made of (its density for a collider, its
+  /// absorption for a sound, its index for a converter's F0) is the
+  /// catalog's, read by whoever has one. This package does not, so it
+  /// keeps the id exactly as written. A `.f3d` that needs a material the
+  /// catalog does not ship carries it whole (`F3dDocument.physicalMaterials`).
+  final String? physicalMaterial;
+
+  /// The version of the material program its [lightingModel] names that
+  /// this instance was written for (`material Hatch version 3`, see
+  /// `MaterialProgram.version`); null when the document never said, which
+  /// is read as version 1.
+  ///
+  /// **The instance keeps the version; a loader lifts.** The parameters an
+  /// instance set mean what they meant at this version, and
+  /// `MaterialProgram.lift` carries them to the program's own through its
+  /// `updates`. This package keeps the number as written.
+  final int? materialVersion;
 
   @override
   String toString() =>

@@ -1,4 +1,4 @@
-/// `PaintVertexColour` — `pro-pt-06n`: the same brush, into the mesh's own
+/// `PaintVertexColor` — `pro-pt-06n`: the same brush, into the mesh's own
 /// colour layer.
 ///
 ///     dart test test/paint_vertex_colour_test.dart
@@ -39,24 +39,27 @@ List<Vector4> coloursOf(EditMesh mesh) {
   final out = <Vector4>[];
   for (var face = 0; face < mesh.faceSlotCount; face++) {
     if (!mesh.isFaceAlive(face)) continue;
-    mesh.forEachHalfEdge(face, (int half) => out.add(mesh.colourOf(half)));
+    mesh.forEachHalfEdge(face, (int half) {
+      final c = mesh.colorOf(half);
+      out.add(Vector4(c.r, c.g, c.b, c.a));
+    });
   }
   return out;
 }
 
-PaintVertexColour stroke({
+PaintVertexColor stroke({
   Vector3? at,
   double radius = 0.5,
-  List<double>? colour,
+  List<double>? color,
   double strength = 1,
-}) => PaintVertexColour(
+}) => PaintVertexColor(
   objectId: 1,
   samples: <PaintSample>[
-    PaintSample(centre: at ?? Vector3(0, 0, 1), radius: radius),
+    PaintSample(center: at ?? Vector3(0, 0, 1), radius: radius),
   ],
   // Black on the white every corner starts at, so a painted corner and an
   // untouched one differ in every channel rather than in none.
-  colour: colour ?? const <double>[0, 0, 0, 1],
+  color: color ?? const <double>[0, 0, 0, 1],
   strength: strength,
 );
 
@@ -115,10 +118,10 @@ void main() {
       final ModelHistory history = opened();
       expect(
         history.run(
-          const PaintVertexColour(
+          const PaintVertexColor(
             objectId: 1,
             samples: <PaintSample>[],
-            colour: <double>[1, 1, 1, 1],
+            color: <double>[1, 1, 1, 1],
           ),
         ),
         contains('at least one sample'),
@@ -128,7 +131,7 @@ void main() {
     test('a colour that is not four numbers', () {
       final ModelHistory history = opened();
       expect(
-        history.run(stroke(colour: const <double>[1, 0])),
+        history.run(stroke(color: const <double>[1, 0])),
         contains('four numbers'),
       );
     });
@@ -146,12 +149,12 @@ void main() {
       final ModelHistory history = opened();
       expect(
         history.run(
-          PaintVertexColour(
+          PaintVertexColor(
             objectId: 9,
             samples: <PaintSample>[
-              PaintSample(centre: Vector3.zero(), radius: 1),
+              PaintSample(center: Vector3.zero(), radius: 1),
             ],
-            colour: const <double>[1, 1, 1, 1],
+            color: const <double>[1, 1, 1, 1],
           ),
         ),
         contains('9'),
@@ -162,10 +165,10 @@ void main() {
   group('written down', () {
     test('reads back as itself', () {
       final ModelCommand? read = modelCommandFromJson(stroke().toJson());
-      expect(read, isA<PaintVertexColour>());
-      final PaintVertexColour back = read! as PaintVertexColour;
+      expect(read, isA<PaintVertexColor>());
+      final PaintVertexColor back = read! as PaintVertexColor;
       expect(back.objectId, 1);
-      expect(back.colour, <double>[0, 0, 0, 1]);
+      expect(back.color, <double>[0, 0, 0, 1]);
       expect(back.samples.single.radius, 0.5);
     });
   });

@@ -22,9 +22,9 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter3d_core/flutter3d_core.dart' show GraphicsDevice;
 import 'package:flutter3d_core/formats.dart'
     show Rgba8Image, decodeImagePure, encodeCompressedPng;
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 import 'project.dart';
 import 'render_project.dart';
@@ -56,8 +56,9 @@ const List<RenderProjectView> renderSheetViews = <RenderProjectView>[
 /// [width] over the column count and half of [height], rounded down — a
 /// width or height that does not divide loses at most a few pixels off the
 /// sheet's own right or bottom edge rather than off any tile.
-/// [RenderRefusal] surfaces from whichever quadrant [renderProject] refuses
-/// first, at the half-size it was actually asked to draw.
+/// [RenderRefusalException] surfaces from whichever quadrant
+/// [renderProject] refuses first, at the half-size it was actually asked to
+/// draw.
 ///
 /// [labels] writes each view's own name into its quadrant. Pass `false` for
 /// a sheet whose quadrants are byte-for-byte what [renderProject] returns.
@@ -93,7 +94,7 @@ Future<Uint8List> renderSheet({
       ),
       deviceFactory: deviceFactory,
     );
-    tiles.add((await decodeImagePure(png))!);
+    tiles.add(await decodeImagePure(png));
   }
 
   final sheetWidth = tileWidth * columns;

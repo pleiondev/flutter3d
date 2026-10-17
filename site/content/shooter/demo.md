@@ -46,7 +46,7 @@ description: The shooter, built against the WebGL2 backend and running in this p
 
 ## Fire and look are the same two buttons they are on a desktop
 
-They were not, and the reason is worth keeping. A browser was treated as a platform with no pointer to capture, so a drag stood in for the mouse; and a drag that also had to *not* fire would have made aiming and shooting mutually exclusive, so they were one gesture. That is a reasonable answer to the wrong question. Browsers have had `requestPointerLock` for a decade; `pointer_lock` simply had no browser backend.
+They were not, and the reason is worth keeping. A browser was treated as a platform with no pointer to capture, so a drag stood in for the mouse; and a drag that also had to *not* fire would have made aiming and shooting mutually exclusive, so they were one gesture. That is a reasonable answer to the wrong question. Browsers have had `requestPointerLock` for a decade; `flutter3d_pointer_lock` simply had no browser backend.
 
 It has one now, so this build behaves like the desktop one: the pointer is captured on the first click, the mouse aims, the button fires, Escape releases. On a phone the on-screen stick appears instead, which it never used to, because the guard that hid pointer capture hid the touch controls as well. Flutter reports a mobile browser as `android` or `iOS`, so nothing had to be detected for that.
 
@@ -54,7 +54,7 @@ It has one now, so this build behaves like the desktop one: the pointer is captu
 
 ## What the browser costs
 
-Sound, pointer capture and saved settings were all listed here as missing. All three work now: `flutter_soloud` ships a WebAssembly build, `pointer_lock` grew a browser backend over `document.requestPointerLock`, and settings and saves live in `localStorage` instead of files.
+Sound, pointer capture and saved settings were all listed here as missing. All three work now: `flutter_soloud` ships a WebAssembly build, `flutter3d_pointer_lock` grew a browser backend over `document.requestPointerLock`, and settings and saves live in `localStorage` instead of files.
 
 | | |
 |---|---|
@@ -70,7 +70,7 @@ Sound, pointer capture and saved settings were all listed here as missing. All t
 
 The same three files as the platformer, plus one decision about the pointer.
 
-```dart
+```dart fragment
 // lib/src/backend.dart
 export 'backend_native.dart' if (dart.library.js_interop) 'backend_web.dart';
 ```
@@ -78,10 +78,10 @@ export 'backend_native.dart' if (dart.library.js_interop) 'backend_web.dart';
 ```dart
 // A first-person camera reads the look delta inside the step, so the loop is
 // the right place to drain it — unlike the platformer, whose follow camera
-// reads it during the frame. Which *source* it drains is `Playing`'s answer,
-// not this file's.
+// reads it during the frame. Which *source* it drains is `Playing`'s answer
+// (`final _playing = Playing.ofPlatform()`, held by the game), not this file's.
 void _drainLook(Vector2 out) {
-  if (Playing.dragLook) {
+  if (_playing.dragLook) {
     _dragLook.drainInto(out);
   } else {
     _devices.drainLook(out);
@@ -90,7 +90,7 @@ void _drainLook(Vector2 out) {
 }
 ```
 
-There is no `kIsWeb` anywhere in this application. The drag layer above the frame is mounted `if (Playing.dragLook)`, the capture is asked for `if (Playing.capturesPointer)`, and the on-screen stick appears `if (Playing.touch)`. A desktop browser takes all three branches a desktop takes.
+There is no `kIsWeb` anywhere in this application. The drag layer above the frame is mounted `if (_playing.dragLook)`, the capture is asked for `if (_playing.capturesPointer)`, and the on-screen stick appears `if (_playing.touch)`. A desktop browser takes all three branches a desktop takes.
 
 Nothing in `flutter3d`, `flutter3d_game`, `flutter3d_physics` or `flutter3d_game_shooter` changed to make this run.
 
@@ -100,7 +100,7 @@ Each was a real defect instead of a web caveat, and each is fixed in the reposit
 
 1. **The generated GLSL was stale.** `flutter3d_webgl/lib/engine_shaders.dart` had not been regenerated since cascaded shadows added `shadow_matrix_far`, so the backend could not draw one sphere. [The detail is on the platformer's demo page](/platformer/demo/#the-bug-this-demo-found).
 2. **The canvas took the pointer.** A WebGL canvas is a display surface, not a control, and left interactive it swallowed every event the widgets above it needed. It now carries `pointer-events: none`.
-3. **`pointer_lock` threw where it promised not to.** `PointerLock` documents that it no-ops on a platform without an implementation, and it does. Its constructor, though, subscribed to an event channel, and that is a `MissingPluginException` on the first listener. It hands back an empty stream now, which is what "this platform never changes capture state" comes to in code.
+3. **`flutter3d_pointer_lock` threw where it promised not to.** `PointerLock` documents that it no-ops on a platform without an implementation, and it does. Its constructor, though, subscribed to an event channel, and that is a `MissingPluginException` on the first listener. It hands back an empty stream now, which is what "this platform never changes capture state" comes to in code.
 
 ## Building it yourself
 

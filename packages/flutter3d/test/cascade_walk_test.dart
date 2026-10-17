@@ -10,7 +10,6 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _size = 64;
 
@@ -25,7 +24,10 @@ const int _size = 64;
     ..add(
       MeshNode(
           floor,
-          Material(name: 'floor', baseColor: Vector4(0.9, 0.9, 0.9, 1.0)),
+          RenderMaterial(
+            name: 'floor',
+            baseColor: LinearColor.fromSrgb(0.9, 0.9, 0.9, 1.0),
+          ),
         )
         ..setPosition(0.0, -1.0, 0.0)
         // Receives but does not cast: a floor that cast would cover every
@@ -34,23 +36,24 @@ const int _size = 64;
         ..shadowCasting = ShadowCastingMode.off,
     )
     ..add(
-      LightNode(intensity: 6.0, castsShadow: true)
+      LightNode(intensity: 6.0 * LightNode.defaultIntensity, castsShadow: true)
         ..setPosition(4.0, 5.0, 0.01)
         ..lookAt(Vector3.zero()),
     );
   for (var i = 0; i < 6; i++) {
     scene.add(
-      MeshNode(block, Material(name: 'block $i'))
+      MeshNode(block, RenderMaterial(name: 'block $i'))
         ..setPosition(-5.0 + i * 2.0, 0.0, -2.0),
     );
   }
   // The corner of the casters' bounds, which the last cascade is fitted to,
   // and a block well inside them that the camera's cascades never reach.
   scene.add(
-    MeshNode(block, Material(name: 'corner'))..setPosition(15.0, 0.0, -15.0),
+    MeshNode(block, RenderMaterial(name: 'corner'))
+      ..setPosition(15.0, 0.0, -15.0),
   );
   final far = scene.add(
-    MeshNode(block, Material(name: 'far'), name: 'far')
+    MeshNode(block, RenderMaterial(name: 'far'), name: 'far')
       ..setPosition(10.0, 0.0, -12.0),
   );
   final camera = scene.add(CameraNode());
@@ -90,7 +93,7 @@ void main() {
             width: _size,
             height: _size,
             scene: built.scene,
-            views: <RenderView>[RenderView(camera: built.camera)],
+            views: <CameraView>[CameraView(camera: built.camera)],
             settings: _settings,
           ),
         ),
@@ -120,7 +123,7 @@ void main() {
       width: _size,
       height: _size,
       scene: built.scene,
-      views: <RenderView>[RenderView(camera: built.camera)],
+      views: <CameraView>[CameraView(camera: built.camera)],
       settings: _settings,
     );
     final first = cascadeDraws(frame());
@@ -130,8 +133,50 @@ void main() {
     built.far.translate(0.0, 0.0, 1.0);
     final moved = cascadeDraws(frame());
     expect(moved, greaterThan(0));
-    // Mutation: put `SceneNode.changeEpoch` back in the key. Every tile.
+    // Mutation: put `sceneChangeEpoch` back in the key. Every tile.
     expect(moved, lessThan(first));
+  });
+
+  test('a frame that redraws every tile clears rather than resets', () {
+    final device = CpuDevice(
+      width: _size,
+      height: _size,
+      shaders: CpuShaderLibrary(builtinCpuShaders()),
+    );
+    FrameResult frame(Renderer renderer, Scene scene, CameraNode camera) =>
+        renderer.render(
+          width: _size,
+          height: _size,
+          scene: scene,
+          views: <CameraView>[CameraView(camera: camera)],
+          settings: _settings,
+        );
+
+    final kept = Renderer.create(device: device);
+    final built = _scene(device);
+    _place(built.camera, 0);
+    frame(kept, built.scene, built.camera);
+    // A sun that turned moves every tile's matrix, so nothing is left to keep.
+    void turn(Scene scene) => scene.lights.single
+      ..setPosition(-4.0, 6.0, 1.0)
+      ..lookAt(Vector3.zero());
+    turn(built.scene);
+    final redrawn = cascadeDraws(frame(kept, built.scene, built.camera));
+
+    final fresh = _scene(device);
+    _place(fresh.camera, 0);
+    turn(fresh.scene);
+    // As many draws as a renderer drawing the same frame from nothing: the
+    // casters, and no reset per tile on top of them.
+    // Mutation: drop `dirty.contains(false)` from `keep`. Three more — one
+    // full-tile reset each, which on the software device was nine tenths of
+    // an impostor bake.
+    expect(
+      redrawn,
+      cascadeDraws(
+        frame(Renderer.create(device: device), fresh.scene, fresh.camera),
+      ),
+    );
   });
 
   test('eight frames of a walk are the frames drawn from nothing', () async {
@@ -141,9 +186,9 @@ void main() {
       shaders: CpuShaderLibrary(builtinCpuShaders()),
     );
     Future<List<int>> pixels(FrameResult result) async {
-      final bytes = await device.readPixels(result.frame);
+      final bytes = await device.readback(result.frame);
       return <int>[
-        for (var i = 0; i < _size * _size * 4; i++) bytes!.getUint8(i),
+        for (var i = 0; i < _size * _size * 4; i++) bytes.getUint8(i),
       ];
     }
 
@@ -156,7 +201,7 @@ void main() {
           width: _size,
           height: _size,
           scene: walk.scene,
-          views: <RenderView>[RenderView(camera: walk.camera)],
+          views: <CameraView>[CameraView(camera: walk.camera)],
           settings: _settings,
         ),
       );
@@ -167,7 +212,7 @@ void main() {
           width: _size,
           height: _size,
           scene: fresh.scene,
-          views: <RenderView>[RenderView(camera: fresh.camera)],
+          views: <CameraView>[CameraView(camera: fresh.camera)],
           settings: _settings,
         ),
       );
@@ -190,12 +235,12 @@ void main() {
         width: _size,
         height: _size,
         scene: scene,
-        views: <RenderView>[RenderView(camera: camera)],
+        views: <CameraView>[CameraView(camera: camera)],
         settings: _settings,
       );
-      final bytes = await device.readPixels(result.frame);
+      final bytes = await device.readback(result.frame);
       return <int>[
-        for (var i = 0; i < _size * _size * 4; i++) bytes!.getUint8(i),
+        for (var i = 0; i < _size * _size * 4; i++) bytes.getUint8(i),
       ];
     }
 

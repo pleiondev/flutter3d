@@ -40,24 +40,182 @@ extension _RendererResources on Renderer {
   /// counters.
   TextureFormat get hdrFormat => device.hdrColorFormat;
 
-  ShaderHandle _fragmentShaderFor(LightingModel model) {
+  /// [model]'s fragment stage — its opaque variant when [opaque] is, which
+  /// the caller has asked [_opaqueStageFor] is there.
+  ShaderHandle _fragmentShaderFor(LightingModel model, {bool opaque = false}) {
+    if (opaque) return _opaqueStageFor(model)!;
     return _fragmentShaders.putIfAbsent(model.shaderName, () {
       final shader = shaders[model.shaderName];
       if (shader == null) {
-        throw StateError(
-          'The bundle has no "${model.shaderName}" fragment shader. '
-          'Rebuild it with tool/build_shaders.sh.',
+        // D15: a project's bundle carries the lighting models it declared;
+        // the refusal names the need that brings this one.
+        throw MissingShaderStageException.forStage(
+          model.shaderName,
+          backend: device.backendName,
+          detail: 'Material "${model.label}" lights with it.',
         );
       }
       return shader;
     });
   }
 
+  /// [model]'s variant with no reachable `discard` — `A1.2` — or null when
+  /// no shader library the renderer was given has one.
+  ///
+  /// By name, `Pbr` and `PbrOpaque`, as a skinned material vertex stage is
+  /// found: the engine's six lit models ship one, and a model from anywhere
+  /// else that ships one too is drawn through it on the same terms.
+  ///
+  /// **Never the backend's variant of a stage somebody replaced.** An
+  /// application that hands the renderer its own `Unlit` and no
+  /// `UnlitOpaque` means its stage to draw: paired with the backend's opaque
+  /// variant, every opaque draw ran the engine's shader and the
+  /// application's never ran at all. A replaced stage with no variant of its
+  /// own draws through the plain stage, as a model without one does.
+  ShaderHandle? _opaqueStageFor(
+    LightingModel model,
+  ) => _opaqueStages.putIfAbsent(model.shaderName, () {
+    final name = model.shaderName;
+    final opaque = shaders['${name}Opaque'];
+    if (opaque == null) return null;
+    final ownPlain = device.shaders[name];
+    final replaced = ownPlain != null && !identical(shaders[name], ownPlain);
+    final backendsVariant = identical(opaque, device.shaders['${name}Opaque']);
+    return replaced && backendsVariant ? null : opaque;
+  });
+
   PipelineHandle _pipelineFor(
     LightingModel model, {
     required bool skinned,
     bool instanced = false,
     bool lightmapped = false,
+    bool opaque = false,
+  }) {
+    final key = _pipelineKey(
+      model,
+      skinned: skinned,
+      instanced: instanced,
+      lightmapped: lightmapped,
+      opaque: opaque,
+    );
+    // Timed, and over `FramePacing.stallThreshold` reported with what asked
+    // for it — `A1.7`. The stages are resolved inside the timing: finding
+    // and linking a material's stage is part of what the frame waits for.
+    return _pipelineCache.putIfAbsent(
+      key,
+      () => _timedBuild(
+        () {
+          final stages = _pipelineStages(
+            model,
+            skinned: skinned,
+            instanced: instanced,
+            lightmapped: lightmapped,
+            opaque: opaque,
+          );
+          return device.createPipelineFrom(
+            PipelineDescriptor(
+              vertex: stages.vertex,
+              fragment: stages.fragment,
+              layout: stages.layout,
+            ),
+          );
+        },
+        material: model.shaderName,
+        vertexShader: model.vertexShaderName,
+        geometry: instanced
+            ? PipelineGeometry.instanced
+            : skinned
+            ? PipelineGeometry.skinned
+            : lightmapped
+            ? PipelineGeometry.lightmapped
+            : PipelineGeometry.plain,
+        opaque: opaque,
+      ),
+    );
+  }
+
+  /// [_pipelineFor] through `GraphicsDevice.createPipelineAsync`, for
+  /// [Renderer.warmUpInSlices]: where the device compiles off the thread
+  /// (WebGPU, WebGL2 with `KHR_parallel_shader_compile`) the link no longer
+  /// holds up the loading screen, and where it cannot the future is already
+  /// complete. Kept in the same cache under the same key; a pipeline a frame
+  /// linked while this one was compiling wins, and this one goes back.
+  ///
+  /// **A link that was out when the stages changed is not cached.** A shader
+  /// reload (`relinkShaders`) or a change of the added materials empties the
+  /// cache while a link may still be compiling the stages of before; that
+  /// link goes back when it completes, and the next use links the stages of
+  /// now. A warm-up asked for after the change starts a link of its own
+  /// rather than waiting on the old one.
+  Future<void> _pipelineForAsync(
+    LightingModel model, {
+    required bool skinned,
+    bool instanced = false,
+    bool lightmapped = false,
+    bool opaque = false,
+  }) {
+    final key = _pipelineKey(
+      model,
+      skinned: skinned,
+      instanced: instanced,
+      lightmapped: lightmapped,
+      opaque: opaque,
+    );
+    if (_pipelineCache.containsKey(key)) return Future<void>.value();
+    final pending = _linking[key];
+    if (pending != null) return pending;
+    final link = _linkAsync(
+      key,
+      model,
+      skinned: skinned,
+      instanced: instanced,
+      lightmapped: lightmapped,
+      opaque: opaque,
+    );
+    _linking[key] = link;
+    return link.whenComplete(() {
+      // A link started after a reload may stand under the key by now.
+      if (identical(_linking[key], link)) _linking.remove(key);
+    });
+  }
+
+  Future<void> _linkAsync(
+    String key,
+    LightingModel model, {
+    required bool skinned,
+    required bool instanced,
+    required bool lightmapped,
+    required bool opaque,
+  }) async {
+    final generation = _stageGeneration;
+    final stages = _pipelineStages(
+      model,
+      skinned: skinned,
+      instanced: instanced,
+      lightmapped: lightmapped,
+      opaque: opaque,
+    );
+    final pipeline = await device.createPipelineFromAsync(
+      PipelineDescriptor(
+        vertex: stages.vertex,
+        fragment: stages.fragment,
+        layout: stages.layout,
+      ),
+    );
+    if (generation != _stageGeneration || _pipelineCache.containsKey(key)) {
+      pipeline.dispose();
+    } else {
+      _pipelineCache[key] = pipeline;
+    }
+  }
+
+  /// The key [_pipelineFor] caches a pipeline under.
+  String _pipelineKey(
+    LightingModel model, {
+    required bool skinned,
+    required bool instanced,
+    required bool lightmapped,
+    required bool opaque,
   }) {
     assert(!(skinned && instanced), 'a skinned batch is not a thing here');
     assert(
@@ -73,31 +231,41 @@ extension _RendererResources on Renderer {
     final name = vertex == null
         ? model.shaderName
         : '$vertex+${model.shaderName}';
-    final key = instanced
-        ? 'instanced/$name'
+    final staged = opaque ? '$name/opaque' : name;
+    return instanced
+        ? 'instanced/$staged'
         : skinned
-        ? 'skinned/$name'
+        ? 'skinned/$staged'
         : lightmapped
-        ? 'lightmapped/$name'
-        : name;
-    return _pipelineCache.putIfAbsent(
-      key,
-      () => instanced
-          ? device.createPipeline(
-              instancedVertexShader,
-              _fragmentShaderFor(model),
-              layout: _kInstancedLayout,
-            )
-          : device.createPipeline(
-              _vertexShaderFor(
-                model,
-                skinned: skinned,
-                lightmapped: lightmapped,
-              ),
-              _fragmentShaderFor(model),
-            ),
-    );
+        ? 'lightmapped/$staged'
+        : staged;
   }
+
+  /// The stages and the layout [_pipelineFor] links.
+  ({ShaderHandle vertex, ShaderHandle fragment, VertexLayoutDescriptor? layout})
+  _pipelineStages(
+    LightingModel model, {
+    required bool skinned,
+    required bool instanced,
+    required bool lightmapped,
+    required bool opaque,
+  }) => instanced
+      ? (
+          vertex:
+              _materialVariantStage(model, VertexStageVariant.instanced) ??
+              _instancedVertexShader,
+          fragment: _fragmentShaderFor(model, opaque: opaque),
+          layout: _kInstancedLayout,
+        )
+      : (
+          vertex: _vertexShaderFor(
+            model,
+            skinned: skinned,
+            lightmapped: lightmapped,
+          ),
+          fragment: _fragmentShaderFor(model, opaque: opaque),
+          layout: null,
+        );
 
   /// The vertex stage this draw goes through — `gfx-75n`.
   ///
@@ -111,12 +279,16 @@ extension _RendererResources on Renderer {
     required bool lightmapped,
   }) {
     final supplied = model.vertexShaderName;
-    if (supplied == null || lightmapped) {
+    if (lightmapped) {
+      return _materialVariantStage(model, VertexStageVariant.lightmapped) ??
+          _lightmappedVertexShader;
+    }
+    if (supplied == null) {
       return skinned
-          ? skinnedVertexShader
+          ? _skinnedVertexShader
           : lightmapped
-          ? lightmappedVertexShader
-          : vertexShader;
+          ? _lightmappedVertexShader
+          : _vertexShader;
     }
 
     // One name, two stages: the skinned entry point is the given name with
@@ -128,18 +300,62 @@ extension _RendererResources on Renderer {
     return _materialVertexShaders.putIfAbsent(wanted, () {
       final shader = shaders[wanted];
       if (shader == null) {
-        throw StateError(
-          'Material "${model.label}" asks for the vertex stage "$wanted", '
-          'which no shader library the renderer was given answers to. '
-          '${skinned ? 'This is the skinned half of "$supplied": a material '
-                    'drawn on a skinned mesh needs both. ' : ''}'
-          'Pass it to Renderer.create as `materials:`, or rebuild the '
-          "backend's bundle with it in.",
+        throw MissingShaderStageException.forStage(
+          wanted,
+          backend: device.backendName,
+          detail:
+              'Material "${model.label}" asks for it as its vertex stage, '
+              'and no shader library the renderer was given answers to it. '
+              '${skinned ? 'This is the skinned half of "$supplied": a '
+                        'material drawn on a skinned mesh needs both. ' : ''}'
+              'Pass it to Renderer.create as `materials:`, or rebuild the '
+              "backend's bundle with it in.",
         );
       }
       return shader;
     });
   }
+}
+
+extension _MaterialVariants on Renderer {
+  /// [model]'s own vertex stage for [variant] — `<name>Instanced`,
+  /// `<name>Lightmapped` — when it lists the variant (D22b), or null for
+  /// the engine's. A listed stage no library answers to is refused by name,
+  /// as a material's skinned half is.
+  ShaderHandle? _materialVariantStage(
+    LightingModel model,
+    VertexStageVariant variant,
+  ) {
+    final supplied = model.vertexShaderName;
+    if (supplied == null || !model.vertexVariants.contains(variant)) {
+      return null;
+    }
+    final wanted = '$supplied${variant.suffix}';
+    return _materialVertexShaders.putIfAbsent(wanted, () {
+      final shader = shaders[wanted];
+      if (shader == null) {
+        throw MissingShaderStageException.forStage(
+          wanted,
+          backend: device.backendName,
+          detail:
+              'Material "${model.label}" lists it as its ${variant.name} '
+              'vertex stage, and no shader library the renderer was given '
+              'answers to it. Pass it to Renderer.create as `materials:`, or '
+              "rebuild the backend's bundle with it in.",
+        );
+      }
+      return shader;
+    });
+  }
+}
+
+/// The vertex layouts of the engine's geometry that a material's own vertex
+/// stage reads (D22b): what `VertexStageVariant.instanced` is drawn with.
+abstract final class MeshVertexLayouts {
+  /// An instanced draw: the standard vertex in slot 0, one per vertex, and
+  /// the instance's rows, colour and own four numbers in slot 1, one per
+  /// instance (`i_row0`–`i_row2`, `i_color`, `i_data`).
+  static VertexLayoutDescriptor get instanced => _kInstancedLayout;
 }
 
 /// The two slots an instanced draw binds: the standard vertex in slot 0, one
@@ -149,47 +365,55 @@ extension _RendererResources on Renderer {
 /// declarations say what the attributes are and not which buffer each comes
 /// from; the split is what this spec exists to state, and `InstancedMeshNode`
 /// says what slot 1 holds.
-final VertexLayoutSpec _kInstancedLayout = VertexLayoutSpec(<BufferLayout>[
-  BufferLayout(
-    strideInBytes: VertexLayout.standard.strideInBytes,
-    attributes: <InputAttribute>[
-      for (final (name, format) in <(String, VertexFormat)>[
-        ('position', VertexFormat.float32x3),
-        ('normal', VertexFormat.float32x3),
-        ('texcoord', VertexFormat.float32x2),
-        ('tangent', VertexFormat.float32x4),
-        ('color', VertexFormat.float32x4),
-      ])
+final VertexLayoutDescriptor _kInstancedLayout = VertexLayoutDescriptor(
+  <BufferLayout>[
+    BufferLayout(
+      strideInBytes: VertexLayout.standard.strideInBytes,
+      attributes: <InputAttribute>[
+        for (final (name, format) in <(String, VertexFormat)>[
+          ('position', VertexFormat.float32x3),
+          ('normal', VertexFormat.float32x3),
+          ('texcoord', VertexFormat.float32x2),
+          ('tangent', VertexFormat.float32x4),
+          ('color', VertexFormat.float32x4),
+        ])
+          InputAttribute(
+            name: name,
+            format: format,
+            offsetInBytes: VertexLayout.standard.floatOffsetOf(name) * 4,
+          ),
+      ],
+    ),
+    const BufferLayout(
+      strideInBytes: InstancedMeshNode.strideInBytes,
+      stepMode: VertexStepMode.instance,
+      attributes: <InputAttribute>[
+        InputAttribute(name: 'i_row0', format: VertexFormat.float32x4),
         InputAttribute(
-          name: name,
-          format: format,
-          offsetInBytes: VertexLayout.standard.floatOffsetOf(name) * 4,
+          name: 'i_row1',
+          format: VertexFormat.float32x4,
+          offsetInBytes: 16,
         ),
-    ],
-  ),
-  const BufferLayout(
-    strideInBytes: InstancedMeshNode.strideInBytes,
-    stepMode: VertexStepMode.instance,
-    attributes: <InputAttribute>[
-      InputAttribute(name: 'i_row0', format: VertexFormat.float32x4),
-      InputAttribute(
-        name: 'i_row1',
-        format: VertexFormat.float32x4,
-        offsetInBytes: 16,
-      ),
-      InputAttribute(
-        name: 'i_row2',
-        format: VertexFormat.float32x4,
-        offsetInBytes: 32,
-      ),
-      InputAttribute(
-        name: 'i_color',
-        format: VertexFormat.float32x4,
-        offsetInBytes: 48,
-      ),
-    ],
-  ),
-]);
+        InputAttribute(
+          name: 'i_row2',
+          format: VertexFormat.float32x4,
+          offsetInBytes: 32,
+        ),
+        InputAttribute(
+          name: 'i_color',
+          format: VertexFormat.float32x4,
+          offsetInBytes: 48,
+        ),
+        // `P8`: the instance's own four numbers, a material's `instance`.
+        InputAttribute(
+          name: 'i_data',
+          format: VertexFormat.float32x4,
+          offsetInBytes: 64,
+        ),
+      ],
+    ),
+  ],
+);
 
 // `Renderer.dispose` is not declared here. An extension's members are only
 // in scope where the extension itself is — and this one is private, visible

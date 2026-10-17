@@ -112,6 +112,11 @@ int main(List<String> arguments) {
         'Fix them, or pass --anyway to export regardless.',
       );
       return 1;
+    case final ExportResult other:
+      stderr.writeln(
+        'this export answered $other, which this tool cannot act on',
+      );
+      return 1;
   }
 }
 

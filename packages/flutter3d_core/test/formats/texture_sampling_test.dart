@@ -167,7 +167,7 @@ void main() {
 
     for (final entry in cases.entries) {
       test('minFilter ${entry.key} round-trips through toGltfFilters', () {
-        final (magFilter, minFilter) = toGltfFilters(entry.value);
+        final GltfFilters(:magFilter, :minFilter) = toGltfFilters(entry.value);
         expect(magFilter, 9729);
         expect(minFilter, entry.key);
       });
@@ -175,7 +175,7 @@ void main() {
 
     test('decoding 9985 and re-encoding it names 9985, not 9987', () async {
       final sampling = await _decode(9985);
-      final (_, minFilter) = toGltfFilters(sampling);
+      final GltfFilters(:minFilter) = toGltfFilters(sampling);
       expect(minFilter, 9985);
     });
   });

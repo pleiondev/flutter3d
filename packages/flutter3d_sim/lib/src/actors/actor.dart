@@ -31,17 +31,17 @@
 library;
 
 import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:vector_math/vector_math.dart';
 
 import '../ecs/ecs_world.dart';
-import '../ecs/entity.dart';
 import '../world/rider.dart';
 import 'actor_components.dart';
 import 'brain.dart';
 import 'damageable.dart';
 import 'health.dart';
 
-final class Actor implements Damageable, Rider {
+final class Actor with Damageable, Rider {
   /// Made by [ActorSystem.spawn] and nowhere else.
   ///
   /// One handle per entity, kept by the system, because [onDamage] is on it: a
@@ -71,7 +71,7 @@ final class Actor implements Damageable, Rider {
   /// the same game, and nobody has to remember to assign it.
   int get ordinal => entity.index;
 
-  bool get exists => entities.alive(entity);
+  bool get exists => entities.isAlive(entity);
 
   /// The capsule that walks, or null for something that does not.
   ///
@@ -98,17 +98,20 @@ final class Actor implements Damageable, Rider {
     }
   }
 
+  /// Which way it faces, in radians about Y; zero looks along −Z.
   double get yaw => facing?.yaw ?? 0.0;
   set yaw(double value) => facing?.yaw = value;
 
+  /// How fast it turns, in radians per second.
   double get turnRate => facing?.turnRate ?? 0.0;
 
   /// Installed by the system, so that being hurt goes through the system that
   /// counts deaths and stops corpses blocking corridors.
   ///
   /// A closure rather than a reference to the system, because that file already
-  /// imports this one and naming it here would close a cycle.
-  bool Function(double amount, Object? from)? onDamage;
+  /// imports this one and naming it here would close a cycle. Handed the
+  /// [Damage] itself, so what a minor adds to it reaches the system too.
+  bool Function(Damage damage)? onDamage;
 
   /// Takes damage, if there is anything here to hurt.
   ///
@@ -116,19 +119,19 @@ final class Actor implements Damageable, Rider {
   /// piece with a collider. **Not an error**: a rocket asks everything in its
   /// radius, and "nothing happened" is the honest answer for a lamp post.
   @override
-  bool applyDamage(double amount, {Object? from}) {
+  bool applyDamage(Damage damage) {
     if (health == null) return false;
-    return onDamage?.call(amount, from) ?? health!.damage(amount);
+    return onDamage?.call(damage) ?? health!.damage(damage.amount);
   }
 
   @override
   Collider? get carriedBy => body?.groundBody;
 
-  /// Where it is, or null for an actor with no body.
+  /// Where it is, as a copy, or null for an actor with no body.
   ///
   /// A game whose actors are not all bodies gives them a place of its own with
   /// its own component; the engine does not guess one.
-  Vector3? get position => body?.position;
+  Vector3? get position => body?.position.clone();
 
   /// True unless there is health here and it has run out.
   ///
@@ -145,7 +148,7 @@ final class Actor implements Damageable, Rider {
     if (body == null) return false;
     out
       ..setFrom(body.position)
-      ..y += body.halfExtents.y * (facing?.eyeFraction ?? 0.32);
+      ..y += body.shape.boundsHalfExtents.y * (facing?.eyeFraction ?? 0.32);
     return true;
   }
 
@@ -164,7 +167,7 @@ final class Actor implements Damageable, Rider {
   double? fractionUp(Vector3 point) {
     final body = this.body;
     if (body == null) return null;
-    final half = body.halfExtents.y;
+    final half = body.shape.boundsHalfExtents.y;
     if (half <= 0.0) return 0.5;
     final feet = body.position.y - half;
     return ((point.y - feet) / (half * 2.0)).clamp(0.0, 1.0);

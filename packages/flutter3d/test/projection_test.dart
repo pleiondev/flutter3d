@@ -16,13 +16,13 @@ Vector3 projectToNdc(Matrix4 projection, Vector3 eyePosition) {
 
 void main() {
   _depthRangeTests();
-  const fov = math.pi / 4;
+  const fovY = math.pi / 4;
   const near = 0.1;
   const far = 100.0;
 
   group('perspectiveZeroToOne maps depth to [0, 1]', () {
     final projection = PerspectiveProjection(
-      fovYRadians: fov,
+      fovY: fovY,
       near: near,
       far: far,
     ).toMatrix(16.0 / 9.0);
@@ -58,7 +58,7 @@ void main() {
   group('perspectiveZeroToOne screen mapping', () {
     test('the centre of the view projects to the origin', () {
       final projection = PerspectiveProjection(
-        fovYRadians: fov,
+        fovY: fovY,
         near: near,
         far: far,
       ).toMatrix(1.0);
@@ -71,7 +71,7 @@ void main() {
       // Y must not be flipped: mirroring would reverse triangle orientation on
       // screen and make backface culling drop the visible faces.
       final projection = PerspectiveProjection(
-        fovYRadians: fov,
+        fovY: fovY,
         near: near,
         far: far,
       ).toMatrix(1.0);
@@ -81,25 +81,25 @@ void main() {
 
     test('the vertical field of view is honoured', () {
       final projection = PerspectiveProjection(
-        fovYRadians: fov,
+        fovY: fovY,
         near: near,
         far: far,
       ).toMatrix(1.0);
       // A point exactly on the top edge of the frustum lands at y = 1.
       const distance = 5.0;
-      final edgeY = math.tan(fov / 2.0) * distance;
+      final edgeY = math.tan(fovY / 2.0) * distance;
       final ndc = projectToNdc(projection, Vector3(0.0, edgeY, -distance));
       expect(ndc.y, closeTo(1.0, 1e-6));
     });
 
     test('aspect ratio compresses X, not Y', () {
       final wide = PerspectiveProjection(
-        fovYRadians: fov,
+        fovY: fovY,
         near: near,
         far: far,
       ).toMatrix(2.0);
       final square = PerspectiveProjection(
-        fovYRadians: fov,
+        fovY: fovY,
         near: near,
         far: far,
       ).toMatrix(1.0);
@@ -117,7 +117,7 @@ void main() {
     test('rejects a non-positive aspect', () {
       expect(
         () => PerspectiveProjection(
-          fovYRadians: fov,
+          fovY: fovY,
           near: near,
           far: far,
         ).toMatrix(0.0),
@@ -180,16 +180,16 @@ void _offAxisTests() {
 
   group('an off-axis frustum with symmetric angles is a perspective one', () {
     test('the matrices agree entry for entry', () {
-      const fov = math.pi / 3;
+      const fovY = math.pi / 3;
       const aspect = 16.0 / 9.0;
       final offAxis = OffAxisProjection.symmetric(
-        fovYRadians: fov,
+        fovY: fovY,
         aspect: aspect,
         near: near,
         far: far,
       ).toMatrix(aspect);
       final perspective = const PerspectiveProjection(
-        fovYRadians: fov,
+        fovY: fovY,
         near: near,
         far: far,
       ).toMatrix(aspect);
@@ -271,10 +271,10 @@ void _offAxisTests() {
 
   group('the vertical field of view it reports', () {
     test('is the angle a symmetric frustum was built from', () {
-      const fov = math.pi / 3;
+      const fovY = math.pi / 3;
       expect(
-        OffAxisProjection.symmetric(fovYRadians: fov).verticalFieldOfView,
-        closeTo(fov, 1e-12),
+        OffAxisProjection.symmetric(fovY: fovY).verticalFieldOfView,
+        closeTo(fovY, 1e-12),
       );
     });
 
@@ -290,7 +290,7 @@ void _offAxisTests() {
     test('a perspective projection answers with its own, and an orthographic '
         'answers with nothing', () {
       expect(
-        const PerspectiveProjection(fovYRadians: 1.2).verticalFieldOfView,
+        const PerspectiveProjection(fovY: 1.2).verticalFieldOfView,
         closeTo(1.2, 1e-12),
       );
       expect(const OrthographicProjection().verticalFieldOfView, isNull);
@@ -363,7 +363,7 @@ void _depthRangeTests() {
     const near = 0.1;
     const far = 100.0;
     final projection = const PerspectiveProjection(
-      fovYRadians: 1.0,
+      fovY: 1.0,
       near: near,
       far: far,
     ).toMatrix(1.0);

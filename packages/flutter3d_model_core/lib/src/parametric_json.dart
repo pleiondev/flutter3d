@@ -98,6 +98,7 @@ Map<String, Object?> parametricShapeJson(ParametricShape shape) =>
           'segments': segments,
           'tubeSegments': tubeSegments,
         },
+      _ => throw UnsupportedError('no JSON for $shape'),
     };
 
 /// The shape [json] describes, or null if this build cannot build it.

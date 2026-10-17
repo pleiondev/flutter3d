@@ -11,13 +11,17 @@ import 'particle.dart';
 /// source key would make "emits light" an accident of the plumbing rather than
 /// something an effect declares.
 ///
-/// Mix it into whatever is passed to [ParticleSystem.emitFor] as the source.
+/// Mix it into whatever is passed to [ParticleSystem.emit] as the source.
 /// The system fills [glow] in every step; the owner reads it and does whatever
 /// a light means to it.
-mixin class LightEmitter {
+///
+/// **Mixed in, never implemented**: a base mixin class, so what the system
+/// fills in can grow with a body and an emitter written against 1.0 keeps
+/// compiling.
+base mixin class LightEmitter {
   /// What this emitter's particles currently amount to. Owned here, written by
   /// the particle system, read by anything that wants to be lit by fire.
-  final ParticleGlow glow = ParticleGlow();
+  final ParticleGlow glow = ParticleGlow._();
 }
 
 /// What a source's particles add up to: how much light they are, and where.
@@ -32,6 +36,8 @@ mixin class LightEmitter {
 /// between frames — a strobe rather than a flicker. A tenth of a second of lag
 /// is invisible and turns the same numbers into fire.
 final class ParticleGlow {
+  ParticleGlow._();
+
   /// Live particles from this source.
   int get count => _count;
   int _count = 0;
@@ -46,11 +52,11 @@ final class ParticleGlow {
   /// Where the fire is, smoothed. A light placed here drifts with the flame
   /// instead of being nailed to the emitter.
   ///
-  /// Meaningless until [located] is true — see there.
-  Vector3 get centre => _centre;
-  final Vector3 _centre = Vector3.zero();
+  /// Meaningless until [isLocated] is true — see there.
+  Vector3 get center => _center.clone();
+  final Vector3 _center = Vector3.zero();
 
-  /// Whether [centre] has ever been measured from real particles.
+  /// Whether [center] has ever been measured from real particles.
   ///
   /// False until the first step that sees one, and the reason it exists rather
   /// than callers checking [count]: the centre starts at the world origin, so a
@@ -61,7 +67,7 @@ final class ParticleGlow {
   /// [count] is the wrong test for the same reason in reverse: it drops to zero
   /// whenever a sub-step happens to catch a gap between particles, and a light
   /// that snapped back to the origin on those frames would strobe.
-  bool get located => _located;
+  bool get isLocated => _located;
   bool _located = false;
 
   /// Seconds for the smoothing to catch up most of the way.
@@ -79,10 +85,11 @@ final class ParticleGlow {
   void accumulate(Particle particle) {
     _count++;
     final luminance =
-        particle.color.x * 0.30 +
-        particle.color.y * 0.59 +
-        particle.color.z * 0.11;
-    _rawPower += luminance * particle.color.w * particle.size * particle.size;
+        particle.linearRgba.x * 0.30 +
+        particle.linearRgba.y * 0.59 +
+        particle.linearRgba.z * 0.11;
+    _rawPower +=
+        luminance * particle.linearRgba.w * particle.size * particle.size;
     _rawCentre.add(particle.position);
   }
 
@@ -97,12 +104,12 @@ final class ParticleGlow {
         // Jump the first time rather than easing in from the origin, which
         // would drag the light across the level over the first tenth of a
         // second — through whatever is in the way.
-        _centre.setFrom(_rawCentre);
+        _center.setFrom(_rawCentre);
         _located = true;
       } else {
-        _centre.x += (_rawCentre.x - _centre.x) * alpha;
-        _centre.y += (_rawCentre.y - _centre.y) * alpha;
-        _centre.z += (_rawCentre.z - _centre.z) * alpha;
+        _center.x += (_rawCentre.x - _center.x) * alpha;
+        _center.y += (_rawCentre.y - _center.y) * alpha;
+        _center.z += (_rawCentre.z - _center.z) * alpha;
       }
     }
   }

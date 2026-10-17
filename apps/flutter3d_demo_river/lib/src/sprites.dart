@@ -96,14 +96,14 @@ final class RiverSprites {
   static Future<ui.Image> _drawBanks() {
     final recorder = ui.PictureRecorder();
     final canvas = ui.Canvas(recorder);
-    void px(int x, int y, ui.Color colour) => canvas.drawRect(
+    void px(int x, int y, ui.Color color) => canvas.drawRect(
       ui.Rect.fromLTWH(x.toDouble(), y.toDouble(), 1.0, 1.0),
-      ui.Paint()..color = colour,
+      ui.Paint()..color = color,
     );
     // Reeds: blades of different heights, leaning a little.
-    void blade(int at, int x, int tall, int lean, ui.Color colour) {
+    void blade(int at, int x, int tall, int lean, ui.Color color) {
       for (var y = 0; y < tall; y++) {
-        px(at + x + (y * lean ~/ 8), _bankHeight - 1 - y, colour);
+        px(at + x + (y * lean ~/ 8), _bankHeight - 1 - y, color);
       }
     }
 
@@ -151,7 +151,7 @@ final class RiverSprites {
   static Future<ui.Image> _drawFlash() {
     final recorder = ui.PictureRecorder();
     final canvas = ui.Canvas(recorder);
-    const colours = <ui.Color>[
+    const colors = <ui.Color>[
       ui.Color(0xFFFFFFF0),
       ui.Color(0xFFFFE27A),
       ui.Color(0xFFFFA23A),
@@ -174,7 +174,7 @@ final class RiverSprites {
           final band = ((r / (reach * reach)) * 3.0).floor() + frame ~/ 2;
           canvas.drawRect(
             ui.Rect.fromLTWH((left + x).toDouble(), y.toDouble(), 1.0, 1.0),
-            ui.Paint()..color = colours[band.clamp(0, colours.length - 1)],
+            ui.Paint()..color = colors[band.clamp(0, colors.length - 1)],
           );
         }
       }

@@ -18,6 +18,7 @@ final class MirrorModifier extends Modifier {
   /// [mirror]'s own doc comment for why a base already touching the plane
   /// needs this to end up as one closed shape rather than two overlapping
   /// ones with a doubled, inside-out wall down the middle.
+  /// In metres.
   final double? mergeDistance;
 
   /// See [mirror]'s own doc comment: not built, and `apply` throws rather
@@ -46,9 +47,9 @@ final class MirrorModifier extends Modifier {
     'flipUv': flipUv,
   };
 
-  /// [MirrorModifier] from its own [toJson], or null when a field is missing
-  /// or of the wrong type.
-  static MirrorModifier? fromJson(Map<String, Object?> json) => switch (json) {
+  /// [MirrorModifier] from its own [toJson]. Throws a
+  /// [ModifierFormatException] when a field is missing or of the wrong type.
+  static MirrorModifier fromJson(Map<String, Object?> json) => switch (json) {
     {
       'normal': [final num x, final num y, final num z],
       'bisect': final bool bisect,
@@ -63,6 +64,8 @@ final class MirrorModifier extends Modifier {
           _ => null,
         },
       ),
-    _ => null,
+    _ => throw const ModifierFormatException(
+      'a mirror modifier names its three-number "normal", and "bisect" and "flipUv" as true or false',
+    ),
   };
 }

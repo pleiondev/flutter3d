@@ -1,6 +1,6 @@
 name: flutter3d_editor_widgets
-description: "Shared editor controls — a number field, a colour field, a section label, a range slider, an enum dropdown, a texture slot row, a texture path field, a colour swatch field and the FieldRow they assemble into, so far — over EditorWidgetsTheme, so the modeller and the level editor stop keeping their own copies."
-version: 0.8.0
+description: "Shared editor controls over EditorWidgetsTheme: number, colour and texture fields, sliders, dropdowns and the FieldRow they make, so the modeller and level editor share them."
+version: 1.0.0-rc.1+1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -12,6 +12,18 @@ resolution: workspace
 
 environment:
   sdk: ">=3.12.0 <4.0.0"
+  flutter: '>=3.44.0'
+
+# Declared rather than left to pub.dev's detector: Flutter with nothing in
+# reach of its libraries that a browser lacks, so every platform Flutter builds
+# for.
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  web:
+  windows:
 
 dependencies:
   flutter:
@@ -22,14 +34,20 @@ dependencies:
   # `ColorSwatchField` and `FieldRow` read `TextureHint`/`ColorHint`/
   # `MaterialHint` off the same package, `ui-27`'s own P2 — no second
   # dependency joined to get there.
-  flutter3d_core: ^0.8.0
+  flutter3d_core: '>=1.0.0-rc.1 <1.1.0'
+
+  # `EditorPanels`, the registry a plugin's panel is added through, is a
+  # `PluginRegistry` and tracks a plugin's `Registration`s. The contract is
+  # plain Dart over the foundation, so nothing of the editor arrives with it.
+  flutter3d_plugin_api: '>=1.0.0-rc.1 <1.1.0'
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
 
-# **`flutter` and `flutter3d_core`, and nothing past them, on purpose.**
+# **`flutter`, `flutter3d_core` and the plugin contract, and nothing past
+# them, on purpose.**
 # Not `flutter3d_editor_core` — the `.fmat` gate stays there — and not
 # `flutter3d_model_core`, whose own `ParamHint`/`EnumHint` are a different
 # type from anything a widget here reads. A widget that seems to need one of

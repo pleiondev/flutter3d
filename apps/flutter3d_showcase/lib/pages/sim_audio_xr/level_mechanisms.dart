@@ -4,11 +4,12 @@
 /// Quoted by `level_mechanisms.md` and shown whole in the Source tab.
 library;
 
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
+import 'package:flutter3d_showcase/src/demo/run_physics.dart';
 import 'package:flutter3d_showcase/src/demo/scene_kit.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class LevelMechanismsDemo extends ShowcaseDemo {
   late final String _report;
@@ -41,7 +42,7 @@ final class LevelMechanismsDemo extends ShowcaseDemo {
     // #region live
     // The same door and button, running: the door's collider is what the
     // mechanism moves, and the picture follows it.
-    final CollisionWorld world = CollisionWorld();
+    final CollisionWorld world = onRunPhysics(CollisionWorld());
     _mechanisms = MechanismWorld(world);
     _doorCollider = world.addBox(Vector3(5, 1, 0), Vector3(1, 2, 0.2));
     _door = _mechanisms.add(
@@ -122,7 +123,7 @@ final class LevelMechanismsDemo extends ShowcaseDemo {
     _lit = (_lit - dt * 1.5).clamp(0.0, 1.0);
     _doorNode.setPositionFrom(_doorCollider.position);
     _progress.set(_door.progress);
-    _buttonNode.material.baseColor.setValues(
+    _buttonNode.material.baseColor = LinearColor.fromSrgb(
       0.8 - 0.6 * _lit,
       0.2 + 0.65 * _lit,
       0.2,
@@ -148,7 +149,7 @@ final class LevelMechanismsDemo extends ShowcaseDemo {
 
   static String _run() {
     // #region world
-    final world = CollisionWorld();
+    final world = onRunPhysics(CollisionWorld());
     final mechanisms = MechanismWorld(world);
     // #endregion world
 

@@ -120,6 +120,29 @@ class PrivacyPage extends StatelessComponent {
             'model is visible only to you unless you publish it.',
           ),
         ]),
+        p([
+          Component.text(
+            'When somebody downloads a model in another format ("Download '
+            'as…"), the file written for it is kept beside the model, so the '
+            'next download is not written again. It is kept while the model '
+            'exists, and deleted with the model or when its file is '
+            'replaced. Whoever may download the model may download these.',
+          ),
+        ]),
+        h2([Component.text('Files you convert')]),
+        p([
+          Component.text(
+            'A file sent to Convert is read and dropped, unless it is a '
+            '.glb, .gltf or .obj model: that waits beside the result, so '
+            'keeping the model keeps your file. What the conversion makes, '
+            'and anything downloaded from it in another format, is kept on '
+            'the server for an hour, for your account alone, so you can '
+            'download it or keep a model; then it is deleted. It is not '
+            'written to the database, and a restart of the service deletes '
+            'it sooner. A model you choose to keep becomes one of your '
+            'models, like an upload.',
+          ),
+        ]),
         h2([Component.text('Who else handles it')]),
         p([
           Component.text(

@@ -1,0 +1,59 @@
+name: flutter3d_plugin_runtime_example
+description: "A plugin from outside the engine that reaches every extension point of the frame that needs no backend's own work: a light type, a lit model with a block and a texture of its own, a decal stage, a post effect reading the velocity, a shadow technique, the draw list, the level of detail, an image format, a scene binding and a pipeline. Once in Dart, once as data."
+publish_to: 'none'
+version: 1.0.0
+resolution: workspace
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+
+dependencies:
+  # The renderer whose extension points the plugin reaches.
+  flutter3d_core:
+    path: ../../flutter3d_core
+
+  # The contract a plugin is written against.
+  flutter3d_plugin_api:
+    path: ../../flutter3d_plugin_api
+
+  # The editor half, `lib/acme_editor.dart`: the editor pieces it adds
+  # (a command, a gizmo, an importer, an asset-browser entry). Its hints need
+  # only the plugin API's `editor.dart`.
+  flutter3d_editor_core:
+    path: ../../flutter3d_editor_core
+
+  # The runtime that reads the data half, `plugin/acme_sample.f3dplugin`.
+  flutter3d_plugin_runtime:
+    path: ../
+
+  # The passes its shadow producer opens, and the clear colour it opens
+  # them with.
+  flutter3d_hardware:
+    path: ../../flutter3d_hardware
+
+  # The kernel language its compute step is written in.
+  flutter3d_shaders:
+    path: ../../flutter3d_shaders
+
+  # The light type its own kind is based on, and the colour its gizmo is
+  # drawn in.
+  flutter3d_foundation:
+    path: ../../flutter3d_foundation
+  vector_math: ^2.2.0
+
+dev_dependencies:
+  test: ^1.25.0
+
+  # A device with no GPU under it, so a frame is drawn on the VM, and the
+  # software rasteriser the render checks draw pictures on.
+  flutter3d_cpu:
+    path: ../../flutter3d_cpu
+
+  # The loop the plugin is installed into, the conformance suite it is held
+  # to, and the render checks that draw its points in the frame.
+  flutter3d_sim:
+    path: ../../flutter3d_sim
+  flutter3d_conformance:
+    path: ../../flutter3d_conformance
+  flutter3d_conformance_render:
+    path: ../../flutter3d_conformance_render

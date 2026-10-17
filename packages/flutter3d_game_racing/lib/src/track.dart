@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -40,7 +41,7 @@ export 'track_types.dart';
 /// counter never have to agree about segment numbers.
 final class TrackSpline {
   TrackSpline({
-    required this.centre,
+    required this.center,
     required List<double> widths,
     required List<double> banks,
     this.shoulder = 4.0,
@@ -53,18 +54,18 @@ final class TrackSpline {
        _surfaces = List<SurfaceBand>.unmodifiable(surfaces),
        _barriers = List<BarrierBand>.unmodifiable(barriers),
        checkpoints = List<double>.unmodifiable(checkpoints) {
-    if (widths.length != centre.pointCount) {
+    if (widths.length != center.pointCount) {
       throw ArgumentError.value(
         widths.length,
         'widths',
-        'needs one per control point (${centre.pointCount})',
+        'needs one per control point (${center.pointCount})',
       );
     }
-    if (banks.length != centre.pointCount) {
+    if (banks.length != center.pointCount) {
       throw ArgumentError.value(
         banks.length,
         'banks',
-        'needs one per control point (${centre.pointCount})',
+        'needs one per control point (${center.pointCount})',
       );
     }
     for (final width in widths) {
@@ -82,12 +83,12 @@ final class TrackSpline {
       }
     }
     _pointDistances = <double>[
-      for (var i = 0; i < centre.pointCount; i++) centre.distanceToPoint(i),
+      for (var i = 0; i < center.pointCount; i++) center.distanceToPoint(i),
     ];
   }
 
   /// The centre line, measured in metres.
-  final CatmullRom centre;
+  final CatmullRom center;
 
   final List<double> _widths;
   final List<double> _banks;
@@ -110,7 +111,7 @@ final class TrackSpline {
   late final List<double> _pointDistances;
 
   /// The length of a lap, in metres.
-  double get length => centre.length;
+  double get length => center.length;
 
   /// The full width of the road at [s] — kerb to kerb, not the half.
   double widthAt(double s) => _betweenPoints(_widths, s);
@@ -121,7 +122,7 @@ final class TrackSpline {
 
   /// Fills [out] with the road's frame of reference at [s].
   void frameAt(double s, TrackFrame out) {
-    centre
+    center
       ..sampleAt(s, out.position)
       ..tangentAt(s, out.forward);
 
@@ -182,22 +183,22 @@ final class TrackSpline {
 
   /// Fills [out] with the point on the centre line at [s]. Where a car goes
   /// back to when it is put back on the track.
-  void centreAt(double s, Vector3 out) => centre.sampleAt(s, out);
+  void centerAt(double s, Vector3 out) => center.sampleAt(s, out);
 
   /// What the ground is called at this point on the track, or null where the
   /// file has not said.
   String? surfaceAt(double s, double lateral) {
-    final wrapped = centre.wrap(s);
+    final wrapped = center.wrap(s);
     final onRoad = lateral.abs() <= widthAt(wrapped) / 2.0;
     for (final band in _surfaces) {
-      if (band.covers(wrapped)) return onRoad ? band.centre : band.shoulder;
+      if (band.covers(wrapped)) return onRoad ? band.center : band.shoulder;
     }
     return null;
   }
 
   /// Whether there is a wall down one side of the track at [s].
   bool barrierAt(double s, {required bool left}) {
-    final wrapped = centre.wrap(s);
+    final wrapped = center.wrap(s);
     for (final band in _barriers) {
       if (!band.covers(wrapped)) continue;
       if (left ? band.left : band.right) return true;
@@ -224,7 +225,7 @@ final class TrackSpline {
 
   /// Reads a value authored per control point at any distance between them.
   double _betweenPoints(List<double> values, double s) {
-    final wrapped = centre.wrap(s);
+    final wrapped = center.wrap(s);
 
     var low = 0;
     var high = _pointDistances.length - 1;
@@ -239,8 +240,8 @@ final class TrackSpline {
 
     final last = low == _pointDistances.length - 1;
     final fromS = _pointDistances[low];
-    final toS = last ? centre.length : _pointDistances[low + 1];
-    final next = last ? (centre.closed ? 0 : low) : low + 1;
+    final toS = last ? center.length : _pointDistances[low + 1];
+    final next = last ? (center.closed ? 0 : low) : low + 1;
 
     final span = toS - fromS;
     if (span <= 1e-9) return values[low];

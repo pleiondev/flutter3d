@@ -1,3 +1,5 @@
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Severity;
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -13,11 +15,14 @@ final class CheckpointKind extends EntityKind {
   static Vector3 get markerSize => Vector3(0.35, 2.2, 0.35);
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     if (entity.integer('order') == null) {
       out.add(
         LevelIssue(
-          LevelIssueSeverity.error,
+          Severity.error,
           'has no "order", so nothing knows which checkpoint is further on',
           where: scope.describe(entity),
         ),
@@ -26,7 +31,9 @@ final class CheckpointKind extends EntityKind {
   }
 
   @override
-  void spawn(EntityDef entity, SpawnContext context) {
+  void spawn(EntitySpawn spawn) {
+    final entity = spawn.entity;
+    final context = spawn.context;
     final order = entity.integer('order');
     if (order == null) return;
     final collider = place(

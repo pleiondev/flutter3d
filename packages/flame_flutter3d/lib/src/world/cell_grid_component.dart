@@ -1,14 +1,36 @@
 import 'dart:async' show scheduleMicrotask;
 
 import 'package:flame/collisions.dart';
-import 'package:flame/components.dart' show Vector2;
-import 'package:flutter3d/flutter3d.dart' as engine show Material;
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:vector_math/vector_math.dart' show Matrix4, Vector3, Vector4;
+import 'package:flutter3d/flutter3d.dart' as engine show RenderMaterial;
+import 'package:flutter3d/flutter3d.dart';
+import 'package:vector_math/vector_math.dart' show Matrix4, Vector3;
 
 import '../host/has_flutter3d.dart';
 import '../transform/object3d_component.dart';
 import '../transform/plane.dart';
+
+/// One cell of a [CellGridComponent], by column and row: what
+/// [CellGridComponent.cellAt] and `GridMover.cell` answer.
+final class GridCell {
+  /// The cell at [column] and [row].
+  const GridCell({required this.column, required this.row});
+
+  /// The cell's column, counted from nought at the left.
+  final int column;
+
+  /// The cell's row, counted from nought at the top as Flame sees it.
+  final int row;
+
+  @override
+  bool operator ==(Object other) =>
+      other is GridCell && other.column == column && other.row == row;
+
+  @override
+  int get hashCode => Object.hash(column, row);
+
+  @override
+  String toString() => 'GridCell($column, $row)';
+}
 
 /// A [CellGrid] as a bridged component: drawn as blocks, worn away by
 /// [hitAt], grown by [setCell], and a world to move and collide in. A Space
@@ -16,7 +38,7 @@ import '../transform/plane.dart';
 ///
 /// The grid's corner is at this component's position, cell (0, 0) at the
 /// top left as Flame sees it, one [CellGrid.cell] a cell; [size] is the
-/// grid's. [cellAt] and [centreOf] turn a point of the game into a cell and
+/// grid's. [cellAt] and [centerOf] turn a point of the game into a cell and
 /// back, for a `GridMover` walking the maze or a game asking what is where.
 ///
 /// **Two ways to draw it.** Merged, the default, the cells are one mesh,
@@ -32,7 +54,7 @@ import '../transform/plane.dart';
 /// Flame's own raycast, and [cellAt] of the contact point says which. One
 /// `RectangleHitbox()` round the whole grid, as a shield uses, says only
 /// that something reached it.
-class CellGridComponent extends Object3dComponent {
+base class CellGridComponent extends Object3dComponent {
   CellGridComponent({
     required this.grid,
     required this.device,
@@ -40,7 +62,7 @@ class CellGridComponent extends Object3dComponent {
     required super.plane,
     required this.material,
     this.depth,
-    this.colour,
+    this.color,
     this.instanced = false,
     this.hitboxes = false,
     super.position,
@@ -59,13 +81,13 @@ class CellGridComponent extends Object3dComponent {
 
   final CellGrid grid;
   final GraphicsDevice device;
-  final engine.Material material;
+  final engine.RenderMaterial material;
 
   /// How deep the blocks stand; a cell's size unless given.
   final double? depth;
 
-  /// A colour the blocks are painted, if any.
-  final Vector4? colour;
+  /// A colour the blocks are painted, if any: a vertex colour, linear.
+  final LinearColor? color;
 
   /// Whether each cell is a slot in one instanced batch rather than a part
   /// of one merged mesh; see the class doc.
@@ -82,16 +104,19 @@ class CellGridComponent extends Object3dComponent {
   BridgePlane get _flat =>
       BridgePlane(axis: plane.axis, constant: 0.0, flipY: plane.flipY);
 
-  /// The cell [at], a point of the game, falls in, as (column, row); it may
-  /// be outside the grid.
-  (int, int) cellAt(Vector2 at) {
+  /// The cell [at], a point of the game, falls in; it may be outside the
+  /// grid.
+  GridCell cellAt(Vector2 at) {
     final local = absoluteToLocal(at);
-    return ((local.x / grid.cell).floor(), (local.y / grid.cell).floor());
+    return GridCell(
+      column: (local.x / grid.cell).floor(),
+      row: (local.y / grid.cell).floor(),
+    );
   }
 
   /// The middle of cell ([column], [row]), in this component's parent's
   /// space: where a sibling standing in it is placed.
-  Vector2 centreOf(int column, int row) => Vector2(
+  Vector2 centerOf(int column, int row) => Vector2(
     position.x + (column + 0.5) * grid.cell,
     position.y + (row + 0.5) * grid.cell,
   );
@@ -133,7 +158,7 @@ class CellGridComponent extends Object3dComponent {
         _place(column, row);
       } else {
         final slot = _slots.remove(index);
-        if (slot != null && slot.live) _batch?.release(slot);
+        if (slot != null && slot.isLive) _batch?.release(slot);
       }
     }
     if (hitboxes && isMounted) {
@@ -179,7 +204,7 @@ class CellGridComponent extends Object3dComponent {
     final batch = _batch = InstancedMeshNode(
       DeviceMesh.upload(
         device,
-        colour == null ? block : block.withColor(colour!),
+        color == null ? block : block.withColor(color!),
       ),
       material,
       capacity: grid.columns * grid.rows,
@@ -212,11 +237,11 @@ class CellGridComponent extends Object3dComponent {
     final data = grid.mesh(
       place: (x, y) => flat.to3d(Vector2(x, y)),
       depth: depth,
-      colour: colour,
+      color: color,
     );
     final old = _blocks;
     if (data == null) {
-      old?.visible = false;
+      old?.isVisible = false;
     } else {
       final blocks = MeshNode(DeviceMesh.upload(device, data), material);
       node.add(blocks);

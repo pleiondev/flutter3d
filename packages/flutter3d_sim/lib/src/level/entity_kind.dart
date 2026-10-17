@@ -1,3 +1,4 @@
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Severity;
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -54,19 +55,20 @@ abstract base class EntityKind {
   /// The string that appears in a level document.
   final String type;
 
-  /// Checks one entity of this kind, in the context of the level around it.
+  /// Checks one entity of this kind, in the context of the level around it,
+  /// adding what is wrong to the check's [EntityCheck.out].
   ///
   /// Reports rather than throws: a level with several problems should list all
   /// of them, and an editor has to be able to load a broken level in order to
   /// fix it.
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {}
+  void validate(EntityCheck check) {}
 
-  /// Brings this entity into the world.
+  /// Brings the spawn's entity into the world.
   ///
   /// Does nothing by default, which is right for the kinds that are pure data
   /// — a spawn point is a coordinate somebody reads, and a torch is a light the
   /// level already carries.
-  void spawn(EntityDef entity, SpawnContext context) {}
+  void spawn(EntitySpawn spawn) {}
 
   /// Puts the box this entity brings with it into the world.
   ///
@@ -99,7 +101,7 @@ abstract base class EntityKind {
     if (size == null) {
       out.add(
         LevelIssue(
-          LevelIssueSeverity.error,
+          Severity.error,
           'has no "size", so there would be nothing there',
           where: scope.describe(entity),
         ),
@@ -109,7 +111,7 @@ abstract base class EntityKind {
     if (size.x <= 0.0 || size.y <= 0.0 || size.z <= 0.0) {
       out.add(
         LevelIssue(
-          LevelIssueSeverity.error,
+          Severity.error,
           'has a size of ${size.x} x ${size.y} x ${size.z}',
           where: scope.describe(entity),
         ),
@@ -133,7 +135,7 @@ abstract base class EntityKind {
       if (optional) return;
       out.add(
         LevelIssue(
-          LevelIssueSeverity.error,
+          Severity.error,
           'has no "target", so it would do nothing',
           where: scope.describe(entity),
         ),
@@ -143,7 +145,7 @@ abstract base class EntityKind {
     if (scope.level.named(target) == null) {
       out.add(
         LevelIssue(
-          LevelIssueSeverity.error,
+          Severity.error,
           'targets "$target", which no entity is named',
           where: scope.describe(entity),
         ),
@@ -162,7 +164,7 @@ abstract base class EntityKind {
     if (scope.keys.contains(wanted)) return;
     out.add(
       LevelIssue(
-        LevelIssueSeverity.error,
+        Severity.error,
         'needs the "$wanted" key, and no ${EntityTypes.key} entity in this '
         'level provides one',
         where: scope.describe(entity),
@@ -176,17 +178,17 @@ abstract base class EntityKind {
     if (travel == null) {
       out.add(
         LevelIssue(
-          LevelIssueSeverity.error,
+          Severity.error,
           'has no "travel" offset, so it has nowhere to go',
           where: scope.describe(entity),
         ),
       );
       return;
     }
-    if (travel.length < Tolerance.zeroLength) {
+    if (travel.length < GeometryTolerance.zeroLength) {
       out.add(
         LevelIssue(
-          LevelIssueSeverity.warning,
+          Severity.warning,
           'travels nowhere',
           where: scope.describe(entity),
         ),
@@ -204,10 +206,58 @@ abstract base class EntityKind {
     if (value != null && value.isNotEmpty) return;
     out.add(
       LevelIssue(
-        LevelIssueSeverity.error,
+        Severity.error,
         'has no "$key", so there would be nothing to show',
         where: scope.describe(entity),
       ),
     );
   }
+}
+
+/// A kind for a type nobody here has been taught: it accepts the type and
+/// gives it no meaning.
+///
+/// **A level names things a reader does not spawn**, and a registry that has
+/// never heard of them refuses the document at all. An editor that knows no
+/// game, or a game walking a level it has no actors for yet, reads every
+/// entity of an unknown type as what it is to them: a coordinate with a word
+/// attached, and checks nothing about it of its own.
+final class OpenKind extends EntityKind {
+  const OpenKind(super.type);
+}
+
+/// What [EntityKind.validate] is handed: the entity, the level around it,
+/// and the list its problems go in.
+///
+/// **One object, so a minor can hand a kind more** — the registry of kinds,
+/// the document's version — without breaking a kind written against 1.0.
+final class EntityCheck {
+  const EntityCheck({
+    required this.entity,
+    required this.scope,
+    required this.out,
+  });
+
+  /// The entity being checked.
+  final EntityDef entity;
+
+  /// The level around it.
+  final LevelScope scope;
+
+  /// Where its problems go.
+  final List<LevelIssue> out;
+}
+
+/// What [EntityKind.spawn] is handed: the entity and what it is brought
+/// into the world with.
+///
+/// One object, for the reason [EntityCheck] gives.
+final class EntitySpawn {
+  const EntitySpawn({required this.entity, required this.context});
+
+  /// The entity being brought into the world.
+  final EntityDef entity;
+
+  /// The world, the level and what a spawned thing registers with.
+  final SpawnContext context;
 }

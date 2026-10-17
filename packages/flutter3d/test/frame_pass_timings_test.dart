@@ -20,13 +20,13 @@ void main() {
     final device = FakeBackend();
     final renderer = Renderer.create(device: device);
     final scene = Scene()..add(CameraNode());
-    final view = RenderView(camera: scene.cameras.single);
+    final view = CameraView(camera: scene.cameras.single);
 
     final result = renderer.render(
       width: 64,
       height: 64,
       scene: scene,
-      views: <RenderView>[view],
+      views: <CameraView>[view],
       settings: const RenderSettings(bloom: BloomSettings(enabled: false)),
     );
 
@@ -37,13 +37,13 @@ void main() {
     final device = FakeBackend();
     final renderer = Renderer.create(device: device);
     final scene = Scene()..add(CameraNode());
-    final view = RenderView(camera: scene.cameras.single);
+    final view = CameraView(camera: scene.cameras.single);
 
     final result = renderer.render(
       width: 64,
       height: 64,
       scene: scene,
-      views: <RenderView>[view],
+      views: <CameraView>[view],
       settings: const RenderSettings(),
     );
 
@@ -58,13 +58,13 @@ void main() {
     final device = FakeBackend();
     final renderer = Renderer.create(device: device);
     final scene = Scene()..add(CameraNode());
-    final view = RenderView(camera: scene.cameras.single);
+    final view = CameraView(camera: scene.cameras.single);
 
     final result = renderer.render(
       width: 64,
       height: 64,
       scene: scene,
-      views: <RenderView>[view],
+      views: <CameraView>[view],
       settings: const RenderSettings(),
     );
 

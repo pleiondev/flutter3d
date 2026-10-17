@@ -34,12 +34,12 @@ const Size screenshotWindow = Size(1440, 900);
 
 /// Answers every read with nothing and every write as if it landed, so a
 /// screenshot run touches no real autosave slot.
-final class NullBinaryStorage implements BinaryStorage {
+final class NullBinaryStorage extends BinaryStorage {
   @override
   Future<Uint8List?> read(String name) async => null;
 
   @override
-  Future<bool> write(String name, Uint8List contents) async => true;
+  Future<void> write(String name, Uint8List contents) async {}
 
   @override
   Future<void> remove(String name) async {}
@@ -47,7 +47,7 @@ final class NullBinaryStorage implements BinaryStorage {
 
 /// A settings document in memory, so a screenshot run neither reads a
 /// person's own preferences nor writes over them.
-final class MemorySettings implements Storage {
+final class MemorySettings extends Storage {
   /// **Seeded, not empty** — `ux-42`. An empty settings store is a first
   /// launch, and a first launch now opens Quick Setup: every picture below
   /// would otherwise be a picture of that dialog. Seeded with the Full
@@ -70,16 +70,15 @@ final class MemorySettings implements Storage {
   final Map<String, String> documents = <String, String>{};
 
   @override
-  String? read(String name) => documents[name];
+  Future<String?> read(String name) async => documents[name];
 
   @override
-  bool write(String name, String contents) {
+  Future<void> write(String name, String contents) async {
     documents[name] = contents;
-    return true;
   }
 
   @override
-  void remove(String name) => documents.remove(name);
+  Future<void> remove(String name) async => documents.remove(name);
 }
 
 /// Where the SDK keeps the fonts a real build draws with.
@@ -156,6 +155,10 @@ class TolerantGoldens extends LocalFileComparator {
       await getGoldenBytes(golden),
     );
     if (result.passed || result.diffPercent <= budget) return true;
+    // The picture taken, the reference and where they part, under
+    // `failures/` beside the test: a percentage alone says something moved
+    // and not what.
+    await generateFailureOutput(result, golden, basedir);
     throw FlutterError(
       'The screenshot ${golden.pathSegments.last} differs from its reference '
       'in ${(result.diffPercent * 100).toStringAsFixed(2)}% of its pixels, '
@@ -173,6 +176,92 @@ void useTolerantGoldens(String testFileName) {
   goldenFileComparator = TolerantGoldens(testFile);
 }
 
+/// The pixel ratio the viewport renders at in a frame no picture is taken
+/// from: a sixteenth of the pixels.
+///
+/// **The software rasteriser pays per pixel.** `render_benchmark_test.dart`
+/// measured it at 3.2 to 3.7 µs a pixel whatever the frame size, and the
+/// status line of every screenshot here reads 1.5 to 2 s for one frame of the
+/// 1137×816 viewport. A case that pumps seventy frames spent two minutes
+/// drawing pictures nobody looked at: the one a screenshot shows is the frame
+/// decoded in the real-time hop of the last [settleFrames] (see
+/// [_pumpPictureFrame]), and every other frame is drawn only so the editor
+/// takes its steps. Those steps do not depend on how many pixels the frame
+/// has: every pick, box and drag this suite makes is measured in logical
+/// pixels and answered by geometry, and the layout is the same 1440×900.
+const double _workingPixelRatio = 0.25;
+
+/// The pixel ratio the viewport is told, through the [MediaQuery] that
+/// [launchModeller] wraps round the application. The window's own ratio, and
+/// with it everything Flutter draws round the viewport, stays 1.
+final ValueNotifier<double> _viewportPixelRatio = ValueNotifier<double>(1.0);
+
+/// Whether the running test takes pictures — [launchModeller]'s `pictures`.
+bool _forPictures = true;
+
+/// Draws one frame, at the full pixel ratio when the test takes pictures.
+///
+/// The frame right before a real-time hop is the one that hop decodes and the
+/// next pump shows, so it is the only one a screenshot can be of.
+Future<void> _pumpPictureFrame(WidgetTester tester) async {
+  if (_forPictures) _viewportPixelRatio.value = 1.0;
+  await tester.pump();
+  _viewportPixelRatio.value = _workingPixelRatio;
+}
+
+/// Whether the editor's own viewport has decoded the frame it last drew.
+///
+/// `CpuFrame` (flutter3d_app's presenter for the software backend, private to
+/// it, hence the name) decodes each frame with `decodeImageFromPixels` and
+/// marks itself dirty when the image lands, which is what can be read here
+/// without drawing another frame. Drawing one would ask for a newer decode
+/// and throw this one away.
+///
+/// **The largest viewport only.** A preview — a material's sphere, a level of
+/// detail — draws when it is rebuilt rather than every frame, so a hop can
+/// open with nothing of its own in flight, and waiting for it would wait out
+/// the bound. True when there is no viewport, or none drawn yet.
+bool _pictureLanded() {
+  double areaOf(Element viewport) => switch (viewport.renderObject) {
+    final RenderBox box when box.hasSize => box.size.width * box.size.height,
+    _ => 0,
+  };
+  final (Element? largest, _) = find
+      .byType(ModelerViewport)
+      .evaluate()
+      .fold<(Element?, double)>(
+        (null, -1),
+        ((Element?, double) best, Element viewport) =>
+            areaOf(viewport) > best.$2 ? (viewport, areaOf(viewport)) : best,
+      );
+  if (largest == null) return true;
+  final Iterable<Element> frames = find
+      .descendant(
+        of: find.byElementPredicate((Element it) => identical(it, largest)),
+        matching: find.byWidgetPredicate(
+          (Widget widget) => widget.runtimeType.toString() == 'CpuFrame',
+        ),
+      )
+      .evaluate();
+  return frames.isEmpty || frames.every((Element frame) => frame.dirty);
+}
+
+/// A real-time hop of at least [atLeast], held open until the frame drawn
+/// before it has been decoded or two more seconds have passed.
+///
+/// **A fixed hop was a race.** Decoding a frame of the whole viewport is
+/// real work on the engine's own threads, and on a machine running the whole
+/// suite it sometimes took longer than the hop; the next pump then showed the
+/// frame before, and the screenshot was of the editor one step behind.
+Future<void> _waitForPicture(WidgetTester tester, Duration atLeast) async {
+  await tester.runAsync(() => Future<void>.delayed(atLeast));
+  for (var wait = 0; wait < 40 && !_pictureLanded(); wait++) {
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 50)),
+    );
+  }
+}
+
 /// A few frames plus one real-time hop, which is what a live editor needs to
 /// draw and decode one.
 ///
@@ -180,12 +269,11 @@ void useTolerantGoldens(String testFileName) {
 /// from inside its own frame, so the tree never goes quiet — the same reason
 /// every other whole-screen test in this suite pumps by hand.
 Future<void> settleFrames(WidgetTester tester) async {
-  for (var i = 0; i < 4; i++) {
+  for (var i = 0; i < 3; i++) {
     await tester.pump();
   }
-  await tester.runAsync(
-    () => Future<void>.delayed(const Duration(milliseconds: 200)),
-  );
+  await _pumpPictureFrame(tester);
+  await _waitForPicture(tester, const Duration(milliseconds: 200));
   await tester.pump();
   // **Past `kDoubleTapTimeout`, because a row can be double-clicked.**
   // `ux-14`'s own rename-in-place puts a double-tap recogniser on every
@@ -204,11 +292,16 @@ Future<void> settleFrames(WidgetTester tester) async {
 /// agent panel's own wants. Zero asks the platform for a free port and
 /// writes the session file into [mcpSessionPath], which is how a test can
 /// connect a real client to the running editor.
+///
+/// [pictures] false is for a test that asserts on the editor and never calls
+/// [shootWindow]: its viewport renders every frame at [_workingPixelRatio],
+/// the picture frames included.
 Future<void> launchModeller(
   WidgetTester tester, {
   required bool fonts,
   int? mcpPort,
   String? mcpSessionPath,
+  bool pictures = true,
 }) async {
   // A picture of boxes is not a picture the tutorial can use, and saying so
   // is better than writing one out.
@@ -217,9 +310,25 @@ Future<void> launchModeller(
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
+  _forPictures = pictures;
+  _viewportPixelRatio.value = _workingPixelRatio;
 
   await tester.pumpWidget(
     MaterialApp(
+      // The viewport's own pixel ratio, and nothing else's: see
+      // [_workingPixelRatio].
+      builder: (BuildContext context, Widget? child) =>
+          ValueListenableBuilder<double>(
+            valueListenable: _viewportPixelRatio,
+            builder: (BuildContext context, double ratio, Widget? child) =>
+                MediaQuery(
+                  data: MediaQuery.of(
+                    context,
+                  ).copyWith(devicePixelRatio: ratio),
+                  child: child!,
+                ),
+            child: child,
+          ),
       // **Off, the way the real build has it** (`app_wiring.dart`). A test
       // that builds its own `MaterialApp` gets Flutter's DEBUG ribbon by
       // default, and every picture this tour has ever produced carried a red
@@ -246,10 +355,8 @@ Future<void> launchModeller(
   await tester.runAsync(
     () => Future<void>.delayed(const Duration(milliseconds: 300)),
   );
-  await tester.pump();
-  await tester.runAsync(
-    () => Future<void>.delayed(const Duration(milliseconds: 300)),
-  );
+  await _pumpPictureFrame(tester);
+  await _waitForPicture(tester, const Duration(milliseconds: 300));
   await tester.pump();
   // **Past the opening card, so no picture is of one** — `ux-30`. "opened in
   // 340 ms" is drawn over the viewport's top-left corner for two seconds, and
@@ -269,8 +376,7 @@ Future<void> switchMode(WidgetTester tester, ModelerMode mode) async {
   // without this hits whatever is drawn over it instead, which is how this
   // helper started failing the moment the fourth phase-four mode landed.
   final Finder segment = find.byTooltip(mode.label);
-  await tester.ensureVisible(segment);
-  await settleFrames(tester);
+  await scrollIntoView(tester, segment);
   await tester.tap(segment);
   await settleFrames(tester);
 }
@@ -284,8 +390,7 @@ Future<void> switchAnimationSubmode(
     of: find.byType(SegmentedButton<AnimationSubmode>),
     matching: find.text(submode.label),
   );
-  await tester.ensureVisible(segment);
-  await settleFrames(tester);
+  await scrollIntoView(tester, segment);
   await tester.tap(segment);
   await settleFrames(tester);
 }
@@ -296,10 +401,22 @@ Future<void> switchMeshSubmode(WidgetTester tester, MeshSubmode submode) async {
     of: find.byType(SegmentedButton<MeshSubmode>),
     matching: find.text(submode.label),
   );
-  await tester.ensureVisible(segment);
-  await settleFrames(tester);
+  await scrollIntoView(tester, segment);
   await tester.tap(segment);
   await settleFrames(tester);
+}
+
+/// Scrolls [target] into view so a tap lands on it.
+///
+/// **One frame, not a [settleFrames].** `ensureVisible` jumps rather than
+/// animates, so the scroll is done once the next layout has run, and a tap
+/// needs that layout and nothing else: no picture, no decode. The settle this
+/// replaces drew six frames of the whole window on the software rasteriser
+/// before every mode switch in the tour. The clock still moves as far as that
+/// settle moved it, so whatever runs on a timer is where it was.
+Future<void> scrollIntoView(WidgetTester tester, Finder target) async {
+  await tester.ensureVisible(target);
+  await tester.pump(kDoubleTapTimeout + const Duration(milliseconds: 10));
 }
 
 /// The editor, in the UV mode, with the cube a launch opens on held.
@@ -311,8 +428,9 @@ Future<void> switchMeshSubmode(WidgetTester tester, MeshSubmode submode) async {
 Future<void> openUvModeOnTheCube(
   WidgetTester tester, {
   required bool fonts,
+  bool pictures = true,
 }) async {
-  await launchModeller(tester, fonts: fonts);
+  await launchModeller(tester, fonts: fonts, pictures: pictures);
   await tester.tap(find.byType(ObjectRow).first);
   await settleFrames(tester);
   await switchMode(tester, ModelerMode.uv);
@@ -404,7 +522,17 @@ Future<void> openExportScreen(WidgetTester tester) async {
 /// A dialog lives in the app's own overlay, which is above `ModelerScreen`
 /// rather than inside it, so a finder on the screen alone would photograph
 /// the editor behind the dialog and not the dialog.
-Future<void> shootWindow(WidgetTester tester, String name) => expectLater(
-  find.byType(MaterialApp),
-  matchesGoldenFile('goldens/screens/$name.png'),
-);
+///
+/// **One frame at the full pixel ratio first.** The frames since the last
+/// picture frame were laid out under [_workingPixelRatio], and a text field
+/// snaps its text to physical pixels by the ratio it is told. This frame
+/// moves no clock and decodes nothing in time to be shown: the viewport still
+/// shows the picture [settleFrames] decoded, as it always has.
+Future<void> shootWindow(WidgetTester tester, String name) async {
+  _viewportPixelRatio.value = 1.0;
+  await tester.pump();
+  await expectLater(
+    find.byType(MaterialApp),
+    matchesGoldenFile('goldens/screens/$name.png'),
+  );
+}

@@ -17,7 +17,7 @@ import 'cpu_shaders_layout.dart';
 import 'cpu_shaders_lighting.dart';
 import 'cpu_shaders_surface.dart';
 
-/// `kImpostorGrid`.
+/// `impostorGrid`.
 const double _kGrid = 8.0;
 
 /// `ImpostorEncode`.
@@ -49,7 +49,7 @@ Vector3 _right(Vector3 d) {
 }
 
 /// The impostor card's vertex stage — `impostor.vert`.
-final class ImpostorVertexShader implements CpuVertexShaderByIndex {
+final class ImpostorVertexShader extends CpuVertexShaderByIndex {
   const ImpostorVertexShader();
 
   @override
@@ -73,7 +73,7 @@ final class ImpostorVertexShader implements CpuVertexShaderByIndex {
 
     final radius = a[kTangent + 3];
     final u = a[kTexcoord], v = a[kTexcoord + 1];
-    final centre = Vector3(
+    final center = Vector3(
       a[kPosition] - (u * 2.0 - 1.0) * radius,
       a[kPosition + 1] - (1.0 - v * 2.0) * radius,
       a[kPosition + 2],
@@ -89,7 +89,7 @@ final class ImpostorVertexShader implements CpuVertexShaderByIndex {
     final singular = det.abs() <= 1e-20;
     final toEye = singular
         ? -rz.xyz
-        : (yw * rx.w + wx * ry.w + xy * rw.w).scaled(-1.0 / det) - centre;
+        : (yw * rx.w + wx * ry.w + xy * rw.w).scaled(-1.0 / det) - center;
     final d = toEye.dot(toEye) > 1e-20
         ? (toEye..normalize())
         : (Vector3(a[kNormal], a[kNormal + 1], a[kNormal + 2])..normalize());
@@ -97,7 +97,7 @@ final class ImpostorVertexShader implements CpuVertexShaderByIndex {
     final right = _right(d);
     final up = d.cross(right);
     final corner =
-        centre +
+        center +
         (right * (u * 2.0 - 1.0) + up * (1.0 - v * 2.0)).scaled(radius);
 
     final Vector4 world = model * Vector4(corner.x, corner.y, corner.z, 1.0);
@@ -126,6 +126,9 @@ final class ImpostorVertexShader implements CpuVertexShaderByIndex {
     out[kVColour + 3] = a[kColour + 3];
     out[kVLightmap] = 0.0;
     out[kVLightmap + 1] = 0.0;
+    for (var i = 0; i < 4; i++) {
+      out[kVInstance + i] = 0.0;
+    }
 
     return mvp * Vector4(corner.x, corner.y, corner.z, 1.0);
   }
@@ -142,7 +145,7 @@ final class ImpostorVertexShader implements CpuVertexShaderByIndex {
 }
 
 /// The impostor's lit stage — `lighting/impostor.frag`.
-final class ImpostorShader implements CpuFragmentShader {
+final class ImpostorShader extends CpuFragmentShader {
   const ImpostorShader();
 
   @override
@@ -254,11 +257,13 @@ final class ImpostorShader implements CpuFragmentShader {
     // on a back face as every lit stage turns it.
     final geometric = worldFacing.clone();
     if (!c.frontFacing) geometric.negate();
+    final debug = writeDebugView(c, v, b, s, total, geometric: geometric);
+    if (debug != null) return debug;
     return writeLit(
       c,
       v,
       b,
-      colour: total,
+      color: total,
       alpha: 1.0,
       normal: geometric,
       roughness: 1.0,

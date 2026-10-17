@@ -3,7 +3,7 @@
 /// **Node indices, not nodes, and that is the boundary talking.**
 /// [AnimationTarget] is three setters and no hierarchy, deliberately: the
 /// animation layer is reached from the asset decoders, so a dependency on
-/// `SceneNode` would drag `Material` — and through it the graphics backend and
+/// `SceneNode` would drag `RenderMaterial` — and through it the graphics backend and
 /// `dart:ui` — into everything that merely reads a glTF file. A mask built by
 /// walking parents would need exactly that hierarchy.
 ///
@@ -29,6 +29,23 @@ final class AnimationMask {
       _all = false;
 
   const AnimationMask._all() : _indices = const <int>{}, _all = true;
+
+  /// Node [root] and everything below it, by [parents] — each node's
+  /// parent index, -1 for a root, as a pose holds them: an upper body from
+  /// its spine, an arm from its shoulder.
+  factory AnimationMask.below(List<int> parents, int root) {
+    bool under(int node) {
+      for (var at = node; at >= 0; at = parents[at]) {
+        if (at == root) return true;
+      }
+      return false;
+    }
+
+    return AnimationMask(<int>[
+      for (var i = 0; i < parents.length; i++)
+        if (under(i)) i,
+    ]);
+  }
 
   /// The mask that stops nothing, for a layer meant to cover the whole
   /// skeleton.

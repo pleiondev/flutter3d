@@ -114,10 +114,8 @@ extension _GltfMaterials on GltfLoader {
 
           return SurfaceMaterial(
             name: name is String ? name : null,
-            // Linear in the file, authored in the engine: converted once,
-            // here. Taken raw, the shader's own conversion ran on a value
-            // already linear, and a factor of 0.5 drew as 0.21.
-            baseColor: _authoredTint(_vec4(pbrMap['baseColorFactor'])),
+            // Linear in the file and in the engine, taken as it is.
+            baseColor: _linearTint(_vec4(pbrMap['baseColorFactor'])),
             metallic: _asDouble(pbrMap['metallicFactor']) ?? 1.0,
             roughness: _asDouble(pbrMap['roughnessFactor']) ?? 1.0,
             baseColorTexture: textureRef(pbrMap['baseColorTexture']),
@@ -133,7 +131,10 @@ extension _GltfMaterials on GltfLoader {
                 ? (_asDouble(occlusionTex['strength']) ?? 1.0)
                 : 1.0,
             emissiveTexture: textureRef(material['emissiveTexture']),
-            emissive: _vec3(material['emissiveFactor']),
+            emissive: switch (_vec3(material['emissiveFactor'])) {
+              final Vector3 c => LinearColor(c.x, c.y, c.z),
+              null => LinearColor.black,
+            },
             emissiveStrength: emissiveStrengthExt is Map
                 ? (_asDouble(emissiveStrengthExt['emissiveStrength']) ?? 1.0)
                 : 1.0,
@@ -168,10 +169,10 @@ TextureSampling _decodeSampler(Map<String, Object?> sampler) {
   final magFilter = _asInt(sampler['magFilter']);
   final minFilter = _asInt(sampler['minFilter']);
 
-  TextureWrap wrap(Object? code) => switch (_asInt(code)) {
-    33071 => TextureWrap.clampToEdge,
-    33648 => TextureWrap.mirroredRepeat,
-    _ => TextureWrap.repeat,
+  SamplerAddressMode wrap(Object? code) => switch (_asInt(code)) {
+    33071 => SamplerAddressMode.clampToEdge,
+    33648 => SamplerAddressMode.mirror,
+    _ => SamplerAddressMode.repeat,
   };
 
   return TextureSampling(
@@ -184,11 +185,11 @@ TextureSampling _decodeSampler(Map<String, Object?> sampler) {
   );
 }
 
-/// The `(magFilter, minFilter)` GL constant pair a glTF writer should emit
+/// The `magFilter` and `minFilter` GL constant pair a glTF writer should emit
 /// for [sampling] — the exact inverse of [_decodeSampler]'s filter half, so a
 /// document decoded from glTF and written back out names the same constant it
 /// arrived with, mipmap variant included.
-(int magFilter, int minFilter) toGltfFilters(TextureSampling sampling) {
+GltfFilters toGltfFilters(TextureSampling sampling) {
   final magFilter = sampling.magLinear ? 9729 : 9728;
   final minFilter = switch ((
     sampling.useMipmaps,
@@ -202,5 +203,31 @@ TextureSampling _decodeSampler(Map<String, Object?> sampler) {
     (true, false, true) => 9986,
     (true, true, true) => 9987,
   };
-  return (magFilter, minFilter);
+  return GltfFilters(magFilter: magFilter, minFilter: minFilter);
+}
+
+/// A glTF sampler's two filter constants, as GL numbers them: what
+/// [toGltfFilters] answers.
+final class GltfFilters {
+  /// The pair [magFilter] and [minFilter].
+  const GltfFilters({required this.magFilter, required this.minFilter});
+
+  /// The magnification filter: 9728 `NEAREST` or 9729 `LINEAR`.
+  final int magFilter;
+
+  /// The minification filter: 9728 or 9729 without mipmaps, 9984 to 9987
+  /// with them.
+  final int minFilter;
+
+  @override
+  bool operator ==(Object other) =>
+      other is GltfFilters &&
+      other.magFilter == magFilter &&
+      other.minFilter == minFilter;
+
+  @override
+  int get hashCode => Object.hash(magFilter, minFilter);
+
+  @override
+  String toString() => 'GltfFilters($magFilter, $minFilter)';
 }

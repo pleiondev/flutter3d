@@ -74,7 +74,7 @@ file gave its light, and `bindLight(0, ...)` tells the instance that this node i
 Each instance has `pointerTargets`, where its player sends every pointer track. The
 materials are in there by their index in the file, filled in by `instantiate`. The
 lights are whatever the application has bound. The intensity arrives in lux, as glTF
-writes it, and `PointerTargets` converts it to the engine's own unit on the way in. The
+writes it, which is what `LightNode.intensity` holds, so it passes through unchanged. The
 colour arrives linear and is converted to the tint `Material.baseColor` holds.
 
 {{code bind}}

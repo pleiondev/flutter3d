@@ -48,12 +48,12 @@ final class Collectible extends Takeable {
     // exactly this, by reading `userData` twice.
     final gatherer = taker;
     if (gatherer is! Gatherer) return false;
-    if (!gatherer.purse.add(what, howMany)) return false;
+    if (!gatherer.purse.add(what, howMany: howMany)) return false;
 
     // After the purse, not before: a key handed out for a pickup that was then
     // refused is a door that opens for nothing.
     final unlocks = key;
-    if (unlocks != null && taker is KeyTaker) taker.keyRing.take(unlocks);
+    if (unlocks != null && taker is KeyTaker) taker.keyRing.add(unlocks);
     return true;
   }
 }

@@ -16,9 +16,7 @@ import 'package:flutter_test/flutter_test.dart';
 final class _World extends FlameGame with HasFlutter3d {
   @override
   CameraNode createCamera3d() =>
-      CameraNode(
-          projection: const PerspectiveProjection(fovYRadians: 0.9, far: 200.0),
-        )
+      CameraNode(projection: const PerspectiveProjection(fovY: 0.9, far: 200.0))
         ..setPosition(0.0, 6.0, 6.0)
         ..lookAt(Vector3(0.0, 0.0, -10.0));
 }
@@ -31,7 +29,7 @@ final class _Crate extends Object3dComponent with Tap3dCallbacks {
             device,
             CuboidShape(size: Vector3.all(2.0)).build(),
           ),
-          Material(),
+          RenderMaterial(),
         ),
         scene: scene,
         plane: BridgePlane.ground(),
@@ -108,7 +106,10 @@ void main() {
     final bottom = a.bottom < b.bottom ? a.bottom : b.bottom;
     expect(left < right && top < bottom, isTrue, reason: 'no overlap to tap');
     final screen = Vector2((left + right) / 2.0, (top + bottom) / 2.0);
-    expect(far.hitAt3d(screen, game.projector), isTrue);
+    expect(
+      far.hitAt3d(Tap3dProbe(screen: screen, projector: game.projector)),
+      isTrue,
+    );
     expect(taps.nearestAt(screen), same(near));
   });
 
@@ -154,7 +155,10 @@ void main() {
     game.update(0.0);
 
     final screen = game.projector.toScreen(crate.scenePosition)!;
-    expect(field.hitAt3d(screen, game.projector), isTrue);
+    expect(
+      field.hitAt3d(Tap3dProbe(screen: screen, projector: game.projector)),
+      isTrue,
+    );
     expect(taps.nearestAt(screen), same(crate));
   });
 
@@ -163,7 +167,7 @@ void main() {
     final (:game, :device) = await _open();
     final batch = InstancedMeshNode(
       DeviceMesh.upload(device, CuboidShape(size: Vector3.all(2.0)).build()),
-      Material(),
+      RenderMaterial(),
       capacity: 4,
     );
     game.scene.add(batch);
@@ -255,7 +259,7 @@ final class _Slab extends Object3dComponent with Tap3dCallbacks {
             device,
             CuboidShape(size: Vector3(40.0, 0.2, 40.0)).build(),
           ),
-          Material(),
+          RenderMaterial(),
         ),
         scene: scene,
         plane: BridgePlane.ground(),

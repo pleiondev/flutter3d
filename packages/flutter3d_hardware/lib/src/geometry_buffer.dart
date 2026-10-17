@@ -16,14 +16,40 @@ library;
 /// `BufferView` binds either way, which is why the contract went without this
 /// until a second backend was written against it. The engine has always known
 /// which it was uploading, so saying so costs a word at each call site.
-enum GeometryUsage {
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class GeometryUsage {
+  const GeometryUsage._(this.name);
+
   /// Interleaved vertex attributes.
-  vertices,
+  static const GeometryUsage vertices = GeometryUsage._('vertices');
 
   /// Indices, of the width the draw will name.
   ///
   /// Plural to stay clear of `Enum.index`, which every enum already has.
-  indices,
+  static const GeometryUsage indices = GeometryUsage._('indices');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<GeometryUsage> values = <GeometryUsage>[vertices, indices];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static GeometryUsage? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'GeometryUsage.$name';
 }
 
 /// A range of device memory holding vertices or indices.
@@ -38,12 +64,39 @@ enum GeometryUsage {
 /// takes bytes: where a frame's scratch vertices live until the GPU has read
 /// them is a backend question, and answering it in the engine is what a
 /// `HostBuffer` in an engine signature was.
+///
+/// **Ended with [dispose], since 1.0**, the verb every GPU resource answers
+/// to — `TextureHandle.dispose` is its twin. `GraphicsDevice.releaseGeometry`
+/// stays as the device's half, for backends and the engine's own owners.
 final class GeometryBuffer {
-  const GeometryBuffer({
+  GeometryBuffer._(
+    this._release, {
     required this.backend,
     required this.offsetInBytes,
     required this.lengthInBytes,
   });
+
+  final void Function(GeometryBuffer)? _release;
+
+  /// Gives this buffer back to the device that made it, once; a second call
+  /// is a mistake, an assertion in a debug build. **A [slice] is a view** and
+  /// its `dispose` does nothing: dispose the buffer it was cut from. A buffer
+  /// a backend made without naming its device (a storage buffer's view, a
+  /// test's fake) has nothing to give back, and is not checked.
+  void dispose() {
+    assert(
+      !_disposed || _release == null,
+      '$this was disposed twice. A handle has one owner, and only the owner '
+      'disposes it.',
+    );
+    if (_disposed) return;
+    _disposed = true;
+    _release?.call(this);
+  }
+
+  /// Whether [dispose] has run.
+  bool get isDisposed => _disposed;
+  bool _disposed = false;
 
   /// The backend's own buffer object. See `TextureHandle.backend`.
   final Object backend;
@@ -52,12 +105,31 @@ final class GeometryBuffer {
   final int lengthInBytes;
 
   /// A shorter range starting [offset] bytes into this one.
-  GeometryBuffer slice({int offset = 0, required int length}) => GeometryBuffer(
-    backend: backend,
-    offsetInBytes: offsetInBytes + offset,
-    lengthInBytes: length,
-  );
+  GeometryBuffer slice({int offset = 0, required int length}) =>
+      GeometryBuffer._(
+        null,
+        backend: backend,
+        offsetInBytes: offsetInBytes + offset,
+        lengthInBytes: length,
+      );
 
   @override
   String toString() => 'GeometryBuffer(@$offsetInBytes, $lengthInBytes bytes)';
 }
+
+/// A [GeometryBuffer] over [lengthInBytes] bytes of a backend's own
+/// [backend] buffer from [offsetInBytes] — for a backend, from
+/// `package:flutter3d_hardware/backend.dart`. [release] is what the buffer's
+/// [GeometryBuffer.dispose] calls — the device's `releaseGeometry` for a
+/// buffer `uploadGeometry` made, and null for a view of something else.
+GeometryBuffer wrapGeometry({
+  required Object backend,
+  required int offsetInBytes,
+  required int lengthInBytes,
+  void Function(GeometryBuffer)? release,
+}) => GeometryBuffer._(
+  release,
+  backend: backend,
+  offsetInBytes: offsetInBytes,
+  lengthInBytes: lengthInBytes,
+);

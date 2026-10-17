@@ -82,11 +82,10 @@ MeshData _shapes() {
     format: TextureFormat.r32g32b32a32Float,
     pixels: packed.bytes,
   );
-  expect(deltas, isNotNull, reason: 'the deltas would not upload');
 
-  final material = Material(
+  final material = RenderMaterial(
     name: 'stone',
-    baseColor: Vector4(0.7, 0.6, 0.5, 1.0),
+    baseColor: LinearColor.fromSrgb(0.7, 0.6, 0.5, 1.0),
     roughness: 0.8,
   );
   final scene = Scene();
@@ -104,14 +103,14 @@ MeshData _shapes() {
       if (weighted) batch.setMorphWeights(i, _weights[i]);
     }
     // The deltas are the batch's, shared by every copy; only the weights differ.
-    batch.morph = MorphState(texture: deltas!, targetCount: 2);
+    batch.morph = MorphState(texture: deltas, targetCount: 2);
     scene.add(batch);
   } else {
     for (var i = 0; i < places.length; i++) {
       scene.add(
         MeshNode(mesh, material, name: 'copy$i')
           ..setLocalMatrix(places[i])
-          ..morph = (MorphState(texture: deltas!, targetCount: 2)
+          ..morph = (MorphState(texture: deltas, targetCount: 2)
             ..setWeights(_weights[i])),
       );
     }
@@ -122,11 +121,7 @@ MeshData _shapes() {
   scene.add(sun);
 
   final camera = CameraNode(
-    projection: const PerspectiveProjection(
-      fovYRadians: 1.0,
-      near: 0.1,
-      far: 100.0,
-    ),
+    projection: const PerspectiveProjection(fovY: 1.0, near: 0.1, far: 100.0),
   )..setPosition(0.0, 1.6, 8.0);
   camera.lookAt(Vector3.zero());
   scene.add(camera);
@@ -156,12 +151,11 @@ Future<Uint8List> _draw(
     width: _width,
     height: _height,
     scene: it.scene,
-    views: <RenderView>[RenderView(camera: it.camera)],
+    views: <CameraView>[CameraView(camera: it.camera)],
     settings: const RenderSettings(),
   );
-  final pixels = await it.device.readPixels(result.frame);
-  expect(pixels, isNotNull, reason: 'the frame could not be read back');
-  return pixels!.buffer.asUint8List();
+  final pixels = await it.device.readback(result.frame);
+  return pixels.buffer.asUint8List();
 }
 
 int _differing(Uint8List a, Uint8List b, {int tolerance = 8}) {

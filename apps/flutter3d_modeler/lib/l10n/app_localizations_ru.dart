@@ -1819,6 +1819,34 @@ class AppLocalizationsRu extends AppLocalizations {
   String get animConstraints => 'Ограничения';
 
   @override
+  String get animGraphs => 'Графы анимации';
+
+  @override
+  String get animGraphsNone => 'Графов пока нет. Задайте имя и граф в JSON.';
+
+  @override
+  String get animGraphName => 'Имя графа';
+
+  @override
+  String get animGraphJson => 'Граф (JSON)';
+
+  @override
+  String get animGraphSet => 'Задать граф';
+
+  @override
+  String get animGraphRemove => 'Удалить граф';
+
+  @override
+  String animGraphSummary(int states, int transitions) {
+    return '$states сост. · $transitions перех.';
+  }
+
+  @override
+  String animGraphNotJson(String error) {
+    return 'Это не JSON: $error';
+  }
+
+  @override
   String get crashTitle => 'Что-то пошло не так';
 
   @override

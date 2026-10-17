@@ -1,3 +1,5 @@
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Severity;
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -17,7 +19,10 @@ final class EnemyKind extends EntityKind {
   static Vector3 get defaultSize => Vector3(0.7, 0.7, 0.7);
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     final kind = entity.string('kind');
     if (kind != null &&
         kind != 'patrol' &&
@@ -25,7 +30,7 @@ final class EnemyKind extends EntityKind {
         kind != 'hunter') {
       out.add(
         LevelIssue(
-          LevelIssueSeverity.error,
+          Severity.error,
           'is a "$kind", and this game knows "patrol", "leaper" and "hunter"',
           where: scope.describe(entity),
         ),
@@ -39,7 +44,7 @@ final class EnemyKind extends EntityKind {
     if (route is! List || route.isEmpty) {
       out.add(
         LevelIssue(
-          LevelIssueSeverity.error,
+          Severity.error,
           'has no "route", so it is a thing standing in one place — which is a '
           'hazard, and cheaper',
           where: scope.describe(entity),
@@ -65,7 +70,7 @@ final class EnemyKind extends EntityKind {
         if (ok) continue;
         out.add(
           LevelIssue(
-            LevelIssueSeverity.error,
+            Severity.error,
             'has a route whose point $i is not three numbers, and every point '
             'is a place in the world',
             where: scope.describe(entity),
@@ -76,7 +81,9 @@ final class EnemyKind extends EntityKind {
   }
 
   @override
-  void spawn(EntityDef entity, SpawnContext context) {
+  void spawn(EntitySpawn spawn) {
+    final entity = spawn.entity;
+    final context = spawn.context;
     final actors = context.actors;
     final kind = entity.string('kind');
     final rows = entity.properties['route'];

@@ -26,4 +26,22 @@ abstract final class EntityTypes {
   /// format's word rather than a game's, because a reflection is a fact
   /// about a room and not about what happens in it.
   static const String reflectionProbe = 'reflection_probe';
+
+  /// A cutscene a trigger starts — see `CutsceneKind`. The format's word,
+  /// because a level telling its own story is not one genre's idea.
+  static const String cutscene = 'cutscene';
+
+  /// An instance of one of the level's prefabs — see `PrefabInstance`. The
+  /// format's word, and one no game spawns: [expandPrefabs] replaces every
+  /// instance with the entities it stands for before anything reads them.
+  static const String prefab = 'prefab';
+
+  /// A picture projected onto what stands in a box — see `DecalKind`.
+  static const String decal = 'decal';
+
+  /// A floor or a pool that mirrors the room — see `ReflectorKind`.
+  static const String reflector = 'reflector';
+
+  /// A camera whose picture a material shows — see `CameraScreenKind`.
+  static const String cameraScreen = 'camera_screen';
 }

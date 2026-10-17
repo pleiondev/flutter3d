@@ -1,11 +1,13 @@
 import 'dart:convert';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_game_strategy/flutter3d_game_strategy.dart'
     show MatchDemo;
 import 'package:flutter3d_sim/flutter3d_sim.dart' show DemoFormatException;
 
 import 'backend.dart'
-    show Issue, IssueSink, Storage, defaultStorage, printIssue;
+    show Storage, StorageException, defaultStorage, printIssue;
+import 'match_recording.dart' show RecordedMatch;
 
 /// Where the last match is kept as what was ordered, the way `DemoFile` keeps
 /// the other three genres' own last run.
@@ -37,8 +39,8 @@ final class MatchDemoFile {
   ///
   /// Never throws, on `DemoFile.read`'s own reasoning: a demo that cannot be
   /// read is a bug report that has to be written in words instead.
-  MatchDemo? read() {
-    final text = storage.read(_name);
+  Future<RecordedMatch?> read() async {
+    final text = await storage.read(_name);
     if (text == null) return null;
     try {
       final json = jsonDecode(text);
@@ -46,7 +48,7 @@ final class MatchDemoFile {
         onIssue(Issue('demo: the document is not an object'));
         return null;
       }
-      return MatchDemo.fromJson(json);
+      return RecordedMatch.fromJson(json);
     } on DemoFormatException catch (error) {
       onIssue(Issue('demo: ${error.message}'));
       return null;
@@ -56,12 +58,19 @@ final class MatchDemoFile {
     }
   }
 
-  /// Writes the match, and says whether it managed to.
-  bool write(MatchDemo demo) => storage.write(
-    _name,
-    const JsonEncoder.withIndent('  ').convert(demo.toJson()),
-  );
+  /// Writes the match, with the loop's record beside it, and says whether
+  /// it managed to.
+  Future<bool> write(RecordedMatch match) async {
+    final text = const JsonEncoder.withIndent('  ').convert(match.toJson());
+    try {
+      await storage.write(_name, text);
+      return true;
+    } on StorageException catch (error) {
+      onIssue(Issue('demo: could not be written (${error.message})'));
+      return false;
+    }
+  }
 
   /// Forgets the match.
-  void clear() => storage.remove(_name);
+  Future<void> clear() => storage.remove(_name);
 }

@@ -8,7 +8,7 @@ library;
 import 'package:flutter3d_core/geometry.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:test/test.dart';
-import 'package:vector_math/vector_math.dart' hide Ray;
+import 'package:vector_math/vector_math.dart';
 
 /// A `cols` × `rows` flat grid in the XZ plane, `y = 0` — small enough that
 /// scanning every triangle for the brute-force oracle costs nothing to
@@ -40,7 +40,7 @@ EditMesh _grid({int cols = 8, int rows = 8}) {
 /// triangles directly — the oracle `pro-sc-04`'s own acceptance names.
 ({int triangle, double distance})? _bruteForceRaycast(
   SculptMesh mesh,
-  Ray ray,
+  LocalRay ray,
 ) {
   var best = double.infinity;
   var found = -1;
@@ -67,18 +67,21 @@ void main() {
       final mesh = SculptMesh.fromEditMesh(_grid());
       final bvh = SculptMeshBvh.build(mesh);
 
-      final rays = <Ray>[
+      final rays = <LocalRay>[
         // Off any quad's own diagonal (the line `z == x` within a unit
         // cell, wherever `EditMesh.fromFaces`'s own triangulator happens to
         // cut it) — a ray on that line lands exactly on the edge two
         // triangles share, where either is an equally correct, tied
         // answer, and a brute-force scan and a tree walk are free to break
         // the tie differently.
-        Ray(Vector3(3.3, 5, 3.7), Vector3(0, -1, 0)),
-        Ray(Vector3(0.3, 5, 0.7), Vector3(0, -1, 0)),
-        Ray(Vector3(7.3, 5, 7.7), Vector3(0, -1, 0)),
-        Ray(Vector3(3.3, 5, 3.7), Vector3(0, 1, 0)), // pointed away: no hit
-        Ray(Vector3(100, 5, 100), Vector3(0, -1, 0)), // off the grid
+        LocalRay(Vector3(3.3, 5, 3.7), Vector3(0, -1, 0)),
+        LocalRay(Vector3(0.3, 5, 0.7), Vector3(0, -1, 0)),
+        LocalRay(Vector3(7.3, 5, 7.7), Vector3(0, -1, 0)),
+        LocalRay(
+          Vector3(3.3, 5, 3.7),
+          Vector3(0, 1, 0),
+        ), // pointed away: no hit
+        LocalRay(Vector3(100, 5, 100), Vector3(0, -1, 0)), // off the grid
       ];
 
       for (final ray in rays) {
@@ -117,11 +120,11 @@ void main() {
       // The same rays the raycast test above uses, now over the bulged
       // mesh: a refit that left stale bounds behind would disagree with a
       // fresh rebuild on exactly the rays that pass near the raised area.
-      final rays = <Ray>[
-        Ray(Vector3(3.3, 10, 3.7), Vector3(0, -1, 0)),
-        Ray(Vector3(4.2, 10, 4.2), Vector3(0, -1, 0)),
-        Ray(Vector3(0.2, 5, 0.2), Vector3(0, -1, 0)),
-        Ray(Vector3(7.8, 5, 7.8), Vector3(0, -1, 0)),
+      final rays = <LocalRay>[
+        LocalRay(Vector3(3.3, 10, 3.7), Vector3(0, -1, 0)),
+        LocalRay(Vector3(4.2, 10, 4.2), Vector3(0, -1, 0)),
+        LocalRay(Vector3(0.2, 5, 0.2), Vector3(0, -1, 0)),
+        LocalRay(Vector3(7.8, 5, 7.8), Vector3(0, -1, 0)),
       ];
 
       for (final ray in rays) {
@@ -162,7 +165,7 @@ void main() {
       );
       bvh.refit();
 
-      final ray = Ray(Vector3(3.3, 10, 3.7), Vector3(0, -1, 0));
+      final ray = LocalRay(Vector3(3.3, 10, 3.7), Vector3(0, -1, 0));
       final expected = _bruteForceRaycast(mesh, ray)!;
       final actual = bvh.raycast(ray)!;
 

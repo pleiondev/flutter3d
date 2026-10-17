@@ -15,7 +15,7 @@ import 'package:flutter3d_modeler/main.dart' hide main;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
-final class FakeBinaryStorage implements BinaryStorage {
+final class FakeBinaryStorage extends BinaryStorage {
   final Map<String, Uint8List> documents = <String, Uint8List>{};
   int removeCount = 0;
 
@@ -23,9 +23,8 @@ final class FakeBinaryStorage implements BinaryStorage {
   Future<Uint8List?> read(String name) async => documents[name];
 
   @override
-  Future<bool> write(String name, Uint8List contents) async {
+  Future<void> write(String name, Uint8List contents) async {
     documents[name] = contents;
-    return true;
   }
 
   @override

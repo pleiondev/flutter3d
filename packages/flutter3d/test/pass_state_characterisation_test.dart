@@ -69,7 +69,7 @@ void main() {
       height: 1,
       format: TextureFormat.r8g8b8a8UNormInt,
       pixels: ByteData(4),
-    )!;
+    );
     renderer = Renderer.create(
       device: device,
       fallbackAlbedo: texel,
@@ -88,7 +88,7 @@ void main() {
       width: 64,
       height: 48,
       scene: scene,
-      views: <RenderView>[RenderView(camera: camera)],
+      views: <CameraView>[CameraView(camera: camera)],
       settings:
           settings ??
           const RenderSettings(

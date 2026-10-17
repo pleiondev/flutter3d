@@ -38,7 +38,7 @@ List<Brush> subtractBox(Brush brush, Aabb3 hole) {
     if (x1 - x0 <= 1e-3 || y1 - y0 <= 1e-3 || z1 - z0 <= 1e-3) return;
     out.add(
       Brush(
-        centre: Vector3((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2),
+        center: Vector3((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2),
         size: Vector3(x1 - x0, y1 - y0, z1 - z0),
         material: brush.material,
         solid: brush.solid,
@@ -48,6 +48,7 @@ List<Brush> subtractBox(Brush brush, Aabb3 hole) {
         shadowCasting: brush.shadowCasting,
         surface: brush.surface,
         layer: brush.layer,
+        drawOrder: brush.drawOrder,
       ),
     );
   }
@@ -94,9 +95,9 @@ List<Brush> subtractBox(Brush brush, Aabb3 hole) {
 /// The visibility table was baked from walls without holes in them, and a
 /// hole is a new line of sight; the bridge drops the table when it rebuilds
 /// the batches, and the level draws everything from then on. The navigation
-/// grid keeps its walls: a monster does not learn a new route through a
-/// breach, which is a limit and not a bug — it was baked from the brushes,
-/// and it is baked once.
+/// grid keeps its walls: a flow field does not learn a new route through a
+/// breach. A tiled navigation mesh does — whoever holds one listens on
+/// [onHole] and [onRestore] and bakes the part a hole changed again.
 ///
 /// The baked light is kept, and [origins] is how. A lightmap is planned by
 /// brush index, and a cut replaces one brush with up to six in its place, so
@@ -141,6 +142,15 @@ final class Breaches {
 
   /// Every hole so far, in the order they were blown.
   final List<Aabb3> holes = <Aabb3>[];
+
+  /// Told of every hole as it is blown, after the brushes are cut: the box
+  /// it took out.
+  void Function(Aabb3 hole)? onHole;
+
+  /// Told when [restore] has put the level back and blown the saved holes
+  /// again — which [onHole] is not told of, since a listener that follows
+  /// holes one by one has its own state to put back first.
+  void Function()? onRestore;
 
   /// Bumped on every breach, so a renderer can tell the walls changed.
   int get version => _version;
@@ -196,7 +206,7 @@ final class Breaches {
     const skin = 0.1;
     final near = at + normal * skin;
     final far = at - normal * depth;
-    final centre = (near + far) * 0.5;
+    final center = (near + far) * 0.5;
     final along = (far - near).length / 2;
     if (ay >= ax && ay >= az) {
       half.y = along;
@@ -205,7 +215,7 @@ final class Breaches {
     } else {
       half.z = along;
     }
-    hole(Aabb3.minMax(centre - half, centre + half));
+    hole(Aabb3.minMax(center - half, center + half));
   }
 
   /// Takes [box] out of every breakable brush it overlaps.
@@ -213,6 +223,7 @@ final class Breaches {
     holes.add(Aabb3.copy(box));
     _apply(box);
     _version++;
+    onHole?.call(box);
   }
 
   void _apply(Aabb3 box) {
@@ -233,7 +244,7 @@ final class Breaches {
         _colliders[piece] = world.add(
           Collider(
             shape: CollisionBox(piece.halfExtents),
-            position: piece.centre,
+            position: piece.center,
             layer: piece.layer ?? CollisionLayers.world,
             userData: piece,
           ),
@@ -279,7 +290,7 @@ final class Breaches {
           shape: ramp == null
               ? CollisionBox(brush.halfExtents)
               : CollisionWedge(brush.halfExtents, uphill: ramp),
-          position: brush.centre,
+          position: brush.center,
           layer: brush.layer ?? CollisionLayers.world,
           userData: brush,
         ),
@@ -300,5 +311,6 @@ final class Breaches {
       }
     }
     _version++;
+    onRestore?.call();
   }
 }

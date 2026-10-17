@@ -1,4 +1,4 @@
-# FXAA and sharpen
+# FXAA, SMAA and sharpen
 
 Multisampling is the better way to smooth an edge, but it is a property of the
 scene pass's attachments, and some effects switch it off for the whole frame.
@@ -26,14 +26,33 @@ headroom and leaves an already-bright or already-dark pixel alone.
 
 {{code settings}}
 
-Turn FXAA off and the spokes turn to stairs, worst near the centre where
+Turn **Smooth edges** off and the spokes turn to stairs, worst near the centre where
 the most of them cross the fewest pixels. Turn it back on and that cluster
 softens to grey. Raise Sharpen and the spokes get a little crisper again
 without the staircase coming back, because sharpening runs after the
 smoothing.
 
-## Step 3: Read what the frame says
+## Step 3: FXAA or SMAA
 
-`FrameResult.antiAliasing.fxaa` says whether the pass actually ran this frame.
+`method` picks how the edge is found. FXAA, the default, walks along an edge
+from every pixel with enough contrast and nudges it towards the side the edge
+leans to, all in one pass. `EdgeSmoothing.smaa` is SMAA 1x and takes three:
+it marks the steps, rebuilds the line behind each staircase from where its run
+ends, and blends each pixel by how much of it that line covers. It leaves text
+and fine texture alone and gets long shallow edges closer to right, for a little
+more work. It only handles horizontal and vertical runs, with no diagonal search
+and no corner rounding.
+
+{{code method}}
+
+Pick **SMAA 1x** and look at the spokes that lie almost flat: their steps
+come out evener than FXAA leaves them. The sharpen still works with SMAA. It
+runs in the FXAA pass with that pass's own smoothing turned off, over what SMAA
+drew.
+
+## Step 4: Read what the frame says
+
+`FrameResult.antiAliasing.fxaa` says whether the pass actually ran this frame,
+with either method.
 
 {{code reported}}

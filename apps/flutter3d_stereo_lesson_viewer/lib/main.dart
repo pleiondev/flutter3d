@@ -34,15 +34,13 @@ library;
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
-import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart';
+import 'package:flutter3d_education/lesson.dart';
 import 'package:flutter3d_stereo/flutter3d_stereo.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:vector_math/vector_math.dart' show Vector3;
 
 /// The lesson this build opens, as a bundled asset path — the same two
 /// override doors `flutter3d_lesson_viewer`'s own `kLevel` gives.
@@ -208,6 +206,12 @@ class LessonCubit extends Cubit<LessonState> {
       final rig = StereoRig();
       loaded.scene.add(rig.stage);
 
+      // The screen went while the level was loading: nobody will show these
+      // surfaces, and a closed cubit cannot be handed them.
+      if (isClosed) {
+        widgets.dispose();
+        return;
+      }
       emit(
         LessonReady(
           loaded.scene,
@@ -218,7 +222,7 @@ class LessonCubit extends Cubit<LessonState> {
         ),
       );
     } catch (error) {
-      emit(LessonFailed(error));
+      if (!isClosed) emit(LessonFailed(error));
     }
   }
 }
@@ -231,6 +235,7 @@ class LessonScreen extends StatefulWidget {
 }
 
 class _LessonScreenState extends State<LessonScreen> {
+  GraphicsDevice? _device;
   Renderer? _renderer;
   Object? _initError;
 
@@ -246,8 +251,14 @@ class _LessonScreenState extends State<LessonScreen> {
     final GraphicsDevice device;
     try {
       device = await openDevice(width: 1280, height: 720);
-      if (!mounted) return;
-      setState(() => _renderer = Renderer.create(device: device));
+      if (!mounted) {
+        device.dispose();
+        return;
+      }
+      setState(() {
+        _device = device;
+        _renderer = Renderer.create(device: device);
+      });
     } catch (error) {
       if (mounted) setState(() => _initError = error);
       return;
@@ -255,9 +266,17 @@ class _LessonScreenState extends State<LessonScreen> {
     await _lesson.open(device);
   }
 
+  /// The device and the renderer are this screen's, not the view's: the
+  /// view borrows both (see `StereoSurface`) and leaves them alone when it
+  /// goes, so they are given back here, after the surfaces drawn on them.
   @override
   void dispose() {
+    if (_lesson.state case LessonReady(:final widgetSurfaces)) {
+      widgetSurfaces.dispose();
+    }
     unawaited(_lesson.close());
+    _renderer?.dispose();
+    _device?.dispose();
     super.dispose();
   }
 

@@ -1,4 +1,5 @@
-import 'package:vector_math/vector_math.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 
 import 'particle.dart';
 import 'particle_affector.dart';
@@ -31,6 +32,7 @@ final class ParticleEffect {
   final Range lifetime;
   final Range size;
 
-  /// Colour at birth. Alpha reads as brightness, since these draw additively.
-  final Vector4 color;
+  /// Colour at birth, in linear light. Alpha reads as brightness, since
+  /// these draw additively.
+  final LinearColor color;
 }

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 
 import 'editor_cubit.dart';
 
@@ -23,8 +23,8 @@ final class EditorLegend extends StatelessWidget {
       children: <Widget>[
         const Text(
           'W A S D fly · Q E down and up · shift faster · '
-          'scroll forward · drag to look · click to select · '
-          'fields on the right',
+          'scroll forward · drag to look · click to select, ⌘-click for more · '
+          'fields on the right · ⌘K every command',
           style: TextStyle(color: Color(0xFFCBD3DD), fontSize: 12),
         ),
         const SizedBox(height: 2),

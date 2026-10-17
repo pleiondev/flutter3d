@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/geometry.dart';
-import 'package:vector_math/vector_math.dart' hide Ray;
+import 'package:vector_math/vector_math.dart';
 
 /// A bounding volume hierarchy over bounding spheres.
 ///
@@ -29,6 +29,8 @@ import 'package:vector_math/vector_math.dart' hide Ray;
 /// through its material, and a spatial index that dragged `dart:ui` in with it
 /// could not be compiled ahead of time by `tool/bench/bench.dart` — which is
 /// where its cost is actually measured. `sceneSpheres` does the mapping.
+///
+/// A caller that culls or picks its own spheres makes one with `SceneBvh()`.
 final class SceneBvh {
   /// Meshes per leaf. Small enough that a leaf test is cheap, large enough that
   /// the tree does not become mostly pointers.
@@ -60,7 +62,7 @@ final class SceneBvh {
   ///
   /// Copied out of the meshes rather than read through them during the build.
   /// The build touches every element several times — once for bounds, once per
-  /// partition level — and going through `worldBoundsCentre` each time means a
+  /// partition level — and going through `worldBoundsCenter` each time means a
   /// version check and a possible eight-corner recompute per touch.
   Float32List _spheres = Float32List(0);
 
@@ -335,10 +337,10 @@ final class SceneBvh {
         ? 0
         : (spanY >= spanZ ? 1 : 2);
 
-    double centreOf(int index) => _spheres[index * 4 + axis];
+    double centerOf(int index) => _spheres[index * 4 + axis];
 
     final mid = start + count ~/ 2;
-    _nthElement(mid, start, start + count, centreOf);
+    _nthElement(mid, start, start + count, centerOf);
 
     // Every centroid identical — a pile of objects at one point. Splitting by
     // position cannot separate them, so fall back to splitting by count, which
@@ -486,7 +488,7 @@ final class SceneBvh {
 
   /// Visits every mesh whose bounds the ray may enter.
   void queryRay(
-    Ray ray,
+    LocalRay ray,
     void Function(int index) visit, {
     double maxDistance = double.infinity,
     Aabb3? scratch,
@@ -504,7 +506,7 @@ final class SceneBvh {
       final distance = rayAabb(ray, box);
       // A ray has no use for containment: it enters the box or it does not, and
       // everything in a box it enters still has to be tested one at a time.
-      return distance != kNoHit && distance <= maxDistance
+      return distance != noHit && distance <= maxDistance
           ? _straddles
           : _rejected;
     }, visit);

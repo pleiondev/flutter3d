@@ -11,7 +11,7 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_modeler/src/console_log.dart';
@@ -1046,9 +1046,9 @@ void main() {
       // colour; the model in the viewport keeps whatever it had when the file
       // was opened, for the rest of the session, for a person in the panel and
       // for an agent over MCP alike.
-      expect(painted(stage).material.baseColor.x, closeTo(0.72, 1e-6));
-      expect(painted(stage).material.baseColor.y, closeTo(0.36, 1e-6));
-      expect(painted(stage).material.baseColor.z, closeTo(0.22, 1e-6));
+      expect(painted(stage).material.baseColor.toSrgb().r, closeTo(0.72, 1e-6));
+      expect(painted(stage).material.baseColor.toSrgb().g, closeTo(0.36, 1e-6));
+      expect(painted(stage).material.baseColor.toSrgb().b, closeTo(0.22, 1e-6));
     });
 
     test('and a command that changes no material rebuilds nothing', () async {

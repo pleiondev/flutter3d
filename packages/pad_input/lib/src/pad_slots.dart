@@ -4,7 +4,9 @@ import 'package:flutter/services.dart' show KeyEvent;
 
 import 'android_mapping.dart';
 import 'darwin_mapping.dart';
+import 'desktop_mapping.dart';
 import 'gamepad_platform_interface.dart';
+import 'pad_mirror.dart';
 import 'pad_snapshot.dart';
 
 /// The controllers a platform reports, each in the slot of the player
@@ -30,17 +32,18 @@ abstract interface class PadSlots {
   void fill(int slot, PadSnapshot out);
 }
 
-/// Controllers on macOS and iOS: the native side names the slot of each
-/// message itself, the one it gave the controller its player light for.
+/// Controllers whose native side names the slot of each message itself —
+/// macOS and iOS, Windows and Linux — each slot's messages read by a mirror
+/// of the platform's kind.
 ///
-/// A sample is the slot and then the values [DarwinPadState] reads; an
-/// event map carries `slot`. A message without one is slot nought's, which
-/// is what the plugin sent when it reported one controller.
-final class DarwinPads implements PadSlots {
-  final List<DarwinPadState?> _slots = List<DarwinPadState?>.filled(
-    GamepadPlatform.maxPads,
-    null,
-  );
+/// A sample is the slot and then what the mirror reads; an event map
+/// carries `slot`. A message without one is slot nought's, which is what a
+/// plugin sent when it reported one controller.
+abstract base class _NamedSlots<M extends PadMirror> implements PadSlots {
+  late final List<M?> _slots = List<M?>.filled(GamepadPlatform.maxPads, null);
+
+  /// A mirror for a slot's first message.
+  M _mirror();
 
   @override
   void note(Object? event) {
@@ -48,9 +51,7 @@ final class DarwinPads implements PadSlots {
       if (event.isEmpty) return;
       final slot = event[0].toInt();
       if (slot < 0 || slot >= _slots.length) return;
-      (_slots[slot] ??= DarwinPadState()).note(
-        Float64List.sublistView(event, 1),
-      );
+      (_slots[slot] ??= _mirror()).note(Float64List.sublistView(event, 1));
       return;
     }
     if (event is! Map) return;
@@ -63,7 +64,7 @@ final class DarwinPads implements PadSlots {
     }
     final slot = event['slot'] is int ? event['slot'] as int : 0;
     if (slot < 0 || slot >= _slots.length) return;
-    (_slots[slot] ??= DarwinPadState()).note(event);
+    (_slots[slot] ??= _mirror()).note(event);
   }
 
   @override
@@ -82,6 +83,27 @@ final class DarwinPads implements PadSlots {
       mirror.fill(out);
     }
   }
+}
+
+/// Controllers on macOS and iOS, the slot each one's player light shows —
+/// see [DarwinPadState].
+final class DarwinPads extends _NamedSlots<DarwinPadState> {
+  @override
+  DarwinPadState _mirror() => DarwinPadState();
+}
+
+/// Controllers on Windows, XInput's four user indices as the slots — see
+/// [XInputPadState].
+final class XInputPads extends _NamedSlots<XInputPadState> {
+  @override
+  XInputPadState _mirror() => XInputPadState();
+}
+
+/// Controllers on Linux, `/dev/input/js0` to `js3` as the slots — see
+/// [JoystickPadState].
+final class JoystickPads extends _NamedSlots<JoystickPadState> {
+  @override
+  JoystickPadState _mirror() => JoystickPadState();
 }
 
 /// Controllers on Android: every message names its device, and this gives

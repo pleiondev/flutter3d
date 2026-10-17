@@ -7,6 +7,7 @@ library;
 import 'package:flutter3d_showcase/pages/view_input/free_look.dart';
 import 'package:flutter3d_showcase/pages/view_input/off_axis_projection.dart';
 import 'package:flutter3d_showcase/pages/view_input/orbit_controller.dart';
+import 'package:flutter3d_showcase/pages/view_input/photo_mode.dart';
 import 'package:flutter3d_showcase/pages/view_input/pixel_picking.dart';
 import 'package:flutter3d_showcase/pages/view_input/projections.dart';
 import 'package:flutter3d_showcase/pages/view_input/raycast.dart';
@@ -23,4 +24,5 @@ final Map<String, DemoBuilder> viewInputDemos = <String, DemoBuilder>{
   'raycast': RaycastDemo.new,
   'pixel-picking': PixelPickingDemo.new,
   'screen-bounds': ScreenBoundsDemo.new,
+  'photo-mode': PhotoModeDemo.new,
 };

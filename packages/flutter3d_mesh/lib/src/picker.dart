@@ -18,7 +18,7 @@
 library;
 
 import 'package:flutter3d_core/geometry.dart';
-import 'package:vector_math/vector_math.dart' hide Ray;
+import 'package:vector_math/vector_math.dart';
 
 import 'edit_mesh.dart';
 import 'mesh_bvh.dart';
@@ -32,7 +32,7 @@ final class MeshPicker {
   final MeshBvh bvh;
 
   /// The face [ray] hits first, or [EditMesh.none].
-  int faceAt(Ray ray, {double maxDistance = double.infinity}) =>
+  int faceAt(LocalRay ray, {double maxDistance = double.infinity}) =>
       bvh.raycast(ray, maxDistance: maxDistance)?.face ?? EditMesh.none;
 
   /// The vertex nearest the line [ray] runs along, within [radius] of it.
@@ -46,7 +46,11 @@ final class MeshPicker {
   /// With [visibleOnly], a vertex behind the surface the ray hits is not
   /// offered — which is what somebody working on the front of a model expects,
   /// and the opposite of what somebody box-selecting through it does.
-  int vertexNear(Ray ray, {required double radius, bool visibleOnly = false}) {
+  int vertexNear(
+    LocalRay ray, {
+    required double radius,
+    bool visibleOnly = false,
+  }) {
     final limit = _surfaceDepth(ray, visibleOnly, radius);
     var best = EditMesh.none;
     var nearest = double.infinity;
@@ -68,7 +72,11 @@ final class MeshPicker {
   /// The same rule as [vertexNear], measured to the segment rather than to a
   /// point: an edge seen end-on is as close as one seen across, and a person
   /// clicking either of them means the same thing.
-  int edgeNear(Ray ray, {required double radius, bool visibleOnly = false}) {
+  int edgeNear(
+    LocalRay ray, {
+    required double radius,
+    bool visibleOnly = false,
+  }) {
     final limit = _surfaceDepth(ray, visibleOnly, radius);
     var best = EditMesh.none;
     var nearest = double.infinity;
@@ -114,7 +122,7 @@ final class MeshPicker {
   }
 
   /// How far along the ray the surface is, or infinity when nothing blocks.
-  double _surfaceDepth(Ray ray, bool visibleOnly, double radius) {
+  double _surfaceDepth(LocalRay ray, bool visibleOnly, double radius) {
     if (!visibleOnly) return double.infinity;
     final hit = bvh.raycast(ray);
     // A vertex *on* the surface the ray hit is in front of it by a hair or
@@ -124,7 +132,7 @@ final class MeshPicker {
     return hit == null ? double.infinity : hit.distance + radius;
   }
 
-  double _distanceToRay(Ray ray, Vector3 point, double depth) {
+  double _distanceToRay(LocalRay ray, Vector3 point, double depth) {
     final on = ray.origin + ray.direction * depth;
     return (point - on).length;
   }
@@ -132,7 +140,7 @@ final class MeshPicker {
   /// The closest approach between the ray and the segment, as how far along the
   /// ray it happens and how wide the gap is there.
   ({double depth, double gap}) _rayToSegment(
-    Ray ray,
+    LocalRay ray,
     Vector3 from,
     Vector3 to,
   ) {

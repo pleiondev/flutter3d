@@ -1,10 +1,9 @@
-/// The commands over one object's own [LodSpec] list — `pro-lod-03`'s own
+/// The commands over one object's own [LodSettings] list — `pro-lod-03`'s own
 /// row.
 ///
 /// A `part` of `command.dart` for the reason every other command file
-/// gives: [ModelCommand] is sealed, and a journal writer's exhaustive
-/// `switch` is only exhaustive if the compiler can see every case inside
-/// one library.
+/// gives: [ModelCommand] is `abstract final`, so every command lives in one
+/// library, beside the journal reader that names them all.
 ///
 /// **What is not here.** The actual simplified meshes these specs describe
 /// are `LodMeshCache`'s own job (`lod_cache.dart`), not this file's: a
@@ -40,7 +39,11 @@ final class AddLod extends ModelCommand {
   });
 
   final int id;
+
+  /// Target triangle count as a fraction of the base mesh's, in (0, 1].
   final double ratio;
+
+  /// The fraction of the viewport's height below which this level is used.
   final double maxScreenFraction;
 
   @override
@@ -74,9 +77,9 @@ final class AddLod extends ModelCommand {
     return Outcome.done(
       project.withObject(
         object.copyWith(
-          lods: <LodSpec>[
+          lods: <LodSettings>[
             ...object.lods,
-            LodSpec(ratio: ratio, maxScreenFraction: maxScreenFraction),
+            LodSettings(ratio: ratio, maxScreenFraction: maxScreenFraction),
           ],
         ),
       ),
@@ -103,6 +106,8 @@ final class SetLodRatio extends ModelCommand {
 
   final int id;
   final int lodIndex;
+
+  /// Target triangle count as a fraction of the base mesh's, in (0, 1].
   final double ratio;
 
   @override
@@ -133,7 +138,7 @@ final class SetLodRatio extends ModelCommand {
         'a level of detail\'s ratio has to be between 0 and 1; $ratio is not',
       );
     }
-    final lods = List<LodSpec>.of(object.lods);
+    final lods = List<LodSettings>.of(object.lods);
     lods[lodIndex] = lods[lodIndex].copyWith(ratio: ratio);
     return Outcome.done(project.withObject(object.copyWith(lods: lods)));
   }
@@ -175,7 +180,9 @@ final class RegenerateLods extends ModelCommand {
       );
     }
     return Outcome.done(
-      project.withObject(object.copyWith(lods: List<LodSpec>.of(object.lods))),
+      project.withObject(
+        object.copyWith(lods: List<LodSettings>.of(object.lods)),
+      ),
     );
   }
 }

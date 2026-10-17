@@ -9,12 +9,11 @@
 library;
 
 import 'package:flutter/widgets.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart' show Vector3;
 
 GraphicsDevice _device() => CpuDevice(
   width: 4,
@@ -226,7 +225,7 @@ void main() {
         20.0,
         hit,
       );
-      expect(hit.hit, isTrue, reason: 'the ray was aimed at the surface');
+      expect(hit.didHit, isTrue, reason: 'the ray was aimed at the surface');
 
       // The collision box is 0.1 deep (half-thickness 0.05) standing in for
       // a wall — `uvAt`'s own doc names exactly this: its default tolerance

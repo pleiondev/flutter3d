@@ -60,6 +60,46 @@ void main() {
     expect(out, contains('buildStamp: test-build-42'));
     expect(out, contains('platform:   macos'));
     expect(out, contains('recordedBy: dmitrii'));
+    expect(out, isNot(contains('levelSwap')));
+    // Mutation: print nothing for a run that names no simulation, and the
+    // reader cannot tell "version 1" from "the tool forgot to say".
+    expect(out, contains('simulation: (not recorded; read as 1)'));
+    expect(out, contains('poses:      (none)'));
+  });
+
+  test('a level swapped under the run is listed with its step', () {
+    final dir = Directory.systemTemp.createTempSync('f3drun_info_test');
+    addTearDown(() => dir.deleteSync(recursive: true));
+    final plain = _demo();
+    final edit = Level(name: 'crypt', fogDensity: 0.02);
+    final file = File('${dir.path}/run${Demo.fileExtension}')
+      ..writeAsStringSync(
+        jsonEncode(
+          Demo(
+            level: plain.level,
+            levelHash: plain.levelHash,
+            start: plain.start,
+            tape: plain.tape,
+            buildStamp: plain.buildStamp,
+            checkpoints: plain.checkpoints,
+            levelSwaps: <DemoLevelSwap>[DemoLevelSwap(step: 1, level: edit)],
+          ).toJson(),
+        ),
+      );
+
+    final result = Process.runSync('dart', <String>[
+      'run',
+      'bin/f3drun_info.dart',
+      file.path,
+    ], workingDirectory: Directory.current.path);
+
+    // Mutation: leave the swaps out of the listing — a file that replays
+    // only in the game that recorded it looks like any other run.
+    expect(result.exitCode, 0, reason: 'stderr was: ${result.stderr}');
+    expect(
+      result.stdout as String,
+      contains('levelSwap:  step 1, ${edit.digestHex}'),
+    );
   });
 
   test('a demo from a newer format is refused with a suggestion, not a '

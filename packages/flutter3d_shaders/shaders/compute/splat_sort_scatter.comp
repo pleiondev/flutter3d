@@ -1,0 +1,91 @@
+#version 460 core
+
+// The last of a splat sort's three stages — `H11`: each key moved to its
+// place in the order of the digit being sorted on.
+//
+// **Stable, which is what makes the result `splat_sort.dart`'s to the
+// splat.** A key's place is where its (digit, tile) pair starts, from the
+// scan, plus how many keys before it in its own tile share its digit. Tiles
+// keep their order and a tile keeps its keys' order, so equal digits leave in
+// the order they came in; two such passes, low byte then high, are the CPU's
+// two counting passes, and two splats at one quantised distance stay in index
+// order on both.
+//
+// The rank is a walk over the tile's earlier digits rather than a shared
+// counter, for the same reason the count is: it has one answer however the
+// invocations are scheduled.
+//
+// `sort.w` says which pass this is. 0 is the first: a key's splat is its own
+// index, and `SortOrderIn` is not read. 1 carries the order through to the
+// next pass. 2 is the last, and writes the draw's index buffer instead of an
+// order: six indices a splat, `6s … 6s + 5`, which are the six vertices
+// `SplatQuads` built for splat `s` in the cloud's own order.
+
+layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+layout(std430, set = 0, binding = 0) readonly buffer SortKeysIn {
+  uint keys[];
+}
+keys_in;
+
+layout(std430, set = 0, binding = 1) readonly buffer SortOrderIn {
+  uint order[];
+}
+order_in;
+
+layout(std430, set = 0, binding = 2) readonly buffer SortOffsets {
+  uint offsets[];
+}
+offsets_buffer;
+
+layout(std430, set = 0, binding = 3) buffer SortKeysOut {
+  uint keys[];
+}
+keys_out;
+
+layout(std430, set = 0, binding = 4) buffer SortOrderOut {
+  uint order[];
+}
+order_out;
+
+layout(std140, set = 0, binding = 5) uniform SortInfo {
+  vec4 sort;
+}
+sort_info;
+
+shared uint digits[256];
+
+void main() {
+  uint count = uint(sort_info.sort.x);
+  uint shift = uint(sort_info.sort.y);
+  uint tiles = uint(sort_info.sort.z);
+  uint mode = uint(sort_info.sort.w);
+  uint tile = gl_WorkGroupID.x;
+  uint t = gl_LocalInvocationID.x;
+  uint i = tile * 256u + t;
+
+  bool live = i < count;
+  uint key = live ? keys_in.keys[i] : 0u;
+  uint digit = live ? (key >> shift) & 255u : 256u;
+  digits[t] = digit;
+  barrier();
+
+  if (live) {
+    uint rank = 0u;
+    for (uint j = 0u; j < t; j++) {
+      if (digits[j] == digit) {
+        rank++;
+      }
+    }
+    uint slot = offsets_buffer.offsets[digit * tiles + tile] + rank;
+    uint splat = mode == 0u ? i : order_in.order[i];
+    if (mode == 2u) {
+      for (uint k = 0u; k < 6u; k++) {
+        order_out.order[slot * 6u + k] = splat * 6u + k;
+      }
+    } else {
+      keys_out.keys[slot] = key;
+      order_out.order[slot] = splat;
+    }
+  }
+}

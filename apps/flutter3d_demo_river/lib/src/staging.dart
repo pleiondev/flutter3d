@@ -37,9 +37,9 @@ extension RiverGameStaging on RiverGame {
       looks: Craft.looks,
     );
     scene
-      ..ambientIntensity = 0.7
+      ..ambientIntensity = 0.7 * LightNode.defaultIntensity
       ..add(
-        LightNode(name: 'sun', intensity: 2.4)
+        LightNode(name: 'sun', intensity: 2.4 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.35, -1.0, -0.45)),
       );
 
@@ -52,7 +52,7 @@ extension RiverGameStaging on RiverGame {
     );
     wardrobe.dress(jet.visual, Craft.player);
     add(jet);
-    chase = ChaseCamera(
+    chase = FlameChaseCamera(
       camera: camera3d,
       target: jet,
       offset: Vector3(0.0, 11.0, 11.0),
@@ -62,7 +62,7 @@ extension RiverGameStaging on RiverGame {
       lookAcross: 0.5,
     )..advance(0.0);
     // After everything that moves the jet, so it follows this frame's move.
-    add(ChaseCameraComponent(chase));
+    add(FlameChaseCameraComponent(chase));
     built = true;
     _restart();
   }
@@ -71,6 +71,7 @@ extension RiverGameStaging on RiverGame {
   /// around it built fresh: what was shot there is back, as it was.
   void _restart() {
     _stretches.clear();
+    wrecks?.clear();
     blasts.system.clear();
     soot.system.clear();
     for (final leftover in children.where(
@@ -123,7 +124,8 @@ extension RiverGameStaging on RiverGame {
       name: 'valley $index',
     );
     final water = MeshNode(_kit.water, _kit.waterMaterial, name: 'water $index')
-      ..setPosition(0.0, 0.0, -(section.start + sectionLength / 2.0));
+      ..setPosition(0.0, 0.0, -(section.start + sectionLength / 2.0))
+      ..isVisible = drawsPlane;
     _scene
       ..add(valley)
       ..add(water);
@@ -138,7 +140,7 @@ extension RiverGameStaging on RiverGame {
       shieldGeometry = DeviceMesh.upload(_device, shieldMesh(span));
       final shield = MeshNode(shieldGeometry, _kit.shield, name: 'shield')
         ..setPosition(0.0, deckHeight, 0.0)
-        ..visible = false;
+        ..isVisible = false;
       // Each half hangs from its own bank end; the right one is the left
       // one turned round to reach back towards the middle.
       final left = SceneNode(name: 'bridge $index left')
@@ -231,12 +233,16 @@ extension RiverGameStaging on RiverGame {
       scene: _scene,
       plane: RiverGame.river,
       cardHeight: 1.1 + random.nextDouble() * 0.6,
+      // A reed's shadow is a few pixels of grass; a hundred of them were
+      // two thirds of the shadow pass, a draw apiece in every cascade.
+      castsShadow: false,
       position: Vector2(x, -distance),
       elevation: landHeight - 0.05,
     );
   }
 
-  void _dropStretch(int index, _Stretch stretch) {
+  void _dropStretch(ChunkDrop<_Stretch> dropped) {
+    final stretch = dropped.chunk;
     stretch.valley.removeFromParent();
     stretch.water.removeFromParent();
     for (final component in <Component>[

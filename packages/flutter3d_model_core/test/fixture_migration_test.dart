@@ -12,7 +12,7 @@
 /// **What to do when it fails**, because the tempting repair is the wrong one.
 /// Re-minting the fixture makes it green and throws away the guarantee. Either
 /// the change was a mistake and belongs undone, or it genuinely changes what a
-/// record means — in which case `kProjectVersion` moves, this fixture stays and
+/// record means — in which case `projectVersion` moves, this fixture stays and
 /// keeps being read by whatever migration the new reader carries, and a v2
 /// fixture joins it. `doc-28`: the fixtures live for ever.
 library;
@@ -22,6 +22,9 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_core/geometry.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show LightType;
+import 'package:flutter3d_hardware/flutter3d_hardware.dart'
+    show SamplerAddressMode;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:test/test.dart';
@@ -133,7 +136,7 @@ void main() {
       final binding = material.surface.baseColorTexture!;
       expect(binding.imageIndex, 0);
       expect(binding.sampling.useMipmaps, isFalse);
-      expect(binding.sampling.wrapS, TextureWrap.clampToEdge);
+      expect(binding.sampling.wrapS, SamplerAddressMode.clampToEdge);
 
       expect(project.images.single.bytes, <int>[1, 2, 3, 4, 5]);
       expect(project.images.single.name, 'atlas');
@@ -170,6 +173,155 @@ void main() {
     });
   });
 
+  group('the version 2 fixture', () {
+    test('records the version it was written by', () {
+      expect(
+        ByteData.sublistView(fixtureBytes(2)).getUint32(4, Endian.little),
+        2,
+      );
+    });
+
+    test('its lamp comes back in candela, as written', () {
+      // Version 2 is the version a light is lux or candela; the reader lifts
+      // only what a version 1 file holds. Mutation: lift every file, and the
+      // 800 cd lamp opens at 4.6 million.
+      final light = fixtureOpened(2).lighting.lights.single;
+      expect(light.type, LightType.point);
+      expect(light.intensity, 800.0);
+      expect(light.range, 12.0);
+    });
+
+    test('it holds the objects the version 1 fixture does', () {
+      expect(
+        fixtureOpened(2).objects.map((ModelObject o) => o.name),
+        fixtureOpened(1).objects.map((ModelObject o) => o.name),
+      );
+    });
+  });
+
+  group('the version 3 fixture', () {
+    test('has the flagged directory: a fifth header word and 20-byte '
+        'entries', () {
+      final view = ByteData.sublistView(fixtureBytes(3));
+      expect(view.getUint32(4, Endian.little), 3);
+      expect(
+        view.getUint32(projectEntryBytesOffset, Endian.little),
+        projectSectionEntryBytesV3,
+      );
+    });
+
+    test('keeps the later minor\'s section, flags and all, through a '
+        'save', () {
+      // Minted on 2026-10-15 by `tool/mint_fixture.dart`. Mutation: write
+      // only the sections this build builds, and a project a 1.1 editor
+      // saved loses what 1.1 added the first time 1.0 saves it.
+      final project = fixtureOpened(3);
+      expect(project.unknownSections, <ProjectExtraSection>[
+        fixtureLaterSection(),
+      ]);
+      final again = readProject(writeProject(project));
+      expect(
+        (again as ProjectOpened).project.unknownSections,
+        project.unknownSections,
+      );
+      expect(
+        ByteData.sublistView(writeProject(project)).getUint32(4, Endian.little),
+        3,
+        reason: 'a flagged section needs the directory that carries flags',
+      );
+    });
+
+    test('carries history, its own image and a baked simulation', () {
+      final read = readProject(fixtureBytes(3)) as ProjectOpened;
+      expect(read.history, hasLength(1));
+      expect(
+        read.history.single.before.images.map((EncodedImage i) => i.name),
+        <String>['atlas', fixtureOldImage().name!],
+      );
+      expect(read.project.objects.first.name, 'body renamed');
+      final cache = read.project.objects[1].simulationCache!;
+      expect(cache.frameCount, fixtureCache().frameCount);
+      expect(cache.frame(2), fixtureCache().frame(2));
+    });
+  });
+
+  test('the version 2 history fixture opens with its step, image and '
+      'cache', () {
+    final read =
+        readProject(File('test/fixtures/v2/history.f3dproj').readAsBytesSync())
+            as ProjectOpened;
+    expect(read.history, hasLength(1));
+    expect(read.history.single.before.images, hasLength(2));
+    expect(read.project.objects[1].simulationCache?.frameCount, 3);
+    expect(read.project.unknownSections, isEmpty);
+  });
+
+  group('the flags of a version 3 directory', () {
+    /// The version 3 fixture with [flags] on the entry of section [kind].
+    Uint8List flagged(int kind, int flags) {
+      final bytes = Uint8List.fromList(fixtureBytes(3));
+      final view = ByteData.sublistView(bytes);
+      for (var i = 0; i < view.getUint32(8, Endian.little); i++) {
+        final entry = projectHeaderBytesV3 + i * projectSectionEntryBytesV3;
+        if (view.getUint32(entry, Endian.little) == kind) {
+          view.setUint32(entry + 16, flags, Endian.little);
+        }
+      }
+      return bytes;
+    }
+
+    test('a section nobody knows, marked must-understand, refuses', () {
+      // Mutation: step over a flagged section like any other, and a project
+      // whose 1.x section changes what the objects are opens as others.
+      expect(
+        readProject(flagged(0x80000001, F3dSectionFlags.mustUnderstand)),
+        isA<ProjectRefused>(),
+      );
+    });
+
+    test('an unknown high bit on a known section refuses', () {
+      expect(
+        readProject(flagged(ProjectSection.manifest, 1 << 24)),
+        isA<ProjectRefused>().having(
+          (ProjectRefused r) => r.because,
+          'because',
+          contains('newer build'),
+        ),
+      );
+    });
+
+    test('an ignorable bit reads on', () {
+      expect(
+        readProject(flagged(ProjectSection.manifest, 1 << 5)),
+        isA<ProjectOpened>(),
+      );
+    });
+
+    test('a directory entry size past the cap is refused', () {
+      final bytes = Uint8List.fromList(fixtureBytes(3));
+      ByteData.sublistView(
+        bytes,
+      ).setUint32(projectEntryBytesOffset, 0xFFFFFFF0, Endian.little);
+      expect(readProject(bytes), isA<ProjectRefused>());
+    });
+  });
+
+  test('a writer refuses an unknown section of a kind it writes itself', () {
+    expect(
+      () => writeProject(
+        fixtureProject().copyWith(
+          unknownSections: <ProjectExtraSection>[
+            ProjectExtraSection(
+              kind: ProjectSection.images,
+              bytes: Uint8List(4),
+            ),
+          ],
+        ),
+      ),
+      throwsArgumentError,
+    );
+  });
+
   test('every fixture directory is a version this build can read', () {
     final directory = Directory('test/fixtures');
     final versions = <int>[
@@ -185,7 +337,7 @@ void main() {
     for (final int version in versions) {
       expect(
         version,
-        lessThanOrEqualTo(kProjectVersion),
+        lessThanOrEqualTo(projectVersion),
         reason: 'a fixture from a version this build cannot read',
       );
       expect(fixtureOpened(version).objects, isNotEmpty);
@@ -194,16 +346,76 @@ void main() {
     // The other direction, and the one `doc-28` actually asks for: a bump
     // with no fixture is a red test, not a silent gap somebody notices when
     // an old file stops opening on somebody else's machine. Mutation: drop
-    // this assertion and bump `kProjectVersion` to 2 with no `v2/` — every
+    // this assertion and bump `projectVersion` to 2 with no `v2/` — every
     // check above still passes, since there is nothing at version 2 to be
     // wrong about.
     expect(
       versions,
-      contains(kProjectVersion),
+      contains(projectVersion),
       reason:
-          'kProjectVersion is $kProjectVersion and test/fixtures has no '
-          'v$kProjectVersion/ — a version bump needs a fixture minted at the '
+          'kProjectVersion is $projectVersion and test/fixtures has no '
+          'v$projectVersion/ — a version bump needs a fixture minted at the '
           'moment it happens, not after',
     );
+  });
+
+  group('a file a later minor wrote', () {
+    // `unknown_keys.f3dproj` is the v1 workshop with two manifest keys no
+    // build of this version writes, as a later minor would add them
+    // (`docs/CONTRACTS.md`: unknown keys are kept). Minted once, by hand.
+    const later = <String, Object?>{
+      'laterMinor': <String, Object?>{
+        'note': 'written by a build newer than this one',
+        'weights': <Object?>[1, 2.5, true, null],
+      },
+      'zz': 'kept as it was',
+    };
+
+    ModelProject opened(Uint8List bytes) => switch (readProject(bytes)) {
+      ProjectOpened(:final project) => project,
+      final ProjectRefused refused => fail(refused.because),
+    };
+
+    test('opens, with what it does not read kept aside', () {
+      // Mutation: read only the known keys and drop the rest — `unknown` is
+      // empty and the next save loses them.
+      final project = opened(
+        File('test/fixtures/v1/unknown_keys.f3dproj').readAsBytesSync(),
+      );
+      expect(project.unknown, later);
+      expect(
+        project.objects.map((ModelObject o) => o.name),
+        fixtureOpened(1).objects.map((ModelObject o) => o.name),
+        reason: 'what it does read is read as before',
+      );
+    });
+
+    test('saves them back, through an edit and a save', () {
+      // Mutation: build the renamed project without `unknown` in
+      // `withObject` — the edit sheds the keys before the save.
+      final project = opened(
+        File('test/fixtures/v1/unknown_keys.f3dproj').readAsBytesSync(),
+      );
+      final history = ModelHistory(project);
+      expect(
+        history.run(Rename(id: project.objects.first.id, to: 'renamed')),
+        isNull,
+      );
+      final saved = writeProject(history.project, history: history);
+      final again = opened(saved);
+      expect(again.unknown, later);
+      expect(again.objects.first.name, 'renamed');
+    });
+
+    test('a key this build writes is never taken from them', () {
+      // Mutation: spread `unknown` after the known keys — a stale
+      // `nextId` from a later build overrides this one's count.
+      final project = fixtureOpened(1).copyWith(
+        unknown: const <String, Object?>{'nextId': 1, 'extra': 'kept'},
+      );
+      final again = opened(writeProject(project));
+      expect(again.nextId, project.nextId);
+      expect(again.unknown, const <String, Object?>{'extra': 'kept'});
+    });
   });
 }

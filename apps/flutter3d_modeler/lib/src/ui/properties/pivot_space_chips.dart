@@ -10,7 +10,7 @@
 /// so instead of pretending to.
 library;
 
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
 
 import '../../../l10n/app_localizations.dart';

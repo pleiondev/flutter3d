@@ -5,6 +5,11 @@ import 'cell_grid_component.dart';
 
 /// Which way a [GridMover] goes, as the screen sees it: up is towards the
 /// top, Flame's `y` falling.
+///
+/// **Closed for good**: the four ways out of a square cell, and standing still:
+/// a square has no fifth side to leave by. No member can be added without
+/// changing what the type means, so it stays an enum and a `switch` over it may
+/// name every case.
 enum GridHeading {
   none(0, 0),
   up(0, -1),
@@ -46,7 +51,7 @@ enum GridHeading {
 /// fixed steps when the game has `HasFixedStep`, and in frames otherwise;
 /// Flame's effects and hitboxes on what it moves go on working, and
 /// [onArrive] is told each middle of a cell reached, for a dot to be eaten.
-class GridMover extends Component with FixedStepUpdate {
+base class GridMover extends Component with FixedStepUpdate {
   GridMover({
     required this.grid,
     required this.speed,
@@ -69,7 +74,7 @@ class GridMover extends Component with FixedStepUpdate {
   final bool wraps;
 
   /// Told the cell whose middle has just been reached.
-  final void Function(int column, int row)? onArrive;
+  final void Function(GridArrival arrival)? onArrive;
 
   /// The way it is going; none while it stands.
   GridHeading heading = GridHeading.none;
@@ -82,7 +87,7 @@ class GridMover extends Component with FixedStepUpdate {
   bool _stepped = false;
 
   /// The cell it left last, or stands in.
-  (int, int) get cell => (_column, _row);
+  GridCell get cell => GridCell(column: _column, row: _row);
 
   PositionComponent get _body => parent! as PositionComponent;
 
@@ -91,10 +96,10 @@ class GridMover extends Component with FixedStepUpdate {
   void onMount() {
     super.onMount();
     _stepped = findGame() is HasFixedStep;
-    final (column, row) = grid.cellAt(_body.absolutePosition);
+    final GridCell(:column, :row) = grid.cellAt(_body.absolutePosition);
     _column = column;
     _row = row;
-    _body.position.setFrom(grid.centreOf(column, row));
+    _body.position.setFrom(grid.centerOf(column, row));
   }
 
   @override
@@ -133,7 +138,7 @@ class GridMover extends Component with FixedStepUpdate {
       heading = wanted;
     }
     for (var guard = 0; guard < 64 && left > 0.0; guard++) {
-      final middle = grid.centreOf(_column, _row);
+      final middle = grid.centerOf(_column, _row);
       if (at.x == middle.x && at.y == middle.y) {
         if (wanted != GridHeading.none && _open(wanted)) {
           heading = wanted;
@@ -142,7 +147,7 @@ class GridMover extends Component with FixedStepUpdate {
         }
         if (heading == GridHeading.none) return;
       }
-      final target = grid.centreOf(_column + heading.dx, _row + heading.dy);
+      final target = grid.centerOf(_column + heading.dx, _row + heading.dy);
       final gap = at.distanceTo(target);
       if (gap > left) {
         at.add((target - at)..scale(left / gap));
@@ -152,8 +157,23 @@ class GridMover extends Component with FixedStepUpdate {
       final (c, r) = _wrapped(_column + heading.dx, _row + heading.dy)!;
       _column = c;
       _row = r;
-      at.setFrom(grid.centreOf(c, r));
-      onArrive?.call(c, r);
+      at.setFrom(grid.centerOf(c, r));
+      onArrive?.call(GridArrival(column: c, row: r));
     }
   }
+}
+
+/// What [GridMover.onArrive] is told: the cell whose middle was reached.
+///
+/// **One object, so a minor can say more** (the heading it came in on)
+/// without breaking a game written against 1.0.
+final class GridArrival {
+  /// The cell at [column] and [row].
+  const GridArrival({required this.column, required this.row});
+
+  /// The cell's column.
+  final int column;
+
+  /// The cell's row.
+  final int row;
 }

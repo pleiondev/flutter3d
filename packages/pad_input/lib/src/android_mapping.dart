@@ -117,7 +117,7 @@ final class AndroidPadState implements PadMirror {
 
   /// Takes one message from the plugin.
   ///
-  /// The payload's **type** says what it is, which is `pointer_lock`'s trick
+  /// The payload's **type** says what it is, which is `flutter3d_pointer_lock`'s trick
   /// and for its reason: a motion sample is the hot path and deserves one typed
   /// list rather than a map with a discriminator in it. A message this does not
   /// understand — an older Dart side against a newer plugin — changes nothing.
@@ -224,7 +224,7 @@ final class AndroidPadState implements PadMirror {
       return;
     }
     out.clear();
-    out.connected = true;
+    out.isConnected = true;
 
     out
       ..setAxis(PadAxis.leftStickX, _axes[AndroidAxis.x] ?? 0.0)

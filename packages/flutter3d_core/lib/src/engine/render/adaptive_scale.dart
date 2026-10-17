@@ -34,7 +34,7 @@ import 'dart:math' as math;
 final class AdaptiveScaleSettings {
   const AdaptiveScaleSettings({
     this.enabled = false,
-    this.targetMicros = 16667,
+    this.target = const Duration(microseconds: 16667),
     this.minimum = 0.5,
     this.maximum = 1.0,
     this.step = 0.1,
@@ -51,18 +51,43 @@ final class AdaptiveScaleSettings {
          'resolution oscillates across the single point where they meet',
        );
 
+  /// A copy with the given fields replaced.
+  AdaptiveScaleSettings copyWith({
+    bool? enabled,
+    Duration? target,
+    double? minimum,
+    double? maximum,
+    double? step,
+    int? window,
+    int? holdWindows,
+    double? slowRatio,
+    double? fastRatio,
+  }) => AdaptiveScaleSettings(
+    enabled: enabled ?? this.enabled,
+    target: target ?? this.target,
+    minimum: minimum ?? this.minimum,
+    maximum: maximum ?? this.maximum,
+    step: step ?? this.step,
+    window: window ?? this.window,
+    holdWindows: holdWindows ?? this.holdWindows,
+    slowRatio: slowRatio ?? this.slowRatio,
+    fastRatio: fastRatio ?? this.fastRatio,
+  );
+
   /// Off by default: an application that has not asked for its resolution to
   /// move should not find it moving.
   final bool enabled;
 
-  /// The frame period being aimed at, in microseconds. 16667 is sixty a
-  /// second.
-  final int targetMicros;
+  /// The frame period being aimed at, against the wall clock. 16667
+  /// microseconds is sixty a second.
+  final Duration target;
 
   /// The smallest and largest scale this will choose. The maximum is what an
   /// application considers "full", which need not be 1 on a display whose
   /// pixel ratio already costs it.
   final double minimum;
+
+  /// A render scale, as [minimum] is.
   final double maximum;
 
   /// How much the scale moves in one step. Whole steps rather than a
@@ -77,10 +102,11 @@ final class AdaptiveScaleSettings {
   /// How many clean windows in a row before the scale goes back up.
   final int holdWindows;
 
-  /// Above this multiple of [targetMicros], the frame is too slow.
+  /// Above this multiple of [target], the frame is too slow.
   final double slowRatio;
 
   /// Below this multiple, there is room to give resolution back.
+  /// A unitless ratio to [target].
   final double fastRatio;
 }
 
@@ -132,8 +158,8 @@ final class AdaptiveScale {
     final mean = _window.reduce((int a, int b) => a + b) / _window.length;
     _window.clear();
 
-    final slow = settings.targetMicros * settings.slowRatio;
-    final fast = settings.targetMicros * settings.fastRatio;
+    final slow = settings.target.inMicroseconds * settings.slowRatio;
+    final fast = settings.target.inMicroseconds * settings.fastRatio;
 
     if (mean > slow) {
       // Down on the first bad window: a frame that is already late is

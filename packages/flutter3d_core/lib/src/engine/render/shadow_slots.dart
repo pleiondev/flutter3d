@@ -31,9 +31,10 @@ final class ShadowCandidate {
   /// How much this light deserves a row. Higher wins; zero or less never gets
   /// one.
   ///
-  /// The renderer supplies screen-space size, which is PlayCanvas's rule and a
-  /// good one: a torch filling the view matters more than a brighter one two
-  /// rooms away.
+  /// The renderer supplies screen-space size: a torch filling the view matters
+  /// more than a brighter one two rooms away.
+  /// Unitless: the renderer gives a light's range over its distance from the
+  /// eye.
   final double priority;
 
   /// What a static bake of this light would capture — its position and range,

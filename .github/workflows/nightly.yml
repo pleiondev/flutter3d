@@ -1,0 +1,206 @@
+# **What only a GPU and a phone can say, every night.** The `check` job in
+# ci.yml runs everything a hosted runner can: the software backend's goldens,
+# the suites, the builds. The Impeller goldens, the conformance harness on
+# Metal, the sample plugin drawn on three GPU backends and frame pacing on a
+# real device all need hardware, and until this file they ran when somebody
+# remembered — which is how a golden could move and be found days later.
+#
+# The runner is one Mac with a GPU, registered with the labels `self-hosted`,
+# `macOS` and `impeller`, with a Galaxy A55 attached by USB and its serial in
+# the repository variable `A55_DEVICE_ID`. What the machine needs beyond a
+# hosted macOS image: the Android SDK with `adb` on `PATH` and the phone
+# authorised, `glslangValidator` and `naga` on `PATH` (the sample plugin's
+# bundle carries a WebGPU section), and Chrome with WebGPU. Flutter is
+# installed by the job, pinned like everywhere else.
+#
+# **The A55 is the red line** (decision 53): the three demos of the release
+# proof, each held to p99 ≤ 33.3 ms with `tool/pacing.sh --fail-on`, and a
+# demo over it turns the night red. The tag waits for seven green nights in a
+# row, which `nightly-badge.yml` counts and README's badge shows; a badge
+# with no run for 48 hours says "stale" rather than keeping its colour.
+#
+# Every step after the first runs whether the one before it passed
+# (`if: success() || failure()`), because a red golden says nothing about
+# whether conformance or pacing held, and a night that stops at its first
+# failure answers one question out of four. The job is red when any step is.
+name: nightly
+
+on:
+  schedule:
+    # 01:17 UTC: after the day's pushes in Europe, and off the hour, when
+    # every other scheduled workflow on GitHub starts at once.
+    - cron: '17 1 * * *'
+  workflow_dispatch:
+
+# One night at a time, and never two jobs drawing on the one GPU together: a
+# second run waits rather than measuring the first one's load.
+concurrency:
+  group: nightly
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  impeller:
+    runs-on: [self-hosted, macOS, impeller]
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.0'
+          channel: stable
+          cache: true
+
+      - run: flutter precache --macos
+      - run: flutter pub get
+      - run: (cd packages/flutter3d_impeller && dart run bin/build_shader_bundle.dart)
+      - run: (cd packages/flutter3d/example && ./tool/build_shaders.sh)
+
+      # The comparison, never a recording: `--update` is what records, and a
+      # night that recorded would agree with itself for ever.
+      - name: goldens on impeller
+        if: success() || failure()
+        run: packages/flutter3d/tool/golden.sh
+
+      - name: conformance on impeller
+        if: success() || failure()
+        run: packages/flutter3d_impeller/tool/conformance.sh
+
+      # The sample plugin's render checks on WebGL2, WebGPU and Impeller: the
+      # outside author's material drawn on the backends the software
+      # rasteriser's suite cannot stand in for.
+      - name: plugin render harness
+        if: success() || failure()
+        working-directory: packages/flutter3d_plugin_runtime/example/gpu
+        run: tool/render_conformance.sh
+
+      # The desk's own pacing, the dungeon at 1280x720, held to "no frame
+      # over 50 ms" as ci.yml's pacing job is: a Mac with a GPU that cannot
+      # hold that is a regression, not a mid-range phone.
+      - name: pacing on macos
+        if: success() || failure()
+        run: tool/pacing.sh --label nightly-macos
+
+      - name: summary
+        if: always()
+        run: |
+          for report in doc/pacing/nightly-*.md; do
+            [ -f "$report" ] && cat "$report" >> "$GITHUB_STEP_SUMMARY"
+          done
+          true
+
+      # **The artefact**: what the night measured and, when a golden moved,
+      # what it drew. Kept for ninety days, so seven nights before a tag can
+      # be read side by side.
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: nightly-impeller
+          path: |
+            doc/pacing/nightly-macos.md
+            packages/flutter3d/test/goldens/*.actual.png
+          retention-days: 90
+          if-no-files-found: ignore
+
+  a55:
+    # After the Mac's job and on the same machine, so the phone is measured
+    # while nothing else is building; whatever the Mac's job said, because
+    # the phone's numbers are their own answer.
+    needs: impeller
+    if: success() || failure()
+    runs-on: [self-hosted, macOS, impeller]
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        demo: [shooter, platformer, racing]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.0'
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+      - run: (cd packages/flutter3d_impeller && dart run bin/build_shader_bundle.dart)
+
+      # A phone that is not there is said in one line, not as a `flutter
+      # drive` that times out looking for it.
+      - name: the A55 is attached
+        env:
+          A55: ${{ vars.A55_DEVICE_ID }}
+        run: |
+          if [ -z "$A55" ]; then
+            echo "the repository variable A55_DEVICE_ID is not set"
+            exit 1
+          fi
+          adb devices | awk -v id="$A55" '$1 == id && $2 == "device" { found = 1 } END { exit !found }' ||
+            { echo "the A55 ($A55) is not attached or not authorised"; adb devices; exit 1; }
+
+      - name: pacing ${{ matrix.demo }} on the A55
+        env:
+          A55: ${{ vars.A55_DEVICE_ID }}
+        run: >-
+          tool/pacing.sh --demo ${{ matrix.demo }} -d "$A55"
+          --label nightly-a55-${{ matrix.demo }} --fail-on p99=33.3
+
+      - name: summary
+        if: always()
+        run: |
+          report=doc/pacing/nightly-a55-${{ matrix.demo }}.md
+          if [ -f "$report" ]; then cat "$report" >> "$GITHUB_STEP_SUMMARY"; fi
+
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: nightly-a55-${{ matrix.demo }}
+          path: doc/pacing/nightly-a55-${{ matrix.demo }}.md
+          retention-days: 90
+          if-no-files-found: ignore
+
+  # **Impeller on Linux, through OpenGL ES, under Xvfb** (D56). `check` runs
+  # the same harness inside `tool/ci.sh`; here it is a job of its own with its
+  # log kept, so a night can say whether the GLES path still draws without a
+  # reader digging the answer out of a forty-minute log.
+  linux-impeller:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.0'
+          channel: stable
+          cache: true
+
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config \
+            libgtk-3-dev liblzma-dev libstdc++-12-dev xvfb
+
+      - run: flutter precache --linux
+      - run: flutter pub get
+      - run: (cd packages/flutter3d_impeller && dart run bin/build_shader_bundle.dart)
+      - run: (cd packages/flutter3d/example && ./tool/build_shaders.sh)
+
+      - name: conformance on impeller, linux
+        run: |
+          mkdir -p build/nightly
+          set -o pipefail
+          xvfb-run -a packages/flutter3d_impeller/tool/conformance.sh --linux \
+            2>&1 | tee build/nightly/conformance-linux.txt
+
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: nightly-linux-impeller
+          path: build/nightly/conformance-linux.txt
+          retention-days: 90
+          if-no-files-found: ignore

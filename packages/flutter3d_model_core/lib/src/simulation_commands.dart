@@ -19,10 +19,6 @@ final class ApplySimulationCache extends ModelCommand {
     required this.cache,
   });
 
-  final int objectId;
-  final int baseVersion;
-  final SimulationCache cache;
-
   /// [bake]'s own [BakeClothJobRequest.buildCache], as the command that
   /// writes it in — however many frames actually baked, cancelled partway or
   /// not.
@@ -32,6 +28,10 @@ final class ApplySimulationCache extends ModelCommand {
         baseVersion: bake.baseVersion,
         cache: bake.buildCache(),
       );
+  final int objectId;
+  final int baseVersion;
+
+  final SimulationCache cache;
 
   @override
   String get name => 'applySimulationCache';

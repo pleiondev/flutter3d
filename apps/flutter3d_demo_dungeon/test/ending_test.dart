@@ -121,10 +121,10 @@ void main() {
       // "everyone in the list is named", not "the attribution clause is met".
       // `credits_test.dart` is what reads the asset directory.
       //
-      // Mutation: delete the `CreditsSection` from `CryptEnding` — this fails.
+      // Mutation: delete the `CreditsSection` from `EndingSheet` — this fails.
       await tester.pumpWidget(_ending());
 
-      for (final credit in Credits.models) {
+      for (final credit in credits.models) {
         expect(find.textContaining(credit.author!), findsWidgets);
       }
     });

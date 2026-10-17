@@ -1,7 +1,11 @@
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show Flutter3dFormatException;
+
 /// Thrown when a [DataSourceTrace] cannot be read back at all.
-final class DataSourceTraceFormatException implements Exception {
+final class DataSourceTraceFormatException extends Flutter3dFormatException {
   const DataSourceTraceFormatException(this.message);
 
+  @override
   final String message;
 
   @override
@@ -27,7 +31,36 @@ final class DataSourceTrace {
 
   DataSourceTrace._parts(this._steps, this._values);
 
+  factory DataSourceTrace.fromJson(Map<String, Object?> json) {
+    final rawSteps = json['steps'];
+    final rawValues = json['values'];
+    if (rawSteps is! List || rawValues is! List) {
+      throw const DataSourceTraceFormatException(
+        'the trace has no steps or no values',
+      );
+    }
+    if (rawSteps.length != rawValues.length) {
+      throw const DataSourceTraceFormatException(
+        'the trace has a different number of steps and values',
+      );
+    }
+    final steps = <int>[];
+    final values = <Map<String, Object?>>[];
+    for (var i = 0; i < rawSteps.length; i++) {
+      final step = rawSteps[i];
+      final value = rawValues[i];
+      if (step is! num || value is! Map) {
+        throw const DataSourceTraceFormatException(
+          'an entry is not a step number and a value map',
+        );
+      }
+      steps.add(step.toInt());
+      values.add(Map<String, Object?>.unmodifiable(value));
+    }
+    return DataSourceTrace._parts(steps, values);
+  }
   final List<int> _steps;
+
   final List<Map<String, Object?>> _values;
 
   /// The step numbers recorded, in order and strictly increasing —
@@ -100,33 +133,4 @@ final class DataSourceTrace {
     'steps': List<int>.of(_steps),
     'values': _values.map((v) => Map<String, Object?>.of(v)).toList(),
   };
-
-  factory DataSourceTrace.fromJson(Map<String, Object?> json) {
-    final rawSteps = json['steps'];
-    final rawValues = json['values'];
-    if (rawSteps is! List || rawValues is! List) {
-      throw const DataSourceTraceFormatException(
-        'the trace has no steps or no values',
-      );
-    }
-    if (rawSteps.length != rawValues.length) {
-      throw const DataSourceTraceFormatException(
-        'the trace has a different number of steps and values',
-      );
-    }
-    final steps = <int>[];
-    final values = <Map<String, Object?>>[];
-    for (var i = 0; i < rawSteps.length; i++) {
-      final step = rawSteps[i];
-      final value = rawValues[i];
-      if (step is! num || value is! Map) {
-        throw const DataSourceTraceFormatException(
-          'an entry is not a step number and a value map',
-        );
-      }
-      steps.add(step.toInt());
-      values.add(Map<String, Object?>.unmodifiable(value));
-    }
-    return DataSourceTrace._parts(steps, values);
-  }
 }

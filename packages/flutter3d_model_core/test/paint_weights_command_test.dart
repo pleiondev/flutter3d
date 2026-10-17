@@ -113,8 +113,7 @@ void main() {
     test('BrushSample round-trips through JSON', () {
       final sample = BrushSample(center: Vector3(1, -2, 0.5), radius: 0.25);
       final back = BrushSample.fromJson(sample.toJson());
-      expect(back, isNotNull);
-      expect(back!.toJson(), sample.toJson());
+      expect(back.toJson(), sample.toJson());
     });
 
     test('PaintMirror round-trips through JSON', () {
@@ -125,8 +124,7 @@ void main() {
         tolerance: 1e-3,
       );
       final back = PaintMirror.fromJson(mirror.toJson());
-      expect(back, isNotNull);
-      expect(back!.toJson(), mirror.toJson());
+      expect(back.toJson(), mirror.toJson());
     });
 
     test(

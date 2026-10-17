@@ -1,0 +1,26 @@
+# Generated from flutter3d_build/lib/migrations/*.yaml by
+# `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
+# table-stamp: a7f9f2d67feecc35
+#
+# Read by `dart fix` and the IDE: see "A break comes with its migration"
+# in CONTRIBUTING.md.
+version: 1
+transforms:
+  - title: 'flutter3d 1.0.0-rc.1: net-firstDifferingPath-named'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_net/flutter3d_net.dart']
+      function: 'firstDifferingPath'
+    changes:
+      - kind: 'addParameter'
+        index: 2
+        name: 'prefix'
+        style: optional_named
+        argumentValue:
+          expression: '{% prefix %}'
+          variables:
+            prefix:
+              kind: 'fragment'
+              value: 'arguments[2]'
+      - kind: 'removeParameter'
+        index: 2

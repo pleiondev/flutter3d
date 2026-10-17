@@ -225,6 +225,18 @@ void main() {
         modifierFromJson(<String, Object?>{'kind': 'array', 'count': 2}),
         isNull,
       );
+      // Mutation: answer null from `ArrayModifier.fromJson` again, and this
+      // sees no exception saying what is missing.
+      expect(
+        () => ArrayModifier.fromJson(<String, Object?>{'count': 2}),
+        throwsA(
+          isA<ModifierFormatException>().having(
+            (ModifierFormatException e) => e.message,
+            'message',
+            contains('offset'),
+          ),
+        ),
+      );
     });
 
     test('each face keeps its own copy\'s material slot', () {

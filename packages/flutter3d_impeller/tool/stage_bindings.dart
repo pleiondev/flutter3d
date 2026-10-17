@@ -1,4 +1,4 @@
-/// Writes `flutter3d_shaders/lib/stage_bindings.dart`: what every compiled
+/// Writes `flutter3d_shaders/lib/src/stage_bindings.dart`: what every compiled
 /// stage in the bundle keeps, by name.
 ///
 ///     dart run tool/stage_bindings.dart
@@ -14,18 +14,13 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter3d_hardware/flutter3d_hardware.dart'
+    show StageBindings, UniformMemberLayout;
 import 'package:flutter3d_impeller/src/shader_bundle_build.dart';
 
-/// Stage name to the blocks and samplers its compiled Metal function keeps.
-/// One member of a uniform block as impellerc lays it out: where it starts,
-/// how many bytes it takes, how many elements if it is an array (one if not),
-/// and its reflected type name (`Vector4`, `Matrix4`, `Float`, ...).
-typedef ReflectedMember = ({
-  int offset,
-  int byteLength,
-  int elements,
-  String type,
-});
+/// One member of a uniform block as impellerc lays it out: the hardware
+/// contract's own type, so the committed table compares with a fresh one.
+typedef ReflectedMember = UniformMemberLayout;
 
 /// Every stage's uniform blocks, by stage then by block, with their members
 /// in declaration order — `H1`. Per stage and not per block name, because
@@ -36,9 +31,8 @@ typedef ReflectedMember = ({
 final Map<String, Map<String, Map<String, ReflectedMember>>> reflectedBlocks =
     <String, Map<String, Map<String, ReflectedMember>>>{};
 
-Map<String, ({Set<String> blocks, Set<String> samplers})> reflectStages({
-  required String shadersRoot,
-}) {
+/// Stage name to the blocks and samplers its compiled Metal function keeps.
+Map<String, StageBindings> reflectStages({required String shadersRoot}) {
   final compiler = impellercPath();
   final shaderLib = File(compiler).parent.uri.resolve('shader_lib').path;
   final manifest =
@@ -48,7 +42,7 @@ Map<String, ({Set<String> blocks, Set<String> samplers})> reflectStages({
           as Map<String, Object?>;
   final scratch = Directory.systemTemp.createTempSync('f3d_stages_');
   try {
-    final stages = <String, ({Set<String> blocks, Set<String> samplers})>{};
+    final stages = <String, StageBindings>{};
     for (final MapEntry(key: name, value: entry) in manifest.entries) {
       final stage = entry! as Map<String, Object?>;
       final file = (stage['file']! as String).replaceFirst('shaders/', '');
@@ -75,7 +69,7 @@ Map<String, ({Set<String> blocks, Set<String> samplers})> reflectStages({
           if ((r! as Map<String, Object?>)['ext_res_0'] != 0xFFFFFFFF)
             (r as Map<String, Object?>)['name']! as String,
       };
-      stages[name] = (
+      stages[name] = StageBindings(
         blocks: kept('buffers'),
         samplers: kept('sampled_images'),
       );
@@ -88,7 +82,7 @@ Map<String, ({Set<String> blocks, Set<String> samplers})> reflectStages({
             // names them, and several in one block share the one name.
             if (m case final Map<String, Object?> member
                 when !(member['name']! as String).startsWith('_PADDING'))
-              member['name']! as String: (
+              member['name']! as String: UniformMemberLayout(
                 offset: member['offset']! as int,
                 byteLength: member['byte_length']! as int,
                 elements: switch (member['array_elements']) {
@@ -130,10 +124,10 @@ String uniformBlocksSource(
     ..writeln('/// than another.')
     ..writeln('library;')
     ..writeln()
-    ..writeln('/// One member of a uniform block.')
+    // The member's record has one home, the hardware contract.
     ..writeln(
-      'typedef UniformMemberLayout = '
-      '({int offset, int byteLength, int elements, String type});',
+      "import 'package:flutter3d_hardware/flutter3d_hardware.dart' "
+      'show UniformMemberLayout;',
     )
     ..writeln()
     ..writeln(
@@ -148,7 +142,8 @@ String uniformBlocksSource(
       out.writeln("    '$block': <String, UniformMemberLayout>{");
       for (final MapEntry(key: name, value: m) in blocks[block]!.entries) {
         out.writeln(
-          "      '$name': (offset: ${m.offset}, byteLength: ${m.byteLength}, "
+          "      '$name': UniformMemberLayout(offset: ${m.offset}, "
+          "byteLength: ${m.byteLength}, "
           "elements: ${m.elements}, type: '${m.type}'),",
         );
       }
@@ -185,8 +180,17 @@ String typedBlocksSource(
       }
     }
   }
+  // A shader's names are its own and stay as written (`scene_color`); the
+  // Dart identifier made from one spells in American, as every identifier
+  // in the API does (the structure rule `public identifiers spell in
+  // American` holds the rest).
+  String american(String word) => switch (word) {
+    'colour' => 'color',
+    'centre' => 'center',
+    _ => word,
+  };
   String camel(String snake) {
-    final parts = snake.split('_');
+    final parts = snake.split('_').map(american).toList();
     return parts.first +
         parts.skip(1).map((p) => p[0].toUpperCase() + p.substring(1)).join();
   }
@@ -241,9 +245,7 @@ String typedBlocksSource(
   return out.toString();
 }
 
-String stageBindingsSource(
-  Map<String, ({Set<String> blocks, Set<String> samplers})> stages,
-) {
+String stageBindingsSource(Map<String, StageBindings> stages) {
   String set(Set<String> names) => names.isEmpty
       ? '<String>{}'
       : '<String>{${(names.toList()..sort()).map((n) => "'$n'").join(', ')}}';
@@ -262,13 +264,18 @@ String stageBindingsSource(
     ..writeln('library;')
     ..writeln()
     ..writeln(
-      'const Map<String, ({Set<String> blocks, Set<String> samplers})> '
-      'stageBindings = <String, ({Set<String> blocks, Set<String> samplers})>{',
+      "import 'package:flutter3d_hardware/flutter3d_hardware.dart' "
+      'show StageBindings;',
+    )
+    ..writeln()
+    ..writeln(
+      'const Map<String, StageBindings> '
+      'stageBindings = <String, StageBindings>{',
     );
   for (final name in stages.keys.toList()..sort()) {
     final stage = stages[name]!;
     out.writeln(
-      "  '$name': (blocks: ${set(stage.blocks)}, "
+      "  '$name': StageBindings(blocks: ${set(stage.blocks)}, "
       'samplers: ${set(stage.samplers)}),',
     );
   }
@@ -278,13 +285,13 @@ String stageBindingsSource(
 
 void main() {
   final shaders = Directory('../flutter3d_shaders/shaders').absolute.path;
-  final target = File('../flutter3d_shaders/lib/stage_bindings.dart');
+  final target = File('../flutter3d_shaders/lib/src/stage_bindings.dart');
   target.writeAsStringSync(
     stageBindingsSource(reflectStages(shadersRoot: shaders)),
   );
-  final blocks = File('../flutter3d_shaders/lib/uniform_blocks.dart');
+  final blocks = File('../flutter3d_shaders/lib/src/uniform_blocks.dart');
   blocks.writeAsStringSync(uniformBlocksSource(reflectedBlocks));
-  final typed = File('../flutter3d_shaders/lib/typed_blocks.dart');
+  final typed = File('../flutter3d_shaders/lib/src/typed_blocks.dart');
   typed.writeAsStringSync(typedBlocksSource(reflectedBlocks));
   Process.runSync('dart', <String>[
     'format',

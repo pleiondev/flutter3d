@@ -1,8 +1,11 @@
 /// Everything a request handler or a page reaches for, built once at start.
 library;
 
+import 'package:flutter3d_sim/flutter3d_sim.dart' show HeadlessGame, Level;
+
 import 'auth/accounts.dart';
 import 'config.dart';
+import 'convert/conversion_store.dart';
 import 'db/database.dart';
 import 'db/email_tokens_repository.dart';
 import 'db/metrics_repository.dart';
@@ -10,11 +13,16 @@ import 'db/models_repository.dart';
 import 'db/projects_repository.dart';
 import 'db/rate_limit.dart';
 import 'db/sessions_repository.dart';
+import 'db/shares_repository.dart';
+import 'db/telemetry_repository.dart';
 import 'db/users_repository.dart';
 import 'http/cookies.dart';
 import 'http/gallery_catalogue.dart';
 import 'mail/mailer.dart';
+import 'shares/share_service.dart';
 import 'storage/blob_store.dart';
+import 'storage/model_exports.dart';
+import 'telemetry/telemetry_service.dart';
 
 class Services {
   Services({
@@ -23,7 +31,22 @@ class Services {
     required this.mailer,
     required this.blobs,
     GalleryCatalogue? gallery,
+    Map<String, HeadlessGame> telemetryGames = const <String, HeadlessGame>{},
+    Map<String, Level> telemetryLevels = const <String, Level>{},
+    ConversionStore? conversions,
   }) : gallery = gallery ?? const FixedCatalogue(),
+       conversions = conversions ?? ConversionStore.inSystemTemp(),
+       telemetry = TelemetryService(
+         games: telemetryGames,
+         levels: telemetryLevels,
+         store: TelemetryRepository(db),
+       ),
+       shares = ShareService(
+         store: SharesRepository(db),
+         moderation: config.shareModeration,
+         moderatorToken: config.shareModeratorToken,
+         reportsToHide: config.shareReportsToHide,
+       ),
        users = UsersRepository(db),
        sessions = SessionsRepository(db),
        tokens = EmailTokensRepository(db),
@@ -65,10 +88,35 @@ class Services {
   final Mailer mailer;
   final BlobStore blobs;
 
+  /// N7: runs sent with a player's consent, played again and binned.
+  ///
+  /// **Empty unless a deploy hands it games and levels**, and an empty one
+  /// answers every run with why it took none. The games are [HeadlessGame]s
+  /// this process can step, so they are chosen in code where the server is
+  /// built, as `headlessGamesOf(genres)` for whichever genre plugins the
+  /// deploy holds; the levels come from `MODELS_TELEMETRY_LEVELS_DIR`.
+  final TelemetryService telemetry;
+
+  /// N10: levels shared behind short codes.
+  ///
+  /// **Refuses every share until somebody can moderate them**, unless the
+  /// deploy chose `MODELS_SHARES_MODERATION=open`: in review, a level nobody
+  /// could ever publish is a level kept for nothing.
+  final ShareService shares;
+
+  /// `/convert`'s results, kept for an hour for the account that made them.
+  /// In the system's temporary directory — under systemd, the unit's own
+  /// private `/tmp` — and never in the blob store.
+  final ConversionStore conversions;
+
   final UsersRepository users;
   final SessionsRepository sessions;
   final EmailTokensRepository tokens;
   final ModelsRepository models;
+
+  /// "Download as…": a stored model written in another format on its first
+  /// request and kept in the blob store, recorded in `model_exports`.
+  late final ModelExports exports = ModelExports(blobs: blobs, cache: models);
   final ProjectsRepository projects;
   final MetricsRepository metrics;
   final RateLimiter limiter;

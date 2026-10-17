@@ -15,7 +15,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_cpu/src/cpu_shader_bindings.dart';
 import 'package:flutter3d_cpu/src/cpu_shader_stage.dart';
-import 'package:flutter3d_cpu/src/cpu_shaders_probe.dart';
+import 'package:flutter3d_cpu/src/cpu_shaders_builtin.dart';
 import 'package:flutter3d_cpu/src/cpu_texture.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:test/test.dart';
@@ -44,7 +44,7 @@ CpuTexture _blackFront() {
 }
 
 /// Red at the centre of the +Z face of a level of [roughness].
-double _centre(double roughness) {
+double _center(double roughness) {
   final bindings = ShaderBindings(
     <String, Map<String, Float32List>>{
       'ProbeInfo': <String, Float32List>{
@@ -54,16 +54,16 @@ double _centre(double roughness) {
     <String, BoundTexture>{
       'capture_texture': BoundTexture(
         _blackFront(),
-        SamplerOptions.linearClamp,
+        SamplerDescriptor.linearClamp,
       ),
     },
   );
-  final colour = const ProbePrefilterShader().run(
+  final color = const ProbePrefilterShader().run(
     Float32List.fromList(<double>[0.5, 0.5]),
     bindings,
     FragmentContext(),
   )!;
-  return colour.x;
+  return color.x;
 }
 
 /// One minus the view factor from the cube's centre to its +Z face: the
@@ -75,12 +75,12 @@ void main() {
   test('the fully rough level is the cosine convolution', () {
     // Mutation: restore `radius * (1 - spread)` as the tap's sideways part —
     // this reads about 0.20 and fails.
-    expect(_centre(1.0), closeTo(_lambertOutsideFace, 0.03));
+    expect(_center(1.0), closeTo(_lambertOutsideFace, 0.03));
   });
 
   test('a level of roughness one-half reaches past a face 45° away', () {
     // A GGX lobe of alpha one-quarter sends about a tenth of its weight past
     // 45°. Mutation: the old construction reads 0.0.
-    expect(_centre(0.5), inInclusiveRange(0.06, 0.15));
+    expect(_center(0.5), inInclusiveRange(0.06, 0.15));
   });
 }

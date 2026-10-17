@@ -21,24 +21,52 @@ import 'key_table.dart';
 /// itself holds it, and a cubic-spline track matches
 /// [AnimationTrack.sample] exactly, because this *is* that call, not a
 /// second interpolation written to look the same.
-List<(double, double)> curveSamples(
+List<CurveSample> curveSamples(
   KeyTable table,
   int component, {
   required int sampleCount,
 }) {
-  if (table.keyCount == 0 || sampleCount < 1) return const <(double, double)>[];
+  if (table.keyCount == 0 || sampleCount < 1) return const <CurveSample>[];
   final start = table.keys.first.time;
   final end = table.duration;
   final out = Float32List(table.componentCount);
-  final points = <(double, double)>[];
-  for (var i = 0; i < sampleCount; i++) {
-    final t = sampleCount == 1
-        ? start
-        : start + (end - start) * i / (sampleCount - 1);
+  CurveSample sampleAt(double t) {
     table.sample(t, out);
-    points.add((t, out[component]));
+    return CurveSample(time: t, value: out[component]);
   }
-  return points;
+
+  return <CurveSample>[
+    for (var i = 0; i < sampleCount; i++)
+      sampleAt(
+        sampleCount == 1
+            ? start
+            : start + (end - start) * i / (sampleCount - 1),
+      ),
+  ];
+}
+
+/// One point of a curve: a time and the value a track has there. What
+/// [curveSamples] answers a list of.
+final class CurveSample {
+  /// The [value] the track has at [time].
+  const CurveSample({required this.time, required this.value});
+
+  /// When the sample is taken, in seconds.
+  final double time;
+
+  /// The component's value at [time], in the track's own unit (metres,
+  /// radians or no unit, by what the track animates).
+  final double value;
+
+  @override
+  bool operator ==(Object other) =>
+      other is CurveSample && other.time == time && other.value == value;
+
+  @override
+  int get hashCode => Object.hash(time, value);
+
+  @override
+  String toString() => 'CurveSample($time, $value)';
 }
 
 /// The screen-space positions of key [keyIndex]'s own two tangent handles,
@@ -53,10 +81,12 @@ List<(double, double)> curveSamples(
 /// [AnimationInterpolation.cubicSpline] or the key carries no tangent of
 /// its own kind: there is nothing to drag on a straight line between two
 /// points, and a handle that appeared anyway would suggest there was.
-({Vector2 inHandle, Vector2 outHandle}) tangentHandles(
+TangentHandles tangentHandles(
   KeyTable table,
   int keyIndex,
   int component, {
+
+  /// In seconds.
   double handleLength = 0.1,
 }) {
   final key = table.keys[keyIndex];
@@ -64,12 +94,12 @@ List<(double, double)> curveSamples(
   final position = Vector2(key.time, value);
 
   if (table.interpolation != AnimationInterpolation.cubicSpline) {
-    return (inHandle: position, outHandle: position);
+    return TangentHandles(inHandle: position, outHandle: position.clone());
   }
 
   final inSlope = key.inTangent?[component] ?? 0.0;
   final outSlope = key.outTangent?[component] ?? 0.0;
-  return (
+  return TangentHandles(
     inHandle: Vector2(key.time - handleLength, value - inSlope * handleLength),
     outHandle: Vector2(
       key.time + handleLength,
@@ -78,18 +108,66 @@ List<(double, double)> curveSamples(
   );
 }
 
+/// The two tangent handles of one key, as a curve editor draws them: what
+/// [tangentHandles] answers. Each is a point with time (seconds) on x and
+/// the component's value on y.
+final class TangentHandles {
+  /// The handle pair [inHandle] before the key and [outHandle] after it.
+  const TangentHandles({required this.inHandle, required this.outHandle});
+
+  /// The handle on the incoming side, before the key in time.
+  final Vector2 inHandle;
+
+  /// The handle on the outgoing side, after the key in time.
+  final Vector2 outHandle;
+
+  @override
+  bool operator ==(Object other) =>
+      other is TangentHandles &&
+      other.inHandle == inHandle &&
+      other.outHandle == outHandle;
+
+  @override
+  int get hashCode =>
+      Object.hash(inHandle.x, inHandle.y, outHandle.x, outHandle.y);
+
+  @override
+  String toString() => 'TangentHandles($inHandle, $outHandle)';
+}
+
 /// The lowest and highest value [table]'s own [component] reaches across
 /// every key — what a curve editor scales its vertical axis to fit.
-({double min, double max}) valueRange(KeyTable table, int component) {
-  if (table.keyCount == 0) return (min: 0.0, max: 0.0);
-  var min = double.infinity;
-  var max = double.negativeInfinity;
-  for (final key in table.keys) {
-    final v = key.values[component];
-    if (v < min) min = v;
-    if (v > max) max = v;
-  }
-  return (min: min, max: max);
+CurveValueRange valueRange(KeyTable table, int component) {
+  if (table.keyCount == 0) return const CurveValueRange(min: 0, max: 0);
+  final values = [for (final key in table.keys) key.values[component]];
+  return CurveValueRange(
+    min: values.reduce(math.min),
+    max: values.reduce(math.max),
+  );
+}
+
+/// The lowest and highest value one component of a track reaches: what
+/// [valueRange] answers.
+final class CurveValueRange {
+  /// The range from [min] to [max].
+  const CurveValueRange({required this.min, required this.max});
+
+  /// The lowest value, in the track's own unit (metres, radians or no unit,
+  /// by what the track animates).
+  final double min;
+
+  /// The highest value, in the same unit as [min].
+  final double max;
+
+  @override
+  bool operator ==(Object other) =>
+      other is CurveValueRange && other.min == min && other.max == max;
+
+  @override
+  int get hashCode => Object.hash(min, max);
+
+  @override
+  String toString() => 'CurveValueRange($min..$max)';
 }
 
 /// [q]'s own rotation as yaw (around Y), pitch (around X) and roll (around

@@ -10,11 +10,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 
-import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 void main() {
   test(
@@ -28,7 +25,7 @@ void main() {
         (EntityDef it) => it.type.contains('spawn'),
       );
 
-      final spawn = LevelWalk.spawnIn(level);
+      final SpawnPoint spawn = LevelWalk.spawnIn(level);
 
       expect(spawn.at.y, closeTo(authored.position.y + 0.9, 1e-5));
       expect(spawn.at.x, closeTo(authored.position.x, 1e-5));

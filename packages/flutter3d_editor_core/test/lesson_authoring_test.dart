@@ -8,6 +8,7 @@ library;
 import 'dart:convert';
 
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
+import 'package:flutter3d_education/lesson.dart' show orderedSteps;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -31,39 +32,6 @@ void main() {
     test('answers null for a name nothing carries', () {
       final level = _level('{"entities": []}');
       expect(indexOfNamed(level, 'nothing'), isNull);
-    });
-  });
-
-  group('orderedSteps', () {
-    test('resolves names in the order the sequence names them', () {
-      final level = _level('''
-{"entities": [
-  {"type": "edu_step", "name": "step-2", "caption": "second", "at": [0,0,0]},
-  {"type": "edu_step", "name": "step-1", "caption": "first", "at": [0,0,0]},
-  {"type": "edu_sequence", "name": "seq", "steps": ["step-1", "step-2"]}
-]}
-''');
-      final steps = orderedSteps(level, 'seq');
-      expect(steps.map((s) => s.name), <String>['step-1', 'step-2']);
-      expect(steps.map((s) => s.string('caption')), <String>[
-        'first',
-        'second',
-      ]);
-    });
-
-    test('skips a name the sequence lists but no entity carries', () {
-      final level = _level('''
-{"entities": [
-  {"type": "edu_step", "name": "step-1", "at": [0,0,0]},
-  {"type": "edu_sequence", "name": "seq", "steps": ["step-1", "step-missing"]}
-]}
-''');
-      expect(orderedSteps(level, 'seq').map((s) => s.name), <String>['step-1']);
-    });
-
-    test('an unknown sequence name resolves to no steps', () {
-      final level = _level('{"entities": []}');
-      expect(orderedSteps(level, 'nope'), isEmpty);
     });
   });
 

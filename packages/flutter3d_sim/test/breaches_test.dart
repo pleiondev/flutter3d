@@ -9,12 +9,13 @@
 /// level as authored.
 library;
 
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
 Brush _box(double x, double y, double z, double sx, double sy, double sz) =>
-    Brush(centre: Vector3(x, y, z), size: Vector3(sx, sy, sz));
+    Brush(center: Vector3(x, y, z), size: Vector3(sx, sy, sz));
 
 double _volume(Iterable<Brush> brushes) =>
     brushes.fold(0.0, (v, b) => v + b.size.x * b.size.y * b.size.z);
@@ -79,7 +80,7 @@ void main() {
 
     test('never cuts a ramp', () {
       final ramp = Brush(
-        centre: Vector3.zero(),
+        center: Vector3.zero(),
         size: Vector3(2.0, 2.0, 2.0),
         ramp: WedgeUphill.positiveX,
       );

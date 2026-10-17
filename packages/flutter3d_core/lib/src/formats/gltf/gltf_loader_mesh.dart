@@ -49,7 +49,7 @@ extension _GltfMesh on GltfLoader {
       final GltfPrimitiveMode mode;
       try {
         mode = GltfPrimitiveMode.fromCode(modeCode);
-      } on FormatException {
+      } on GltfFormatException {
         warnings.add('$label has unknown mode $modeCode; skipped.');
         continue;
       }
@@ -152,8 +152,10 @@ extension _GltfMesh on GltfLoader {
             ),
           );
         }
-      } on FormatException catch (error) {
+      } on Flutter3dFormatException catch (error) {
         // One broken primitive should not sink the whole file.
+        warnings.add('$label failed to decode: ${error.message}');
+      } on FormatException catch (error) {
         warnings.add('$label failed to decode: ${error.message}');
       }
     }
@@ -174,7 +176,7 @@ extension _GltfMesh on GltfLoader {
   }) {
     final positionAccessor = _asInt(attributes['POSITION'])!;
     if (reader.typeOf(positionAccessor) != GltfAccessorType.vec3) {
-      throw FormatException(
+      throw GltfFormatException(
         'POSITION is ${reader.typeOf(positionAccessor).name}, not VEC3',
       );
     }
@@ -305,7 +307,7 @@ extension _GltfMesh on GltfLoader {
 
     for (final index in indices) {
       if (index >= vertexCount) {
-        throw FormatException(
+        throw GltfFormatException(
           'index $index exceeds the $vertexCount vertices of POSITION',
         );
       }
@@ -324,7 +326,8 @@ extension _GltfMesh on GltfLoader {
     final normal = Vector3.zero();
     final texcoord = Vector2.zero();
     final tangent = Vector4(0.0, 0.0, 0.0, 1.0);
-    final color = Vector4(1.0, 1.0, 1.0, 1.0);
+    // Null without COLOR_0: the builder writes its neutral white.
+    LinearColor? color;
     final jointIndices = Vector4.zero();
     final jointWeights = Vector4(1.0, 0.0, 0.0, 0.0);
 
@@ -353,7 +356,7 @@ extension _GltfMesh on GltfLoader {
       }
       if (colors != null) {
         final c = source * colorComponents;
-        color.setValues(
+        color = LinearColor(
           colors[c],
           colors[c + 1],
           colors[c + 2],
@@ -558,7 +561,7 @@ String? _supplyDraco({
                   floats: attribute.values,
                   integers: attribute.integers,
                 ),
-                null => throw FormatException(
+                null => throw GltfFormatException(
                   'the extension maps $name to Draco attribute $id, which the '
                   'payload does not have',
                 ),
@@ -583,7 +586,8 @@ String? _supplyDraco({
       );
     }
     return null;
-  } on DracoException catch (error) {
+  } on Flutter3dFormatException catch (error) {
+    // Draco's, meshopt's and the accessor reader's own.
     return error.message;
   } on FormatException catch (error) {
     return error.message;

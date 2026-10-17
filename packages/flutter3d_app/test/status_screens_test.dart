@@ -15,6 +15,9 @@
 /// levels.
 library;
 
+import 'package:flutter/cupertino.dart'
+    show CupertinoLocalizations, DefaultCupertinoLocalizations;
+import 'package:flutter/foundation.dart' show SynchronousFuture;
 import 'package:flutter/material.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -78,7 +81,7 @@ void main() {
   });
 
   group('a renderer that did not start', () {
-    testWidgets('says so, and says where the bundle comes from', (
+    testWidgets('says so, and says what rebuilds the bundle', (
       WidgetTester tester,
     ) async {
       // The diagnostic is the engine's own build step, and a person meeting
@@ -90,7 +93,13 @@ void main() {
 
       expect(find.textContaining('did not start'), findsOneWidget);
       expect(find.textContaining('no shader bundle'), findsOneWidget);
-      expect(find.textContaining('build_shaders.sh'), findsOneWidget);
+      expect(
+        find.textContaining('build the application again'),
+        findsOneWidget,
+      );
+      // A path into the engine's repository means nothing to a person who
+      // installed the package.
+      expect(find.textContaining('packages/'), findsNothing);
     });
   });
 
@@ -102,5 +111,62 @@ void main() {
 
       expect(find.text('Loading…'), findsOneWidget);
     });
+
+    testWidgets('in the reader\'s language', (WidgetTester tester) async {
+      // Mutation: type the English word back into the screen and a game in
+      // Russian loads in English.
+      await tester.pumpWidget(
+        const MaterialApp(
+          locale: Locale('ru'),
+          supportedLocales: Flutter3dAppLocalizations.supportedLocales,
+          localizationsDelegates: <LocalizationsDelegate<Object>>[
+            Flutter3dAppLocalizations.delegate,
+            _MaterialInAnyLanguage(),
+            _CupertinoInAnyLanguage(),
+          ],
+          home: LoadingScreen(),
+        ),
+      );
+
+      expect(find.text('Загрузка…'), findsOneWidget);
+    });
   });
+}
+
+/// Material's English words under any locale, so a test can pump a Russian
+/// app without `flutter_localizations`.
+final class _MaterialInAnyLanguage
+    extends LocalizationsDelegate<MaterialLocalizations> {
+  const _MaterialInAnyLanguage();
+
+  @override
+  bool isSupported(Locale locale) => true;
+
+  @override
+  Future<MaterialLocalizations> load(Locale locale) =>
+      SynchronousFuture<MaterialLocalizations>(
+        const DefaultMaterialLocalizations(),
+      );
+
+  @override
+  bool shouldReload(_MaterialInAnyLanguage old) => false;
+}
+
+/// Cupertino's English words under any locale, for the same reason: a
+/// `MaterialApp` asks for both and warns when a locale has no Cupertino one.
+final class _CupertinoInAnyLanguage
+    extends LocalizationsDelegate<CupertinoLocalizations> {
+  const _CupertinoInAnyLanguage();
+
+  @override
+  bool isSupported(Locale locale) => true;
+
+  @override
+  Future<CupertinoLocalizations> load(Locale locale) =>
+      SynchronousFuture<CupertinoLocalizations>(
+        const DefaultCupertinoLocalizations(),
+      );
+
+  @override
+  bool shouldReload(_CupertinoInAnyLanguage old) => false;
 }

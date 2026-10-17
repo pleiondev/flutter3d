@@ -122,7 +122,10 @@ final class PlaneShape extends Shape {
     this.depthSegments = 1,
   });
 
+  /// Along X, in metres.
   final double width;
+
+  /// Along Z, in metres.
   final double depth;
   final int widthSegments;
   final int depthSegments;

@@ -8,17 +8,18 @@ import 'package:flutter3d_core/formats.dart';
 ///
 /// **Tangents are never dropped by switching modes.** [KeyTable
 /// .setInterpolation] toggles between linear and cubic display without
-/// touching a single [Key] — a key authored as cubic and viewed as linear
-/// for a moment still has its tangents when the table switches back, rather
-/// than losing the curve shape a person spent time shaping.
-final class Key {
-  const Key({
+/// touching a single [Keyframe] — a key authored as cubic and viewed as
+/// linear for a moment still has its tangents when the table switches back,
+/// rather than losing the curve shape a person spent time shaping.
+final class Keyframe {
+  const Keyframe({
     required this.time,
     required this.values,
     this.inTangent,
     this.outTangent,
   });
 
+  /// In seconds.
   final double time;
 
   /// One value per component — the point itself, never a tangent.
@@ -31,19 +32,20 @@ final class Key {
   final List<double>? inTangent;
   final List<double>? outTangent;
 
-  Key withTime(double newTime) => Key(
+  Keyframe withTime(double newTime) => Keyframe(
     time: newTime,
     values: values,
     inTangent: inTangent,
     outTangent: outTangent,
   );
 
-  Key withTangents({List<double>? inTangent, List<double>? outTangent}) => Key(
-    time: time,
-    values: values,
-    inTangent: inTangent ?? this.inTangent,
-    outTangent: outTangent ?? this.outTangent,
-  );
+  Keyframe withTangents({List<double>? inTangent, List<double>? outTangent}) =>
+      Keyframe(
+        time: time,
+        values: values,
+        inTangent: inTangent ?? this.inTangent,
+        outTangent: outTangent ?? this.outTangent,
+      );
 }
 
 /// An editable keyframe track — `anim-04`'s own row, the mutable half of
@@ -54,12 +56,12 @@ final class Key {
 /// `Float32List`, the shape a player reads sixty times a second. Editing one
 /// key of a hundred means rebuilding the whole flat array regardless, which
 /// is the wrong cost to pay on every drag of a timeline. [KeyTable] holds
-/// the same information as a list of [Key]s instead — cheap to insert into,
-/// move within, or delete from — and [toAnimationTrack] is the one place
-/// that pays the flattening cost, once, when something actually needs to
-/// sample.
+/// the same information as a list of [Keyframe]s instead — cheap to insert
+/// into, move within, or delete from — and [toAnimationTrack] is the one
+/// place that pays the flattening cost, once, when something actually needs
+/// to sample.
 ///
-/// **Keys stay sorted by [Key.time], always.** [AnimationTrack]'s own
+/// **Keys stay sorted by [Keyframe.time], always.** [AnimationTrack]'s own
 /// contract requires ascending times for its binary search to mean
 /// anything, and a table that let them fall out of order would produce a
 /// track that silently samples the wrong key. Every mutator here restores
@@ -68,22 +70,9 @@ final class KeyTable {
   KeyTable({
     required this.componentCount,
     this.interpolation = AnimationInterpolation.linear,
-    List<Key>? keys,
-  }) : _keys = List<Key>.of(keys ?? const <Key>[])
+    List<Keyframe>? keys,
+  }) : _keys = List<Keyframe>.of(keys ?? const <Keyframe>[])
          ..sort((a, b) => a.time.compareTo(b.time));
-
-  final int componentCount;
-  AnimationInterpolation interpolation;
-
-  final List<Key> _keys;
-
-  /// Read-only — see [KeyTable.values] and every mutator on this class for
-  /// the one way to change what is here.
-  List<Key> get keys => List<Key>.unmodifiable(_keys);
-
-  int get keyCount => _keys.length;
-
-  double get duration => _keys.isEmpty ? 0.0 : _keys.last.time;
 
   /// [track] read into an editable table — the same values, split back out
   /// of whichever of [AnimationTrack]'s two flat layouts [track.interpolation]
@@ -91,10 +80,10 @@ final class KeyTable {
   factory KeyTable.fromAnimationTrack(AnimationTrack track) {
     final cubic = track.interpolation == AnimationInterpolation.cubicSpline;
     final stride = track.componentCount * (cubic ? 3 : 1);
-    final keys = <Key>[
+    final keys = <Keyframe>[
       for (var i = 0; i < track.keyCount; i++)
         if (cubic)
-          Key(
+          Keyframe(
             time: track.times[i],
             inTangent: _slice(track.values, i * stride, track.componentCount),
             values: _slice(
@@ -109,7 +98,7 @@ final class KeyTable {
             ),
           )
         else
-          Key(
+          Keyframe(
             time: track.times[i],
             values: _slice(track.values, i * stride, track.componentCount),
           ),
@@ -120,6 +109,39 @@ final class KeyTable {
       keys: keys,
     );
   }
+  final int componentCount;
+
+  AnimationInterpolation interpolation;
+
+  final List<Keyframe> _keys;
+
+  /// How close two times have to be to count as the same key, rather than
+  /// bit-exact equality.
+  ///
+  /// **Found by `PoseJoint` (`anim-05`) doing exactly what this method's own
+  /// doc comment promises — calling it three times at one fixed frame — and
+  /// getting three keys back, not one.** A command's `apply` reads a table
+  /// fresh from [AnimationTrack.times] every time it runs, and that array is
+  /// a `Float32List`: a time computed as a plain `double` from `frame / fps`
+  /// survives one round trip through it rounded to float32 precision, so
+  /// the *next* call's freshly-computed `double` for the identical frame is
+  /// bit-different from the one already stored, and exact equality read
+  /// that as two authors disagreeing rather than one person calling this
+  /// twice. `1e-4` is comfortably under the smallest gap between two
+  /// *adjacent* frames at any fps this format is ever asked to hold — an
+  /// interval measured in whole milliseconds, not fractions of one — and
+  /// comfortably over what a `double` loses rounding to `float32` at any
+  /// time this format is used for.
+  static const double _kSameKeyTolerance = 1e-4;
+
+  /// Read-only — see [KeyTable.values] and every mutator on this class for
+  /// the one way to change what is here.
+  List<Keyframe> get keys => List<Keyframe>.unmodifiable(_keys);
+
+  int get keyCount => _keys.length;
+
+  /// The last key's time, in seconds.
+  double get duration => _keys.isEmpty ? 0.0 : _keys.last.time;
 
   static List<double> _slice(Float32List from, int at, int count) => <double>[
     for (var c = 0; c < count; c++) from[at + c],
@@ -204,25 +226,6 @@ final class KeyTable {
 
   void _resort() => _keys.sort((a, b) => a.time.compareTo(b.time));
 
-  /// How close two times have to be to count as the same key, rather than
-  /// bit-exact equality.
-  ///
-  /// **Found by `PoseJoint` (`anim-05`) doing exactly what this method's own
-  /// doc comment promises — calling it three times at one fixed frame — and
-  /// getting three keys back, not one.** A command's `apply` reads a table
-  /// fresh from [AnimationTrack.times] every time it runs, and that array is
-  /// a `Float32List`: a time computed as a plain `double` from `frame / fps`
-  /// survives one round trip through it rounded to float32 precision, so
-  /// the *next* call's freshly-computed `double` for the identical frame is
-  /// bit-different from the one already stored, and exact equality read
-  /// that as two authors disagreeing rather than one person calling this
-  /// twice. `1e-4` is comfortably under the smallest gap between two
-  /// *adjacent* frames at any fps this format is ever asked to hold — an
-  /// interval measured in whole milliseconds, not fractions of one — and
-  /// comfortably over what a `double` loses rounding to `float32` at any
-  /// time this format is used for.
-  static const double _kSameKeyTolerance = 1e-4;
-
   /// Writes (or replaces) the key at [time]. An existing key within
   /// [_kSameKeyTolerance] of this time is replaced outright rather than
   /// getting a second key beside it — `setKey` is what a person calling it
@@ -234,7 +237,7 @@ final class KeyTable {
     List<double>? inTangent,
     List<double>? outTangent,
   }) {
-    final key = Key(
+    final key = Keyframe(
       time: time,
       values: values,
       inTangent: inTangent,
@@ -276,18 +279,19 @@ final class KeyTable {
   }
 
   /// Switches how the table's own keys are read — linear or cubic, `anim
-  /// -04`'s own "linear↔cubic". Every [Key]'s own tangents stay exactly as
-  /// they were; only [interpolation] itself changes, which is what lets a
-  /// key already sculpted survive a person switching modes to check what a
-  /// straight line would have looked like and switching straight back.
+  /// -04`'s own "linear↔cubic". Every [Keyframe]'s own tangents stay
+  /// exactly as they were; only [interpolation] itself changes, which is
+  /// what lets a key already sculpted survive a person switching modes to
+  /// check what a straight line would have looked like and switching
+  /// straight back.
   void setInterpolation(AnimationInterpolation next) {
     interpolation = next;
   }
 
   /// Sets one key's own tangents, leaving its time and value untouched.
   /// Read only while [interpolation] is [AnimationInterpolation.cubicSpline]
-  /// — see [Key.inTangent] for what a tangent set while linear is showing
-  /// still means once the table switches back.
+  /// — see [Keyframe.inTangent] for what a tangent set while linear is
+  /// showing still means once the table switches back.
   void setTangent(
     int index, {
     List<double>? inTangent,

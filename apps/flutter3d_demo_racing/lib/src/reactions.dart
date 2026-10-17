@@ -1,22 +1,11 @@
 import 'package:flutter3d_audio/flutter3d_audio.dart';
+import 'package:flutter3d_game_kit/reactions.dart';
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'effects.dart';
 import 'sounds.dart';
-
-/// Everything one step of this race is worth showing, and worth hearing.
-final class Reaction {
-  const Reaction(this.bursts, this.heard);
-
-  final List<Shown> bursts;
-
-  /// What the step sounded like. Decided here rather than played here for the
-  /// reason [Heard] gives: whether a step made a noise is a fact about the
-  /// simulation, and asserting it should not need a device.
-  final List<Heard> heard;
-}
 
 /// What a step of this game looks like.
 ///
@@ -25,9 +14,11 @@ final class Reaction {
 /// only thing that changed on screen was a number in the corner — no smoke, no
 /// dirt, no sparks, and no particles anywhere in the application.
 ///
-/// The shape is the one the other two games settled on: deciding is a pure
-/// function of the simulation and can be tested without a device; bursting is
-/// an effect the widget performs. What that buys here is the same smoke alarm
+/// The shape is the one the other two games settled on, and the reactions
+/// addon's: deciding is a pure function of the simulation, returning a
+/// [Reaction] of bursts and the sounds that go with them ([Heard] rather than
+/// played, so whether a step made a noise can be asserted with no device);
+/// bursting is an effect the widget performs. What that buys here is the same smoke alarm
 /// it bought there — a car that drifts and shows nothing fails a test, where
 /// before it was a thing somebody had to notice.
 ///
@@ -70,7 +61,7 @@ final class Reactions {
 
     for (var i = 0; i < cars.length; i++) {
       final car = cars[i];
-      if (!car.grounded || car.speed < movingAbove) continue;
+      if (!car.isGrounded || car.speed < movingAbove) continue;
 
       final patch = _contactPatch(car);
       final racer = i < race.progress.length ? race.progress[i] : null;
@@ -109,7 +100,7 @@ final class Reactions {
       }
     }
 
-    return Reaction(bursts, heard);
+    return Reaction(bursts: bursts, heard: heard);
   }
 
   /// Where the tyres are, which is not where the car is.

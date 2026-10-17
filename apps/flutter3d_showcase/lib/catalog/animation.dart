@@ -207,4 +207,20 @@ const List<Feature> animationFeatures = <Feature>[
       'packages/flutter3d_core/lib/src/engine/animation/baked_poses.dart',
     ],
   ),
+  Feature(
+    id: 'animation-graph',
+    title: 'An animation graph',
+    category: Category.animation,
+    summary:
+        'A state machine over a model\'s own clips: typed parameters, crossfades, a blend space from walk to run, a masked layer, a look goal and root motion.',
+    since: '1.0.0-rc.1',
+    evidence: 'An animation graph decides which clip plays, in the fixed step.',
+    evidenceFile: 'packages/flutter3d_core/CHANGELOG.md',
+    keywords: <String>['AnimationGraph', 'AnimationBlendSpace'],
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/engine/animation/graph/animation_graph.dart',
+      'packages/flutter3d_core/lib/src/engine/animation/graph/animation_state_machine.dart',
+      'packages/flutter3d_core/lib/src/engine/animation/graph/animation_goals.dart',
+    ],
+  ),
 ];

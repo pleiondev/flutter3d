@@ -1,0 +1,16 @@
+{
+  "f3d": "observe.start",
+  "to": 1,
+  "mode": "tape",
+  "simulation": {
+    "engine": 1
+  },
+  "snapshot": "full",
+  "from": 0,
+  "state": {
+    "format": "f3d.save",
+    "version": 1,
+    "requires": [],
+    "generator": "flutter3d"
+  }
+}

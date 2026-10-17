@@ -30,7 +30,7 @@ import 'package:flutter3d_core/src/engine/animation/animation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
-final class _Recorder implements AnimationTarget {
+final class _Recorder with AnimationTarget {
   final Vector3 position = Vector3.zero();
   final Quaternion rotation = Quaternion.identity();
   final Vector3 scale = Vector3.all(1.0);
@@ -110,7 +110,7 @@ _Recorder _posedAt(
   double seconds = 0.5,
 }) {
   final rig = _rig(clips);
-  rig.player.play(0);
+  rig.player.play(index: 0);
   rig.player.addLayer(layer);
   rig.player.update(seconds);
   return rig.node;

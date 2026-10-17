@@ -1,0 +1,485 @@
+{
+  "about": "Measured coefficients of restitution (normal, e = -v'n/vn) for flutter3d_matter catalog solids, collected 2026-10-11. Only values read on an opened page/PDF/data file are recorded. 'points' come from three kinds of origin, named in each record: (1) tables in the paper; (2) the digitized e(v) data files that Guttler, Heisselmann, Blum & Krijt published with their survey (arXiv:1204.0001v2 source tarball, files <author>_N.txt), which I log-binned into at most 8 mean points; (3) values I read off a figure myself (stated as 'read off figure', about ±0.01-0.02). a = moving sphere/projectile, b = target, unless the geometry says binary sphere-sphere. Extra pairs outside {self, steel, concrete, wood} are kept when they came with the same source.",
+  "pairs": [
+    {
+      "a": "f3d.steel", "b": "f3d.steel", "restitution": 0.95,
+      "points": [[0.078, 0.952], [0.117, 0.949], [0.168, 0.949], [0.243, 0.951], [0.331, 0.925], [0.547, 0.792], [0.823, 0.7], [1.203, 0.656]],
+      "impactSpeed": "0.07-1.35 m/s",
+      "geometry": "12.7 mm steel ball on a pendulum striking a 5 cm thick mild-steel block",
+      "conditions": "mirror-polished surfaces; constant ~0.95 below ~0.3 m/s (yield), then falling",
+      "citation": "Lifshitz & Kolsky, 'Some experiments on anelastic rebound', J. Mech. Phys. Solids 12 (1964) 35-43, Fig. 1; digitized by Guttler et al., arXiv:1204.0001 (file lifshitz_kolsky.txt)",
+      "url": "https://arxiv.org/abs/1204.0001",
+      "note": "points are log-bin means of the digitized curve. Before polishing ('finely ground') e never exceeded 0.82; after two polishing steps 0.87 and 0.95 (survey text)"
+    },
+    {
+      "a": "f3d.steel", "b": "f3d.steel", "restitution": null,
+      "points": [[6.083, 0.69], [11.043, 0.58], [20.962, 0.47], [50.843, 0.33], [100.686, 0.229], [150.653, 0.158], [200.496, 0.118]],
+      "impactSpeed": "6-200 m/s",
+      "geometry": "1.29 mm stainless steel ball on a massive stainless steel plate",
+      "conditions": "plastic regime",
+      "citation": "Kangur & Kleis, Izv. AN SSSR MTT 5 (1988) 182-185, as presented by Kim & Dunn (2007); digitized by Guttler et al., arXiv:1204.0001 (file kangur_kleis.txt)",
+      "url": "https://arxiv.org/abs/1204.0001",
+      "note": "high-speed branch; secondhand (Kim & Dunn's replot of a Russian paper)"
+    },
+    {
+      "a": "f3d.steel", "b": "f3d.steel", "restitution": 1.00, "points": null,
+      "impactSpeed": "not stated in the chart (binary free-fall apparatus of Foerster et al. 1994: top sphere dropped from 53.9 cm, bottom released from 27.9 cm)",
+      "geometry": "binary sphere-sphere, 3.18 mm chrome steel spheres (Hoover Precision), density 7.83 g/cm3",
+      "conditions": "air, room temperature, ±0.01",
+      "citation": "Louge group (Cornell), 'Fall 1999 Impact Parameter Chart', Impact Results table, row 'Chrome Steel Hoover Precision / Same'",
+      "url": "https://grainflowresearch.mae.cornell.edu/impact/data/Impact%20Results.html",
+      "note": "e=1.00±0.01 is at the measurement ceiling; same chart: friction mu=0.12, beta0=0.54"
+    },
+    {
+      "a": "f3d.steel", "b": "f3d.steel", "restitution": 0.95, "points": null,
+      "impactSpeed": "0.17-1.2 m/s (relative normal contact velocity)",
+      "geometry": "binary sphere-sphere, 5.00 mm stainless steel spheres (grade not stated)",
+      "conditions": "air, room temperature, ±0.03",
+      "citation": "Lorenz, Tuozzolo & Louge, 'Measurements of impact properties of small, nearly spherical particles', Experimental Mechanics 37 (1997) 292-298, Table 1",
+      "url": "https://grainflowresearch.mae.cornell.edu/impact/papers/Measurements%20of%20Impact%206-29-05.pdf",
+      "note": "stainless steel of unstated grade; could also serve f3d.stainlessSteel304/316. mu=0.099±0.008"
+    },
+    {
+      "a": "f3d.steel", "b": "f3d.steel", "restitution": 0.84, "points": null,
+      "impactSpeed": "not stated in the chart",
+      "geometry": "3.18 mm chrome steel sphere on a flat 440C polished steel plate",
+      "conditions": "air, room temperature, ±0.02",
+      "citation": "Louge group (Cornell), 'Fall 1999 Impact Parameter Chart', Flat Plate section, row 'Chrome Steel Hoover Precision / 440C Polished Steel'",
+      "url": "https://grainflowresearch.mae.cornell.edu/impact/data/Impact%20Results.html",
+      "note": "sphere-on-plate value lower than sphere-sphere (plate thickness/support not given)"
+    },
+    {
+      "a": "f3d.steel", "b": "f3d.steel", "restitution": null,
+      "points": [[0.035, 0.571], [0.051, 0.677], [0.073, 0.832], [0.102, 0.85], [0.139, 0.854], [0.199, 0.889], [0.289, 0.898], [0.418, 0.907]],
+      "impactSpeed": "0.03-0.49 m/s",
+      "geometry": "binary sphere-sphere, 3 mm steel spheres on a double-fiber pendulum",
+      "conditions": "low-speed adhesive branch: e falls below ~0.25 m/s",
+      "citation": "Sorace, Louge, Crozier & Law, 'High apparent adhesion energy in the breakdown of normal restitution for binary impacts of small spheres at low speed', Mech. Res. Commun. 36 (2009) 364-368, Fig. 3; digitized by Guttler et al., arXiv:1204.0001 (file sorace_et_al_2.txt)",
+      "url": "https://arxiv.org/abs/1204.0001",
+      "note": "log-bin means; large scatter in the raw data"
+    },
+    {
+      "a": "f3d.glass", "b": "f3d.glass", "restitution": 0.97, "points": [[0.64, 0.97], [1.2, 0.97]],
+      "impactSpeed": "0.64-1.2 m/s (range given by Foerster et al.; constant e is a model assumption over that range)",
+      "geometry": "binary sphere-sphere, 3 mm soda-lime glass spheres (3.18 mm in the Cornell chart), density 2.5 g/cm3",
+      "conditions": "grade 200 polished spheres, ±0.01",
+      "citation": "Foerster, Louge, Chang & Allia, 'Measurements of the collision properties of small spheres', Phys. Fluids 6 (1994) 1108-1115, Table 1 (as digitized by Guttler et al., file foerster_et_al_1.txt); same value in the Cornell 'Fall 1999 Impact Parameter Chart'",
+      "url": "https://doi.org/10.1063/1.868282",
+      "note": "I did not open the Phys. Fluids paper itself; value and range come from the survey data file and the Cornell chart, which agree"
+    },
+    {
+      "a": "f3d.glass", "b": "f3d.glass", "restitution": 0.922, "points": null,
+      "impactSpeed": "0.43-1.14 m/s (relative normal contact velocity)",
+      "geometry": "binary bead-bead, 2.97±0.02 mm slightly aspherical lead-free glass beads (Jaygo)",
+      "conditions": "fresh beads ±0.021; spent beads (20 h in a chute) gave 0.972±0.015 at 0.24-1.11 m/s",
+      "citation": "Lorenz, Tuozzolo & Louge, Experimental Mechanics 37 (1997) 292-298, Table 1",
+      "url": "https://grainflowresearch.mae.cornell.edu/impact/papers/Measurements%20of%20Impact%206-29-05.pdf",
+      "note": "bead on a similar bead glued to a plate: 0.865±0.011 (0.73-1.67 m/s)"
+    },
+    {
+      "a": "f3d.glass", "b": "f3d.glass", "restitution": null,
+      "points": [[0.009, 0.81], [0.019, 0.977], [0.029, 0.879], [0.076, 0.948], [0.098, 0.967], [0.954, 1.009]],
+      "impactSpeed": "0.007-0.98 m/s",
+      "geometry": "binary sphere-sphere, 10 mm smooth soda-lime glass spheres, free fall in a 1.5 m vacuum tube",
+      "conditions": "smooth spheres (±0.1 µm); etched spheres (±5 µm) gave [[0.028,0.915],[0.075,0.945],[0.955,0.987]]",
+      "citation": "Beger, Diploma thesis, TU Braunschweig (2012), Fig. 4.2; digitized by Guttler et al., arXiv:1204.0001 (files beger_1.txt, beger_2.txt)",
+      "url": "https://arxiv.org/abs/1204.0001",
+      "note": "values ~1.01 at 1 m/s are a systematic error per the survey; use as 'near-elastic' evidence only"
+    },
+    {
+      "a": "f3d.glass", "b": "f3d.aluminum", "restitution": 0.831, "points": [[1.0, 0.831], [1.7, 0.831]],
+      "impactSpeed": "1.0-1.7 m/s (Foerster); 0.80-1.92 m/s (Lorenz)",
+      "geometry": "3 mm soda-lime glass sphere on a 64 mm thick aluminum plate, machine finish",
+      "conditions": "Lorenz et al. 1997 Table 1: 2.97 mm fresh glass bead on smooth aluminum 0.816±0.013; spent bead on spent aluminum 0.800±0.010",
+      "citation": "Foerster et al., Phys. Fluids 6 (1994) 1108, Table 1 (file foerster_et_al_2.txt in arXiv:1204.0001); Lorenz, Tuozzolo & Louge, Exp. Mech. 37 (1997), Table 1",
+      "url": "https://doi.org/10.1063/1.868282",
+      "note": "extra pair (glass on aluminum)"
+    },
+    {
+      "a": "f3d.pmma", "b": "f3d.pmma", "restitution": 0.934, "points": null,
+      "impactSpeed": "0.35-1.25 m/s",
+      "geometry": "binary sphere-sphere, 4.00 mm acrylic spheres, density 1.22 g/cm3",
+      "conditions": "±0.009",
+      "citation": "Lorenz, Tuozzolo & Louge, Experimental Mechanics 37 (1997) 292-298, Table 1",
+      "url": "https://grainflowresearch.mae.cornell.edu/impact/papers/Measurements%20of%20Impact%206-29-05.pdf",
+      "note": "Cornell chart also: 3.97 mm acrylic on aluminum 0.94±0.03, acrylic on glass 0.83±0.05"
+    },
+    {
+      "a": "f3d.pmma", "b": "f3d.pmma", "restitution": null,
+      "points": [[0.109, 0.747], [0.156, 0.821], [0.202, 0.825], [0.257, 0.87], [0.332, 0.855], [0.441, 0.896], [0.567, 0.945], [0.75, 0.955]],
+      "impactSpeed": "0.1-0.86 m/s",
+      "geometry": "binary sphere-sphere, 4 mm acrylic spheres on a pendulum",
+      "conditions": "low-speed branch, e drops at low speed",
+      "citation": "Sorace et al., Mech. Res. Commun. 36 (2009) 364-368, Fig. 3; digitized by Guttler et al., arXiv:1204.0001 (file sorace_et_al_3.txt)",
+      "url": "https://arxiv.org/abs/1204.0001",
+      "note": "log-bin means"
+    },
+    {
+      "a": "f3d.steel", "b": "f3d.pmma", "restitution": 0.90,
+      "points": [[1.803, 0.913], [1.996, 0.908], [2.176, 0.904], [2.446, 0.904], [2.734, 0.898], [2.993, 0.892], [3.271, 0.88], [3.635, 0.875]],
+      "impactSpeed": "1.7-3.8 m/s",
+      "geometry": "4.76 mm steel ball bearing on a 1.27 cm thick lucite (PMMA) plate clamped on two sides, impact beyond 2.75 diameters from the support",
+      "conditions": "drop test, rebound height; 9.52 mm ball on the same plate: [[1.797,0.764],[1.998,0.758],[2.178,0.754],[2.442,0.75],[2.742,0.744],[2.991,0.735],[3.273,0.714],[3.641,0.714]]",
+      "citation": "Sondergaard, Chaney & Brennen, 'Measurements of solid spheres bouncing off flat plates', J. Appl. Mech. 57 (1990) 694-699, Fig. 5; digitized by Guttler et al., arXiv:1204.0001 (sondergaard_et_al_1/2.txt). I checked the figure in the Caltech PDF: matches",
+      "url": "https://doi.org/10.1115/1.2897590",
+      "note": "e depends strongly on sphere diameter / plate thickness (Fig. 3: drops from ~0.9 at a/b->0 to ~0.2 at 2a/2b=1.7), so this is a thin-plate value, not a thick-block one. Open PDF: https://authors.library.caltech.edu/records/prznw-f4w71"
+    },
+    {
+      "a": "f3d.steel", "b": "f3d.polycarbonate", "restitution": 0.95, "points": null,
+      "impactSpeed": "not stated in the chart",
+      "geometry": "3.18 mm chrome steel sphere on a flat Lexan (polycarbonate) plate",
+      "conditions": "±0.02",
+      "citation": "Louge group (Cornell), 'Fall 1999 Impact Parameter Chart', Flat Plate section, row 'Chrome Steel Hoover Precision / Lexan'",
+      "url": "https://grainflowresearch.mae.cornell.edu/impact/data/Impact%20Results.html",
+      "note": "plate thickness not stated; 3.00 mm titanium sphere on Lexan 0.930"
+    },
+    {
+      "a": "f3d.polystyrene", "b": "f3d.polystyrene", "restitution": 0.952, "points": null,
+      "impactSpeed": "0.34-1.23 m/s",
+      "geometry": "binary sphere-sphere, 4.00 mm polystyrene spheres, density 1.06 g/cm3",
+      "conditions": "±0.009; Cornell chart has a second 3.95 mm set at 0.95±0.02",
+      "citation": "Lorenz, Tuozzolo & Louge, Experimental Mechanics 37 (1997) 292-298, Table 1",
+      "url": "https://grainflowresearch.mae.cornell.edu/impact/papers/Measurements%20of%20Impact%206-29-05.pdf",
+      "note": ""
+    },
+    {
+      "a": "f3d.pom", "b": "f3d.pom", "restitution": 0.95, "points": null,
+      "impactSpeed": "not stated in the chart",
+      "geometry": "binary sphere-sphere, Delrin (acetal) spheres 2.38-6.35 mm, density 1.44 g/cm3",
+      "conditions": "rows: AIN Plastics 6.35 mm 0.95±0.01, 3.97 mm 0.97±0.01; Small Parts 6.35 mm 0.97±0.01, 4.76 mm 0.97±0.01, 3.18 mm 0.97±0.02, 2.38 mm 0.94±0.02; Delrin 3.96 mm 0.95±0.01",
+      "citation": "Louge group (Cornell), 'Fall 1999 Impact Parameter Chart', Binary section, Delrin rows",
+      "url": "https://grainflowresearch.mae.cornell.edu/impact/data/Impact%20Results.html",
+      "note": "range 0.94-0.97 across suppliers and sizes"
+    },
+    {
+      "a": "f3d.pom", "b": "f3d.steel", "restitution": 0.95,
+      "points": [[0.05, 0.89], [0.1, 0.92], [0.3, 0.945], [0.6, 0.95], [1.0, 0.955], [1.4, 0.945]],
+      "impactSpeed": "0.05-1.4 m/s",
+      "geometry": "9.4 mm (R = 0.47 cm) Delrin sphere dropped without spin onto a surface-ground steel disc 2.5 cm thick, 22 cm diameter, on 1.25 cm sorbothane",
+      "conditions": "e from time between successive bounces; air (results unchanged in dry N2)",
+      "citation": "King, White, Maxwell & Menon, 'Inelastic impact of a sphere on a massive plane: nonmonotonic velocity-dependence of the restitution coefficient', EPL 93 (2011) 14002 (arXiv:cond-mat/0209490), Fig. 3B (open circles)",
+      "url": "https://arxiv.org/abs/cond-mat/0209490",
+      "note": "points read off figure, ±0.01"
+    },
+    {
+      "a": "f3d.pom", "b": "f3d.granite", "restitution": 0.95,
+      "points": [[0.03, 0.93], [0.1, 0.94], [0.2, 0.95], [0.5, 0.955], [1.0, 0.953], [1.3, 0.95]],
+      "impactSpeed": "0.03-1.3 m/s",
+      "geometry": "9.4 mm Delrin sphere on a granite optical table 120x80x30 cm",
+      "conditions": "as above",
+      "citation": "King et al., EPL 93 (2011) 14002 (arXiv:cond-mat/0209490), Fig. 3B (diamonds)",
+      "url": "https://arxiv.org/abs/cond-mat/0209490",
+      "note": "points read off figure, ±0.01; extra pair"
+    },
+    {
+      "a": "f3d.brass", "b": "f3d.steel", "restitution": 0.84,
+      "points": [[0.01, 0.81], [0.1, 0.85], [0.2, 0.86], [0.3, 0.85], [0.5, 0.82], [0.7, 0.78], [1.0, 0.73], [1.4, 0.70]],
+      "impactSpeed": "0.003-1.5 m/s",
+      "geometry": "9.4 mm brass sphere on a surface-ground steel disc 2.5 cm thick (see pom|steel)",
+      "conditions": "e is non-monotonic: ~1 at a few mm/s, minimum ~0.8 near 0.01-0.03 m/s, peak near 0.2 m/s, then falls (plate-vibration effect per the authors)",
+      "citation": "King et al., EPL 93 (2011) 14002 (arXiv:cond-mat/0209490), Fig. 4A (squares) and Fig. 3A",
+      "url": "https://arxiv.org/abs/cond-mat/0209490",
+      "note": "points read off figure, ±0.02"
+    },
+    {
+      "a": "f3d.aluminum", "b": "f3d.steel", "restitution": 0.84,
+      "points": [[0.01, 0.80], [0.1, 0.84], [0.3, 0.86], [0.6, 0.80], [1.0, 0.74]],
+      "impactSpeed": "0.003-1.0 m/s",
+      "geometry": "9.4 mm aluminium sphere on a surface-ground steel disc 2.5 cm thick",
+      "conditions": "as brass|steel",
+      "citation": "King et al., EPL 93 (2011) 14002 (arXiv:cond-mat/0209490), Fig. 3A (filled triangles)",
+      "url": "https://arxiv.org/abs/cond-mat/0209490",
+      "note": "points read off figure, ±0.02"
+    },
+    {
+      "a": "f3d.copper", "b": "f3d.steel", "restitution": 0.77,
+      "points": [[0.03, 0.75], [0.1, 0.79], [0.3, 0.74], [0.6, 0.67]],
+      "impactSpeed": "0.003-0.65 m/s",
+      "geometry": "9.4 mm copper sphere on a surface-ground steel disc 2.5 cm thick",
+      "conditions": "as brass|steel",
+      "citation": "King et al., EPL 93 (2011) 14002 (arXiv:cond-mat/0209490), Fig. 3A (open circles)",
+      "url": "https://arxiv.org/abs/cond-mat/0209490",
+      "note": "points read off figure, ±0.02"
+    },
+    {
+      "a": "f3d.brass", "b": "f3d.granite", "restitution": 0.94,
+      "points": [[0.01, 0.94], [0.1, 0.945], [0.3, 0.94], [1.0, 0.93], [1.4, 0.92]],
+      "impactSpeed": "0.01-1.4 m/s",
+      "geometry": "9.4 mm brass sphere on a granite optical table 120x80x30 cm",
+      "conditions": "massive target, flat e(v)",
+      "citation": "King et al., EPL 93 (2011) 14002 (arXiv:cond-mat/0209490), Fig. 3C (squares)",
+      "url": "https://arxiv.org/abs/cond-mat/0209490",
+      "note": "points read off figure, ±0.01; extra pair"
+    },
+    {
+      "a": "f3d.brass", "b": "f3d.brass", "restitution": 0.77, "points": null,
+      "impactSpeed": "not stated in the chart",
+      "geometry": "binary sphere-sphere, 3.18 mm brass spheres",
+      "conditions": "±0.01",
+      "citation": "Louge group (Cornell), 'Fall 1999 Impact Parameter Chart', row 'Brass / Same'",
+      "url": "https://grainflowresearch.mae.cornell.edu/impact/data/Impact%20Results.html",
+      "note": ""
+    },
+    {
+      "a": "f3d.brass", "b": "f3d.brass", "restitution": null,
+      "points": [[0.31, 0.583], [0.6, 0.515], [0.968, 0.477], [1.35, 0.45]],
+      "impactSpeed": "0.3-1.35 m/s",
+      "geometry": "binary, 55 mm brass spheres on 3.8 m bifilar pendulums",
+      "conditions": "55 mm brass sphere on a brass plate (50 mm dia, 45 mm long cylinder): [[0.304,0.67],[0.632,0.607],[0.968,0.551],[1.223,0.571]]",
+      "citation": "Weir & Tallon, 'The coefficient of restitution for normal incident, low velocity particle impacts', Chem. Eng. Sci. 60 (2005) 3637-3647, Fig. 7; digitized by Guttler et al., arXiv:1204.0001 (weir_tallon_3/4.txt)",
+      "url": "https://arxiv.org/abs/1204.0001",
+      "note": "large spheres give much lower e than the 3 mm chart value"
+    },
+    {
+      "a": "f3d.aluminum", "b": "f3d.aluminum", "restitution": null,
+      "points": [[0.319, 0.592], [0.676, 0.481], [0.961, 0.439], [1.288, 0.421]],
+      "impactSpeed": "0.3-1.3 m/s",
+      "geometry": "binary, 55 mm aluminum spheres on 3.8 m bifilar pendulums",
+      "conditions": "55 mm aluminum sphere on aluminum plate (cylinder): [[0.306,0.692],[0.658,0.619],[0.959,0.575],[1.27,0.564]]",
+      "citation": "Weir & Tallon, Chem. Eng. Sci. 60 (2005) 3637-3647, Fig. 7; digitized by Guttler et al., arXiv:1204.0001 (weir_tallon_1/2.txt)",
+      "url": "https://arxiv.org/abs/1204.0001",
+      "note": "alloy not stated"
+    },
+    {
+      "a": "f3d.alumina", "b": "f3d.alumina", "restitution": null,
+      "points": [[0.056, 0.587], [0.075, 0.74], [0.104, 0.817], [0.142, 0.824], [0.183, 0.934], [0.229, 0.952], [0.304, 0.961], [0.388, 0.968]],
+      "impactSpeed": "0.05-0.45 m/s",
+      "geometry": "binary sphere-sphere, 3 mm alumina spheres on a pendulum",
+      "conditions": "low speed; ~0.96 above 0.25 m/s",
+      "citation": "Sorace et al., Mech. Res. Commun. 36 (2009) 364-368, Fig. 3; digitized by Guttler et al., arXiv:1204.0001 (sorace_et_al_1.txt)",
+      "url": "https://arxiv.org/abs/1204.0001",
+      "note": "log-bin means. Cornell chart: 3.18 mm 'Ceramic Hoover Precision' (density 3.92, likely alumina) binary 0.98±0.01, on 440C steel plate 0.80±0.01, on Lexan 0.97±0.02"
+    },
+    {
+      "a": "f3d.alumina", "b": "f3d.aluminum", "restitution": null,
+      "points": [[0.537, 0.817], [0.835, 0.773], [0.993, 0.761], [1.395, 0.729], [2.074, 0.69], [3.033, 0.647], [3.77, 0.624], [5.437, 0.588]],
+      "impactSpeed": "0.45-6.3 m/s",
+      "geometry": "5 mm alumina sphere dropped on an aluminum alloy anvil",
+      "conditions": "normal impacts; oblique impacts (normal component) indistinguishable",
+      "citation": "Gorham & Kharaz, 'The measurement of particle rebound characteristics', Powder Technology 112 (2000) 193-202, Fig. 12; digitized by Guttler et al., arXiv:1204.0001 (gorham_kharz_1.txt)",
+      "url": "https://arxiv.org/abs/1204.0001",
+      "note": "extra pair"
+    },
+    {
+      "a": "f3d.ptfe", "b": "f3d.ptfe", "restitution": 0.8, "points": null,
+      "impactSpeed": "not stated in the chart",
+      "geometry": "binary sphere-sphere, 3.91 mm Teflon spheres, density 2.32 g/cm3",
+      "conditions": "±0.02",
+      "citation": "Louge group (Cornell), 'Fall 1999 Impact Parameter Chart', row 'Teflon / Same'",
+      "url": "https://grainflowresearch.mae.cornell.edu/impact/data/Impact%20Results.html",
+      "note": ""
+    },
+    {
+      "a": "f3d.polypropylene", "b": "f3d.polypropylene", "restitution": 0.87, "points": null,
+      "impactSpeed": "not stated in the chart",
+      "geometry": "binary sphere-sphere, 4.00 mm polypropylene spheres, density 0.947 g/cm3",
+      "conditions": "±0.06",
+      "citation": "Louge group (Cornell), 'Fall 1999 Impact Parameter Chart', row 'Polypropylene / Same'",
+      "url": "https://grainflowresearch.mae.cornell.edu/impact/data/Impact%20Results.html",
+      "note": ""
+    },
+    {
+      "a": "f3d.polyethylene", "b": "f3d.polyethylene", "restitution": 0.71, "points": null,
+      "impactSpeed": "not stated in the chart",
+      "geometry": "binary sphere-sphere, 3.96 mm LDPE spheres, density 1.03 g/cm3",
+      "conditions": "±0.22 (large scatter)",
+      "citation": "Louge group (Cornell), 'Fall 1999 Impact Parameter Chart', row 'LDPE / Same'",
+      "url": "https://grainflowresearch.mae.cornell.edu/impact/data/Impact%20Results.html",
+      "note": "LDPE; catalog polyethylene grade may differ"
+    },
+    {
+      "a": "f3d.nylon66", "b": "f3d.nylon66", "restitution": 0.83, "points": null,
+      "impactSpeed": "not stated in the chart",
+      "geometry": "binary sphere-sphere, 3.93 mm nylon spheres, density 1.17 g/cm3",
+      "conditions": "±0.02",
+      "citation": "Louge group (Cornell), 'Fall 1999 Impact Parameter Chart', row 'Nylon / Same'",
+      "url": "https://grainflowresearch.mae.cornell.edu/impact/data/Impact%20Results.html",
+      "note": "nylon type not stated (6 or 6/6)"
+    },
+    {
+      "a": "f3d.nylon66", "b": "f3d.nylon66", "restitution": null,
+      "points": [[1.612, 0.966], [3.162, 0.975], [6.032, 0.933], [7.67, 0.936], [11.102, 0.93], [14.532, 0.926], [21.054, 0.895]],
+      "impactSpeed": "0.7-60 m/s",
+      "geometry": "binary sphere-sphere, 12.7 mm nylon spheres, pneumatic launch, high-speed video",
+      "conditions": "6.35 mm: [[7.471,0.908],[11.365,0.902],[13.468,0.894],[18.619,0.867],[21.567,0.86],[28.287,0.839],[42.955,0.78],[53.684,0.716]]; 25.4 mm: [[0.774,1.002],[1.55,0.969],[2.171,0.964],[3.339,0.976],[5.669,0.936],[8.763,0.957]]",
+      "citation": "Labous, Rosato & Dave, 'Measurements of collisional properties of spheres using high-speed video analysis', Phys. Rev. E 56 (1997) 5717-5725, Fig. 7; digitized by Guttler et al., arXiv:1204.0001 (labous_et_al_1..3.txt)",
+      "url": "https://arxiv.org/abs/1204.0001",
+      "note": "nylon type not stated; log-bin means"
+    },
+    {
+      "a": "f3d.titanium", "b": "f3d.titanium", "restitution": 0.92, "points": null,
+      "impactSpeed": "not stated in the chart",
+      "geometry": "binary sphere-sphere, 3.00 mm titanium spheres",
+      "conditions": "±0.01",
+      "citation": "Louge group (Cornell), 'Fall 1999 Impact Parameter Chart', row 'Titanium / Same'",
+      "url": "https://grainflowresearch.mae.cornell.edu/impact/data/Impact%20Results.html",
+      "note": "alloy/grade not stated (CP Ti or Ti-6Al-4V)"
+    },
+    {
+      "a": "f3d.granite", "b": "f3d.granite", "restitution": 0.83,
+      "points": [[0.113, 0.866], [0.167, 0.834], [0.239, 0.831], [0.347, 0.8], [0.448, 0.76], [0.631, 0.85], [0.888, 0.829], [1.269, 0.867]],
+      "impactSpeed": "0.1-1.5 m/s",
+      "geometry": "binary, two 1 m diameter granite spheres (1.3 t) on 15 m crane-suspended cables",
+      "conditions": "milled, 'smooth but not polished'; authors give constant 0.8±0.06 (survey text)",
+      "citation": "Durda et al., 'Experimental determination of the coefficient of restitution for meter-scale granite spheres', Icarus 211 (2011) 849-855, Fig. 4; digitized by Guttler et al., arXiv:1204.0001 (durda_et_al.txt)",
+      "url": "https://arxiv.org/abs/1204.0001",
+      "note": "log-bin means of 65 points; no velocity trend"
+    },
+    {
+      "a": "f3d.steel", "b": "f3d.sandstone", "restitution": 0.75,
+      "points": [[0.14, 0.745], [0.7, 0.756], [0.99, 0.749], [1.401, 0.71], [1.716, 0.681], [1.981, 0.665]],
+      "impactSpeed": "0.14-2 m/s",
+      "geometry": "3 mm ball-bearing steel sphere dropped on a polished natural sandstone block",
+      "conditions": "e from flight time between bounces (accelerometer on target)",
+      "citation": "Imre, Rabsamen & Springman, 'A coefficient of restitution of rock materials', Computers & Geosciences 34 (2008) 339-350; digitized by Guttler et al., arXiv:1204.0001 (imre_et_al.txt)",
+      "url": "https://arxiv.org/abs/1204.0001",
+      "note": "the paper also tested other targets at one velocity (not in the data file)"
+    },
+    {
+      "a": "f3d.ice", "b": "f3d.ice", "restitution": 0.88,
+      "points": [[0.013, 0.881], [0.032, 0.88], [0.071, 0.893], [0.159, 0.908], [0.372, 0.914], [0.79, 0.722], [1.795, 0.36], [3.914, 0.065]],
+      "impactSpeed": "0.01-5.5 m/s",
+      "geometry": "polycrystalline ice sphere, radius 1.5 cm (as Deckers & Teiser 2016 describe Higa 1996), dropped on a polished decimetre ice block",
+      "conditions": "261 K, smooth frost-free; cracking/fragmentation at higher speeds. 269 K: [[0.01,0.897],[0.025,0.88],[0.064,0.882],[0.162,0.877],[0.367,0.786],[0.872,0.54],[1.935,0.258],[5.362,0.046]]; 245 K: [[0.02,0.866],[0.045,0.836],[0.089,0.844],[0.204,0.84],[0.453,0.887],[0.936,0.842],[1.952,0.488],[3.981,0.158]]",
+      "citation": "Higa, Arakawa & Maeno, 'Measurements of restitution coefficients of ice at low temperatures', Planet. Space Sci. 44 (1996) 917-925, Fig. 5a-c; digitized by Guttler et al., arXiv:1204.0001 (higa_et_al_1..3.txt)",
+      "url": "https://arxiv.org/abs/1204.0001",
+      "note": "e ~0.9 below a critical speed, then falls as e = eqe (v/vc)^-log(v/vc) (survey's statement of Higa's law); log-bin means"
+    },
+    {
+      "a": "f3d.ice", "b": "f3d.ice", "restitution": null,
+      "points": [[1.0, 0.35], [2.0, 0.228], [4.0, 0.148], [6.5, 0.11]],
+      "impactSpeed": "0.9-6.5 m/s (free fall)",
+      "geometry": "2.5 cm solid ice sphere dropped on a 12 cm ice cylinder",
+      "conditions": "255.8±0.7 K, smooth frost-free; 2 cm sphere: fit e = 0.85 (v/1 m/s)^-1.4; fragmentation thresholds 2.92 m/s (2 cm) and 1.91 m/s (2.5 cm)",
+      "citation": "Deckers & Teiser, 'Collisions of solid ice in planetesimal formation', MNRAS (2016), arXiv:1601.04609, Sect. 3.5, Fig. 9 and Eq. 4 (e1 = 0.35, b3 = -0.62 for d = 2.5 cm)",
+      "url": "https://arxiv.org/abs/1601.04609",
+      "note": "points computed from the paper's published power-law fit, not raw data; measured values scatter 0.1-0.45 in Fig. 9. Hatzes et al. 1988 digitized files in the same survey tarball were skipped because their velocity units look inconsistent with the survey's table (1e-5..1e-2 m/s)"
+    },
+    {
+      "a": "f3d.steel", "b": "f3d.stainlessSteel304", "restitution": 0.66,
+      "points": [[1.74, 0.69], [1.93, 0.66], [2.17, 0.65], [2.43, 0.63]],
+      "impactSpeed": "1.74-2.43 m/s (drop heights 155-300 mm)",
+      "geometry": "2 mm chrome steel ball on a 9x9 cm, 6 cm thick stainless steel block (grade not stated; E 200 GPa)",
+      "conditions": "high-speed cameras; average values; visible plastic marks on the block",
+      "citation": "Sandeep, Senetakis, Cheung, Choi, Wang, Coop & Ng, 'Experimental study on the coefficient of restitution of grain against block interfaces for natural and engineered materials', Can. Geotech. J. (2019), Table 2 (accepted manuscript, UCL Discovery)",
+      "url": "https://discovery.ucl.ac.uk/10082944/1/Sandeep_et_al_TRS_Manuscript_Revised_COPY.pdf",
+      "note": "stainless grade not stated, mapped to 304 as nearest catalog id; also usable as steel|steel. doi:10.1139/cgj-2018-0712"
+    },
+    {
+      "a": "f3d.glass", "b": "f3d.stainlessSteel304", "restitution": 0.84,
+      "points": [[1.74, 0.86], [1.93, 0.86], [2.17, 0.83], [2.43, 0.81]],
+      "impactSpeed": "1.74-2.43 m/s",
+      "geometry": "2 mm glass ball on a 9x9x6 cm stainless steel block",
+      "conditions": "as above",
+      "citation": "Sandeep et al., Can. Geotech. J. (2019), Table 2",
+      "url": "https://discovery.ucl.ac.uk/10082944/1/Sandeep_et_al_TRS_Manuscript_Revised_COPY.pdf",
+      "note": "glass-vs-steel pair (stainless, grade not stated)"
+    },
+    {
+      "a": "f3d.steel", "b": "f3d.brass", "restitution": 0.53,
+      "points": [[1.74, 0.54], [1.93, 0.53], [2.17, 0.52], [2.43, 0.51]],
+      "impactSpeed": "1.74-2.43 m/s",
+      "geometry": "2 mm chrome steel ball on a 9x9x6 cm brass block",
+      "conditions": "as above; glass ball on the same brass block: [[1.74,0.74],[1.93,0.74],[2.17,0.72],[2.43,0.70]]",
+      "citation": "Sandeep et al., Can. Geotech. J. (2019), Table 2",
+      "url": "https://discovery.ucl.ac.uk/10082944/1/Sandeep_et_al_TRS_Manuscript_Revised_COPY.pdf",
+      "note": "brass-vs-steel pair with the steel as the projectile"
+    },
+    {
+      "a": "f3d.steel", "b": "f3d.granite", "restitution": 0.90,
+      "points": [[1.74, 0.89], [1.93, 0.92], [2.17, 0.90], [2.43, 0.89]],
+      "impactSpeed": "1.74-2.43 m/s",
+      "geometry": "2 mm chrome steel ball on a 9x9x6 cm fresh granite block",
+      "conditions": "glass ball on the same granite: [[1.74,0.93],[1.93,0.95],[2.17,0.95],[2.43,0.92]]",
+      "citation": "Sandeep et al., Can. Geotech. J. (2019), Table 2",
+      "url": "https://discovery.ucl.ac.uk/10082944/1/Sandeep_et_al_TRS_Manuscript_Revised_COPY.pdf",
+      "note": "granite-vs-steel pair (steel as projectile)"
+    },
+    {
+      "a": "f3d.steel", "b": "f3d.rubber", "restitution": 0.42,
+      "points": [[1.74, 0.43], [1.93, 0.42], [2.17, 0.42], [2.43, 0.42]],
+      "impactSpeed": "1.74-2.43 m/s",
+      "geometry": "2 mm chrome steel ball on a 9x9x6 cm rubber block (density 1.5 t/m3, E ~0.1 GPa, nu 0.5; rubber compound not stated)",
+      "conditions": "glass ball on the same rubber: [[1.74,0.38],[1.93,0.37],[2.17,0.37],[2.43,0.37]]",
+      "citation": "Sandeep et al., Can. Geotech. J. (2019), Tables 1-2",
+      "url": "https://discovery.ucl.ac.uk/10082944/1/Sandeep_et_al_TRS_Manuscript_Revised_COPY.pdf",
+      "note": "rubber-vs-steel with the rubber as a thick block target; a rubber ball on steel would behave differently"
+    },
+    {
+      "a": "f3d.quartz", "b": "f3d.stainlessSteel304", "restitution": 0.68,
+      "points": [[1.74, 0.67], [1.93, 0.68], [2.17, 0.68], [2.43, 0.70]],
+      "impactSpeed": "1.74-2.43 m/s",
+      "geometry": "2 mm handpicked rounded Leighton Buzzard quartz sand grain on a 9x9x6 cm stainless steel block",
+      "conditions": "±0.03-0.08 per point; on granite [[1.74,0.75],[1.93,0.80],[2.17,0.80],[2.43,0.82]], on brass 0.54-0.58, on rubber 0.40-0.44",
+      "citation": "Sandeep et al., Can. Geotech. J. (2019), Table 3",
+      "url": "https://discovery.ucl.ac.uk/10082944/1/Sandeep_et_al_TRS_Manuscript_Revised_COPY.pdf",
+      "note": "natural quartz grain, not a machined sphere; also relevant to f3d.sand"
+    },
+    {
+      "a": "f3d.marble", "b": "f3d.marble", "restitution": null, "points": null,
+      "impactSpeed": "free fall from 80 cm",
+      "geometry": "near-cubic marble blocks (Penteli marble, two textures) dropped on a 5 cm thick plate of the same marble embedded in plaster on a massive base",
+      "conditions": "normal COR read off Fig. 3a: Marble I (SH 38.2) roughly 0.42-0.62; Marble II (SH 50.8) roughly 0.47-0.85; only the 25 % most vertical rebounds kept",
+      "citation": "Asteriou, Saroglou & Tsiambaos, 'Correlation between Schmidt hardness and coefficient of restitution of rocks', Bull. Geol. Soc. Greece 47(3) (2013) 1684-1693, Fig. 3a",
+      "url": "https://doi.org/10.12681/bgsg.11033",
+      "note": "cubic blocks, not spheres: rotation and corner impacts lower e; ranges read off figure, no single value given"
+    },
+    {
+      "a": "f3d.limestone", "b": "f3d.limestone", "restitution": null, "points": null,
+      "impactSpeed": "free fall from 80 cm",
+      "geometry": "near-cubic sparitic limestone blocks (Tourkovounia, Athens) on a 5 cm plate of the same limestone",
+      "conditions": "normal COR read off Fig. 3a: roughly 0.37-0.55 (SH 36.1); crystalline limestone (SH 36.7) similar",
+      "citation": "Asteriou, Saroglou & Tsiambaos, Bull. Geol. Soc. Greece 47(3) (2013) 1684-1693, Fig. 3a",
+      "url": "https://doi.org/10.12681/bgsg.11033",
+      "note": "cubic blocks; ranges read off figure"
+    },
+    {
+      "a": "f3d.sandstone", "b": "f3d.sandstone", "restitution": null, "points": null,
+      "impactSpeed": "free fall from 80 cm",
+      "geometry": "near-cubic quartzitic sandstone blocks (Kalydona tunnel) on a 5 cm plate of the same sandstone",
+      "conditions": "normal COR read off Fig. 3a: roughly 0.60-0.76 (SH 44.7)",
+      "citation": "Asteriou, Saroglou & Tsiambaos, Bull. Geol. Soc. Greece 47(3) (2013) 1684-1693, Fig. 3a",
+      "url": "https://doi.org/10.12681/bgsg.11033",
+      "note": "cubic blocks; ranges read off figure. The same study tested a high-strength cement grout (roughly 0.35-0.62), which is not concrete"
+    },
+    {
+      "a": "f3d.steel", "b": "f3d.concrete", "restitution": 0.597, "points": null,
+      "impactSpeed": "drop from 92 cm (about 4.2 m/s)",
+      "geometry": "steel ball bearing (size not given) dropped on a concrete floor",
+      "conditions": "e = sqrt(rebound/drop height), mean of 5 drops; same setup: wooden ball 0.603, glass marble 0.658",
+      "citation": "Bennett & Meepagala (Midwood High School, 2005), in 'Coefficients of Restitution', The Physics Factbook (ed. G. Elert), 2006",
+      "url": "https://hypertextbook.com/facts/2006/restitution.shtml",
+      "note": "LOW RELIABILITY: high-school measurement, ball sizes and floor build-up unknown; the floor (2nd storey slab) may not act as a massive target. Kept only because no peer-reviewed steel-on-concrete sphere data was found"
+    },
+    {
+      "a": "f3d.glass", "b": "f3d.concrete", "restitution": 0.658, "points": null,
+      "impactSpeed": "drop from 92 cm",
+      "geometry": "glass marble dropped on a concrete floor",
+      "conditions": "as steel|concrete",
+      "citation": "Bennett & Meepagala (2005), The Physics Factbook, 'Coefficients of Restitution'",
+      "url": "https://hypertextbook.com/facts/2006/restitution.shtml",
+      "note": "LOW RELIABILITY, see steel|concrete"
+    },
+    {
+      "a": "f3d.wood", "b": "f3d.concrete", "restitution": 0.603, "points": null,
+      "impactSpeed": "drop from 92 cm",
+      "geometry": "wooden ball (species not given) dropped on a concrete floor",
+      "conditions": "as steel|concrete",
+      "citation": "Bennett & Meepagala (2005), The Physics Factbook, 'Coefficients of Restitution'",
+      "url": "https://hypertextbook.com/facts/2006/restitution.shtml",
+      "note": "LOW RELIABILITY, see steel|concrete"
+    }
+  ],
+  "notFound": [
+    {"pair": "f3d.wood|f3d.wood, f3d.wood|f3d.steel (and oak, pine, maple, birch, douglasFir, spruce)", "searched": "web search for steel-ball-on-wood and wood-sphere drop tests by species; Haron & Ismail 2012 sports-ball drop test (steel and wood plates) only tests sports balls; baseball/cricket-on-wood data is for balls, not catalog solids. Only the low-reliability wood|concrete student value was found"},
+    {"pair": "f3d.concrete|f3d.concrete, f3d.steel|f3d.concrete (peer-reviewed)", "searched": "rockfall literature: Wang/Mao et al. 2018 NHESS (limestone on C25 concrete, values not opened), Tang et al. 2021 Environ. Earth Sci. (iron/granite/marble/sandstone/wood spheres on steel/concrete/wood plates, paywalled), Chau et al. 2002 (plaster spheres), RocFall tables (field, not sphere); Asteriou 2013 tested cement grout, not concrete"},
+    {"pair": "f3d.rubber|f3d.rubber and rubber balls on steel/concrete/wood (naturalRubber, siliconeRubber, neoprene, butylRubber, polybutadieneRubber)", "searched": "Cross 1999/2000/2007 Am. J. Phys. papers (superball and neoprene 'happy ball' bounced on a piezo/brass rod or metal-mounted piezo; superball compound not named, target not a catalog solid); Sandeep et al. 2019 gives only steel/glass/quartz onto a rubber block (recorded)"},
+    {"pair": "f3d.ice|f3d.steel, f3d.ice|f3d.concrete", "searched": "Higa 1996/1998, Bridges 1984, Hatzes 1988, Deckers & Teiser 2016, Heisselmann 2010: all ice on ice; Dilley & Crawford 1996 used steel controls (values not opened)"},
+    {"pair": "f3d.gold, f3d.silver, f3d.lead, f3d.nickel, f3d.zinc, f3d.tin, f3d.tungsten, f3d.magnesium, f3d.platinum, f3d.chromium, f3d.molybdenum, f3d.iron, f3d.castIron (any pair)", "searched": "Guttler et al. survey list (arXiv:1204.0001), Cornell impact chart, King et al. 2011; Grasselli et al. 2009 used 4 mm iron beads in microgravity (adhesive regime, rotation unknown; not recorded); Falcon et al. 1998 used tungsten carbide (not tungsten metal); Marinack et al. 2013 (Tribol. Trans. 56:572, tungsten carbide, steel, NiTiNOL) is paywalled"},
+    {"pair": "f3d.stainlessSteel316, f3d.titaniumTi6Al4V, f3d.aluminum6061T6, f3d.aluminum7075T6, f3d.aluminum2024T3, f3d.steel4340, f3d.phosphorBronze, f3d.aluminumBronze (grade-specific)", "searched": "Stevens & Hrenya 2005 used 316 and AISI 52100 steel spheres (digitized data not in the survey tarball, paper not opened); Sondergaard 1990 bronze bearings (no bronze figure data); other sources give no grade"},
+    {"pair": "f3d.borosilicateGlass, f3d.fusedSilica, f3d.sapphire, f3d.porcelain, f3d.siliconCarbide, f3d.diamond, f3d.graphite, f3d.silicon, f3d.siliconNitride", "searched": "Sondergaard 1990 used Pyrex glass spheres but only on lucite plates vs. diameter/thickness ratio (no thick-target value); Poppe et al. 2000 used micron silica on silica/silicon (adhesive regime, not recorded); Cornell 'Ceramic' row likely alumina (noted under alumina|alumina)"},
+    {"pair": "f3d.basalt, f3d.slate, f3d.asphalt, f3d.clayDry, f3d.snowPacked, f3d.sand, f3d.soil, f3d.brick", "searched": "Asteriou 2013 tested marble, limestone, sandstone, schist, marl (recorded the catalog ones); Richards et al. 2001 basalt etc. only as a Schmidt-hardness correlation; no sphere data on asphalt, clay, snow, soil, brick found"},
+    {"pair": "f3d.copper|f3d.copper, f3d.aluminum|f3d.concrete", "searched": "Kuwabara & Kono 1987 (Al, brass, bronze, copper, steel, glass, cork) paywalled, its data not digitized in the survey tarball"},
+    {"pair": "f3d.cork, f3d.paper, f3d.cardboard, f3d.abs, f3d.pvc, f3d.peek, f3d.polycarbonate|self, f3d.bone, f3d.leather, f3d.linoleum, f3d.bakelite", "searched": "Cornell chart and survey; Kuwabara & Kono used cork spheres (paywalled). Only steel on polycarbonate (Lexan plate) found"}
+  ]
+}

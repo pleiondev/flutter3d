@@ -8,6 +8,7 @@ library;
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter_gpu/gpu.dart' as gpu;
+import 'gpu_refusal.dart' show impellerRefusal;
 
 /// Maps the engine's [StorageMode] to its `package:flutter_gpu` equivalent.
 extension StorageModeToGpu on StorageMode {
@@ -15,6 +16,10 @@ extension StorageModeToGpu on StorageMode {
     StorageMode.hostVisible => gpu.StorageMode.hostVisible,
     StorageMode.devicePrivate => gpu.StorageMode.devicePrivate,
     StorageMode.deviceTransient => gpu.StorageMode.deviceTransient,
+    _ => throw impellerRefusal(
+      'toGpu',
+      'flutter_gpu has no storage mode for $this',
+    ),
   };
 }
 
@@ -37,6 +42,10 @@ extension TextureTypeToGpu on TextureType {
     TextureType.texture2DMultisample => gpu.TextureType.texture2DMultisample,
     TextureType.textureCube => gpu.TextureType.textureCube,
     TextureType.textureExternalOES => gpu.TextureType.textureExternalOES,
+    _ => throw impellerRefusal(
+      'toGpu',
+      'flutter_gpu has no texture type for $this',
+    ),
   };
 }
 
@@ -76,8 +85,47 @@ extension TextureFormatToGpu on TextureFormat {
     TextureFormat.astc8x8LDRSRGB => gpu.PixelFormat.astc8x8LDRSRGB,
     TextureFormat.astc4x4HDR => gpu.PixelFormat.astc4x4HDR,
     TextureFormat.astc8x8HDR => gpu.PixelFormat.astc8x8HDR,
+    // TODO(impeller): flutter_gpu's PixelFormat has none of these nineteen —
+    // they arrive when it gains the matching values (its `formats.dart` is
+    // the enum to watch), and each is then one more line above.
+    TextureFormat.r8g8b8a8SNormInt ||
+    TextureFormat.r8g8b8a8UInt ||
+    TextureFormat.r8g8b8a8SInt ||
+    TextureFormat.r16Float ||
+    TextureFormat.r16g16Float ||
+    TextureFormat.r16g16b16a16UInt ||
+    TextureFormat.r16g16b16a16SInt ||
+    TextureFormat.r32UInt ||
+    TextureFormat.r32SInt ||
+    TextureFormat.r32g32Float ||
+    TextureFormat.r32g32UInt ||
+    TextureFormat.r32g32SInt ||
+    TextureFormat.r32g32b32a32UInt ||
+    TextureFormat.r32g32b32a32SInt ||
+    TextureFormat.r10g10b10a2UNormInt ||
+    TextureFormat.r11g11b10UFloat ||
+    TextureFormat.r9g9b9e5UFloat ||
+    TextureFormat.d16UNormInt ||
+    TextureFormat.d32Float => throw unmirroredFormat(this),
+    _ => throw impellerRefusal(
+      'toGpu',
+      'flutter_gpu has no pixel format for $this',
+    ),
   };
 }
+
+/// The refusal for a [TextureFormat] flutter_gpu has no `PixelFormat` for —
+/// `extendedTextureFormats`. Named, so that the message says which one, and
+/// thrown before anything is allocated: `textureFormatSupport` answers
+/// [TextureFormatSupport.none] for every one of them, so a caller that asked
+/// first never gets here.
+DeviceResourceException unmirroredFormat(TextureFormat format) =>
+    impellerRefusal(
+      'createTexture',
+      'TextureFormat.${format.name} has no flutter_gpu PixelFormat. '
+          'textureFormatSupport answers none for it on this backend; ask '
+          'before allocating.',
+    );
 
 /// Maps `package:flutter_gpu`'s `PixelFormat` back to the engine's
 /// [TextureFormat].

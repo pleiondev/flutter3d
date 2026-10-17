@@ -9,6 +9,7 @@ library;
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter3d_sim/flutter3d_sim.dart' show Level;
 import 'package:jaspr/server.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
 
@@ -20,6 +21,7 @@ import 'src/http/app.dart';
 import 'src/mail/mailer.dart';
 import 'src/services.dart';
 import 'src/storage/blob_store.dart';
+import 'src/telemetry/telemetry_service.dart';
 
 Future<void> main(List<String> arguments) async {
   Jaspr.initializeApp(options: defaultServerOptions);
@@ -38,6 +40,16 @@ Future<void> main(List<String> arguments) async {
     stderr.writeln(problem);
   }
 
+  // N7. Not a reason to stop either: a broken level costs its own runs.
+  final (
+    telemetryLevels,
+    levelProblems,
+  ) = switch (config.telemetryLevelsDirectory) {
+    final directory? => readTelemetryLevels(directory),
+    null => (<String, Level>{}, <String>[]),
+  };
+  levelProblems.forEach(stderr.writeln);
+
   final db = await Database.open(config.databaseUrl);
   final services = Services(
     config: config,
@@ -47,6 +59,11 @@ Future<void> main(List<String> arguments) async {
       null => ConsoleMailer(),
     },
     blobs: FileBlobStore(config.blobDirectory),
+    // No games: every genre in the repository needs Flutter, which a server
+    // started with `dart run` does not have. A deploy that plays one builds
+    // its own entry point and passes `headlessGamesOf(genres)` here, which
+    // asks every genre plugin the same question.
+    telemetryLevels: telemetryLevels,
   );
   Services.instance = services;
 
@@ -70,9 +87,13 @@ Future<void> main(List<String> arguments) async {
     }
   });
 
+  final sharing = services.shares.takesShares
+      ? 'sharing in ${config.shareModeration.name} mode'
+      : 'sharing off: review mode with no moderator token';
   stdout.writeln(
     'models on http://${server.address.host}:${server.port} '
-    '(${config.sendsMail ? 'sending mail' : 'printing mail to the log'})',
+    '(${config.sendsMail ? 'sending mail' : 'printing mail to the log'}; '
+    '$sharing)',
   );
 
   // systemd stops a unit with SIGTERM; answering it lets requests in flight

@@ -26,12 +26,14 @@ const double _budget = 0.02;
 
 void main() {
   test('fifty programs draw what the software rasteriser draws', () async {
-    final device = await WebGpuDevice.create(
-      width: 32,
-      height: 32,
-      stages: engineShaders,
-    );
-    if (device == null) {
+    final WebGpuDevice device;
+    try {
+      device = await WebGpuDevice.open(
+        width: 32,
+        height: 32,
+        stages: webGpuEngineShaders,
+      );
+    } on DeviceUnavailableException {
       markTestSkipped('this browser has no WebGPU');
       return;
     }

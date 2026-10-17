@@ -75,7 +75,7 @@ Matrix4 probeFaceViewProjection(
   final camera = ProbeFace.all[face];
   final view = lookAtRightHanded(position, position + camera.aim, camera.up);
   final projection = PerspectiveProjection(
-    fovYRadians: math.pi / 2,
+    fovY: math.pi / 2,
     near: near,
     far: far,
   ).toMatrix(1.0);

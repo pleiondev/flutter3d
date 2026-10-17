@@ -15,8 +15,8 @@ import 'package:flutter/widgets.dart';
 import 'race_state.dart';
 
 /// How a game wants its readouts drawn.
-final class ReadoutStyle {
-  const ReadoutStyle({
+final class RacingReadoutStyle {
+  const RacingReadoutStyle({
     this.text = const TextStyle(color: Color(0xFFFFFFFF), fontSize: 18.0),
     this.dim = const Color(0x66FFFFFF),
   });
@@ -43,12 +43,12 @@ final class LapReadout extends StatelessWidget {
     super.key,
     required this.racer,
     required this.race,
-    this.style = const ReadoutStyle(),
+    this.style = const RacingReadoutStyle(),
   });
 
   final RacerProgress racer;
   final RaceState race;
-  final ReadoutStyle style;
+  final RacingReadoutStyle style;
 
   @override
   Widget build(BuildContext context) {
@@ -78,14 +78,14 @@ final class PositionReadout extends StatelessWidget {
     super.key,
     required this.racer,
     required this.race,
-    this.style = const ReadoutStyle(),
+    this.style = const RacingReadoutStyle(),
     this.ordinals = const <String>['st', 'nd', 'rd'],
     this.otherwise = 'th',
   });
 
   final RacerProgress racer;
   final RaceState race;
-  final ReadoutStyle style;
+  final RacingReadoutStyle style;
 
   /// The suffixes for first, second and third. English by default and
   /// replaceable, because a genre package has no business deciding what

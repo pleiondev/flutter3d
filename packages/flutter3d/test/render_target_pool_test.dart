@@ -8,6 +8,7 @@
 library;
 
 import 'package:flutter3d_core/src/engine/render/frame_resources.dart';
+import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -16,11 +17,11 @@ import 'package:flutter_test/flutter_test.dart';
 /// This is the whole trick. The pool's job is bookkeeping; the only line in it
 /// that ever needed a device was `createTexture`, and with that injected the
 /// real pool runs in a unit test unchanged.
-final class _FakeAllocator implements TextureAllocator {
+final class _FakeAllocator with TextureAllocator {
   int created = 0;
 
   @override
-  TextureHandle createTexture(RenderTargetSpec spec) => fakeTexture(
+  TextureHandle createTexture(TextureDescriptor spec) => fakeTexture(
     'created ${created++}',
     width: spec.width,
     height: spec.height,
@@ -49,7 +50,7 @@ TextureHandle fakeTexture(
   TextureFormat format = TextureFormat.r16g16b16a16Float,
   int sampleCount = 1,
   StorageMode storageMode = StorageMode.devicePrivate,
-}) => TextureHandle(
+}) => wrapTexture(
   backend: label,
   width: width,
   height: height,
@@ -65,7 +66,7 @@ void main() {
       // equal descriptions by definition, so a handle with value equality would
       // make the pool believe it had lent one texture twice.
       final pool = RenderTargetPool(_FakeAllocator());
-      const spec = RenderTargetSpec(
+      const spec = RenderTargetDescriptor(
         width: 640,
         height: 480,
         format: TextureFormat.r16g16b16a16Float,
@@ -80,7 +81,7 @@ void main() {
 
     test('a released target is the next one lent out', () {
       final pool = RenderTargetPool(_FakeAllocator());
-      const spec = RenderTargetSpec(
+      const spec = RenderTargetDescriptor(
         width: 640,
         height: 480,
         format: TextureFormat.r16g16b16a16Float,
@@ -97,12 +98,12 @@ void main() {
       // there is no second copy to disagree with the first. A mismatch here
       // hands the next acquirer the wrong size with nothing to say so.
       final pool = RenderTargetPool(_FakeAllocator());
-      const big = RenderTargetSpec(
+      const big = RenderTargetDescriptor(
         width: 640,
         height: 480,
         format: TextureFormat.r16g16b16a16Float,
       );
-      const small = RenderTargetSpec(
+      const small = RenderTargetDescriptor(
         width: 320,
         height: 240,
         format: TextureFormat.r16g16b16a16Float,
@@ -125,7 +126,7 @@ void main() {
     test('a resize drops what is free and keeps what is out', () {
       final allocator = _FakeAllocator();
       final pool = RenderTargetPool(allocator);
-      const spec = RenderTargetSpec(
+      const spec = RenderTargetDescriptor(
         width: 640,
         height: 480,
         format: TextureFormat.r16g16b16a16Float,
@@ -158,7 +159,7 @@ void main() {
       // below is handed nothing back and this fails on an empty list.
       final allocator = _FakeAllocator();
       final pool = RenderTargetPool(allocator);
-      const spec = RenderTargetSpec(
+      const spec = RenderTargetDescriptor(
         width: 640,
         height: 480,
         format: TextureFormat.r16g16b16a16Float,

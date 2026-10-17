@@ -534,7 +534,10 @@
   "sunDisc": 0.0
  },
  "level": {
-  "version": 1,
+  "format": "f3d.level",
+  "version": 5,
+  "requires": [],
+  "generator": "flutter3d",
   "name": "ridge",
   "generatedBy": "tool/make_track.py",
   "fogColor": [
@@ -576,7 +579,8 @@
      600.0
     ],
     "material": "grass",
-    "surface": "grass"
+    "surface": "grass",
+    "id": "d92d56aa"
    },
    {
     "at": [
@@ -589,7 +593,8 @@
      12.0,
      4.0
     ],
-    "material": "stone"
+    "material": "stone",
+    "id": "c1c26d6b"
    },
    {
     "at": [
@@ -602,7 +607,8 @@
      12.0,
      4.0
     ],
-    "material": "stone"
+    "material": "stone",
+    "id": "60c44058"
    },
    {
     "at": [
@@ -615,7 +621,8 @@
      12.0,
      4.0
     ],
-    "material": "stone"
+    "material": "stone",
+    "id": "4ea5c61e"
    },
    {
     "at": [
@@ -628,7 +635,8 @@
      12.0,
      4.0
     ],
-    "material": "stone"
+    "material": "stone",
+    "id": "10c77167"
    },
    {
     "at": [
@@ -641,7 +649,8 @@
      12.0,
      4.0
     ],
-    "material": "stone"
+    "material": "stone",
+    "id": "901252de"
    },
    {
     "at": [
@@ -654,7 +663,8 @@
      12.0,
      4.0
     ],
-    "material": "stone"
+    "material": "stone",
+    "id": "42bf0404"
    },
    {
     "at": [
@@ -667,7 +677,8 @@
      12.0,
      4.0
     ],
-    "material": "stone"
+    "material": "stone",
+    "id": "2aca99cb"
    },
    {
     "at": [
@@ -680,7 +691,8 @@
      12.0,
      4.0
     ],
-    "material": "stone"
+    "material": "stone",
+    "id": "164c8584"
    },
    {
     "at": [
@@ -693,7 +705,8 @@
      12.0,
      4.0
     ],
-    "material": "stone"
+    "material": "stone",
+    "id": "ceaf145e"
    },
    {
     "at": [
@@ -706,7 +719,8 @@
      12.0,
      4.0
     ],
-    "material": "stone"
+    "material": "stone",
+    "id": "0110ace7"
    },
    {
     "at": [
@@ -719,7 +733,8 @@
      12.0,
      4.0
     ],
-    "material": "stone"
+    "material": "stone",
+    "id": "ff11f19e"
    },
    {
     "at": [
@@ -732,7 +747,8 @@
      12.0,
      4.0
     ],
-    "material": "stone"
+    "material": "stone",
+    "id": "8a7831d8"
    },
    {
     "at": [
@@ -745,7 +761,8 @@
      12.0,
      4.0
     ],
-    "material": "stone"
+    "material": "stone",
+    "id": "9028bbeb"
    },
    {
     "at": [
@@ -758,7 +775,8 @@
      12.0,
      4.0
     ],
-    "material": "stone"
+    "material": "stone",
+    "id": "3b82e058"
    },
    {
     "at": [
@@ -771,7 +789,8 @@
      12.0,
      4.0
     ],
-    "material": "stone"
+    "material": "stone",
+    "id": "6ee4181e"
    },
    {
     "at": [
@@ -784,7 +803,8 @@
      12.0,
      4.0
     ],
-    "material": "stone"
+    "material": "stone",
+    "id": "62c1bd67"
    },
    {
     "at": [
@@ -797,7 +817,8 @@
      12.0,
      4.0
     ],
-    "material": "stone"
+    "material": "stone",
+    "id": "ad6df2de"
    },
    {
     "at": [
@@ -810,7 +831,8 @@
      12.0,
      4.0
     ],
-    "material": "stone"
+    "material": "stone",
+    "id": "91d69e04"
    },
    {
     "at": [
@@ -823,7 +845,8 @@
      12.0,
      4.0
     ],
-    "material": "stone"
+    "material": "stone",
+    "id": "baf8734b"
    },
    {
     "at": [
@@ -836,7 +859,8 @@
      12.0,
      4.0
     ],
-    "material": "stone"
+    "material": "stone",
+    "id": "c734eb84"
    },
    {
     "at": [
@@ -849,7 +873,8 @@
      12.0,
      4.0
     ],
-    "material": "stone"
+    "material": "stone",
+    "id": "b153745e"
    },
    {
     "at": [
@@ -862,7 +887,8 @@
      12.0,
      4.0
     ],
-    "material": "stone"
+    "material": "stone",
+    "id": "af1660e7"
    },
    {
     "at": [
@@ -875,7 +901,8 @@
      12.0,
      4.0
     ],
-    "material": "stone"
+    "material": "stone",
+    "id": "ded39f9e"
    },
    {
     "at": [
@@ -888,7 +915,8 @@
      12.0,
      4.0
     ],
-    "material": "stone"
+    "material": "stone",
+    "id": "afb991d8"
    }
   ],
   "lights": [
@@ -904,8 +932,9 @@
      0.6,
      0.66
     ],
-    "intensity": 1.2,
-    "castsShadow": true
+    "intensity": 6948.7002936,
+    "castsShadow": true,
+    "id": "f32061bf"
    }
   ],
   "entities": []

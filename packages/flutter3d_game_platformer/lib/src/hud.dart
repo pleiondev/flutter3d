@@ -15,8 +15,8 @@ import 'package:flutter/widgets.dart';
 import 'purse.dart';
 
 /// How a game wants its readouts drawn.
-final class ReadoutStyle {
-  const ReadoutStyle({
+final class PlatformerReadoutStyle {
+  const PlatformerReadoutStyle({
     this.text = const TextStyle(color: Color(0xFFFFFFFF), fontSize: 18.0),
     this.dim = const Color(0x66FFFFFF),
     this.pipSize = 10.0,
@@ -28,6 +28,7 @@ final class ReadoutStyle {
   /// at.
   final Color dim;
 
+  /// How big one life's pip is, in logical pixels.
   final double pipSize;
 }
 
@@ -42,7 +43,7 @@ final class PurseReadout extends StatelessWidget {
     super.key,
     required this.purse,
     this.order = const <String>[],
-    this.style = const ReadoutStyle(),
+    this.style = const PlatformerReadoutStyle(),
   });
 
   final Purse purse;
@@ -52,7 +53,7 @@ final class PurseReadout extends StatelessWidget {
   /// with five usually does not.
   final List<String> order;
 
-  final ReadoutStyle style;
+  final PlatformerReadoutStyle style;
 
   @override
   Widget build(BuildContext context) {
@@ -79,7 +80,7 @@ final class LivesStrip extends StatelessWidget {
     super.key,
     required this.lives,
     this.of,
-    this.style = const ReadoutStyle(),
+    this.style = const PlatformerReadoutStyle(),
   });
 
   /// How many are left. Negative means unlimited; see the class doc.
@@ -89,7 +90,7 @@ final class LivesStrip extends StatelessWidget {
   /// draws only what is left.
   final int? of;
 
-  final ReadoutStyle style;
+  final PlatformerReadoutStyle style;
 
   @override
   Widget build(BuildContext context) {

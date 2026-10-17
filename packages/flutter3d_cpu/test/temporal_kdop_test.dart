@@ -13,8 +13,8 @@ library;
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:test/test.dart';
-import 'package:vector_math/vector_math.dart' show Vector4;
 
 const int _width = 48;
 const int _height = 32;
@@ -31,8 +31,8 @@ typedef _Railing = ({
   CpuDevice device,
   Renderer renderer,
   Scene scene,
-  RenderView view,
-  Material wall,
+  CameraView view,
+  RenderMaterial wall,
 });
 
 _Railing _railing() {
@@ -42,13 +42,13 @@ _Railing _railing() {
     shaders: CpuShaderLibrary(builtinCpuShaders()),
   );
   final camera = CameraNode();
-  final wall = Material(
+  final wall = RenderMaterial(
     lighting: LightingModel.unlit,
-    baseColor: Vector4(1.0, 0.0, 0.0, 1.0),
+    baseColor: LinearColor.fromSrgb(1.0, 0.0, 0.0, 1.0),
   );
-  final bar = Material(
+  final bar = RenderMaterial(
     lighting: LightingModel.unlit,
-    baseColor: Vector4(0.0, 0.0, 1.0, 1.0),
+    baseColor: LinearColor.fromSrgb(0.0, 0.0, 1.0, 1.0),
   );
   final cube = DeviceMesh.upload(device, CuboidShape().build());
   // Near enough behind the bars (under a tenth of the depth) that the
@@ -73,7 +73,10 @@ _Railing _railing() {
     device: device,
     renderer: Renderer.create(device: device),
     scene: scene,
-    view: RenderView(camera: camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+    view: CameraView(
+      camera: camera,
+      clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
+    ),
     wall: wall,
   );
 }
@@ -83,7 +86,7 @@ List<double> _draw(_Railing it, TemporalClip clip) {
     width: _width,
     height: _height,
     scene: it.scene,
-    views: <RenderView>[it.view],
+    views: <CameraView>[it.view],
     settings: _settings(clip),
   );
   return it.device.readHdrPixels(result.frame);
@@ -116,7 +119,7 @@ double _red(List<double> pixels) {
   for (var i = 0; i < 32; i++) {
     _draw(it, clip);
   }
-  it.wall.baseColor.setValues(0.0, 1.0, 0.0, 1.0);
+  it.wall.baseColor = LinearColor.fromSrgb(0.0, 1.0, 0.0, 1.0);
   final after = _draw(it, clip);
   for (var i = 0; i < 48; i++) {
     _draw(it, clip);
@@ -159,12 +162,12 @@ void main() {
   test('every axis is a unit vector and every set starts with the box', () {
     for (final clip in TemporalClip.values.skip(1)) {
       expect(clip.axes, hasLength(clip.axisCount));
-      expect(clip.axes.take(3), const [
-        (1.0, 0.0, 0.0),
-        (0.0, 1.0, 0.0),
-        (0.0, 0.0, 1.0),
+      expect(clip.axes.take(3), const <ClipAxis>[
+        ClipAxis(x: 1.0, y: 0.0, z: 0.0),
+        ClipAxis(x: 0.0, y: 1.0, z: 0.0),
+        ClipAxis(x: 0.0, y: 0.0, z: 1.0),
       ]);
-      for (final (x, y, z) in clip.axes) {
+      for (final ClipAxis(:x, :y, :z) in clip.axes) {
         expect(x * x + y * y + z * z, closeTo(1.0, 1e-4));
       }
     }

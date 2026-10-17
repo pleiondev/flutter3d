@@ -7,7 +7,7 @@ import 'tire_model.dart';
 /// [TireModel] said where its grip peaks and what is left past the peak, a
 /// [GripTable] said what each surface is worth, and a `gripLimit` — [limit],
 /// now — said how many gravities there were to divide up. That last one sat in
-/// `VehicleTuning`, in the table of engine, brakes and steering, with a doc
+/// `VehicleSettings`, in the table of engine, brakes and steering, with a doc
 /// comment beginning "how many gravities of grip **the tyres** have". Three properties of one object,
 /// filed under three headings, which is why a game could not offer a player a
 /// choice between them without passing three arguments that had to agree.
@@ -16,10 +16,10 @@ import 'tire_model.dart';
 ///
 /// ## Why the difference is a trade and not a ladder
 ///
-/// [slicks] are quicker than [road] everywhere the road is a road, and worse
-/// than useless the moment a wheel touches grass. [rally] gives up more than a
-/// tenth of a gravity on tarmac and keeps most of its grip off it. So the
-/// choice is a real one on a circuit made of asphalt and grass, which is what
+/// [slicks] are quicker than [road] everywhere the road is a road, and have
+/// half the road tyres' grip the moment a wheel touches grass. [rally] gives
+/// up 0.13 of a gravity on tarmac and keeps four fifths of its grip on grass.
+/// So the choice is a real one on a circuit made of asphalt and grass, which is what
 /// both of the shipped ones are made of: a driver who can keep it between the
 /// lines is faster on slicks, and a driver who runs wide loses more than they
 /// gained.
@@ -29,8 +29,8 @@ import 'tire_model.dart';
 /// sudden; rally tyres peak later and hold on, so the car slides progressively
 /// and comes back. That is the difference between a fast tyre and a forgiving
 /// one, and it is two numbers rather than a difficulty setting.
-final class Tyres {
-  Tyres({
+final class TireSet {
+  TireSet({
     required this.name,
     TireModel? model,
     this.grips = const GripTable.common(),
@@ -49,15 +49,20 @@ final class Tyres {
   final GripTable grips;
 
   /// How many gravities of grip there are on a surface worth `1.0`.
+  /// A unitless multiple of the car's world's gravity
+  /// (`CollisionWorld.properties`): a limit of 1.05 holds 1.05 × 20 m/s² in
+  /// a race's world, and 1.05 × 1.62 on the Moon.
   final double limit;
 
   /// What the game has always had. A road car on road tyres: enough grip to
   /// race on, enough left off the road to survive a mistake.
-  static final Tyres road = Tyres(name: 'road');
+  static final TireSet road = TireSet(name: 'road');
 
-  /// Racing slicks. A tenth of a gravity more on tarmac, a third of what road
-  /// tyres have on grass, and a limit that arrives without announcing itself.
-  static final Tyres slicks = Tyres(
+  /// Racing slicks. About a fifth of a gravity more on tarmac (1.24 against
+  /// the road tyres' 1.05, 0.19 more), half of what road tyres have on grass
+  /// (0.25 against 0.47, 0.52 of it), and a limit that arrives without
+  /// announcing itself.
+  static final TireSet slicks = TireSet(
     name: 'slicks',
     limit: 1.24,
     model: TireModel(
@@ -81,7 +86,7 @@ final class Tyres {
 
   /// Knobbly tyres. Slower on the road and nearly as good off it, and they
   /// slide a long way before they let go.
-  static final Tyres rally = Tyres(
+  static final TireSet rally = TireSet(
     name: 'rally',
     limit: 0.92,
     model: TireModel(
@@ -104,19 +109,21 @@ final class Tyres {
   );
 
   /// The sets a player can be on, in the order they are cycled through.
-  static final List<Tyres> all = <Tyres>[road, slicks, rally];
+  static final List<TireSet> all = <TireSet>[road, slicks, rally];
 
   /// The next set after [current], wrapping. Null and anything unrecognised
   /// come back as the first, so a saved name this build no longer ships reads
   /// as the tyres every car starts on rather than as a crash.
-  static Tyres after(Tyres? current) {
+  static TireSet after(TireSet? current) {
     final index = current == null ? -1 : all.indexOf(current);
     return all[(index + 1) % all.length];
   }
 
   /// The set called [name], or [road] if nothing is.
-  static Tyres named(String? name) =>
-      all.firstWhere((Tyres tyres) => tyres.name == name, orElse: () => road);
+  static TireSet named(String? name) => all.firstWhere(
+    (TireSet tireSet) => tireSet.name == name,
+    orElse: () => road,
+  );
 
   @override
   String toString() => 'Tyres($name)';

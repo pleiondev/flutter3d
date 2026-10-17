@@ -6,7 +6,7 @@ description: The editor as two things: flutter3d_editor_core, a document layer w
 
 The editor is **two packages and an application**, and the split is the first thing to understand about it.
 
-`flutter3d_editor_core` is the document: opening a level, selecting in it, nudging, growing, adding, duplicating, turning, brightening, deleting, setting a field, undoing and writing it back. Plain Dart, no Flutter anywhere, held there by the same scan that keeps `flutter3d_sim` honest. `apps/flutter3d_editor` is the half that reaches a device (the window, the disk, the camera, the frame) and nothing else. And `flutter3d_editor_mcp` stands beside them: the same commands offered to an agent over stdio, one document per process.
+`flutter3d_editor_core` is the document: opening a level, selecting in it, nudging, growing, adding, duplicating, turning, brightening, deleting, setting a field, undoing and writing it back. Plain Dart, no Flutter anywhere, held there by the same scan that keeps `flutter3d_sim` honest. `apps/flutter3d_editor` is the half that reaches a device (the window, the disk, the camera, the frame) and nothing else. And `flutter3d_mcp/editor.dart` stands beside them: the same commands offered to an agent over stdio, one document per process.
 
 The split changes what can be built. While those files sat inside the application, nothing could depend on them: `no package depends on an application` forbids it and pub cannot express such a dependency anyway, because an application is not published. A level linter for CI, a service that checks an uploaded level before a player loads it, a tool an agent speaks to: every one of them had nowhere to start. A level is a document, and the programs that most want to say a document is wrong are the ones with nothing to draw.
 
@@ -20,7 +20,7 @@ The application is desktop only. It exists to write a file back over itself, and
 <li>The palette, and what actually happens when you place an entity with no vocabulary in the editor to describe it</li>
 <li>The fields panel, built from the document; the materials panel, built from hints</li>
 <li>Commands with names, and a history that remembers sentences as well as documents</li>
-<li>The same editor with no screen at all: <code>flutter3d_editor_mcp</code></li>
+<li>The same editor with no screen at all: <code>flutter3d_mcp</code>'s <code>editor_mcp</code></li>
 </ul>
 </div>
 
@@ -76,18 +76,30 @@ Click selects whatever a ray hits, and picking **prefers the thing to the wall**
 | `⌘Z` / `⇧⌘Z` | undo, redo (64 steps) |
 | `⌘D` | duplicate whatever is selected |
 | `⌘S` / `⇧⌘S` | save / save a copy |
+| `⌘`-click | add to the selection, or take out (here and in the outliner) |
+| `⌘K` | the command palette |
+
+## The window
+
+The picture sits in the middle and the panels are docked around it: the outliner and the palette down the left, the inspector, the material panel and the step panel down the right, the console and the render graph along the bottom. Each side is resized by dragging its edge, folded to a strip of icons and opened again, and a tab can move to another side; where everything is gets written to `layout.json` beside the recent projects, so it is there on the next launch. Until 1.0 the panels were a `Stack` of overlays on top of the level, each one covering part of what was being edited. `DockLayout` itself is in `flutter3d_editor_widgets`, beside the field rows the editor and the modeller share.
+
+The **outliner** lists the level as a tree (brushes, lights, entities by type) from `outlineOf` in the core package. It and the viewport select through the same `Editing`, so a click in either shows in the other. More than one thing can be selected: `⌘`-click adds a row or takes it out, `Editing.selection` is the primary plus the rest, and moving and deleting act on all of them as one step of undo. A double-click flies the camera to the row.
+
+The **console** keeps every sentence the strip along the top has said, after the strip has moved on. While a game is being played, or is attached, it also shows that game's console and the events it posted, read from the same `PlayedGame` the Play screen reads. The **render graph** is the last frame the viewport drew: the passes in the order they ran with their times, draws and triangles, and the passes that did not run with the reason. `SceneSurface.onFrame` is how the editor gets the `FrameResult`; it used to be dropped once the texture was out of it.
+
+**`⌘K`** opens the command palette. Every command a key, a toolbar button or a panel runs is in it, under its name and beside its shortcut, found by typing a few letters in order.
 
 Everything the renderer draws nothing for still needs to be clickable and visible: a spawn point, a torch, a monster, a trigger, the exit. Each gets a **mark**, a half-metre box tinted by its type, green for the spawn point, and a light wears the colour it casts.
 
-![The crypt open in the editor: the palette on the left, a wall brush selected, its fields on the right](/assets/editor/editor-brush.jpg)
+![The crypt open in the editor: the outliner on the left with a wall brush selected in it, the same brush caged in the picture, its fields on the right grouped as transform and rendering, the console along the bottom](/assets/editor/editor-brush.jpg)
 
 ## The fields on the right
 
-Selecting something opens its document entry as a panel: one row per key that is actually in the file, with the editor chosen by the value that is there: a switch for a flag, a box for a string or a number, three boxes for a vector. There is no case per kind and no case per field, so a key this build has never heard of is shown instead of dropped, and the day the format grows a key this panel edits it.
+Selecting something shows its document entry in the inspector, grouped into components (where it is, how it draws, how it collides, what a light does, an entity's own properties): one row per key that is actually in the file, with the editor chosen by the value that is there: a switch for a flag, a box for a string or a number, three boxes for a vector. There is no case per kind and no case per field, so a key this build has never heard of is shown instead of dropped, and the day the format grows a key this panel edits it.
 
 Under **NOT SET** the panel lists what the format defines and this entry leaves out. A brush is solid and casts a shadow by *omission*, so those keys are offered dimmed, at the value the game would read, and writing one puts the key into the document (`Editing.offerable`). Every write goes through the format's own encode and decode (`Editing.setField`), so a value the format cannot read is refused and rolled back instead of saved.
 
-![A trigger selected: its position, size and target as editable fields, and the keys the document leaves unset offered under NOT SET](/assets/editor/editor-trigger.jpg)
+![A trigger selected in the outliner, its other headings folded: its type and position, then its own properties (once, size, target) as editable fields, each with a button that takes it out](/assets/editor/editor-trigger.jpg)
 
 ## The materials panel, which is built from hints instead
 
@@ -123,7 +135,7 @@ The history also answers "is there unsaved work", which looks like a second job 
 
 ## The same editor with no screen at all
 
-`flutter3d_editor_mcp` is a [Model Context Protocol](https://modelcontextprotocol.io) server over stdio (`dart run flutter3d_editor_mcp:editor_mcp <level.json>`), holding one document for the life of one process. Twenty-one tools, and **eleven of them are the `EditorCommand` hierarchy above**, offered under the names that package already gives them: a tool call is its arguments handed to `EditorCommand.fromJson`. So an edit made by an agent and an edit made by a hand reach the document by one route, get one sentence in the undo stack, and come back under the same key. The table is built from `editorCommandNames`, and the suite holds it to that list both ways round, because a server keeping its own copy is a server that silently cannot call the twelfth command.
+`flutter3d_mcp`'s editor server is a [Model Context Protocol](https://modelcontextprotocol.io) server over stdio (`dart run flutter3d_mcp:editor_mcp <level.json>`), holding one document for the life of one process. Twenty-one tools, and **eleven of them are the `EditorCommand` hierarchy above**, offered under the names that package already gives them: a tool call is its arguments handed to `EditorCommand.fromJson`. So an edit made by an agent and an edit made by a hand reach the document by one route, get one sentence in the undo stack, and come back under the same key. The table is built from `editorCommandNames`, and the suite holds it to that list both ways round, because a server keeping its own copy is a server that silently cannot call the twelfth command.
 
 Two of the tools are not commands and both were missing from every sketch of this. `list` prints everything in the level with the kind and index `select` takes. Every other verb works on "the selection", which a program with no screen cannot guess, so without it driving the editor means moving the third brush without ever finding out there is a third brush. `validate` runs the document through `LevelValidator`; without it the first news of a broken level is a diff somebody reads later.
 
@@ -149,4 +161,4 @@ And the rebuild is the whole level on every change, because a brush is batched i
 
 - [Assembling an application](/core/session/): what the game apps do instead of this, through `flutter3d_app` and `flutter3d_game`
 - [Simulation layer](/core/simulation/): `Level`, `EntityRegistry` and the validator the editor's generated templates are checked against
-- [Package index](/reference/packages/): `flutter3d_editor_core` and `flutter3d_editor_mcp` beside the rest of the workspace
+- [Package index](/reference/packages/): `flutter3d_editor_core` and `flutter3d_mcp` beside the rest of the workspace

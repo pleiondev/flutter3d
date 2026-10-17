@@ -12,7 +12,8 @@ library;
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter3d_app/flutter3d_app.dart' show Storage;
+import 'package:flutter3d_app/flutter3d_app.dart'
+    show Storage, StorageException;
 import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/main.dart' show ModelerScreen;
 import 'package:flutter3d_modeler/src/settings.dart';
@@ -22,25 +23,24 @@ import 'package:flutter_test/flutter_test.dart';
 import 'support/fake_graphics_backend.dart';
 
 /// A storage kept in a map, so a round trip can be driven without a disk.
-final class FakeStorage implements Storage {
+final class FakeStorage extends Storage {
   final Map<String, String> documents = <String, String>{};
   bool refuse = false;
 
   @override
-  String? read(String name) => documents[name];
+  Future<String?> read(String name) async => documents[name];
 
   @override
-  bool write(String name, String contents) {
-    if (refuse) return false;
+  Future<void> write(String name, String contents) async {
+    if (refuse) throw StorageException(name, 'refused');
     documents[name] = contents;
-    return true;
   }
 
   @override
-  void remove(String name) => documents.remove(name);
+  Future<void> remove(String name) async => documents.remove(name);
 }
 
-void main() {
+void main() async {
   // Under `flutter test` there is no Impeller, so a device opened here would
   // fall through to the software rasteriser and rasterise the whole viewport
   // in Dart — measured at 19 seconds for this file's two tests against 3 with
@@ -49,18 +49,18 @@ void main() {
   setUp(useFakeGraphicsBackend);
 
   group('the document', () {
-    test('a first launch is the defaults, not a failure', () {
+    test('a first launch is the defaults, not a failure', () async {
       final store = SettingsStore(storage: FakeStorage());
 
       // Mutation: treat a missing document as an error and refuse to start.
       // A first launch is exactly the case there is nothing to read.
-      expect(store.read(), const ModelerSettings());
-      expect(store.read().workspace, Workspace.essential);
-      expect(store.read().showHomeAtLaunch, isTrue);
-      expect(store.read().quickSetupDone, isFalse);
+      expect(await store.read(), const ModelerSettings());
+      expect((await store.read()).workspace, Workspace.essential);
+      expect((await store.read()).showHomeAtLaunch, isTrue);
+      expect((await store.read()).quickSetupDone, isFalse);
     });
 
-    test('every field survives a write and a read', () {
+    test('every field survives a write and a read', () async {
       final storage = FakeStorage();
       const chosen = ModelerSettings(
         navigation: NavigationScheme.leftDragOrbit,
@@ -73,32 +73,35 @@ void main() {
         quickSetupDone: true,
       );
 
-      expect(SettingsStore(storage: storage).write(chosen), isTrue);
+      expect(await SettingsStore(storage: storage).write(chosen), isTrue);
 
       // A second store over the same storage, which is what a restart is.
       // Mutation: write the enum's own `toString` and parse it back by name.
       // The document then changes meaning the day a member is renamed, and a
       // person's navigation scheme silently goes back to the default.
-      expect(SettingsStore(storage: storage).read(), chosen);
+      expect(await SettingsStore(storage: storage).read(), chosen);
     });
 
-    test('a document that will not parse reads as the defaults', () {
+    test('a document that will not parse reads as the defaults', () async {
       final storage = FakeStorage();
       storage.documents[SettingsStore.name] = 'not json at all';
 
       // Mutation: let the decode throw. One hand-edited file, one truncated
       // write, and the application will not start at all.
-      expect(SettingsStore(storage: storage).read(), const ModelerSettings());
+      expect(
+        await SettingsStore(storage: storage).read(),
+        const ModelerSettings(),
+      );
     });
 
-    test('and one full of values this build does not know does too', () {
+    test('and one full of values this build does not know does too', () async {
       final storage = FakeStorage();
       storage.documents[SettingsStore.name] =
           '{"navigation":"eye-tracking","keymap":7,'
           '"workspace":"everything","showHomeAtLaunch":"yes",'
           '"language":""}';
 
-      final settings = SettingsStore(storage: storage).read();
+      final settings = await SettingsStore(storage: storage).read();
 
       // Per field rather than all-or-nothing: a newer build's own value for
       // one setting should not throw away the six beside it.
@@ -111,14 +114,14 @@ void main() {
       expect(settings.language, isNull);
     });
 
-    test('a write that fails says so rather than being swallowed', () {
+    test('a write that fails says so rather than being swallowed', () async {
       final storage = FakeStorage()..refuse = true;
 
       // Mutation: answer `true` regardless. The Settings screen then closes
       // on a preference that was never written, and the person finds out next
       // launch.
       expect(
-        SettingsStore(storage: storage).write(const ModelerSettings()),
+        await SettingsStore(storage: storage).write(const ModelerSettings()),
         isFalse,
       );
     });
@@ -343,7 +346,10 @@ void main() {
       // Mutation: hold the settings in the state and never write them, which
       // is what "a setting" meant before this row. The screen behaves
       // correctly for the rest of the session and forgets everything on quit.
-      expect(SettingsStore(storage: storage).read().workspace, Workspace.full);
+      expect(
+        (await SettingsStore(storage: storage).read()).workspace,
+        Workspace.full,
+      );
 
       // What a restart is: a second screen over the same storage.
       await launch(tester, storage);

@@ -80,7 +80,7 @@ void main() {
     test('says nothing before it started and after it ended', () {
       // Which is how a caller knows not to draw anything.
       final playback = Playback(_circle(seconds: 4.0));
-      final out = Pose();
+      final out = GhostFrame();
 
       expect(playback.sampleAt(-1.0, out), isFalse);
       expect(playback.sampleAt(99.0, out), isFalse);
@@ -97,7 +97,7 @@ void main() {
       // sits inside the arc, and by a distance that is easy to state.
       const radius = 20.0;
       final playback = Playback(_circle(hz: 8.0, seconds: 4.0, radius: radius));
-      final out = Pose();
+      final out = GhostFrame();
 
       var worst = 0.0;
       for (var t = 0.5; t < 3.5; t += 0.017) {
@@ -121,8 +121,8 @@ void main() {
       // began at speed plays back easing away from the line, which is not what
       // happened.
       final playback = Playback(_circle(hz: 8.0, seconds: 4.0));
-      final out = Pose();
-      final start = Pose();
+      final out = GhostFrame();
+      final start = GhostFrame();
 
       playback.sampleAt(0.0, start);
       playback.sampleAt(0.05, out);
@@ -149,12 +149,12 @@ void main() {
       // south, and exactly where somebody is watching.
       final tape = Tape(
         seconds: 1.0,
-        poses: <Pose>[
-          Pose(time: 0.0, yaw: math.pi - 0.1),
-          Pose(time: 1.0, yaw: -math.pi + 0.1),
+        poses: <GhostFrame>[
+          GhostFrame(time: 0.0, yaw: math.pi - 0.1),
+          GhostFrame(time: 1.0, yaw: -math.pi + 0.1),
         ],
       );
-      final out = Pose();
+      final out = GhostFrame();
 
       Playback(tape).sampleAt(0.5, out);
 
@@ -173,12 +173,12 @@ void main() {
       // through a turn it was clearly leaning into.
       final tape = Tape(
         seconds: 1.0,
-        poses: <Pose>[
-          Pose(time: 0.0)..up.setValues(0.0, 1.0, 0.0),
-          Pose(time: 1.0)..up.setValues(1.0, 0.0, 0.0),
+        poses: <GhostFrame>[
+          GhostFrame(time: 0.0)..up.setValues(0.0, 1.0, 0.0),
+          GhostFrame(time: 1.0)..up.setValues(1.0, 0.0, 0.0),
         ],
       );
-      final out = Pose();
+      final out = GhostFrame();
 
       Playback(tape).sampleAt(0.5, out);
 
@@ -188,11 +188,11 @@ void main() {
   });
 
   test('a pose survives being written down and read back', () {
-    final pose = Pose(time: 1.25, yaw: 0.5)
+    final pose = GhostFrame(time: 1.25, yaw: 0.5)
       ..position.setValues(1.0, 2.0, 3.0)
       ..up.setValues(0.0, 0.7071, 0.7071);
 
-    final copy = Pose.fromJson(pose.toJson());
+    final copy = GhostFrame.fromJson(pose.toJson());
 
     expect(copy.time, closeTo(1.25, 1e-3));
     expect(copy.position.x, closeTo(1.0, 1e-3));
@@ -202,7 +202,7 @@ void main() {
   test('and one written before there was an up still reads', () {
     // Forwards compatibility in the direction that matters: what is on disk was
     // written by an older build, and losing it is losing somebody's best run.
-    final copy = Pose.fromJson(<String, Object?>{
+    final copy = GhostFrame.fromJson(<String, Object?>{
       't': 0.0,
       'p': <double>[1.0, 2.0, 3.0],
       'y': 0.5,
@@ -230,9 +230,10 @@ void main() {
         'y': 0.0,
       },
     ]) {
-      final pose = Pose.fromJson(broken);
+      final pose = GhostFrame.fromJson(broken);
 
-      expect(pose.time, isNotNull);
+      // A time that reads is kept, and one that does not is nought.
+      expect(pose.time, broken['t'] is num ? broken['t'] : 0.0);
       expect(pose.position.x.isFinite, isTrue);
       expect(pose.up.y, 1.0, reason: 'the up was left broken rather than up');
     }

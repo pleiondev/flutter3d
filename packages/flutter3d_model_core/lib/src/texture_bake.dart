@@ -40,7 +40,8 @@ import 'dart:isolate';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import 'package:flutter3d_core/formats.dart' show decodePng;
+import 'package:flutter3d_core/formats.dart'
+    show DecodedImage, ImageFormatException, decodePng;
 
 import 'texture_graph.dart';
 
@@ -55,6 +56,8 @@ const bool _bakeStaysHere = bool.fromEnvironment('dart.library.js_interop');
 /// calls to [bakeTextureGraph] and [bakeTextureFull] — the object a caller
 /// keeps alive across edits so an unchanged `Image` node is never redecoded.
 /// Empty and inert until a bake fills it.
+///
+/// An application keeps one, `TextureBakeCache()`, across bakes.
 final class TextureBakeCache {
   final Map<String, _Raster> _byKey = <String, _Raster>{};
 
@@ -252,6 +255,7 @@ _Raster _evaluate(
       size,
     ),
     OutputTextureNode() => colorInput('result'),
+    _ => throw UnsupportedError('no bake for a ${node.kind} node'),
   };
   cache._byKey[key] = raster;
   return raster;
@@ -291,7 +295,12 @@ _Raster _evalImage(
 ) {
   final raster = _Raster(size, 4);
   final bytes = images[node.imageId];
-  final decoded = bytes == null ? null : decodePng(bytes);
+  // An image that is not a PNG this build decodes bakes as the flat
+  // fallback below, as a missing one does.
+  final DecodedImage? decoded = switch (bytes) {
+    null => null,
+    final Uint8List encoded => _pngOrNull(encoded),
+  };
   if (decoded == null) {
     raster.fill(const <double>[
       0.5,
@@ -322,7 +331,7 @@ _Raster _evalImage(
 
 _Raster _evalColor(ColorTextureNode node, int size) {
   final raster = _Raster(size, 4);
-  raster.fill(<double>[node.value.x, node.value.y, node.value.z, node.value.w]);
+  raster.fill(<double>[node.value.r, node.value.g, node.value.b, node.value.a]);
   return raster;
 }
 
@@ -332,6 +341,7 @@ double _blendOne(TextureBlendMode mode, double base, double overlay) =>
       TextureBlendMode.multiply => base * overlay,
       TextureBlendMode.add => base + overlay,
       TextureBlendMode.screen => 1 - (1 - base) * (1 - overlay),
+      _ => throw UnsupportedError('no blend recipe for $mode'),
     };
 
 _Raster _evalBlend(
@@ -441,10 +451,10 @@ _Raster _evalChecker(CheckerTextureNode node, int size) {
       final u = (x + 0.5) / size;
       final cell = (u * node.scale).floor() + (v * node.scale).floor();
       final color = cell.isEven ? node.colorA : node.colorB;
-      raster.set(x, y, 0, color.x);
-      raster.set(x, y, 1, color.y);
-      raster.set(x, y, 2, color.z);
-      raster.set(x, y, 3, color.w);
+      raster.set(x, y, 0, color.r);
+      raster.set(x, y, 1, color.g);
+      raster.set(x, y, 2, color.b);
+      raster.set(x, y, 3, color.a);
     }
   }
   return raster;
@@ -517,4 +527,13 @@ _Raster _evalNormalFromHeight(
     }
   }
   return raster;
+}
+
+/// [bytes] decoded, or null when they are not a PNG this build reads.
+DecodedImage? _pngOrNull(Uint8List bytes) {
+  try {
+    return decodePng(bytes);
+  } on ImageFormatException {
+    return null;
+  }
 }

@@ -2,9 +2,11 @@
 /// how a run unfolds, and the digest that tells an instructor exactly where
 /// a student's run first parted from the assignment.
 ///
-/// **`flutter3d_lab` is not a dependency of this app.** Its real
-/// `PendulumSimulation` is nineteen lines of semi-implicit Euler over
-/// `Portable.sin`; this page reimplements exactly that formula by hand,
+/// **`flutter3d_education/lab.dart` is not a dependency of this app.** Its real
+/// `PendulumSimulation` is a few lines of semi-implicit Euler over
+/// `Portable.sin`, with its damping of 0.02 1/s and its length that keeps
+/// the swing's angular momentum when it changes; this page reimplements
+/// exactly that by hand,
 /// against the same `Portable` this app already depends on through
 /// `flutter3d_sim`, and uses the real `DigestTrace` to compare two runs —
 /// the verification mechanism is genuine, only the tiny pendulum formula is
@@ -16,28 +18,46 @@ library;
 import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+import 'package:flutter3d_matter/flutter3d_matter.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/scene_kit.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart';
 
 // #region pendulum
 /// The lab's own worked example: semi-implicit Euler over a gravity
 /// pendulum, the same order of integrator the rest of the engine steps
 /// with.
 final class _Pendulum {
-  _Pendulum({required this.lengthMeters, double startAngle = 0.6})
-    : theta = startAngle,
+  _Pendulum({required double lengthMeters, double startAngle = 0.6})
+    : _length = lengthMeters,
+      theta = startAngle,
       omega = 0.0;
 
-  static const double _gravity = 9.81;
+  /// A pendulum on its own, in no world: the Earth's.
+  static const double _gravity = standardGravity;
 
-  double lengthMeters;
+  /// Linear drag on the swing, 1/s: θ'' = −(g/L)·sin θ − c·θ'.
+  static const double _damping = 0.02;
+
+  double _length;
   double theta;
   double omega;
 
+  double get lengthMeters => _length;
+
+  /// A string drawn in or let out through the pivot keeps the bob's angular
+  /// momentum, m·L²·ω: the swing turns (L / L′)² as fast.
+  set lengthMeters(double value) {
+    if (value == _length) return;
+    final ratio = _length / value;
+    omega *= ratio * ratio;
+    _length = value;
+  }
+
   void step(double dt) {
-    final alpha = -(_gravity / lengthMeters) * Portable.sin(theta);
+    final alpha =
+        -(_gravity / _length) * Portable.sin(theta) - _damping * omega;
     omega += alpha * dt;
     theta += omega * dt;
   }
@@ -132,7 +152,7 @@ final class PendulumLabDemo extends ShowcaseDemo {
     _assignmentTrace = DigestTrace(every: _every);
     _studentTrace = DigestTrace(every: _every);
     for (final MeshNode lamp in _lamps) {
-      lamp.material.baseColor.setValues(0.3, 0.3, 0.33, 1.0);
+      lamp.material.baseColor = LinearColor.fromSrgb(0.3, 0.3, 0.33, 1.0);
     }
   }
 
@@ -164,7 +184,7 @@ final class PendulumLabDemo extends ShowcaseDemo {
             _assignmentTrace.digests,
           );
           final bool bad = parted != null && _step >= parted.step;
-          _lamps[where].material.baseColor.setValues(
+          _lamps[where].material.baseColor = LinearColor.fromSrgb(
             bad ? 0.9 : 0.35,
             bad ? 0.3 : 0.85,
             bad ? 0.3 : 0.4,

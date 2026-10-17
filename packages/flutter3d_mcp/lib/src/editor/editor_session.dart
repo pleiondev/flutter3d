@@ -1,0 +1,754 @@
+import 'dart:io';
+
+import 'package:flutter3d_core/flutter3d_core.dart' show DebugView;
+import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
+import 'package:flutter3d_mcp/kit.dart' show Answer, ProjectRoot, ResolvedPath;
+import 'package:flutter3d_plugin_api/editor.dart'
+    show ComponentHints, FieldHint;
+import 'package:flutter3d_sim/flutter3d_sim.dart';
+import 'package:vector_math/vector_math.dart';
+
+import 'level_view.dart';
+import 'play_session.dart';
+
+// What a tool call did, and the sentence to say about it — the one `Answer`
+// every server here shares, with the PNG a drawing tool carries beside it.
+// A refusal is an answer, not an exception: `EditorCommand.apply` already
+// decided that.
+export 'package:flutter3d_mcp/kit.dart' show Answer;
+
+/// One level document, open, with the editor's own verbs on it.
+///
+/// **The half with a disk in it, and the reason it is a separate file from the
+/// server.** `flutter3d_editor_core` deliberately reads no disk — "that half is
+/// where a crash loses somebody's work and where a platform gets an opinion" —
+/// and the protocol layer deliberately knows nothing about levels. What is left
+/// in the middle is this: open a path, run the commands, write it back, and say
+/// in one sentence what happened.
+///
+/// One per process, because the document is the state. There is no `open` tool
+/// and no second document: an agent that could swap the level underneath itself
+/// would have an undo stack describing a file it is no longer editing, and the
+/// sixty-four snapshots behind it would quietly become sixty-four snapshots of
+/// somebody else's work.
+final class EditorSession {
+  EditorSession(
+    this.editing, {
+    PlaySession? play,
+    EditorPieces? pieces,
+    ProjectRoot? root,
+  }) : play = play ?? PlaySession(levelPath: editing.path),
+       pieces = pieces ?? EditorPieces(),
+       root = root ?? ProjectRoot.around(editing.path);
+
+  /// Reads the document at [path].
+  ///
+  /// The path as typed, resolved by the shell that started this process rather
+  /// than searched for. The editor application searches — its bundle's working
+  /// directory is `/` and not where anybody typed the command — and a server
+  /// started by an agent host has no such excuse: it inherits a working
+  /// directory that somebody chose.
+  factory EditorSession.open(String path) =>
+      EditorSession(Editing.parse(File(path).readAsStringSync(), path: path));
+
+  final Editing editing;
+
+  /// The directory every path a tool hands this session must lie inside —
+  /// [save]'s, and the capture files' — and the project around the level
+  /// when not given: the nearest directory above it with a `pubspec.yaml`,
+  /// the one `play` runs, or the level's own directory.
+  final ProjectRoot root;
+
+  /// The game this level belongs to, run from here.
+  final PlaySession play;
+
+  /// The commands this editor reads: its own, and those the project's
+  /// plugins added, each published as `<namespace>.<name>`. What the
+  /// `command.run` tool reads a name through, so an agent reaches a plugin's
+  /// command by the same door as a built-in one.
+  final EditorPieces pieces;
+
+  /// The experiment document open beside the level, or null for none: what
+  /// the `experiment.*` tools edit. One at a time, opened inside [root].
+  ExperimentEditing? experiment;
+
+  /// Opens the `.f3d.experiment` at [path], inside [root], in place of the
+  /// one open before; refused, with the reader's words, for one it does not
+  /// open.
+  Answer openExperiment(String path) {
+    final ResolvedPath(path: inside, :refused) = root.tryResolve(path);
+    if (inside == null) return Answer(did: false, says: refused!);
+    final file = File(inside);
+    if (!file.existsSync()) {
+      return Answer(did: false, says: 'there is no $path');
+    }
+    try {
+      experiment = ExperimentEditing.parse(
+        file.readAsStringSync(),
+        path: inside,
+      );
+    } on Exception catch (error) {
+      return Answer(did: false, says: '$path does not open: $error');
+    }
+    return Answer(did: true, says: experimentListing());
+  }
+
+  /// The open experiment, one line per thing in it: its words, substances,
+  /// parameters, probes, and each step with what it sets, runs and expects.
+  String experimentListing() {
+    final open = experiment;
+    if (open == null) return 'no experiment is open: call experiment.open';
+    final document = open.document;
+    String quantity(Object? written) => switch (written) {
+      {'value': final Object value, 'unit': final Object unit} =>
+        '$value $unit',
+      final Object other => '$other',
+      null => '—',
+    };
+    String when(Object? present, String said) => present == null ? '' : said;
+    String parameterRow(Map<Object?, Object?> row) {
+      final from = when(row['min'], ' from ${quantity(row['min'])}');
+      final to = when(row['max'], ' to ${quantity(row['max'])}');
+      return 'parameter ${row['id']} = ${quantity(row['value'])}$from$to';
+    }
+
+    String stepRow(int index, Map<Object?, Object?> row) {
+      final sets = switch (row['set']) {
+        final Map<Object?, Object?> set =>
+          ': set ${<String>[for (final MapEntry(:key, :value) in set.entries) '$key ${quantity(value)}'].join(', ')}',
+        _ => '',
+      };
+      final runs = when(row['run'], ', run ${quantity(row['run'])}');
+      String reading(Map<Object?, Object?> it) =>
+          '${it['probe']} ${quantity(it['value'])} ± '
+          '${quantity(it['tolerance'])}';
+      final expects = switch (row['expect']) {
+        final List<Object?> expect =>
+          ', expect ${expect.whereType<Map<Object?, Object?>>().map(reading).join(', ')}',
+        _ => '',
+      };
+      return 'step $index ${row['name']}$sets$runs$expects';
+    }
+
+    final json = document.toJson();
+    final steps = switch (json['scenario']) {
+      {'steps': final List<Object?> steps} => steps,
+      _ => const <Object?>[],
+    };
+    final title = when(document.title, ' "${document.title}"');
+    final changed = open.isDirty ? ' (changed)' : '';
+    final heading =
+        'experiment ${document.name}$title, level ${document.level}, '
+        'profile ${document.profile}$changed';
+    return <String>[
+      heading,
+      for (final substance in document.substances)
+        'substance ${substance.id}${when(substance.role, ' as ${substance.role}')}',
+      for (final parameter
+          in (json['parameters'] as List<Object?>?) ?? const <Object?>[])
+        if (parameter case final Map<Object?, Object?> row) parameterRow(row),
+      for (final probe in document.probes)
+        'probe ${probe.id}${when(probe.on, ' on ${probe.on}')}',
+      for (final (index, step) in steps.indexed)
+        if (step case final Map<Object?, Object?> row) stepRow(index, row),
+    ].join('\n');
+  }
+
+  /// Makes the edit [json] names, with its arguments, on the open
+  /// experiment: one step of its undo, or the reader's refusal.
+  Answer editExperiment(Map<String, Object?> json) {
+    final open = experiment;
+    if (open == null) {
+      return Answer(
+        did: false,
+        says: 'no experiment is open: call experiment.open',
+      );
+    }
+    final edit = ExperimentEdit.fromJson(json);
+    if (edit == null) {
+      return Answer(
+        did: false,
+        says:
+            '${json['edit']} cannot be read from those arguments; the edits '
+            'are ${experimentEditNames.join(', ')}',
+      );
+    }
+    final refused = open.run(edit);
+    return refused == null
+        ? Answer(did: true, says: edit.says)
+        : Answer(did: false, says: refused);
+  }
+
+  /// Takes back the open experiment's last edit, or makes the last undone
+  /// one again with [redo].
+  Answer undoExperiment({bool redo = false}) {
+    final open = experiment;
+    if (open == null) {
+      return Answer(
+        did: false,
+        says: 'no experiment is open: call experiment.open',
+      );
+    }
+    final said = redo ? open.redo() : open.undo();
+    return said == null
+        ? Answer(did: false, says: 'nothing to ${redo ? 'redo' : 'undo'}')
+        : Answer(did: true, says: '${redo ? 'redid' : 'undid'} $said');
+  }
+
+  /// Writes the open experiment, to [path] inside [root] or over the file
+  /// it was read from.
+  Answer saveExperiment(String? path) {
+    final open = experiment;
+    if (open == null) {
+      return Answer(
+        did: false,
+        says: 'no experiment is open: call experiment.open',
+      );
+    }
+    final String to;
+    if (path == null) {
+      to = open.path!;
+    } else {
+      final ResolvedPath(path: inside, :refused) = root.tryResolve(path);
+      if (inside == null) return Answer(did: false, says: refused!);
+      to = inside;
+    }
+    File(to).writeAsStringSync('${open.write()}\n');
+    if (to == open.path) open.saved();
+    return Answer(did: true, says: 'written to $to');
+  }
+
+  /// What this editor writes into `generatedBy` when it takes ownership of a
+  /// copy. The application writes `apps/flutter3d_editor` for the same reason:
+  /// a document should name what last wrote it.
+  static const String author = 'packages/flutter3d_editor_mcp';
+
+  /// Everything in the document, one line each.
+  ///
+  /// **The tool an agent has to call first, and the one the plan was missing.**
+  /// Every other verb here works on "the selection", and a selection is a kind
+  /// and an index — which a program with no screen has no way to guess. Without
+  /// this, driving the editor means moving the third brush without ever being
+  /// able to find out that there is a third brush.
+  String listing() {
+    final rows = piecesOf(editing.level);
+    final trees = editing.level.behaviors.keys.toList()..sort();
+    if (rows.isEmpty && trees.isEmpty) return 'the level is empty';
+    return <String>[
+      for (final row in rows) row.says,
+      if (trees.isNotEmpty) 'behaviours: ${trees.join(', ')}',
+      '',
+      'selection: $selection',
+    ].join('\n');
+  }
+
+  /// Writes [tree] as the behaviour called [name], or says every problem
+  /// with it and writes nothing.
+  Answer setBehavior(String name, Map<String, Object?> tree) {
+    final had = editing.level.behaviors.containsKey(name);
+    final problems = editing.setBehavior(name, tree);
+    if (problems.isNotEmpty) {
+      return Answer(
+        did: false,
+        says: <String>[
+          'behaviour $name was not written:',
+          for (final problem in problems) '  $problem',
+        ].join('\n'),
+      );
+    }
+    return Answer(
+      did: true,
+      says:
+          '${had ? 'replaced' : 'wrote'} behaviour $name — an entity runs '
+          'it by naming it in its behaviour property',
+    );
+  }
+
+  /// Writes [sequence] as the cutscene called [name], made at [at] when new,
+  /// or says every problem with it and writes nothing.
+  Answer setCutscene(String name, Map<String, Object?> sequence, Vector3? at) {
+    final had = editing.cutscenes.containsKey(name);
+    final problems = editing.setCutscene(name, sequence, at: at);
+    if (problems.isNotEmpty) {
+      return Answer(
+        did: false,
+        says: <String>[
+          'cutscene $name was not written:',
+          for (final problem in problems) '  $problem',
+        ].join('\n'),
+      );
+    }
+    return Answer(
+      did: true,
+      says:
+          '${had ? 'replaced' : 'wrote'} cutscene $name — a trigger, button '
+          'or relay whose target is $name starts it',
+    );
+  }
+
+  /// Takes the cutscene called [name] out.
+  Answer removeCutscene(String name) => editing.removeCutscene(name)
+      ? Answer(did: true, says: 'removed cutscene $name')
+      : Answer(did: false, says: 'there is no cutscene $name — call list');
+
+  /// Takes the behaviour called [name] out.
+  Answer removeBehavior(String name) => editing.removeBehavior(name)
+      ? Answer(did: true, says: 'removed behaviour $name')
+      : Answer(did: false, says: 'there is no behaviour $name — call list');
+
+  /// What is selected, said to something that has no mouse.
+  ///
+  /// `Editing.says` answers "nothing selected — click something", which is the
+  /// right sentence for the application it was written for and the wrong one
+  /// here: an agent reading it looks for a way to click. Only the empty case
+  /// differs, so a selection reads identically in both editors.
+  String get selection =>
+      editing.piece == null ? 'nothing selected — call select' : editing.says;
+
+  /// Picks one of the rows [listing] gave, or nothing when [index] is null.
+  ///
+  /// Answers false when there is no such row, rather than quietly selecting
+  /// nothing: "brush 40" in a level with six brushes is a mistake worth
+  /// hearing about, and an editor that silently deselected would answer the
+  /// next four commands with "nothing is selected" and never say why.
+  ///
+  /// [also] adds the one named to what is selected, or takes it out when it
+  /// is already there, rather than replacing the selection — how several
+  /// entities are picked to make a prefab of.
+  Answer select(Piece? kind, int? index, {bool also = false}) {
+    if (also && kind != null && index != null) {
+      editing.toggle(kind, index);
+      return Answer(did: true, says: selection);
+    }
+    editing.select(kind, index);
+    if (index != null && editing.piece == null) {
+      return Answer(
+        did: false,
+        says: 'there is no ${kind?.name} $index — call list',
+      );
+    }
+    return Answer(did: true, says: selection);
+  }
+
+  /// Runs one editor command through the history, so it can be undone.
+  ///
+  /// Through [EditorHistory.run] rather than through the command's own `apply`,
+  /// because that is where a step gets its name: an agent that undoes gets told
+  /// "move by 0.25, 0, 0" rather than the word "undone".
+  Answer run(DocumentCommand command) {
+    final did = editing.history.run(command);
+    return Answer(
+      did: did,
+      says: did
+          ? '${command.says} — $selection'
+          : 'nothing did ${command.says}: $selection',
+    );
+  }
+
+  /// Adds a recipe to the level — a room, a corridor or a scatter, built by a
+  /// seeded kit — and says what it builds.
+  ///
+  /// The document keeps the recipe rather than its brushes, which is why the
+  /// answer counts them: `list` shows what the document holds, and a recipe
+  /// is expanded only where the level is used. Undoable like any change.
+  /// A whole level made by `generateLevel` from [rules] and [seed], in
+  /// place of the open one — one step of undo — and what it is made of.
+  /// Off this thread, since a big grid of rooms is a bake and a route.
+  Future<Answer> generateLevel(LevelRules rules, {required int seed}) async {
+    final made = await generateLevelOffThread(rules, seed: seed);
+    final level = made.level;
+    if (level == null) return Answer(did: false, says: made.says);
+    editing.replaceLevel(
+      level,
+      says: 'generate a level from seed ${made.seed}',
+    );
+    final rooms = level.recipes
+        .where((LevelRecipe recipe) => recipe.kind == 'room')
+        .length;
+    return Answer(
+      did: true,
+      says:
+          '${made.says}: $rooms rooms joined by corridors, the player in one '
+          'and the exit a walk away in the farthest — call validate, or save',
+    );
+  }
+
+  Answer generate(LevelRecipe recipe) {
+    try {
+      final built = editing.addRecipe(recipe);
+      String count(int n, String one, String many) =>
+          '$n ${n == 1 ? one : many}';
+      return Answer(
+        did: true,
+        says:
+            'added a ${recipe.kind} from seed ${recipe.seed}: it builds '
+            '${count(built.brushes.length, 'brush', 'brushes')}, '
+            '${count(built.entities.length, 'entity', 'entities')} and '
+            '${count(built.lights.length, 'light', 'lights')} — the document '
+            'keeps the recipe, and the same seed builds the same thing every '
+            'time',
+      );
+    } on LevelFormatException catch (e) {
+      return Answer(
+        did: false,
+        says: 'no ${recipe.kind} was added: ${e.message}',
+      );
+    }
+  }
+
+  /// Puts the document back the way it was before the last change.
+  Answer undo() {
+    final says = editing.history.undoSays;
+    if (says == null) return Answer(did: false, says: 'nothing to undo');
+    editing.undo();
+    return Answer(did: true, says: 'undid $says — $selection');
+  }
+
+  /// Puts back the change [undo] took away.
+  Answer redo() {
+    final says = editing.history.redoSays;
+    if (says == null) return Answer(did: false, says: 'nothing to redo');
+    editing.redo();
+    return Answer(did: true, says: 'redid $says — $selection');
+  }
+
+  /// What is wrong with the level, as the game would see it.
+  ///
+  /// **Against the document's own vocabulary, which is the only one this
+  /// process has.** `vocabularyOf` builds a registry out of whatever the level
+  /// happens to name, so nothing here reports "unknown entity type: torch" for
+  /// a game full of torches — the editor has no vocabulary and must not invent
+  /// one, and a genre's real registry lives in a genre package that a tool is
+  /// forbidden to name. What is left is every check that is honestly about the
+  /// document: geometry that overlaps, a brush naming a material the level does
+  /// not declare, a light with no reach, a name two entities both answer to.
+  ///
+  /// That is exactly the class of mistake an agent makes, because it edits by
+  /// writing words rather than by clicking on something that is already there.
+  String validate() {
+    final issues = editing.issuesFor(vocabularyOf(editing.level));
+    if (issues.isEmpty) return 'no issues';
+    final errors = issues.where((LevelIssue it) => it.isError).length;
+    final headline =
+        '${issues.length} issue${issues.length == 1 ? '' : 's'}, '
+        '$errors of them fatal';
+    return <String>[
+      headline,
+      for (final issue in issues) '  $issue',
+    ].join('\n');
+  }
+
+  /// Where a picture is taken from: [from] and [at] where the call named
+  /// them, the level's default view for whichever it left out. Null for a
+  /// level with nothing in it to look at.
+  LevelCamera? _camera(Vector3? from, Vector3? at) {
+    final fallback = LevelView.defaultCamera(editing.level);
+    if (fallback == null) return null;
+    return (from: from ?? fallback.from, at: at ?? fallback.at);
+  }
+
+  /// A picture of the level from [from] looking at [at].
+  Future<Answer> screenshot(
+    Vector3? from,
+    Vector3? at, {
+    String? debugView,
+  }) async {
+    final camera = _camera(from, at);
+    if (camera == null) {
+      return Answer(did: false, says: 'the level is empty', png: null);
+    }
+    final view = debugView == null
+        ? DebugView.off
+        : DebugView.byName(debugView);
+    if (view == null) {
+      return Answer(
+        did: false,
+        says:
+            'there is no debug view "$debugView": '
+            '${DebugView.values.map((v) => v.name).join(', ')}',
+        png: null,
+      );
+    }
+    final png = await LevelView.of(
+      editing.level,
+    ).picture(camera, debugView: view);
+    return Answer(
+      did: true,
+      says:
+          'the level from ${_place(camera.from)} looking at '
+          '${_place(camera.at)}, ${LevelView.width}×${LevelView.height}'
+          '${view == DebugView.off ? '' : ', as its ${view.name}'}',
+      png: png,
+    );
+  }
+
+  /// What the camera from [from] looking at [at] sees, one line per brush,
+  /// light and entity.
+  ///
+  /// **Answered from the frame's own object ids**, not from boxes against a
+  /// ray: the renderer draws the level once more with every draw's number in
+  /// place of its colour (`Renderer.captureObjectIds`), so a pixel counted as
+  /// a wall's is a pixel the wall was drawn at, after the depth test. The
+  /// level is built one draw per brush for this, so a pixel names a brush and
+  /// not a material.
+  Future<Answer> report(Vector3? from, Vector3? at) async {
+    final camera = _camera(from, at);
+    if (camera == null) return Answer(did: false, says: 'the level is empty');
+    final rows = await LevelView.of(editing.level).report(camera);
+    final headline =
+        'from ${_place(camera.from)} looking at ${_place(camera.at)}, '
+        '${LevelView.width}×${LevelView.height}:';
+    return Answer(
+      did: true,
+      says: <String>[headline, for (final row in rows) row.says].join('\n'),
+    );
+  }
+
+  /// Fewer lights, judged by the pictures they make from [views] — from the
+  /// spawn when none are given — and applied as one step of undo unless
+  /// [apply] is false.
+  ///
+  /// The picture is the new set's, from the first view; the sentence carries
+  /// the moves and the numbers, so an agent can judge the change before
+  /// keeping it and undo it after.
+  Answer optimizeLights({List<LightView>? views, bool apply = true}) {
+    final level = editing.level;
+    if (level.lights.isEmpty) {
+      return Answer(did: false, says: 'the level has no lights', png: null);
+    }
+    final seen = views ?? defaultLightViews(level);
+    if (seen.isEmpty) {
+      return Answer(
+        did: false,
+        says: 'no view to judge the lights from — name one, or add a spawn',
+        png: null,
+      );
+    }
+    final plan = const LightOptimizer().optimize(level, views: seen);
+    final said = <String>[
+      plan.says,
+      for (final move in plan.moves) '  $move',
+    ].join('\n');
+    if (!plan.hasChanges) {
+      return Answer(
+        did: false,
+        says: 'nothing to gain: $said',
+        png: plan.pngs.after,
+      );
+    }
+    if (apply) editing.history.run(SetLights(plan.after, why: plan.says));
+    return Answer(
+      did: apply,
+      says: apply
+          ? '$said\n(undo puts the old lights back)'
+          : 'proposed: $said',
+      png: plan.pngs.after,
+    );
+  }
+
+  /// What the plugins brought to this editor, a section each: commands with
+  /// their arguments, inspector hints, gizmos, importers and asset-browser
+  /// entries. "no plugin brought anything" when none did.
+  String pluginListing() {
+    final hints = pieces.hints;
+    String fields(Iterable<FieldHint> hinted) =>
+        hinted.map((FieldHint f) => '${f.key} (${f.kind.name})').join(', ');
+    String commandRow(PluginCommandInfo command) {
+      final takes = command.arguments.isEmpty
+          ? ''
+          : ': ${fields(command.arguments)}';
+      final about = command.description == null
+          ? ''
+          : ' — ${command.description}';
+      return '${command.name}$takes$about';
+    }
+
+    String componentRow(ComponentHints component) {
+      final on = component.entityTypes.isEmpty
+          ? ''
+          : ' on ${component.entityTypes.join(', ')}';
+      return '${component.id} "${component.title}": '
+          '${fields(component.fields)}$on';
+    }
+
+    String assetRow(AddedAssetEntry added) {
+      final placed = added.entry.place == null ? '' : ', placed by dropping';
+      return '${added.name} "${added.entry.label}": '
+          '${added.entry.suffixes.join(' ')}$placed';
+    }
+
+    final sections = <(String, List<String>)>[
+      ('commands', <String>[...pieces.pluginCommands.map(commandRow)]),
+      ('components', <String>[...hints.components.map(componentRow)]),
+      (
+        'entity kinds',
+        <String>[
+          for (final kind in hints.entityKinds)
+            '${kind.type} "${kind.title}": ${fields(kind.fields)}',
+        ],
+      ),
+      (
+        'materials',
+        <String>[
+          for (final material in hints.materials)
+            '${material.model}: ${fields(material.fields)}',
+        ],
+      ),
+      ('gizmos', pieces.gizmoNames),
+      (
+        'importers',
+        <String>[
+          for (final added in pieces.importers)
+            '${added.name} "${added.importer.label}": ${added.importer.suffixes.join(' ')}',
+        ],
+      ),
+      (
+        'asset entries',
+        <String>[
+          for (final added in pieces.assetEntries)
+            if (!builtInAssetEntries.contains(added)) assetRow(added),
+        ],
+      ),
+    ];
+    final said = <String>[
+      for (final (title, rows) in sections)
+        if (rows.isNotEmpty) ...<String>[
+          '$title:',
+          for (final row in rows) '  $row',
+        ],
+    ];
+    return said.isEmpty ? 'no plugin brought anything' : said.join('\n');
+  }
+
+  /// Brings the file at [path] into the project through the importer its
+  /// suffix names: the files it writes go under [root], and the commands it
+  /// answers run on the document, one step of undo each.
+  ///
+  /// [path] is resolved inside [root] and refused outside it, as every path
+  /// a tool hands this session is; so is every file the importer writes.
+  Future<Answer> importFile(String path, {Vector3? at}) async {
+    final added = pieces.importerFor(path);
+    if (added == null) {
+      final known = <String>[
+        for (final importer in pieces.importers) ...importer.importer.suffixes,
+      ];
+      return Answer(
+        did: false,
+        says: known.isEmpty
+            ? 'no importer is installed; a plugin adds one'
+            : 'no importer reads $path; the installed ones read '
+                  '${known.join(', ')}',
+      );
+    }
+    final ResolvedPath(path: source, :refused) = root.tryResolve(path);
+    if (source == null) return Answer(did: false, says: refused!);
+    final file = File(source);
+    if (!file.existsSync()) {
+      return Answer(did: false, says: 'there is no $path');
+    }
+    final ImportResult result;
+    try {
+      result = await added.importer.import(
+        ImportRequest(
+          path: source,
+          bytes: file.readAsBytesSync(),
+          level: editing.level,
+          at: at,
+        ),
+      );
+    } on Object catch (error) {
+      return Answer(
+        did: false,
+        says: '${added.name} could not read $path: $error',
+      );
+    }
+    final targets = <String, String>{};
+    for (final written in result.files.keys) {
+      final ResolvedPath(path: inside, :refused) = root.tryResolve(written);
+      if (inside == null) {
+        return Answer(
+          did: false,
+          says:
+              '${added.name} wanted to write $written: $refused; nothing '
+              'was imported',
+        );
+      }
+      targets[written] = inside;
+    }
+    for (final MapEntry(key: written, value: bytes) in result.files.entries) {
+      File(targets[written]!)
+        ..parent.createSync(recursive: true)
+        ..writeAsBytesSync(bytes);
+    }
+    final ran = <String>[
+      for (final command in result.commands)
+        if (editing.history.run(command)) command.says,
+    ];
+    return Answer(
+      did: true,
+      says: <String>[
+        'imported $path with ${added.name}',
+        for (final written in result.files.keys) '  wrote $written',
+        for (final said in ran) '  $said',
+        for (final note in result.notes) '  $note',
+      ].join('\n'),
+    );
+  }
+
+  static String _place(Vector3 it) => <double>[it.x, it.y, it.z]
+      .map(
+        (double v) => v == v.roundToDouble()
+            ? v.toStringAsFixed(0)
+            : v.toStringAsFixed(2),
+      )
+      .join(', ');
+
+  /// Writes the document, to [path] or over the one it came from.
+  ///
+  /// **The refusal is half of what this tool is for.** A document that says
+  /// `generatedBy` belongs to the program that generated it: editing
+  /// `level.first.json` by hand and saving it produces a file that looks edited
+  /// right up until somebody runs its generator again, at which point the
+  /// work is gone and nothing ever said so. So a generated document may be
+  /// opened, changed and saved *somewhere else*, and the copy claims itself —
+  /// a file saved beside the original still naming the generator is a file that
+  /// invites somebody to regenerate it.
+  ///
+  /// Written over the level the game is playing, it goes to the game too
+  /// when one is running, as the editor application's save does.
+  ///
+  /// [path] is resolved inside [root] and refused outside it, and compared
+  /// with the level's own path as the file it names rather than as text: a
+  /// `./` or an absolute spelling of the generated file is the same file.
+  Future<Answer> save(String? path) async {
+    final String? asked;
+    if (path == null) {
+      asked = null;
+    } else {
+      final ResolvedPath(path: inside, :refused) = root.tryResolve(path);
+      if (inside == null) return Answer(did: false, says: refused!);
+      asked = inside;
+    }
+    final own = root.tryResolve(File(editing.path).absolute.path).path;
+    final elsewhere = asked != null && asked != own;
+    if (!elsewhere && !editing.canOverwrite) {
+      return Answer(
+        did: false,
+        says:
+            '${editing.path} was written by ${editing.generatedBy} and will '
+            'not be overwritten — save to another path and the copy takes '
+            'ownership of itself',
+      );
+    }
+    final to = asked ?? editing.path;
+    final document = editing.write(claiming: elsewhere ? author : null);
+    File(to).writeAsStringSync(document);
+    editing.saved();
+    // Not a copy: the running game plays the original, not the file beside it.
+    final game = elsewhere ? null : await play.sendSaved(document);
+    return Answer(
+      did: true,
+      says: game == null ? 'written to $to' : 'written to $to; $game',
+    );
+  }
+}

@@ -1,8 +1,8 @@
 import 'dart:developer' as developer;
-import 'dart:isolate';
-import 'dart:typed_data';
 
 import 'package:flutter3d_core/formats.dart';
+
+import 'model_isolate.dart';
 
 export 'package:flutter3d_core/formats.dart'
     show
@@ -25,11 +25,8 @@ export 'package:flutter3d_core/formats.dart'
 // none of them can resolve a Flutter SDK to get it.
 export 'asset_source.dart';
 
-/// Whether this build has no isolates in it — the question `kIsWeb` used to
-/// answer here, asked the way a package with no Flutter SDK behind it can.
-const bool _isWeb = bool.fromEnvironment('dart.library.js_interop');
-
-/// Decodes a model on a background isolate.
+/// Decodes a model on a background isolate — in the browser, on the decode
+/// worker where one is running (`WebDecodeWorker`) and in place where not.
 ///
 /// The asset layer was kept free of the graphics backend, `dart:ui` and direct file access
 /// precisely so this would be possible: the decoders are pure Dart and take their
@@ -49,16 +46,19 @@ const bool _isWeb = bool.fromEnvironment('dart.library.js_interop');
 ///
 /// Sibling files are requested back over a port, so a `.gltf` referencing an
 /// external `.bin` works exactly as it does synchronously.
-Future<ModelDocument> decodeModelInIsolate(ModelLoadRequest request) async {
-  // The web has no isolates. `dart:isolate` compiles there — it is a stub — so
-  // this fails at run time rather than at build time, with
-  // `ReceivePort.listen` unsupported, several seconds into loading a model.
+///
+/// [read] is what the model's file is read with: a progress listener, a
+/// cancel signal ([AssetRead]). It stays on this isolate with the read, so
+/// its listener may close over anything; a load canceled before the file
+/// arrives fails with `ResourceLoadCanceledException` and decodes nothing.
+Future<ModelDocument> decodeModelInIsolate(
+  ModelLoadRequest request, {
+  AssetRead read = AssetRead.whole,
+}) async {
+  // The web has no isolates: `decodeOnIsolate` there is the browser's decode
+  // worker where one is running (`WebDecodeWorker`), and the page itself
+  // where not — see `model_isolate_web.dart`.
   //
-  // Decoding on the main thread instead, which is what the name promises not to
-  // do and the only thing available. A parse that janks is worse than one that
-  // does not; a parse that throws is worse than both.
-  if (_isWeb) return decodeModel(request);
-
   // An async span, not startSync/finishSync: the read and the isolate round trip
   // both suspend, and a synchronous span would close on the first await and
   // report a fraction of the real cost.
@@ -68,64 +68,8 @@ Future<ModelDocument> decodeModelInIsolate(ModelLoadRequest request) async {
       arguments: <String, Object?>{'source': request.source.key},
     );
   try {
-    return await _decodeModelInIsolate(request, task);
+    return await decodeOnIsolate(request, task, read);
   } finally {
     task.finish();
   }
-}
-
-Future<ModelDocument> _decodeModelInIsolate(
-  ModelLoadRequest request,
-  developer.TimelineTask task,
-) async {
-  task.instant('read');
-  final primary = await request.source.read();
-  final resolve = request.source.resolveUri;
-
-  final requests = ReceivePort();
-  final subscription = requests.listen((Object? message) async {
-    final envelope = message! as List<Object?>;
-    final uri = envelope[0]! as String;
-    final reply = envelope[1]! as SendPort;
-    try {
-      reply.send(await resolve(AssetRequest(uri)));
-    } catch (error) {
-      // Errors cannot be thrown across a port, so they travel as a value and are
-      // rethrown on the far side.
-      reply.send(<Object?>['error', error.toString()]);
-    }
-  });
-
-  final servicePort = requests.sendPort;
-  try {
-    task.instant('decode');
-    return await Isolate.run(
-      () => decodeModelBytes(request, primary, _portResolver(servicePort)),
-    );
-  } finally {
-    await subscription.cancel();
-    requests.close();
-  }
-}
-
-/// A resolver that asks the spawning isolate to read a file.
-AssetUriResolver _portResolver(SendPort servicePort) {
-  return (request) async {
-    // **The string, not the request.** What goes over the port is read by an
-    // isolate that expects a path, and `send` takes `Object?` — so handing it
-    // the whole object compiles, says nothing, and fails at the other end.
-    final uri = request.uri;
-    final reply = ReceivePort();
-    try {
-      servicePort.send(<Object?>[uri, reply.sendPort]);
-      final response = await reply.first;
-      if (response is Uint8List) return response;
-      if (response is List && response.length == 2 && response[0] == 'error') {
-        throw StateError('Could not read "$uri": ${response[1]}');
-      }
-      throw StateError('Unexpected reply reading "$uri": $response');
-    } finally {
-      reply.close();
-    }
-  };
 }

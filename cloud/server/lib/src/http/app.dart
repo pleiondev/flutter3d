@@ -7,11 +7,14 @@
 /// what they typed still in it.
 library;
 
+import 'dart:typed_data';
+
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 
 import '../auth/accounts.dart';
 import '../content/learn_content.dart';
+import '../convert/exporter.dart';
 import '../db/models_repository.dart';
 import '../db/rate_limit.dart';
 import '../db/sessions_repository.dart';
@@ -30,14 +33,19 @@ import '../pages/projects_page.dart';
 import '../pages/settings_page.dart';
 import '../services.dart';
 import '../storage/inspect.dart';
+import '../storage/model_exports.dart';
 import '../storage/png.dart';
+import 'convert_routes.dart';
 import 'cookies.dart';
+import 'editor_gate.dart';
 import 'gallery_routes.dart';
 import 'learn_routes.dart';
 import 'metrics.dart';
 import 'render.dart';
 import 'request.dart';
+import 'share_routes.dart';
 import 'static_files.dart';
+import 'telemetry_routes.dart';
 
 /// The largest preview picture accepted, in bytes.
 ///
@@ -60,6 +68,13 @@ Handler buildHandler(Services services) {
     // `gal-07`: the modeller's own gallery, behind one endpoint of ours,
     // so the keys the outside catalogues want stay on a machine we own.
     ..mount('/gallery/', galleryRoutes(services.gallery).call)
+    // N7: runs a player agreed to send, played again here; no session and no
+    // cookie, so nothing for a forged form to ride on.
+    ..mount('/api/telemetry/', telemetryRoutes(services.telemetry).call)
+    // N10: levels shared behind short codes, at the paths `RunService` asks
+    // for from a base of `/api/`. What it does not answer falls through to
+    // the routes below, `/api/v1/models` among them.
+    ..mount('/api/', shareRoutes(services.shares).call)
     // Nothing here checks who is asking. The endpoint is not linked from any
     // page and nginx keeps it off the public vhost (see
     // `cloud/monitoring/deploy/nginx-grafana.pleion.dev.conf` and
@@ -395,26 +410,19 @@ Handler buildHandler(Services services) {
         });
       }
 
-      switch (await inspectUpload(bytes, fileName: fileName)) {
-        case Rejected(:final because):
-          return json(422, {'error': because});
-        case Accepted(:final format, :final triangleCount):
-          final hash = await services.blobs.put(bytes);
-          final record = await services.models.create(
-            ownerId: user.id,
-            title: titleFromFileName(fileName),
-            sourceFormat: format.column,
-            triangleCount: triangleCount,
-            projectId: projectId,
-            source: StoredFile(
-              blobSha256: hash,
-              bytes: bytes.length,
-              contentType: format.contentType,
-              filename: _fileNameFor(fileName, format),
-            ),
-          );
-          return json(201, {'id': record.id, 'path': record.path});
-      }
+      return switch (await _keepModel(
+        services,
+        user,
+        fileName,
+        bytes,
+        projectId: projectId,
+      )) {
+        SavedModel(:final id, :final path) => json(201, {
+          'id': id,
+          'path': path,
+        }),
+        SaveRefused(:final because) => json(422, {'error': because}),
+      };
     })
     ..post('/api/v1/models/<id|[0-9]+>/preview', (
       Request request,
@@ -495,6 +503,11 @@ Handler buildHandler(Services services) {
       Request request,
       String id,
     ) async {
+      // `MODELS_EDITOR=off`: refused before anything is read or looked up,
+      // the same answer for every id. See `editor_gate.dart` for why 410.
+      if (sourceSaveRefusal(services.config) case final refused?) {
+        return refused;
+      }
       if (!scriptIsOurs(request)) {
         return json(403, {'error': 'This page is out of date. Reload it.'});
       }
@@ -552,6 +565,13 @@ Handler buildHandler(Services services) {
             sourceFormat: format.column,
             actorUserId: user.id,
           );
+          // Exports of the file this replaced describe a model that no
+          // longer exists; dropped, and their blobs freed once nothing else
+          // points at them.
+          await _freeAll(
+            services,
+            await services.models.dropStaleExports(model.id, hash),
+          );
           return json(200, {
             'id': updated.id,
             'path': updated.path,
@@ -584,6 +604,20 @@ Handler buildHandler(Services services) {
           },
       ]);
     });
+
+  // --- converting ---------------------------------------------------------------------
+
+  // `/convert`: open to every account with a confirmed address, without a
+  // rate limit — see `convert_routes.dart` and `convert/converter.dart` for
+  // what guards the process instead.
+  ConversionRoutes(
+    whoIs: userOf,
+    policy: policy,
+    store: services.conversions,
+    uploadLimitBytes: services.config.uploadLimitBytes,
+    saveModel: (User user, String fileName, Uint8List bytes) =>
+        _keepModel(services, user, fileName, bytes),
+  ).addTo(router);
 
   // --- one model --------------------------------------------------------------------
 
@@ -623,6 +657,7 @@ Handler buildHandler(Services services) {
           viewer: viewer,
           csrf: csrfOf(request),
           viewerAvailable: true,
+          editor: services.config.editor,
           revisions: revisions,
           ownerProjects: ownerProjects,
           sourceSha: source?.blobSha256 ?? '',
@@ -648,12 +683,8 @@ Handler buildHandler(Services services) {
     ..post('/m/<id|[0-9]+>/delete', (Request request, String id) async {
       final form = await readForm(request);
       return _editing(services, request, form, id, (model) async {
-        final hashes = await services.models.delete(model.id);
-        for (final hash in hashes.toSet()) {
-          if (!await services.models.isReferenced(hash)) {
-            await services.blobs.delete(hash);
-          }
-        }
+        // Its source, preview, revisions and cached exports alike.
+        await _freeAll(services, await services.models.delete(model.id));
         return seeOther('/me?said=deleted');
       });
     })
@@ -705,15 +736,16 @@ Handler buildHandler(Services services) {
         // clean 422 with the form re-shown, the same as `/register`'s own
         // `RegisterInvalid` branch, rather than a value reaching the
         // database for its `check` constraint to catch.
-        final licence = Licence.of(form['licence']);
+        final license = Licence.of(form['licence']);
         final category = Category.of(form['category']);
-        if (licence == null || category == null) {
+        if (license == null || category == null) {
           return htmlPage(
             ModelPage(
               model: model,
               viewer: await userOf(request),
               csrf: csrfOf(request),
               viewerAvailable: true,
+              editor: services.config.editor,
               revisions: await services.models.revisionsOf(model.id),
               ownerProjects: await services.projects.ofOwner(model.ownerId),
               sourceSha:
@@ -723,7 +755,7 @@ Handler buildHandler(Services services) {
                   ))?.blobSha256 ??
                   '',
               publishProblems: {
-                if (licence == null) 'licence': 'Choose one of the licences.',
+                if (license == null) 'licence': 'Choose one of the licences.',
                 if (category == null)
                   'category': 'Choose one of the categories.',
               },
@@ -733,7 +765,7 @@ Handler buildHandler(Services services) {
             status: 422,
           );
         }
-        await services.models.publish(model.id, licence, category: category);
+        await services.models.publish(model.id, license, category: category);
         final updated = await services.models.byId(model.id);
         return seeOther('${updated!.path}?said=published');
       });
@@ -770,6 +802,50 @@ Handler buildHandler(Services services) {
       final file = await services.models.fileOf(model.id, FileKind.source);
       if (file == null) return _notFound(request, viewer: viewer);
       return _serveBlob(services, request, file, public: model.isPublic);
+    })
+    // "Download as…": the same `canView` as the source download above — a
+    // published model's exports are anybody's, a private one's its owner's,
+    // and a 404 for everybody else and for a format nobody offers.
+    ..get('/files/<id|[0-9]+>/as/<format|[a-z0-9]+>', (
+      Request request,
+      String id,
+      String format,
+    ) async {
+      final viewer = await userOf(request);
+      final model = await services.models.byId(int.parse(id));
+      final asked = ExportFormat.of(format);
+      if (model == null || !canView(model, viewer) || asked == null) {
+        return _notFound(request, viewer: viewer);
+      }
+      final source = await services.models.fileOf(model.id, FileKind.source);
+      if (source == null) return _notFound(request, viewer: viewer);
+      return switch (await services.exports.exportOf(
+        modelId: model.id,
+        source: source,
+        sourceFormat: SourceFormat.of(model.sourceFormat),
+        format: asked,
+      )) {
+        ExportReady(:final file, :final inline?) => _serveBytes(
+          inline,
+          file,
+          public: model.isPublic,
+        ),
+        ExportReady(:final file) => _serveBlob(
+          services,
+          request,
+          file,
+          public: model.isPublic,
+        ),
+        ExportFailed(:final because) => htmlPage(
+          MessagePage(
+            title: 'Not written as ${asked.column}',
+            body: because,
+            signedIn: viewer,
+            action: ('Back to the model', model.path),
+          ),
+          status: 422,
+        ),
+      };
     })
     ..get('/files/<id|[0-9]+>/preview', (Request request, String id) async {
       final viewer = await userOf(request);
@@ -1067,6 +1143,65 @@ Future<Response> _serveBlob(
           : 'attachment; filename="$name"; filename*=UTF-8\'\'${Uri.encodeComponent(file.filename)}',
     },
   );
+}
+
+/// An export written for a source that was replaced while it was written:
+/// sent once from memory, since it was not kept. Not cacheable — the next
+/// request writes one for the source the model has then.
+Response _serveBytes(Uint8List bytes, StoredFile file, {required bool public}) {
+  final name = file.filename.replaceAll('"', '');
+  return Response.ok(
+    bytes,
+    headers: {
+      'content-type': file.contentType,
+      'content-length': '${bytes.length}',
+      'cache-control': public ? 'public, no-cache' : 'private, no-store',
+      'content-disposition':
+          'attachment; filename="$name"; filename*=UTF-8\'\'${Uri.encodeComponent(file.filename)}',
+    },
+  );
+}
+
+/// Deletes each blob in [hashes] that no model, revision or export still
+/// points at.
+Future<void> _freeAll(Services services, List<String> hashes) async {
+  for (final hash in hashes.toSet()) {
+    if (!await services.models.isReferenced(hash)) {
+      await services.blobs.delete(hash);
+    }
+  }
+}
+
+/// Reads [bytes] as a model and, if they are one, keeps them as a new model
+/// of [user]'s — an upload, and a converted model saved from `/convert`, the
+/// same way: decoded by `inspectUpload`, stored by hash, recorded in one row.
+Future<SaveOutcome> _keepModel(
+  Services services,
+  User user,
+  String fileName,
+  Uint8List bytes, {
+  int? projectId,
+}) async {
+  switch (await inspectUpload(bytes, fileName: fileName)) {
+    case Rejected(:final because):
+      return SaveRefused(because);
+    case Accepted(:final format, :final triangleCount):
+      final hash = await services.blobs.put(bytes);
+      final record = await services.models.create(
+        ownerId: user.id,
+        title: titleFromFileName(fileName),
+        sourceFormat: format.column,
+        triangleCount: triangleCount,
+        projectId: projectId,
+        source: StoredFile(
+          blobSha256: hash,
+          bytes: bytes.length,
+          contentType: format.contentType,
+          filename: _fileNameFor(fileName, format),
+        ),
+      );
+      return SavedModel(record.id, record.path);
+  }
 }
 
 String _fileNameFor(String uploaded, SourceFormat format) {

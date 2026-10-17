@@ -4,7 +4,7 @@
 ///
 /// **The viewport is handed in, not built here.** A real one needs a
 /// `Renderer` and a `ModelerStage` this screen has no business owning, and
-/// `ModelerViewport` — this app's own `RenderView` — already draws
+/// `ModelerViewport` — this app's own `CameraView` — already draws
 /// [EdgeFlags.seam]-marked edges in `MeshOverlayColours.seam` the moment its
 /// own `editMesh` is set (`mesh_overlay_builder.dart`'s `_emitLines`), so a
 /// caller wiring the real 3D view need do nothing more than keep passing the
@@ -76,7 +76,7 @@ final class UvScreen extends StatelessWidget {
   });
 
   /// The 3D view, already wired with the mesh this screen is unwrapping —
-  /// whatever this app calls its own `RenderView`, today `ModelerViewport`.
+  /// whatever this app calls its own `CameraView`, today `ModelerViewport`.
   /// Handed in rather than built here; see this file's own doc comment.
   final Widget viewport;
 
@@ -275,12 +275,12 @@ final class _LayoutPane extends StatelessWidget {
             spacing: 14,
             children: <Widget>[
               _LegendEntry(
-                colour: kUvNeutralColor,
+                color: kUvNeutralColor,
                 label: l.uvLegendNormal,
                 style: caption,
               ),
               _LegendEntry(
-                colour: kUvMaxStretchColor,
+                color: kUvMaxStretchColor,
                 label: l.uvLegendStretched,
                 style: caption,
               ),
@@ -294,12 +294,12 @@ final class _LayoutPane extends StatelessWidget {
 
 final class _LegendEntry extends StatelessWidget {
   const _LegendEntry({
-    required this.colour,
+    required this.color,
     required this.label,
     required this.style,
   });
 
-  final Color colour;
+  final Color color;
   final String label;
   final TextStyle? style;
 
@@ -307,7 +307,7 @@ final class _LegendEntry extends StatelessWidget {
   Widget build(BuildContext context) => Row(
     mainAxisSize: MainAxisSize.min,
     children: <Widget>[
-      ColoredBox(color: colour, child: const SizedBox(width: 10, height: 10)),
+      ColoredBox(color: color, child: const SizedBox(width: 10, height: 10)),
       const SizedBox(width: 6),
       Text(label, style: style),
     ],

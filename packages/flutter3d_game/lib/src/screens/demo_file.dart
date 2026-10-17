@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter3d_app/flutter3d_app.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart'
     show Demo, DemoFormatException;
 
@@ -42,8 +43,8 @@ final class DemoFile {
   /// smaller loss than a game that will not launch. The reason is said out
   /// loud rather than swallowed, because "no demo" and "a demo from a newer
   /// build" ask the player to do different things.
-  Demo? read() {
-    final text = storage.read(_name);
+  Future<Demo?> read() async {
+    final text = await storage.read(_name);
     if (text == null) return null;
     try {
       final json = jsonDecode(text);
@@ -61,12 +62,19 @@ final class DemoFile {
     }
   }
 
-  /// Writes the run, and says whether it managed to.
-  bool write(Demo demo) => storage.write(
-    _name,
-    const JsonEncoder.withIndent('  ').convert(demo.toJson()),
-  );
+  /// Writes the run, and says whether it managed to; a refusal is said
+  /// through [onIssue] as well.
+  Future<bool> write(Demo demo) async {
+    final text = const JsonEncoder.withIndent('  ').convert(demo.toJson());
+    try {
+      await storage.write(_name, text);
+      return true;
+    } on StorageException catch (error) {
+      onIssue(Issue('demo: could not be written (${error.message})'));
+      return false;
+    }
+  }
 
   /// Forgets the run.
-  void clear() => storage.remove(_name);
+  Future<void> clear() => storage.remove(_name);
 }

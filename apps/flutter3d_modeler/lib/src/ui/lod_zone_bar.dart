@@ -5,7 +5,7 @@
 /// **A dumb, callback-driven strip, the same shape `NumberField` and
 /// `operation_card.dart`'s own slider already are.** [LodZoneBar] never
 /// writes to [LodZoneBar.lods] itself — every drag calls
-/// [LodZoneBar.onThresholdChanged] and waits for a new [LodSpec] list to come
+/// [LodZoneBar.onThresholdChanged] and waits for a new [LodSettings] list to come
 /// back down, the same round trip a `SetLodRatio`-shaped command would carry
 /// through `ModelHistory`. `amend`-on-every-frame is `MoveBy`'s own reasoning
 /// in `command.dart`: reporting live while a marker moves, rather than only
@@ -34,12 +34,12 @@ Color _zoneColor(BuildContext context, int lodIndex) {
 }
 
 /// One 96-tall strip: a coloured zone per level of [lods], each ending where
-/// its own [LodSpec.maxScreenFraction] says, and a draggable marker at that
+/// its own [LodSettings.maxScreenFraction] says, and a draggable marker at that
 /// edge.
 ///
 /// The axis reads left to right as the screen fraction an object is drawn
 /// at, `0` at the left (an object shrunk to nothing) to `1` at the right (an
-/// object filling the frame) — [LodSpec.maxScreenFraction]'s own scale,
+/// object filling the frame) — [LodSettings.maxScreenFraction]'s own scale,
 /// carried straight onto the strip with nothing remapped, so a marker's
 /// position on screen is the number it reports.
 class LodZoneBar extends StatelessWidget {
@@ -51,9 +51,9 @@ class LodZoneBar extends StatelessWidget {
 
   /// One threshold per level, in the same order `ModelObject.lods` holds
   /// them.
-  final List<LodSpec> lods;
+  final List<LodSettings> lods;
 
-  /// A marker moved to a new [LodSpec.maxScreenFraction] for [lodIndex],
+  /// A marker moved to a new [LodSettings.maxScreenFraction] for [lodIndex],
   /// reported live through the drag rather than only once it ends.
   final void Function(int lodIndex, double maxScreenFraction)
   onThresholdChanged;
@@ -102,7 +102,7 @@ class LodZoneBar extends StatelessWidget {
 class _ZoneBands extends StatelessWidget {
   const _ZoneBands({required this.lods});
 
-  final List<LodSpec> lods;
+  final List<LodSettings> lods;
 
   @override
   Widget build(BuildContext context) {

@@ -1,4 +1,4 @@
-import 'package:flutter3d_sim/flutter3d_sim.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:vector_math/vector_math.dart';
 
 /// One thing a shot reached.
@@ -21,10 +21,13 @@ final class ShotHit {
 
   final Vector3 point;
   final Vector3 normal;
+
+  /// How far along the ray it was struck, in metres.
   final double distance;
 
   /// After falloff. Zero when nothing was hit.
+  /// In hit points (unitless).
   final double damage;
 
-  bool get struckSomething => collider != null;
+  bool get didStrikeSomething => collider != null;
 }

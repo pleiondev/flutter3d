@@ -8,13 +8,13 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter3d/flutter3d.dart' show LinearColor;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/src/ui/job_button.dart';
 import 'package:flutter3d_modeler/src/ui/texture_graph_panel.dart';
 import 'package:flutter3d_modeler/src/ui/theme.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// A 1×1 black PNG — enough for `Image.memory` to decode into something,
 /// which is all a thumbnail test needs it to do.
@@ -28,7 +28,7 @@ final Uint8List _onePixelPng = base64Decode(
 /// link, an unlinked input, and two different node kinds' own hints.
 TextureGraph _graph() => TextureGraph(
   nodes: <TextureNode>[
-    ColorTextureNode(id: 1, value: Vector4(1, 0, 0, 1)),
+    ColorTextureNode(id: 1, value: LinearColor(1, 0, 0, 1)),
     const OutputTextureNode(id: 2, result: 1, slot: 'albedo'),
     const ChannelsTextureNode(id: 3),
   ],
@@ -40,12 +40,15 @@ TextureGraph _graph() => TextureGraph(
   // window in a test's fixed-size surface. A person panning the real
   // `InteractiveViewer` would just scroll to it; a test asserting on a
   // specific control needs it on screen without panning first.
-  positions: <int, (double, double)>{1: (20, 8), 2: (220, 8), 3: (420, 8)},
+  positions: <int, NodePosition>{
+    1: NodePosition(x: 20, y: 8),
+    2: NodePosition(x: 220, y: 8),
+    3: NodePosition(x: 420, y: 8),
+  },
 );
 
 final class _Calls {
-  (String kind, Map<String, Object?> fields, (double, double) position)?
-  addNode;
+  (String kind, Map<String, Object?> fields, NodePosition position)? addNode;
   (int nodeId, String input, int from)? link;
   (int nodeId, String input)? unlink;
   (int nodeId, String field, Object? value)? setNodeField;
@@ -279,7 +282,7 @@ void main() {
 
       expect(calls.moveNode, isNotNull);
       expect(calls.moveNode!.$1, 1);
-      final (double startX, double startY) = _graph().positions[1]!;
+      final NodePosition(x: startX, y: startY) = _graph().positions[1]!;
       expect(calls.moveNode!.$2, closeTo(startX + 30, 0.5));
       expect(calls.moveNode!.$3, closeTo(startY + 15, 0.5));
     });

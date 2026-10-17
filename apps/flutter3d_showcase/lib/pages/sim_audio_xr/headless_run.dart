@@ -9,11 +9,10 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/scene_kit.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart';
 
 // #region run
 /// A toy game: a walker that moves towards x=10 and stops.
-final class _WalkerRun implements HeadlessRun {
+final class _WalkerRun extends HeadlessRun {
   final Vector3 _position = Vector3.zero();
 
   @override
@@ -33,10 +32,10 @@ final class _WalkerRun implements HeadlessRun {
   RunOutcome outcome = RunOutcome.playing;
 
   @override
-  Vector3 get position => _position;
+  WorldPosition get position => _position.toWorldPosition();
 
   @override
-  void eye(Vector3 out) => out.setValues(_position.x, 1.7, _position.z);
+  WorldPosition get eye => WorldPosition(_position.x, 1.7, _position.z);
 
   @override
   void aim(Vector3 out) => out.setValues(1.0, 0.0, 0.0);
@@ -121,7 +120,7 @@ final class HeadlessRunDemo extends ShowcaseDemo {
     }
     _walker.setPosition(_live.position.x, 0.45, 0.0);
     _progress.set(_live.position.x / 10.0);
-    _flag.material.baseColor.setValues(
+    _flag.material.baseColor = LinearColor.fromSrgb(
       _live.outcome == RunOutcome.won ? 0.4 : 0.85,
       _live.outcome == RunOutcome.won ? 0.9 : 0.4,
       0.4,

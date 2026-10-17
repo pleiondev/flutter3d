@@ -2,8 +2,8 @@ import 'dart:async' show scheduleMicrotask;
 
 import 'package:flame/components.dart';
 import 'package:flame/sprite.dart' show SpriteAnimationTicker;
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d_sim/flutter3d_sim.dart' show Portable;
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 
 import '../host/has_flutter3d.dart';
 import 'billboard_atlas.dart';
@@ -37,7 +37,7 @@ import 'object3d_component.dart';
 /// Drawn unlit, cut out where the sprite is clear, and sampled nearest, as
 /// pixel art wants, or [smooth] for lettering; `tint` and `opacity` colour
 /// and fade it.
-class SpriteBillboardComponent extends Object3dComponent {
+base class SpriteBillboardComponent extends Object3dComponent {
   SpriteBillboardComponent({
     Sprite? sprite,
     SpriteAnimation? animation,
@@ -50,6 +50,7 @@ class SpriteBillboardComponent extends Object3dComponent {
     this.faces,
     this.removeOnFinish = false,
     this.smooth = false,
+    this.castsShadow = true,
     super.position,
     super.elevation,
     super.priority,
@@ -84,6 +85,14 @@ class SpriteBillboardComponent extends Object3dComponent {
   /// lettering, from `BillboardAtlas.spriteOfText`, and anything not pixel
   /// art.
   final bool smooth;
+
+  /// Whether the card is drawn into the shadow maps.
+  ///
+  /// Each card is a draw of its own into every cascade it reaches, where the
+  /// colour pass draws the cards of a kind as one: a bank of a hundred reeds
+  /// was most of a river's shadow pass for shadows a few pixels across, and
+  /// a card that turns to the camera casts a shadow that turns with it.
+  final bool castsShadow;
 
   Sprite? _sprite;
 
@@ -127,7 +136,8 @@ class SpriteBillboardComponent extends Object3dComponent {
     );
     if (material == null) return;
     _showing = currentSprite;
-    final card = _card = MeshNode(_atlas.cardOf(currentSprite), material);
+    final card = _card = MeshNode(_atlas.cardOf(currentSprite), material)
+      ..castsShadow = castsShadow;
     visual.add(card);
     _showFrame();
   }

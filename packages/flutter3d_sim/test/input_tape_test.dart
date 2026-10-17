@@ -90,7 +90,7 @@ void main() {
       }
 
       final replay = _Toy(recorder.tape.seed);
-      final playback = InputTapePlayback(recorder.tape);
+      final playback = InputTapePlayback.tape(recorder.tape);
       final replayed = InputState();
       while (!playback.isFinished) {
         playback.applyTo(replayed);
@@ -142,7 +142,7 @@ void main() {
       final after = _Toy(read.seed);
       for (final tape in <InputTape>[recorder.tape, read]) {
         final toy = identical(tape, recorder.tape) ? before : after;
-        final playback = InputTapePlayback(tape);
+        final playback = InputTapePlayback.tape(tape);
         final state = InputState();
         while (!playback.isFinished) {
           playback.applyTo(state);
@@ -165,7 +165,7 @@ void main() {
       recorder.record(input);
 
       final replayed = InputState();
-      InputTapePlayback(recorder.tape).applyTo(replayed);
+      InputTapePlayback.tape(recorder.tape).applyTo(replayed);
 
       expect(replayed.pressed(invented), isTrue);
     });
@@ -178,7 +178,7 @@ void main() {
       final input = InputState()..press(_jump);
       recorder.record(input);
 
-      final playback = InputTapePlayback(recorder.tape);
+      final playback = InputTapePlayback.tape(recorder.tape);
       final replayed = InputState();
       playback.applyTo(replayed);
       expect(playback.isFinished, isTrue);
@@ -190,6 +190,48 @@ void main() {
       // Nothing more comes off the tape, so nothing presses it again.
       playback.applyTo(replayed);
       expect(replayed.held(_jump), isFalse);
+    });
+
+    test('truncated and recorded on, replays the run that went on', () {
+      // A run rewound to step 20 and played on differently from there: the
+      // tape cut at 20 and recorded on has to replay to where the second
+      // run went, not the first. Mutation: make `truncate` a no-op — the
+      // tape keeps the old future's 20 entries ahead of the new ones and
+      // replays forty steps into somewhere else.
+      final recorder = InputTapeRecorder(seed: 5);
+      final input = InputState();
+      for (var i = 0; i < 40; i++) {
+        _play(input, i);
+        recorder.record(input);
+        input.endStep();
+      }
+      recorder.truncate(20);
+      expect(recorder.tape.steps, 20);
+
+      final again = InputState();
+      final live = _Toy(5);
+      for (var i = 0; i < 20; i++) {
+        _play(again, i);
+        live.step(again);
+      }
+      for (var i = 100; i < 120; i++) {
+        _play(again, i);
+        recorder.record(again);
+        live.step(again);
+      }
+
+      final replayed = _Toy(5);
+      final replayInput = InputState();
+      final playback = InputTapePlayback.tape(recorder.tape);
+      while (!playback.isFinished) {
+        playback.applyTo(replayInput);
+        replayed.step(replayInput);
+      }
+      expect(replayed.ending, live.ending);
+
+      recorder.truncate(100);
+      expect(recorder.tape.steps, 40, reason: 'more than it has keeps all');
+      expect(() => recorder.truncate(-1), throwsRangeError);
     });
 
     test('and an idle step says so', () {

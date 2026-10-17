@@ -20,7 +20,7 @@ final class ChunkStreamer<C> {
 
   /// Takes the piece at an index out of the game, and lets go of what it
   /// holds.
-  final void Function(int index, C chunk) drop;
+  final void Function(ChunkDrop<C> dropped) drop;
 
   final Map<int, C> _chunks = <int, C>{};
 
@@ -39,7 +39,7 @@ final class ChunkStreamer<C> {
   void cover(int from, int to) {
     for (final index
         in _chunks.keys.where((i) => i < from || i > to).toList()) {
-      drop(index, _chunks.remove(index) as C);
+      drop(ChunkDrop<C>(index: index, chunk: _chunks.remove(index) as C));
     }
     for (var index = from; index <= to; index++) {
       if (!_chunks.containsKey(index)) _chunks[index] = build(index);
@@ -49,7 +49,22 @@ final class ChunkStreamer<C> {
   /// Drops every piece: for a restart, which [cover] then builds afresh.
   void clear() {
     for (final index in _chunks.keys.toList()) {
-      drop(index, _chunks.remove(index) as C);
+      drop(ChunkDrop<C>(index: index, chunk: _chunks.remove(index) as C));
     }
   }
+}
+
+/// What [ChunkStreamer.drop] is handed: the piece let go, and its index.
+///
+/// **One object, so a minor can say more** (why it was dropped: out of
+/// view, or a restart) without breaking a game written against 1.0.
+final class ChunkDrop<C> {
+  /// [chunk], built at [index].
+  const ChunkDrop({required this.index, required this.chunk});
+
+  /// The index the piece was built at.
+  final int index;
+
+  /// The piece, to take out of the game.
+  final C chunk;
 }

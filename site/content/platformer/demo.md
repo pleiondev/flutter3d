@@ -40,7 +40,7 @@ Wall jumps, mantles, slides, long jumps and ground pounds are all in there; the 
 
 Three files, and none of them is in the engine.
 
-```dart
+```dart fragment
 // lib/src/backend.dart — the whole of the choice
 export 'backend_native.dart' if (dart.library.js_interop) 'backend_web.dart';
 ```
@@ -49,28 +49,27 @@ A conditional import instead of a runtime branch, because the two backends pull 
 
 ```dart
 // lib/src/backend_web.dart
-Future<GraphicsDevice> openDevice({required int width, required int height}) async {
-  final device = WebGlDevice.create(
-    width: width,
-    height: height,
-    // GLSL ES 3.00, translated from `flutter3d_shaders` by
-    // `flutter3d_webgl/tool/generate_shaders.dart`. There is no compiled
-    // bundle here: a browser compiles GLSL itself, so a "bundle" is a map
-    // from the engine's entry point names to source text.
-    sources: engineShaders,
-  );
-  if (device == null) throw StateError('WebGL2 is not available');
-  return device;
-}
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_webgl/flutter3d_webgl.dart';
+
+// A browser without WebGL2 completes the future with a
+// DeviceUnavailableException that says so.
+Future<GraphicsDevice> openDevice({required int width, required int height}) =>
+    // The shaders default to the engine's own: GLSL ES 3.00, translated from
+    // `flutter3d_shaders` by `flutter3d_webgl/tool/generate_shaders.dart`
+    // (`webGlEngineShaders`). There is no compiled bundle here: a browser
+    // compiles GLSL itself, so a "bundle" is a map from the engine's entry
+    // point names to source text.
+    WebGlDevice.open(width: width, height: height);
 ```
 
-Everything above that line is the ordinary frame: a `Scene`, a `CameraNode`, a `RenderView`, `Renderer.render`. The simulation does not know a browser is involved and neither does the renderer.
+Everything above that line is the ordinary frame: a `Scene`, a `CameraNode`, a `CameraView`, `Renderer.render`. The simulation does not know a browser is involved and neither does the renderer.
 
 ## What the browser costs
 
 Three entries used to be here and are not any more. The page claimed them for months, so they are named below.
 
-**Pointer capture works.** `pointer_lock` grew a browser backend over `document.requestPointerLock`, so the camera is the mouse. A page embedding the game needs `allow="pointer-lock"` on the iframe; this one has it.
+**Pointer capture works.** `flutter3d_pointer_lock` grew a browser backend over `document.requestPointerLock`, so the camera is the mouse. A page embedding the game needs `allow="pointer-lock"` on the iframe; this one has it.
 
 **Sound plays.** `flutter_soloud` ships a WebAssembly build and starts here.
 

@@ -114,23 +114,35 @@ final class MonsterDef {
   });
 
   final String name;
+
+  /// In hit points (unitless).
   final double health;
+
+  /// How fast it moves, in metres per second.
   final double speed;
   final WeaponDef attack;
+
+  /// The body's radius, in metres.
   final double radius;
+
+  /// The body's whole height, in metres.
   final double height;
 
   /// How far it can notice the player.
+  /// In metres.
   final double sightRange;
 
   /// How long a stagger lasts. Long enough to read as a reaction, short enough
   /// that it cannot be used to stun-lock something to death.
+  /// In seconds.
   final double hurtDuration;
 
   /// How long it hesitates after noticing before it comes. A monster that
   /// snaps to face the player the instant it sees them reads as a turret.
+  /// In seconds.
   final double alertDuration;
 
+  /// How fast it turns, in radians per second.
   final double turnRate;
 
   /// How often being hit staggers it.
@@ -138,8 +150,10 @@ final class MonsterDef {
   /// Not always: something that flinches at every pellet can be held in place
   /// by a shotgun and never reaches the player, which turns the hardest enemy
   /// into the easiest.
+  /// A 0..1 fraction: the chance one hit staggers it.
   final double painChance;
 
   /// How long after a stagger before it can be staggered again.
+  /// In seconds.
   final double painCooldown;
 }

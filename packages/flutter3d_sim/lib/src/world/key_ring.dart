@@ -5,8 +5,12 @@ import 'dart:collection';
 /// A mixin on whatever a collider's `userData` happens to be, so a door can ask
 /// the body in front of it what it holds without the physics knowing that keys
 /// exist and without a lookup table from colliders to inventories.
-abstract mixin class KeyHolder {
-  Set<String> get keys;
+///
+/// **Mixed in, never implemented**: a base mixin class, so a member a minor
+/// adds arrives with a body.
+abstract base mixin class KeyHolder {
+  /// The keys held, by colour; none by default.
+  Set<String> get keys => const <String>{};
 }
 
 /// The keys one body is carrying, by colour.
@@ -18,6 +22,8 @@ abstract mixin class KeyHolder {
 /// This is the smallest thing that makes locked doors work, and the inventory
 /// of stage 9 will take it over rather than replace it — keys behave unlike
 /// everything else in an inventory, being permanent, weightless and countless.
+///
+/// A game keeps one per body, made with `KeyRing()`.
 final class KeyRing with KeyHolder {
   final Set<String> _held = <String>{};
 
@@ -25,7 +31,7 @@ final class KeyRing with KeyHolder {
   Set<String> get keys => UnmodifiableSetView<String>(_held);
 
   /// Adds one, and says whether it was new.
-  bool take(String key) => _held.add(key);
+  bool add(String key) => _held.add(key);
 
   bool has(String key) => _held.contains(key);
 

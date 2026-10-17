@@ -33,7 +33,7 @@ void main() {
         () => bevelEdges(cube, allEdges(cube), width: 0.1),
       );
 
-      expect(result.ok, isTrue, reason: result.reason);
+      expect(result.isOk, isTrue, reason: result.reason);
       cube.validate();
 
       expect(cube.vertexCount, 24);
@@ -115,7 +115,7 @@ void main() {
         cube,
         () => bevelEdges(cube, allEdges(cube), width: 10.0, clampOverlap: true),
       );
-      expect(result.ok, isTrue, reason: result.reason);
+      expect(result.isOk, isTrue, reason: result.reason);
       cube.validate();
       expect(cube.signedVolume, greaterThan(0));
 
@@ -148,7 +148,7 @@ void main() {
         cube,
         () => bevelEdges(cube, Selection.empty(ElementLevel.edge), width: 0.1),
       );
-      expect(result.ok, isFalse);
+      expect(result.isOk, isFalse);
     });
 
     test('segments above 1', () {
@@ -157,7 +157,7 @@ void main() {
         cube,
         () => bevelEdges(cube, allEdges(cube), width: 0.1, segments: 2),
       );
-      expect(result.ok, isFalse);
+      expect(result.isOk, isFalse);
       expect(result.reason, contains('segments'));
     });
 
@@ -177,7 +177,7 @@ void main() {
           width: 0.1,
         ),
       );
-      expect(result.ok, isFalse);
+      expect(result.isOk, isFalse);
       expect(result.reason, contains('every edge'));
     });
   });

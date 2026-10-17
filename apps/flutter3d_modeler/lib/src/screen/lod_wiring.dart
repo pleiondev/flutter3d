@@ -68,7 +68,7 @@ extension _LodWiring on _ModelerScreenState {
     final int percent = (fraction * 100).round();
     final AppLocalizations l = AppLocalizations.of(context);
     return switch (lodLevelAt(<double>[
-      for (final LodSpec each in object.lods) each.maxScreenFraction,
+      for (final LodSettings each in object.lods) each.maxScreenFraction,
     ], fraction)) {
       final int level => l.lodNow(percent, level),
       null => l.lodNowBase(percent),

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/geometry.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:vector_math/vector_math.dart';
 
 import '../asset_resolver.dart';
@@ -18,19 +19,45 @@ part 'obj_loader_materials.dart';
 part 'obj_surface_builder.dart';
 
 /// How to fill in normals that the file does not provide.
-enum ObjNormals {
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class ObjNormals {
+  const ObjNormals._(this.name);
+
   /// Average the face normals meeting at each vertex, weighted by face area.
   ///
   /// The default, and the right one for OBJ: unlike glTF, the format prescribes
   /// nothing here, real-world files routinely omit `vn`, and the geometry they
   /// omit it for is usually curved. Flat shading on a teapot looks broken.
-  smooth,
+  static const ObjNormals smooth = ObjNormals._('smooth');
 
   /// One normal per face, which requires splitting shared vertices.
-  flat,
+  static const ObjNormals flat = ObjNormals._('flat');
 
   /// Leave normals at zero.
-  none,
+  static const ObjNormals none = ObjNormals._('none');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<ObjNormals> values = <ObjNormals>[smooth, flat, none];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static ObjNormals? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'ObjNormals.$name';
 }
 
 /// Decodes Wavefront OBJ, optionally with its `.mtl` material libraries.
@@ -42,7 +69,7 @@ enum ObjNormals {
 /// permissive by design — unknown directives are recorded as warnings and
 /// skipped rather than treated as errors. That holds for the `.mtl` half too:
 /// see [parseMtl], which reports its own once each.
-final class ObjLoader implements ModelDecoder {
+final class ObjLoader extends ModelDecoder {
   ObjLoader({
     this.layout = VertexLayout.standard,
     this.normals = ObjNormals.smooth,
@@ -70,15 +97,17 @@ final class ObjLoader implements ModelDecoder {
   /// that happens to begin with `v` is not a claim worth making before any
   /// other reader has had its turn.
   @override
-  bool handles(String fileName, Uint8List bytes) =>
-      fileName.toLowerCase().endsWith('.obj');
+  bool handles(ModelProbe probe) {
+    final fileName = probe.fileName;
+    return fileName.toLowerCase().endsWith('.obj');
+  }
 
   @override
-  Future<ModelDocument> decode(
-    Uint8List bytes,
-    ModelLoadRequest request,
-    AssetUriResolver resolveUri,
-  ) => load(bytes, resolveUri: resolveUri);
+  Future<ModelDocument> decode(ModelDecodeContext context) {
+    final bytes = context.bytes;
+    final resolveUri = context.resolveUri;
+    return load(bytes, resolveUri: resolveUri);
+  }
 
   Future<ObjDocument> load(
     Uint8List bytes, {

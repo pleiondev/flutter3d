@@ -10,15 +10,16 @@
 /// retires the loan, and its release hands it to the allocator instead.
 library;
 
+import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:test/test.dart';
 
 /// A [TextureAllocator] over nothing, counting what comes back.
-final class _FakeAllocator implements TextureAllocator {
+final class _FakeAllocator with TextureAllocator {
   int created = 0;
 
   @override
-  TextureHandle createTexture(RenderTargetSpec spec) => TextureHandle(
+  TextureHandle createTexture(TextureDescriptor spec) => wrapTexture(
     backend: 'created ${created++}',
     width: spec.width,
     height: spec.height,
@@ -33,7 +34,7 @@ final class _FakeAllocator implements TextureAllocator {
   void releaseTexture(TextureHandle texture) => released.add(texture);
 }
 
-const RenderTargetSpec _spec = RenderTargetSpec(
+const RenderTargetDescriptor _spec = RenderTargetDescriptor(
   width: 640,
   height: 480,
   format: TextureFormat.r16g16b16a16Float,

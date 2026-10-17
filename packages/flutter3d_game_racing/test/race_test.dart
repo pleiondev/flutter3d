@@ -1,10 +1,12 @@
 import 'dart:math' as math;
 
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'heard.dart';
 import 'ring_track.dart';
 
 /// A flat ring with four checkpoints, wide enough to drive round without trying
@@ -38,9 +40,11 @@ final class Race {
         headingYaw: math.atan2(forward.x, forward.z),
       );
       car.placeAt(
-        car.position,
-        car.headingYaw,
-        trackDistance: this.track.centre.wrap(-10.0),
+        VehiclePlacement(
+          position: car.position,
+          headingYaw: car.headingYaw,
+          trackDistance: this.track.center.wrap(-10.0),
+        ),
       );
       vehicles.add(car);
     }
@@ -51,13 +55,17 @@ final class Race {
       race: race,
       difficulty: difficulty,
     );
+    heard = Heard(simulation);
   }
 
   final TrackSpline track;
-  final CollisionWorld world = CollisionWorld();
+  final CollisionWorld world = CollisionWorld(properties: racingWorld);
   final List<SphereVehicle> vehicles = <SphereVehicle>[];
   late final RaceState race;
   late final RacingSimulation simulation;
+
+  /// What [simulation] published, taken step by step.
+  late final Heard heard;
 
   RacerProgress get player => race.progress[0];
 }
@@ -84,7 +92,7 @@ void driveRound(
     for (var i = 0; i < it.vehicles.length; i++) {
       final car = it.vehicles[i];
       final ahead = backwards ? -14.0 : 14.0;
-      it.track.centreAt(car.trackDistance + ahead, aim);
+      it.track.centerAt(car.trackDistance + ahead, aim);
 
       toAim
         ..setFrom(aim)
@@ -119,9 +127,11 @@ void driveRound(
 void turnAround(Race it, [int car = 0]) {
   final vehicle = it.vehicles[car];
   vehicle.placeAt(
-    vehicle.position,
-    vehicle.headingYaw + math.pi,
-    trackDistance: vehicle.trackDistance,
+    VehiclePlacement(
+      position: vehicle.position,
+      headingYaw: vehicle.headingYaw + math.pi,
+      trackDistance: vehicle.trackDistance,
+    ),
   );
 }
 
@@ -137,7 +147,7 @@ void main() {
         it,
         seconds: 40.0,
         watch: () {
-          laps += it.simulation.events.drain().whereType<LapCompleted>().length;
+          laps += it.heard.take().whereType<LapCompleted>().length;
         },
       );
 
@@ -190,10 +200,7 @@ void main() {
         it,
         seconds: 12.0,
         watch: () {
-          passed += it.simulation.events
-              .drain()
-              .whereType<CheckpointPassed>()
-              .length;
+          passed += it.heard.take().whereType<CheckpointPassed>().length;
         },
       );
 
@@ -221,17 +228,14 @@ void main() {
       expect(it.player.wrongWay, isFalse);
 
       turnAround(it);
-      it.simulation.events.clear();
+      it.heard.clear();
       var announced = 0;
       driveRound(
         it,
         seconds: 6.0,
         backwards: true,
         watch: () {
-          announced += it.simulation.events
-              .drain()
-              .whereType<WentWrongWay>()
-              .length;
+          announced += it.heard.take().whereType<WentWrongWay>().length;
         },
       );
 
@@ -285,13 +289,15 @@ void main() {
       final wasAt = it.player.s;
 
       it.vehicles[0].placeAt(
-        Vector3(0.0, -200.0, 0.0),
-        0.0,
-        trackDistance: wasAt,
+        VehiclePlacement(
+          position: Vector3(0.0, -200.0, 0.0),
+          headingYaw: 0.0,
+          trackDistance: wasAt,
+        ),
       );
       it.simulation.step(_step);
 
-      expect(it.simulation.events.drain().whereType<Respawned>(), isNotEmpty);
+      expect(it.heard.take().whereType<Respawned>(), isNotEmpty);
       expect(it.vehicles[0].position.y, greaterThan(-10.0));
       expect(it.vehicles[0].speed, 0.0);
     });
@@ -301,14 +307,16 @@ void main() {
       driveRound(it, seconds: 10.0);
 
       it.vehicles[0].placeAt(
-        Vector3(0.0, -200.0, 0.0),
-        0.0,
-        trackDistance: it.player.s,
+        VehiclePlacement(
+          position: Vector3(0.0, -200.0, 0.0),
+          headingYaw: 0.0,
+          trackDistance: it.player.s,
+        ),
       );
       it.simulation.step(_step);
 
       final tangent = Vector3.zero();
-      it.track.centre.tangentAt(it.vehicles[0].trackDistance, tangent);
+      it.track.center.tangentAt(it.vehicles[0].trackDistance, tangent);
       final facing = Vector3(
         math.sin(it.vehicles[0].headingYaw),
         0.0,
@@ -379,7 +387,7 @@ void main() {
         seconds: 5.0,
         throttle: 1.0,
         watch: () {
-          for (final event in it.simulation.events.drain()) {
+          for (final event in it.heard.take()) {
             if (event is CountdownTicked) ticks += 1;
             if (event is RaceStarted) starts += 1;
           }
@@ -454,9 +462,11 @@ void main() {
       // Put them on top of each other and let the step sort it out.
       final target = it.vehicles[0].position.clone();
       it.vehicles[1].placeAt(
-        target,
-        it.vehicles[1].headingYaw,
-        trackDistance: it.vehicles[0].trackDistance,
+        VehiclePlacement(
+          position: target,
+          headingYaw: it.vehicles[1].headingYaw,
+          trackDistance: it.vehicles[0].trackDistance,
+        ),
       );
 
       it.simulation.step(_step);
@@ -474,9 +484,11 @@ void main() {
 
       final target = it.vehicles[0].position.clone();
       it.vehicles[1].placeAt(
-        target.clone()..x += 0.4,
-        it.vehicles[1].headingYaw,
-        trackDistance: it.vehicles[0].trackDistance,
+        VehiclePlacement(
+          position: target.clone()..x += 0.4,
+          headingYaw: it.vehicles[1].headingYaw,
+          trackDistance: it.vehicles[0].trackDistance,
+        ),
       );
       final before = (it.vehicles[0].position + it.vehicles[1].position)
         ..scale(0.5);
@@ -502,7 +514,7 @@ void main() {
 
       driveRound(it, seconds: 60.0, throttle: 0.8);
 
-      expect(it.player.finished, isTrue);
+      expect(it.player.isFinished, isTrue);
       expect(it.player.finishedAt, isNotNull);
       expect(it.race.phase, RacePhase.finished);
     });
@@ -523,7 +535,7 @@ void main() {
       driveRound(it, seconds: 60.0, throttle: 0.8);
 
       expect(it.player.lap, greaterThanOrEqualTo(1));
-      expect(it.player.finished, isFalse);
+      expect(it.player.isFinished, isFalse);
       expect(it.race.phase, RacePhase.running);
     });
   });
@@ -587,7 +599,7 @@ void main() {
         it,
         seconds: 40.0,
         watch: () {
-          for (final event in it.simulation.events.drain()) {
+          for (final event in it.heard.take()) {
             if (event is LapCompleted) order.add('lap');
             if (event is BestLapSet) order.add('best');
           }
@@ -606,7 +618,7 @@ void main() {
         it,
         seconds: 30.0,
         watch: () {
-          for (final event in it.simulation.events.drain()) {
+          for (final event in it.heard.take()) {
             if (event is! RacerEvent) continue;
             seen.add(event.racer.index);
             // The shorthand the base exists for, and the question a HUD asks
@@ -629,7 +641,7 @@ void main() {
       final lights = <int>[];
       for (var i = 0; i < 300; i++) {
         it.simulation.step(_step);
-        for (final event in it.simulation.events.drain()) {
+        for (final event in it.heard.take()) {
           if (event is CountdownTicked) lights.add(event.remaining);
         }
       }
@@ -653,9 +665,7 @@ void main() {
           it,
           seconds: 40.0,
           watch: () {
-            sectors.addAll(
-              it.simulation.events.drain().whereType<SectorCompleted>(),
-            );
+            sectors.addAll(it.heard.take().whereType<SectorCompleted>());
           },
         );
 
@@ -684,7 +694,7 @@ void main() {
         it,
         seconds: 40.0,
         watch: () {
-          for (final event in it.simulation.events.drain()) {
+          for (final event in it.heard.take()) {
             if (event is SectorCompleted) sectors.add(event.time);
             if (event is LapCompleted) {
               laps.add(event.racer.lastLap);
@@ -711,7 +721,7 @@ void main() {
         seconds: 60.0,
         watch: () {
           deltas.addAll(
-            it.simulation.events.drain().whereType<SectorCompleted>().map(
+            it.heard.take().whereType<SectorCompleted>().map(
               (SectorCompleted e) => e.delta,
             ),
           );
@@ -818,7 +828,7 @@ void main() {
         seconds: 20.0,
         throttle: 1.0,
         watch: () {
-          scored.addAll(it.simulation.events.drain().whereType<DriftScored>());
+          scored.addAll(it.heard.take().whereType<DriftScored>());
         },
       );
 

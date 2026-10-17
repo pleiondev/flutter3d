@@ -1,3 +1,96 @@
+## 1.0.0-rc.1+1
+
+- **Breaking: results that were records are final classes.** `ConvexHull`,
+  `EditMesh`, `StaticMeshShape`, `closestPointOn`, `importMeshData`,
+  `isotropicRemesh`, `mergeAt`, `mergeByDistance`, `separateComponents` and
+  `subMesh` answered or held a record, which can never gain a field. Each
+  answers a final class now, with the record's field names (a positional
+  `$1` has a name of its own), `==` and `hashCode`. A field read compiles as
+  before; a destructuring pattern names the class, and
+  `flutter3d_build:migrate` rewrites the `$1` reads.
+
+## 1.0.0-rc.1
+
+- **Breaking: `MeshBrush` is a `final class`**, so it can gain a setting
+  in a minor.
+- **Breaking: `MeshHit` and `SimplifiedMesh` are classes** with the same
+  fields (`MeshHit` equal by value), so a hit can later carry its normal
+  and weights and a simplification more of what it measured.
+- **Breaking: `IssueSeverity` is `flutter3d_foundation`'s `Severity`**,
+  with the same three tiers and wire words.
+- **Breaking: a modifier's `fromJson` throws a `ModifierFormatException`.**
+  `ArrayModifier`, `BooleanModifier`, `MirrorModifier`, `SmoothModifier`
+  and `SubdivisionModifier` say which field is missing where they answered
+  null; `modifierFromJson` still answers null for a modifier it skips.
+- **Breaking: `FittedBox` is `FittedCuboid`.** A public name does not shadow
+  one of Flutter's, and `FittedBox` is a Flutter widget; the fields are the
+  same, and `dart fix` renames it.
+- **Breaking: `CsgOperation`, `ElementLevel`, `IssueSeverity`,
+  `MeshAttribute`, `MeshDomain` and `RecipeCategory` are open sets, and
+  `Modifier` and `ParametricShape` are `abstract final`.** Classes with
+  constants rather than enums, and hierarchies no longer sealed, so a corner
+  level, a fourth boolean or a new modifier in a later minor breaks no
+  `switch`. The constants, `values`, `name` and `toString` are unchanged,
+  `byName` reads a name back, and `IssueSeverity` keeps `index` for sorting.
+- **Breaking: `SculptMeshBvh.raycast` answers a `TriangleHit`**, the core's
+  class for what `TriangleBvh.raycast` answers, where it answered a record;
+  its getters are the record's fields, so a read of one is unchanged.
+- **Breaking: `LinearColor` is not re-exported.** It is
+  `flutter3d_foundation`'s.
+
+- **Breaking: `Brush` is `MeshBrush`, and `ImportReport` is
+  `MeshImportReport`.** A public name has one home across the published
+  packages: `Brush` is the level's box in `flutter3d_sim`, and
+  `ImportReport` the project import's in `flutter3d_model_core`.
+  `applyBrushStroke` and `importMeshData` take and return the renamed
+  types; `dart fix` renames every use.
+- **Breaking: a corner's colour is a `LinearColor`.** `CornerAttributes`'
+  `color`, `EditMesh.colorOf` (which no longer takes an out vector) and
+  `setColor` are linear `LinearColor`s, with the same numbers;
+  `EditMesh.hasSameColor` compares two corners without making either.
+  `LinearColor` is `flutter3d_foundation`'s.
+- **Breaking: a boolean reads as a question, and no `bool` is positional.**
+  `FaceTriangulator.fannedLastFace` is `didFanLastFace`;
+  `MeshLayoutPlan.fannedAnyFace` is `didFanAnyFace`;
+  `ImportReport.worthReporting` is `isWorthReporting`;
+  `MergeReport.worthReporting` is `isWorthReporting`; `OpResult.ok` is
+  `isOk`. `dart fix` carries the renames.
+- **Breaking: `EditMesh.makeConsistent` is `ensureConsistent`.** `dart fix`
+  carries it.
+- **Breaking: American spelling in identifiers, as Flutter and Dart
+  use.** `bevelledCube` is `beveledCube`, `centre` is `center`, `colour`
+  is `color`, `colourOf` is `colorOf`, `isCancelled` is `isCanceled`,
+  `JournalledFloats` is `JournaledFloats`, `JournalledInts` is
+  `JournaledInts`, `setColour` is `setColor`. Only the Dart names changed:
+  a file keeps the keys it was written with, and `dart fix` carries the
+  renames.
+- **Breaking: the float32 ray is `LocalRay`.** `MeshBvh.raycast`,
+  `SculptMeshBvh.raycast` and `MeshPicker`'s `faceAt`, `vertexNear` and
+  `edgeNear` take a `LocalRay`, the geometry library's `Ray` renamed so it
+  no longer collides with vector_math's. Nothing else changed; `dart fix`
+  renames it.
+
+- **1.0.0 is a promise: strict semver from there.** This release candidate
+  already keeps it. A patch fixes bugs and
+  breaks nothing, a minor adds, and a break waits for a major. The whole
+  public API is stable, with no experimental exceptions, and is held to the
+  snapshot in `api/`. A deprecated name stays until the next major and for
+  at least six months, and says what replaces it.
+  [CONTRIBUTING.md](https://github.com/pleiondev/flutter3d/blob/main/CONTRIBUTING.md#the-api-is-a-snapshot)
+  has the rules, and
+  [SUPPORT.md](https://github.com/pleiondev/flutter3d/blob/main/SUPPORT.md)
+  says which releases get fixes and on which platforms.
+
+- **The web is declared.** `editInIsolate` comes from `isolate_run.dart`, or
+  from `isolate_here.dart` in a browser, so a browser build has no
+  `dart:isolate` in it.
+
+**Moves with the stack to 1.0.0**, whose `flutter3d_hardware` gives
+`PassEncoder.draw` a window of the bound indices and every `PassEncoder`
+`setAlphaToCoverage`. Nothing in this package changed.
+
+Its `flutter3d_*` dependencies ask for `^1.0.0`.
+
 ## 0.8.0
 
 **`clusterMesh` reorders a mesh's triangles into runs a renderer can cull.**

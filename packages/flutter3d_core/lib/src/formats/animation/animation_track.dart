@@ -11,15 +11,46 @@ export 'animation_pointer.dart';
 /// mechanical animation read as mechanical, and `CUBICSPLINE` stores three
 /// values per key, so a decoder that assumes linear would read tangents as
 /// values and produce a violently wrong result rather than a slightly wrong one.
-enum AnimationInterpolation {
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class AnimationInterpolation {
+  const AnimationInterpolation._(this.name);
+
   /// Hold the previous key until the next one.
-  step,
+  static const AnimationInterpolation step = AnimationInterpolation._('step');
 
   /// Straight-line blend; spherical for rotations.
-  linear,
+  static const AnimationInterpolation linear = AnimationInterpolation._(
+    'linear',
+  );
 
   /// Cubic Hermite spline with authored in and out tangents.
-  cubicSpline;
+  static const AnimationInterpolation cubicSpline = AnimationInterpolation._(
+    'cubicSpline',
+  );
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<AnimationInterpolation> values = <AnimationInterpolation>[
+    step,
+    linear,
+    cubicSpline,
+  ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static AnimationInterpolation? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
 
   static AnimationInterpolation fromGltf(String? name) => switch (name) {
     'STEP' => AnimationInterpolation.step,
@@ -40,25 +71,61 @@ enum AnimationInterpolation {
     AnimationInterpolation.step => 'STEP',
     AnimationInterpolation.linear => 'LINEAR',
     AnimationInterpolation.cubicSpline => 'CUBICSPLINE',
+    _ => throw UnsupportedError('glTF has no interpolation for $this'),
   };
+
+  @override
+  String toString() => 'AnimationInterpolation.$name';
 }
 
 /// Which node property a track drives.
-enum AnimationPath {
-  translation(3),
-  rotation(4),
-  scale(3),
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class AnimationPath {
+  const AnimationPath._(this.name, this.componentCount);
+
+  static const AnimationPath translation = AnimationPath._('translation', 3);
+
+  static const AnimationPath rotation = AnimationPath._('rotation', 4);
+
+  static const AnimationPath scale = AnimationPath._('scale', 3);
 
   /// Morph target weights. Decoded so the clip is complete, but the player has
   /// nothing to apply them to until morph targets exist.
-  weights(0),
+  static const AnimationPath weights = AnimationPath._('weights', 0);
 
   /// A material or light property named by `KHR_animation_pointer` — see
   /// [AnimationTrack.pointer], which says which one. A pointer track drives
   /// no node, so its [AnimationTrack.nodeIndex] is -1.
-  pointer(0);
+  static const AnimationPath pointer = AnimationPath._('pointer', 0);
 
-  const AnimationPath(this.componentCount);
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<AnimationPath> values = <AnimationPath>[
+    translation,
+    rotation,
+    scale,
+    weights,
+    pointer,
+  ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static AnimationPath? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  /// The position in [values]: stable within a major, appended only.
+  int get index => values.indexOf(this);
 
   /// Components per keyframe value; zero means "as many as the mesh has
   /// morph targets", which only the accessor knows.
@@ -81,7 +148,11 @@ enum AnimationPath {
     AnimationPath.scale => 'scale',
     AnimationPath.weights => 'weights',
     AnimationPath.pointer => 'pointer',
+    _ => throw UnsupportedError('glTF has no channel path for $this'),
   };
+
+  @override
+  String toString() => 'AnimationPath.$name';
 }
 
 /// One animated property of one node.
@@ -146,6 +217,7 @@ final class AnimationTrack {
   /// on a timeline, where a track starting late is a gap somebody has to see.
   double get startTime => times.first;
 
+  /// When the last keyframe is, in seconds.
   double get endTime => times.last;
 
   int get keyCount => times.length;
@@ -206,6 +278,8 @@ final class AnimationTrack {
       case AnimationInterpolation.cubicSpline:
         _hermite(low, high, alpha, span, out);
         if (path == AnimationPath.rotation) _normalizeQuaternion(out);
+      default:
+        throw UnsupportedError('no sampler for $interpolation');
     }
   }
 

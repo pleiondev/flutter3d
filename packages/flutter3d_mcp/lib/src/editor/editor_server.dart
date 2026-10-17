@@ -1,0 +1,239 @@
+import 'package:flutter3d_mcp/kit.dart';
+
+import 'editor_session.dart';
+import 'editor_tools.dart';
+
+/// The version this server tells a client it is: the pubspec's.
+///
+/// A constant, because a compiled server has no pubspec to read. It said
+/// 0.1.0 while the package moved on, since "kept beside the pubspec's" was a
+/// comment and nothing checked it; `server_version_test.dart` does now.
+const String editorMcpVersion = '1.0.0-rc.1+1';
+
+/// The version of this server's tools — names and input schemas — as the
+/// `initialize` result announces it beside [editorMcpVersion].
+///
+/// It moves only when `api/flutter3d_mcp.mcp` does: a minor for a new
+/// tool or optional argument, a major for anything that breaks a caller.
+///
+/// **1.0.0 with the first stable release** (decided 2026-10-09, task F3 of
+/// the architecture review): the minors it counted before were moves within
+/// a surface nobody had been promised yet, and a host meeting 1.2.0 at a
+/// first release would look for a 1.0 and 1.1 that never shipped.
+///
+/// 1.1.0 with `plugin.list` and `asset.import`, the editor's plugin
+/// contract seen by an agent, and the `experiment.*` tools that edit an
+/// experiment document beside the level.
+///
+/// 1.2.0 with a plugin's commands, gizmos, importers and asset-browser
+/// entries offered under its namespace (`boats.sink` for the `boats.editor`
+/// plugin), as its other names are, rather than under its whole id.
+const String editorMcpSchemaVersion = '1.2.0';
+
+/// What each of [editorTools] is published as, `area.verb`, and what it does
+/// to the document. The name a tool is written under — the editor command's
+/// own word, which `EditorCommand.fromJson` reads — stays answerable as an
+/// alias until 2.0.
+const Map<String, ToolName> editorToolNames = <String, ToolName>{
+  'addBrush': ToolName('brush.add', hints: ToolHints.writes),
+  'addLight': ToolName('light.add', hints: ToolHints.writes),
+  'applyOverrides': ToolName('prefab.applyOverrides', hints: ToolHints.writes),
+  'brighten': ToolName('light.brighten', hints: ToolHints.writes),
+  'capture_draw': ToolName('capture.draw', hints: ToolHints.reads),
+  'capture_open': ToolName('capture.open', hints: ToolHints.reads),
+  'command.run': ToolName('command.run', hints: ToolHints.writes),
+  'createPrefab': ToolName('prefab.create', hints: ToolHints.writes),
+  'delete': ToolName('selection.delete', hints: ToolHints.writes),
+  'duplicate': ToolName('selection.duplicate', hints: ToolHints.writes),
+  'experiment.edit': ToolName('experiment.edit', hints: ToolHints.writes),
+  'experiment.list': ToolName('experiment.list', hints: ToolHints.reads),
+  'experiment.open': ToolName('experiment.open', hints: ToolHints.writes),
+  // Writes over the experiment's file, or one at the path it is given.
+  'experiment.save': ToolName('experiment.save', hints: ToolHints.destroys),
+  'experiment.undo': ToolName('experiment.undo', hints: ToolHints.writes),
+  'generate': ToolName('kit.place', hints: ToolHints.writes),
+  'generate_level': ToolName('level.generate', hints: ToolHints.destroys),
+  // Writes the importer's files into the project and places in the level.
+  'asset.import': ToolName('asset.import', hints: ToolHints.writes),
+  'list': ToolName('level.list', hints: ToolHints.reads),
+  'moveBy': ToolName('selection.move', hints: ToolHints.writes),
+  'optimizeLights': ToolName('light.optimize', hints: ToolHints.writes),
+  'place': ToolName('level.place', hints: ToolHints.writes),
+  'placePrefab': ToolName('prefab.place', hints: ToolHints.writes),
+  'plugin.list': ToolName('plugin.list', hints: ToolHints.reads),
+  'play': ToolName('play.start', hints: ToolHints(openWorld: true)),
+  'play_build': ToolName(
+    'play.build',
+    hints: ToolHints(readOnly: true, openWorld: true),
+  ),
+  'play_devices': ToolName(
+    'play.devices',
+    hints: ToolHints(readOnly: true, openWorld: true),
+  ),
+  'play_events': ToolName('play.events', hints: ToolHints.reads),
+  // Writes over a tape kept under the same name.
+  'play_keep_tape': ToolName('play.keepTape', hints: ToolHints.destroys),
+  'play_send_level': ToolName('play.sendLevel', hints: ToolHints.writes),
+  'play_status': ToolName('play.status', hints: ToolHints.reads),
+  'play_stop': ToolName('play.stop', hints: ToolHints.destroys),
+  'play_swap': ToolName('play.swap', hints: ToolHints.writes),
+  'prefabs': ToolName('prefab.list', hints: ToolHints.reads),
+  'redo': ToolName('history.redo', hints: ToolHints.writes),
+  'removeBehaviour': ToolName('behavior.remove', hints: ToolHints.writes),
+  'removeCutscene': ToolName('cutscene.remove', hints: ToolHints.writes),
+  // Writes over whatever file is at the path it is given.
+  'render_capture_save': ToolName(
+    'render.saveCapture',
+    hints: ToolHints.destroys,
+  ),
+  'render_debug_views': ToolName('render.debugViews', hints: ToolHints.reads),
+  'render_draw': ToolName('render.draw', hints: ToolHints.reads),
+  'render_draws': ToolName('render.draws', hints: ToolHints.reads),
+  'render_memory': ToolName('render.memory', hints: ToolHints.reads),
+  'render_pass_output': ToolName('render.passOutput', hints: ToolHints.reads),
+  'render_passes': ToolName('render.passes', hints: ToolHints.reads),
+  'render_pick': ToolName('render.pick', hints: ToolHints.reads),
+  'render_read_pixel': ToolName('render.readPixel', hints: ToolHints.reads),
+  'render_scan_nan': ToolName('render.scanNan', hints: ToolHints.reads),
+  'render_stats': ToolName('render.stats', hints: ToolHints.reads),
+  'report': ToolName('view.report', hints: ToolHints.reads),
+  'resize': ToolName('selection.resize', hints: ToolHints.writes),
+  'revertOverrides': ToolName(
+    'prefab.revertOverrides',
+    hints: ToolHints.writes,
+  ),
+  'save': ToolName('level.save', hints: ToolHints.destroys),
+  'screenshot': ToolName('view.screenshot', hints: ToolHints.reads),
+  'select': ToolName('selection.set', hints: ToolHints.writes),
+  'setBehaviour': ToolName('behavior.set', hints: ToolHints.writes),
+  'setCutscene': ToolName('cutscene.set', hints: ToolHints.writes),
+  'setField': ToolName('selection.setField', hints: ToolHints.writes),
+  'setLights': ToolName('light.replaceAll', hints: ToolHints.writes),
+  'setOverride': ToolName('prefab.setOverride', hints: ToolHints.writes),
+  'setPrefabField': ToolName('prefab.setField', hints: ToolHints.writes),
+  'turn': ToolName('selection.turn', hints: ToolHints.writes),
+  'undo': ToolName('history.undo', hints: ToolHints.writes),
+  'unpackPrefab': ToolName('prefab.unpack', hints: ToolHints.writes),
+  'validate': ToolName('level.validate', hints: ToolHints.reads),
+};
+
+/// A level editor, offered to an agent as a table of tools.
+///
+/// **One document, one process, and no window.** The alternative — a socket
+/// into a running editor, so an agent and a person share a view — is a
+/// different program and a much harder one: two writers on one undo stack, a
+/// camera that has to follow somebody else's selection, and a test that needs
+/// a GPU before it can assert anything. This is the small half, and it is the
+/// half that can be checked: a process started by `dart run`, one `Editing` in
+/// it, deterministic text out, and a suite that drives the real protocol over a
+/// pair of streams in memory.
+///
+/// Everything it can do to the document is an `EditorCommand` — the same values
+/// the keyboard and the inspector in `apps/flutter3d_editor` go through — so an
+/// agent's edit and a person's edit land on the document by one route, get one
+/// name in the history, and are undone by the same key. What a server is beyond
+/// its tools is `flutter3d_mcp/kit.dart`'s [ToolTableServer].
+base class EditorMcpServer extends ToolTableServer<EditorSession, Answer> {
+  // `session` is a plain parameter, as `ModelMcpServer`'s is: `toResult`
+  // closes over it, and a super parameter cannot be named in the initializer
+  // list that forwards it.
+  // ignore: use_super_parameters
+  EditorMcpServer(
+    super.channel, {
+    required EditorSession session,
+    super.projectTools,
+    super.onProjectCall,
+  }) : super(
+         session: session,
+         name: 'flutter3d.editor',
+         version: editorMcpVersion,
+         schemaVersion: editorMcpSchemaVersion,
+         names: editorToolNames,
+         instructions: _instructions,
+         tools: <EditorTool>[
+           for (final EditorTool tool in editorTools)
+             tool.withSpec(
+               tool.spec.copyWith(outputSchema: editorAnswerSchema),
+             ),
+         ],
+         toResult: (Answer answer) => _resultOf(answer, session),
+       );
+}
+
+/// The shape of every editor tool's `structuredContent`, as the
+/// `outputSchema` each tool declares: whether the call did what it was asked
+/// ([did], false for a refusal), its sentence, the selection after it in the
+/// words `level.list` uses, and whether a picture came with it.
+///
+/// **The same four keys for every tool**, so an agent reads one shape
+/// whatever it called, and a refusal is told apart from a success without
+/// parsing the sentence.
+const Map<String, Object?> editorAnswerSchema = <String, Object?>{
+  'type': 'object',
+  'properties': <String, Object?>{
+    'did': <String, Object?>{'type': 'boolean'},
+    'says': <String, Object?>{'type': 'string'},
+    'selection': <String, Object?>{'type': 'string'},
+    'hasPicture': <String, Object?>{'type': 'boolean'},
+  },
+  'required': <String>['did', 'says', 'selection', 'hasPicture'],
+};
+
+/// [answer] as a result: the sentence and the picture, and beside them the
+/// machine-readable half [editorAnswerSchema] describes.
+ToolResult _resultOf(Answer answer, EditorSession session) {
+  final ToolResult base = pictureResultOf(answer);
+  return ToolResult(
+    content: base.content,
+    isError: base.isError,
+    structuredContent: <String, Object?>{
+      'did': answer.did,
+      'says': answer.says,
+      'selection': session.selection,
+      'hasPicture': answer.png != null,
+    },
+  );
+}
+
+/// What the host puts in front of the model before it calls anything.
+///
+/// Short on purpose. The three facts an agent gets wrong without being told are
+/// all here — that a selection has to be made before most verbs do anything,
+/// that indices move when something is deleted, and that a generated document
+/// will not be written over — and the rest is in the tools' own descriptions,
+/// where it is read at the moment it matters.
+const String _instructions = '''
+A level document for a flutter3d game, open and editable. It is JSON: some
+materials, a list of boxes called brushes, a list of lights, and a list of
+entities — everything else the game names, each a position and a word.
+
+Every tool is named for what it acts on and what it does to it: `brush.add`,
+`selection.move`, `prefab.place`. The names from before 1.0 (`addBrush`,
+`moveBy`) still answer, and say what to call instead.
+
+Work in this order: call `level.list` to see what is there and what index
+each thing has, `selection.set` one of them, then the verbs that change it.
+`level.place`, `brush.add` and `light.add` do not need a selection;
+everything else does. Deleting renumbers what follows it, so call
+`level.list` again afterwards rather than counting. `command.run` runs any
+command the editor knows by name, a plugin's (`<namespace>.<name>`)
+included; `plugin.list` says what the project's plugins brought, and each
+plugin command is a tool of its own too.
+
+An experiment (`.f3d.experiment`: a level, substances, parameters, probes
+and a scenario of steps with expected readings) is edited beside the
+level: `experiment.open` it, then `experiment.edit` one value at a time,
+`experiment.undo` and `experiment.save`.
+
+`level.validate` says what is wrong with the document as the game would see
+it, and is worth calling before `level.save`. `history.undo` goes back sixty-four steps.
+
+`view.screenshot` draws the level in software, untextured, from a camera you may
+name; `view.report` says for every brush, light and entity how much of it that
+camera sees and what is in the way. Look before and after you change things.
+
+`play.start` runs the game this level belongs to. While it runs, every
+`level.save` goes to it and the game takes the level without starting over; `play.status`
+shows its console, `play.events` what the game posted since a cursor (a level
+loaded, the player died), and `play.swap` puts changed code into it.
+''';

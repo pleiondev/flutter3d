@@ -67,6 +67,8 @@ final class DocumentDifference {
 List<DocumentDifference> compareModelDocuments(
   ModelDocument source,
   ModelDocument readBack, {
+
+  /// Per float, in the units of the value compared (metres for a position).
   double tolerance = 0.0,
   bool allowVertexReorder = false,
 }) {

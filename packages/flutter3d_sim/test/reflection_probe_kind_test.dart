@@ -10,6 +10,7 @@
 /// without probes is not quietly given one.
 library;
 
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 
@@ -125,12 +126,14 @@ void main() {
     final entity = _room(<String, Object?>{}).entities.single;
 
     const ReflectionProbeKind().spawn(
-      entity,
-      SpawnContext(
-        world: world,
-        actors: ActorSystem(world: world, random: GameRandom(1)),
-        mechanisms: mechanisms,
-        onFixture: fixtures.add,
+      EntitySpawn(
+        entity: entity,
+        context: SpawnContext(
+          world: world,
+          actors: ActorSystem(world: world, random: GameRandom(1)),
+          mechanisms: mechanisms,
+          onFixture: fixtures.add,
+        ),
       ),
     );
 

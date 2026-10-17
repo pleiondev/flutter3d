@@ -114,11 +114,49 @@ final class PadButton {
 /// flip, and says so.
 ///
 /// Triggers are one axis each in `[0, 1]`.
-enum PadAxis {
-  leftStickX,
-  leftStickY,
-  rightStickX,
-  rightStickY,
-  triggerLeft,
-  triggerRight,
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class PadAxis {
+  const PadAxis._(this.name);
+
+  static const PadAxis leftStickX = PadAxis._('leftStickX');
+
+  static const PadAxis leftStickY = PadAxis._('leftStickY');
+
+  static const PadAxis rightStickX = PadAxis._('rightStickX');
+
+  static const PadAxis rightStickY = PadAxis._('rightStickY');
+
+  static const PadAxis triggerLeft = PadAxis._('triggerLeft');
+
+  static const PadAxis triggerRight = PadAxis._('triggerRight');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<PadAxis> values = <PadAxis>[
+    leftStickX,
+    leftStickY,
+    rightStickX,
+    rightStickY,
+    triggerLeft,
+    triggerRight,
+  ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static PadAxis? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'PadAxis.$name';
 }

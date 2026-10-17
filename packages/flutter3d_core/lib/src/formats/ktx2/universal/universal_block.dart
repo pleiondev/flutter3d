@@ -90,13 +90,13 @@ const int _kAlphaWeights = 14;
 /// A universal file's `vkFormat` is `VK_FORMAT_UNDEFINED`, which is also what
 /// Basis Universal writes, so the header alone cannot tell them apart — Basis
 /// is then distinguished by its supercompression scheme and this by the key.
-const String kUniversalBlockKey = 'f3dBlockFormat';
+const String universalBlockKey = 'f3dBlockFormat';
 
 /// The key's value for a texture whose alpha is opaque throughout.
-const String kUniversalBlockRgb = 'endpoint-weight-4x4-v1/rgb';
+const String universalBlockRgb = 'endpoint-weight-4x4-v1/rgb';
 
 /// The key's value for a texture that carries alpha.
-const String kUniversalBlockRgba = 'endpoint-weight-4x4-v1/rgba';
+const String universalBlockRgba = 'endpoint-weight-4x4-v1/rgba';
 
 /// What a universal level can be turned into at load.
 ///
@@ -209,7 +209,7 @@ Uint8List encodeUniversalBlocks(Rgba8Image image) {
 }
 
 /// Encodes one 4×4 block (sixteen `(r, g, b, a)` tuples, row-major).
-Uint8List encodeUniversalBlock(List<(int, int, int, int)> pixels) {
+Uint8List encodeUniversalBlock(List<Rgba8Texel> pixels) {
   final fit = blockEndpoints(pixels);
   final e0 = _round(fit.high);
   final e1 = _round(fit.low);
@@ -226,7 +226,7 @@ Uint8List encodeUniversalBlock(List<(int, int, int, int)> pixels) {
   block[_kAlphaLow] = alpha.low;
 
   for (var i = 0; i < 16; i++) {
-    final (r, g, b, a) = pixels[i];
+    final Rgba8Texel(:r, :g, :b, :a) = pixels[i];
     _putWeight(block, _kColorWeights, i, _nearestColorWeight(r, g, b, e0, e1));
     _putWeight(
       block,
@@ -240,13 +240,13 @@ Uint8List encodeUniversalBlock(List<(int, int, int, int)> pixels) {
 
 /// The sixteen texels of block [index], row-major — what the legs with no
 /// structural shortcut start from, and what a test compares against.
-List<(int, int, int, int)> decodeUniversalBlock(Uint8List blocks, int index) {
+List<Rgba8Texel> decodeUniversalBlock(Uint8List blocks, int index) {
   final at = index * kUniversalBlockBytes;
   final e0 = (blocks[at], blocks[at + 1], blocks[at + 2]);
   final e1 = (blocks[at + 3], blocks[at + 4], blocks[at + 5]);
   final a0 = blocks[at + _kAlphaHigh];
   final a1 = blocks[at + _kAlphaLow];
-  return <(int, int, int, int)>[
+  return <Rgba8Texel>[
     for (var i = 0; i < 16; i++)
       _texel(
         e0,
@@ -395,7 +395,7 @@ Uint8List _toRgba8(Uint8List blocks, int count, int width, int height) {
     final x0 = (block % blocksX) * 4;
     final y0 = (block ~/ blocksX) * 4;
     for (var i = 0; i < 16; i++) {
-      final (r, g, b, a) = texels[i];
+      final Rgba8Texel(:r, :g, :b, :a) = texels[i];
       final at = ((y0 + i ~/ 4) * width + x0 + i % 4) * 4;
       out[at] = r;
       out[at + 1] = g;
@@ -406,18 +406,18 @@ Uint8List _toRgba8(Uint8List blocks, int count, int width, int height) {
   return out;
 }
 
-(int, int, int, int) _texel(
+Rgba8Texel _texel(
   (int, int, int) e0,
   (int, int, int) e1,
   int a0,
   int a1,
   int colorWeight,
   int alphaWeight,
-) => (
-  _lerp8(e0.$1, e1.$1, colorWeight),
-  _lerp8(e0.$2, e1.$2, colorWeight),
-  _lerp8(e0.$3, e1.$3, colorWeight),
-  _lerp8(a0, a1, alphaWeight),
+) => Rgba8Texel(
+  r: _lerp8(e0.$1, e1.$1, colorWeight),
+  g: _lerp8(e0.$2, e1.$2, colorWeight),
+  b: _lerp8(e0.$3, e1.$3, colorWeight),
+  a: _lerp8(a0, a1, alphaWeight),
 );
 
 /// `from` at weight 0, `to` at the last weight, rounded — the one

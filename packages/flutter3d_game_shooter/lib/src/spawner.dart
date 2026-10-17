@@ -14,6 +14,7 @@
 /// to grow.
 library;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -96,7 +97,7 @@ final class Spawner extends Mechanism {
   bool get isDone => _spent && _wave >= waves.length;
 
   @override
-  Vector3 get origin => at;
+  Vector3 get origin => at.clone();
 
   @override
   ActivationOutcome activate(Activation by) {

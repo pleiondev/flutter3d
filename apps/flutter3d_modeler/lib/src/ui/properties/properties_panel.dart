@@ -9,8 +9,8 @@
 /// below are what a panel free to write to the document actually looks like.
 library;
 
-import 'package:flutter/material.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter/material.dart';
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart'
     show EditMesh, ElementLevel, MeshChecks, Modifier;
@@ -112,6 +112,8 @@ class PropertiesPanel extends StatelessWidget {
     this.selectedConstraint,
     required this.onSelectConstraint,
     this.onRemoveConstraint,
+    this.onSetAnimationGraph,
+    this.onRemoveAnimationGraph,
     this.weightBrushMode = PaintWeightsMode.paint,
     required this.onWeightBrushModeChanged,
     this.weightBrushRadius = 48.0,
@@ -273,7 +275,7 @@ class PropertiesPanel extends StatelessWidget {
     int materialIndex,
     String kind,
     Map<String, Object?> fields,
-    (double x, double y) position,
+    NodePosition position,
   )
   onAddTextureNode;
 
@@ -361,6 +363,12 @@ class PropertiesPanel extends StatelessWidget {
   final ValueChanged<int> onSelectConstraint;
   final ValueChanged<int>? onRemoveConstraint;
 
+  /// The animation panel's graphs: sets one, answering with the refusal
+  /// or null; and removes one.
+  final String? Function(String name, Map<String, Object?> graph)?
+  onSetAnimationGraph;
+  final ValueChanged<String>? onRemoveAnimationGraph;
+
   /// `S5`'s own [WeightPaintPanel]: the brush's own radius/strength/mirror/
   /// normalize, and which of `weights.paint`/`weights.assign` is armed.
   final PaintWeightsMode weightBrushMode;
@@ -416,7 +424,7 @@ class PropertiesPanel extends StatelessWidget {
   final ValueChanged<int> onSelectLight;
   final VoidCallback onAddLight;
   final ValueChanged<int> onRemoveLight;
-  final void Function(int index, ProjectLightType type) onLightTypeChanged;
+  final void Function(int index, LightType type) onLightTypeChanged;
   final void Function(int index, double value) onLightIntensityChanged;
   final void Function(int index, double value) onLightRangeChanged;
   final void Function(int index, bool value) onLightShadowChanged;
@@ -780,7 +788,7 @@ class PropertiesPanel extends StatelessWidget {
                   (
                     String kind,
                     Map<String, Object?> fields,
-                    (double, double) position,
+                    NodePosition position,
                   ) => onAddTextureNode(activeMaterial, kind, fields, position),
               onLink: (int nodeId, String input, int from) =>
                   onLinkTextureNode(activeMaterial, nodeId, input, from),
@@ -859,6 +867,9 @@ class PropertiesPanel extends StatelessWidget {
             selectedConstraint: selectedConstraint,
             onSelectConstraint: onSelectConstraint,
             onRemoveConstraint: onRemoveConstraint,
+            animationGraphs: project.animationGraphs,
+            onSetAnimationGraph: onSetAnimationGraph,
+            onRemoveAnimationGraph: onRemoveAnimationGraph,
           ),
         if (sections.contains(PropertiesSection.weightPaint))
           WeightPaintPanel(

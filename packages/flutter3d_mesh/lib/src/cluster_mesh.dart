@@ -42,6 +42,8 @@ MeshData clusterMesh(
   MeshData mesh, {
   int maxTriangles = 4096,
   int minTriangles = 1024,
+
+  /// In radians.
   double foldAngle = math.pi / 4,
 }) {
   if (maxTriangles < 1 || minTriangles > maxTriangles) {
@@ -59,7 +61,7 @@ MeshData clusterMesh(
 
   // Centres and unit normals, one triple per triangle; a triangle with no
   // area gets a zero normal and turns from nothing.
-  final centres = Float64List(triangles * 3);
+  final centers = Float64List(triangles * 3);
   final normals = Float64List(triangles * 3);
   var area = 0.0;
   for (var t = 0; t < triangles; t++) {
@@ -67,7 +69,7 @@ MeshData clusterMesh(
     final b = indices[t * 3 + 1] * stride + position;
     final c = indices[t * 3 + 2] * stride + position;
     for (var k = 0; k < 3; k++) {
-      centres[t * 3 + k] =
+      centers[t * 3 + k] =
           (vertices[a + k] + vertices[b + k] + vertices[c + k]) / 3.0;
     }
     final ux = vertices[b] - vertices[a];
@@ -88,7 +90,7 @@ MeshData clusterMesh(
     }
   }
 
-  final order = _mortonOrder(centres, triangles);
+  final order = _mortonOrder(centers, triangles);
   final (vertexStart, vertexTriangles, corners) = _trianglesByPoint(mesh);
 
   // A distance is measured against the radius a full cluster of average
@@ -153,9 +155,9 @@ MeshData clusterMesh(
       var bestTurn = 1.0;
       for (var f = 0; f < frontier.length; f++) {
         final t = frontier[f];
-        final dx = centres[t * 3] - cx;
-        final dy = centres[t * 3 + 1] - cy;
-        final dz = centres[t * 3 + 2] - cz;
+        final dx = centers[t * 3] - cx;
+        final dy = centers[t * 3 + 1] - cy;
+        final dz = centers[t * 3 + 2] - cz;
         final turn =
             normals[t * 3] * ax +
             normals[t * 3 + 1] * ay +
@@ -180,9 +182,9 @@ MeshData clusterMesh(
       frontier.removeLast();
       claimed[t] = 1;
       members.add(t);
-      sumX += centres[t * 3];
-      sumY += centres[t * 3 + 1];
-      sumZ += centres[t * 3 + 2];
+      sumX += centers[t * 3];
+      sumY += centers[t * 3 + 1];
+      sumZ += centers[t * 3 + 2];
       normalX += normals[t * 3];
       normalY += normals[t * 3 + 1];
       normalZ += normals[t * 3 + 2];
@@ -225,19 +227,19 @@ MeshData clusterMesh(
 /// The triangles in the order a Morton curve through their centres visits
 /// them, ten bits an axis across the mesh's bounds — close in the list is
 /// close in space, which is all a seed order needs.
-Int32List _mortonOrder(Float64List centres, int triangles) {
+Int32List _mortonOrder(Float64List centers, int triangles) {
   var minX = double.infinity, minY = double.infinity, minZ = double.infinity;
   var maxX = -double.infinity, maxY = -double.infinity;
   var maxZ = -double.infinity;
   for (var t = 0; t < triangles; t++) {
-    minX = math.min(minX, centres[t * 3]);
-    minY = math.min(minY, centres[t * 3 + 1]);
-    minZ = math.min(minZ, centres[t * 3 + 2]);
-    maxX = math.max(maxX, centres[t * 3]);
-    maxY = math.max(maxY, centres[t * 3 + 1]);
-    maxZ = math.max(maxZ, centres[t * 3 + 2]);
+    minX = math.min(minX, centers[t * 3]);
+    minY = math.min(minY, centers[t * 3 + 1]);
+    minZ = math.min(minZ, centers[t * 3 + 2]);
+    maxX = math.max(maxX, centers[t * 3]);
+    maxY = math.max(maxY, centers[t * 3 + 1]);
+    maxZ = math.max(maxZ, centers[t * 3 + 2]);
   }
-  int quantise(double value, double low, double high) => high > low
+  int quantize(double value, double low, double high) => high > low
       ? ((value - low) / (high - low) * 1023).round().clamp(0, 1023)
       : 0;
   int spread(int bits) {
@@ -252,9 +254,9 @@ Int32List _mortonOrder(Float64List centres, int triangles) {
   final codes = Int32List(triangles);
   for (var t = 0; t < triangles; t++) {
     codes[t] =
-        spread(quantise(centres[t * 3], minX, maxX)) |
-        spread(quantise(centres[t * 3 + 1], minY, maxY)) << 1 |
-        spread(quantise(centres[t * 3 + 2], minZ, maxZ)) << 2;
+        spread(quantize(centers[t * 3], minX, maxX)) |
+        spread(quantize(centers[t * 3 + 1], minY, maxY)) << 1 |
+        spread(quantize(centers[t * 3 + 2], minZ, maxZ)) << 2;
   }
   final order = Int32List(triangles);
   for (var t = 0; t < triangles; t++) {

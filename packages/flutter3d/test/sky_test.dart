@@ -14,14 +14,13 @@ library;
 
 import 'dart:math' as math;
 
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 SkyGradient _plain() => SkyGradient(
-  zenith: Vector3(0.0, 0.0, 1.0),
-  horizon: Vector3(0.5, 0.5, 0.5),
-  nadir: Vector3(0.0, 0.0, 0.0),
+  zenith: LinearColor(0.0, 0.0, 1.0),
+  horizon: LinearColor(0.5, 0.5, 0.5),
+  nadir: LinearColor(0.0, 0.0, 0.0),
   directionToSun: Vector3(1.0, 0.0, 0.0),
   glowStrength: 0.0,
 );
@@ -40,7 +39,7 @@ List<Vector3> _positions(MeshData mesh) {
   ];
 }
 
-List<Vector4> _colours(MeshData mesh) {
+List<Vector4> _colors(MeshData mesh) {
   final stride = mesh.layout.floatsPerVertex;
   final offset = mesh.layout.floatOffsetOf(VertexLayout.color.name);
   return <Vector4>[
@@ -57,11 +56,11 @@ List<Vector4> _colours(MeshData mesh) {
 void main() {
   group('the gradient', () {
     test('reaches its three stops', () {
-      final sky = _plain().colour;
+      final sky = _plain().color;
 
-      expect(sky(SkyLook.at(Vector3(0.0, 1.0, 0.0))).z, closeTo(1.0, 1e-6));
-      expect(sky(SkyLook.at(Vector3(1.0, 0.0, 0.0))).x, closeTo(0.5, 1e-6));
-      expect(sky(SkyLook.at(Vector3(0.0, -1.0, 0.0))).x, closeTo(0.0, 1e-6));
+      expect(sky(SkyLook.at(Vector3(0.0, 1.0, 0.0))).b, closeTo(1.0, 1e-6));
+      expect(sky(SkyLook.at(Vector3(1.0, 0.0, 0.0))).r, closeTo(0.5, 1e-6));
+      expect(sky(SkyLook.at(Vector3(0.0, -1.0, 0.0))).r, closeTo(0.0, 1e-6));
     });
 
     test('leaves the horizon flat rather than ramping straight off it', () {
@@ -70,12 +69,12 @@ void main() {
       // immediately — five degrees up would already be nine percent of the way
       // to the zenith. The smoothstep leaves it at two, which is what makes the
       // horizon a band rather than an edge.
-      final sky = _plain().colour;
+      final sky = _plain().color;
       double towardsZenith(double degrees) {
         final radians = degrees * math.pi / 180.0;
         final blue = sky(
           SkyLook.at(Vector3(math.cos(radians), math.sin(radians), 0.0)),
-        ).z;
+        ).b;
         // The gradient runs 0.5 (horizon) to 1.0 (zenith) in blue.
         return (blue - 0.5) / 0.5;
       }
@@ -98,22 +97,22 @@ void main() {
       // colour is a triangle that vanishes on some backends and is black on
       // others.
       final sky = SkyGradient(
-        zenith: Vector3(0.2, 0.2, 0.2),
-        horizon: Vector3(0.2, 0.2, 0.2),
-        nadir: Vector3(0.2, 0.2, 0.2),
+        zenith: LinearColor(0.2, 0.2, 0.2),
+        horizon: LinearColor(0.2, 0.2, 0.2),
+        nadir: LinearColor(0.2, 0.2, 0.2),
         directionToSun: Vector3(1.0, 0.0, 0.0),
         glowStrength: 0.5,
-      ).colour;
+      ).color;
 
       final into = sky(SkyLook.at(Vector3(1.0, 0.0, 0.0)));
       final across = sky(SkyLook.at(Vector3(0.0, 0.0, 1.0)));
       final away = sky(SkyLook.at(Vector3(-1.0, 0.0, 0.0)));
 
-      expect(into.x, greaterThan(0.6));
-      expect(across.x, closeTo(0.2, 1e-6));
-      expect(away.x, closeTo(0.2, 1e-6));
-      for (final colour in <Vector4>[into, across, away]) {
-        expect(colour.x.isFinite, isTrue);
+      expect(into.r, greaterThan(0.6));
+      expect(across.r, closeTo(0.2, 1e-6));
+      expect(away.r, closeTo(0.2, 1e-6));
+      for (final color in <LinearColor>[into, across, away]) {
+        expect(color.r.isFinite, isTrue);
       }
     });
 
@@ -122,9 +121,9 @@ void main() {
       // unnormalised sun makes the glow either enormous or absent, depending on
       // a length nobody thinks of as meaningful.
       final long = SkyGradient(
-        zenith: Vector3.zero(),
-        horizon: Vector3.zero(),
-        nadir: Vector3.zero(),
+        zenith: LinearColor.black,
+        horizon: LinearColor.black,
+        nadir: LinearColor.black,
         directionToSun: Vector3(0.0, 40.0, 0.0),
       );
       expect(long.directionToSun.length, closeTo(1.0, 1e-6));
@@ -181,16 +180,16 @@ void main() {
   group('painting', () {
     test('gives each vertex the colour of the direction it sits in', () {
       final mesh = const SkyDome(rings: 8, segments: 12).build();
-      paintSky(mesh, _plain().colour);
+      paintSky(mesh, _plain().color);
 
       final positions = _positions(mesh);
-      final colours = _colours(mesh);
-      final sky = _plain().colour;
+      final colors = _colors(mesh);
+      final sky = _plain().color;
       for (var i = 0; i < positions.length; i++) {
         final expected = sky(SkyLook.at(positions[i].normalized()));
-        expect(colours[i].x, closeTo(expected.x, 1e-5));
-        expect(colours[i].y, closeTo(expected.y, 1e-5));
-        expect(colours[i].z, closeTo(expected.z, 1e-5));
+        expect(colors[i].x, closeTo(expected.r, 1e-5));
+        expect(colors[i].y, closeTo(expected.g, 1e-5));
+        expect(colors[i].z, closeTo(expected.b, 1e-5));
       }
     });
 
@@ -199,20 +198,16 @@ void main() {
       // colour offset from the wrong attribute. Both survive the test above if
       // it is written loosely; this one names the two poles.
       final mesh = const SkyDome(rings: 8, segments: 12).build();
-      paintSky(mesh, _plain().colour);
+      paintSky(mesh, _plain().color);
 
       final positions = _positions(mesh);
-      final colours = _colours(mesh);
+      final colors = _colors(mesh);
       for (var i = 0; i < positions.length; i++) {
         if (positions[i].y > 9.99) {
-          expect(
-            colours[i].z,
-            closeTo(1.0, 1e-4),
-            reason: 'the zenith is blue',
-          );
+          expect(colors[i].z, closeTo(1.0, 1e-4), reason: 'the zenith is blue');
         }
         if (positions[i].y < -9.99) {
-          expect(colours[i].x, closeTo(0.0, 1e-4), reason: 'the nadir is dark');
+          expect(colors[i].x, closeTo(0.0, 1e-4), reason: 'the nadir is dark');
         }
       }
     });
@@ -222,7 +217,7 @@ void main() {
         rings: 4,
         segments: 6,
       ).build(layout: VertexLayout.positionNormalTexcoord);
-      expect(() => paintSky(mesh, _plain().colour), throwsArgumentError);
+      expect(() => paintSky(mesh, _plain().color), throwsArgumentError);
     });
   });
 

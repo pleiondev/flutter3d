@@ -12,6 +12,7 @@ import 'dart:math' as math;
 import 'package:vector_math/vector_math.dart';
 
 import 'cpu_shader.dart';
+import 'cpu_shaders_color.dart' show orthographic;
 import 'cpu_shaders_evsm.dart';
 import 'cpu_shaders_surface.dart';
 
@@ -24,6 +25,13 @@ import 'cpu_shaders_surface.dart';
 /// [lightNDotL] is the light's `n_dot_l`, which `ShadowFactor` is handed with
 /// the light and no longer reads: the offset measures the slope along the
 /// map's own axes instead.
+/// What the see-through casters between the sun and the fragment last given
+/// to [shadowFactor] let through — `light_transmittance` in `surface.glsl`,
+/// and the same arrangement: set as a side effect, white whenever the call
+/// does not reach the atlas, read by `accumulateLights` beside the
+/// visibility.
+final Vector3 shadowTransmittance = Vector3.all(1.0);
+
 double shadowFactor(
   Surface s,
   ShaderBindings b,
@@ -31,6 +39,7 @@ double shadowFactor(
   double lightNDotL, [
   FragmentContext? c,
 ]) {
+  shadowTransmittance.setValues(1.0, 1.0, 1.0);
   final params = b.vec4('FragInfo', 'shadow_params', Vector4.zero());
   final strength = params.w;
   if (strength <= 0.0) return 1.0;
@@ -54,7 +63,19 @@ double shadowFactor(
   final cascades = b.vec4('FragInfo', 'shadow_cascades', Vector4(0, 0, 1, 0));
   final count = (cascades.z + 0.5).floor().clamp(1, 3);
   final camera = b.vec4('FragInfo', 'camera_position', Vector4.zero());
-  final viewDistance = (s.world - Vector3(camera.x, camera.y, camera.z)).length;
+  // `P7`: by depth along the axis through an orthographic lens.
+  /// How far the fragment is from the eye, in metres.
+  final double viewDistance;
+  if (orthographic(b)) {
+    final eye = b.vec4('FogInfo', 'eye', Vector4.zero());
+    final forward = b.vec4('FogInfo', 'forward', Vector4.zero());
+    viewDistance =
+        (s.world.x - eye.x) * forward.x +
+        (s.world.y - eye.y) * forward.y +
+        (s.world.z - eye.z) * forward.z;
+  } else {
+    viewDistance = (s.world - Vector3(camera.x, camera.y, camera.z)).length;
+  }
   var cascade = 0;
   if (count > 1 && viewDistance > cascades.x) cascade = 1;
   if (count > 2 && viewDistance > cascades.y) cascade = 2;
@@ -159,7 +180,13 @@ double shadowFactor(
   if (projected == null) return 1.0;
 
   // Each cascade's own bias — `shadow_bias` in `surface.glsl`.
-  final bias = b.vec4('FragInfo', 'shadow_bias', Vector4.zero())[cascadeIndex];
+  final biases = b.vec4('FragInfo', 'shadow_bias', Vector4.zero());
+  // `A2.8`: how the map keeps its depth, and with half floats turned round
+  // the floor at this fragment's own depth — `lib/shadow_storage.glsl`.
+  final storage = params.y;
+  final bias = storage > 0.5 && storage < 1.5
+      ? math.max(biases[cascadeIndex], shadowStoredStep(projected.z))
+      : biases[cascadeIndex];
   // Horizontally a texel of the atlas, vertically a texel of a tile.
   final texelU = params.x;
   final texelV = cascades.w > 0.0 ? cascades.w : params.x;
@@ -168,8 +195,31 @@ double shadowFactor(
   final hiU = (cascadeIndex + 1) / count - 0.5 * texelU;
   final loV = 0.5 * texelV;
   final hiV = 1.0 - 0.5 * texelV;
-  double tap(double du, double dv) =>
-      map.sample((u + du).clamp(loU, hiU), (vv + dv).clamp(loV, hiV)).x;
+  double tap(double du, double dv) => shadowStored(
+    map.sample((u + du).clamp(loU, hiU), (vv + dv).clamp(loV, hiV)).x,
+    storage,
+  );
+
+  // What the see-through casters let through, before the filter, whose soft
+  // path leaves early — `ShadowSettings.translucentCasters`; `shadow.glsl`
+  // has the layout. Averaged over the 3×3 texels the opaque edge is, as there.
+  if (biases.w > 0.5) {
+    final stored = [
+      for (var y = -1; y <= 1; y++)
+        for (var x = -1; x <= 1; x++)
+          map.sample(
+            (u + x * texelU).clamp(loU, hiU),
+            (vv + y * texelV).clamp(loV, hiV),
+          ),
+    ].fold(Vector4.zero(), (sum, texel) => sum..add(texel))..scale(1.0 / 9.0);
+    final k = strength.clamp(0.0, 1.0);
+    double through(double value) => 1.0 + (value.clamp(0.0, 4.0) - 1.0) * k;
+    shadowTransmittance.setValues(
+      through(1.0 - stored.y),
+      through(1.0 - stored.z),
+      through(stored.w),
+    );
+  }
 
   // `gfx-15n`: the directional light's apparent size, riding in
   // `ambient_ground.w` for the reason `surface.glsl` gives. Zero is the 3×3
@@ -211,7 +261,7 @@ double shadowFactor(
     // Each tap allows for the surface's own slope past the normal offset's
     // reach, as `shadow.glsl` explains.
     for (var i = 0; i < 16; i++) {
-      final (dx, dy) = vogelDisc(i, 16, turn);
+      final VogelTap(x: dx, y: dy) = vogelDisc(i, 16, turn);
       final reachTexels = math.sqrt(dx * dx + dy * dy) * searchRadius;
       final tapBias = bias + math.max(reachTexels - 1.5, 0.0) * receiverSlope;
       final occluder = tap(
@@ -229,7 +279,7 @@ double shadowFactor(
     final gap = (averaged > 0.0 ? averaged : 0.0) * cascadeDepth;
     final radius = (spread * gap / cascadeTexel).clamp(1.0, 16.0);
     for (var i = 0; i < 16; i++) {
-      final (dx, dy) = vogelDisc(i, 16, turn + 1.0);
+      final VogelTap(x: dx, y: dy) = vogelDisc(i, 16, turn + 1.0);
       final reachTexels = math.sqrt(dx * dx + dy * dy) * radius;
       final tapBias = bias + math.max(reachTexels - 1.5, 0.0) * receiverSlope;
       final occluder = tap(dx * texelU * radius, dy * texelV * radius);
@@ -241,10 +291,33 @@ double shadowFactor(
 }
 
 /// `VogelDisc` from `shadow.glsl` — `S3`.
-(double, double) vogelDisc(int i, int n, double turn) {
+VogelTap vogelDisc(int i, int n, double turn) {
   final r = math.sqrt((i + 0.5) / n);
   final theta = i * 2.3999632 + turn;
-  return (r * math.cos(theta), r * math.sin(theta));
+  return VogelTap(x: r * math.cos(theta), y: r * math.sin(theta));
+}
+
+/// One tap of a Vogel disc, a point inside the unit disc, as [vogelDisc]
+/// answers it.
+final class VogelTap {
+  /// The point ([x], [y]).
+  const VogelTap({required this.x, required this.y});
+
+  /// Across, in no unit: a fraction of the disc's radius, -1..1.
+  final double x;
+
+  /// Up, in no unit: a fraction of the disc's radius, -1..1.
+  final double y;
+
+  @override
+  bool operator ==(Object other) =>
+      other is VogelTap && other.x == x && other.y == y;
+
+  @override
+  int get hashCode => Object.hash(x, y);
+
+  @override
+  String toString() => 'VogelTap($x, $y)';
 }
 
 /// `ShadowNoise` from `shadow.glsl` — `S3`: interleaved gradient noise at

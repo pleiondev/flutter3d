@@ -9,15 +9,16 @@ import 'package:flame_test/flame_test.dart';
 import 'package:flutter3d/flutter3d.dart'
     show
         CameraNode,
+        LinearColor,
         PerspectiveProjection,
         RenderSettings,
-        RenderView,
+        CameraView,
         Renderer;
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_demo_river/src/course.dart' show TargetKind;
 import 'package:flutter3d_demo_river/src/river_game.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart' show Vector3, Vector4;
+import 'package:vector_math/vector_math.dart' show Vector3;
 
 Iterable<SpriteBillboardComponent> _billboards(RiverGame game) =>
     game.children.whereType<SpriteBillboardComponent>();
@@ -127,7 +128,7 @@ void main() {
     final it = cpuTestDevice(width: 160, height: 90);
     late final RiverGame game;
     final camera = CameraNode(
-      projection: const PerspectiveProjection(fovYRadians: 0.85, far: 400.0),
+      projection: const PerspectiveProjection(fovY: 0.85, far: 400.0),
     );
     await tester.runAsync(() async {
       game = await initializeGame(() => RiverGame(billboards: true));
@@ -153,12 +154,15 @@ void main() {
         width: 160,
         height: 90,
         scene: game.scene,
-        views: <RenderView>[
-          RenderView(camera: camera, clearColor: Vector4(0.27, 0.48, 0.78, 1)),
+        views: <CameraView>[
+          CameraView(
+            camera: camera,
+            clearColor: LinearColor.fromSrgb(0.27, 0.48, 0.78, 1),
+          ),
         ],
         settings: const RenderSettings(),
       );
-      final pixels = (await it.device.readPixels(result.frame))!;
+      final pixels = await it.device.readback(result.frame);
       final rgba = pixels.buffer.asUint8List();
       var count = 0;
       for (var i = 0; i < rgba.length; i += 4) {

@@ -31,10 +31,13 @@
 library;
 
 import 'package:flutter3d_core/flutter3d_core.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 
 import 'scene_lighting.dart';
 
 /// The scene's own lights, following a project's [SceneLighting].
+///
+/// An application drawing a project makes one with `LightingSync()`.
 final class LightingSync {
   final List<LightNode> _managed = <LightNode>[];
 
@@ -60,16 +63,9 @@ final class LightingSync {
     _managed.clear();
     for (final ProjectLight light in lighting.lights) {
       final node = LightNode(
-        type: switch (light.type) {
-          ProjectLightType.point => LightType.point,
-          ProjectLightType.spot => LightType.spot,
-          // ProjectLightType is a value class, not a sealed one — see its
-          // own doc comment — so this switch cannot be exhaustive over its
-          // cases. Directional is both the default `ProjectLight` itself
-          // takes and the sensible fallback for a value class that grows a
-          // fourth kind this file has not been taught yet.
-          _ => LightType.directional,
-        },
+        // The scene's own kinds: a project holds an area light as the
+        // scene does.
+        type: light.type,
         color: light.color,
         intensity: light.intensity,
         range: light.range,
@@ -78,8 +74,7 @@ final class LightingSync {
         // saved project wrote `castsShadow: false` for its sun as a default
         // nobody chose, so passing it through would take the shadow out of
         // every project that exists.
-        castsShadow:
-            light.castsShadow || light.type == ProjectLightType.directional,
+        castsShadow: light.castsShadow || light.type == LightType.directional,
         innerConeAngle: light.innerConeAngle,
         outerConeAngle: light.outerConeAngle,
       )..setLocalMatrix(light.transform);
@@ -140,5 +135,5 @@ final class LightingSync {
 int lightOverflowOf(SceneLighting lighting) {
   final scene = Scene();
   LightingSync().sync(scene, lighting);
-  return (LightBuffer()..gather(scene.lights)).overflow;
+  return scene.overflowingLights;
 }

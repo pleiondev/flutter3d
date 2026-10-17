@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter3d_lab/flutter3d_lab.dart';
+import 'package:flutter3d_education/lab.dart';
 
 /// `ls-e-01`'s missing half of the acceptance `doc/lesson-scenarios-plan.md`
 /// names: "преподаватель видит на шкале rp-02, на каком шаге студент

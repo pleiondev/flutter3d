@@ -24,7 +24,7 @@
 /// `order_tape.dart`.
 ///
 /// **Units are named by the numbers the save already uses.** An order that held
-/// `Unit` objects could not survive a document, and one that held a place in
+/// `StrategyUnit` objects could not survive a document, and one that held a place in
 /// `StrategySimulation.units` would name the wrong unit on the far side of a
 /// save: production makes units while a match runs, so that list is a different
 /// length by minute three. The entity index is what the snapshot writes down
@@ -44,11 +44,12 @@ import 'unit.dart';
 
 /// One thing a side asked for, on one step.
 ///
-/// Sealed, so that reading a tape and writing one are two lists of the same
-/// length: a kind added here has to be given a line in [orderFromJson] before
-/// this file compiles, and a kind that could be written and not read is exactly
-/// how a replay diverges without saying so.
-sealed class StrategyOrder {
+/// `abstract final`, so every order is one this package wrote and gave a
+/// line in [orderFromJson]: a kind that could be written and not read is
+/// exactly how a replay diverges without saying so. Not sealed, because a new
+/// order (a new simulation version) may come in a minor release, and a
+/// `switch` over orders outside this package ends with a wildcard.
+abstract final class StrategyOrder {
   const StrategyOrder();
 
   /// The order as a document writes it down. `kind` is what reads it back.
@@ -62,7 +63,7 @@ sealed class StrategyOrder {
   /// about a world that has moved on — and a step that threw there would turn a
   /// stale click into a crash. The one place that must not be lenient is
   /// [orderFromJson], and it is not.
-  void obey(StrategySimulation simulation, Map<int, Unit> crowd);
+  void obey(StrategySimulation simulation, Map<int, StrategyUnit> crowd);
 }
 
 /// Send these units there, and stand in an arrangement when they arrive.
@@ -73,6 +74,25 @@ final class MoveOrder extends StrategyOrder {
     required Vector3 goal,
     this.formation = const Formation.block(),
   }) : goal = goal.clone();
+
+  /// An order read back from [toJson].
+  factory MoveOrder.fromJson(Map<String, Object?> from) {
+    final Vector3 goal = Vector3.zero();
+    from.vectorInto('goal', goal);
+    final Object? units = from['units'];
+    return MoveOrder(
+      units: <int>[
+        if (units is List)
+          for (final Object? index in units)
+            if (index is num) index.toInt(),
+      ],
+      goal: goal,
+      formation: Formation.block(
+        spacing: from.number('spacing', orElse: 1.4),
+        width: from.integer('width', orElse: 5),
+      ),
+    );
+  }
 
   /// Whom it was given to, by entity index, in the order the slots are handed
   /// out. Order is visible in the picture — the first unit takes the first
@@ -98,30 +118,11 @@ final class MoveOrder extends StrategyOrder {
     'width': formation.width,
   };
 
-  /// An order read back from [toJson].
-  factory MoveOrder.fromJson(Map<String, Object?> from) {
-    final Vector3 goal = Vector3.zero();
-    from.vectorInto('goal', goal);
-    final Object? units = from['units'];
-    return MoveOrder(
-      units: <int>[
-        if (units is List)
-          for (final Object? index in units)
-            if (index is num) index.toInt(),
-      ],
-      goal: goal,
-      formation: Formation.block(
-        spacing: from.number('spacing', 1.4),
-        width: from.integer('width', 5),
-      ),
-    );
-  }
-
   @override
-  void obey(StrategySimulation simulation, Map<int, Unit> crowd) {
-    final List<Unit> found = <Unit>[
+  void obey(StrategySimulation simulation, Map<int, StrategyUnit> crowd) {
+    final List<StrategyUnit> found = <StrategyUnit>[
       for (final int index in units)
-        if (crowd[index] case final Unit unit) unit,
+        if (crowd[index] case final StrategyUnit unit) unit,
     ];
     if (found.isEmpty) return;
     // Through [Squad], which is where the arrangement lives and where the note
@@ -148,6 +149,15 @@ final class AssignOrder extends StrategyOrder {
     this.rate = 8.0,
   });
 
+  /// An order read back from [toJson].
+  factory AssignOrder.fromJson(Map<String, Object?> from) => AssignOrder(
+    unit: from.integer('unit', orElse: -1),
+    node: from.integer('node', orElse: -1),
+    dropOff: from.integer('dropOff', orElse: -1),
+    capacity: from.number('capacity', orElse: 10.0),
+    rate: from.number('rate', orElse: 8.0),
+  );
+
   /// Who is being put to work, by entity index.
   final int unit;
 
@@ -163,6 +173,7 @@ final class AssignOrder extends StrategyOrder {
   final int dropOff;
 
   /// How much the worker can carry at once.
+  /// In units of resource.
   final double capacity;
 
   /// How fast it fills, per second, standing at the seam.
@@ -178,18 +189,9 @@ final class AssignOrder extends StrategyOrder {
     'rate': rate,
   };
 
-  /// An order read back from [toJson].
-  factory AssignOrder.fromJson(Map<String, Object?> from) => AssignOrder(
-    unit: from.integer('unit', -1),
-    node: from.integer('node', -1),
-    dropOff: from.integer('dropOff', -1),
-    capacity: from.number('capacity', 10.0),
-    rate: from.number('rate', 8.0),
-  );
-
   @override
-  void obey(StrategySimulation simulation, Map<int, Unit> crowd) {
-    final Unit? worker = crowd[unit];
+  void obey(StrategySimulation simulation, Map<int, StrategyUnit> crowd) {
+    final StrategyUnit? worker = crowd[unit];
     if (worker == null) return;
     if (node < 0 || node >= simulation.resources.length) return;
     if (dropOff < 0 || dropOff >= simulation.buildings.length) return;
@@ -213,6 +215,19 @@ final class AttackOrder extends StrategyOrder {
   /// Sends the units at [units] — entity indices — after [target].
   const AttackOrder({required this.units, required this.target});
 
+  /// An order read back from [toJson].
+  factory AttackOrder.fromJson(Map<String, Object?> from) {
+    final Object? units = from['units'];
+    return AttackOrder(
+      units: <int>[
+        if (units is List)
+          for (final Object? index in units)
+            if (index is num) index.toInt(),
+      ],
+      target: from.integer('target', orElse: -1),
+    );
+  }
+
   /// Whom it was given to, by entity index, in the order they were named.
   final List<int> units;
 
@@ -226,29 +241,17 @@ final class AttackOrder extends StrategyOrder {
     'target': target,
   };
 
-  /// An order read back from [toJson].
-  factory AttackOrder.fromJson(Map<String, Object?> from) {
-    final Object? units = from['units'];
-    return AttackOrder(
-      units: <int>[
-        if (units is List)
-          for (final Object? index in units)
-            if (index is num) index.toInt(),
-      ],
-      target: from.integer('target', -1),
-    );
-  }
-
   /// **A quarry that is not on the map any more takes the whole order with
   /// it.** The alternative — send them anyway, to hold where it fell — is a
   /// squad walking to a patch of hillside for reasons nobody watching could
   /// reconstruct, and a stale click is exactly the case this leniency is for.
   @override
-  void obey(StrategySimulation simulation, Map<int, Unit> crowd) {
-    final Unit? mark = crowd[target];
+  void obey(StrategySimulation simulation, Map<int, StrategyUnit> crowd) {
+    final StrategyUnit? mark = crowd[target];
     if (mark == null) return;
     for (final int index in units) {
-      if (crowd[index] case final Unit hunter when !identical(hunter, mark)) {
+      if (crowd[index] case final StrategyUnit hunter
+          when !identical(hunter, mark)) {
         // The job goes, for the reason `Squad.moveTo` gives: a harvest loop
         // rewrites the order every step, so a worker told to fight without
         // being taken off its seam would go on digging and look disobedient.
@@ -277,6 +280,16 @@ final class TrainOrder extends StrategyOrder {
     this.count = 1,
   });
 
+  /// An order read back from [toJson].
+  factory TrainOrder.fromJson(Map<String, Object?> from) => TrainOrder(
+    producer: from.integer('producer', orElse: -1),
+    type: switch (from.object('type')) {
+      final Map<String, Object?> row => UnitType.fromJson(row),
+      null => UnitType.worker,
+    },
+    count: from.integer('count', orElse: 1),
+  );
+
   /// Which producer, as a place in the simulation's own list.
   final int producer;
 
@@ -299,18 +312,8 @@ final class TrainOrder extends StrategyOrder {
     'count': count,
   };
 
-  /// An order read back from [toJson].
-  factory TrainOrder.fromJson(Map<String, Object?> from) => TrainOrder(
-    producer: from.integer('producer', -1),
-    type: switch (from.object('type')) {
-      final Map<String, Object?> row => UnitType.fromJson(row),
-      null => UnitType.worker,
-    },
-    count: from.integer('count', 1),
-  );
-
   @override
-  void obey(StrategySimulation simulation, Map<int, Unit> crowd) {
+  void obey(StrategySimulation simulation, Map<int, StrategyUnit> crowd) {
     if (producer < 0 || producer >= simulation.producers.length) return;
     simulation.producers[producer].order(type, count: count);
   }
@@ -378,21 +381,21 @@ final class OrderQueue {
 
   /// Sends [units] to [goal] together, standing in [formation] on arrival.
   void moveTo(
-    Iterable<Unit> units,
+    Iterable<StrategyUnit> units,
     Vector3 goal, {
     Formation formation = const Formation.block(),
   }) => add(
     MoveOrder(
-      units: <int>[for (final Unit unit in units) unit.entity.index],
+      units: <int>[for (final StrategyUnit unit in units) unit.entity.index],
       goal: goal,
       formation: formation,
     ),
   );
 
   /// Sends [units] after [target].
-  void attackWith(Iterable<Unit> units, Unit target) => add(
+  void attackWith(Iterable<StrategyUnit> units, StrategyUnit target) => add(
     AttackOrder(
-      units: <int>[for (final Unit unit in units) unit.entity.index],
+      units: <int>[for (final StrategyUnit unit in units) unit.entity.index],
       target: target.entity.index,
     ),
   );
@@ -416,7 +419,7 @@ final class OrderQueue {
   /// while the caller still has them; an order that carried the objects would
   /// be an order that could not be written down.
   void assign(
-    Unit unit, {
+    StrategyUnit unit, {
     required ResourceNode node,
     required Building dropOff,
     double capacity = 10.0,
@@ -445,8 +448,9 @@ final class OrderQueue {
     // The crowd by entity index, built once for the whole batch rather than
     // searched per order: a click on a hundred units would otherwise walk the
     // whole crowd a hundred times.
-    final Map<int, Unit> crowd = <int, Unit>{
-      for (final Unit unit in _simulation.units) unit.entity.index: unit,
+    final Map<int, StrategyUnit> crowd = <int, StrategyUnit>{
+      for (final StrategyUnit unit in _simulation.units)
+        unit.entity.index: unit,
     };
     for (final StrategyOrder order in _waiting) {
       order.obey(_simulation, crowd);

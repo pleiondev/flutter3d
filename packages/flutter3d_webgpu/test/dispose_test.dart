@@ -26,7 +26,7 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:flutter3d_webgpu/flutter3d_webgpu_web.dart';
+import 'package:flutter3d_webgpu/src/webgpu_device.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'quad_stages.dart';
@@ -34,13 +34,22 @@ import 'quad_stages.dart';
 const int _width = 32;
 const int _height = 32;
 
-Future<WebGpuDevice?> _open() =>
-    WebGpuDevice.create(width: _width, height: _height, stages: quadStages);
+Future<WebGpuDevice?> _open() async {
+  try {
+    return await WebGpuDevice.open(
+      width: _width,
+      height: _height,
+      stages: quadStages,
+    );
+  } on DeviceUnavailableException {
+    return null;
+  }
+}
 
 ByteData _rgba(int width, int height) =>
     ByteData(width * height * 4); // all zero is a valid pixel buffer
 
-const RenderTargetSpec _target = RenderTargetSpec(
+const RenderTargetDescriptor _target = RenderTargetDescriptor(
   width: _width,
   height: _height,
   format: TextureFormat.r8g8b8a8UNormInt,
@@ -66,7 +75,7 @@ void main() {
       5,
       reason: 'asking for a stage is what compiles it',
     );
-    expect(await device.debugDrainErrors('opening'), isNull);
+    expect(await device.debugDrainErrors(where: 'opening'), isNull);
     device.dispose();
   });
 
@@ -99,7 +108,7 @@ void main() {
     device.uploadGeometry(quadIndices(), GeometryUsage.indices);
     expect(device.debugTrackedResourceCount, before + 4);
 
-    expect(await device.debugDrainErrors('allocating'), isNull);
+    expect(await device.debugDrainErrors(where: 'allocating'), isNull);
     device.dispose();
   });
 
@@ -112,7 +121,7 @@ void main() {
     device
       ..createTexture(_target)
       ..createTexture(
-        const RenderTargetSpec(
+        const RenderTargetDescriptor(
           width: _width,
           height: _height,
           format: TextureFormat.r8g8b8a8UNormInt,
@@ -122,13 +131,13 @@ void main() {
       ..uploadGeometry(quadVertices(), GeometryUsage.vertices);
     // Drained first, so a leftover complaint from setup is not blamed on
     // dispose.
-    await device.debugDrainErrors('setup');
+    await device.debugDrainErrors(where: 'setup');
 
     device.dispose();
 
     expect(device.debugTrackedResourceCount, 0);
     expect(
-      await device.debugDrainErrors('dispose'),
+      await device.debugDrainErrors(where: 'dispose'),
       isNull,
       reason:
           'destroying a texture or a buffer twice, or one this device never '
@@ -137,14 +146,22 @@ void main() {
     );
   });
 
-  test('disposing twice is refused rather than silently accepted', () async {
+  test('disposing twice tells one loss and throws nothing', () async {
+    // The contract on every backend, held by the conformance check "a
+    // second dispose does nothing". Mutation: put the `StateError` back.
     final device = await _open();
     if (device == null) {
       markTestSkipped('no WebGPU in this browser');
       return;
     }
-    device.dispose();
-    expect(device.dispose, throwsStateError);
+    final losses = <DeviceLoss>[];
+    final listening = device.lost.listen(losses.add);
+    device
+      ..dispose()
+      ..dispose();
+    await Future<void>.delayed(Duration.zero);
+    await listening.cancel();
+    expect(losses, hasLength(1));
   });
 
   group('one at a time', () {
@@ -164,12 +181,12 @@ void main() {
       final before = device.debugTrackedResourceCount;
       final texture = device.createTexture(_target);
       expect(device.debugTrackedResourceCount, before + 1);
-      await device.debugDrainErrors('setup');
+      await device.debugDrainErrors(where: 'setup');
 
       device.releaseTexture(texture);
 
       expect(device.debugTrackedResourceCount, before);
-      expect(await device.debugDrainErrors('releaseTexture'), isNull);
+      expect(await device.debugDrainErrors(where: 'releaseTexture'), isNull);
       device.dispose();
     });
 
@@ -187,12 +204,12 @@ void main() {
         final before = device.debugTrackedResourceCount;
         final texture = device.createTexture(_target);
         device.releaseTexture(texture);
-        await device.debugDrainErrors('first release');
+        await device.debugDrainErrors(where: 'first release');
 
         device.releaseTexture(texture);
 
         expect(device.debugTrackedResourceCount, before);
-        expect(await device.debugDrainErrors('second release'), isNull);
+        expect(await device.debugDrainErrors(where: 'second release'), isNull);
         device.dispose();
       },
     );
@@ -209,12 +226,12 @@ void main() {
         GeometryUsage.indices,
       );
       expect(device.debugTrackedResourceCount, before + 1);
-      await device.debugDrainErrors('setup');
+      await device.debugDrainErrors(where: 'setup');
 
       device.releaseGeometry(geometry);
 
       expect(device.debugTrackedResourceCount, before);
-      expect(await device.debugDrainErrors('releaseGeometry'), isNull);
+      expect(await device.debugDrainErrors(where: 'releaseGeometry'), isNull);
       device.dispose();
     });
   });
@@ -248,7 +265,7 @@ void main() {
         }
         expect(device.uniformArena.peakBytes, afterOneFrame);
         expect(device.uniformArena.bufferCount, 1);
-        expect(await device.debugDrainErrors('arena'), isNull);
+        expect(await device.debugDrainErrors(where: 'arena'), isNull);
         device.dispose();
       },
     );
@@ -268,7 +285,7 @@ void main() {
         expect(device.uniformArena.bufferCount, 1);
         device.uniformArena.write(ByteData(1 << 18));
         expect(device.uniformArena.bufferCount, 2);
-        expect(await device.debugDrainErrors('growth'), isNull);
+        expect(await device.debugDrainErrors(where: 'growth'), isNull);
 
         device.dispose();
         expect(device.debugTrackedResourceCount, 0);

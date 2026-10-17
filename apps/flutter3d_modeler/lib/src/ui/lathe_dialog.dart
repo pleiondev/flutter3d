@@ -1,5 +1,5 @@
 /// `ui-13`'s own modal — the design hand-over's screen 09, "Тело вращения":
-/// `profile_editor.dart` on the left, a second live `RenderView` on the
+/// `profile_editor.dart` on the left, a second live `CameraView` on the
 /// right updated on every edit, and the segment count and summary between
 /// them.
 ///
@@ -16,10 +16,9 @@
 /// dialog too.
 library;
 
-import 'package:flutter/material.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter/material.dart';
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
-import 'package:vector_math/vector_math.dart' show Vector2;
 
 import '../../../l10n/app_localizations.dart';
 import '../modeler_viewport.dart';

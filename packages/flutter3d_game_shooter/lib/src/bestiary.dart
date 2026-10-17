@@ -1,11 +1,14 @@
 import 'dart:math' as math;
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Severity;
 
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'chase_brain.dart';
 import 'combat/weapon_behaviour.dart';
 import 'monster_def.dart';
+import 'tree_brain.dart';
 
 /// What this game's monsters are, and how one becomes an [Actor].
 ///
@@ -48,7 +51,7 @@ final class Bestiary {
         ),
         position: position,
         layer: CollisionLayers.actor,
-        tuning: MovementTuning(
+        tuning: MovementSettings(
           walkSpeed: def.speed,
           sprintSpeed: def.speed,
           // No jumping and no coyote time: a monster that leaves the ground
@@ -70,7 +73,13 @@ final class Bestiary {
 
 /// Spawns whatever the bestiary says a monster can be.
 final class MonsterKind extends EntityKind {
-  MonsterKind(this.catalog, {this.bestiary}) : super(ShooterEntities.monster);
+  MonsterKind(this.catalog, {this.bestiary, BehaviorKinds? kinds})
+    : kinds = kinds ?? BehaviorKinds(),
+      super(ShooterEntities.monster);
+
+  /// What a monster's behaviour tree is read against: the standard leaves
+  /// unless the game adds its own.
+  final BehaviorKinds kinds;
 
   /// What a `kind` string may name. Enough to **validate** a document, which is
   /// something a level editor and a loader that has not built a world yet both
@@ -84,7 +93,9 @@ final class MonsterKind extends EntityKind {
   Bestiary? bestiary;
 
   @override
-  void spawn(EntityDef entity, SpawnContext context) {
+  void spawn(EntitySpawn spawn) {
+    final entity = spawn.entity;
+    final context = spawn.context;
     final bestiary = this.bestiary;
     if (bestiary == null) return;
     final def = catalog[entity.string('kind')];
@@ -101,16 +112,58 @@ final class MonsterKind extends EntityKind {
       yaw: entity.yaw,
       name: entity.name,
     );
+    _rest(actor, entity, context, def);
     context.onActorSpawned?.call(actor);
   }
 
+  /// The trees read so far, by the document they were read from, so that ten
+  /// guards running one tree share it, as `BehaviorTree` is meant to be.
+  final Map<Map<String, Object?>, BehaviorTree?> _trees =
+      Map<Map<String, Object?>, BehaviorTree?>.identity();
+
+  /// A monster whose entity names a `behavior` the level has rests by it —
+  /// see [TreeBrain] — with its `board`, an object of named values, on its
+  /// blackboard for the tree to read. A name the level has not got, or a
+  /// tree that does not read, leaves the monster as it was: both are
+  /// validation errors (`BehaviorsRead`), and a spawn does not fail on one.
+  void _rest(
+    Actor actor,
+    EntityDef entity,
+    SpawnContext context,
+    MonsterDef def,
+  ) {
+    final named = entity.string('behavior');
+    final document = named == null ? null : context.level?.behaviors[named];
+    final chase = actor.brain;
+    if (document == null || chase is! ChaseBrain) return;
+    final tree = _trees.putIfAbsent(
+      document,
+      () => BehaviorTree.read(document, kinds).tree,
+    );
+    if (tree == null) return;
+    actor.brain = TreeBrain(
+      def: def,
+      shot: chase.shot,
+      tree: tree,
+      difficulty: chase.difficulty,
+    );
+    final board = entity.properties['board'];
+    context.actors.entities.set(
+      actor.entity,
+      Blackboard(values: board is Map ? board.cast<String, Object?>() : null),
+    );
+  }
+
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     final kind = entity.string('kind');
     if (kind == null) {
       out.add(
         LevelIssue(
-          LevelIssueSeverity.error,
+          Severity.error,
           'has no "kind", so nothing knows what to spawn',
           where: scope.describe(entity),
         ),
@@ -120,7 +173,7 @@ final class MonsterKind extends EntityKind {
     if (!catalog.containsKey(kind)) {
       out.add(
         LevelIssue(
-          LevelIssueSeverity.error,
+          Severity.error,
           'is a "$kind", which this game has never heard of',
           where: scope.describe(entity),
         ),

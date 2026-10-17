@@ -1,0 +1,63 @@
+name: flutter3d_education_lti
+description: "LTI 1.3 launch, grade passback and xAPI reporting for flutter3d's lessons and laboratories, so a learning platform can launch one and get its grade back. Plain Dart."
+version: 1.0.0-rc.1+1
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - education
+  - lti
+  - xapi
+resolution: workspace
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+
+# Declared rather than left to pub.dev's detector: plain Dart that reaches
+# no `dart:io`, `dart:isolate` or `dart:ffi` from its libraries, so every
+# platform, the browser included.
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  web:
+  windows:
+
+# **The `lti.dart` library of `flutter3d_education` until 1.0.0-rc.1**, and
+# `flutter3d_lti` before that. A package of its own so that what reads an
+# experiment (the editor, a lesson, the build tool) resolves none of the
+# cryptography and the HTTP client below.
+
+dependencies:
+  # The experiment a `CheckReporter` reports the questions of.
+  flutter3d_education: '>=1.0.0-rc.1 <1.1.0'
+
+  # `EntityDef`: a lesson level's steps, which a reporter reads its
+  # questions from.
+  flutter3d_sim: '>=1.0.0-rc.1 <1.1.0'
+
+  # `Flutter3dException` and its families: the launch, AGS and xAPI
+  # refusals are `ResourceException`s, so a caller catches them with the rest
+  # of the engine's. Plain Dart over `vector_math` alone.
+  flutter3d_foundation: '>=1.0.0-rc.1 <1.1.0'
+
+  # RS256 verification of a platform's `id_token` against its JWKS, and
+  # signing this tool's own client-credentials assertion for AGS. A
+  # maintained implementation rather than a hand-rolled JWS parser, which is
+  # exactly the kind of code a security bug hides in.
+  dart_jsonwebtoken: ^3.4.1
+
+  # Turning a JWKS entry's bare `n`/`e` into the key type
+  # `dart_jsonwebtoken` verifies with (`RSAPublicKey.raw`) — see
+  # `lib/src/jwk.dart`'s doc comment for why that one conversion is
+  # this package's own.
+  pointycastle: ^4.0.0
+
+  # Fetching a platform's JWKS, posting to its token and AGS endpoints, and
+  # PUTting xAPI statements to an LRS.
+  http: ^1.2.0
+
+dev_dependencies:
+  test: ^1.25.0
+  flutter_lints: ^6.0.0

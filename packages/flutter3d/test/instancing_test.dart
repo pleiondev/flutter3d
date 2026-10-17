@@ -53,9 +53,9 @@ List<Matrix4> _placements() => <Matrix4>[
     device,
     CuboidShape(size: Vector3(1.0, 1.0, 1.0)).build(),
   );
-  final material = Material(
+  final material = RenderMaterial(
     name: 'stone',
-    baseColor: Vector4(0.7, 0.6, 0.5, 1.0),
+    baseColor: LinearColor.fromSrgb(0.7, 0.6, 0.5, 1.0),
     roughness: 0.8,
   );
 
@@ -92,7 +92,10 @@ List<Matrix4> _placements() => <Matrix4>[
           device,
           CuboidShape(size: Vector3(14.0, 0.2, 14.0)).build(),
         ),
-        Material(name: 'ground', baseColor: Vector4(0.4, 0.45, 0.4, 1.0)),
+        RenderMaterial(
+          name: 'ground',
+          baseColor: LinearColor.fromSrgb(0.4, 0.45, 0.4, 1.0),
+        ),
         name: 'ground',
       )
       ..setPosition(0.0, -0.1, 0.0)
@@ -104,11 +107,7 @@ List<Matrix4> _placements() => <Matrix4>[
   scene.root.add(sun);
 
   final camera = CameraNode(
-    projection: const PerspectiveProjection(
-      fovYRadians: 1.0,
-      near: 0.1,
-      far: 100.0,
-    ),
+    projection: const PerspectiveProjection(fovY: 1.0, near: 0.1, far: 100.0),
   )..setPosition(6.0, 6.0, 8.0);
   camera.lookAt(Vector3(0.0, 0.0, 0.0));
   scene.root.add(camera);
@@ -128,12 +127,11 @@ Future<Uint8List> _draw(
     width: _width,
     height: _height,
     scene: it.scene,
-    views: <RenderView>[RenderView(camera: it.camera)],
+    views: <CameraView>[CameraView(camera: it.camera)],
     settings: const RenderSettings(),
   );
-  final pixels = await it.device.readPixels(result.frame);
-  expect(pixels, isNotNull, reason: 'the frame could not be read back');
-  return pixels!.buffer.asUint8List();
+  final pixels = await it.device.readback(result.frame);
+  return pixels.buffer.asUint8List();
 }
 
 /// Pixels where any channel differs by more than [tolerance].
@@ -184,14 +182,14 @@ void main() {
       width: _width,
       height: _height,
       scene: asNodes.scene,
-      views: <RenderView>[RenderView(camera: asNodes.camera)],
+      views: <CameraView>[CameraView(camera: asNodes.camera)],
       settings: const RenderSettings(),
     );
     final batch = asBatch.renderer.render(
       width: _width,
       height: _height,
       scene: asBatch.scene,
-      views: <RenderView>[RenderView(camera: asBatch.camera)],
+      views: <CameraView>[CameraView(camera: asBatch.camera)],
       settings: const RenderSettings(),
     );
 
@@ -241,7 +239,7 @@ void main() {
     final batch =
         it.scene.root.children.first.children.first as InstancedMeshNode;
 
-    batch.setColor(5, Vector4(1.0, 0.0, 0.0, 1.0));
+    batch.setColor(5, LinearColor(1.0, 0.0, 0.0, 1.0));
     final tinted = await _draw(it);
 
     final differing = _differing(plain, tinted, tolerance: 4);

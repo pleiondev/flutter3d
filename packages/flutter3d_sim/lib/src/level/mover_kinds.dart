@@ -1,10 +1,7 @@
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 
 import '../world/mover.dart';
-import 'entity_def.dart';
 import 'entity_kind.dart';
-import 'level_issue.dart';
-import 'spawn_context.dart';
 
 /// Kinds that move a kinematic body along a fixed offset: a door, a lift and a
 /// platform. Grouped together because they share one mechanism —
@@ -14,14 +11,19 @@ final class DoorKind extends EntityKind {
   const DoorKind() : super(EntityTypes.door);
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     requireKeyExists(entity, scope, out);
     requireTravel(entity, scope, out);
     requireSize(entity, scope, out);
   }
 
   @override
-  void spawn(EntityDef entity, SpawnContext context) {
+  void spawn(EntitySpawn spawn) {
+    final entity = spawn.entity;
+    final context = spawn.context;
     final travel = entity.vector('travel');
     if (travel == null) return;
     final collider = place(entity, context, kind: ColliderKind.kinematic);
@@ -43,13 +45,18 @@ final class LiftKind extends EntityKind {
   const LiftKind() : super(EntityTypes.lift);
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     requireTravel(entity, scope, out);
     requireSize(entity, scope, out);
   }
 
   @override
-  void spawn(EntityDef entity, SpawnContext context) {
+  void spawn(EntitySpawn spawn) {
+    final entity = spawn.entity;
+    final context = spawn.context;
     final travel = entity.vector('travel');
     if (travel == null) return;
     final collider = place(entity, context, kind: ColliderKind.kinematic);
@@ -71,13 +78,18 @@ final class PlatformKind extends EntityKind {
   const PlatformKind() : super(EntityTypes.platform);
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     requireTravel(entity, scope, out);
     requireSize(entity, scope, out);
   }
 
   @override
-  void spawn(EntityDef entity, SpawnContext context) {
+  void spawn(EntitySpawn spawn) {
+    final entity = spawn.entity;
+    final context = spawn.context;
     final travel = entity.vector('travel');
     if (travel == null) return;
     final collider = place(entity, context, kind: ColliderKind.kinematic);

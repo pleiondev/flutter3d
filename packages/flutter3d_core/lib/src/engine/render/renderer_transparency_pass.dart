@@ -42,9 +42,14 @@ typedef _OrderIndependentBlend = ({BlendState first, BlendState? second});
 /// [transmissive] is the opaque half's glass, kept only on a frame the scene
 /// splits around a copy of itself — `M3`, `renderer_transmission_pass.dart` —
 /// and empty on every other.
+///
+/// [rect] is the viewport the view drew through and [target] its rectangle
+/// of the target, the scissor. They differ only for a window of a larger
+/// frame (`CameraViewSettings.window`), whose viewport is the frame's.
 typedef _DeferredTransparency = ({
-  RenderView view,
+  CameraView view,
   ScreenRect rect,
+  ScreenRect target,
   vm.Matrix4 viewProjection,
   bool wireframe,
   bool clustered,
@@ -85,7 +90,7 @@ extension _TransparencyPasses on Renderer {
   ({TextureHandle accumulation, TextureHandle revealage, TextureHandle depth})
   _weightedBlendedTargets() {
     TextureHandle make(TextureFormat format) => device.createTexture(
-      RenderTargetSpec(
+      RenderTargetDescriptor(
         width: _targetWidth,
         height: _targetHeight,
         format: format,
@@ -106,7 +111,7 @@ extension _TransparencyPasses on Renderer {
   /// pass after a copy of the scene — `M3`. The scene's own depth is tile
   /// memory and holds nothing once its pass ends.
   TextureHandle _storedSceneDepth() => _wboitDepth ??= device.createTexture(
-    RenderTargetSpec(
+    RenderTargetDescriptor(
       width: _targetWidth,
       height: _targetHeight,
       format: device.defaultDepthStencilFormat,
@@ -128,16 +133,19 @@ extension _TransparencyPasses on Renderer {
     _forwardData[0] = deferred.forward.x;
     _forwardData[1] = deferred.forward.y;
     _forwardData[2] = deferred.forward.z;
+    _fogInfo.projection[0] =
+        deferred.view.camera.projection is OrthographicProjection ? 1.0 : 0.0;
     _clustersActive = deferred.clustered;
-    _aimSceneColour(deferred);
+    _aimSceneColor(deferred);
     if (deferred.clustered && rebuildClusters) {
       final projection = deferred.view.camera.projection;
       _lightClusters.build(
-        lights,
+        _frameLights,
         deferred.viewProjection,
         near: projection.near,
-        far: projection.far,
+        far: _DepthConvention._finiteFar(projection),
       );
+      _lightListEpoch++;
     }
   }
 
@@ -149,8 +157,11 @@ extension _TransparencyPasses on Renderer {
   ) {
     pass.setState(
       Renderer._kSceneViewState.copyWith(
-        viewport: deferred.rect,
-        scissor: deferred.rect,
+        viewport: PassViewport.ofRect(deferred.rect),
+        // The view's rectangle of the target: a window of a larger frame
+        // keeps the frame's own viewport, which reaches past it — see the
+        // scene pass.
+        scissor: deferred.target,
         polygonMode: deferred.wireframe ? PolygonMode.line : PolygonMode.fill,
       ),
     );
@@ -180,7 +191,7 @@ extension _TransparencyPasses on Renderer {
     TextureHandle? sceneDepth,
   }) {
     final targets = _weightedBlendedTargets();
-    final independent = device.supportsIndependentBlend;
+    final independent = device.features.has(DeviceFeature.independentBlend);
     final multiView = views.length > 1;
 
     // The layers. `forward.w` names what the stages write: both shares at
@@ -190,18 +201,24 @@ extension _TransparencyPasses on Renderer {
       required double mode,
       required _OrderIndependentBlend blend,
     }) {
-      final pass = device.beginRenderPass(
-        RenderPassDescriptor(
-          label: _passLabel,
-          colors: colors,
-          depth: DepthTarget(
-            texture: targets.depth,
-            loadAction: LoadAction.load,
-            storeAction: StoreAction.store,
+      final pass = _turnDepth(
+        device.beginRenderPass(
+          RenderPassDescriptor(
+            label: _passLabel,
+            colors: colors,
+            depth: DepthTarget(
+              texture: targets.depth,
+              loadAction: LoadAction.load,
+              storeAction: StoreAction.store,
+            ),
           ),
         ),
+        reversed: _depthReversed,
       );
       _forwardData[3] = mode;
+      // The opaque half's depth, unattached here, for a layer whose material
+      // reads the scene behind it — version 2 of the material language.
+      _sceneDepthRead = sceneDepth;
       for (final deferred in views) {
         if (deferred.transparent.isEmpty) continue;
         _restoreView(deferred, rebuildClusters: multiView);
@@ -215,23 +232,24 @@ extension _TransparencyPasses on Renderer {
             viewProjection: deferred.viewProjection,
             shadows: shadows,
             probes: probes,
-            lights: lights,
+            lights: _frameLights,
             shadowSlots: _shadowSlots,
             state: passState,
             orderIndependent: blend,
           );
         }
       }
+      _sceneDepthRead = null;
       pass.submit();
     }
 
     final accumulation = ColorTarget(
       texture: targets.accumulation,
-      clearValue: vm.Vector4.zero(),
+      clearValue: ClearColor.transparentBlack,
     );
     final revealage = ColorTarget(
       texture: targets.revealage,
-      clearValue: vm.Vector4.all(1.0),
+      clearValue: ClearColor(1.0, 1.0, 1.0, 1.0),
     );
     if (independent) {
       drawLayers(
@@ -259,42 +277,48 @@ extension _TransparencyPasses on Renderer {
     // already inside its own viewport — and then the contributors, view by
     // view, as the scene pass would have drawn them.
     final hdr = _hdrColor!;
-    final pass = device.beginRenderPass(
-      RenderPassDescriptor(
-        label: _passLabel,
-        colors: <ColorTarget>[
-          ColorTarget(texture: hdr, loadAction: LoadAction.load),
-        ],
-        depth: DepthTarget(texture: targets.depth, loadAction: LoadAction.load),
+    final pass = _turnDepth(
+      device.beginRenderPass(
+        RenderPassDescriptor(
+          label: _passLabel,
+          colors: <ColorTarget>[
+            ColorTarget(texture: hdr, loadAction: LoadAction.load),
+          ],
+          depth: DepthTarget(
+            texture: targets.depth,
+            loadAction: LoadAction.load,
+          ),
+        ),
       ),
+      reversed: _depthReversed,
     );
     pass
       ..setState(
         _resolveState.copyWith(
-          viewport: ScreenRect.of(hdr),
+          viewport: PassViewport.of(hdr),
           scissor: ScreenRect.of(hdr),
         ),
       )
       ..bindPipeline(
         _postPipeline(
           _wboitResolvePipeline,
-          wboitResolveShader,
+          _wboitResolveShader,
           (p) => _wboitResolvePipeline = p,
         ),
       )
       ..bindVertexBuffer(_fullscreenTriangle, 3)
       ..bindIndexBuffer(_identityIndices(3), IndexType.int32, 3)
       ..bindTexture(
-        wboitResolveShader,
+        _wboitResolveShader,
         'accumulation_texture',
         targets.accumulation,
-        sampler: SamplerOptions.nearestClamp,
+        sampler: SamplerDescriptor.nearestClamp,
       )
       ..bindTexture(
-        wboitResolveShader,
+        _wboitResolveShader,
         'revealage_texture',
         targets.revealage,
-        sampler: SamplerOptions.nearestClamp,
+        sampler: SamplerDescriptor.nearestClamp,
       )
       ..draw();
     _frameCounters?.drawCalls++;
@@ -337,26 +361,40 @@ extension _TransparencyPasses on Renderer {
     TextureHandle? sceneDepth,
   }) {
     final temporal =
-        settings.antiAlias.temporal.enabled && device.maxColorAttachments > 1;
-    _contributorLights.begin(lights, settings);
+        settings.antiAlias.temporal.enabled &&
+        device.limits.maxColorAttachments > 1;
+    _contributorLights.begin(_frameLights, settings);
     for (final plugin in contributors) {
+      // `A5.22`: an overlay draws on its side of the wipe — see the scene
+      // pass, which does the same.
+      final narrowed =
+          plugin.isOverlay && settings.debugView.overlays != DebugWipeSide.both;
+      if (narrowed) {
+        pass.setScissor(
+          _overlayScissor(settings.debugView, deferred.target, width),
+        );
+      }
       plugin.encode(
         ContributorFrame(
           encoder: pass,
           device: device,
           services: this,
-          state: passState,
           settings: settings,
           width: width,
           height: height,
           view: deferred.view,
+          views: _frameViews,
+          viewIndex: _frameViewIndex(deferred.view),
           viewProjection: deferred.viewProjection,
           frameIndex: _frameIndex,
+          time: _seconds,
           temporal: temporal,
           lights: _contributorLights,
           sceneDepth: plugin.readsSceneDepth ? sceneDepth : null,
-        ),
+          reversedDepth: _depthReversed,
+        )..state = passState,
       );
+      if (narrowed) pass.setScissor(deferred.target);
     }
     _contributorLights.end();
   }

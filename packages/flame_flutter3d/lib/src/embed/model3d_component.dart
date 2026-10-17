@@ -5,11 +5,11 @@ import 'dart:ui' as ui;
 import 'package:flame/components.dart';
 import 'package:flame/game.dart';
 import 'package:flutter/foundation.dart' show protected, visibleForTesting;
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d_app/flutter3d_app.dart' show openDevice;
+import 'package:flutter3d/flutter3d.dart';
 
 import '../animation/model_animation_component.dart';
 import 'frame_image.dart';
+import 'shared_device.dart';
 
 /// A 3D model drawn into its own rectangle of a plain Flame game: a
 /// [PositionComponent] like any other, with no 3D layer and no host widget.
@@ -50,8 +50,10 @@ import 'frame_image.dart';
 /// and the last one removed closes it. Each keeps its own [Renderer],
 /// because a renderer's targets are sized to what it draws, and two models
 /// of different sizes sharing one would reallocate them twice a frame. A
-/// [device] passed in is used instead and is never closed here.
-class Model3dComponent extends PositionComponent {
+/// [device] passed in is used instead and is never closed here. The shared
+/// device is `flutter3d_app`'s `openDevice`; a test opens another through
+/// `package:flame_flutter3d/testing.dart`.
+base class Model3dComponent extends PositionComponent {
   Model3dComponent({
     this.model,
     this.animation,
@@ -91,17 +93,19 @@ class Model3dComponent extends PositionComponent {
   final GraphicsDevice? _givenDevice;
 
   /// The scene the model stands in, lit by the renderer's default key light
-  /// and a softer ambient than the engine's own default.
-  final Scene scene = Scene(name: 'Model3dComponent')..ambientIntensity = 0.3;
+  /// and a softer ambient than the engine's own default: about 1 700 lux,
+  /// an overcast sky's.
+  final Scene scene = Scene(name: 'Model3dComponent')
+    ..ambientIntensity = 1737.2;
 
   /// The camera [render] draws through, placed by [frameModel].
   late final CameraNode camera3d = scene.add(CameraNode(name: 'model3d eye'));
 
   /// What one frame of [scene] is drawn with. Its clear colour is
   /// transparent, so the 2D game shows round the model.
-  late final RenderView view = RenderView(
+  late final CameraView view = CameraView(
     camera: camera3d,
-    clearColor: Vector4.zero(),
+    clearColor: LinearColor.transparent,
   );
 
   /// The loaded model, once [onLoad] has finished; null for a subclass
@@ -124,15 +128,6 @@ class Model3dComponent extends PositionComponent {
   /// component changes shape.
   Aabb3? _framed;
   double _framedAspect = 0.0;
-
-  /// How a game's shared device is opened: `flutter3d_app`'s `openDevice`,
-  /// or a test's software device.
-  @visibleForTesting
-  static Future<GraphicsDevice> Function({
-    required int width,
-    required int height,
-  })
-  openSharedDevice = openDevice;
 
   /// The picture [render] paints, or null before the first frame arrives.
   @visibleForTesting
@@ -170,10 +165,10 @@ class Model3dComponent extends PositionComponent {
   /// Points [camera3d] at [bounds] from [viewFrom], close enough that the
   /// whole box fits the component at its current shape.
   void frameModel(Aabb3 bounds) {
-    _framed = bounds;
+    _framed = Aabb3.copy(bounds);
     final aspect = size.y > 0.0 ? size.x / size.y : 1.0;
     _framedAspect = aspect;
-    final centre = bounds.center;
+    final center = bounds.center;
     final radius = math.max(bounds.max.distanceTo(bounds.min) / 2.0, 1e-3);
     const fovY = math.pi / 4.0;
     // The narrower of the two angles decides: a tall component is limited
@@ -183,15 +178,15 @@ class Model3dComponent extends PositionComponent {
       math.atan(math.tan(fovY / 2.0) * aspect),
     );
     final distance = radius / math.sin(halfFov);
-    final eye = centre + viewFrom.normalized() * distance;
+    final eye = center + viewFrom.normalized() * distance;
     camera3d
       ..projection = PerspectiveProjection(
-        fovYRadians: fovY,
+        fovY: fovY,
         near: math.max(distance - radius * 2.0, distance * 0.01),
         far: distance + radius * 2.0,
       )
       ..setPosition(eye.x, eye.y, eye.z)
-      ..lookAt(centre);
+      ..lookAt(center);
   }
 
   @override
@@ -212,7 +207,7 @@ class Model3dComponent extends PositionComponent {
   Future<GraphicsDevice> _acquire() {
     final game = _sharedFrom = findGame()!;
     final shared = _devices[game] ??= _SharedDevice(
-      openSharedDevice(width: 256, height: 256),
+      sharedDeviceOpener(width: 256, height: 256),
     );
     shared.users++;
     return shared.opening;
@@ -235,8 +230,7 @@ class Model3dComponent extends PositionComponent {
     _animations = null;
     _instance?.root.removeFromParent();
     _instance = null;
-    final device = _device;
-    if (device != null) _asset?.release(device);
+    _asset?.dispose();
     _asset = null;
     _device = null;
     final game = _sharedFrom;
@@ -287,7 +281,7 @@ class Model3dComponent extends PositionComponent {
           width: (size.x * ratio).clamp(1.0, 4096.0).round(),
           height: (size.y * ratio).clamp(1.0, 4096.0).round(),
           scene: scene,
-          views: <RenderView>[view],
+          views: <CameraView>[view],
         )
         .frame;
     final now = frameImageNow(renderer.device, frame);
@@ -304,8 +298,8 @@ class Model3dComponent extends PositionComponent {
   Future<void> _readBack(Renderer renderer, TextureHandle frame) async {
     _reading = true;
     try {
-      final bytes = await renderer.device.readPixels(frame);
-      if (bytes == null || !identical(renderer, _renderer)) return;
+      final bytes = await renderer.device.readback(frame);
+      if (!identical(renderer, _renderer)) return;
       final decoded = Completer<ui.Image>();
       ui.decodeImageFromPixels(
         bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),

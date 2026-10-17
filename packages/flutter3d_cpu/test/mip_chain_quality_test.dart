@@ -79,10 +79,10 @@ void main() {
                   format: TextureFormat.r8g8b8a8UNormInt,
                   pixels: baseBytes,
                   mipLevels: mipLevels,
-                )!
+                )
                 .backend
             as CpuTexture,
-        SamplerOptions.trilinearRepeat,
+        SamplerDescriptor.trilinearRepeat,
       );
       final withoutChain = BoundTexture(
         device
@@ -91,10 +91,10 @@ void main() {
                   height: _size,
                   format: TextureFormat.r8g8b8a8UNormInt,
                   pixels: baseBytes,
-                )!
+                )
                 .backend
             as CpuTexture,
-        SamplerOptions.trilinearRepeat,
+        SamplerDescriptor.trilinearRepeat,
       );
 
       // The whole texture in one pixel — as distant as a footprint gets, the

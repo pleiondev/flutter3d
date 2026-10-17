@@ -26,7 +26,7 @@ final class Inventory with KeyHolder {
     Health? health,
     Arsenal? arsenal,
     KeyRing? keys,
-    this.maxArmour = 100.0,
+    this.maxArmor = 100.0,
   }) : health = health ?? Health(100.0),
        arsenal = arsenal ?? Arsenal(slots: const <WeaponDef>[]),
        keyRing = keys ?? KeyRing();
@@ -35,7 +35,8 @@ final class Inventory with KeyHolder {
   final Arsenal arsenal;
   final KeyRing keyRing;
 
-  final double maxArmour;
+  /// The most armour it holds, in armour points (unitless).
+  final double maxArmor;
 
   @override
   Set<String> get keys => keyRing.keys;
@@ -76,12 +77,12 @@ final class Inventory with KeyHolder {
   /// Starts or refreshes a power-up. Never stacks — see [PowerUpGift].
   void empower(String power, double seconds) => running.empower(power, seconds);
 
-  /// Adds armour up to [maxArmour], and says how much stuck.
-  double addArmour(double amount) {
+  /// Adds armour up to [maxArmor], and says how much stuck.
+  double addArmor(double amount) {
     if (amount <= 0.0) return 0.0;
-    final taken = math.min(amount, maxArmour - health.armour);
+    final taken = math.min(amount, maxArmor - health.armor);
     if (taken <= 0.0) return 0.0;
-    health.armour += taken;
+    health.armor += taken;
     return taken;
   }
 

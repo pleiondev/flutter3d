@@ -12,8 +12,10 @@
 /// anything to send.
 library;
 
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart' show EntityDef;
+
+import 'lesson_theme.dart';
 
 /// A `check` object, read once from a step's own properties.
 final class CheckSpec {
@@ -112,7 +114,7 @@ class _CheckPromptState extends State<CheckPrompt> {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: const Color(0xCC0E1013),
+        color: LessonTheme.scrim,
         borderRadius: BorderRadius.circular(6.0),
       ),
       child: Padding(
@@ -124,7 +126,7 @@ class _CheckPromptState extends State<CheckPrompt> {
             Text(
               widget.spec.question,
               style: const TextStyle(
-                color: Colors.white,
+                color: LessonTheme.text,
                 fontSize: 16.0,
                 fontWeight: FontWeight.w600,
               ),
@@ -136,37 +138,45 @@ class _CheckPromptState extends State<CheckPrompt> {
                   Expanded(
                     child: TextField(
                       controller: _controller,
-                      style: const TextStyle(color: Colors.white),
+                      style: const TextStyle(color: LessonTheme.text),
                       onSubmitted: (_) => _submit(),
                       decoration: InputDecoration(
                         isDense: true,
                         hintText:
                             'Ответ ($_remaining ${_attemptsWord(_remaining)})',
-                        hintStyle: const TextStyle(color: Colors.white54),
+                        hintStyle: const TextStyle(color: LessonTheme.hint),
                         enabledBorder: const UnderlineInputBorder(
-                          borderSide: BorderSide(color: Colors.white54),
+                          borderSide: BorderSide(color: LessonTheme.hint),
                         ),
                       ),
                     ),
                   ),
                   const SizedBox(width: 8.0),
                   IconButton(
-                    icon: const Icon(Icons.check, color: Colors.white),
+                    icon: const Icon(Icons.check, color: LessonTheme.text),
                     tooltip: 'Submit answer',
                     onPressed: _submit,
                   ),
                 ],
               ),
-              CheckOutcome.correct => const Text(
-                'Верно.',
-                style: TextStyle(
-                  color: Colors.greenAccent,
-                  fontWeight: FontWeight.w600,
+              // Live regions: the field a screen reader was in has gone, and
+              // what took its place is the answer to what was just typed.
+              CheckOutcome.correct => Semantics(
+                liveRegion: true,
+                child: const Text(
+                  'Верно.',
+                  style: TextStyle(
+                    color: LessonTheme.correct,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
-              CheckOutcome.revealed => Text(
-                'Попытки кончились. Ответ: ${widget.spec.answers.first}',
-                style: const TextStyle(color: Colors.orangeAccent),
+              CheckOutcome.revealed => Semantics(
+                liveRegion: true,
+                child: Text(
+                  'Попытки кончились. Ответ: ${widget.spec.answers.first}',
+                  style: const TextStyle(color: LessonTheme.revealed),
+                ),
               ),
             },
           ],

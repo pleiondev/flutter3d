@@ -6,7 +6,7 @@ import 'mesh_data.dart';
 /// A FIFO post-transform vertex cache's own size on real GPUs, give or take —
 /// the number [optimizeVertexCache] scores triangle choices against when the
 /// caller does not name one.
-const int kDefaultVertexCacheSize = 32;
+const int defaultVertexCacheSize = 32;
 
 const double _cacheDecayPower = 1.5;
 const double _lastTriangleScore = 0.75;
@@ -52,7 +52,7 @@ double _vertexScore(int cachePosition, int activeTriangleCount, int cacheSize) {
 Uint32List optimizeTriangleOrder(
   Uint32List indices,
   int vertexCount, {
-  int cacheSize = kDefaultVertexCacheSize,
+  int cacheSize = defaultVertexCacheSize,
 }) {
   final triangleCount = indices.length ~/ 3;
   if (triangleCount == 0) return indices;
@@ -168,6 +168,19 @@ Uint32List optimizeTriangleOrder(
   return output;
 }
 
+/// What [optimizeVertexFetch] answers: the renumbered [indices], and for
+/// each old vertex its new index in [oldToNew], for reordering the vertex
+/// data and anything held per vertex to match.
+final class VertexFetchOrder {
+  const VertexFetchOrder({required this.indices, required this.oldToNew});
+
+  /// The index buffer, every vertex renumbered by its first use.
+  final Uint32List indices;
+
+  /// `oldToNew[v]` is vertex `v`'s new index.
+  final Uint32List oldToNew;
+}
+
 /// [indices] renumbered so a vertex's new index is the order it is first
 /// referenced in — the pre-transform ("vertex fetch") half of GPU cache
 /// friendliness, meant to run on triangle-cache-ordered indices (
@@ -176,10 +189,7 @@ Uint32List optimizeTriangleOrder(
 /// right after the one before it in memory is a vertex its prefetcher already
 /// has queued; a triangle order optimized for the post-transform cache alone
 /// can still reference vertex data scattered across the buffer.
-({Uint32List indices, Uint32List oldToNew}) optimizeVertexFetch(
-  Uint32List indices,
-  int vertexCount,
-) {
+VertexFetchOrder optimizeVertexFetch(Uint32List indices, int vertexCount) {
   const unmapped = 0xFFFFFFFF;
   final oldToNew = Uint32List(vertexCount)..fillRange(0, vertexCount, unmapped);
   final newIndices = Uint32List(indices.length);
@@ -205,7 +215,7 @@ Uint32List optimizeTriangleOrder(
       next++;
     }
   }
-  return (indices: newIndices, oldToNew: oldToNew);
+  return VertexFetchOrder(indices: newIndices, oldToNew: oldToNew);
 }
 
 /// [mesh] with its triangles and vertices reordered for GPU cache reuse:
@@ -225,7 +235,7 @@ Uint32List optimizeTriangleOrder(
 /// count.
 MeshData optimizeVertexCache(
   MeshData mesh, {
-  int cacheSize = kDefaultVertexCacheSize,
+  int cacheSize = defaultVertexCacheSize,
 }) {
   if (mesh.triangleCount == 0) return mesh;
 
@@ -291,7 +301,7 @@ MorphTarget _remapMorphTarget(MorphTarget target, Uint32List oldToNew) {
 /// corner, which is what a triangle order with no locality at all gets.
 double averageCacheMissRatio(
   Uint32List indices, {
-  int cacheSize = kDefaultVertexCacheSize,
+  int cacheSize = defaultVertexCacheSize,
 }) {
   final triangleCount = indices.length ~/ 3;
   if (triangleCount == 0) return 0.0;

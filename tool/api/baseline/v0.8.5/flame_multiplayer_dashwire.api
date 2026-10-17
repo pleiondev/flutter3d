@@ -1,0 +1,12 @@
+# The public API of flame_multiplayer_dashwire.
+# Generated from v0.8.5 by `dart run api_snapshot:api_baseline` in tool/api. Do not edit.
+# A change here is a semver decision: see "The API is a snapshot" in CONTRIBUTING.md.
+
+library package:flame_multiplayer_dashwire/flame_multiplayer_dashwire.dart
+
+final class DashwireWire implements PeerWire
+  DashwireWire(this.connection)
+  Future<void> close()
+  final WireConnection connection
+  void listen(void Function(Map<String, Object?> message) onMessage)
+  void send(Map<String, Object?> message, {bool reliable = true})

@@ -5,6 +5,8 @@ import 'package:flutter3d_core/src/engine/render/render_node.dart';
 import 'package:flutter3d_core/src/engine/render/renderer.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/testing.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show RenderAnchor;
 import 'package:flutter_test/flutter_test.dart';
 
 /// A node that throws if it is ever asked to draw.
@@ -30,11 +32,11 @@ final class ThrowingNode extends RenderNode {
   final bool isActive;
 
   @override
-  void execute(NodeFrame frame) =>
+  void execute(RenderFrame frame) =>
       throw StateError('a culled node must never be asked to draw');
 }
 
-const ResourceId colour = ResourceId('colour');
+const ResourceId color = ResourceId('colour');
 const ResourceId overlay = ResourceId('overlay');
 const ResourceId unwanted = ResourceId('unwanted');
 
@@ -43,34 +45,34 @@ void main() {
     // Which is what every overlay is: it reads the finished scene and draws
     // over it. Two of them must not come out as depending on each other.
     final graph = FrameGraph()
-      ..addExternal(colour)
+      ..addExternal(color)
       ..addNode(
         const ThrowingNode(
           'first',
-          reads: <ResourceId>[colour],
-          writes: <ResourceId>[colour],
+          reads: <ResourceId>[color],
+          writes: <ResourceId>[color],
         ),
       )
       ..addNode(
         const ThrowingNode(
           'second',
-          reads: <ResourceId>[colour],
-          writes: <ResourceId>[colour],
+          reads: <ResourceId>[color],
+          writes: <ResourceId>[color],
         ),
       );
 
-    final compiled = graph.compile(outputs: const <ResourceId>[colour]);
+    final compiled = graph.compile(outputs: const <ResourceId>[color]);
 
     expect(compiled.order.map((n) => n.name), <String>['first', 'second']);
   });
 
   test('an inactive node takes its consumers with it', () {
     final graph = FrameGraph()
-      ..addExternal(colour)
+      ..addExternal(color)
       ..addNode(
         const ThrowingNode(
           'off',
-          reads: <ResourceId>[colour],
+          reads: <ResourceId>[color],
           writes: <ResourceId>[overlay],
           isActive: false,
         ),
@@ -83,7 +85,7 @@ void main() {
         ),
       );
 
-    final compiled = graph.compile(outputs: const <ResourceId>[colour]);
+    final compiled = graph.compile(outputs: const <ResourceId>[color]);
 
     expect(compiled.order, isEmpty);
     expect(
@@ -97,10 +99,10 @@ void main() {
     // it out of the order — culling decides before a pass is set up, not after
     // one has been set up and discarded.
     final graph = FrameGraph()
-      ..addExternal(colour)
+      ..addExternal(color)
       ..addNode(const ThrowingNode('ignored', writes: <ResourceId>[unwanted]));
 
-    final compiled = graph.compile(outputs: const <ResourceId>[colour]);
+    final compiled = graph.compile(outputs: const <ResourceId>[color]);
 
     expect(compiled.order, isEmpty);
     expect(compiled.culled.map((n) => n.name), <String>['ignored']);
@@ -124,22 +126,23 @@ void main() {
         height: 1,
         format: TextureFormat.r8g8b8a8UNormInt,
         pixels: ByteData(4),
-      )!;
+      );
       final renderer = Renderer.create(
         device: device,
         fallbackAlbedo: texel,
         fallbackNormal: texel,
-      )..addNode(const ThrowingNode('decal'));
-      renderer.addNode(const ThrowingNode('grade'), phase: FramePhase.present);
+      )..renderSteps.addNode(const ThrowingNode('decal'));
+      renderer.renderSteps.addNode(
+        const ThrowingNode('grade'),
+        at: RenderAnchor.beforePresent,
+      );
 
-      expect(
-        renderer.nodes.of(FramePhase.present).map((RenderNode n) => n.name),
-        <String>['grade'],
-      );
-      expect(
-        renderer.nodes.of(FramePhase.overlay).map((RenderNode n) => n.name),
-        <String>['decal'],
-      );
+      expect(renderer.renderSteps.nodesAt(RenderAnchor.beforePresent), <String>[
+        'grade',
+      ]);
+      expect(renderer.renderSteps.nodesAt(RenderAnchor.afterScene), <String>[
+        'decal',
+      ]);
     });
   });
 }

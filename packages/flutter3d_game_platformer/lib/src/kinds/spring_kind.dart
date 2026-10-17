@@ -1,3 +1,5 @@
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Severity;
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -11,12 +13,15 @@ final class SpringKind extends EntityKind {
   static Vector3 get defaultSize => Vector3(1.6, 0.4, 1.6);
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     final speed = entity.number('speed');
     if (speed != null && speed <= 0.0) {
       out.add(
         LevelIssue(
-          LevelIssueSeverity.error,
+          Severity.error,
           'throws at $speed, which is a pad that does nothing',
           where: scope.describe(entity),
         ),
@@ -25,7 +30,9 @@ final class SpringKind extends EntityKind {
   }
 
   @override
-  void spawn(EntityDef entity, SpawnContext context) {
+  void spawn(EntitySpawn spawn) {
+    final entity = spawn.entity;
+    final context = spawn.context;
     final collider = place(
       entity,
       context,

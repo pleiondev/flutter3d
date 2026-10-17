@@ -9,21 +9,31 @@ publish_to: 'none'
 environment:
   sdk: ">=3.12.0 <4.0.0"
 
+# For `test/structure_test.dart`, the one suite the root has: `dart test` run
+# here used to find no test at all and exit 79, which a check that runs it
+# reads as a failure rather than as an empty directory.
+dev_dependencies:
+  test: ^1.25.0
+
 workspace:
   - packages/flutter3d
   - packages/flutter3d_core
   - packages/flutter3d_build
+  - packages/flutter3d_build_hooks
   - packages/flutter3d_mesh
   - packages/flutter3d_model_core
-  - packages/flutter3d_model_mcp
-  - packages/flutter3d_mcp_kit
   - packages/flutter3d_samples
+  - packages/flutter3d_demo_content
   - packages/flutter3d_app
   - packages/flutter3d_app/example
-  - packages/education/chemlab
   - packages/flutter3d_conformance
+  - packages/flutter3d_conformance_render
+  - packages/flutter3d_hub
+  - packages/flutter3d_fields
   - packages/flutter3d_cpu
   - packages/flutter3d_particles
+  - packages/flutter3d_elements
+  - packages/flutter3d_effects
   - packages/flutter3d_hardware
   - packages/flutter3d_shaders
   - packages/flutter3d_testing
@@ -31,6 +41,7 @@ workspace:
   - packages/flutter3d_webgl
   - packages/flutter3d_webgl/example
   - packages/flutter3d_webgpu
+  - packages/flutter3d_wgpu
   - packages/flutter3d/example
   - packages/flutter3d_audio_core
   - packages/flutter3d_audio
@@ -41,26 +52,43 @@ workspace:
   - packages/flame_flutter3d_audio
   - packages/flame_multiplayer
   - packages/flame_multiplayer_dashwire
+  - packages/flutter3d_foundation
+  - packages/flutter3d_matter
+  - packages/flutter3d_plugin_api
+  - packages/flutter3d_plugin_runtime
+  - packages/flutter3d_plugin_runtime/example
+  - packages/flutter3d_plugin_runtime/example/gpu
+  - packages/flutter3d_lints
   - packages/flutter3d_sim
-  - packages/flutter3d_lab
-  - packages/flutter3d_lti
+  - packages/flutter3d_camera
+  - packages/flutter3d_post
+  - packages/flutter3d_game_kit
+  - packages/flutter3d_game_physics
+  - packages/flutter3d_game_ui
+  - packages/flutter3d_mcp
+  - packages/flutter3d_education
+  - packages/flutter3d_education_lti
+  - packages/flutter3d_education/example
   - packages/flutter3d_net
   - packages/flutter3d_net_webrtc
   - packages/flutter3d_sim_mcp
   - packages/flutter3d_editor_core
+  - packages/flutter3d_level_scene
   - packages/flutter3d_editor_widgets
-  - packages/flutter3d_editor_mcp
+  - packages/flutter3d_editor_play
   - packages/flutter3d_game_shooter
   - packages/flutter3d_game_strategy
   - packages/flutter3d_game_platformer
   - packages/flutter3d_game_racing
   - packages/flutter3d_physics
+  - packages/flutter3d_physics_native
+  - packages/flutter3d_voxel
   - packages/flutter3d_stereo
   - packages/flutter3d_stereo/example
   - packages/pad_input
   - packages/pad_input/example
-  - packages/pointer_lock
-  - packages/pointer_lock/example
+  - packages/flutter3d_pointer_lock
+  - packages/flutter3d_pointer_lock/example
   - apps/flutter3d_demo_arcade
   - apps/flutter3d_demo_river
   - apps/flutter3d_demo_dungeon
@@ -70,10 +98,24 @@ workspace:
   - apps/flutter3d_demo_platformer
   - apps/flutter3d_demo_racing
   - apps/flutter3d_demo_strategy
+  - apps/flutter3d_demo_sandbox
+  - apps/flutter3d_demo_water
+  - apps/flutter3d_demo_hollow
+  - apps/flutter3d_demo_reef
   - apps/flutter3d_lesson_viewer
   - apps/flutter3d_stereo_lesson_viewer
   - apps/flutter3d_lab_incident
   - apps/flutter3d_lab_pendulum
+  - apps/flutter3d_playground
+  # A plugin as somebody outside the repository writes one: published
+  # libraries only, every engine package by path.
+  - examples/outside_plugin
+  # A graphics backend as somebody outside the repository writes one, with
+  # no GPU: the reference `flutter3d create plugin --kind backend` copies.
+  - examples/flutter3d_backend_null
+  # Twenty tasks an application writes, one file each, built and drawn on
+  # the software rasteriser by its own test.
+  - examples/cookbook
   # Not a package and not an application: a program this repository runs on
   # itself, kept where `tool/`'s other programs are. See its own pubspec for
   # why it is not in `packages/`.
@@ -84,3 +126,4 @@ workspace:
   - tool/tutorial
   - tool/godot_check
   - tool/release_dashboard
+  - tool/api

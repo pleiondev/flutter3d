@@ -94,7 +94,7 @@ void main() {
 
         final bounds = node.worldBounds;
         final radius = node.worldBoundsRadius;
-        final centre = node.worldBoundsCentre;
+        final center = node.worldBoundsCenter;
         for (final vertex in _drawnVertices(node, data)) {
           expect(
             bounds.containsVector3(vertex),
@@ -104,7 +104,7 @@ void main() {
                 'renderer culls this mesh by',
           );
           expect(
-            vertex.distanceTo(centre),
+            vertex.distanceTo(center),
             lessThanOrEqualTo(radius + 1e-4),
             reason:
                 'a vertex at $vertex is outside the sphere the frustum '

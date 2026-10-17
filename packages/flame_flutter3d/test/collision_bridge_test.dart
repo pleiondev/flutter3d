@@ -9,7 +9,7 @@ import 'package:flame_flutter3d/src/physics/collision_bridge.dart';
 import 'package:flame_flutter3d/src/physics/rigid_body_component.dart';
 import 'package:flame_flutter3d/src/transform/plane.dart';
 import 'package:flame_test/flame_test.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter_test/flutter_test.dart';
 

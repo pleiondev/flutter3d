@@ -96,9 +96,6 @@ const int _colorPal1PrevHi = 21;
 final class _Palettes {
   _Palettes(this.endpoints, this.selectors);
 
-  final List<_Endpoint> endpoints;
-  final List<_Selector> selectors;
-
   factory _Palettes.decode(
     Uint8List endpointsData,
     int numEndpoints,
@@ -217,6 +214,9 @@ final class _Palettes {
 
     return _Palettes(endpoints, selectors);
   }
+  final List<_Endpoint> endpoints;
+
+  final List<_Selector> selectors;
 }
 
 /// The four Huffman models a slice's per-block bitstream is coded against,
@@ -229,12 +229,6 @@ final class _Tables {
     this.selectorHistoryBufRleModel,
     this.selectorHistoryBufSize,
   );
-
-  final HuffmanDecodingTable endpointPredModel;
-  final HuffmanDecodingTable deltaEndpointModel;
-  final HuffmanDecodingTable selectorModel;
-  final HuffmanDecodingTable selectorHistoryBufRleModel;
-  final int selectorHistoryBufSize;
 
   factory _Tables.decode(Uint8List tableData) {
     final codec = BitwiseDecoder(tableData);
@@ -278,6 +272,12 @@ final class _Tables {
       selectorHistoryBufSize,
     );
   }
+  final HuffmanDecodingTable endpointPredModel;
+  final HuffmanDecodingTable deltaEndpointModel;
+  final HuffmanDecodingTable selectorModel;
+  final HuffmanDecodingTable selectorHistoryBufRleModel;
+
+  final int selectorHistoryBufSize;
 }
 
 /// `basist::approx_move_to_front`: a fixed-size ring the selector bitstream

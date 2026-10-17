@@ -8,6 +8,7 @@ import '../scene/projection.dart';
 import '../scene/scene.dart';
 import 'frame_graph.dart';
 import 'frame_plan.dart';
+import 'pass_contributor.dart' show SceneEncodeRequest;
 import 'render_node.dart';
 
 /// Draws the first-person view model over the finished scene.
@@ -16,7 +17,7 @@ import 'render_node.dart';
 /// and the encoder offers no way to end a pass — the same rule that already
 /// governs the shadow and post passes.
 ///
-/// **It cannot simply be a second `RenderView`.** Every view shares one depth
+/// **It cannot simply be a second `CameraView`.** Every view shares one depth
 /// buffer, so a weapon held at arm's length shares no depth with the world:
 /// every doorway would slice the barrel off, and the model would be buried the
 /// moment the player walked up to a wall. Its own pass with the depth cleared
@@ -42,7 +43,7 @@ final class ViewModelNode extends RenderNode {
   /// Reads the finished scene and draws over it, which is a read and a write of
   /// the same resource — a link in the chain rather than a consumer of one.
   @override
-  List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.hdrColour];
+  List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.hdrColor];
 
   /// No shadow maps, directional or point. This scene is lit by its own
   /// lights — `encodeScene` gathers them from the scene it is handed — and
@@ -59,10 +60,15 @@ final class ViewModelNode extends RenderNode {
   List<ResourceId> get optionalReads => const <ResourceId>[];
 
   @override
-  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.hdrColour];
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.hdrColor];
 
   @override
   bool get isActive => scene.meshes.isNotEmpty;
+
+  /// Once a frame: it draws through its own [camera] over the whole
+  /// picture, not through the frame's views.
+  @override
+  ViewRuns get viewRuns => ViewRuns.once;
 
   /// Its own pass, so nothing the scene left is believed.
   ///
@@ -76,7 +82,7 @@ final class ViewModelNode extends RenderNode {
   );
 
   @override
-  void execute(NodeFrame frame) {
+  void execute(RenderFrame frame) {
     final hdr = frame.sceneColor;
     if (hdr == null) return;
     developer.Timeline.startSync('ViewModelNode.encode');
@@ -103,28 +109,36 @@ final class ViewModelNode extends RenderNode {
     );
 
     final full = ScreenRect(width: width, height: height);
-    encoder.setState(_kViewModelState.copyWith(viewport: full, scissor: full));
+    encoder.setState(
+      _kViewModelState.copyWith(
+        viewport: PassViewport.ofRect(full),
+        scissor: full,
+      ),
+    );
 
     // Nothing is bound in a new pass, so the state has to forget what the
     // scene pass left it believing.
     frame.state.invalidatePipeline();
 
     final aspect = height == 0 ? 1.0 : width / height;
-    camera.readWorldPosition(_cameraPosition);
+    camera.readViewOrigin(_cameraPosition);
 
     frame.services.encodeScene(
-      frame: frame,
-      encoder: encoder,
-      scene: scene,
-      // Through toDepthRange, like every other projection in the frame. This
-      // was the one that was not, so the weapon was drawn in the engine's
-      // depth convention on a backend that does not use it — right on one and
-      // silently compressed into half the depth buffer on the other.
-      viewProjection: toDepthRange(
-        camera.viewProjection(aspect),
-        frame.device.depthRange,
+      SceneEncodeRequest(
+        frame: frame,
+        encoder: encoder,
+        scene: scene,
+        // Through toDepthRange, like every other projection in the frame.
+        // This was the one that was not, so the weapon was drawn in the
+        // engine's depth convention on a backend that does not use it —
+        // right on one and silently compressed into half the depth buffer on
+        // the other.
+        viewProjection: toDepthRange(
+          camera.viewProjection(aspect),
+          frame.device.depthRange,
+        ),
+        cameraPosition: _cameraPosition,
       ),
-      cameraPosition: _cameraPosition,
     );
 
     encoder.submit();
@@ -156,7 +170,7 @@ final class ViewModelNode extends RenderNode {
       _retired.add((previous, _executions + _kFramesInFlight));
     }
     _depth = device.createTexture(
-      RenderTargetSpec(
+      RenderTargetDescriptor(
         width: width,
         height: height,
         format: device.defaultDepthStencilFormat,

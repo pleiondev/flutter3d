@@ -48,16 +48,15 @@ import 'support/fake_graphics_backend.dart';
 
 /// `main_recovery_test.dart`'s own `FakeBinaryStorage`, repeated here since
 /// it is private to that file.
-final class _FakeBinaryStorage implements BinaryStorage {
+final class _FakeBinaryStorage extends BinaryStorage {
   final Map<String, Uint8List> documents = <String, Uint8List>{};
 
   @override
   Future<Uint8List?> read(String name) async => documents[name];
 
   @override
-  Future<bool> write(String name, Uint8List contents) async {
+  Future<void> write(String name, Uint8List contents) async {
     documents[name] = contents;
-    return true;
   }
 
   @override
@@ -93,7 +92,7 @@ _FakeBinaryStorage _storageWithRecovery() {
 /// changes?" dialog below is drawn underneath it, and the tap meant for
 /// "Restore" lands on the barrier instead. Nothing this file is about
 /// involves a first launch.
-final class _SettledSettings implements Storage {
+final class _SettledSettings extends Storage {
   final Map<String, String> documents = <String, String>{
     SettingsStore.name: jsonEncode(
       const ModelerSettings(
@@ -104,16 +103,15 @@ final class _SettledSettings implements Storage {
   };
 
   @override
-  String? read(String name) => documents[name];
+  Future<String?> read(String name) async => documents[name];
 
   @override
-  bool write(String name, String contents) {
+  Future<void> write(String name, String contents) async {
     documents[name] = contents;
-    return true;
   }
 
   @override
-  void remove(String name) => documents.remove(name);
+  Future<void> remove(String name) async => documents.remove(name);
 }
 
 /// One call the fake [PreviewCapturer] was asked to make.

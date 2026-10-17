@@ -1,9 +1,8 @@
 /// The commands over one object's own [ShapeSet] — `anim-19`'s own row.
 ///
 /// A `part` of `command.dart` for the reason every other command file
-/// gives: [ModelCommand] is sealed, and a journal writer's exhaustive
-/// `switch` is only exhaustive if the compiler can see every case inside
-/// one library.
+/// gives: [ModelCommand] is `abstract final`, so every command lives in one
+/// library, beside the journal reader that names them all.
 ///
 /// **What is not here.** The row's own "строки экрана 15" (a panel) and
 /// the golden frame `modeler-morphs` are both app-layer, outside a command
@@ -34,6 +33,8 @@ final class SetShapeWeight extends ModelCommand {
 
   final int id;
   final int shapeIndex;
+
+  /// A unitless blend weight: 0 is the base shape, 1 the whole key.
   final double weight;
 
   @override
@@ -281,9 +282,9 @@ List<ProjectTrack>? _withComponentDropped(ProjectTrack track, int dropped) {
   final shrunk = KeyTable(
     componentCount: table.componentCount - 1,
     interpolation: table.interpolation,
-    keys: <Key>[
+    keys: <Keyframe>[
       for (final key in table.keys)
-        Key(
+        Keyframe(
           time: key.time,
           values: without(key.values)!,
           inTangent: without(key.inTangent),
@@ -318,6 +319,8 @@ final class KeyShape extends ModelCommand {
 
   final int id;
   final int clipIndex;
+
+  /// In seconds.
   final double time;
 
   @override
@@ -540,7 +543,7 @@ final class SetShapeDriverField extends ModelCommand {
       'value': DoubleHint(unit: 'rad', step: 0.01),
     },
     'axis' => const <String, ParamHint>{
-      'value': EnumHint(<String>['x', 'y', 'z']),
+      'value': ChoiceHint(<String>['x', 'y', 'z']),
     },
     _ => const <String, ParamHint>{},
   };

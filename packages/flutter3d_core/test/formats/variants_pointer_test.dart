@@ -1,4 +1,4 @@
-/// Material variants and animation pointers survive glTF and `.f3d`.
+/// RenderMaterial variants and animation pointers survive glTF and `.f3d`.
 ///
 ///     dart test test/formats/variants_pointer_test.dart
 ///
@@ -149,9 +149,9 @@ void main() {
       for (final MapEntry(key: text, value: (property, index))
           in cases.entries) {
         final pointer = AnimationPointer.parse(text);
-        expect(pointer?.property, property, reason: text);
-        expect(pointer?.index, index, reason: text);
-        expect(pointer?.pointer, text);
+        expect(pointer.property, property, reason: text);
+        expect(pointer.index, index, reason: text);
+        expect(pointer.pointer, text);
       }
     });
 
@@ -166,7 +166,15 @@ void main() {
         '/extensions/KHR_lights_punctual/lights/0/range',
         _textureScale,
       ]) {
-        expect(AnimationPointer.parse(text), isNull, reason: text);
+        // A loader asks `tryParse` and skips with a warning; a caller that
+        // expected a pointer to resolve is told which one did not.
+        // Mutation: answer null from `parse` again and the second fails.
+        expect(AnimationPointer.tryParse(text), isNull, reason: text);
+        expect(
+          () => AnimationPointer.parse(text),
+          throwsA(isA<AnimationPointerFormatException>()),
+          reason: text,
+        );
       }
     });
 
@@ -216,7 +224,7 @@ void main() {
       for (var i = 0; i < sectionCount; i++)
         ByteData.sublistView(
           bytes,
-        ).getUint32(kF3dHeaderBytes + i * kF3dSectionEntryBytes, Endian.little),
+        ).getUint32(f3dHeaderBytes + i * f3dSectionEntryBytes, Endian.little),
     ];
     expect(kinds, isNot(contains(F3dSection.variants)));
     expect(kinds, isNot(contains(F3dSection.pointerTracks)));

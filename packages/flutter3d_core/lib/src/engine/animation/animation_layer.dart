@@ -1,4 +1,8 @@
+import 'dart:math' as math;
+
 import 'package:flutter3d_core/formats.dart';
+import 'package:vector_math/vector_math.dart';
+
 import 'animation_target.dart';
 
 /// Where a track sits in a pose: one number for a node and a path together.
@@ -18,13 +22,21 @@ int animationTrackKey(AnimationTrack track) => switch (track.pointer) {
 };
 
 /// How a layer's pose meets the base's — `gfx-10n`.
-enum AnimationBlend {
+///
+/// A `final class` with const instances rather than an enum, so a blend added
+/// later does not break a `switch` outside. [name] is its wire name.
+final class AnimationBlend {
+  const AnimationBlend._(this.name);
+
+  /// The stable name, as a file or a tool writes it.
+  final String name;
+
   /// The layer's value replaces the base's, faded by the layer's weight.
   ///
   /// What every layer did before there was a choice, and still the right one
   /// for a clip authored as a whole performance of the joints it covers: an
   /// upper-body reload is a reload, not a correction to one.
-  override,
+  static const AnimationBlend override = AnimationBlend._('override');
 
   /// The layer's distance from its own reference pose is laid on top of the
   /// base.
@@ -34,7 +46,18 @@ enum AnimationBlend {
   /// nobody wants, which is the sign that it is additive — and the reason it
   /// needs [AnimationClip.referenceTime] to say what it is a difference
   /// *from*.
-  additive,
+  static const AnimationBlend additive = AnimationBlend._('additive');
+
+  /// Every blend.
+  static const List<AnimationBlend> values = <AnimationBlend>[
+    override,
+    additive,
+  ];
+
+  // No `@override` here: inside this class the word names the constant
+  // above, not the annotation.
+  // ignore: annotate_overrides
+  String toString() => 'AnimationBlend.$name';
 }
 
 /// A clip played over part of a skeleton, on top of whatever the base is doing.
@@ -198,6 +221,26 @@ final class AnimationLayer {
   Map<int, AnimationTrack> _cachedTracks = const <int, AnimationTrack>{};
 }
 
+/// Where a playhead landed after [advanceTime]'s step, and what the wrap
+/// did to it.
+final class PlayheadStep {
+  const PlayheadStep({
+    required this.time,
+    required this.reversing,
+    required this.stopped,
+  });
+
+  /// The playhead, in seconds into the clip.
+  final double time;
+
+  /// Whether it now runs backwards: a ping-pong turned it, or it already
+  /// did.
+  final bool reversing;
+
+  /// Whether a clip played once reached its end and stopped there.
+  final bool stopped;
+}
+
 /// Where a playhead lands after a step, and what the wrap did to it.
 ///
 /// **One copy of this arithmetic**, shared by the base player and every layer.
@@ -205,7 +248,7 @@ final class AnimationLayer {
 /// of a ping-pong are two chances to turn round on a different frame, and the
 /// bug that produces is a layer that drifts against the clip it is supposed to
 /// be in step with.
-({double time, bool reversing, bool stopped}) advanceTime({
+PlayheadStep advanceTime({
   required double time,
   required double deltaSeconds,
   required double length,
@@ -218,9 +261,11 @@ final class AnimationLayer {
   switch (wrap) {
     case AnimationWrap.once:
       if (next >= length) {
-        return (time: length, reversing: turned, stopped: true);
+        return PlayheadStep(time: length, reversing: turned, stopped: true);
       }
-      if (next <= 0.0) return (time: 0.0, reversing: turned, stopped: true);
+      if (next <= 0.0) {
+        return PlayheadStep(time: 0.0, reversing: turned, stopped: true);
+      }
 
     case AnimationWrap.loop:
       // Modulo rather than a subtraction, so a long pause or a huge speed does
@@ -238,7 +283,47 @@ final class AnimationLayer {
           turned = !turned;
         }
       }
+    default:
+      throw UnsupportedError('no wrap rule for $wrap');
   }
 
-  return (time: next, reversing: turned, stopped: false);
+  return PlayheadStep(time: next, reversing: turned, stopped: false);
+}
+
+/// Shortest-arc interpolation between two rotations, [t] of the way from
+/// [from] to [to].
+///
+/// **One copy, for the same reason [advanceTime] is one.** It was the
+/// player's own, and the animation graph's crossfade needs exactly it: two
+/// copies would be two chances for a graph and a player fading between the
+/// same clips to turn a joint a different way.
+///
+/// The sign flip is the part that matters: a quaternion and its negation are
+/// the same rotation, so without choosing the closer of the two, half of all
+/// blends spin the long way.
+Quaternion shortestArcSlerp(Quaternion from, Quaternion to, double t) {
+  final raw = from.x * to.x + from.y * to.y + from.z * to.z + from.w * to.w;
+  final sign = raw < 0.0 ? -1.0 : 1.0;
+  final dot = raw * sign;
+
+  final (scaleFrom, scaleTo) = dot > 0.9995
+      // Nearly identical: the arc is so short that a straight line is closer
+      // than the trigonometry's own error.
+      ? (1.0 - t, t)
+      : _arcScales(math.acos(dot), t);
+
+  return Quaternion(
+    scaleFrom * from.x + scaleTo * sign * to.x,
+    scaleFrom * from.y + scaleTo * sign * to.y,
+    scaleFrom * from.z + scaleTo * sign * to.z,
+    scaleFrom * from.w + scaleTo * sign * to.w,
+  )..normalize();
+}
+
+(double, double) _arcScales(double theta, double t) {
+  final sinTheta = math.sin(theta);
+  return (
+    math.sin((1.0 - t) * theta) / sinTheta,
+    math.sin(t * theta) / sinTheta,
+  );
 }

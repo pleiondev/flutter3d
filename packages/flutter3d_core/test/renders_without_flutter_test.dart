@@ -23,7 +23,7 @@ void main() {
     final device = FakeBackend();
     final mesh = DeviceMesh.upload(device, CuboidShape().build());
     final scene = Scene()
-      ..add(MeshNode(mesh, Material())..setPosition(0.0, 0.0, -5.0))
+      ..add(MeshNode(mesh, RenderMaterial())..setPosition(0.0, 0.0, -5.0))
       ..add(CameraNode());
     final renderer = Renderer.create(device: device);
 
@@ -31,10 +31,9 @@ void main() {
       width: 64,
       height: 48,
       scene: scene,
-      views: <RenderView>[RenderView(camera: scene.cameras.single)],
+      views: <CameraView>[CameraView(camera: scene.cameras.single)],
     );
 
-    expect(result.frame, isNotNull);
     expect(result.drawCalls, greaterThan(0));
   });
 }

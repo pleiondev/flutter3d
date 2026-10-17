@@ -5,9 +5,24 @@ Sound for a Flame game bridged to flutter3d with
 [`flutter3d_audio`](https://pub.dev/packages/flutter3d_audio).
 
 ```dart
+import 'package:flame/game.dart';
+import 'package:flame_flutter3d/flame_flutter3d.dart';
+import 'package:flame_flutter3d_audio/flame_flutter3d_audio.dart';
+import 'package:flutter3d_audio_core/flutter3d_audio_core.dart';
+
+// The game's own sounds.
+abstract final class Sounds {
+  static const engine = SoundDef(
+    name: 'engine',
+    asset: 'audio/engine.ogg',
+    loop: true,
+  );
+  static final all = SoundBank(<SoundDef>[engine]);
+}
+
 class MyGame extends FlameGame with HasFlutter3d {
   late final sound = AudioSceneComponent(bank: Sounds.all);
-  final engine = SoundEmitterComponent(Sounds.engine, playing: false);
+  final engine = SoundEmitterComponent(Sounds.engine, isPlaying: false);
 
   @override
   Future<void> onLoad() async {
@@ -21,7 +36,7 @@ class MyGame extends FlameGame with HasFlutter3d {
   @override
   void update(double dt) {
     engine
-      ..playing = flying
+      ..isPlaying = flying
       ..rate = 0.8 + 0.5 * throttle;
     super.update(dt);
   }
@@ -40,9 +55,9 @@ has moved in the frame.
 ## Loops held by state
 
 `SoundEmitterComponent` asks every frame whether it should be sounding: it
-plays while it is in the game and `playing` is true, and stops when either
+plays while it is in the game and `isPlaying` is true, and stops when either
 changes. Under a bridged component it sounds from that component's place in
-the scene. Set `playing` before the game's children update (before
+the scene. Set `isPlaying` before the game's children update (before
 `super.update` in the game's own `update`) and the loop is mixed in the same
 frame.
 

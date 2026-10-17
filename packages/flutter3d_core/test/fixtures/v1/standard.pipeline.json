@@ -1,0 +1,521 @@
+{
+  "format": "f3d.pipeline",
+  "version": 1,
+  "requires": [],
+  "generator": "flutter3d",
+  "name": "standard",
+  "nodes": [
+    {
+      "name": "point shadows (static)",
+      "anchor": "before shadows",
+      "engine": true,
+      "step": "shadows",
+      "keeps": [
+        "cube_shadow_static"
+      ]
+    },
+    {
+      "name": "point shadows",
+      "anchor": "before shadows",
+      "engine": true,
+      "step": "shadows",
+      "keeps": [
+        "cube_shadow"
+      ]
+    },
+    {
+      "name": "directional shadows",
+      "anchor": "before shadows",
+      "engine": true,
+      "step": "shadows",
+      "writes": [
+        "shadow_map"
+      ]
+    },
+    {
+      "name": "shadow moments",
+      "anchor": "before shadows",
+      "engine": true,
+      "step": "shadows",
+      "reads": [
+        "shadow_map"
+      ],
+      "writes": [
+        "shadow_moments"
+      ]
+    },
+    {
+      "name": "irradiance update",
+      "anchor": "before captures",
+      "engine": true,
+      "step": "irradiance update",
+      "optionalReads": [
+        "shadow_map",
+        "shadow_moments",
+        "cube_shadow",
+        "cube_shadow_static"
+      ],
+      "keeps": [
+        "irradiance_atlas"
+      ]
+    },
+    {
+      "name": "render textures",
+      "anchor": "before captures",
+      "engine": true,
+      "step": "render textures",
+      "optionalReads": [
+        "shadow_map",
+        "shadow_moments",
+        "cube_shadow",
+        "cube_shadow_static"
+      ],
+      "keeps": [
+        "render_textures"
+      ]
+    },
+    {
+      "name": "planar reflections",
+      "anchor": "before captures",
+      "engine": true,
+      "step": "planar reflections",
+      "optionalReads": [
+        "shadow_map",
+        "shadow_moments",
+        "cube_shadow",
+        "cube_shadow_static"
+      ],
+      "keeps": [
+        "planar_reflections"
+      ]
+    },
+    {
+      "name": "scene",
+      "anchor": "before opaque",
+      "engine": true,
+      "optionalReads": [
+        "shadow_map",
+        "shadow_moments",
+        "cube_shadow",
+        "cube_shadow_static",
+        "irradiance_atlas",
+        "render_textures",
+        "planar_reflections"
+      ],
+      "writes": [
+        "hdr_color",
+        "surface_buffer",
+        "albedo_buffer"
+      ]
+    },
+    {
+      "name": "decals",
+      "anchor": "before decals",
+      "engine": true,
+      "step": "decals",
+      "reads": [
+        "hdr_color",
+        "surface_buffer",
+        "albedo_buffer"
+      ],
+      "writes": [
+        "hdr_color"
+      ]
+    },
+    {
+      "name": "scene color copy",
+      "anchor": "before transparent",
+      "engine": true,
+      "step": "scene color copy",
+      "reads": [
+        "hdr_color"
+      ],
+      "writes": [
+        "scene_color"
+      ]
+    },
+    {
+      "name": "transparent",
+      "anchor": "before transparent",
+      "engine": true,
+      "step": "transparent",
+      "reads": [
+        "hdr_color"
+      ],
+      "optionalReads": [
+        "scene_color",
+        "shadow_map",
+        "shadow_moments",
+        "cube_shadow",
+        "cube_shadow_static",
+        "irradiance_atlas",
+        "render_textures",
+        "planar_reflections"
+      ],
+      "writes": [
+        "hdr_color",
+        "surface_buffer",
+        "albedo_buffer"
+      ]
+    },
+    {
+      "name": "object ids",
+      "anchor": "after transparent",
+      "engine": true,
+      "writes": [
+        "object_ids"
+      ]
+    },
+    {
+      "name": "outline mask",
+      "anchor": "after transparent",
+      "engine": true,
+      "step": "high contrast",
+      "reads": [
+        "surface_buffer"
+      ],
+      "writes": [
+        "outline_mask"
+      ]
+    },
+    {
+      "name": "reflections",
+      "anchor": "before reflections",
+      "engine": true,
+      "step": "reflections",
+      "reads": [
+        "hdr_color",
+        "surface_buffer"
+      ],
+      "writes": [
+        "hdr_color"
+      ]
+    },
+    {
+      "name": "luminance",
+      "anchor": "before auto exposure",
+      "engine": true,
+      "step": "auto exposure",
+      "reads": [
+        "hdr_color"
+      ],
+      "writes": [
+        "luminance"
+      ]
+    },
+    {
+      "name": "depth pyramid",
+      "anchor": "before hi-z",
+      "engine": true,
+      "step": "hi-z occlusion",
+      "reads": [
+        "surface_buffer"
+      ],
+      "writes": [
+        "depth_pyramid"
+      ]
+    },
+    {
+      "name": "ssao",
+      "anchor": "before ambient occlusion",
+      "engine": true,
+      "step": "ambient occlusion",
+      "reads": [
+        "surface_buffer"
+      ],
+      "writes": [
+        "ao"
+      ]
+    },
+    {
+      "name": "ssao blur",
+      "anchor": "before ambient occlusion",
+      "engine": true,
+      "step": "ambient occlusion",
+      "reads": [
+        "ao",
+        "surface_buffer"
+      ],
+      "writes": [
+        "ao"
+      ]
+    },
+    {
+      "name": "contact shadows",
+      "anchor": "before contact shadows",
+      "engine": true,
+      "step": "contact shadows",
+      "reads": [
+        "surface_buffer"
+      ],
+      "writes": [
+        "contact_shadow"
+      ]
+    },
+    {
+      "name": "contact shadow resolve",
+      "anchor": "before contact shadows",
+      "engine": true,
+      "step": "contact shadows",
+      "reads": [
+        "contact_shadow",
+        "surface_buffer"
+      ],
+      "writes": [
+        "contact_shadow"
+      ]
+    },
+    {
+      "name": "camera velocity",
+      "anchor": "before velocity",
+      "engine": true,
+      "step": "velocity",
+      "reads": [
+        "surface_buffer"
+      ],
+      "writes": [
+        "velocity"
+      ]
+    },
+    {
+      "name": "object velocity",
+      "anchor": "before velocity",
+      "engine": true,
+      "step": "velocity",
+      "reads": [
+        "velocity",
+        "surface_buffer"
+      ],
+      "writes": [
+        "velocity"
+      ]
+    },
+    {
+      "name": "reactive mask",
+      "anchor": "before velocity",
+      "engine": true,
+      "step": "temporal anti-aliasing",
+      "reads": [
+        "velocity",
+        "surface_buffer"
+      ],
+      "writes": [
+        "velocity"
+      ]
+    },
+    {
+      "name": "ssao history",
+      "anchor": "before velocity",
+      "engine": true,
+      "step": "temporal anti-aliasing",
+      "reads": [
+        "ao",
+        "velocity"
+      ],
+      "writes": [
+        "ao"
+      ]
+    },
+    {
+      "name": "contact shadow history",
+      "anchor": "before velocity",
+      "engine": true,
+      "step": "temporal anti-aliasing",
+      "reads": [
+        "contact_shadow",
+        "velocity"
+      ],
+      "writes": [
+        "contact_shadow"
+      ]
+    },
+    {
+      "name": "volumetric fog",
+      "anchor": "before volumetric fog",
+      "engine": true,
+      "step": "volumetric fog",
+      "reads": [
+        "hdr_color",
+        "surface_buffer"
+      ],
+      "optionalReads": [
+        "shadow_map",
+        "cube_shadow",
+        "cube_shadow_static",
+        "ao",
+        "contact_shadow"
+      ],
+      "writes": [
+        "hdr_color"
+      ]
+    },
+    {
+      "name": "light shafts",
+      "anchor": "before light shafts",
+      "engine": true,
+      "step": "light shafts",
+      "reads": [
+        "hdr_color",
+        "surface_buffer"
+      ],
+      "optionalReads": [
+        "shadow_map"
+      ],
+      "writes": [
+        "hdr_color"
+      ]
+    },
+    {
+      "name": "depth of field",
+      "anchor": "before depth of field",
+      "engine": true,
+      "step": "depth of field",
+      "reads": [
+        "hdr_color",
+        "surface_buffer"
+      ],
+      "writes": [
+        "hdr_color"
+      ]
+    },
+    {
+      "name": "motion blur",
+      "anchor": "before motion blur",
+      "engine": true,
+      "step": "motion blur",
+      "reads": [
+        "hdr_color",
+        "velocity",
+        "surface_buffer"
+      ],
+      "writes": [
+        "hdr_color"
+      ]
+    },
+    {
+      "name": "temporal resolve",
+      "anchor": "before temporal resolve",
+      "engine": true,
+      "step": "temporal anti-aliasing",
+      "reads": [
+        "hdr_color",
+        "velocity",
+        "surface_buffer"
+      ],
+      "writes": [
+        "hdr_color"
+      ],
+      "keeps": [
+        "temporal_history"
+      ]
+    },
+    {
+      "name": "local exposure",
+      "anchor": "before local exposure",
+      "engine": true,
+      "step": "local exposure",
+      "reads": [
+        "hdr_color"
+      ],
+      "writes": [
+        "local_exposure"
+      ]
+    },
+    {
+      "name": "bloom",
+      "anchor": "before bloom",
+      "engine": true,
+      "step": "bloom",
+      "reads": [
+        "hdr_color"
+      ],
+      "writes": [
+        "bloom"
+      ]
+    },
+    {
+      "name": "lens flare",
+      "anchor": "before lens flare",
+      "engine": true,
+      "step": "lens flare",
+      "reads": [
+        "bloom"
+      ],
+      "writes": [
+        "bloom"
+      ]
+    },
+    {
+      "name": "composite",
+      "anchor": "before tonemap",
+      "engine": true,
+      "reads": [
+        "hdr_color"
+      ],
+      "optionalReads": [
+        "bloom",
+        "ao",
+        "contact_shadow",
+        "local_exposure"
+      ],
+      "writes": [
+        "frame"
+      ]
+    },
+    {
+      "name": "spatial upscale",
+      "anchor": "before spatial upscale",
+      "engine": true,
+      "step": "spatial upscale",
+      "reads": [
+        "frame"
+      ],
+      "writes": [
+        "frame"
+      ]
+    },
+    {
+      "name": "antialias",
+      "anchor": "before edge smoothing",
+      "engine": true,
+      "step": "edge smoothing",
+      "reads": [
+        "frame"
+      ],
+      "writes": [
+        "frame"
+      ]
+    },
+    {
+      "name": "high contrast",
+      "anchor": "before high contrast",
+      "engine": true,
+      "step": "high contrast",
+      "reads": [
+        "frame"
+      ],
+      "optionalReads": [
+        "surface_buffer",
+        "outline_mask"
+      ],
+      "writes": [
+        "frame"
+      ]
+    },
+    {
+      "name": "viewport shading",
+      "anchor": "before viewport shading",
+      "engine": true,
+      "step": "viewport shading",
+      "reads": [
+        "frame"
+      ],
+      "optionalReads": [
+        "surface_buffer"
+      ],
+      "writes": [
+        "frame"
+      ]
+    }
+  ]
+}

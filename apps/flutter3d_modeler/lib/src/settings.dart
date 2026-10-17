@@ -24,7 +24,8 @@ library;
 
 import 'dart:convert';
 
-import 'package:flutter3d_app/flutter3d_app.dart' show Storage, defaultStorage;
+import 'package:flutter3d_app/flutter3d_app.dart'
+    show Storage, StorageException, defaultStorage;
 
 import 'recent_projects.dart' show RecentModels;
 import 'ui/dock_layout.dart';
@@ -129,7 +130,7 @@ enum TransformStart {
 
 /// Which set of screens the mode switcher offers — `ux-37`'s own workspaces.
 enum Workspace {
-  /// Object, Material and Scene: what "open a model, paint it, export it"
+  /// Object, RenderMaterial and Scene: what "open a model, paint it, export it"
   /// needs and nothing past it. The default.
   essential,
 
@@ -176,6 +177,64 @@ final class ModelerSettings {
     this.propertiesWidth = 250,
     this.layouts = const <String, DockLayout>{},
   });
+
+  /// What [json] says, with the default standing in for anything it does not
+  /// say or says wrongly — see the library comment for why that is not an
+  /// error.
+  factory ModelerSettings.fromJson(Map<String, Object?> json) {
+    const ModelerSettings fallback = ModelerSettings();
+    bool flag(String key, bool otherwise) {
+      final Object? value = json[key];
+      return value is bool ? value : otherwise;
+    }
+
+    // A cast rather than a check would throw on a document where one value is
+    // the wrong *type* — a number where an id belongs, an object where a
+    // string does — which is a shape a newer build, or a hand edit, really
+    // does produce, and which the library comment promises costs one
+    // preference rather than the launch.
+    String? text(String key) {
+      final Object? value = json[key];
+      return value is String ? value : null;
+    }
+
+    // A step of zero or less is not a step: it would divide by zero the
+    // moment the modifier was held. A document that says so gets the default
+    // rather than the launch getting an exception.
+    double step(String key, double otherwise) {
+      final Object? value = json[key];
+      if (value is! num) return otherwise;
+      final double read = value.toDouble();
+      return read.isFinite && read > 0 ? read : otherwise;
+    }
+
+    final String? language = text('language');
+    return ModelerSettings(
+      navigation:
+          NavigationScheme.byId(text('navigation')) ?? fallback.navigation,
+      keymap: KeymapPreset.byId(text('keymap')) ?? fallback.keymap,
+      transformStart:
+          TransformStart.byId(text('transformStart')) ??
+          fallback.transformStart,
+      workspace: Workspace.byId(text('workspace')) ?? fallback.workspace,
+      language: language != null && language.isNotEmpty ? language : null,
+      showHomeAtLaunch: flag('showHomeAtLaunch', fallback.showHomeAtLaunch),
+      saveWithHistory: flag('saveWithHistory', fallback.saveWithHistory),
+      quickSetupDone: flag('quickSetupDone', fallback.quickSetupDone),
+      snapMove: step('snapMove', fallback.snapMove),
+      snapTurnDegrees: step('snapTurnDegrees', fallback.snapTurnDegrees),
+      snapScale: step('snapScale', fallback.snapScale),
+      propertiesWidth: step('propertiesWidth', fallback.propertiesWidth),
+      layouts: switch (json['layouts']) {
+        final Map<String, Object?> saved => <String, DockLayout>{
+          for (final MapEntry<String, Object?> each in saved.entries)
+            if (each.value case final Map<String, Object?> layout)
+              each.key: DockLayout.fromJson(layout),
+        },
+        _ => fallback.layouts,
+      },
+    );
+  }
 
   /// How the camera is driven.
   final NavigationScheme navigation;
@@ -304,64 +363,6 @@ final class ModelerSettings {
       },
   };
 
-  /// What [json] says, with the default standing in for anything it does not
-  /// say or says wrongly — see the library comment for why that is not an
-  /// error.
-  factory ModelerSettings.fromJson(Map<String, Object?> json) {
-    const ModelerSettings fallback = ModelerSettings();
-    bool flag(String key, bool otherwise) {
-      final Object? value = json[key];
-      return value is bool ? value : otherwise;
-    }
-
-    // A cast rather than a check would throw on a document where one value is
-    // the wrong *type* — a number where an id belongs, an object where a
-    // string does — which is a shape a newer build, or a hand edit, really
-    // does produce, and which the library comment promises costs one
-    // preference rather than the launch.
-    String? text(String key) {
-      final Object? value = json[key];
-      return value is String ? value : null;
-    }
-
-    // A step of zero or less is not a step: it would divide by zero the
-    // moment the modifier was held. A document that says so gets the default
-    // rather than the launch getting an exception.
-    double step(String key, double otherwise) {
-      final Object? value = json[key];
-      if (value is! num) return otherwise;
-      final double read = value.toDouble();
-      return read.isFinite && read > 0 ? read : otherwise;
-    }
-
-    final String? language = text('language');
-    return ModelerSettings(
-      navigation:
-          NavigationScheme.byId(text('navigation')) ?? fallback.navigation,
-      keymap: KeymapPreset.byId(text('keymap')) ?? fallback.keymap,
-      transformStart:
-          TransformStart.byId(text('transformStart')) ??
-          fallback.transformStart,
-      workspace: Workspace.byId(text('workspace')) ?? fallback.workspace,
-      language: language != null && language.isNotEmpty ? language : null,
-      showHomeAtLaunch: flag('showHomeAtLaunch', fallback.showHomeAtLaunch),
-      saveWithHistory: flag('saveWithHistory', fallback.saveWithHistory),
-      quickSetupDone: flag('quickSetupDone', fallback.quickSetupDone),
-      snapMove: step('snapMove', fallback.snapMove),
-      snapTurnDegrees: step('snapTurnDegrees', fallback.snapTurnDegrees),
-      snapScale: step('snapScale', fallback.snapScale),
-      propertiesWidth: step('propertiesWidth', fallback.propertiesWidth),
-      layouts: switch (json['layouts']) {
-        final Map<String, Object?> saved => <String, DockLayout>{
-          for (final MapEntry<String, Object?> each in saved.entries)
-            if (each.value case final Map<String, Object?> layout)
-              each.key: DockLayout.fromJson(layout),
-        },
-        _ => fallback.layouts,
-      },
-    );
-  }
-
   @override
   bool operator ==(Object other) =>
       other is ModelerSettings &&
@@ -430,8 +431,8 @@ final class SettingsStore {
   /// What is stored, or the defaults on a first launch — and on a document
   /// that will not parse, which is the same thing as far as a person can
   /// tell.
-  ModelerSettings read() {
-    final String? text = storage.read(name);
+  Future<ModelerSettings> read() async {
+    final String? text = await storage.read(name);
     if (text == null) return const ModelerSettings();
     try {
       final Object? json = jsonDecode(text);
@@ -449,8 +450,15 @@ final class SettingsStore {
   /// remembered — unlike the recent list, which is a convenience nobody
   /// requested — and a preference that silently did not stick is worse than
   /// one that says so.
-  bool write(ModelerSettings settings) => storage.write(
-    name,
-    const JsonEncoder.withIndent('  ').convert(settings.toJson()),
-  );
+  Future<bool> write(ModelerSettings settings) async {
+    try {
+      await storage.write(
+        name,
+        const JsonEncoder.withIndent('  ').convert(settings.toJson()),
+      );
+      return true;
+    } on StorageException {
+      return false;
+    }
+  }
 }

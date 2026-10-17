@@ -6,7 +6,7 @@ library;
 import 'dart:convert';
 
 import 'package:flutter3d_audio_core/flutter3d_audio_core.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
 const SoundDef _track = SoundDef(
@@ -92,12 +92,12 @@ void main() {
       scene.update(_ears());
 
       final voice = backend.started.single;
-      expect(voice.alive, isTrue);
+      expect(voice.isAlive, isTrue);
 
       scene.mixer.setVolume(AudioBus.master, 0.0);
       scene.update(_ears());
 
-      expect(voice.alive, isTrue, reason: 'silent, and still playing');
+      expect(voice.isAlive, isTrue, reason: 'silent, and still playing');
       expect(voice.gain, 0.0);
       expect(backend.started, hasLength(1), reason: 'and never restarted');
 

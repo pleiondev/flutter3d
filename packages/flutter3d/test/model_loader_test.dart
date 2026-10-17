@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -7,7 +8,7 @@ import 'package:flutter3d_core/src/engine/assets/model_loader.dart';
 import 'package:flutter3d_samples/flutter3d_samples.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-const String kSamples = kSamplesPath;
+const String kSamples = samplesPath;
 
 void main() {
   group('format detection', () {
@@ -33,7 +34,9 @@ void main() {
             format: ModelFormat.gltf,
           ),
         ),
-        throwsA(isA<FormatException>()),
+        // The glTF reader's own, under the root since 1.0 — not
+        // `dart:core`'s `FormatException`, which it used to throw bare.
+        throwsA(isA<GltfFormatException>()),
       );
     });
 
@@ -234,6 +237,65 @@ void main() {
       },
     );
   });
+
+  group('a read is asked for, with progress and a way to stop', () {
+    test('the request reaches the source, which reports its bytes', () async {
+      // Mutation: call `read(AssetRead.whole)` in the loader in place of the
+      // request it was handed, and nothing is reported.
+      final seen = <AssetProgress>[];
+      final document = await decodeModelInIsolate(
+        const ModelLoadRequest(source: _InMemorySource()),
+        read: AssetRead(onProgress: seen.add),
+      );
+      expect(document.nodes, isNotEmpty);
+      expect(seen, isNotEmpty);
+      expect(seen.last.received, seen.last.total);
+      expect(seen.last.fraction, 1.0);
+    });
+
+    test('a read canceled before it starts is refused, and nothing is '
+        'decoded', () async {
+      // Mutation: drop the check before the read, and the model decodes.
+      final cancel = AssetCancel()..cancel();
+      await expectLater(
+        decodeModelInIsolate(
+          const ModelLoadRequest(source: _InMemorySource()),
+          read: AssetRead(cancel: cancel),
+        ),
+        throwsA(isA<ResourceLoadCanceledException>()),
+      );
+      await expectLater(
+        decodeModel(
+          const ModelLoadRequest(source: _InMemorySource()),
+          read: AssetRead(cancel: cancel),
+        ),
+        throwsA(isA<ResourceLoadCanceledException>()),
+      );
+    });
+
+    test('a cancel tells whoever waits on it, once', () async {
+      final cancel = AssetCancel();
+      var told = 0;
+      unawaited(cancel.whenCanceled.then((_) => told++));
+      expect(cancel.isCanceled, isFalse);
+      // The second cancel is the one under test.
+      cancel.cancel();
+      cancel.cancel();
+      await Future<void>.delayed(Duration.zero);
+      expect(cancel.isCanceled, isTrue);
+      expect(told, 1);
+      expect(
+        () => cancel.throwIfCanceled('memory:cube.obj'),
+        throwsA(isA<ResourceLoadCanceledException>()),
+      );
+    });
+
+    test('a byte range is a start and an end past it', () {
+      expect(const AssetByteRange(16, end: 32).length, 16);
+      expect(const AssetByteRange(16).length, isNull);
+      expect(() => const AssetByteRange(8, end: 4).length, throwsArgumentError);
+    });
+  });
 }
 
 /// A model held in the test rather than on disk, written as a game would write
@@ -245,8 +307,14 @@ final class _InMemorySource extends AssetSource {
   String get key => 'memory:cube.obj';
 
   @override
-  Future<Uint8List> read() async =>
-      Uint8List.fromList(utf8.encode('v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n'));
+  Future<Uint8List> read(AssetRead request) async {
+    request.throwIfCanceled(key);
+    final bytes = Uint8List.fromList(
+      utf8.encode('v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n'),
+    );
+    request.progress(bytes.length, total: bytes.length);
+    return bytes;
+  }
 
   @override
   AssetUriResolver get resolveUri =>

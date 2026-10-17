@@ -11,8 +11,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter3d_demo_racing/src/hud.dart';
 import 'package:flutter3d_demo_racing/src/race_readout.dart';
-import 'package:flutter3d_demo_racing/src/stereo_hud_panel.dart';
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
+import 'package:flutter3d_game_ui/hud.dart' show StereoHudPanel;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart' show Vector2;
 
@@ -25,7 +25,7 @@ RaceReadout _readout({double speed = 24.0}) => RaceReadout(
   lapTime: 41.5,
   bestLap: 40.25,
   record: 39.0,
-  tyres: 'slicks',
+  tireSet: 'slicks',
   damage: 0.0,
   wrongWay: false,
   countdown: null,
@@ -42,7 +42,11 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: StereoHud(reading: reading, issueOf: () => null),
+          body: StereoHudPanel<RaceReadout>(
+            reading: reading,
+            builder: (context, readout) =>
+                RaceHud(readout: readout, issue: null),
+          ),
         ),
       ),
     );
@@ -58,7 +62,11 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: StereoHud(reading: reading, issueOf: () => null),
+          body: StereoHudPanel<RaceReadout>(
+            reading: reading,
+            builder: (context, readout) =>
+                RaceHud(readout: readout, issue: null),
+          ),
         ),
       ),
     );
@@ -78,7 +86,11 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: StereoHud(reading: reading, issueOf: () => null),
+          body: StereoHudPanel<RaceReadout>(
+            reading: reading,
+            builder: (context, readout) =>
+                RaceHud(readout: readout, issue: null),
+          ),
         ),
       ),
     );
@@ -102,7 +114,11 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: StereoHud(reading: reading, issueOf: () => issue),
+          body: StereoHudPanel<RaceReadout>(
+            reading: reading,
+            builder: (context, readout) =>
+                RaceHud(readout: readout, issue: issue),
+          ),
         ),
       ),
     );

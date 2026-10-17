@@ -1,0 +1,56 @@
+name: flutter3d_education
+description: "Education on flutter3d: virtual laboratory simulations a server can replay, the experiment document a lesson is written in, and a lesson's steps. Plain Dart, no Flutter."
+version: 1.0.0-rc.1
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - education
+  - simulation
+  - laboratory
+resolution: workspace
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+
+# Declared rather than left to pub.dev's detector: plain Dart that reaches
+# no `dart:io`, `dart:isolate` or `dart:ffi` from its libraries, so every
+# platform, the browser included.
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  web:
+  windows:
+
+# **Two packages until 1.0.0-rc.1**, `flutter3d_lab` and `flutter3d_lti`.
+# The lab is `lab.dart` here; the LTI side is `flutter3d_education_lti`, a
+# package of its own, so what reads an experiment resolves no cryptography.
+# The chemistry bench (`chemlab`) is this package's example, in `example/`:
+# it draws, so it takes the Flutter SDK, and a service that replays a lab
+# run must not.
+
+dependencies:
+  # The stepping and recording primitives a lab experiment is built on:
+  # `Portable` (a step asks no machine for an answer), `DigestTrace`
+  # (verification), `DataSourceTrace` (a value with no controller behind
+  # it), `Demo`/`Snapshot`/`InputTape` (a run, wrapped as a real `.f3drun`).
+  flutter3d_sim: '>=1.0.0-rc.1 <1.1.0'
+
+  # `Flutter3dException` and its families, which a lab's and an
+  # experiment's refusals are. Plain Dart over `vector_math` alone.
+  flutter3d_foundation: '>=1.0.0-rc.1 <1.1.0'
+
+  # What a world is made of: its properties, the materials and the constants.
+  flutter3d_matter: '>=1.0.0-rc.1 <1.1.0'
+
+dev_dependencies:
+  test: ^1.25.0
+  flutter_lints: ^6.0.0
+
+# **Plain Dart, and held to it.** A server verifies a student's submitted
+# lab run by replaying it through the same simulation, and a `cloud/lti`
+# service checks a launch over `flutter3d_education_lti`, in containers
+# with no Flutter SDK in them.
+# `tool/structure.dart` keeps it that way, not this comment.

@@ -80,7 +80,7 @@ final class Squad {
 
   /// The members, in the order orders are handed out in — which is the order
   /// the simulation steps them in, so that two runs of one tape agree.
-  final List<Unit> units;
+  final List<StrategyUnit> units;
 
   /// How they stand when they get there.
   final Formation formation;
@@ -107,7 +107,7 @@ final class Squad {
 
   /// Tells everybody to stand still, and to stop working while they are at it.
   void hold() {
-    for (final Unit unit in units) {
+    for (final StrategyUnit unit in units) {
       unit
         ..job = null
         ..order = const UnitOrder.hold();

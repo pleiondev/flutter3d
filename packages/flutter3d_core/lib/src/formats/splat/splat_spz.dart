@@ -29,13 +29,17 @@ library;
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show Flutter3dFormatException;
+
 import '../image/inflate.dart';
 import '../ktx2/zstd.dart';
 import 'splat_cloud.dart';
 
 /// Thrown when a file is not an SPZ this can read, with the reason in it.
-final class SplatSpzException implements Exception {
+final class SplatSpzException extends Flutter3dFormatException {
   const SplatSpzException(this.message);
+  @override
   final String message;
   @override
   String toString() => 'SplatSpzException: $message';
@@ -75,7 +79,7 @@ final class SplatAxes {
 const int _kMagic = 0x5053474e;
 
 /// The highest format version this reads: version 4, zstd streams.
-const int kSpzLatestVersion = 4;
+const int spzLatestVersion = 4;
 
 /// The reference's `colorScale`: a stored colour byte is the zeroth-band
 /// coefficient times this, times 255, plus half of 255.
@@ -106,20 +110,20 @@ const List<double> _kHalfTurnXSigns = <double>[
 
 /// The cloud in [bytes], or a thrown [SplatSpzException] saying why not.
 ///
-/// Reads versions 1 to [kSpzLatestVersion]. [axes] turns the cloud into a
+/// Reads versions 1 to [spzLatestVersion]. [axes] turns the cloud into a
 /// PLY's axes when asked. [keepHigherBands] false drops the spherical
 /// harmonics above band 0 — a third of an SPZ's decoded floats at degree 3,
-/// which nothing in the draw evaluates yet. [colourSpace] is what the colour
+/// which nothing in the draw evaluates yet. [colorSpace] is what the colour
 /// bytes were fitted in, sRGB unless told otherwise, as for a PLY — see
-/// [splatColour].
+/// [splatColor].
 SplatCloud parseSplatSpz(
   Uint8List bytes, {
   SplatAxes axes = SplatAxes.rightUpBack,
   bool keepHigherBands = true,
-  SplatColourSpace colourSpace = SplatColourSpace.srgb,
+  SplatColorSpace colorSpace = SplatColorSpace.srgb,
 }) {
   final packed = _unpack(bytes);
-  return _decode(packed, axes, keepHigherBands, colourSpace);
+  return _decode(packed, axes, keepHigherBands, colorSpace);
 }
 
 /// Whether [bytes] starts the way an SPZ does: the version 4 magic in the
@@ -136,7 +140,7 @@ typedef _Packed = ({
   int fractionalBits,
   Uint8List positions,
   Uint8List alphas,
-  Uint8List colours,
+  Uint8List colors,
   Uint8List scales,
   Uint8List rotations,
   Uint8List sh,
@@ -303,7 +307,7 @@ _Packed _packed(
   fractionalBits: h.fractionalBits,
   positions: streams[0],
   alphas: streams[1],
-  colours: streams[2],
+  colors: streams[2],
   scales: streams[3],
   rotations: streams[4],
   sh: streams[5],
@@ -333,18 +337,18 @@ SplatCloud _decode(
   _Packed p,
   SplatAxes axes,
   bool keepHigherBands,
-  SplatColourSpace colourSpace,
+  SplatColorSpace colorSpace,
 ) {
   final n = p.count;
   final flip = axes.halfTurnAboutX ? -1.0 : 1.0;
 
-  final centres = Float32List(n * 3);
+  final centers = Float32List(n * 3);
   if (p.version == 1) {
     // Never released, the reference says, but its reader still takes it:
     // half floats rather than fixed point.
     final halves = ByteData.sublistView(p.positions);
     for (var i = 0; i < n * 3; i++) {
-      centres[i] = _half(halves.getUint16(i * 2, Endian.little));
+      centers[i] = _half(halves.getUint16(i * 2, Endian.little));
     }
   } else {
     final unit = 1.0 / (1 << p.fractionalBits);
@@ -354,25 +358,25 @@ SplatCloud _decode(
       // Sign-extended from 24 bits by arithmetic rather than by a shift, so
       // the web's 32-bit bitwise operators give the same answer.
       final fixed = raw >= 0x800000 ? raw - 0x1000000 : raw;
-      centres[i] = fixed * unit;
+      centers[i] = fixed * unit;
     }
   }
   for (var i = 0; i < n; i++) {
-    centres[i * 3 + 1] *= flip;
-    centres[i * 3 + 2] *= flip;
+    centers[i * 3 + 1] *= flip;
+    centers[i * 3 + 2] *= flip;
   }
 
-  final colours = Float32List(n * 4);
+  final colors = Float32List(n * 4);
   for (var i = 0; i < n; i++) {
     for (var c = 0; c < 3; c++) {
-      final coefficient = (p.colours[i * 3 + c] / 255.0 - 0.5) / _kColourScale;
+      final coefficient = (p.colors[i * 3 + c] / 255.0 - 0.5) / _kColourScale;
       // A byte of nought is a coefficient of about −3.3, below the −1.77
       // where the channel crosses zero: the clamp is not hypothetical here.
-      colours[i * 4 + c] = splatColour(coefficient, colourSpace);
+      colors[i * 4 + c] = splatColor(coefficient, colorSpace);
     }
     // The byte is the opacity already through the logistic: the reference
     // takes its logit only for a PLY, which wants one.
-    colours[i * 4 + 3] = p.alphas[i] / 255.0;
+    colors[i * 4 + 3] = p.alphas[i] / 255.0;
   }
 
   final scales = Float32List(n * 3);
@@ -413,8 +417,8 @@ SplatCloud _decode(
   }
 
   return SplatCloud(
-    centres: centres,
-    colours: colours,
+    centers: centers,
+    colors: colors,
     scales: scales,
     rotations: rotations,
     shDegree: degree,

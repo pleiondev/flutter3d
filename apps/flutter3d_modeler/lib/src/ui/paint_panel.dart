@@ -42,7 +42,7 @@ class PaintPanel extends StatelessWidget {
     required this.selectedLayer,
     required this.onSelectLayer,
     required this.onAddLayer,
-    required this.colour,
+    required this.color,
     required this.onColour,
     required this.radius,
     required this.onRadius,
@@ -66,7 +66,7 @@ class PaintPanel extends StatelessWidget {
   final VoidCallback onAddLayer;
 
   /// The brush's own colour, straight-alpha RGBA `0..1`.
-  final List<double> colour;
+  final List<double> color;
   final ValueChanged<List<double>> onColour;
 
   /// In logical pixels, the cursor's own diameter.
@@ -105,7 +105,7 @@ class PaintPanel extends StatelessWidget {
     <double>[0.25, 0.45, 0.85, 1],
   ];
 
-  static Color _colourOf(List<double> rgba) => Color.fromARGB(
+  static Color _colorOf(List<double> rgba) => Color.fromARGB(
     (rgba[3] * 255).round(),
     (rgba[0] * 255).round(),
     (rgba[1] * 255).round(),
@@ -186,13 +186,13 @@ class PaintPanel extends StatelessWidget {
                     width: 28,
                     height: 28,
                     decoration: BoxDecoration(
-                      color: _colourOf(swatches[i]),
+                      color: _colorOf(swatches[i]),
                       borderRadius: const BorderRadius.all(Radius.circular(6)),
                       border: Border.all(
-                        color: _sameColour(swatches[i], colour)
+                        color: _sameColour(swatches[i], color)
                             ? theme.colorScheme.primary
                             : theme.colorScheme.outlineVariant,
-                        width: _sameColour(swatches[i], colour) ? 2 : 1,
+                        width: _sameColour(swatches[i], color) ? 2 : 1,
                       ),
                     ),
                   ),

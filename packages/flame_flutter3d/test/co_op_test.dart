@@ -9,10 +9,12 @@ import 'package:flame/game.dart';
 import 'package:flame_flutter3d/flame_flutter3d.dart';
 import 'package:flame_test/flame_test.dart';
 import 'package:flutter/services.dart' show LogicalKeyboardKey;
-import 'package:flutter/widgets.dart' show SizedBox, Widget;
+import 'package:flutter/widgets.dart' show SizedBox;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
-import 'package:flutter3d_game/flutter3d_game.dart' show Bindings, InputSource;
+import 'package:flutter3d_game/flutter3d_game.dart'
+    show ActionMap, Bindings, InputSource;
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -52,7 +54,7 @@ CpuDevice _device() => CpuDevice(
 
 InstancedMeshNode _batch() => InstancedMeshNode(
   CpuMesh(CuboidShape(size: Vector3.all(1.0)).build()),
-  Material(),
+  RenderMaterial(),
   capacity: 4,
 );
 
@@ -297,7 +299,10 @@ void main() {
 
   test('seats: the first to claim is player one, and four is the limit', () {
     FlameInputBridge bridge() => FlameInputBridge(
-      bindings: Bindings(<InputSource, GameAction>{}),
+      actions: ActionMap(
+        actions: ActionSet.common,
+        buttons: Bindings(<InputSource, GameAction>{}),
+      ),
       inputState: InputState(),
     );
     final candidates = List<FlameInputBridge>.generate(6, (_) => bridge());
@@ -330,19 +335,22 @@ void main() {
     // Mutation: feed the bridge only from the game's focus.
     const fire = GameAction('fire');
     final input = FlameInputBridge(
-      bindings: Bindings(<InputSource, GameAction>{
-        InputSource.key(LogicalKeyboardKey.space.keyId): fire,
-      }),
+      actions: ActionMap(
+        actions: ActionSet.common,
+        buttons: Bindings(<InputSource, GameAction>{
+          InputSource.key(LogicalKeyboardKey.space.keyId): fire,
+        }),
+      ),
       inputState: InputState(),
     );
     final game = _Game();
-    await tester.pumpWidget(GameWidget<_Game>(game: game) as Widget);
+    await tester.pumpWidget(GameWidget<_Game>(game: game));
     await game.add(input.listenToKeyboard());
     await tester.pump();
     // Nothing in the tree has the focus: a game with no `KeyboardEvents` and
     // nothing autofocused hears nothing through Flame.
     await tester.pumpWidget(const SizedBox());
-    await tester.pumpWidget(GameWidget<_Game>(game: game) as Widget);
+    await tester.pumpWidget(GameWidget<_Game>(game: game));
 
     await simulateKeyDownEvent(LogicalKeyboardKey.space);
     expect(input.inputState.held(fire), isTrue);

@@ -19,7 +19,7 @@ import 'cpu_shaders_reflections.dart' show pixelNoise;
 
 /// `contact_shadow.frag`: whether the sun reaches this point over the first few
 /// centimetres, which is the stretch a shadow map cannot answer for.
-final class ContactShadowShader implements CpuFragmentShader {
+final class ContactShadowShader extends CpuFragmentShader {
   const ContactShadowShader();
 
   @override
@@ -40,7 +40,7 @@ final class ContactShadowShader implements CpuFragmentShader {
     if (toLight.length2 == 0.0) return Vector4(1.0, 1.0, 1.0, 1.0);
     toLight.normalize();
 
-    final normal = decodeOctahedral(surface.x, surface.y);
+    final normal = decodeSurfaceNormal(surface.x, surface.y);
     // A surface already turned away from the sun is dark by the light term
     // itself, and a march from it would find its own far side. One is the honest
     // answer: the half of the picture that knows about the normal is the half
@@ -121,20 +121,20 @@ final class ContactShadowShader implements CpuFragmentShader {
 /// Mirrors the GLSL operation for operation, as [ContactShadowShader] does:
 /// the comb this pass removes is exactly the kind of thing a backend
 /// disagreement would hide behind.
-final class ContactShadowResolveShader implements CpuFragmentShader {
+final class ContactShadowResolveShader extends CpuFragmentShader {
   const ContactShadowResolveShader();
 
   @override
   Vector4? run(Float32List v, ShaderBindings b, FragmentContext c) {
     final contact = b.textures['contact_shadow_texture'];
     if (contact == null) return Vector4(1.0, 1.0, 1.0, 1.0);
-    final centre = contact.sample(v[0], v[1]);
+    final center = contact.sample(v[0], v[1]);
     final surface = b.textures['surface_texture'];
-    if (surface == null) return centre;
+    if (surface == null) return center;
 
     final centreDepth = surface.sample(v[0], v[1]).w;
     // The sky: the march wrote one here and there is no depth to weigh by.
-    if (centreDepth <= 0.0) return centre;
+    if (centreDepth <= 0.0) return center;
 
     final params = b.vec4('ContactShadowResolveInfo', 'params', Vector4.zero());
     final falloff = math.max(params.z, 1e-4) * math.max(centreDepth, 1e-3);

@@ -90,7 +90,7 @@ void main() {
   group('what an edit reaches', () {
     test('editing bloom marks the post branch and nothing before it', () {
       final RenderSettings from = lit();
-      final (:settings, :graph) = renderPost(
+      final PostEdit(:settings, :graph) = renderPost(
         from,
         CompositeGraph.of(from),
         bloom: const BloomSettings(enabled: true, threshold: 0.4),
@@ -116,7 +116,7 @@ void main() {
 
     test('editing the look reaches less than editing bloom', () {
       final RenderSettings from = lit();
-      final (settings: _, :graph) = renderPost(
+      final PostEdit(:graph) = renderPost(
         from,
         CompositeGraph.of(from),
         look: const LookSettings(saturation: 1.3),
@@ -137,7 +137,7 @@ void main() {
 
     test('and one call can edit two passes at once', () {
       final RenderSettings from = lit();
-      final (:settings, :graph) = renderPost(
+      final PostEdit(:settings, :graph) = renderPost(
         from,
         CompositeGraph.of(from),
         bloom: const BloomSettings(enabled: false),

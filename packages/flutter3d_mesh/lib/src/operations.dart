@@ -84,10 +84,10 @@ final class OpResult {
   /// Why the operation was refused, or null.
   final String? reason;
 
-  bool get ok => reason == null;
+  bool get isOk => reason == null;
 
   @override
-  String toString() => ok
+  String toString() => isOk
       ? 'OpResult(${movedVertices.length} vertices moved, '
             'topology ${topologyChanged ? 'changed' : 'untouched'})'
       : 'OpResult(refused: $reason)';
@@ -127,7 +127,7 @@ OpResult scaleSelection(
 /// topology is not merely unchanged but *known* to be unchanged, and saying so
 /// is what lets a viewport skip everything but a handful of rows. The one thing
 /// it does not do is renormalise anything: a scale by a negative number turns
-/// the surface inside out, and `EditMesh.makeConsistent` is where a caller that
+/// the surface inside out, and `EditMesh.ensureConsistent` is where a caller that
 /// minds says so.
 OpResult transformSelection(
   EditMesh mesh,

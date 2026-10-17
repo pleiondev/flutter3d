@@ -58,8 +58,8 @@ void main() {
       deviceFactory: _cpuDevice,
     );
 
-    final decodedMaterial = (await decodeImagePure(material))!;
-    final decodedNormals = (await decodeImagePure(normals))!;
+    final decodedMaterial = await decodeImagePure(material);
+    final decodedNormals = await decodeImagePure(normals);
 
     var differingPixels = 0;
     final pixelCount = decodedMaterial.width * decodedMaterial.height;
@@ -199,7 +199,7 @@ Future<Rgba8Image> _shot(ModelProject project, RenderShading shading) async {
     RenderRequest(project: project, width: 256, height: 256, shading: shading),
     deviceFactory: _cpuDevice,
   );
-  return (await decodeImagePure(png))!;
+  return decodeImagePure(png);
 }
 
 /// The darkest green channel in the frame — green because every colour in

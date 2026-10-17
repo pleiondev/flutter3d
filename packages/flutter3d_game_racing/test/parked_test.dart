@@ -21,7 +21,6 @@ import 'dart:math' as math;
 
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -30,7 +29,7 @@ import 'package:vector_math/vector_math.dart';
 /// Tilted about x, so the slope runs along z — which is the axis a car with a
 /// heading of zero points down, and therefore the one where a roll shows up as
 /// forward speed rather than as sideways drift.
-final class _Slope implements GroundField {
+final class _Slope with GroundField {
   _Slope(this.grade);
 
   final double grade;
@@ -47,14 +46,14 @@ final class _Slope implements GroundField {
 }
 
 ({SphereVehicle car, CollisionWorld world}) onSlope(double grade) {
-  const tuning = VehicleTuning();
-  final world = CollisionWorld();
+  const tuning = VehicleSettings();
+  final world = CollisionWorld(properties: racingWorld);
   final car = SphereVehicle(
     world: world,
     ground: _Slope(grade),
     position: Vector3(0.0, tuning.rideHeight, 0.0),
     tuning: tuning,
-    tyres: Tyres.road,
+    tireSet: TireSet.road,
   );
   return (car: car, world: world);
 }
@@ -63,7 +62,7 @@ final class _Slope implements GroundField {
 void coast(SphereVehicle car, {double seconds = 10.0}) {
   final steps = (seconds * 60).round();
   for (var i = 0; i < steps; i++) {
-    car.step(1 / 60, VehicleInput());
+    car.step(VehicleStep(dt: 1 / 60, input: VehicleInput()));
   }
 }
 
@@ -146,7 +145,9 @@ void main() {
     // its speed and this fails.
     final it = onSlope(0.0);
     for (var i = 0; i < 120; i++) {
-      it.car.step(1 / 60, VehicleInput()..throttle = 1.0);
+      it.car.step(
+        VehicleStep(dt: 1 / 60, input: VehicleInput()..throttle = 1.0),
+      );
     }
     final entered = alongSlope(it.car);
     expect(entered, greaterThan(4.0), reason: 'it never got going');

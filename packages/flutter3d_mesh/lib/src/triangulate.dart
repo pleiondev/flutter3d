@@ -40,6 +40,8 @@ import 'selection.dart';
 /// lists is 300 000 allocations for arithmetic that touches at most a few dozen
 /// numbers at a time — the shape of cost that does not show in a microbenchmark
 /// and shows in a garbage collector's pauses while somebody drags a vertex.
+///
+/// A caller keeps one, `FaceTriangulator()`, to reuse its buffers.
 final class FaceTriangulator {
   /// Corner positions of the face being cut, projected to two dimensions.
   final List<double> _x = <double>[];
@@ -57,7 +59,7 @@ final class FaceTriangulator {
   /// A caller — the conversion to `MeshData`, an exporter, the readiness check
   /// — reads this to report a face that could not be cut properly, which is
   /// what `mesh-27`'s issue list is for.
-  bool get fannedLastFace => _fanned;
+  bool get didFanLastFace => _fanned;
   bool _fanned = false;
 
   /// Cuts the polygon given by [points] and calls [emit] with each triangle, as

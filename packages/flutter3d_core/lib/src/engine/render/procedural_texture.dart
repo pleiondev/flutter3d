@@ -1,7 +1,9 @@
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show SrgbColor;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:vector_math/vector_math.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show LinearColor;
 
 /// A texture generated in code.
 ///
@@ -36,27 +38,58 @@ abstract base class ProceduralTexture {
       height: size,
       format: TextureFormat.r8g8b8a8UNormInt,
       pixels: encode(),
-    )!;
+    );
   }
 }
 
-/// A single flat colour.
+/// A single flat colour, or a single flat value.
 ///
 /// A 1x1 white instance stands in for a missing base-colour texture: a shader
 /// that declares a sampler must have something bound to it, so "no texture" has
 /// to be expressed as a neutral texture rather than an absent binding.
+///
+/// **A colour is linear; a texel is what is stored.** A base-colour texture's
+/// texels are sRGB-encoded, as an image a person painted is, and the shader
+/// decodes them; so a [LinearColor] is encoded on the way in
+/// (`SolidColorTexture(LinearColor.fromSrgb(0.8, 0.2, 0.1))` stores the
+/// bytes of `#CC331A`). A texture of data rather than colour — a normal map,
+/// a mask — is written exactly with [SolidColorTexture.texel].
 final class SolidColorTexture extends ProceduralTexture {
-  const SolidColorTexture(this.color, {this.size = 1});
+  /// [color], in linear light, stored sRGB-encoded as a base-colour
+  /// texture's texels are.
+  SolidColorTexture(LinearColor color, {int size = 1})
+    : this._stored(color.toSrgb(), size);
 
-  /// Non-linear (sRGB-encoded) RGBA in the 0..1 range, matching how texture
-  /// pixels are authored.
-  final Vector4 color;
+  SolidColorTexture._stored(SrgbColor shown, int size)
+    : this.texel(shown.r, shown.g, shown.b, a: shown.a, size: size);
+
+  /// Texels holding [r], [g], [b] and [a] exactly as given, each 0..1: for a
+  /// texture of data rather than colour (a normal map's, a mask's), or for
+  /// bytes already encoded.
+  const SolidColorTexture.texel(
+    double r,
+    double g,
+    double b, {
+    this._a = 1,
+    this.size = 1,
+  }) : _r = r,
+       _g = g,
+       _b = b;
+
+  final double _r;
+  final double _g;
+  final double _b;
+  final double _a;
+
+  /// What every texel stores, each channel 0..1 before it is quantised to a
+  /// byte: sRGB-encoded for a colour, the value itself for data.
+  TexelValue get texel => TexelValue(r: _r, g: _g, b: _b, a: _a);
 
   @override
   final int size;
 
-  static SolidColorTexture get white =>
-      SolidColorTexture(Vector4(1.0, 1.0, 1.0, 1.0));
+  /// Opaque white, the base colour that changes nothing.
+  static const SolidColorTexture white = SolidColorTexture.texel(1, 1, 1);
 
   /// The neutral tangent-space normal, `(0, 0, 1)` encoded into 0..1.
   ///
@@ -65,16 +98,19 @@ final class SolidColorTexture extends ProceduralTexture {
   /// stored as byte 128, which decodes to 0.0039, not 0. The renderer sends
   /// a normal scale of zero alongside it, and that is what makes sampling it
   /// perturb nothing.
-  static SolidColorTexture get flatNormal =>
-      SolidColorTexture(Vector4(0.5, 0.5, 1.0, 1.0));
+  static const SolidColorTexture flatNormal = SolidColorTexture.texel(
+    0.5,
+    0.5,
+    1.0,
+  );
 
   @override
   ByteData encode() {
     final bytes = Uint8List(size * size * 4);
-    final r = (color.x.clamp(0.0, 1.0) * 255).round();
-    final g = (color.y.clamp(0.0, 1.0) * 255).round();
-    final b = (color.z.clamp(0.0, 1.0) * 255).round();
-    final a = (color.w.clamp(0.0, 1.0) * 255).round();
+    final r = (_r.clamp(0.0, 1.0) * 255).round();
+    final g = (_g.clamp(0.0, 1.0) * 255).round();
+    final b = (_b.clamp(0.0, 1.0) * 255).round();
+    final a = (_a.clamp(0.0, 1.0) * 255).round();
     for (var i = 0; i < bytes.length; i += 4) {
       bytes[i] = r;
       bytes[i + 1] = g;
@@ -130,4 +166,42 @@ final class CheckerboardTexture extends ProceduralTexture {
     }
     return bytes.buffer.asByteData();
   }
+}
+
+/// The four channels a texel of a [SolidColorTexture] stores, each 0..1
+/// before it is quantised to a byte.
+final class TexelValue {
+  /// The channels [r], [g], [b] and [a].
+  const TexelValue({
+    required this.r,
+    required this.g,
+    required this.b,
+    required this.a,
+  });
+
+  /// The first channel, red, a fraction 0..1.
+  final double r;
+
+  /// The second channel, green, a fraction 0..1.
+  final double g;
+
+  /// The third channel, blue, a fraction 0..1.
+  final double b;
+
+  /// The fourth channel, alpha, a fraction 0..1.
+  final double a;
+
+  @override
+  bool operator ==(Object other) =>
+      other is TexelValue &&
+      other.r == r &&
+      other.g == g &&
+      other.b == b &&
+      other.a == a;
+
+  @override
+  int get hashCode => Object.hash(r, g, b, a);
+
+  @override
+  String toString() => 'TexelValue($r, $g, $b, $a)';
 }

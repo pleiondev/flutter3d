@@ -10,9 +10,12 @@ library;
 import 'dart:convert';
 
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
+
+import 'heard.dart';
 
 const double _dt = 1.0 / 60.0;
 
@@ -52,6 +55,7 @@ final class _World {
       elapsed: elapsed,
       random: GameRandom(1),
     );
+    sim.publishTo(heard.bus);
   }
 
   Collider _trigger(Vector3 at, int layer) => world.add(
@@ -64,13 +68,16 @@ final class _World {
     ),
   );
 
-  final CollisionWorld world = CollisionWorld();
+  final CollisionWorld world = CollisionWorld(properties: platformerWorld);
   final InputState input = InputState();
   late final MechanismWorld mechanisms;
   late final Runner runner;
   late final Collectible coin;
   late final Checkpoint checkpoint;
   late final PlatformerSimulation sim;
+
+  /// What [sim] publishes, step by step.
+  final Heard heard = Heard();
 
   bool _forward = false;
 
@@ -317,7 +324,7 @@ void _progressTests() {
 
       expect(world.sim.deaths, 5, reason: 'the tally is carried, not reset');
       expect(
-        world.sim.events.drain().whereType<RunnerDied>(),
+        world.heard.take().whereType<RunnerDied>(),
         isEmpty,
         reason: 'a carried death fired the death sound on arrival',
       );
@@ -329,7 +336,7 @@ void _progressTests() {
       var died = false;
       for (var i = 0; i < 240 && !died; i++) {
         world.run(1, forward: true);
-        died = world.sim.events.drain().whereType<RunnerDied>().isNotEmpty;
+        died = world.heard.take().any((e) => e is RunnerDied);
       }
 
       expect(died, isTrue, reason: 'nothing killed the runner in four seconds');
@@ -341,14 +348,14 @@ void _progressTests() {
       var died = false;
       for (var i = 0; i < 240 && !died; i++) {
         world.run(1, forward: true);
-        died = world.sim.events.drain().whereType<RunnerDied>().isNotEmpty;
+        died = world.heard.take().any((e) => e is RunnerDied);
       }
       expect(died, isTrue);
 
       world.step();
 
       expect(
-        world.sim.events.drain().whereType<RunnerDied>(),
+        world.heard.take().whereType<RunnerDied>(),
         isEmpty,
         reason: 'the death was reported twice, so the burst plays again',
       );
@@ -370,13 +377,23 @@ void _progressTests() {
     });
 
     test('and every state has one', () {
-      // The switch is exhaustive, so this fails to compile rather than at run
-      // time if a state is added — and this asserts the other half: that a new
-      // state was thought about rather than mapped to `playing` to shut the
-      // compiler up.
-      for (final state in RunState.values) {
-        expect(state.outcome, isNotNull);
-      }
+      // A state cannot be made without an outcome, so asking whether it has
+      // one proves nothing. The whole table is pinned instead: a state added
+      // to `values` fails here until somebody has said what it means to a
+      // game, rather than riding along mapped to `playing`.
+      //
+      // Mutation: drop `lost` from `values`, or map `fallen` to `lost`.
+      expect(
+        <String, RunOutcome>{
+          for (final state in RunState.values) state.name: state.outcome,
+        },
+        <String, RunOutcome>{
+          'running': RunOutcome.playing,
+          'fallen': RunOutcome.playing,
+          'finished': RunOutcome.won,
+          'lost': RunOutcome.lost,
+        },
+      );
     });
   });
 }

@@ -57,6 +57,10 @@ OpResult deleteSelection(EditMesh mesh, Selection selection) {
           if (selection.contains(mesh.edgeOf(half))) doomed.add(face);
         });
       }
+    default:
+      throw UnsupportedError(
+        'a half-edge mesh has no ${selection.level} elements',
+      );
   }
 
   for (final face in doomed) {
@@ -217,7 +221,7 @@ OpResult splitSelection(EditMesh mesh, Selection selection) {
 /// **In the order their lowest-numbered face appears**, so a document that
 /// separates a model twice gets the same pieces in the same order both times —
 /// which is what makes a test of it possible and a file that names them stable.
-List<(EditMesh, IdRemap)> separateComponents(EditMesh mesh) {
+List<RemappedMesh> separateComponents(EditMesh mesh) {
   final island = Int32List(mesh.faceSlotCount)
     ..fillRange(0, mesh.faceSlotCount, EditMesh.none);
   final parts = <List<int>>[];
@@ -236,7 +240,7 @@ List<(EditMesh, IdRemap)> separateComponents(EditMesh mesh) {
     }
   }
 
-  return <(EditMesh, IdRemap)>[for (final part in parts) subMesh(mesh, part)];
+  return <RemappedMesh>[for (final part in parts) subMesh(mesh, part)];
 }
 
 /// The faces [wanted] as a mesh of their own, and where everything went.
@@ -246,7 +250,7 @@ List<(EditMesh, IdRemap)> separateComponents(EditMesh mesh) {
 /// the piece that came out. The same rule `EditMesh.compact` follows, and the
 /// same reason — a journal is indices into arrays that have just been
 /// renumbered, so the piece has no history.
-(EditMesh, IdRemap) subMesh(EditMesh mesh, Iterable<int> wanted) {
+RemappedMesh subMesh(EditMesh mesh, Iterable<int> wanted) {
   final vertexMap = Int32List(mesh.vertexSlotCount)
     ..fillRange(0, mesh.vertexSlotCount, EditMesh.none);
   final faceMap = Int32List(mesh.faceSlotCount)
@@ -277,7 +281,10 @@ List<(EditMesh, IdRemap)> separateComponents(EditMesh mesh) {
   }
 
   final part = _finish(builder, mesh, taken, corners, sources);
-  return (part, IdRemap(vertices: vertexMap, faces: faceMap));
+  return RemappedMesh(
+    mesh: part,
+    remap: IdRemap(vertices: vertexMap, faces: faceMap),
+  );
 }
 
 /// Builds the piece and gives it everything the mesh it came from carried.
@@ -349,7 +356,7 @@ void _carryFaceOnly(EditMesh from, EditMesh to, int source, int face) {
 
 void _carryCorner(EditMesh from, EditMesh to, int source, int half) {
   if (from.hasLayer(MeshDomain.corner, MeshAttribute.uv0) ||
-      from.hasLayer(MeshDomain.corner, MeshAttribute.colour)) {
+      from.hasLayer(MeshDomain.corner, MeshAttribute.color)) {
     to.setCorner(half, from.cornerOf(source));
   }
   if (from.hasLayer(MeshDomain.edge, MeshAttribute.crease)) {

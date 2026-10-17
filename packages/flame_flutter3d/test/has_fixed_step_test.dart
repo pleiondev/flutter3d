@@ -7,7 +7,9 @@ import 'package:flame/components.dart'
 import 'package:flame/game.dart';
 import 'package:flame_flutter3d/flame_flutter3d.dart';
 import 'package:flame_test/flame_test.dart';
-import 'package:flutter3d_game/flutter3d_game.dart' show Bindings, InputSource;
+import 'package:flutter3d_game/flutter3d_game.dart'
+    show ActionMap, Bindings, InputSource;
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -52,7 +54,10 @@ void main() {
     (game) async {
       // Mutation: close the input step every frame, step or not.
       final input = FlameInputBridge(
-        bindings: Bindings(<InputSource, GameAction>{}),
+        actions: ActionMap(
+          actions: ActionSet.common,
+          buttons: Bindings(<InputSource, GameAction>{}),
+        ),
         inputState: InputState(),
       );
       await game.add(input.stepEnd());
@@ -79,7 +84,10 @@ void main() {
       //
       // Mutation: close the input step at the end of the frame.
       final input = FlameInputBridge(
-        bindings: Bindings(<InputSource, GameAction>{}),
+        actions: ActionMap(
+          actions: ActionSet.common,
+          buttons: Bindings(<InputSource, GameAction>{}),
+        ),
         inputState: InputState(),
       );
       const jump = GameAction('jump');
@@ -104,7 +112,10 @@ void main() {
       //
       // Mutation: read the stick in the feed's update.
       final input = FlameInputBridge(
-        bindings: Bindings(<InputSource, GameAction>{}),
+        actions: ActionMap(
+          actions: ActionSet.common,
+          buttons: Bindings(<InputSource, GameAction>{}),
+        ),
         inputState: InputState(),
       );
       final stick = JoystickComponent(
@@ -140,12 +151,12 @@ void main() {
         dynamics: dynamics,
         world: world,
         afterStep: () => physicsSteps++,
-        step: FixedStep(stepSeconds: 1 / 30),
+        timing: const WorldTiming(stepRate: 30),
       );
       final actors = ActorSystemComponent(
         system: ActorSystem(world: world, random: GameRandom(1)),
         focus: Vector3.zero,
-        step: FixedStep(stepSeconds: 1 / 30),
+        timing: const WorldTiming(stepRate: 30),
       );
       await game.addAll(<Component>[physics, actors]);
       await game.ready();

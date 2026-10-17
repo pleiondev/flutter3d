@@ -27,9 +27,10 @@ import 'texture.dart';
 /// made with, so the future completes successfully with a black picture;
 /// flutter_gpu would convert through `toByteData` and answer with the picture;
 /// the software rasteriser would clamp its floats and answer with a third
-/// thing. A caller with a float texture reads it back through `readPixels`,
-/// which is allowed to be slow, or draws it into an eight-bit target first,
-/// which is what the luminance pass does.
+/// thing. A caller with a float texture reads the whole of it back, which each
+/// backend converts on its own path and is allowed to be slow
+/// ([readbackConverts]), or draws it into an eight-bit target first, which is
+/// what the luminance pass does.
 ///
 /// **Two layouts and not four**, which is the same argument applied a second
 /// time. The sRGB twins were in here on the grounds that they are eight bits
@@ -61,6 +62,24 @@ const Set<TextureFormat> _srgbReadbackFormats = <TextureFormat>{
   TextureFormat.b8g8r8a8UNormIntSRGB,
 };
 
+/// Whether a readback of [texture] — the whole of it when [region] is null —
+/// goes through the backend's converting path rather than copying the bytes
+/// as they are: a whole texture in a format outside [readbackFormats], the
+/// engine's half-float colour among them. Never an sRGB twin, whole or not:
+/// [readbackRegionOf] refuses those with their own reason, and a whole one
+/// answered true here was converted instead of refused.
+///
+/// A backend asks this first, converts when it is true and calls
+/// [readbackRegionOf] when it is not, so which requests convert is the
+/// interface's decision and not whichever backend happened to be running.
+bool readbackConverts(TextureHandle texture, {ScreenRect? region}) =>
+    region == null &&
+    !readbackFormats.contains(texture.format) &&
+    !_srgbReadbackFormats.contains(texture.format) &&
+    texture.storageMode != StorageMode.deviceTransient &&
+    texture.sampleCount == 1 &&
+    texture.type == TextureType.texture2D;
+
 /// The region a readback of [texture] will copy, or an [ArgumentError] saying
 /// why there is none.
 ///
@@ -83,11 +102,12 @@ ScreenRect readbackRegionOf(TextureHandle texture, ScreenRect? region) {
     throw ArgumentError.value(
       texture,
       'texture',
-      'is ${texture.format.name}, and a readback hands back eight-bit RGBA — '
-          'on one backend a readPixels of a float target is an error that '
-          'leaves zeros, on another a conversion, and those are not the same '
-          'answer. Read back an r8g8b8a8UNormInt or b8g8r8a8UNormInt '
-          'texture, or draw this one into such a target first',
+      'is ${texture.format.name}, and a readback of a region hands back '
+          'eight-bit RGBA as it is stored: a region of a float target is an '
+          'error that leaves zeros on one backend and a conversion on another, '
+          'and those are not the same answer. Read back the whole texture, '
+          'which is converted, or draw this one into an r8g8b8a8UNormInt '
+          'target first',
     );
   }
   if (texture.storageMode == StorageMode.deviceTransient) {

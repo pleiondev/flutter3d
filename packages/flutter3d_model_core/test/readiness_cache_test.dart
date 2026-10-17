@@ -10,6 +10,7 @@
 library;
 
 import 'package:flutter3d_core/formats.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:test/test.dart';
@@ -289,7 +290,7 @@ void main() {
           ProjectMaterial(
             surface: SurfaceMaterial(
               alphaMode: SurfaceAlphaMode.blend,
-              baseColor: Vector4(1, 1, 1, 1),
+              baseColor: LinearColor.fromSrgb(1, 1, 1, 1),
             ),
           ),
         ],
@@ -327,7 +328,7 @@ void main() {
           ProjectMaterial(
             surface: SurfaceMaterial(
               alphaMode: SurfaceAlphaMode.blend,
-              baseColor: Vector4(1, 1, 1, 1),
+              baseColor: LinearColor.fromSrgb(1, 1, 1, 1),
             ),
           ),
         ],
@@ -345,7 +346,7 @@ void main() {
           ProjectMaterial(
             surface: SurfaceMaterial(
               alphaMode: SurfaceAlphaMode.blend,
-              baseColor: Vector4(1, 1, 1, 1),
+              baseColor: LinearColor.fromSrgb(1, 1, 1, 1),
             ),
           ),
         ],

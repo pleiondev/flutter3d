@@ -73,11 +73,11 @@ const List<int> _huffModes = <int>[
 Iterable<Uint8List> _blocksOf(Uint8List ktx2) sync* {
   final view = ByteData.sublistView(ktx2);
   final levelCount = view.getUint32(
-    kKtx2HeaderOffset + Ktx2HeaderField.levelCount,
+    ktx2HeaderOffset + Ktx2HeaderField.levelCount,
     Endian.little,
   );
   for (var level = 0; level < levelCount; level++) {
-    final entry = kKtx2LevelIndexOffset + level * kKtx2LevelIndexEntryBytes;
+    final entry = ktx2LevelIndexOffset + level * ktx2LevelIndexEntryBytes;
     final offset = view.getUint32(entry, Endian.little);
     final length = view.getUint32(entry + 8, Endian.little);
     for (var at = offset; at < offset + length; at += 16) {
@@ -199,7 +199,7 @@ void main() {
       final bytes = Uint8List.fromList(_fixture('uastc_stress.ktx2'));
       final firstBlock = ByteData.sublistView(
         bytes,
-      ).getUint32(kKtx2LevelIndexOffset, Endian.little);
+      ).getUint32(ktx2LevelIndexOffset, Endian.little);
       bytes[firstBlock] = 0x45;
       expect(
         () => Ktx2Texture.parse(bytes),
@@ -217,7 +217,7 @@ void main() {
       final bytes = Uint8List.fromList(_fixture('uastc_stress.ktx2'));
       // Level 0's byteLength, in the level index: claim one block fewer.
       ByteData.sublistView(bytes).setUint32(
-        kKtx2LevelIndexOffset + 8,
+        ktx2LevelIndexOffset + 8,
         (64 ~/ 4) * (64 ~/ 4) * 16 - 16,
         Endian.little,
       );
@@ -239,7 +239,7 @@ void main() {
       // are a different thing entirely.
       final bytes = Uint8List.fromList(_fixture('uastc_stress.ktx2'));
       final dfd = ByteData.sublistView(bytes).getUint32(
-        kKtx2IndexOffset + Ktx2IndexField.dfdByteOffset,
+        ktx2IndexOffset + Ktx2IndexField.dfdByteOffset,
         Endian.little,
       );
       expect(bytes[dfd + 12], Ktx2ColorModel.uastc);

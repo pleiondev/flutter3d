@@ -1,7 +1,7 @@
 /// Two rules from the backend contract that a signature cannot state, and that
 /// nothing in this suite was asking about.
 ///
-/// Two of the fourteen rules ARCHITECTURE.md §7.2 states — "a backend that gets
+/// Two of the 14 rules ARCHITECTURE.md §7.2 states — "a backend that gets
 /// one of these wrong compiles and draws the wrong thing". They are the ones a
 /// *new* backend is most likely to get wrong, because both are decisions
 /// somebody has to make deliberately and neither produces an error when made
@@ -21,7 +21,7 @@ import 'package:vector_math/vector_math.dart';
 
 import '../flutter3d_conformance.dart';
 
-/// A null sampler means [SamplerOptions.linearRepeat], not the constructor's
+/// A null sampler means [SamplerDescriptor.linearRepeat], not the constructor's
 /// own defaults.
 ///
 /// **Worth about two percent of every textured golden.** The constructor
@@ -62,10 +62,9 @@ Future<void> checkNullSamplerRepeats(GraphicsDevice device) async {
     format: TextureFormat.r8g8b8a8UNormInt,
     pixels: pixels,
   );
-  require(texture != null, 'a two-texel texture could not be uploaded');
 
   final target = device.createTexture(
-    const RenderTargetSpec(
+    const RenderTargetDescriptor(
       width: size,
       height: size,
       format: TextureFormat.r8g8b8a8UNormInt,
@@ -88,7 +87,7 @@ Future<void> checkNullSamplerRepeats(GraphicsDevice device) async {
         ColorTarget(
           texture: target,
           loadAction: LoadAction.clear,
-          clearValue: Vector4(0.0, 1.0, 0.0, 1.0),
+          clearValue: ClearColor(0.0, 1.0, 0.0, 1.0),
         ),
       ],
     ),
@@ -96,7 +95,11 @@ Future<void> checkNullSamplerRepeats(GraphicsDevice device) async {
   pass
     ..setPrimitiveType(PrimitiveType.triangle)
     ..setCullMode(CullMode.none)
-    ..bindPipeline(device.createPipeline(vertex!, fragment!))
+    ..bindPipeline(
+      device.createPipelineFrom(
+        PipelineDescriptor(vertex: vertex!, fragment: fragment!),
+      ),
+    )
     ..bindUniformBlock(vertex, 'ParticleInfo', <String, Float32List>{
       'view_projection': Float32List.fromList(Matrix4.identity().storage),
     })
@@ -105,15 +108,14 @@ Future<void> checkNullSamplerRepeats(GraphicsDevice device) async {
       'eye': Float32List(4),
     })
     // **The whole check is this argument being absent.**
-    ..bindTexture(fragment, 'particle_texture', texture!)
+    ..bindTexture(fragment, 'particle_texture', texture)
     ..bindVertexData(ByteData.sublistView(triangle), 3)
     ..bindIndexData(ByteData.sublistView(indices), IndexType.int16, 3)
     ..draw();
   pass.submit();
 
-  final read = await device.readPixels(target);
-  require(read != null, 'the target could not be read back');
-  final bytes = read!.buffer.asUint8List();
+  final read = await device.readback(target);
+  final bytes = read.buffer.asUint8List();
   final at = ((size ~/ 2) * size + size ~/ 2) * 4;
   final red = bytes[at];
 
@@ -151,14 +153,14 @@ Future<void> checkDepthWriteIsHonoured(GraphicsDevice device) async {
   );
 
   final target = device.createTexture(
-    const RenderTargetSpec(
+    const RenderTargetDescriptor(
       width: size,
       height: size,
       format: TextureFormat.r8g8b8a8UNormInt,
     ),
   );
   final depth = device.createTexture(
-    RenderTargetSpec(
+    RenderTargetDescriptor(
       width: size,
       height: size,
       format: device.defaultDepthStencilFormat,
@@ -166,11 +168,11 @@ Future<void> checkDepthWriteIsHonoured(GraphicsDevice device) async {
     ),
   );
 
-  Float32List triangleAt(double z, List<double> colour) =>
+  Float32List triangleAt(double z, List<double> color) =>
       Float32List.fromList(<double>[
-        -1, -1, z, ...colour, //
-        3, -1, z, ...colour,
-        -1, 3, z, ...colour,
+        -1, -1, z, ...color, //
+        3, -1, z, ...color,
+        -1, 3, z, ...color,
       ]);
   final indices = Uint16List.fromList(<int>[0, 1, 2]);
   final identity = Float32List.fromList(Matrix4.identity().storage);
@@ -181,7 +183,7 @@ Future<void> checkDepthWriteIsHonoured(GraphicsDevice device) async {
         ColorTarget(
           texture: target,
           loadAction: LoadAction.clear,
-          clearValue: Vector4.zero(),
+          clearValue: ClearColor.transparentBlack,
         ),
       ],
       depth: DepthTarget(texture: depth),
@@ -194,15 +196,19 @@ Future<void> checkDepthWriteIsHonoured(GraphicsDevice device) async {
     // The argument under test. Everything below draws with writes off, so the
     // depth buffer keeps the 1.0 it was cleared to and neither draw is ever
     // rejected by the other.
-    ..setDepthWrite(false)
-    ..bindPipeline(device.createPipeline(vertex!, fragment!));
+    ..setDepthWrite(enabled: false)
+    ..bindPipeline(
+      device.createPipelineFrom(
+        PipelineDescriptor(vertex: vertex!, fragment: fragment!),
+      ),
+    );
 
-  void triangle(double z, List<double> colour) {
+  void triangle(double z, List<double> color) {
     pass
       ..bindUniformBlock(vertex, 'LineInfo', <String, Float32List>{
         'view_projection': identity,
       })
-      ..bindVertexData(ByteData.sublistView(triangleAt(z, colour)), 3)
+      ..bindVertexData(ByteData.sublistView(triangleAt(z, color)), 3)
       ..bindIndexData(ByteData.sublistView(indices), IndexType.int16, 3)
       ..draw();
   }
@@ -213,9 +219,8 @@ Future<void> checkDepthWriteIsHonoured(GraphicsDevice device) async {
   triangle(0.8, <double>[0, 1, 0, 1]);
   pass.submit();
 
-  final read = await device.readPixels(target);
-  require(read != null, 'the target could not be read back');
-  final bytes = read!.buffer.asUint8List();
+  final read = await device.readback(target);
+  final bytes = read.buffer.asUint8List();
   final at = ((size ~/ 2) * size + size ~/ 2) * 4;
 
   require(
@@ -259,7 +264,7 @@ Future<void> checkUniformMemberMismatchIsRefused(GraphicsDevice device) async {
   require(vertex != null, 'the particle vertex stage is missing');
 
   final target = device.createTexture(
-    const RenderTargetSpec(
+    const RenderTargetDescriptor(
       width: 4,
       height: 4,
       format: TextureFormat.r8g8b8a8UNormInt,
@@ -271,13 +276,18 @@ Future<void> checkUniformMemberMismatchIsRefused(GraphicsDevice device) async {
         ColorTarget(
           texture: target,
           loadAction: LoadAction.clear,
-          clearValue: Vector4(0.0, 0.0, 0.0, 1.0),
+          clearValue: ClearColor(0.0, 0.0, 0.0, 1.0),
         ),
       ],
     ),
   );
   pass.bindPipeline(
-    device.createPipeline(vertex!, device.shaders['Particle'] ?? vertex),
+    device.createPipelineFrom(
+      PipelineDescriptor(
+        vertex: vertex!,
+        fragment: device.shaders['Particle'] ?? vertex,
+      ),
+    ),
   );
 
   // Which kind of backend this is, asked rather than assumed.
@@ -291,7 +301,11 @@ Future<void> checkUniformMemberMismatchIsRefused(GraphicsDevice device) async {
     // not ask about, so a reader of the pass list can tell "checked" from
     // "does not apply here".
     pass.submit();
-    return;
+    decline(
+      device,
+      'reflects no shader, so it cannot tell a block a stage lacks from one '
+      'it has',
+    );
   }
 
   var threw = false;
@@ -341,7 +355,7 @@ Future<void> checkUndeclaredSamplerIsFalse(GraphicsDevice device) async {
   require(vertex != null && fragment != null, 'MeshVertex or Unlit is missing');
 
   final target = device.createTexture(
-    const RenderTargetSpec(
+    const RenderTargetDescriptor(
       width: 4,
       height: 4,
       format: TextureFormat.r8g8b8a8UNormInt,
@@ -352,11 +366,15 @@ Future<void> checkUndeclaredSamplerIsFalse(GraphicsDevice device) async {
     height: 1,
     format: TextureFormat.r8g8b8a8UNormInt,
     pixels: ByteData(4),
-  )!;
+  );
   final pass = device.beginRenderPass(
     RenderPassDescriptor(colors: <ColorTarget>[ColorTarget(texture: target)]),
   );
-  pass.bindPipeline(device.createPipeline(vertex!, fragment!));
+  pass.bindPipeline(
+    device.createPipelineFrom(
+      PipelineDescriptor(vertex: vertex!, fragment: fragment!),
+    ),
+  );
 
   final reflects = !pass.bindUniformBlock(
     vertex,
@@ -365,7 +383,11 @@ Future<void> checkUndeclaredSamplerIsFalse(GraphicsDevice device) async {
   );
   if (!reflects) {
     pass.submit();
-    return;
+    decline(
+      device,
+      'reflects no shader, so it cannot tell a slot a stage lacks from one '
+      'it has',
+    );
   }
 
   final nowhere = pass.bindTexture(

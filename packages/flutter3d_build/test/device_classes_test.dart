@@ -8,8 +8,7 @@ import 'dart:io';
 
 import 'package:code_assets/code_assets.dart';
 import 'package:flutter3d_build/flutter3d_build.dart';
-import 'package:flutter3d_core/formats.dart';
-import 'package:flutter3d_core/geometry.dart';
+import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:image/image.dart' as img;
 import 'package:test/test.dart';
 
@@ -77,20 +76,17 @@ IOSink _quiet([StringBuffer? into]) {
   return IOSink(controller);
 }
 
-/// The bakes here run on the software rasteriser, and a loaded machine takes
-/// minutes over them. On the tests themselves rather than on the library: a
-/// runner that folds every file into one drops a library's `@Timeout`.
-const Timeout _slow = Timeout(Duration(minutes: 5));
-
 void main() {
   group('the manifest', () {
     test('names no classes by default', () {
-      expect(AssetManifest.parse('rules: []').classes, isEmpty);
-      expect(AssetManifest.empty.classes, isEmpty);
+      expect(AssetBuildManifest.parse('rules: []').classes, isEmpty);
+      expect(AssetBuildManifest.empty.classes, isEmpty);
     });
 
     test('a list takes the presets', () {
-      final manifest = AssetManifest.parse('classes: [phone, web, desktop]');
+      final manifest = AssetBuildManifest.parse(
+        'classes: [phone, web, desktop]',
+      );
       expect(manifest.classes, <DeviceClassBudget>[
         DeviceClassBudget.phone,
         DeviceClassBudget.web,
@@ -100,7 +96,7 @@ void main() {
     });
 
     test('a mapping changes the numbers it names and keeps the rest', () {
-      final manifest = AssetManifest.parse('''
+      final manifest = AssetBuildManifest.parse('''
 classes:
   phone:
     maxTextureSide: 256
@@ -118,7 +114,7 @@ classes:
 
     test('an unknown class, key or a class named twice names its line', () {
       expect(
-        () => AssetManifest.parse('classes: [phone, console]'),
+        () => AssetBuildManifest.parse('classes: [phone, console]'),
         throwsA(
           isA<ManifestFormatException>()
               .having((e) => e.line, 'line', 1)
@@ -126,13 +122,13 @@ classes:
         ),
       );
       expect(
-        () => AssetManifest.parse('classes:\n  phone:\n    tris: 3\n'),
+        () => AssetBuildManifest.parse('classes:\n  phone:\n    tris: 3\n'),
         throwsA(
           isA<ManifestFormatException>().having((e) => e.line, 'line', 3),
         ),
       );
       expect(
-        () => AssetManifest.parse('classes: [web, web]'),
+        () => AssetBuildManifest.parse('classes: [web, web]'),
         throwsA(isA<ManifestFormatException>()),
       );
     });
@@ -297,15 +293,16 @@ classes:
       ];
       expect(written, <String>['sphere.f3d']);
       final cache =
-          jsonDecode(
-                File('$generated/.flutter3d_cache.json').readAsStringSync(),
-              )
+          (jsonDecode(
+                    File('$generated/.flutter3d_cache.json').readAsStringSync(),
+                  )
+                  as Map<String, Object?>)['entries']!
               as Map<String, Object?>;
       expect(cache.keys, <String>['${project.path}/assets_src/sphere.obj']);
       expect((cache.values.single! as Map)['lods'], '');
       expect(_measure('$generated/sphere.f3d').sides, <int>[64]);
     });
-  }, timeout: _slow);
+  });
 
   test('convert --classes writes one file per class, and a class that names '
       'no chain takes the command line\'s', () async {
@@ -333,16 +330,19 @@ classes:
     final desktop = _measure('${scratch.path}/sphere.desktop.f3d');
     expect(desktop.levels, 1);
     expect(desktop.sides, <int>[64]);
-    expect(ConvertOptions.parse(<String>['a.obj', '--classes', 'tv']), isNull);
     expect(
-      ConvertOptions.parse(<String>[
+      () => ConvertSettings.parse(<String>['a.obj', '--classes', 'tv']),
+      throwsA(isA<ConvertUsageException>()),
+    );
+    expect(
+      ConvertSettings.parse(<String>[
         'a.obj',
         '--classes',
         'web,phone',
-      ])!.classes,
+      ]).classes,
       <DeviceClass>[DeviceClass.web, DeviceClass.phone],
     );
-  }, timeout: _slow);
+  });
 
   test('fitDocumentTextures clamps axis by axis and leaves the rest', () {
     final wide = img.encodePng(img.Image(width: 64, height: 8));

@@ -1,9 +1,12 @@
 import 'dart:math' as math;
 
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
+
+import 'heard.dart';
 
 /// A circuit with a long fast section and one genuinely slow corner, so that a
 /// driver that brakes for nothing and one that brakes properly come out
@@ -18,25 +21,25 @@ TrackSpline circuit() {
         return Vector3(radius * math.cos(angle), 0.0, radius * math.sin(angle));
       }(),
   ];
-  final centre = CatmullRom(positions);
+  final center = CatmullRom(positions);
   return TrackSpline(
-    centre: centre,
+    center: center,
     widths: List<double>.filled(points, 16.0),
     banks: List<double>.filled(points, 0.0),
     surfaces: <SurfaceBand>[
       SurfaceBand(
         fromS: 0.0,
-        toS: centre.length,
-        centre: 'asphalt',
+        toS: center.length,
+        center: 'asphalt',
         shoulder: 'grass',
       ),
     ],
-    checkpoints: <double>[for (var i = 1; i < 4; i++) centre.length * i / 4],
+    checkpoints: <double>[for (var i = 1; i < 4; i++) center.length * i / 4],
   );
 }
 
 final class Field {
-  Field({int cars = 1, AiTuning tuning = const AiTuning()})
+  Field({int cars = 1, AiSettings tuning = const AiSettings()})
     : track = circuit(),
       driver = AiDriver(track: circuit(), tuning: tuning) {
     final field = TrackField(track: track);
@@ -53,9 +56,11 @@ final class Field {
         headingYaw: math.atan2(forward.x, forward.z),
       );
       car.placeAt(
-        car.position,
-        car.headingYaw,
-        trackDistance: track.centre.wrap(track.grid.s),
+        VehiclePlacement(
+          position: car.position,
+          headingYaw: car.headingYaw,
+          trackDistance: track.center.wrap(track.grid.s),
+        ),
       );
       cars_.add(car);
     }
@@ -65,15 +70,19 @@ final class Field {
       vehicles: cars_,
       race: race,
     );
+    heard = Heard(simulation);
     race.phase = RacePhase.running;
   }
 
   final TrackSpline track;
   final AiDriver driver;
-  final CollisionWorld world = CollisionWorld();
+  final CollisionWorld world = CollisionWorld(properties: racingWorld);
   final List<SphereVehicle> cars_ = <SphereVehicle>[];
   late final RaceState race;
   late final RacingSimulation simulation;
+
+  /// What [simulation] published, taken step by step.
+  late final Heard heard;
 
   /// Lets the drivers drive. [gaps] is the player distance handed to each car,
   /// which is what the rubber band reads.
@@ -104,7 +113,7 @@ void main() {
       for (var step = 0; step < steps; step++) {
         it.driver.drive(it.cars_[0], it.simulation.inputs[0]);
         it.simulation.step(1 / 60);
-        for (final event in it.simulation.events.drain()) {
+        for (final event in it.heard.take()) {
           if (event is Respawned) respawns += 1;
           if (event is LapCompleted) laps += 1;
         }
@@ -176,7 +185,7 @@ void main() {
         it.driver.drive(it.cars_[0], it.simulation.inputs[0]);
         it.simulation.step(1 / 60);
         speeds.add(it.cars_[0].speed);
-        bends.add(it.track.centre.curvatureAt(it.cars_[0].trackDistance).abs());
+        bends.add(it.track.center.curvatureAt(it.cars_[0].trackDistance).abs());
       }
 
       // The sharpest place the car went through, once it was up to speed.
@@ -213,7 +222,7 @@ void main() {
 
     test('a driver that believes it has more grip goes faster', () {
       double lapDistance(double grip) {
-        final it = Field(tuning: AiTuning(corneringGrip: grip));
+        final it = Field(tuning: AiSettings(corneringGrip: grip));
         it.run(40.0);
         return it.race.progress[0].progressAlong(it.track.length);
       }
@@ -276,11 +285,13 @@ void main() {
       // Put the second car directly in front of the first, on the line.
       final ahead = it.cars_[0].trackDistance + 10.0;
       final at = Vector3.zero();
-      it.track.centreAt(ahead, at);
+      it.track.centerAt(ahead, at);
       it.cars_[1].placeAt(
-        at..y += 0.6,
-        it.cars_[1].headingYaw,
-        trackDistance: ahead,
+        VehiclePlacement(
+          position: at..y += 0.6,
+          headingYaw: it.cars_[1].headingYaw,
+          trackDistance: ahead,
+        ),
       );
 
       final input = VehicleInput();
@@ -297,8 +308,14 @@ void main() {
       final it = Field(cars: 2);
       final ahead = it.cars_[0].trackDistance + 200.0;
       final at = Vector3.zero();
-      it.track.centreAt(ahead, at);
-      it.cars_[1].placeAt(at..y += 0.6, 0.0, trackDistance: ahead);
+      it.track.centerAt(ahead, at);
+      it.cars_[1].placeAt(
+        VehiclePlacement(
+          position: at..y += 0.6,
+          headingYaw: 0.0,
+          trackDistance: ahead,
+        ),
+      );
 
       final input = VehicleInput();
       it.driver.drive(it.cars_[0], input, others: it.cars_);

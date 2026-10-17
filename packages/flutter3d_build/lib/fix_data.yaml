@@ -1,0 +1,130 @@
+# Generated from flutter3d_build/lib/migrations/*.yaml by
+# `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
+# table-stamp: a7f9f2d67feecc35
+#
+# Read by `dart fix` and the IDE: see "A break comes with its migration"
+# in CONTRIBUTING.md.
+version: 1
+transforms:
+  - title: 'flutter3d 1.0.0-rc.1: 4a-build-recognisedExtensions'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_build/flutter3d_build.dart']
+      variable: 'recognisedExtensions'
+    changes:
+      - kind: 'rename'
+        newName: 'recognizedExtensions'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-build-kDefaultChunkThreshold'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_build/flutter3d_build.dart']
+      variable: 'kDefaultChunkThreshold'
+    changes:
+      - kind: 'rename'
+        newName: 'defaultChunkThreshold'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-build-kGitignoreEntry'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_build/flutter3d_build.dart']
+      variable: 'kGitignoreEntry'
+    changes:
+      - kind: 'rename'
+        newName: 'gitignoreEntry'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-build-kHookBuildContent'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_build/flutter3d_build.dart']
+      variable: 'kHookBuildContent'
+    changes:
+      - kind: 'rename'
+        newName: 'hookBuildContent'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-build-kAssetPipelineVersion'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_build/flutter3d_build.dart']
+      variable: 'kAssetPipelineVersion'
+    changes:
+      - kind: 'rename'
+        newName: 'assetPipelineVersion'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-build-kFlutter3dBuildVersionConstraint'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_build/flutter3d_build.dart']
+      variable: 'kFlutter3dBuildVersionConstraint'
+    changes:
+      - kind: 'rename'
+        newName: 'flutter3dBuildVersionConstraint'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-build-ConvertOptions'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_build/flutter3d_build.dart']
+      class: 'ConvertOptions'
+    changes:
+      - kind: 'rename'
+        newName: 'ConvertSettings'
+  - title: 'flutter3d 1.0.0-rc.1: build-usage'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_build/flutter3d_build.dart']
+      variable: 'usage'
+    changes:
+      - kind: 'rename'
+        newName: 'modelConvertUsage'
+  - title: 'flutter3d 1.0.0-rc.1: 4e-sim-LightmapBaker (LightmapBaker)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      class: 'LightmapBaker'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_build/lightmap.dart']
+          class: 'LightmapBaker'
+  - title: 'flutter3d 1.0.0-rc.1: rc-build-AssetManifest-named'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_build/flutter3d_build.dart']
+      constructor: ''
+      inClass: 'AssetManifest'
+    changes:
+      - kind: 'addParameter'
+        index: 0
+        name: 'rules'
+        style: optional_named
+        argumentValue:
+          expression: '{% rules %}'
+          variables:
+            rules:
+              kind: 'fragment'
+              value: 'arguments[0]'
+      - kind: 'removeParameter'
+        index: 0
+      - kind: 'addParameter'
+        index: 1
+        name: 'classes'
+        style: optional_named
+        argumentValue:
+          expression: '{% classes %}'
+          variables:
+            classes:
+              kind: 'fragment'
+              value: 'arguments[1]'
+      - kind: 'removeParameter'
+        index: 1
+  - title: 'flutter3d 1.0.0-rc.1+1: build-AssetManifest-AssetBuildManifest'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_build/flutter3d_build.dart']
+      class: 'AssetManifest'
+    changes:
+      - kind: 'rename'
+        newName: 'AssetBuildManifest'
+  - title: 'flutter3d 1.0.0-rc.1+1: build-ConformanceTest-new'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_build/flutter3d_build.dart']
+      constructor: ''
+      inClass: 'ConformanceTest'
+    changes:
+      - kind: 'removeParameter'
+        name: 'check'

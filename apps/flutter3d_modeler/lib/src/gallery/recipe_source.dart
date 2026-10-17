@@ -29,7 +29,7 @@ final class RecipeSource implements GallerySource {
         name: recipe.name,
         about: recipe.about,
         category: recipe.category,
-        licence: GalleryLicence.ours,
+        license: GalleryLicence.ours,
         sourceId: id,
         // Built when somebody inserts, not while the grid draws: sixteen
         // meshes made to fill a list nobody has clicked in is sixteen

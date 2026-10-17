@@ -1,4 +1,4 @@
-/// Writes `lib/engine_compute_shaders.dart`: the engine's compute stages in
+/// Writes `lib/src/engine_compute_shaders.dart`: the engine's compute stages in
 /// WGSL, with their bindings and workgroup size — `H6`.
 ///
 ///     dart run tool/generate_compute_shaders.dart
@@ -15,9 +15,7 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter3d_webgl/src/glsl_translate.dart';
-import 'package:flutter3d_webgpu/src/source_package.dart';
-import 'package:flutter3d_webgpu/src/wgsl_compiler.dart';
+import 'package:flutter3d_shaders/compile.dart';
 
 final RegExp _localSize = RegExp(
   r'layout\s*\(\s*local_size_x\s*=\s*(\d+)'
@@ -69,8 +67,8 @@ void main() {
     ..writeln('// through glslangValidator and naga.')
     ..writeln('library;')
     ..writeln()
-    ..writeln("import 'src/webgpu_bundle_section.dart';")
-    ..writeln("import 'src/webgpu_compute_stage.dart';")
+    ..writeln("import 'webgpu_bundle_section.dart';")
+    ..writeln("import 'webgpu_compute_stage.dart';")
     ..writeln()
     ..writeln("/// The engine's compute stages, in WGSL, with their bindings.")
     ..writeln(
@@ -144,7 +142,7 @@ void main() {
   }
   out.writeln('};');
 
-  final target = File('lib/engine_compute_shaders.dart')
+  final target = File('lib/src/engine_compute_shaders.dart')
     ..writeAsStringSync(out.toString());
   Process.runSync('dart', <String>['format', target.path]);
   stdout.writeln(

@@ -167,7 +167,7 @@ void main() {
       final out = PadSnapshot();
       state.fill(out);
 
-      expect(out.connected, isTrue);
+      expect(out.isConnected, isTrue);
       expect(out.axis(PadAxis.leftStickY), 0.0);
       expect(out.down(PadButton.faceSouth), isFalse);
     });
@@ -181,7 +181,7 @@ void main() {
       state.fill(out);
 
       expect(state.connected, isFalse);
-      expect(out.connected, isFalse);
+      expect(out.isConnected, isFalse);
       expect(out.axis(PadAxis.triggerRight), 0.0);
     });
 

@@ -34,14 +34,16 @@ import 'dart:ui'
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show RenderRepaintBoundary;
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
+import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
+    show preparePhysics;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:vector_math/vector_math.dart' as vm;
@@ -51,6 +53,7 @@ import '../animation_wiring.dart';
 import '../app_config.dart';
 import '../app_version.dart';
 import '../autosaving.dart';
+import '../backend.dart' show modelerDevices;
 import '../cabinet_link.dart';
 import '../churn_run.dart';
 import '../close_beforeunload.dart';
@@ -190,6 +193,7 @@ part 'ready_parts.dart';
 part 'retarget_wiring.dart';
 part 'sculpt_wiring.dart';
 part 'uv_wiring.dart';
+part 'viewer_parts.dart';
 part 'weight_paint_wiring.dart';
 
 /// `ui-30n`: wires an exception nobody caught to the same response wherever
@@ -208,7 +212,13 @@ void runModeler() {
     );
   };
   runZonedGuarded(
-    () => runApp(const ModelerApp()),
+    () async {
+      WidgetsFlutterBinding.ensureInitialized();
+      // The physics Play walks on, chosen once: the core, which the browser
+      // fetches as WebAssembly, or the reference where it will not start.
+      await preparePhysics();
+      runApp(const ModelerApp());
+    },
     (Object error, StackTrace stack) =>
         unawaited(_onUncaughtError(error, stack)),
   );
@@ -668,7 +678,11 @@ class _ModelerScreenState extends State<ModelerScreen>
   late final SettingsStore _settingsStore = SettingsStore(
     storage: widget.settingsStorage,
   );
-  late ModelerSettings _settings = _settingsStore.read();
+
+  ///
+  /// The defaults until `_open` has read the stored ones, which it does
+  /// before anything on screen asks.
+  ModelerSettings _settings = const ModelerSettings();
 
   /// `ux-27`: whether the properties panel and the tool rail are folded
   /// away, giving their width to the picture. This session's own, not
@@ -741,22 +755,26 @@ class _ModelerScreenState extends State<ModelerScreen>
     // whatever the camera is now, and the frame is what asks for the next one.
     _ticker = createTicker(_onTick)..start();
     _timings.start();
-    _autosave = AutosaveController(
-      cubit: _cubit,
-      storage:
-          widget.autosaveStorage ??
-          defaultBinaryStorage(
-            'flutter3d_modeler',
-            onIssue: _storageIssues.add,
-          ),
-      sessionId: _kAutosaveSessionId,
-      issues: _storageIssues,
-      onIssue: (String reason) => _cubit.autosaveFailed(
-        reason,
-        folder: applicationFolder('flutter3d_modeler'),
-      ),
-      onRecovered: _cubit.autosaveRecovered,
-    );
+    // A view-only build writes nothing anywhere: nothing it shows can change,
+    // so there is nothing to keep and no recovery to offer next time.
+    _autosave = kViewerOnly
+        ? null
+        : AutosaveController(
+            cubit: _cubit,
+            storage:
+                widget.autosaveStorage ??
+                defaultBinaryStorage(
+                  'flutter3d_modeler',
+                  onIssue: _storageIssues.add,
+                ),
+            sessionId: _kAutosaveSessionId,
+            issues: _storageIssues,
+            onIssue: (String reason) => _cubit.autosaveFailed(
+              reason,
+              folder: applicationFolder('flutter3d_modeler'),
+            ),
+            onRecovered: _cubit.autosaveRecovered,
+          );
     unawaited(_open());
     _lifecycle = AppLifecycleListener(onExitRequested: _onExitRequested);
     installBeforeUnloadGuard(() => _history.isDirty);
@@ -843,8 +861,11 @@ class _ModelerScreenState extends State<ModelerScreen>
 
   @override
   Widget build(BuildContext context) => FileDropZone(
-    onDropped: (String name, Uint8List bytes) =>
-        unawaited(_handleDroppedFile(name, bytes)),
+    // The viewer shows the model it was opened on; a file dropped on it is
+    // not an import into anything.
+    onDropped: (String name, Uint8List bytes) {
+      if (!kViewerOnly) unawaited(_handleDroppedFile(name, bytes));
+    },
     child: BlocConsumer<ModelerCubit, ModelerState>(
       bloc: _cubit,
       listenWhen: (ModelerState before, ModelerState after) =>

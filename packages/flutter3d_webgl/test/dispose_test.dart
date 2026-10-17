@@ -29,13 +29,12 @@ import 'package:flutter_test/flutter_test.dart';
 const int _width = 32;
 const int _height = 32;
 
-WebGlDevice _makeDevice() {
-  final device = WebGlDevice.create(
+Future<WebGlDevice> _makeDevice() async {
+  final device = await WebGlDevice.open(
     width: _width,
     height: _height,
-    sources: engineShaders,
+    sources: webGlEngineShaders,
   );
-  if (device == null) fail('no WebGL2 context in this browser');
   return device;
 }
 
@@ -43,17 +42,17 @@ ByteData _rgba(int width, int height) =>
     ByteData(width * height * 4); // all zero is a valid pixel buffer
 
 void main() {
-  test('a fresh device tracks nothing', () {
-    final device = _makeDevice();
+  test('a fresh device tracks nothing', () async {
+    final device = await _makeDevice();
     expect(device.debugTrackedResourceCount, 0);
     device.dispose();
   });
 
-  test('every persistent texture, cube and buffer is tracked', () {
-    final device = _makeDevice();
+  test('every persistent texture, cube and buffer is tracked', () async {
+    final device = await _makeDevice();
 
     device.createTexture(
-      const RenderTargetSpec(
+      const RenderTargetDescriptor(
         width: _width,
         height: _height,
         format: TextureFormat.r8g8b8a8UNormInt,
@@ -85,107 +84,125 @@ void main() {
     device.dispose();
   });
 
-  test('dispose deletes every tracked object and the driver accepts it', () {
-    final device = _makeDevice();
+  test(
+    'dispose deletes every tracked object and the driver accepts it',
+    () async {
+      final device = await _makeDevice();
 
-    device.createTexture(
-      const RenderTargetSpec(
-        width: _width,
-        height: _height,
-        format: TextureFormat.r8g8b8a8UNormInt,
-      ),
-    );
-    // A renderbuffer path: multisampled targets are renderbuffers rather than
-    // textures — see the note on WebGlTexture — and dispose has to reach both.
-    device.createTexture(
-      const RenderTargetSpec(
-        width: _width,
-        height: _height,
-        format: TextureFormat.r8g8b8a8UNormInt,
-        sampleCount: 4,
-      ),
-    );
-    device.uploadGeometry(ByteData(4 * 3), GeometryUsage.indices);
-    expect(device.debugTrackedResourceCount, 3);
-
-    // Drained first, so a leftover error from setup is not blamed on dispose.
-    device.debugDrainErrors('setup');
-
-    device.dispose();
-
-    expect(device.debugTrackedResourceCount, 0);
-    expect(
-      device.debugDrainErrors('dispose'),
-      isNull,
-      reason:
-          'gl.delete* on the tracked handles should not raise an error; '
-          'INVALID_VALUE here would mean the wrong handle, or the same '
-          'handle twice, was deleted',
-    );
-  });
-
-  test('disposing twice is refused rather than silently accepted', () {
-    final device = _makeDevice();
-    device.dispose();
-    expect(device.dispose, throwsStateError);
-  });
-
-  group('one at a time', () {
-    test('a released texture stops being tracked, and the driver agrees', () {
-      // **`dispose` was the only release there was**, and a renderer does not
-      // dispose — it reallocates. A resize remakes six or seven full-screen
-      // targets and a change of `cubeResolution` remakes two atlases of 75 MB
-      // each, all of them replaced by assigning over a field. That is a free
-      // where the collector does the work and a leak here, growing for as long
-      // as the tab is open.
-      //
-      // Mutation: make `releaseTexture` a no-op. The count stays at one.
-      final device = _makeDevice();
-      final texture = device.createTexture(
-        const RenderTargetSpec(
+      device.createTexture(
+        const RenderTargetDescriptor(
           width: _width,
           height: _height,
           format: TextureFormat.r8g8b8a8UNormInt,
         ),
       );
-      expect(device.debugTrackedResourceCount, 1);
+      // A renderbuffer path: multisampled targets are renderbuffers rather than
+      // textures — see the note on WebGlTexture — and dispose has to reach both.
+      device.createTexture(
+        const RenderTargetDescriptor(
+          width: _width,
+          height: _height,
+          format: TextureFormat.r8g8b8a8UNormInt,
+          sampleCount: 4,
+        ),
+      );
+      device.uploadGeometry(ByteData(4 * 3), GeometryUsage.indices);
+      expect(device.debugTrackedResourceCount, 3);
+
+      // Drained first, so a leftover error from setup is not blamed on dispose.
       device.debugDrainErrors('setup');
 
-      device.releaseTexture(texture);
+      device.dispose();
 
       expect(device.debugTrackedResourceCount, 0);
       expect(
-        device.debugDrainErrors('releaseTexture'),
+        device.debugDrainErrors('dispose'),
         isNull,
-        reason: 'INVALID_VALUE here would mean the wrong handle was deleted',
+        reason:
+            'gl.delete* on the tracked handles should not raise an error; '
+            'INVALID_VALUE here would mean the wrong handle, or the same '
+            'handle twice, was deleted',
       );
-      device.dispose();
-    });
+    },
+  );
 
-    test('releasing the same one twice deletes nothing the second time', () {
-      // The guard that makes the ring in the renderer safe to get wrong: a
-      // handle released twice must not become a second `gl.deleteTexture` on
-      // an id the driver may already have reissued.
-      final device = _makeDevice();
-      final texture = device.createTexture(
-        const RenderTargetSpec(
-          width: _width,
-          height: _height,
-          format: TextureFormat.r8g8b8a8UNormInt,
-        ),
-      );
-      device.releaseTexture(texture);
-      device.debugDrainErrors('first release');
+  test('disposing twice tells one loss and throws nothing', () async {
+    // The contract since 1.0.0-rc.1+1, held on every backend by the
+    // conformance check "a second dispose does nothing": a renderer and its
+    // owner can both let go. Mutation: put the `StateError` back.
+    final device = await _makeDevice();
+    final losses = <DeviceLoss>[];
+    final listening = device.lost.listen(losses.add);
+    device
+      ..dispose()
+      ..dispose();
+    await Future<void>.delayed(Duration.zero);
+    await listening.cancel();
+    expect(losses, hasLength(1));
+  });
 
-      device.releaseTexture(texture);
+  group('one at a time', () {
+    test(
+      'a released texture stops being tracked, and the driver agrees',
+      () async {
+        // **`dispose` was the only release there was**, and a renderer does not
+        // dispose — it reallocates. A resize remakes six or seven full-screen
+        // targets and a change of `cubeResolution` remakes two atlases of 75 MB
+        // each, all of them replaced by assigning over a field. That is a free
+        // where the collector does the work and a leak here, growing for as long
+        // as the tab is open.
+        //
+        // Mutation: make `releaseTexture` a no-op. The count stays at one.
+        final device = await _makeDevice();
+        final texture = device.createTexture(
+          const RenderTargetDescriptor(
+            width: _width,
+            height: _height,
+            format: TextureFormat.r8g8b8a8UNormInt,
+          ),
+        );
+        expect(device.debugTrackedResourceCount, 1);
+        device.debugDrainErrors('setup');
 
-      expect(device.debugTrackedResourceCount, 0);
-      expect(device.debugDrainErrors('second release'), isNull);
-      device.dispose();
-    });
+        device.releaseTexture(texture);
 
-    test('and a released geometry buffer goes the same way', () {
-      final device = _makeDevice();
+        expect(device.debugTrackedResourceCount, 0);
+        expect(
+          device.debugDrainErrors('releaseTexture'),
+          isNull,
+          reason: 'INVALID_VALUE here would mean the wrong handle was deleted',
+        );
+        device.dispose();
+      },
+    );
+
+    test(
+      'releasing the same one twice deletes nothing the second time',
+      () async {
+        // The guard that makes the ring in the renderer safe to get wrong: a
+        // handle released twice must not become a second `gl.deleteTexture` on
+        // an id the driver may already have reissued.
+        final device = await _makeDevice();
+        final texture = device.createTexture(
+          const RenderTargetDescriptor(
+            width: _width,
+            height: _height,
+            format: TextureFormat.r8g8b8a8UNormInt,
+          ),
+        );
+        device.releaseTexture(texture);
+        device.debugDrainErrors('first release');
+
+        device.releaseTexture(texture);
+
+        expect(device.debugTrackedResourceCount, 0);
+        expect(device.debugDrainErrors('second release'), isNull);
+        device.dispose();
+      },
+    );
+
+    test('and a released geometry buffer goes the same way', () async {
+      final device = await _makeDevice();
       final geometry = device.uploadGeometry(
         ByteData(4 * 3),
         GeometryUsage.indices,
@@ -199,5 +216,89 @@ void main() {
       expect(device.debugDrainErrors('releaseGeometry'), isNull);
       device.dispose();
     });
+
+    test('a pipeline is deleted with the last handle over its program, '
+        'and the pair links again', () async {
+      // Two handles over one pair share one program: the first given back
+      // leaves it, the second deletes it. Mutation: leave `releasePipeline`
+      // to the default, which does nothing. The count stays at three (two
+      // stages and the program); deleting at the first handle instead leaves
+      // the second drawing with a deleted program.
+      final device = await _makeDevice();
+      final vertex = device.shaders['DebugLineVertex']!;
+      final fragment = device.shaders['DebugLine']!;
+      final first = device.createPipeline(vertex, fragment);
+      final second = device.createPipeline(vertex, fragment);
+      expect(device.debugTrackedResourceCount, 3);
+      device.debugDrainErrors('setup');
+
+      first.dispose();
+      expect(device.debugTrackedResourceCount, 3);
+      second.dispose();
+      expect(device.debugTrackedResourceCount, 2);
+      expect(
+        device.debugDrainErrors('releasePipeline'),
+        isNull,
+        reason: 'INVALID_VALUE here would mean the program was deleted twice',
+      );
+
+      // Given back, the pair is linked anew the next time it is asked for.
+      device.createPipeline(vertex, fragment);
+      expect(device.debugTrackedResourceCount, 3);
+      device.dispose();
+      expect(device.debugTrackedResourceCount, 0);
+      expect(device.debugDrainErrors('dispose'), isNull);
+    });
+  });
+  test('a disposed stage is deleted, and its name answers anew', () async {
+    // `ShaderHandle.dispose`: the library forgets the handle and deletes the
+    // shader object, which the driver accepts.
+    // Mutation: delete the object without forgetting the handle. The second
+    // lookup hands back the deleted stage, and linking it raises an error.
+    final device = await _makeDevice();
+    final first = device.shaders['Composite']!;
+    first.dispose();
+    expect(first.isDisposed, isTrue);
+    expect(device.debugDrainErrors('dispose'), isNull);
+    final second = device.shaders['Composite']!;
+    expect(second, isNot(same(first)));
+    expect(second.isDisposed, isFalse);
+    device.dispose();
+  });
+
+  test('a refusal says which debug group was open', () async {
+    // WebGL2 has no `KHR_debug`; the groups are kept for this backend's own
+    // words. Mutation: leave `_where` out of `_fail`. The message loses the
+    // group.
+    final device = await _makeDevice();
+    final target = device.createTexture(
+      const RenderTargetDescriptor(
+        width: _width,
+        height: _height,
+        format: TextureFormat.r8g8b8a8UNormInt,
+      ),
+    );
+    final pass =
+        device.beginRenderPass(
+            RenderPassDescriptor(
+              colors: <ColorTarget>[ColorTarget(texture: target)],
+            ),
+          )
+          ..pushDebugGroup('opaque')
+          ..insertDebugMarker('floor');
+    expect(
+      () => pass.bindVertexBuffer(
+        device.uploadGeometry(ByteData(4 * 3), GeometryUsage.vertices),
+        3,
+      ),
+      throwsA(
+        isA<StateError>().having(
+          (e) => e.message,
+          'message',
+          allOf(contains('in "opaque"'), contains('after "floor"')),
+        ),
+      ),
+    );
+    device.dispose();
   });
 }

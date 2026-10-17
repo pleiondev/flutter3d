@@ -6,10 +6,12 @@ library;
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter3d_shaders/flutter3d_shaders.dart' show dielectricF0;
 import 'package:vector_math/vector_math.dart';
 
 import 'cpu_shader.dart';
 import 'cpu_shaders_color.dart';
+import 'cpu_shaders_evsm.dart' show shadowStored;
 
 /// `BayerCell` from `reflections.frag` and `light_shafts.frag`: one cell of a
 /// 4x4 Bayer matrix at window position ([x], [y]), in [0, 1).
@@ -55,7 +57,7 @@ double pixelNoise(ShaderBindings b, double x, double y) =>
 /// was a disagreement, and the shadow lookup had the right end of it: the march
 /// read the surface buffer upside down on every backend whose row zero is at
 /// the top, which is Impeller and this one. See `UvFromNdc` in reflections.frag.
-final class ReflectionsShader implements CpuFragmentShader {
+final class ReflectionsShader extends CpuFragmentShader {
   const ReflectionsShader();
 
   @override
@@ -80,7 +82,7 @@ final class ReflectionsShader implements CpuFragmentShader {
 
     if (surface.w <= 0.0) return done(background);
 
-    final normal = decodeOctahedral(surface.x, surface.y);
+    final normal = decodeSurfaceNormal(surface.x, surface.y);
     final roughness = surface.z;
     final polish = 1.0 - smoothstep(0.05, 0.25, roughness);
     if (polish <= 0.0) return done(background);
@@ -161,7 +163,7 @@ final class ReflectionsShader implements CpuFragmentShader {
       if (sceneDepth > 0.0 && marchDepth > sceneDepth) {
         final seen = worldFrom(su, sv, sceneDepth);
         final behind = march.distanceTo(seen);
-        final seenNormal = decodeOctahedral(seenSurface.x, seenSurface.y);
+        final seenNormal = decodeSurfaceNormal(seenSurface.x, seenSurface.y);
         if (behind < thickness && seenNormal.dot(ray) < 0.0) {
           // Five halvings of the last stride, as the GLSL, and no further back
           // than the march has come: the first step travels only the jittered
@@ -196,8 +198,10 @@ final class ReflectionsShader implements CpuFragmentShader {
       travelled += stride;
     }
 
-    // Schlick, F0 = 0.04, as the GLSL.
-    final fresnel = 0.04 + 0.96 * math.pow(1.0 - facing, 5.0).toDouble();
+    // Schlick, F0 = [dielectricF0], as the GLSL.
+    final fresnel =
+        dielectricF0 +
+        (1.0 - dielectricF0) * math.pow(1.0 - facing, 5.0).toDouble();
     final reflection = hitColour * (hit * intensity * polish * fresnel);
     // The share of the hit that is used, intensity included, as the GLSL.
     final confidence = hit * intensity * polish;
@@ -231,7 +235,7 @@ final class ReflectionsShader implements CpuFragmentShader {
 ///
 /// Mirrors the GLSL operation for operation, the contract every shader in
 /// this package keeps.
-final class LightShaftsShader implements CpuFragmentShader {
+final class LightShaftsShader extends CpuFragmentShader {
   const LightShaftsShader();
 
   @override
@@ -258,13 +262,16 @@ final class LightShaftsShader implements CpuFragmentShader {
     final ndcY = 1.0 - v[1] * 2.0;
     final nearH = inverse.transformed(Vector4(ndcX, ndcY, 0.0, 1.0));
     final farH = inverse.transformed(Vector4(ndcX, ndcY, 1.0, 1.0));
-    final origin = Vector3(nearH.x, nearH.y, nearH.z)..scale(1.0 / nearH.w);
+    final nearPoint = Vector3(nearH.x, nearH.y, nearH.z)..scale(1.0 / nearH.w);
     final farPoint = Vector3(farH.x, farH.y, farH.z)..scale(1.0 / farH.w);
-    final along = (farPoint - origin)..normalize();
+    final along = (farPoint - nearPoint)..normalize();
 
     final axis = Vector3(forward.x, forward.y, forward.z);
-    final surfaceDepth = surfaceTexture.sample(v[0], v[1]).w;
     final cosine = math.max(along.dot(axis), 1e-4);
+    // From the eye's plane, not the near plane — `P7`, as the GLSL has it.
+    final eye = Vector3(camera.x, camera.y, camera.z);
+    final origin = nearPoint - along * ((nearPoint - eye).dot(axis) / cosine);
+    final surfaceDepth = surfaceTexture.sample(v[0], v[1]).w;
     final toSurface = surfaceDepth > 0.0 ? surfaceDepth / cosine : 1e9;
     final distance = math.min(camera.w, toSurface);
     if (distance <= 0.0) return scene;
@@ -301,7 +308,10 @@ final class LightShaftsShader implements CpuFragmentShader {
           if (which < cascadeCount - 1) continue;
           candidate.z = 1.0;
         }
-        final stored = shadow.sample((tileX + which) / cascadeCount, tileY).x;
+        final stored = shadowStored(
+          shadow.sample((tileX + which) / cascadeCount, tileY).x,
+          bias.w,
+        );
         return candidate.z - bias[which] > stored ? 0.0 : 1.0;
       }
       // Outside the map is lit: a point with nothing recorded about it is not
@@ -314,12 +324,14 @@ final class LightShaftsShader implements CpuFragmentShader {
     final sigma = math.max(scatter.w, 0.0);
     final stepTransmittance = math.exp(-sigma * stride);
     var transmittance = math.exp(-sigma * offset);
-    final eye = Vector3(camera.x, camera.y, camera.z);
     var inscatter = 0.0;
     for (var i = 0; i < steps && i < 64; i++) {
       final travelled = offset + i * stride;
       final at = origin + along * travelled;
-      final lit = litAt(at, (at - eye).length);
+      // By the way along the ray from the eye's plane, as the GLSL picks
+      // the cascade: the distance from the eye through a perspective lens,
+      // the depth along the axis through an orthographic one — `P7`.
+      final lit = litAt(at, travelled);
       inscatter += transmittance * (1.0 - stepTransmittance) * lit;
       transmittance *= stepTransmittance;
     }
@@ -352,7 +364,7 @@ final class LightShaftsShader implements CpuFragmentShader {
 /// carried across literally: change either and the same picture stops coming
 /// out of the two implementations, which is the only thing keeping this one
 /// honest.
-final class DepthOfFieldShader implements CpuFragmentShader {
+final class DepthOfFieldShader extends CpuFragmentShader {
   const DepthOfFieldShader();
 
   /// `kGolden` from the shader.
@@ -371,7 +383,7 @@ final class DepthOfFieldShader implements CpuFragmentShader {
     required double focalLength,
     required double aperture,
     required double maxRadius,
-    required double texelsPerMetre,
+    required double texelsPerMeter,
   }) {
     final focus = math.max(focusDistance, 1e-3);
     final focal = math.max(focalLength, 1e-4);
@@ -380,21 +392,21 @@ final class DepthOfFieldShader implements CpuFragmentShader {
     // Nothing drawn is infinitely far, where the ratio tends to one.
     final ratio = depth <= 0.0 ? 1.0 : (depth - focus).abs() / depth;
     final diameter = ratio * (focal * focal) / denominator;
-    return math.min(diameter * 0.5 * texelsPerMetre, math.max(maxRadius, 0.0));
+    return math.min(diameter * 0.5 * texelsPerMeter, math.max(maxRadius, 0.0));
   }
 
   @override
   Vector4? run(Float32List v, ShaderBindings b, FragmentContext c) {
     final sceneTexture = b.textures['scene_texture'];
     if (sceneTexture == null) return Vector4(0.0, 0.0, 0.0, 1.0);
-    final centre = sceneTexture.sample(v[0], v[1]);
+    final center = sceneTexture.sample(v[0], v[1]);
 
     final lens = b.vec4('DofInfo', 'lens', Vector4.zero());
     final samples = (lens.w + 0.5).floor();
-    if (samples < 1) return centre;
+    if (samples < 1) return center;
 
     final surfaceTexture = b.textures['surface_texture'];
-    if (surfaceTexture == null) return centre;
+    if (surfaceTexture == null) return center;
 
     final params = b.vec4('DofInfo', 'params', Vector4.zero());
 
@@ -404,7 +416,7 @@ final class DepthOfFieldShader implements CpuFragmentShader {
       focalLength: lens.y,
       aperture: lens.z,
       maxRadius: params.z,
-      texelsPerMetre: params.w,
+      texelsPerMeter: params.w,
     );
 
     final centreDepth = surfaceTexture.sample(v[0], v[1]).w;
@@ -416,11 +428,11 @@ final class DepthOfFieldShader implements CpuFragmentShader {
       tiles == null ? 0.0 : tiles.sample(v[0], v[1]).x,
       radius,
     );
-    if (gather < 0.5) return centre;
+    if (gather < 0.5) return center;
 
-    var totalX = centre.x;
-    var totalY = centre.y;
-    var totalZ = centre.z;
+    var totalX = center.x;
+    var totalY = center.y;
+    var totalZ = center.z;
     var weight = 1.0;
     var nearX = 0.0;
     var nearY = 0.0;
@@ -473,7 +485,7 @@ final class DepthOfFieldShader implements CpuFragmentShader {
       mix(totalX / weight, nearX * nearScale),
       mix(totalY / weight, nearY * nearScale),
       mix(totalZ / weight, nearZ * nearScale),
-      centre.w,
+      center.w,
     );
   }
 }
@@ -481,7 +493,7 @@ final class DepthOfFieldShader implements CpuFragmentShader {
 /// `dof_tile_max.frag`: the largest circle of confusion along one row of a
 /// tile — `gfx-34n`. The columns and the neighbourhood after it are the
 /// motion blur's own passes.
-final class DofTileMaxShader implements CpuFragmentShader {
+final class DofTileMaxShader extends CpuFragmentShader {
   const DofTileMaxShader();
 
   @override
@@ -510,7 +522,7 @@ final class DofTileMaxShader implements CpuFragmentShader {
           focalLength: lens.y,
           aperture: lens.z,
           maxRadius: params.z,
-          texelsPerMetre: params.w,
+          texelsPerMeter: params.w,
         ),
       );
     }
@@ -525,7 +537,7 @@ final class DofTileMaxShader implements CpuFragmentShader {
 /// package keeps. Four modes and a no-op, decided by `params.x` — a number
 /// rather than an enum for the same reason the GLSL has one: it is part of a
 /// uniform layout four backends read.
-final class ViewportShadeShader implements CpuFragmentShader {
+final class ViewportShadeShader extends CpuFragmentShader {
   const ViewportShadeShader();
 
   @override
@@ -549,7 +561,7 @@ final class ViewportShadeShader implements CpuFragmentShader {
     if (depth <= 0.0) return scene;
 
     final screen = b.vec4('ShadeInfo', 'screen', Vector4.zero());
-    final normal = decodeOctahedral(surface.x, surface.y);
+    final normal = decodeSurfaceNormal(surface.x, surface.y);
     var shaded = Vector3(scene.x, scene.y, scene.z);
 
     if (mode == 1) {
@@ -593,7 +605,7 @@ final class ViewportShadeShader implements CpuFragmentShader {
         depthEdge = math.max(depthEdge, (tap.w - depth).abs());
         normalEdge = math.max(
           normalEdge,
-          1.0 - decodeOctahedral(tap.x, tap.y).dot(normal),
+          1.0 - decodeSurfaceNormal(tap.x, tap.y).dot(normal),
         );
       }
       final depthHit = depthEdge >= math.max(params.z, 1e-4) ? 1.0 : 0.0;
@@ -607,7 +619,7 @@ final class ViewportShadeShader implements CpuFragmentShader {
     } else if (mode == 4) {
       Vector3 at(double du, double dv) {
         final tap = surfaceTexture.sample(v[0] + du, v[1] + dv);
-        return decodeOctahedral(tap.x, tap.y);
+        return decodeSurfaceNormal(tap.x, tap.y);
       }
 
       final right = at(screen.x, 0.0);

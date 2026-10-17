@@ -56,7 +56,7 @@ String? generatorFor(String document, String generatedBy) {
 }
 
 /// The files under a checkout, for a generator to read.
-final class CheckoutSource implements GeneratorSource {
+final class CheckoutSource with GeneratorSource {
   const CheckoutSource(this.root);
 
   /// The repository root.

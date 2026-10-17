@@ -33,12 +33,12 @@ void main() {
       // Mutation: sample through a smooth interpolation instead of
       // `KeyTable.sample` — this would read values climbing from 1.0
       // toward 9.0 instead of holding flat at 1.0 until the jump.
-      for (final (time, value) in samples) {
+      for (final CurveSample(:time, :value) in samples) {
         if (time < 1.0) {
           expect(value, 1.0, reason: 't=$time');
         }
       }
-      expect(samples.last.$2, 9.0);
+      expect(samples.last.value, 9.0);
     });
 
     test('a cubic track matches AnimationTrack.sample exactly', () {
@@ -66,7 +66,11 @@ void main() {
       );
       final out = Float32List(1);
 
-      for (final (time, value) in curveSamples(table, 0, sampleCount: 13)) {
+      for (final CurveSample(:time, :value) in curveSamples(
+        table,
+        0,
+        sampleCount: 13,
+      )) {
         track.sample(time, out);
         // Mutation: reimplement Hermite interpolation locally instead of
         // delegating to `KeyTable.sample` (which itself delegates to

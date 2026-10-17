@@ -40,7 +40,7 @@ abstract final class Sounds {
     attenuation: InverseRolloff(reference: 12.0, maximum: 260.0),
   );
 
-  /// Tyres letting go. Driven by how far the car is sliding, so it is one loop
+  /// TireSet letting go. Driven by how far the car is sliding, so it is one loop
   /// held at a volume rather than a sound played on an event.
   static const SoundDef skid = SoundDef(
     name: 'skid',
@@ -139,10 +139,10 @@ final class CarVoice {
     : _engine = BlendedLoop(
         scene: scene,
         bands: const <LoopBand>[
-          LoopBand(sound: Sounds.engineLow, centre: Sounds.lowRevs, width: 0.5),
+          LoopBand(sound: Sounds.engineLow, center: Sounds.lowRevs, width: 0.5),
           LoopBand(
             sound: Sounds.engineHigh,
-            centre: Sounds.highRevs,
+            center: Sounds.highRevs,
             width: 0.5,
           ),
         ],
@@ -160,8 +160,8 @@ final class CarVoice {
   /// an answer only for whichever band happens to be audible.
   BlendedLoop get engine => _engine;
   final BlendedLoop _engine;
-  final SoundEmitter _skid;
-  final SoundEmitter _rumble;
+  final AudioEmitter _skid;
+  final AudioEmitter _rumble;
 
   /// How sideways the tyres have to be before they are heard at all.
   static const double _skidFrom = 0.12;
@@ -184,7 +184,7 @@ final class CarVoice {
     final sideways = vehicle.slipAngle.abs();
     final spinning = vehicle.slipRatio.abs();
     final sliding = math.max(sideways, spinning * 0.7);
-    final loudness = vehicle.grounded
+    final loudness = vehicle.isGrounded
         ? ((sliding - _skidFrom) / (_skidTo - _skidFrom)).clamp(0.0, 1.0)
         : 0.0;
     // Quiet at a crawl: a car turning in the pit lane is not squealing, whatever
@@ -197,7 +197,7 @@ final class CarVoice {
       ..position.setFrom(vehicle.position);
 
     _rumble
-      ..gain = offRoad && vehicle.grounded ? moving : 0.0
+      ..gain = offRoad && vehicle.isGrounded ? moving : 0.0
       ..position.setFrom(vehicle.position);
   }
 

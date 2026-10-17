@@ -16,18 +16,18 @@ import 'package:flutter/painting.dart' show Shadow, TextStyle;
 import 'package:flutter/widgets.dart' show Listener, Widget;
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
-/// A square map in the top-right corner of the game, [metres] pixels to the
+/// A square map in the top-right corner of the game, [meters] pixels to the
 /// metre, centred on the origin of the plane.
 final class FlameMinimap extends PositionComponent {
-  FlameMinimap({this.metres = 24.0, double side = 240.0})
+  FlameMinimap({this.meters = 24.0, double side = 240.0})
     : world = PositionComponent(
         position: Vector2.all(side / 2),
-        scale: Vector2.all(metres),
+        scale: Vector2.all(meters),
       ),
       super(size: Vector2.all(side));
 
   /// Pixels to the metre.
-  final double metres;
+  final double meters;
 
   /// Where bridged components go: a child here is positioned in metres.
   final PositionComponent world;
@@ -50,10 +50,10 @@ final class FlameMinimap extends PositionComponent {
     final Paint grid = Paint()
       ..color = const Color(0x33FFFFFF)
       ..style = PaintingStyle.stroke;
-    for (double x = size.x / 2 % metres; x <= size.x; x += metres) {
+    for (double x = size.x / 2 % meters; x <= size.x; x += meters) {
       canvas.drawLine(Offset(x, 0.0), Offset(x, size.y), grid);
     }
-    for (double y = size.y / 2 % metres; y <= size.y; y += metres) {
+    for (double y = size.y / 2 % meters; y <= size.y; y += meters) {
       canvas.drawLine(Offset(0.0, y), Offset(size.x, y), grid);
     }
     canvas.drawRect(

@@ -9,8 +9,9 @@ library;
 
 import 'package:flutter3d_editor/src/editor_cubit.dart';
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show LinearColor;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 import 'editor_cubit_helpers.dart';
 
@@ -75,7 +76,7 @@ void main() {
         kind: Piece.brush,
         what: 'stone',
         count: 2,
-        tint: Vector3(1.0, 1.0, 1.0),
+        tint: LinearColor.white,
       );
       cubit.setPlacing(row);
       var state = cubit.state as EditorReady;

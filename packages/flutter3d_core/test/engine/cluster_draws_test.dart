@@ -164,7 +164,7 @@ void main() {
       // Close to the sphere and looking at its side: the far side faces
       // away and the top and bottom bands leave the frustum.
       final camera =
-          CameraNode(projection: const PerspectiveProjection(fovYRadians: 0.5))
+          CameraNode(projection: const PerspectiveProjection(fovY: 0.5))
             ..setPosition(0.0, 0.0, 2.2)
             ..lookAt(Vector3.zero());
       final viewProjection = camera.viewProjection(1.0);
@@ -195,11 +195,11 @@ void main() {
     setUp(() {
       device = FakeBackend();
       mesh = DeviceMesh.upload(device, _bandedSphere());
-      node = MeshNode(mesh, Material());
+      node = MeshNode(mesh, RenderMaterial());
       device.uploads.clear();
     });
 
-    ({GeometryBuffer buffer, int count})? draw(
+    ClusterIndices? draw(
       ClusterDraws draws,
       CameraNode camera, {
       int view = 0,
@@ -246,7 +246,7 @@ void main() {
       final camera = CameraNode()
         ..setPosition(0.0, 0.0, 30.0)
         ..lookAt(Vector3.zero());
-      node.material = Material(doubleSided: true);
+      node.material = RenderMaterial(doubleSided: true);
       final viewProjection = camera.viewProjection(1.0);
       expect(
         draws.indicesFor(
@@ -315,7 +315,7 @@ void main() {
       final kinds = <int>[
         for (var i = 0; i < sections; i++)
           view.getUint32(
-            kF3dHeaderBytes + i * kF3dSectionEntryBytes,
+            f3dHeaderBytes + i * f3dSectionEntryBytes,
             Endian.little,
           ),
       ];

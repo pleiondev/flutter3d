@@ -25,12 +25,11 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' as engine show Material;
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d/flutter3d.dart' as engine show RenderMaterial;
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// One eye, and the pair is twice as wide.
 const int _eyeWidth = 64;
@@ -68,9 +67,9 @@ Projection _eyeProjection({required bool left}) => OffAxisProjection(
     scene.add(
       MeshNode(
         DeviceMesh.upload(uploads, CuboidShape(size: size).build()),
-        engine.Material(
+        engine.RenderMaterial(
           name: name,
-          baseColor: color,
+          baseColor: _fromSrgb(color),
           lighting: LightingModel.unlit,
         ),
         name: name,
@@ -115,17 +114,17 @@ Projection _eyeProjection({required bool left}) => OffAxisProjection(
   return (scene: scene, left: left, right: right);
 }
 
-RenderView _view(CameraNode camera, ViewportRect where) => RenderView(
+CameraView _view(CameraNode camera, ViewportRect where) => CameraView(
   camera: camera,
   viewportFraction: where,
-  clearColor: Vector4(0.0, 0.0, 0.0, 1.0),
+  clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
 );
 
 Future<Uint8List> _draw({
   required int width,
   required int height,
   required Scene scene,
-  required List<RenderView> views,
+  required List<CameraView> views,
   required RenderSettings settings,
 }) async {
   final it = cpuTestDevice(width: width, height: height);
@@ -141,9 +140,8 @@ Future<Uint8List> _draw({
     views: views,
     settings: settings,
   );
-  final pixels = await it.device.readPixels(result.frame);
-  expect(pixels, isNotNull, reason: 'the frame could not be read back');
-  return pixels!.buffer.asUint8List();
+  final pixels = await it.device.readback(result.frame);
+  return pixels.buffer.asUint8List();
 }
 
 /// The left or right half of a pair, as a frame of its own.
@@ -186,7 +184,7 @@ void main() {
         width: _eyeWidth * 2,
         height: _eyeHeight,
         scene: world.scene,
-        views: <RenderView>[
+        views: <CameraView>[
           _view(world.left, const ViewportRect(0.0, 0.0, 0.5, 1.0)),
           _view(world.right, const ViewportRect(0.5, 0.0, 0.5, 1.0)),
         ],
@@ -199,7 +197,7 @@ void main() {
         width: _eyeWidth,
         height: _eyeHeight,
         scene: world.scene,
-        views: <RenderView>[
+        views: <CameraView>[
           _view(world.left, const ViewportRect(0.0, 0.0, 1.0, 1.0)),
         ],
         settings: stereoSettings,
@@ -208,7 +206,7 @@ void main() {
         width: _eyeWidth,
         height: _eyeHeight,
         scene: world.scene,
-        views: <RenderView>[
+        views: <CameraView>[
           _view(world.right, const ViewportRect(0.0, 0.0, 1.0, 1.0)),
         ],
         settings: stereoSettings,
@@ -265,7 +263,7 @@ void main() {
       // angle.
       final world = _world();
       final symmetric = OffAxisProjection.symmetric(
-        fovYRadians: _eyeProjection(left: true).verticalFieldOfView!,
+        fovY: _eyeProjection(left: true).verticalFieldOfView!,
         near: 0.1,
         far: 100.0,
       );
@@ -274,7 +272,7 @@ void main() {
         width: _eyeWidth,
         height: _eyeHeight,
         scene: world.scene,
-        views: <RenderView>[
+        views: <CameraView>[
           _view(world.left, const ViewportRect(0.0, 0.0, 1.0, 1.0)),
         ],
         settings: stereoSettings,
@@ -314,7 +312,7 @@ void main() {
         width: _eyeWidth * 2,
         height: _eyeHeight,
         scene: world.scene,
-        views: <RenderView>[
+        views: <CameraView>[
           _view(world.left, const ViewportRect(0.0, 0.0, 0.5, 1.0)),
           _view(world.right, const ViewportRect(0.5, 0.0, 0.5, 1.0)),
         ],
@@ -324,7 +322,7 @@ void main() {
         width: _eyeWidth,
         height: _eyeHeight,
         scene: world.scene,
-        views: <RenderView>[
+        views: <CameraView>[
           _view(world.left, const ViewportRect(0.0, 0.0, 1.0, 1.0)),
         ],
         settings: bloomy,
@@ -341,3 +339,6 @@ void main() {
     });
   });
 }
+
+/// A `Vector4` holding a colour sRGB-encoded, as the linear colour it names.
+LinearColor _fromSrgb(Vector4 c) => LinearColor.fromSrgb(c.x, c.y, c.z, c.w);

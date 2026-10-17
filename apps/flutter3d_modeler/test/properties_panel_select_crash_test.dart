@@ -11,8 +11,8 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter3d_mcp/model.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
-import 'package:flutter3d_model_mcp/flutter3d_model_mcp.dart';
 import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/src/display_modes.dart';
 import 'package:flutter3d_modeler/src/staging.dart';
@@ -31,7 +31,7 @@ Future<void> _call(
   String name,
   Map<String, Object?> arguments,
 ) async {
-  final Answer answer = await _toolNamed(name).run(session, arguments);
+  final Answer answer = await _toolNamed(name).runOn(session, arguments);
   if (!answer.did) {
     throw StateError('$name refused: ${answer.says}');
   }

@@ -95,7 +95,7 @@ const int _kCemLdrRgbDirect = 8;
 /// values, then sixteen [_kWeightBits]-wide per-texel weights packed downward
 /// from bit 127 — 17 + 48 from the bottom and 48 from the top, leaving the
 /// fifteen bits between them zero.
-Uint8List encodeAstc4x4Block(List<(int, int, int, int)> pixels) {
+Uint8List encodeAstc4x4Block(List<Rgba8Texel> pixels) {
   final fit = blockEndpoints(pixels);
 
   // The weights are chosen against the endpoints as the block will *store*
@@ -109,7 +109,7 @@ Uint8List encodeAstc4x4Block(List<(int, int, int, int)> pixels) {
   final highExpanded = _expandColor(ordered.high);
 
   final weights = <int>[
-    for (final (er, eg, eb, _) in pixels)
+    for (final Rgba8Texel(r: er, g: eg, b: eb) in pixels)
       _nearestWeight(er, eg, eb, lowExpanded, highExpanded),
   ];
   return packAstc4x4Block(

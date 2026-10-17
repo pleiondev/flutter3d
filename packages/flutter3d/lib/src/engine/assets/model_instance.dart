@@ -25,23 +25,32 @@ final class ModelInstance {
     required this.skeletons,
     required this.player,
     this.variants = const <String>[],
-    this._drawn = const <(MeshNode, ModelPart)>[],
-    Material Function(Material)? materialFor,
+    List<(MeshNode, ModelPart)> drawn = const <(MeshNode, ModelPart)>[],
+    this._slots = const <String, int>{},
+    RenderMaterial Function(RenderMaterial)? materialFor,
     PointerTargets? pointerTargets,
-  }) : _materialFor = materialFor ?? _same,
+  }) : _drawn = List<(MeshNode, ModelPart)>.of(drawn),
+       _materialFor = materialFor ?? _same,
        pointerTargets = pointerTargets ?? PointerTargets();
 
-  static Material _same(Material material) => material;
+  static RenderMaterial _same(RenderMaterial material) => material;
 
   /// The material variants this model offers, by name — the asset's own.
   final List<String> variants;
 
   /// Each mesh node with the part it was built from, for [selectVariant].
+  ///
+  /// Its entries are replaced by [adopt], so a variant chosen after a swap
+  /// dresses the new parts.
   final List<(MeshNode, ModelPart)> _drawn;
+
+  /// Where in [_drawn] each drawn surface sits, by [ModelAssetInstantiate]'s
+  /// slot key: the node's name and which of its surfaces or levels this is.
+  final Map<String, int> _slots;
 
   /// The instance's own copy of an asset material, or the material itself
   /// when materials are shared — see [ModelAssetInstantiate.instantiate].
-  final Material Function(Material) _materialFor;
+  final RenderMaterial Function(RenderMaterial) _materialFor;
 
   /// Where the player's `KHR_animation_pointer` tracks land: this instance's
   /// materials by the file's index, and whatever lights the caller binds
@@ -79,6 +88,54 @@ final class ModelInstance {
     return true;
   }
 
+  /// Draws [next]'s meshes and materials in this instance's nodes, keeping
+  /// the nodes themselves: where the game put them, what the animation is
+  /// doing to them, what hangs from them.
+  ///
+  /// **For a model edited while the game runs.** The file changed on disk, or
+  /// arrived over the VM service; instantiating it again would build new
+  /// nodes, and every reference the game holds to the old ones — a hand a
+  /// sword hangs from, a node a camera follows — would point at a model no
+  /// longer drawn. So the surfaces are matched instead, by the name of the
+  /// node that draws them and their place among that node's surfaces, and
+  /// each matched [MeshNode] is handed the new geometry and material.
+  ///
+  /// What does not follow: a surface under a node [next] names differently,
+  /// or one it adds, is reported in [ModelSwap.added] and needs the model
+  /// instantiated again; one [next] no longer has is left drawn as it was and
+  /// reported in [ModelSwap.kept]. A node moved in the file stays where it
+  /// was here, since here it is the game's. The skeleton stays the one the
+  /// instance was built with, bound to the same nodes.
+  ///
+  /// The variant chosen with [selectVariant] is chosen again from [next]'s
+  /// parts. The old asset is not released: other instances may still draw it
+  /// until they adopt too, and the caller that loaded it knows when none do.
+  ModelSwap adopt(ModelAsset next) {
+    final nextSlots = next._slotParts();
+    final kept = <String>[];
+    var swapped = 0;
+    for (final MapEntry(key: slot, value: index) in _slots.entries) {
+      final part = nextSlots[slot];
+      if (part == null) {
+        kept.add(slot);
+        continue;
+      }
+      final (mesh, _) = _drawn[index];
+      mesh.mesh = part.mesh;
+      _drawn[index] = (mesh, part);
+      swapped++;
+    }
+    selectVariant(_variant);
+    return ModelSwap(
+      swapped: swapped,
+      kept: List<String>.unmodifiable(kept),
+      added: List<String>.unmodifiable(<String>[
+        for (final slot in nextSlots.keys)
+          if (!_slots.containsKey(slot)) slot,
+      ]),
+    );
+  }
+
   /// Lets animation pointer tracks aimed at the file's light [index] drive
   /// [light]. Instantiating a model creates no lights, so a clip that
   /// animates one reaches only a light the caller has put in its place.
@@ -101,6 +158,28 @@ final class ModelInstance {
   final AnimationPlayer? player;
 
   void removeFromScene() => root.removeFromParent();
+}
+
+/// What one [ModelInstance.adopt] did, by slot key: a node's name, then `/`
+/// and which of its surfaces (`s0`, `s1`, …) or level surfaces (`l0`, …).
+final class ModelSwap {
+  const ModelSwap({
+    required this.swapped,
+    required this.kept,
+    required this.added,
+  });
+
+  /// Surfaces drawn from the new asset now.
+  final int swapped;
+
+  /// Surfaces the new asset does not have, still drawn as they were.
+  final List<String> kept;
+
+  /// Surfaces only the new asset has; instantiate it again to draw them.
+  final List<String> added;
+
+  /// Whether the instance now draws everything the new asset has.
+  bool get isComplete => added.isEmpty;
 }
 
 /// `instantiate` and its helpers, added to [ModelAsset].
@@ -147,13 +226,13 @@ extension ModelAssetInstantiate on ModelAsset {
     final bounds = localBounds;
     final extent = bounds.max[axis] - bounds.min[axis];
     final scale = extent > 1e-9 ? length / extent : 1.0;
-    final centre = (bounds.min + bounds.max)..scale(0.5 * scale);
+    final center = (bounds.min + bounds.max)..scale(0.5 * scale);
     instance.root
       ..setUniformScale(scale)
       ..setPosition(
-        -centre.x,
-        onGround ? -bounds.min.y * scale : -centre.y,
-        -centre.z,
+        -center.x,
+        onGround ? -bounds.min.y * scale : -center.y,
+        -center.z,
       );
     return instance;
   }
@@ -179,7 +258,8 @@ extension ModelAssetInstantiate on ModelAsset {
     final created = List<SceneNode?>.filled(nodes.length, null);
     final meshNodes = <MeshNode>[];
     final drawn = <(MeshNode, ModelPart)>[];
-    final materials = <Material, Material>{};
+    final slots = <String, int>{};
+    final materials = <RenderMaterial, RenderMaterial>{};
     // Skeletons are attached after the walk: a joint may be created later than
     // the mesh that references it, so binding as we go would capture nulls.
     final pendingSkins = <(MeshNode, int)>[];
@@ -189,7 +269,7 @@ extension ModelAssetInstantiate on ModelAsset {
     // sinks are gathered per node and fanned out below.
     final morphSinks = List<List<MorphState>?>.filled(nodes.length, null);
 
-    Material materialFor(Material source) => shareMaterials
+    RenderMaterial materialFor(RenderMaterial source) => shareMaterials
         ? source
         : materials.putIfAbsent(source, () => _copyMaterial(source));
 
@@ -218,7 +298,7 @@ extension ModelAssetInstantiate on ModelAsset {
       parentNode.add(node);
       created[index] = node;
 
-      MeshNode? addSurface(int surfaceIndex) {
+      MeshNode? addSurface(int surfaceIndex, String slot) {
         if (surfaceIndex < 0 || surfaceIndex >= parts.length) return null;
         final part = parts[surfaceIndex];
         final mesh = MeshNode(
@@ -227,6 +307,9 @@ extension ModelAssetInstantiate on ModelAsset {
           name: part.name,
         );
         meshNodes.add(mesh);
+        if (_slotKey(model.name, slot) case final String key) {
+          slots.putIfAbsent(key, () => drawn.length);
+        }
         drawn.add((mesh, part));
         if (part.skinIndex != null) pendingSkins.add((mesh, part.skinIndex!));
 
@@ -262,11 +345,11 @@ extension ModelAssetInstantiate on ModelAsset {
             (lod) => lod.surfaceIndices.length == 1 || lod.impostor != null,
           );
       if (model.lods.isNotEmpty && singleSurfaceLevels) {
-        final baseMesh = addSurface(model.surfaces.single);
+        final baseMesh = addSurface(model.surfaces.single, 's0');
         if (baseMesh != null) {
           final levels = <LodLevel>[
             LodLevel(node: baseMesh, maxScreenFraction: 2.0),
-            for (final lod in model.lods)
+            for (final (level, lod) in model.lods.indexed)
               // `C4`: the card a chain ends in, drawn from the atlases the
               // asset uploaded once for every instance.
               if (impostors[lod.impostor] case final ImpostorPart part)
@@ -275,14 +358,15 @@ extension ModelAssetInstantiate on ModelAsset {
                     part.card,
                     albedo: part.albedo,
                     normalDepth: part.normalDepth,
-                    centre: lod.impostor!.centre,
+                    center: lod.impostor!.center,
                     radius: lod.impostor!.radius,
                     name: '${model.name ?? 'node'} impostor',
                   ),
                   maxScreenFraction: lod.maxScreenFraction,
                 )
               else if (lod.surfaceIndices.length == 1)
-                if (addSurface(lod.surfaceIndices.single) case final MeshNode m)
+                if (addSurface(lod.surfaceIndices.single, 'l$level')
+                    case final MeshNode m)
                   // The group sits at the node with no transform of its
                   // own, so the node's units the error is measured in are
                   // the group's.
@@ -295,8 +379,8 @@ extension ModelAssetInstantiate on ModelAsset {
           node.add(LodGroup(levels: levels, name: model.name));
         }
       } else {
-        for (final surfaceIndex in model.surfaces) {
-          final mesh = addSurface(surfaceIndex);
+        for (final (slot, surfaceIndex) in model.surfaces.indexed) {
+          final mesh = addSurface(surfaceIndex, 's$slot');
           if (mesh != null) node.add(mesh);
         }
       }
@@ -323,7 +407,7 @@ extension ModelAssetInstantiate on ModelAsset {
     // By the file's material index, through the same copy the parts got, so
     // a track on an unshared instance moves that instance's material only.
     final pointerTargets = PointerTargets(
-      materials: <int, Material>{
+      materials: <int, RenderMaterial>{
         for (final MapEntry(:key, :value) in this.materials.entries)
           key: materialFor(value),
       },
@@ -348,6 +432,7 @@ extension ModelAssetInstantiate on ModelAsset {
             ),
       variants: variants,
       drawn: drawn,
+      slots: slots,
       materialFor: materialFor,
       pointerTargets: pointerTargets,
     );
@@ -391,11 +476,41 @@ extension ModelAssetInstantiate on ModelAsset {
     _ => _MorphFan(states),
   };
 
-  static Material _copyMaterial(Material source) => source.copy();
+  static RenderMaterial _copyMaterial(RenderMaterial source) => source.copy();
+
+  /// The part each slot of this asset draws, keyed as [instantiate] keys
+  /// them, for [ModelInstance.adopt] to match against.
+  Map<String, ModelPart> _slotParts() {
+    final found = <String, ModelPart>{};
+    void put(String? node, String slot, int surface) {
+      if (surface < 0 || surface >= parts.length) return;
+      if (_slotKey(node, slot) case final String key) {
+        found.putIfAbsent(key, () => parts[surface]);
+      }
+    }
+
+    for (final node in nodes) {
+      for (final (slot, surface) in node.surfaces.indexed) {
+        put(node.name, 's$slot', surface);
+      }
+      for (final (level, lod) in node.lods.indexed) {
+        if (lod.surfaceIndices.length == 1) {
+          put(node.name, 'l$level', lod.surfaceIndices.single);
+        }
+      }
+    }
+    return found;
+  }
+
+  /// A drawn surface's name across two versions of one file: the node's name
+  /// and its place there. An unnamed node matches nothing, since two
+  /// unnamed nodes cannot be told apart.
+  static String? _slotKey(String? node, String slot) =>
+      node == null ? null : '$node/$slot';
 }
 
 /// A weights track reaching every primitive of one split mesh.
-final class _MorphFan implements MorphSink {
+final class _MorphFan with MorphSink {
   _MorphFan(this.states);
 
   final List<MorphState> states;

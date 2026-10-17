@@ -22,7 +22,7 @@ import 'dart:math' as math;
 
 import 'package:flutter3d_core/geometry.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
-import 'package:vector_math/vector_math.dart' hide Ray;
+import 'package:vector_math/vector_math.dart';
 
 /// A grid of quads `n` by `n`, which is the shape a subdivided plane has and
 /// the cheapest way to a mesh of a stated size.
@@ -139,7 +139,10 @@ void main() {
     final bvh = MeshBvh(mesh, plan);
     bench('MeshBvh.rebuild', 3, () => bvh.rebuild(mesh, plan), items: faces);
     bench('MeshBvh.refit', 5, () => bvh.refit(mesh), items: faces);
-    final ray = Ray(Vector3(0, 1, 0), Vector3(0.001, -1, 0.001)..normalize());
+    final ray = LocalRay(
+      Vector3(0, 1, 0),
+      Vector3(0.001, -1, 0.001)..normalize(),
+    );
     bench('MeshBvh.raycast', 2000, () => bvh.raycast(ray));
 
     // Coming the other way: what opening a file costs, over the drawable mesh

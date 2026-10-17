@@ -23,7 +23,7 @@ void main() {
     // 8-metre cell, so it spans cells -1 and 0 on both axes — the same
     // shape as the showcase's `LevelLoaderDemo` document.
     final brush = Brush(
-      centre: Vector3(0.0, -0.5, 0.0),
+      center: Vector3(0.0, -0.5, 0.0),
       size: Vector3(4, 1, 4),
     );
     final level = Level(name: 'straddles', brushes: <Brush>[brush]);

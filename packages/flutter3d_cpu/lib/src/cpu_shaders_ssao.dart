@@ -40,7 +40,7 @@ const List<List<double>> ssaoKernel = <List<double>>[
 /// normal in rg, metres along the view axis in a — because flutter_gpu cannot
 /// sample a depth attachment and the whole engine is built around that one
 /// fact.
-final class SsaoShader implements CpuFragmentShader {
+final class SsaoShader extends CpuFragmentShader {
   const SsaoShader();
 
   /// `PixelRadius` from `ssao.frag`: how many pixels of this target
@@ -257,7 +257,7 @@ final class SsaoShader implements CpuFragmentShader {
           final cosine =
               math.max(normal.dot(toward), 0.0) *
               math.max(
-                -decodeOctahedral(sampled.x, sampled.y).dot(toward),
+                -decodeSurfaceNormal(sampled.x, sampled.y).dot(toward),
                 0.0,
               );
           light.addScaled(
@@ -327,7 +327,7 @@ final class SsaoShader implements CpuFragmentShader {
     /// How deep [at] is, in the metres the buffer holds.
     double depthOf(Vector3 at) => (at - eye).dot(axis);
 
-    final normal = decodeOctahedral(surface.x, surface.y);
+    final normal = decodeSurfaceNormal(surface.x, surface.y);
 
     // `L5`: the horizon search with its light, as `SsilLight`.
     if (screen.z > 1.5) {
@@ -447,7 +447,7 @@ final class SsaoShader implements CpuFragmentShader {
 /// Mirrors the GLSL operation for operation, the contract every shader in
 /// this package keeps: the two are compared by golden images, and a shortcut
 /// here would read as a backend disagreeing about the picture.
-final class SsaoBlurShader implements CpuFragmentShader {
+final class SsaoBlurShader extends CpuFragmentShader {
   const SsaoBlurShader();
 
   @override
@@ -457,17 +457,17 @@ final class SsaoBlurShader implements CpuFragmentShader {
     final params = bindings.vec4('SsaoBlurInfo', 'params', Vector4.zero());
 
     // All four channels, as the shader since `L5`.
-    final centre = ao.sample(v[0], v[1]);
+    final center = ao.sample(v[0], v[1]);
     final taps = params.z;
-    if (taps < 1.0) return centre;
+    if (taps < 1.0) return center;
 
     final surface = bindings.textures['surface_texture'];
-    if (surface == null) return centre;
+    if (surface == null) return center;
 
     final centreDepth = surface.sample(v[0], v[1]).w;
     final falloff = math.max(params.w, 1e-4);
 
-    final total = Vector4.copy(centre);
+    final total = Vector4.copy(center);
     var weightSum = 1.0;
     // Bounded at eight to each side whatever the uniform says, the same rule
     // the shader keeps and for the same reason.

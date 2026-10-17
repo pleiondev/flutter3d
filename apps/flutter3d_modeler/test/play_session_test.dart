@@ -8,6 +8,8 @@ import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
 import 'package:flutter3d_modeler/src/play/play_session.dart';
 import 'package:flutter3d_modeler/src/play/play_template.dart';
+import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
+    show NativeCharacterMover, askedPhysics;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart' show Matrix4, Vector2, Vector3;
 
@@ -54,6 +56,12 @@ void main() {
     // it.** The body then falls for as long as Play is open, and the
     // template that walks a character delivers a character falling.
     expect(session.position.y, closeTo(0.9, 0.2));
+    // On the run's physics: the core by default, Dart when the build asks.
+    // Mutation: a world nobody attached, Dart under a run on the core.
+    expect(
+      session.world.characterMover,
+      askedPhysics == 'dart' ? isNull : isA<NativeCharacterMover>(),
+    );
   });
 
   test('forward is where the look points, and sprint is faster', () {

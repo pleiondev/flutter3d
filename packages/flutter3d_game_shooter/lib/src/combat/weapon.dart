@@ -187,7 +187,7 @@ final class Arsenal {
     _current = (from['current'] as num?)?.toInt() ?? 0;
     // A saved index into a roster that has since shrunk would throw on the
     // first shot rather than on load, which is the worse of the two places.
-    if (_current >= _owned.length) _current = _owned.isEmpty ? 0 : 0;
+    if (_current >= _owned.length) _current = 0;
     _cooldown = (from['cooldown'] as num?)?.toDouble() ?? 0.0;
     _reloading = (from['reloading'] as num?)?.toDouble() ?? 0.0;
     _magazines.clear();
@@ -263,6 +263,7 @@ final class Arsenal {
   final Map<String, int> _magazines = <String, int>{};
 
   /// How long the reload has left, or zero when none is running.
+  /// In seconds.
   double get reloading => _reloading;
   double _reloading = 0.0;
 
@@ -343,7 +344,7 @@ final class Arsenal {
         _ammo[weapon.ammo] = ammoOf(weapon.ammo) - weapon.ammoPerShot;
       }
     }
-    _cooldown = weapon.cooldownSeconds;
+    _cooldown = weapon.cooldown;
     return weapon;
   }
 

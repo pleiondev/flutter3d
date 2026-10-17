@@ -13,6 +13,8 @@ import 'occlusion_test.dart';
 ///
 /// Owns the buffer so a renderer allocates it once, on the first frame that
 /// asks, and a renderer that never asks allocates nothing.
+///
+/// A caller testing occlusion outside a renderer makes `SoftwareOcclusion()`.
 final class SoftwareOcclusion {
   /// Occluder triangles a frame may draw.
   ///
@@ -55,12 +57,14 @@ final class SoftwareOcclusion {
       if (!node.occluder) continue;
       final data = occluderGeometry(node);
       if (data == null) continue;
-      if (!node.visibleInHierarchy || !node.shadowCasting.drawsColour) continue;
+      if (!node.isVisibleInHierarchy || !node.shadowCasting.drawsColor) {
+        continue;
+      }
       if ((node.layerMask & layerMask) == 0) continue;
       if (!frustum.intersectsWithAabb3(node.worldBounds)) continue;
       // The angle the bounding sphere spans, near enough: what the mesh can
       // cover of the view. Inside the sphere is as large as it gets.
-      final distance = node.worldBoundsCentre.distanceTo(eye);
+      final distance = node.worldBoundsCenter.distanceTo(eye);
       final size = node.worldBoundsRadius / (distance > 1e-3 ? distance : 1e-3);
       _candidates.add((size: size, node: node, data: data));
     }

@@ -25,7 +25,7 @@ Vector2 _halfMotion(double x, double y, Vector4 scale, double most) {
 }
 
 /// `velocity_tile_max.frag`: the longest motion along one axis of a tile.
-final class VelocityTileMaxShader implements CpuFragmentShader {
+final class VelocityTileMaxShader extends CpuFragmentShader {
   const VelocityTileMaxShader();
 
   @override
@@ -63,7 +63,7 @@ final class VelocityTileMaxShader implements CpuFragmentShader {
 
 /// `velocity_neighbor_max.frag`: the longest motion in a tile and the eight
 /// around it.
-final class VelocityNeighborMaxShader implements CpuFragmentShader {
+final class VelocityNeighborMaxShader extends CpuFragmentShader {
   const VelocityNeighborMaxShader();
 
   @override
@@ -90,7 +90,7 @@ final class VelocityNeighborMaxShader implements CpuFragmentShader {
 
 /// `motion_blur.frag`: the gather along each neighbourhood's dominant
 /// motion, composited as the time each sample covers the pixel.
-final class MotionBlurShader implements CpuFragmentShader {
+final class MotionBlurShader extends CpuFragmentShader {
   const MotionBlurShader();
 
   static double _far(double depth) => depth <= 0.0 ? 1e9 : depth;
@@ -104,12 +104,12 @@ final class MotionBlurShader implements CpuFragmentShader {
   Vector4? run(Float32List v, ShaderBindings b, FragmentContext c) {
     final scene = b.textures['scene_texture'];
     if (scene == null) return Vector4(0.0, 0.0, 0.0, 1.0);
-    final centre = scene.sample(v[0], v[1]);
+    final center = scene.sample(v[0], v[1]);
     final velocity = b.textures['velocity_texture'];
     final surface = b.textures['surface_texture'];
     final neighbors = b.textures['neighbor_texture'];
     if (velocity == null || surface == null || neighbors == null) {
-      return centre;
+      return center;
     }
 
     final size = b.vec4('MotionBlurInfo', 'scene', Vector4.zero());
@@ -126,7 +126,7 @@ final class MotionBlurShader implements CpuFragmentShader {
     final reach = math.sqrt(dominant.x * dominant.x + dominant.y * dominant.y);
     final samples = (params.w + 0.5).floor();
     if (reach <= 0.5 || samples < 1) {
-      return centre;
+      return center;
     }
 
     double spanAt(double u, double w) {
@@ -145,7 +145,7 @@ final class MotionBlurShader implements CpuFragmentShader {
     final ownShare = math.min(math.max(stride, 1.0) / (2.0 * ownSpan), 1.0);
     final front = Vector3.zero();
     var frontCover = 0.0;
-    final level = Vector3(centre.x, centre.y, centre.z) * ownShare;
+    final level = Vector3(center.x, center.y, center.z) * ownShare;
     var levelCover = ownShare;
     final back = Vector3.zero();
     var backWeight = 0.0;
@@ -187,6 +187,6 @@ final class MotionBlurShader implements CpuFragmentShader {
     final under = _mix(behindColor, own, math.min(levelCover, 1.0));
     final over = frontCover > 0.0 ? front / frontCover : under;
     final blurred = _mix(under, over, math.min(frontCover, 1.0));
-    return Vector4(blurred.x, blurred.y, blurred.z, centre.w);
+    return Vector4(blurred.x, blurred.y, blurred.z, center.w);
   }
 }

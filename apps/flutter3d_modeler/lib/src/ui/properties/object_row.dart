@@ -7,7 +7,7 @@
 /// sentence being a surprise.
 library;
 
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
 
 import '../theme.dart';
@@ -78,6 +78,7 @@ class ObjectRow extends StatelessWidget {
                     // the model that something else is attached to, which is
                     // what an anchor says and what no shape glyph would.
                     SocketGeometry() => Icons.anchor_outlined,
+                    _ => Icons.help_outline,
                   },
                   size: 14,
                   color: theme.colorScheme.onSurfaceVariant,

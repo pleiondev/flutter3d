@@ -29,7 +29,10 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_webgl/flutter3d_webgl.dart';
-import 'package:vector_math/vector_math.dart' show Vector4;
+// The spike reads the linked program off a pipeline, which is the backend's
+// own business since 1.0.
+// ignore: implementation_imports
+import 'package:flutter3d_webgl/src/webgl_types.dart';
 
 const int kWidth = 256;
 const int kHeight = 192;
@@ -115,18 +118,21 @@ class _HarnessAppState extends State<HarnessApp> {
   @override
   void initState() {
     super.initState();
-    try {
-      _run();
-    } catch (error, stack) {
-      _say('THREW: $error');
-      _say('$stack');
-      _failed = true;
-    }
-    if (mounted) setState(() {});
+    _run().then(
+      (_) {
+        if (mounted) setState(() {});
+      },
+      onError: (Object error, StackTrace stack) {
+        _say('THREW: $error');
+        _say('$stack');
+        _failed = true;
+        if (mounted) setState(() {});
+      },
+    );
   }
 
-  void _run() {
-    final device = WebGlDevice.create(
+  Future<void> _run() async {
+    final device = await WebGlDevice.open(
       width: kWidth,
       height: kHeight,
       sources: const ShaderSources(
@@ -134,10 +140,6 @@ class _HarnessAppState extends State<HarnessApp> {
         <String, String>{'TriangleFragment': kFragmentSource},
       ),
     );
-    if (device == null) {
-      _check(false, 'WebGL2 context');
-      return;
-    }
     _device = device;
     _check(true, 'WebGL2 context');
 
@@ -190,25 +192,30 @@ class _HarnessAppState extends State<HarnessApp> {
       format: TextureFormat.r8g8b8a8UNormInt,
       pixels: ByteData.sublistView(white),
     );
-    _check(texture != null, 'created a texture from pixels');
+    _check(true, 'created a texture from pixels');
 
-    final wrongSize = device.createTextureFromPixels(
-      width: 2,
-      height: 2,
-      format: TextureFormat.r8g8b8a8UNormInt,
-      pixels: ByteData.sublistView(Uint8List(3)),
-    );
-    _check(wrongSize == null, 'pixels of the wrong size come back null');
+    var refused = false;
+    try {
+      device.createTextureFromPixels(
+        width: 2,
+        height: 2,
+        format: TextureFormat.r8g8b8a8UNormInt,
+        pixels: ByteData.sublistView(Uint8List(3)),
+      );
+    } on DeviceResourceException {
+      refused = true;
+    }
+    _check(refused, 'pixels of the wrong size are refused');
 
-    final colour = device.createTexture(
-      const RenderTargetSpec(
+    final color = device.createTexture(
+      const RenderTargetDescriptor(
         width: kWidth,
         height: kHeight,
         format: TextureFormat.r8g8b8a8UNormInt,
       ),
     );
     final depth = device.createTexture(
-      const RenderTargetSpec(
+      const RenderTargetDescriptor(
         width: kWidth,
         height: kHeight,
         format: TextureFormat.d24UnormS8Uint,
@@ -221,7 +228,10 @@ class _HarnessAppState extends State<HarnessApp> {
     final pass = device.beginRenderPass(
       RenderPassDescriptor(
         colors: <ColorTarget>[
-          ColorTarget(texture: colour, clearValue: Vector4(0.0, 0.0, 0.0, 1.0)),
+          ColorTarget(
+            texture: color,
+            clearValue: ClearColor(0.0, 0.0, 0.0, 1.0),
+          ),
         ],
         depth: DepthTarget(texture: depth),
       ),
@@ -235,13 +245,13 @@ class _HarnessAppState extends State<HarnessApp> {
 
     const full = ScreenRect(width: kWidth, height: kHeight);
     pass
-      ..setViewport(full)
+      ..setViewport(PassViewport.ofRect(full))
       ..setScissor(full)
       ..setPrimitiveType(PrimitiveType.triangle)
       ..setPolygonMode(PolygonMode.fill)
       ..setCullMode(CullMode.none)
       ..setWindingOrder(WindingOrder.counterClockwise)
-      ..setDepthWrite(true)
+      ..setDepthWrite(enabled: true)
       ..setDepthCompare(CompareFunction.less)
       ..setBlend(null)
       ..bindPipeline(pipeline)
@@ -272,8 +282,8 @@ class _HarnessAppState extends State<HarnessApp> {
     pass.bindTexture(
       fragment,
       'base_color_texture',
-      texture!,
-      sampler: SamplerOptions.linearClamp,
+      texture,
+      sampler: SamplerDescriptor.linearClamp,
     );
     _say(
       device.debugDrainErrors('after bindings') ?? 'no gl error after bindings',
@@ -284,21 +294,16 @@ class _HarnessAppState extends State<HarnessApp> {
     _say('pass submitted');
 
     // --- what came out -----------------------------------------------------
-    unawaited(_verify(device, colour));
+    unawaited(_verify(device, color));
     _frame = WebGlFramePresenter(
       device: device,
-      frame: colour,
+      frame: color,
       fit: BoxFit.contain,
     );
   }
 
-  Future<void> _verify(WebGlDevice device, TextureHandle colour) async {
-    final pixels = await device.readPixels(colour);
-    if (pixels == null) {
-      _check(false, 'readPixels returned bytes');
-      if (mounted) setState(() {});
-      return;
-    }
+  Future<void> _verify(WebGlDevice device, TextureHandle color) async {
+    final pixels = await device.readback(color);
     final bytes = pixels.buffer.asUint8List();
     _check(bytes.length == kWidth * kHeight * 4, 'readPixels returned a frame');
 

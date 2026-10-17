@@ -110,6 +110,7 @@ List<Listed> contentsOf(ModelProject project) => <Listed>[
         EditedGeometry() => 'mesh',
         ImportedGeometry() => 'imported',
         SocketGeometry() => 'socket',
+        _ => throw UnsupportedError('no listing word for ${object.geometry}'),
       },
       parent: object.parent,
       version: object.version,

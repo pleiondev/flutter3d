@@ -8,6 +8,7 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/formats.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Severity;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:test/test.dart';
@@ -78,7 +79,7 @@ void main() {
       issues,
       contains(
         predicate<ExportIssue>(
-          (i) => i.severity == ExportSeverity.error && i.message.contains('64'),
+          (i) => i.severity == Severity.error && i.message.contains('64'),
         ),
       ),
     );
@@ -94,7 +95,7 @@ void main() {
         contains(
           predicate<ExportIssue>(
             (i) =>
-                i.severity == ExportSeverity.warning &&
+                i.severity == Severity.warning &&
                 i.message.contains('joints') &&
                 i.message.contains('2'),
           ),
@@ -117,7 +118,7 @@ void main() {
       contains(
         predicate<ExportIssue>(
           (i) =>
-              i.severity == ExportSeverity.warning &&
+              i.severity == Severity.warning &&
               i.message.contains('non-uniform scale') &&
               i.object?.id == joint.id,
         ),
@@ -142,8 +143,7 @@ void main() {
       contains(
         predicate<ExportIssue>(
           (i) =>
-              i.severity == ExportSeverity.warning &&
-              i.message.contains('no weight'),
+              i.severity == Severity.warning && i.message.contains('no weight'),
         ),
       ),
     );
@@ -169,7 +169,7 @@ void main() {
       contains(
         predicate<ExportIssue>(
           (i) =>
-              i.severity == ExportSeverity.warning &&
+              i.severity == Severity.warning &&
               i.message.contains('do not sum to one'),
         ),
       ),
@@ -196,7 +196,7 @@ void main() {
       contains(
         predicate<ExportIssue>(
           (i) =>
-              i.severity == ExportSeverity.warning &&
+              i.severity == Severity.warning &&
               i.message.contains('influences'),
         ),
       ),
@@ -223,7 +223,7 @@ void main() {
       contains(
         predicate<ExportIssue>(
           (i) =>
-              i.severity == ExportSeverity.error &&
+              i.severity == Severity.error &&
               i.message.contains('outside') &&
               i.message.contains('joint index'),
         ),
@@ -239,7 +239,7 @@ void main() {
       contains(
         predicate<ExportIssue>(
           (i) =>
-              i.severity == ExportSeverity.warning &&
+              i.severity == Severity.warning &&
               i.message.contains('no vertex is weighted to'),
         ),
       ),
@@ -273,7 +273,7 @@ void main() {
       contains(
         predicate<ExportIssue>(
           (i) =>
-              i.severity == ExportSeverity.error &&
+              i.severity == Severity.error &&
               i.message.contains('999999') &&
               i.message.contains('does not have'),
         ),

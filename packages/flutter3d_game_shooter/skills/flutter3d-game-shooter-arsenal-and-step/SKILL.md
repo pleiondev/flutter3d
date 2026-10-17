@@ -14,16 +14,18 @@ Start a shooter by depending on this package rather than copying out of it:
 | | |
 |---|---|
 | `GameSimulation` | the step order: aim, fire, projectiles, blasts, actors, pickups, mechanisms |
-| `Arsenal`, `WeaponDef`, `WeaponBehaviour` | hitscan, projectile and blast as data rather than three classes |
+| `Arsenal`, `WeaponDef`, `WeaponBehavior` | hitscan, projectile and blast as data rather than three classes |
 | `Bestiary`, `MonsterDef`, `ChaseBrain` | what a monster does when it sees you, hears you, and is hurt |
 | `Inventory`, `Gift`, `Pickup` | what is carried, given, and refused because you are full |
 | `Player` | an eye, a body, and what it is holding |
 
-`lib/sample.dart` is this repository's own roster, to read and to replace.
+The package ships no roster. This repository's own (`Monsters`, `Weapons`,
+`sampleRegistry`) is `shooter_sample.dart` in the unpublished
+`flutter3d_demo_content`, to read and to replace.
 
 ## Weapons and monsters are data
 
-Add a weapon as a `WeaponDef` with a `WeaponBehaviour`, not as a class. Three
+Add a weapon as a `WeaponDef` with a `WeaponBehavior`, not as a class. Three
 behaviours cover a shooter: hitscan (a ray resolved this step), projectile (a
 body that travels and can be outrun), blast (a radius that asks every
 `Damageable` it reaches). A fourth kind of gun is nearly always a fourth set of

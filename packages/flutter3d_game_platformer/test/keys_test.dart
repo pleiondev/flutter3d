@@ -7,9 +7,12 @@
 library;
 
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
+
+import 'heard.dart';
 
 const double _dt = 1.0 / 60.0;
 
@@ -57,7 +60,7 @@ final class _Room {
     );
   }
 
-  final CollisionWorld world = CollisionWorld();
+  final CollisionWorld world = CollisionWorld(properties: platformerWorld);
   final InputState input = InputState();
   late final MechanismWorld mechanisms;
   late final Runner runner;
@@ -202,6 +205,8 @@ void _vanishing() {
       mechanisms: room.mechanisms,
       random: GameRandom(1),
     );
+    final heard = Heard();
+    sim.publishTo(heard.bus);
 
     // Onto the plate, which sits before the key: so the runner arrives at the
     // gate's trigger empty-handed, as a player would the first time.
@@ -214,9 +219,7 @@ void _vanishing() {
       sim.step(_dt);
       room.input.endStep();
       said.addAll(
-        sim.events.drain().whereType<LevelSaid>().map(
-          (LevelSaid e) => e.message,
-        ),
+        heard.take().whereType<LevelSaid>().map((LevelSaid e) => e.message),
       );
     }
 

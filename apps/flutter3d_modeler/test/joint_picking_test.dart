@@ -33,11 +33,7 @@ Offset _screenOf(Vector3 world) {
 
 PickingView _view() => PickingView(
   camera: CameraNode(
-    projection: PerspectiveProjection(
-      fovYRadians: _fovY,
-      near: 0.1,
-      far: 100.0,
-    ),
+    projection: PerspectiveProjection(fovY: _fovY, near: 0.1, far: 100.0),
   )..setPosition(0.0, 0.0, _eyeZ),
   size: _viewport,
 );
@@ -66,11 +62,11 @@ void main() {
 
   test('the nearer of two joints within radius wins', () {
     final view = _view();
-    final centre = Vector3(0.1, 0.0, 0.0);
-    final near = _screenOf(centre);
+    final center = Vector3(0.1, 0.0, 0.0);
+    final near = _screenOf(center);
     // A second joint a few pixels further from the click than joint 0, both
     // within an 8-pixel radius of it.
-    final joints = <int, Vector3>{0: centre, 1: Vector3(0.1, 0.02, 0.0)};
+    final joints = <int, Vector3>{0: center, 1: Vector3(0.1, 0.02, 0.0)};
 
     expect(pickJointAt(view, near, joints: joints, radius: 8.0), 0);
   });

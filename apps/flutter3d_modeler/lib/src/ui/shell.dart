@@ -167,7 +167,7 @@ class ModelerShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colours = theme.extension<ModelerColors>() ?? ModelerColors.dark;
+    final colors = theme.extension<ModelerColors>() ?? ModelerColors.dark;
     return Scaffold(
       // `ux-32`: the hand-off's own "фон окна" is `surfaceContainerLowest`,
       // not `surface`. The two differ by five points of lightness, which is
@@ -223,12 +223,12 @@ class ModelerShell extends StatelessWidget {
                 // column splits.
                 Expanded(
                   child: bottom == null
-                      ? ColoredBox(color: colours.viewport, child: viewport)
+                      ? ColoredBox(color: colors.viewport, child: viewport)
                       : Column(
                           children: <Widget>[
                             Expanded(
                               child: ColoredBox(
-                                color: colours.viewport,
+                                color: colors.viewport,
                                 child: viewport,
                               ),
                             ),

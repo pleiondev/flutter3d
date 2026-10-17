@@ -1,18 +1,26 @@
 #!/usr/bin/env python3
-"""Turns the downloaded packs into the two models this game ships.
+"""Turns the downloaded packs into the pieces and textures this game ships.
 
     python3 tool/prepare_models.py ~/Downloads
 
-Both packs are CC0, which asks for nothing — this script still exists because
-the files as downloaded are not the files this game wants: a crowd unit is
-built from six separate rigid parts under one armature, and both models
-reference their texture as a sibling PNG rather than carrying it.
+Every pack here is CC0 (see `assets/models/LICENSES.md`), which asks for
+nothing. The script exists because the files as downloaded are not the files
+this game wants:
 
-Run it again after re-downloading and the result is byte-identical, other
-than the one step that shells out to `gltf-transform` (node_modules is not
-vendored here, so that step needs network access the first time npx resolves
-the package). The racing and platformer games have scripts of the same shape
-and, so far, no shared code between the three.
+* each Kenney model points at its texture as a sibling `Textures/*.png`, and
+  several kits all call theirs `colormap.png`. The game picks the texture
+  itself (`lib/src/kit.dart` — it needs the castle's in two team colours
+  anyway), so the reference is taken out of the model and the texture is
+  shipped once, under a name that says which kit it belongs to;
+* the characters carry twenty-odd animation clips apiece, which a crowd drawn
+  as one instanced batch never plays, so they are dropped;
+* the ground textures arrive as 1024-pixel JPEGs with five maps beside them,
+  and only the colour is used — the ground is painted once, at load, into a
+  single picture of the whole map (`lib/src/ground_paint.dart`).
+
+Nothing is moved, scaled or joined here: `lib/src/kit.dart` composes the
+pieces in code, where a hall's layout is something a reader can see.
+Run it again after re-downloading and the result is byte-identical.
 """
 
 import json
@@ -20,119 +28,95 @@ import struct
 import subprocess
 import sys
 import tempfile
+import zipfile
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 MODELS = HERE.parent / 'assets' / 'models'
+TEXTURES = HERE.parent / 'assets' / 'textures'
 
-TEXTURE_SIDE = 512
+CASTLE = 'kenney_castle-kit.zip'
+ARENA = 'kenney_mini-arena.zip'
+BLOCKY = 'kenney_blocky-characters_20.zip'
+NATURE = 'kenney_nature-kit.zip'
+
+# (archive, member, shipped name)
+PIECES = [
+    *[(CASTLE, f'Models/GLB format/{name}.glb', f'castle-{name}.glb') for name in (
+        'tower-hexagon-base', 'tower-hexagon-mid', 'tower-hexagon-roof', 'tower-square-base', 'tower-square-mid-windows',
+        'tower-square-top-roof-high', 'wall', 'flag', 'flag-banner-long',
+        'siege-ram',
+    )],
+    (ARENA, 'Models/GLB format/character-soldier.glb', 'arena-soldier.glb'),
+    (ARENA, 'Models/GLB format/weapon-spear.glb', 'arena-spear.glb'),
+    (BLOCKY, 'Models/GLB format/character-p.glb', 'blocky-p.glb'),
+    (BLOCKY, 'Models/GLB format/character-k.glb', 'blocky-k.glb'),
+    *[(NATURE, f'Models/GLTF format/{name}.glb', f'nature-{name}.glb') for name in (
+        'tree_pineTallA_detailed', 'tree_pineRoundC', 'tree_oak',
+        'tree_default', 'tree_detailed', 'stone_tallA', 'stone_largeA',
+        'stone_smallA',
+    )],
+]
+
+# (archive, member, shipped name, longest side)
+IMAGES = [
+    (CASTLE, 'Models/GLB format/Textures/colormap.png', 'castle-colormap.png', 512),
+    (ARENA, 'Models/GLB format/Textures/colormap.png', 'arena-colormap.png', 512),
+    (BLOCKY, 'Models/GLB format/Textures/texture-p.png', 'blocky-p.png', 512),
+    (BLOCKY, 'Models/GLB format/Textures/texture-k.png', 'blocky-k.png', 512),
+    ('Grass001_1K-JPG.zip', 'Grass001_1K-JPG_Color.jpg', 'grass.jpg', 512),
+    ('Grass004_1K-JPG.zip', 'Grass004_1K-JPG_Color.jpg', 'meadow.jpg', 512),
+    ('Ground048_1K-JPG.zip', 'Ground048_1K-JPG_Color.jpg', 'dirt.jpg', 512),
+    ('Rock030_1K-JPG.zip', 'Rock030_1K-JPG_Color.jpg', 'rock.jpg', 512),
+    ('Ground054_1K-JPG.zip', 'Ground054_1K-JPG_Color.jpg', 'sand.jpg', 512),
+]
 
 
 def main() -> int:
     source = Path(sys.argv[1] if len(sys.argv) > 1 else '~/Downloads').expanduser()
     MODELS.mkdir(parents=True, exist_ok=True)
-
-    _prepare_worker(source)
-    _prepare_hall(source)
+    TEXTURES.mkdir(parents=True, exist_ok=True)
+    for archive, member, name in PIECES:
+        doc, binary = _parse(_extract(source, archive, member))
+        _strip(doc)
+        _write(doc, binary, MODELS / name)
+    for archive, member, name, side in IMAGES:
+        _image(_extract(source, archive, member), TEXTURES / name, side)
     return 0
 
 
-# ------------------------------------------------------------------ worker
+def _strip(doc) -> None:
+    """Drops the clips and every texture reference, in place.
 
-
-def _prepare_worker(source: Path) -> None:
-    """`Blocky Characters`' `character-a.glb` -> `assets/models/worker.glb`.
-
-    As downloaded this is six meshes — head, torso, two arms, two legs — each
-    a rigid child of an armature bone, animated by moving the bone rather than
-    by skinning. A crowd unit is drawn through `InstancedMeshNode`, which
-    shares one mesh across every instance and cannot share six, so the six
-    are joined into one before this ever reaches the engine. Animation is
-    dropped in the same step: a crowd of a hundred does not carry a hundred
-    independent clip players, and the six parts read as recognisably a person
-    even standing in whatever pose the rig's rest position leaves them in.
+    The buffer views the images used stay in the binary chunk unreferenced —
+    harmless, and the Kenney files carry none: their images are external.
     """
+    for key in ('animations', 'images', 'textures', 'samplers'):
+        doc.pop(key, None)
+    for material in doc.get('materials', []):
+        pbr = material.get('pbrMetallicRoughness', {})
+        pbr.pop('baseColorTexture', None)
+        pbr.pop('metallicRoughnessTexture', None)
+        for key in ('normalTexture', 'occlusionTexture', 'emissiveTexture'):
+            material.pop(key, None)
+
+
+def _image(data: bytes, out: Path, side: int) -> None:
     with tempfile.TemporaryDirectory() as work:
-        raw = _extract_glb(
-            source, 'kenney_blocky-characters_20.zip',
-            'Models/GLB format/character-a.glb',
-        )
-        texture = _extract(
-            source, 'kenney_blocky-characters_20.zip',
-            'Models/GLB format/Textures/texture-a.png',
-        )
-
-        doc, binary, name = _parse(raw)
-        doc.pop('animations', None)
-        _embed_image(doc, binary, 'Textures/texture-a.png', texture)
-        _resize_images(doc, binary, TEXTURE_SIDE)
-        joined_path = Path(work) / 'joined.glb'
-        _write((doc, binary, name), Path(work) / 'stripped.glb')
-        _run_gltf_transform_join(Path(work) / 'stripped.glb', joined_path)
-
-        joined = _read_file(joined_path)
-        # Scaled by height alone — the same call the platformer's own script
-        # makes for its runner, and for the same reason: a low-poly figure's
-        # width is however far its rest pose holds its arms, and only the
-        # height is a measurement worth matching to `UnitSize.height` (1.2 m,
-        # `packages/flutter3d_game_strategy/lib/bridge.dart`).
-        #
-        # Grounded rather than centred, unlike a `CuboidShape` unit: the model
-        # already stands on its own feet at the local origin, once the join's
-        # own baked bone offsets are folded in below, and `sync()` places a
-        # unit at ground level with no added lift when a real mesh is set —
-        # see `unitMesh` in `bridge.dart`.
-        _ground_and_scale_root(joined, target_height=1.2)
-        _rename_root(joined, 'worker')
-        _write(joined, MODELS / 'worker.glb')
-
-
-def _run_gltf_transform_join(src: Path, dst: Path) -> None:
-    subprocess.run(
-        ['npx', '--yes', '@gltf-transform/cli@latest', 'join', str(src), str(dst)],
-        check=True,
-    )
-
-
-# -------------------------------------------------------------------- hall
-
-
-def _prepare_hall(source: Path) -> None:
-    """`Castle Kit`'s `tower-square.glb` -> `assets/models/hall.glb`.
-
-    Already one mesh, one primitive, one node at the identity transform — the
-    only thing wrong with it is the same thing wrong with the racing game's
-    buildings before their own script ran: the texture is a sibling PNG,
-    useless to a bundle that resolves nothing relative to an asset path.
-    """
-    raw = _extract_glb(
-        source, 'kenney_castle-kit.zip', 'Models/GLB format/tower-square.glb',
-    )
-    texture = _extract(
-        source, 'kenney_castle-kit.zip',
-        'Models/GLB format/Textures/colormap.png',
-    )
-    doc, binary, name = _parse(raw)
-    _embed_image(doc, binary, 'Textures/colormap.png', texture)
-    _resize_images(doc, binary, TEXTURE_SIDE)
-    _write((doc, binary, name), MODELS / 'hall.glb')
-
-
-# --------------------------------------------------------------- zip / glb
+        scratch = Path(work) / out.name
+        scratch.write_bytes(data)
+        kind = 'jpeg' if out.suffix == '.jpg' else 'png'
+        args = ['sips', '-Z', str(side), '-s', 'format', kind]
+        if kind == 'jpeg':
+            args += ['-s', 'formatOptions', '85']
+        subprocess.run(args + [str(scratch), '--out', str(out)], check=True,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    print(f'{out.name}  {out.stat().st_size // 1024} KB')
 
 
 def _extract(source: Path, archive: str, member: str) -> bytes:
-    import zipfile
     with zipfile.ZipFile(source / archive) as zf:
         return zf.read(member)
-
-
-def _extract_glb(source: Path, archive: str, member: str) -> bytes:
-    return _extract(source, archive, member)
-
-
-def _read_file(path: Path):
-    return _parse(path.read_bytes())
 
 
 def _parse(blob: bytes):
@@ -141,121 +125,21 @@ def _parse(blob: bytes):
         raise SystemExit('first chunk is not JSON')
     doc = json.loads(blob[20:20 + json_len].decode('utf-8'))
     bin_len, _ = struct.unpack_from('<II', blob, 20 + json_len)
-    return doc, bytearray(blob[28 + json_len:28 + json_len + bin_len]), 'model.glb'
+    return doc, bytearray(blob[28 + json_len:28 + json_len + bin_len])
 
 
-def _write(model, out: Path) -> None:
-    doc, binary, name = model
+def _write(doc, binary: bytearray, out: Path) -> None:
     doc['buffers'][0]['byteLength'] = len(binary)
     text = json.dumps(doc, separators=(',', ':')).encode('utf-8')
     text += b' ' * ((4 - len(text) % 4) % 4)
+    while len(binary) % 4:
+        binary.append(0)
     blob = bytearray(struct.pack('<III', 0x46546C67, 2,
                                  12 + 8 + len(text) + 8 + len(binary)))
     blob += struct.pack('<II', len(text), 0x4E4F534A) + text
     blob += struct.pack('<II', len(binary), 0x004E4942) + binary
     out.write_bytes(blob)
-    print(f'{name} -> {out.name}  {len(blob) // 1024} KB')
-
-
-def _embed_image(doc, binary: bytearray, uri: str, data: bytes) -> None:
-    """Turns an external `uri` image into a buffer view, in place."""
-    while len(binary) % 4:
-        binary.append(0)
-    view_index = len(doc['bufferViews'])
-    doc['bufferViews'].append(
-        {'buffer': 0, 'byteOffset': len(binary), 'byteLength': len(data)},
-    )
-    binary.extend(data)
-    for image in doc.get('images', []):
-        if image.get('uri') == uri:
-            image.pop('uri', None)
-            image['bufferView'] = view_index
-            image['mimeType'] = 'image/png'
-
-
-def _resize_images(doc, binary: bytearray, side: int) -> None:
-    """Shrinks every embedded image bigger than `side`. See the racing
-    game's own `prepare_models.py` for why only the bigger ones move."""
-    wanted = {i['bufferView'] for i in doc.get('images', []) if 'bufferView' in i}
-    for image in doc.get('images', []):
-        if 'bufferView' in image:
-            image['mimeType'] = 'image/png'
-
-    pieces = []
-    with tempfile.TemporaryDirectory() as work:
-        for index, view in enumerate(doc['bufferViews']):
-            start = view.get('byteOffset', 0)
-            data = bytes(binary[start:start + view['byteLength']])
-            size = _png_size(data) if index in wanted else None
-            if size is not None and max(size) > side:
-                scratch = Path(work) / f'{index}.png'
-                scratch.write_bytes(data)
-                subprocess.run(
-                    ['sips', '-Z', str(side), '-s', 'format', 'png',
-                     str(scratch), '--out', str(scratch)],
-                    check=True, stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL)
-                data = scratch.read_bytes()
-            pieces.append(data)
-
-    rebuilt = bytearray()
-    for view, data in zip(doc['bufferViews'], pieces):
-        while len(rebuilt) % 4:
-            rebuilt.append(0)
-        view['byteOffset'] = len(rebuilt)
-        view['byteLength'] = len(data)
-        rebuilt += data
-    binary[:] = rebuilt
-
-
-def _png_size(data: bytes):
-    if data[:8] != b'\x89PNG\r\n\x1a\n':
-        return None
-    return struct.unpack('>II', data[16:24])
-
-
-def _ground_and_scale_root(model, *, target_height: float) -> None:
-    """Recentres X/Z on the origin, sets Y so the model stands on it, and
-    scales by height alone, folded into the single root node `join` leaves.
-
-    Derived from this model's own bounds rather than assumed: local vertex Y
-    ran -1.0..1.7 (2.7 m), X ran -1.0..0.6 (a rest pose is not symmetric,
-    whichever arm it favours), Z ran -0.4..0.4. `s = target_height /
-    local_height`; the translation is solved so the scaled minimum Y lands on
-    0 and the scaled X/Z centres land on 0.
-    """
-    doc, _, _ = model
-    min_v = [1e9, 1e9, 1e9]
-    max_v = [-1e9, -1e9, -1e9]
-    for mesh in doc['meshes']:
-        for prim in mesh['primitives']:
-            acc = doc['accessors'][prim['attributes']['POSITION']]
-            for i in range(3):
-                min_v[i] = min(min_v[i], acc['min'][i])
-                max_v[i] = max(max_v[i], acc['max'][i])
-
-    height = max_v[1] - min_v[1]
-    scale = target_height / height
-    center_x = (min_v[0] + max_v[0]) / 2.0
-    center_z = (min_v[2] + max_v[2]) / 2.0
-
-    translation = [
-        -scale * center_x,
-        -scale * min_v[1],
-        -scale * center_z,
-    ]
-
-    root_index = doc['scenes'][doc.get('scene', 0)]['nodes'][0]
-    node = doc['nodes'][root_index]
-    node.pop('matrix', None)
-    node['scale'] = [scale, scale, scale]
-    node['translation'] = translation
-
-
-def _rename_root(model, name: str) -> None:
-    doc, _, _ = model
-    root_index = doc['scenes'][doc.get('scene', 0)]['nodes'][0]
-    doc['nodes'][root_index]['name'] = name
+    print(f'{out.name}  {len(blob) // 1024} KB')
 
 
 if __name__ == '__main__':

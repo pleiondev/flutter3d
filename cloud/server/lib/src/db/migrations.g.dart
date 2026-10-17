@@ -215,4 +215,108 @@ alter table models add column search tsvector
 
 create index models_search on models using gin (search);
 '''),
+  Migration(4, '004_telemetry_runs.sql', r'''
+-- N7: runs players agreed to send, as what they did rather than what they
+-- pressed. The input is replayed and dropped; see `telemetry_store.dart`.
+
+create table telemetry_runs (
+  id               bigserial   primary key,
+  game             text        not null,
+  level_hash       text        not null,
+  level            text        not null,
+  outcome          text        not null
+    check (outcome in ('won', 'lost', 'unfinished')),
+  steps            integer     not null check (steps > 0),
+  -- `[[x, z], ...]`, sampled every few steps of the replay.
+  trail            jsonb       not null,
+  -- The hash, never the key: a leaked table erases nothing.
+  erase_key_sha256 text        not null,
+  -- The record of consent the run was taken under.
+  policy           text        not null,
+  consented_at     timestamptz not null,
+  received_at      timestamptz not null default now()
+);
+
+-- A heatmap reads one level's newest runs.
+create index telemetry_runs_by_level on telemetry_runs (level_hash, id desc);
+'''),
+  Migration(5, '005_shares.sql', r'''
+-- N10: levels shared behind short codes, and the reports against them. See
+-- `shares/share_store.dart`.
+
+create table shares (
+  -- Crockford base 32 of the address, seven characters unless a different
+  -- bundle already holds those; see `shares/short_code.dart`.
+  code        text        primary key check (code ~ '^[0-9A-HJKMNP-TV-Z]{7,51}$'),
+  -- The SHA-256 of `bundle`, hex. Unique, so a bundle shared twice is one row
+  -- however the two requests interleave.
+  address     text        not null unique check (address ~ '^[0-9a-f]{64}$'),
+  game        text        not null,
+  level_hash  text        not null,
+  title       text,
+  has_run     boolean     not null,
+  -- **Text, not jsonb.** jsonb keeps neither key order nor the exact spelling
+  -- of a number, and the address is the hash of these bytes: a code has to
+  -- open exactly what its address names.
+  bundle      text        not null,
+  status      text        not null
+    check (status in ('published', 'pending', 'removed')),
+  -- Why a moderator decided as they did; what a removed code answers with.
+  note        text,
+  created_at  timestamptz not null default now()
+);
+
+-- The moderation queue reads what still waits, oldest first.
+create index shares_pending on shares (created_at) where status = 'pending';
+
+-- Reports a moderator has not answered yet. Publishing a level again answers
+-- them, and they are deleted then.
+create table share_reports (
+  id          bigserial   primary key,
+  code        text        not null references shares (code) on delete cascade,
+  reason      text        not null,
+  reported_at timestamptz not null default now()
+);
+
+create index share_reports_by_code on share_reports (code, id);
+'''),
+  Migration(6, '006_model_exports.sql', r'''
+-- "Download as…": a model written out in another format, kept so the second
+-- request for it is a file read and not a conversion. See
+-- `convert/exporter.dart` and `/files/<id>/as/<format>`.
+--
+-- **Keyed by what was written, not by who asked.** The same source bytes
+-- (`source_sha256`) written in the same format by the same writers
+-- (`writer_version`) give the same file, so a hit for one model serves
+-- another that holds the same file. The row is still per model, so deleting
+-- a model takes its rows with it and `isReferenced` knows which blobs are
+-- still wanted.
+--
+-- **Only for the source a model has now.** Replacing the source drops the
+-- rows for the old one (`dropStaleExports`), and their blobs are freed the
+-- way every other blob here is: once `isReferenced` says nothing points at
+-- them.
+
+create table model_exports (
+  id             bigserial primary key,
+  model_id       bigint      not null references models (id) on delete cascade,
+  source_sha256  text        not null,
+  format         text        not null,
+  writer_version integer     not null,
+  blob_sha256    text        not null,
+  bytes          bigint      not null,
+  content_type   text        not null,
+  created_at     timestamptz not null default now(),
+
+  unique (model_id, source_sha256, format, writer_version)
+);
+
+-- A hit is looked up by what was written, whichever model it was written for.
+create index model_exports_by_key
+  on model_exports (source_sha256, format, writer_version);
+
+-- The same reason `model_files_by_blob` exists: `isReferenced` asks this for
+-- every blob a delete considers freeing.
+create index model_exports_by_blob on model_exports (blob_sha256);
+'''),
 ];

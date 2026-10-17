@@ -30,7 +30,9 @@ Future<void> checkStencilKeepsWhatItShould(GraphicsDevice device) async {
   // nothing about one, the way a backend without a compressed format is not
   // asked to sample it. What it is held to instead is drawing no silhouettes,
   // which is the renderer's side of the same answer.
-  if (!device.supportsStencil) return;
+  if (!device.features.has(DeviceFeature.stencil)) {
+    decline(device, 'has no stencil, so no stencil test is asked of it');
+  }
 
   const size = 16;
   final vertex = device.shaders['DebugLineVertex'];
@@ -41,14 +43,14 @@ Future<void> checkStencilKeepsWhatItShould(GraphicsDevice device) async {
   );
 
   final target = device.createTexture(
-    const RenderTargetSpec(
+    const RenderTargetDescriptor(
       width: size,
       height: size,
       format: TextureFormat.r8g8b8a8UNormInt,
     ),
   );
   final depth = device.createTexture(
-    RenderTargetSpec(
+    RenderTargetDescriptor(
       width: size,
       height: size,
       format: device.defaultDepthStencilFormat,
@@ -64,10 +66,10 @@ Future<void> checkStencilKeepsWhatItShould(GraphicsDevice device) async {
     'stencil, yet supportsStencil answered true',
   );
 
-  Float32List triangle(List<double> colour) => Float32List.fromList(<double>[
-    -1, -1, 0.5, ...colour, //
-    3, -1, 0.5, ...colour,
-    -1, 3, 0.5, ...colour,
+  Float32List triangle(List<double> color) => Float32List.fromList(<double>[
+    -1, -1, 0.5, ...color, //
+    3, -1, 0.5, ...color,
+    -1, 3, 0.5, ...color,
   ]);
   final indices = Uint16List.fromList(<int>[0, 1, 2]);
   final identity = Float32List.fromList(Matrix4.identity().storage);
@@ -78,7 +80,7 @@ Future<void> checkStencilKeepsWhatItShould(GraphicsDevice device) async {
         ColorTarget(
           texture: target,
           loadAction: LoadAction.clear,
-          clearValue: Vector4(1.0, 0.0, 0.0, 1.0),
+          clearValue: ClearColor(1.0, 0.0, 0.0, 1.0),
         ),
       ],
       depth: DepthTarget(texture: depth),
@@ -88,15 +90,19 @@ Future<void> checkStencilKeepsWhatItShould(GraphicsDevice device) async {
     ..setPrimitiveType(PrimitiveType.triangle)
     ..setCullMode(CullMode.none)
     ..setDepthCompare(CompareFunction.always)
-    ..setDepthWrite(false)
-    ..bindPipeline(device.createPipeline(vertex!, fragment!));
+    ..setDepthWrite(enabled: false)
+    ..bindPipeline(
+      device.createPipelineFrom(
+        PipelineDescriptor(vertex: vertex!, fragment: fragment!),
+      ),
+    );
 
-  void draw(List<double> colour) {
+  void draw(List<double> color) {
     pass
       ..bindUniformBlock(vertex, 'LineInfo', <String, Float32List>{
         'view_projection': identity,
       })
-      ..bindVertexData(ByteData.sublistView(triangle(colour)), 3)
+      ..bindVertexData(ByteData.sublistView(triangle(color)), 3)
       ..bindIndexData(ByteData.sublistView(indices), IndexType.int16, 3)
       ..draw();
   }
@@ -129,9 +135,8 @@ Future<void> checkStencilKeepsWhatItShould(GraphicsDevice device) async {
     ..setStencil(StencilState.disabled)
     ..submit();
 
-  final read = await device.readPixels(target);
-  require(read != null, 'the target could not be read back');
-  final bytes = read!.buffer.asUint8List();
+  final read = await device.readback(target);
+  final bytes = read.buffer.asUint8List();
   String at(int x, int y) {
     final i = (y * size + x) * 4;
     return 'r=${bytes[i]} g=${bytes[i + 1]} b=${bytes[i + 2]}';
@@ -198,7 +203,9 @@ Future<void> checkStencilKeepsWhatItShould(GraphicsDevice device) async {
 /// `CompareFunction.never` behind — a test that rejects everything — and the
 /// second configures no stencil at all and expects its draw to land.
 Future<void> checkPassStartsWithStencilOff(GraphicsDevice device) async {
-  if (!device.supportsStencil) return;
+  if (!device.features.has(DeviceFeature.stencil)) {
+    decline(device, 'has no stencil, so no pass can leave a test behind');
+  }
 
   const size = 8;
   final vertex = device.shaders['DebugLineVertex'];
@@ -207,19 +214,21 @@ Future<void> checkPassStartsWithStencilOff(GraphicsDevice device) async {
     vertex != null && fragment != null,
     'the debug-line stages are missing, so this cannot draw twice',
   );
-  final pipeline = device.createPipeline(vertex!, fragment!);
+  final pipeline = device.createPipelineFrom(
+    PipelineDescriptor(vertex: vertex!, fragment: fragment!),
+  );
   final indices = Uint16List.fromList(<int>[0, 1, 2]);
   final identity = Float32List.fromList(Matrix4.identity().storage);
-  Float32List triangle(List<double> colour) => Float32List.fromList(<double>[
-    -1, -1, 0.5, ...colour, //
-    3, -1, 0.5, ...colour,
-    -1, 3, 0.5, ...colour,
+  Float32List triangle(List<double> color) => Float32List.fromList(<double>[
+    -1, -1, 0.5, ...color, //
+    3, -1, 0.5, ...color,
+    -1, 3, 0.5, ...color,
   ]);
 
   /// A pass with its own colour and its own depth-stencil, because the rule is
   /// about what a *new* pass inherits and a shared attachment would let the
   /// first pass's stencil contents answer for it.
-  CommandEncoder open(TextureHandle target, Vector4 clear) =>
+  CommandEncoder open(TextureHandle target, ClearColor clear) =>
       device.beginRenderPass(
         RenderPassDescriptor(
           colors: <ColorTarget>[
@@ -231,7 +240,7 @@ Future<void> checkPassStartsWithStencilOff(GraphicsDevice device) async {
           ],
           depth: DepthTarget(
             texture: device.createTexture(
-              RenderTargetSpec(
+              RenderTargetDescriptor(
                 width: size,
                 height: size,
                 format: device.defaultDepthStencilFormat,
@@ -242,27 +251,27 @@ Future<void> checkPassStartsWithStencilOff(GraphicsDevice device) async {
         ),
       );
 
-  void draw(PassEncoder pass, List<double> colour) => pass
+  void draw(PassEncoder pass, List<double> color) => pass
     ..bindPipeline(pipeline)
     ..setPrimitiveType(PrimitiveType.triangle)
     ..setCullMode(CullMode.none)
     ..setDepthCompare(CompareFunction.always)
-    ..setDepthWrite(false)
+    ..setDepthWrite(enabled: false)
     ..bindUniformBlock(vertex, 'LineInfo', <String, Float32List>{
       'view_projection': identity,
     })
-    ..bindVertexData(ByteData.sublistView(triangle(colour)), 3)
+    ..bindVertexData(ByteData.sublistView(triangle(color)), 3)
     ..bindIndexData(ByteData.sublistView(indices), IndexType.int16, 3)
     ..draw();
 
   final first = device.createTexture(
-    const RenderTargetSpec(
+    const RenderTargetDescriptor(
       width: size,
       height: size,
       format: TextureFormat.r8g8b8a8UNormInt,
     ),
   );
-  final firstPass = open(first, Vector4(0.0, 0.0, 0.0, 1.0));
+  final firstPass = open(first, ClearColor(0.0, 0.0, 0.0, 1.0));
   firstPass.setStencil(const StencilState(compare: CompareFunction.never));
   draw(firstPass, <double>[1, 1, 1, 1]);
   // No `setStencil(StencilState.disabled)` here, and that omission is the
@@ -271,19 +280,18 @@ Future<void> checkPassStartsWithStencilOff(GraphicsDevice device) async {
   firstPass.submit();
 
   final second = device.createTexture(
-    const RenderTargetSpec(
+    const RenderTargetDescriptor(
       width: size,
       height: size,
       format: TextureFormat.r8g8b8a8UNormInt,
     ),
   );
-  final secondPass = open(second, Vector4(1.0, 0.0, 0.0, 1.0));
+  final secondPass = open(second, ClearColor(1.0, 0.0, 0.0, 1.0));
   draw(secondPass, <double>[0, 1, 0, 1]);
   secondPass.submit();
 
-  final read = await device.readPixels(second);
-  require(read != null, 'the target could not be read back');
-  final bytes = read!.buffer.asUint8List();
+  final read = await device.readback(second);
+  final bytes = read.buffer.asUint8List();
   final at = ((size ~/ 2) * size + size ~/ 2) * 4;
 
   // Mutation: give `CpuEncoder`'s `_stencilFront`/`_stencilBack` an initial

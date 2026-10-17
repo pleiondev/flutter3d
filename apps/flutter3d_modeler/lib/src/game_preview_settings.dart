@@ -25,7 +25,6 @@ import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
-import 'package:vector_math/vector_math.dart' show Vector3;
 
 /// `#RRGGBB`, sRGB, in 0..1 — the same tiny reader `weight_gradient.dart`
 /// keeps its own private copy of, for the same reason that file's own
@@ -44,9 +43,9 @@ Vector3 _srgbFromHex(int hex) => Vector3(
 double _srgbChannelToLinear(double c) =>
     c <= 0.04045 ? c / 12.92 : math.pow((c + 0.055) / 1.055, 2.4).toDouble();
 
-Vector3 _srgbToLinear(int hex) {
+LinearColor _srgbToLinear(int hex) {
   final srgb = _srgbFromHex(hex);
-  return Vector3(
+  return LinearColor(
     _srgbChannelToLinear(srgb.x),
     _srgbChannelToLinear(srgb.y),
     _srgbChannelToLinear(srgb.z),

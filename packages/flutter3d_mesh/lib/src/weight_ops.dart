@@ -20,6 +20,8 @@ final class WeightPair {
   const WeightPair(this.joint, this.weight);
 
   final int joint;
+
+  /// The joint's 0..1 share of the vertex.
   final double weight;
 
   @override

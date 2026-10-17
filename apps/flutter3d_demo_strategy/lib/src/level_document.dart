@@ -23,6 +23,7 @@ library;
 import 'dart:convert';
 
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Severity;
 import 'package:flutter3d_game_strategy/flutter3d_game_strategy.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
@@ -123,10 +124,10 @@ final class StrategyStart {
   const StrategyStart({required this.match, required this.mine});
 
   /// The sides, the ground under them, and the finishing line.
-  final Match match;
+  final StrategyMatch match;
 
   /// The units side nought commands, which in the application is the mouse.
-  final List<Unit> mine;
+  final List<StrategyUnit> mine;
 
   /// The crowd and the ground it walks on.
   StrategySimulation get simulation => match.simulation;
@@ -162,7 +163,7 @@ StrategyStart openMatch(StrategyMap map, {int? workers, int seed = 1}) {
     for (final EntityDef it in level.ofType(StrategyEntities.camp))
       it.name!: simulation.build(
         Building(
-          centre: it.position,
+          center: it.position,
           width: it.number('width')!,
           depth: it.number('depth')!,
           name: it.name!,
@@ -191,7 +192,7 @@ StrategyStart openMatch(StrategyMap map, {int? workers, int seed = 1}) {
     simulation.stock[it.integer('side') ?? 0].amount = it.number('amount')!;
   }
 
-  final mine = <Unit>[];
+  final mine = <StrategyUnit>[];
   for (final EntityDef it in level.ofType(StrategyEntities.worker)) {
     final int side = it.integer('side') ?? 0;
     final int count = workers ?? it.integer('count')!;
@@ -201,8 +202,8 @@ StrategyStart openMatch(StrategyMap map, {int? workers, int seed = 1}) {
     final Building home = halls[it.string('home')]!;
 
     for (var i = 0; i < count; i++) {
-      final Unit unit = simulation.add(
-        Unit(
+      final StrategyUnit unit = simulation.add(
+        StrategyUnit(
           position: Vector3(
             it.position.x + (i % across) * spacing,
             0.0,
@@ -225,7 +226,7 @@ StrategyStart openMatch(StrategyMap map, {int? workers, int seed = 1}) {
   }
 
   return StrategyStart(
-    match: Match(
+    match: StrategyMatch(
       simulation: simulation,
       // Side nought is the one somebody is holding a mouse for; every other
       // camp gets a policy. The two are given orders through the same handles,
@@ -253,29 +254,33 @@ int _sides(Level level) =>
 
 // MARK: - What a map has to be
 
-/// What this build can read, and what it requires of a whole map.
+/// The entity kinds a map may name: this game's own vocabulary rather than a
+/// default the engine hands out — there is none, deliberately, because a
+/// racing game has no camps and a dungeon has no seams.
 ///
-/// The registry is this game's own vocabulary rather than a default the engine
-/// hands out — there is none, deliberately, because a racing game has no camps
-/// and a dungeon has no seams.
+/// Read twice, by [strategyValidator] and by the `StrategyPlugin` the game
+/// installs, which adds them to the engine's `EntityKinds`.
+const List<EntityKind> strategyKinds = <EntityKind>[
+  _CampKind(),
+  _WorkerKind(),
+  _ResourceNodeKind(),
+  _StockpileKind(),
+  _ProducerKind(),
+];
+
+/// What this build can read, and what it requires of a whole map.
 final LevelValidator strategyValidator = LevelValidator(
-  registry: EntityRegistry(<EntityKind>[
-    const _CampKind(),
-    const _WorkerKind(),
-    const _ResourceNodeKind(),
-    const _StockpileKind(),
-    const _ProducerKind(),
-  ]),
+  registry: EntityRegistry(strategyKinds),
   rules: const <LevelRule>[
     AtLeastOne(
       StrategyEntities.camp,
       because: 'a match with no camps has nobody in it',
-      severity: LevelIssueSeverity.error,
+      severity: Severity.error,
     ),
     AtLeastOne(
       StrategyEntities.resourceNode,
       because: 'a map with nothing to dig cannot be won',
-      severity: LevelIssueSeverity.error,
+      severity: Severity.error,
     ),
   ],
 );
@@ -284,7 +289,10 @@ final class _CampKind extends EntityKind {
   const _CampKind() : super(StrategyEntities.camp);
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     // A camp is named because everything else points at it by name: the
     // producer that builds from it, the workers that carry to it.
     _requireName(entity, scope, out, 'so nothing can be told to carry to it');
@@ -298,7 +306,10 @@ final class _ResourceNodeKind extends EntityKind {
   const _ResourceNodeKind() : super(StrategyEntities.resourceNode);
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     _requireName(entity, scope, out, 'so nobody can be sent to dig it');
     _requirePositive(entity, scope, out, 'amount');
   }
@@ -308,7 +319,10 @@ final class _ProducerKind extends EntityKind {
   const _ProducerKind() : super(StrategyEntities.producer);
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     requireTarget(entity, scope, out);
     _requirePositive(entity, scope, out, 'cost');
     _requirePositive(entity, scope, out, 'seconds');
@@ -319,7 +333,10 @@ final class _StockpileKind extends EntityKind {
   const _StockpileKind() : super(StrategyEntities.stockpile);
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     _requireSide(entity, scope, out);
     // Zero is the usual answer and a perfectly good one, so this asks only
     // that the key is there: an opening purse nobody wrote is a purse whose
@@ -327,7 +344,7 @@ final class _StockpileKind extends EntityKind {
     if (entity.number('amount') == null) {
       out.add(
         LevelIssue(
-          LevelIssueSeverity.error,
+          Severity.error,
           'has no "amount", so nothing says what this side opens with',
           where: scope.describe(entity),
         ),
@@ -340,7 +357,10 @@ final class _WorkerKind extends EntityKind {
   const _WorkerKind() : super(StrategyEntities.worker);
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     _requireSide(entity, scope, out);
     _requirePositive(entity, scope, out, 'count');
     _requirePositive(entity, scope, out, 'across');
@@ -359,7 +379,7 @@ void _requireName(
   if (entity.name != null) return;
   out.add(
     LevelIssue(
-      LevelIssueSeverity.error,
+      Severity.error,
       'has no "name", $because',
       where: scope.describe(entity),
     ),
@@ -371,7 +391,7 @@ void _requireSide(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
   if (side != null && side >= 0) return;
   out.add(
     LevelIssue(
-      LevelIssueSeverity.error,
+      Severity.error,
       side == null
           ? 'has no "side", so nothing says whose it is'
           : 'belongs to side $side, and there is no such side',
@@ -390,7 +410,7 @@ void _requirePositive(
   if (value != null && value > 0.0) return;
   out.add(
     LevelIssue(
-      LevelIssueSeverity.error,
+      Severity.error,
       value == null
           ? 'has no "$key"'
           : 'has a "$key" of $value, which is not a quantity',
@@ -414,7 +434,7 @@ void _requireNamed(
   if (named != null && scope.level.named(named) != null) return;
   out.add(
     LevelIssue(
-      LevelIssueSeverity.error,
+      Severity.error,
       named == null
           ? 'has no "$key", so it has nowhere to go'
           : '"$key" names "$named", which no entity is called',

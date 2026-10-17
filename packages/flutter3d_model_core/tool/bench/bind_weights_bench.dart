@@ -38,13 +38,14 @@ List<int> gridTriangles(int side) {
   int at(int x, int y) => y * (side + 1) + x;
   for (var y = 0; y < side; y++) {
     for (var x = 0; x < side; x++) {
-      triangles
-        ..add(at(x, y))
-        ..add(at(x + 1, y))
-        ..add(at(x + 1, y + 1))
-        ..add(at(x, y))
-        ..add(at(x + 1, y + 1))
-        ..add(at(x, y + 1));
+      triangles.addAll(<int>[
+        at(x, y),
+        at(x + 1, y),
+        at(x + 1, y + 1),
+        at(x, y),
+        at(x + 1, y + 1),
+        at(x, y + 1),
+      ]);
     }
   }
   return triangles;

@@ -16,22 +16,39 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 import 'flip.dart';
 
 /// One scene to measure: built on the device it will be drawn on, with the
 /// settings it considers full quality.
 typedef QualityScene =
-    ({Scene scene, RenderView view, RenderSettings settings}) Function(
+    ({Scene scene, CameraView view, RenderSettings settings}) Function(
       GraphicsDevice device,
     );
 
 /// A row of [QualitySetting.grid], measured.
-typedef QualityMeasurement = ({
-  QualitySetting setting,
-  double cost,
-  double flip,
-});
+///
+/// A class rather than a record, so a row can later carry more measures
+/// without breaking a reader.
+final class QualityMeasurement {
+  const QualityMeasurement({
+    required this.setting,
+    required this.cost,
+    required this.flip,
+  });
+
+  /// The setting measured.
+  final QualitySetting setting;
+
+  /// What it cost: its frame time as a ratio of full quality's, one for
+  /// full quality itself.
+  final double cost;
+
+  /// How far its picture is from the reference, as a FLIP score: a
+  /// fraction, nought for the same picture.
+  final double flip;
+}
 
 /// Renders [scenes] at every setting of [QualitySetting.grid] on [device], at
 /// [width] × [height], and returns a measurement per setting in grid order.
@@ -73,7 +90,7 @@ Future<List<QualityMeasurement>> measureQualityTable({
 
   return <QualityMeasurement>[
     for (final (i, setting) in QualitySetting.grid.indexed)
-      (
+      QualityMeasurement(
         setting: setting,
         cost: i == 0
             ? 1.0
@@ -198,7 +215,7 @@ FrameResult Function() _drawer(
     width: width,
     height: height,
     scene: subject.scene,
-    views: <RenderView>[subject.view],
+    views: <CameraView>[subject.view],
     settings: settings,
   );
 }
@@ -210,10 +227,7 @@ Future<Uint8List> _picture(
   int width,
   int height,
 ) async {
-  final bytes = await device.readPixels(result.frame);
-  if (bytes == null) {
-    throw StateError('the device could not read back the frame');
-  }
+  final bytes = await device.readback(result.frame);
   return _stretch(
     bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),
     result.frame.width,

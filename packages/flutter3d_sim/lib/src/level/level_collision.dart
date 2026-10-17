@@ -2,6 +2,7 @@ import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:vector_math/vector_math.dart';
 
 import '../physics/layers.dart';
+import 'entity_kind.dart' show EntitySpawn;
 import 'heightfield.dart';
 import 'level.dart';
 import 'level_validator.dart';
@@ -30,11 +31,23 @@ extension LevelCollision on Level {
   ///
   /// With the level's recipes expanded: a wall a recipe stands for is a wall
   /// a body stops at.
+  ///
+  /// **A brush's collider is made of its substance**: the brush's
+  /// `physicalMaterial`, else its material's (`LevelMaterial.
+  /// physicalMaterial`), found in [world]'s catalogue
+  /// (`CollisionWorld.materials`), so a body meets a granite floor as
+  /// granite and a wall stops sound as oak does. A brush naming neither is
+  /// of nothing in particular; one naming an id the catalogue does not hold
+  /// is refused with the `UnknownMaterialException` that names its plugin.
   void addTo(CollisionWorld world) {
     if (heightfield case final ground?) world.add(_groundCollider(ground));
-    for (final brush in expandRecipes(this).brushes) {
+    final expanded = expandRecipes(this);
+    for (final brush in expanded.brushes) {
       if (!brush.solid) continue;
       final ramp = brush.ramp;
+      final substance =
+          brush.physicalMaterial ??
+          expanded.materials[brush.material]?.physicalMaterial;
       world.add(
         Collider(
           // A ramp is a brush with a corner cut off, and the difference is the
@@ -43,13 +56,16 @@ extension LevelCollision on Level {
           shape: ramp == null
               ? CollisionBox(brush.halfExtents)
               : CollisionWedge(brush.halfExtents, uphill: ramp),
-          position: brush.centre,
+          position: brush.center,
           // The document's own bit when it names one. A one-way platform, a
           // grate, a wall only some bodies respect: all of them are a brush on
           // a layer of its own, and the level format was the one place that
           // could not say so.
           layer: brush.layer ?? CollisionLayers.world,
           userData: brush,
+          material: substance == null
+              ? null
+              : world.materials.require(substance),
         ),
       );
     }
@@ -101,8 +117,9 @@ extension LevelCollision on Level {
   /// repair it should still see everything it can.
   void spawnInto(SpawnContext context, {required EntityRegistry registry}) {
     final kinds = registry;
+    context.level = this;
     for (final entity in entities) {
-      kinds[entity.type]?.spawn(entity, context);
+      kinds[entity.type]?.spawn(EntitySpawn(entity: entity, context: context));
     }
   }
 
@@ -111,12 +128,27 @@ extension LevelCollision on Level {
   /// Null when there is no spawn, which [LevelValidator] reports as an error —
   /// this returns rather than throws so a tool can load a broken level in order
   /// to fix it.
-  ({Vector3 position, double yaw})? get playerStart {
+  PlayerStart? get playerStart {
     for (final entity in entities) {
       if (entity.type == EntityTypes.playerSpawn) {
-        return (position: entity.position.clone(), yaw: entity.yaw);
+        return PlayerStart(position: entity.position.clone(), yaw: entity.yaw);
       }
     }
     return null;
   }
+}
+
+/// Where a level's player starts, and which way they face: what
+/// `Level.playerStart` answers.
+///
+/// A class rather than a record, so a later field — the spawn's id, say —
+/// is not a break.
+final class PlayerStart {
+  const PlayerStart({required this.position, required this.yaw});
+
+  /// Where, in the level's frame. The caller's own copy.
+  final Vector3 position;
+
+  /// Which way, radians about y.
+  final double yaw;
 }

@@ -14,10 +14,10 @@ import 'mesh_node.dart';
 int packSceneSpheres(List<MeshNode> meshes, Float32List out) {
   for (var i = 0; i < meshes.length; i++) {
     final node = meshes[i];
-    final centre = node.worldBoundsCentre;
-    out[i * 4] = centre.x;
-    out[i * 4 + 1] = centre.y;
-    out[i * 4 + 2] = centre.z;
+    final center = node.worldBoundsCenter;
+    out[i * 4] = center.x;
+    out[i * 4 + 1] = center.y;
+    out[i * 4 + 2] = center.z;
     out[i * 4 + 3] = node.worldBoundsRadius;
   }
 

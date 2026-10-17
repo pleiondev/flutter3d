@@ -116,7 +116,7 @@ void main() {
         // non-uniformity to remesh away, not a synthetic perturbation.
         expect(before.edgeLengthCv, greaterThan(0.1));
 
-        final (remeshed, report) = isotropicRemesh(
+        final RemeshedMesh(mesh: remeshed, :report) = isotropicRemesh(
           mesh,
           targetEdgeLength: before.meanEdgeLength,
           iterations: 8,
@@ -145,7 +145,7 @@ void main() {
       // convergence.
       expect(before.meanAspectRatio, greaterThan(1.5));
 
-      final (remeshed, report) = isotropicRemesh(
+      final RemeshedMesh(mesh: remeshed, :report) = isotropicRemesh(
         mesh,
         targetEdgeLength: before.meanEdgeLength,
         iterations: 8,
@@ -168,14 +168,14 @@ void main() {
       final mesh = triangulatedSphere(radius: 1, segments: 24, rings: 12);
       final target = MeshQualityStats.of(mesh).meanEdgeLength;
 
-      final (afterFew, fewReport) = isotropicRemesh(
+      final RemeshedMesh(mesh: afterFew, report: fewReport) = isotropicRemesh(
         mesh,
         targetEdgeLength: target,
         iterations: 2,
       );
       final fewCv = fewReport.after.edgeLengthCv;
 
-      final (afterMore, moreReport) = isotropicRemesh(
+      final RemeshedMesh(mesh: afterMore, report: moreReport) = isotropicRemesh(
         afterFew,
         targetEdgeLength: target,
         iterations: 6,

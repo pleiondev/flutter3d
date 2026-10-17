@@ -43,7 +43,7 @@ A jet flies up a river that narrows and splits round islands. Tankers and helico
 
 **The banks are not hitboxes.** The river's edge is a curve the course can answer for any point, so the jet asks whether it is over water rather than colliding with the hundreds of boxes a bank would need.
 
-**Free models, fitted to a length.** The jets, the helicopter and the tankers are free models in whatever unit their authors used, placed with `ModelAsset.instantiateFitted`. The valley, the trees, the bridges and the depots are built in code, painted with vertex colours through `linearFromSrgb` and `MeshData.withColor`, one mesh per stretch of river.
+**Free models, fitted to a length.** The jets, the helicopter and the tankers are free models in whatever unit their authors used, placed with `ModelAsset.instantiateFitted`. The valley, the trees, the bridges and the depots are built in code, painted with vertex colours through `LinearColor.fromSrgb` and `MeshData.withColor`, one mesh per stretch of river.
 
 The game's source is `apps/flutter3d_demo_river`, and its README credits the models.
 

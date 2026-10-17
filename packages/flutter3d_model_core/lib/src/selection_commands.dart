@@ -9,7 +9,7 @@
 /// the region was arrived at, and an agent driving the modeller could ask for
 /// an extrusion but had no way of saying what to extrude. A command fixes all
 /// three at once because the history, the journal and the tool table are all
-/// fed from the same sealed set.
+/// fed from the same set of commands.
 ///
 /// **The project comes back unchanged, and that is deliberate.** Every command
 /// here hands [ModelHistory] the very same [ModelProject] it was given, so
@@ -44,6 +44,7 @@ Selection _everything(EditMesh mesh, ElementLevel level) => switch (level) {
       if (mesh.isFaceAlive(face)) face,
   ]),
   ElementLevel.edge => _everyEdge(mesh),
+  _ => throw UnsupportedError('a half-edge mesh has no $level elements'),
 };
 
 Selection _everyEdge(EditMesh mesh) {
@@ -110,7 +111,7 @@ Outcome _asSelection(
   final found = _meshTarget(project, selection);
   if (found.target == null) return Outcome.refused(found.refused!);
   final OpResult result = choose(found.target!);
-  if (!result.ok) return Outcome.refused(result.reason!);
+  if (!result.isOk) return Outcome.refused(result.reason!);
   return _keep(
     project,
     selection,
@@ -201,6 +202,9 @@ final class SelectAll extends ModelCommand {
                 )
               : OpResult.done(selection: everything);
         }),
+        _ => Outcome.refused(
+          'there is no selecting everything in ${selection.mode} mode',
+        ),
       };
 }
 
@@ -224,11 +228,15 @@ final class SelectNone extends ModelCommand {
   Map<String, Object?> get arguments => const <String, Object?>{};
 
   @override
-  Outcome apply(ModelProject project, ProjectSelection selection) =>
-      _keep(project, selection, switch (selection.mode) {
-        SelectionMode.object => selection.copyWith(objects: const <int>[]),
-        SelectionMode.mesh => selection.copyWith(elements: const <int>[]),
-      });
+  Outcome apply(ModelProject project, ProjectSelection selection) => _keep(
+    project,
+    selection,
+    switch (selection.mode) {
+      SelectionMode.object => selection.copyWith(objects: const <int>[]),
+      SelectionMode.mesh => selection.copyWith(elements: const <int>[]),
+      _ => selection.copyWith(objects: const <int>[], elements: const <int>[]),
+    },
+  );
 }
 
 /// Everything that was not selected, and nothing that was.
@@ -269,6 +277,9 @@ final class InvertSelection extends ModelCommand {
               target.elements.level,
             ).difference(target.elements),
           ),
+        ),
+        _ => Outcome.refused(
+          'there is no inverting a selection in ${selection.mode} mode',
         ),
       };
 }
@@ -586,6 +597,8 @@ final class SelectNear extends ModelCommand {
   const SelectNear({required this.point, required this.radius});
 
   final Vector3 point;
+
+  /// In metres, in the object's own space.
   final double radius;
 
   @override
@@ -617,7 +630,7 @@ final class SelectNear extends ModelCommand {
       final ElementLevel level = target.elements.level;
       final found = <int>[
         for (final int id in liveElements(target.mesh, level))
-          if (elementCentre(target.mesh, level, id) case final Vector3 at)
+          if (elementCenter(target.mesh, level, id) case final Vector3 at)
             if ((at - point).length2 <= reach) id,
       ];
       return found.isEmpty
@@ -713,9 +726,4 @@ final class SelectElements extends ModelCommand {
   }
 }
 
-ElementLevel? _elementLevelNamed(String? word) {
-  for (final ElementLevel level in ElementLevel.values) {
-    if (level.name == word) return level;
-  }
-  return null;
-}
+ElementLevel? _elementLevelNamed(String? word) => elementLevelOf(word);

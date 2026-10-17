@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "set": "hollow",
+  "buttons": {
+    "act": ["key:101"],
+    "brake": ["key:32"],
+    "moveForward": ["key:119", "pad:dpad.up"]
+  },
+  "axes": [
+    {
+      "kind": "axisComposite",
+      "action": "lift",
+      "negative": "key:107",
+      "positive": "key:105"
+    },
+    {
+      "kind": "axis",
+      "action": "lift",
+      "source": "pad:axis.rightStickY",
+      "tuning": {"deadZone": 0.15, "invertX": true}
+    },
+    {
+      "kind": "dualAxis",
+      "action": "look",
+      "delta": true,
+      "source": "pointer:motion",
+      "tuning": {"sensitivity": 1.5, "invertY": true}
+    },
+    {
+      "kind": "dualAxisComposite",
+      "action": "aim",
+      "up": "key:105",
+      "down": "key:107",
+      "left": "key:106",
+      "right": "key:108"
+    },
+    {
+      "kind": "gyro",
+      "action": "aim",
+      "source": "sensor:gyro"
+    }
+  ]
+}

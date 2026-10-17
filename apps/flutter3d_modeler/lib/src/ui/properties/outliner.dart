@@ -17,7 +17,7 @@ library;
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart' as m show Material;
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show HardwareKeyboard;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
 
@@ -39,7 +39,7 @@ const int _deepestIndent = 6;
 ///
 /// **Ten, because the panel is a stack of sections and the object list is
 /// only one of them.** An imported scene is thirty objects and a rig is
-/// forty; laid out in full they push Transform, Material and the modifier
+/// forty; laid out in full they push Transform, RenderMaterial and the modifier
 /// stack so far down the panel that reaching them is a scroll past a list
 /// nobody was reading. A region of its own is what an outliner is in every
 /// application that has one.

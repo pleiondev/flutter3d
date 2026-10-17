@@ -5,10 +5,14 @@ import 'platform_default.dart';
 
 /// Whether a pad is attached.
 ///
-/// Two states rather than a bool, for the reason `pointer_lock`'s
+/// Two states rather than a bool, for the reason `flutter3d_pointer_lock`'s
 /// `CaptureState` has two: the interesting part is *which way* it changed. A
 /// game that sees `disconnected` has to release whatever the pad was holding,
 /// and a game that sees `connected` may want to say so on screen.
+///
+/// **Closed for good**: connected or not: a yes or a no, kept as two states for
+/// which way it changed. No member can be added without changing what the type
+/// means, so it stays an enum and a `switch` over it may name every case.
 enum PadConnection { disconnected, connected }
 
 /// The platform side of a gamepad.
@@ -42,7 +46,7 @@ abstract base class GamepadPlatform extends PlatformInterface {
   /// A **whitelist**, never try-and-see: asking the channel and catching the
   /// failure means every unsupported platform pays a `MissingPluginException`
   /// at first use, and a listener that has already been attached cannot be
-  /// un-attached. `pointer_lock` learnt this and says so.
+  /// un-attached. `flutter3d_pointer_lock` learnt this and says so.
   bool get isSupported;
 
   /// Attaching and detaching, as it happens.
@@ -58,24 +62,42 @@ abstract base class GamepadPlatform extends PlatformInterface {
   /// How many controllers can be held at once: the slots [readPad] reads.
   static const int maxPads = 4;
 
-  /// Reads the controller in slot [index] into [out]: the first player's
-  /// is slot nought, the next one to connect slot one, and so on, as the
-  /// lights on a console's controllers are numbered.
+  /// Reads the controller in the context's slot into its snapshot: the
+  /// first player's is slot 0, the next one to connect slot 1, and so on, as
+  /// the lights on a console's controllers are numbered.
   ///
   /// **A second player, not a second look at the first.** [read] is the
   /// first slot; a backend that tells controllers apart answers the others.
   /// One that does not, as this default, reports every slot past the first
   /// as disconnected rather than showing the first pad twice.
-  void readPad(int index, PadSnapshot out) {
-    if (index == 0) {
-      read(out);
+  void readPad(PadReadContext context) {
+    if (context.index == 0) {
+      read(context.out);
     } else {
-      out.disconnect();
+      context.out.disconnect();
     }
   }
 
   /// Stops listening. Called when the last owner goes away.
   Future<void> dispose() async {}
+}
+
+/// What [GamepadPlatform.readPad] is handed: the slot to read and the
+/// snapshot to fill.
+///
+/// **One object, so a minor can hand a backend more** — whether rumble is
+/// wanted, the frame's time — without breaking a backend written against
+/// 1.0. **Reused**: a `Gamepad` owns one and sets it before every read, so
+/// a frame's read allocates nothing; a backend reads it during the call and
+/// does not keep it.
+final class PadReadContext {
+  PadReadContext({required this.index, required this.out});
+
+  /// The slot read: 0 for the first controller to connect.
+  int index;
+
+  /// Where the pad's state goes.
+  PadSnapshot out;
 }
 
 /// The platform for a build with no gamepad implementation.
@@ -88,6 +110,8 @@ abstract base class GamepadPlatform extends PlatformInterface {
 /// this package does not serve behaves exactly as it did before the package
 /// existed. There is no `MissingPluginException` to catch because nothing is
 /// called.
+///
+/// A build with no gamepad support installs one, `UnsupportedGamepad()`.
 final class UnsupportedGamepad extends GamepadPlatform {
   @override
   bool get isSupported => false;

@@ -67,6 +67,10 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_core/geometry.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show Flutter3dFormatException, FormatSpec, LightType, LinearColor;
+import 'package:flutter3d_hardware/flutter3d_hardware.dart'
+    show SamplerAddressMode;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -80,6 +84,7 @@ import 'parametric_json.dart';
 import 'project.dart';
 import 'project_animation.dart';
 import 'project_morphs.dart';
+import 'project_wire.dart';
 import 'scene_lighting.dart';
 import 'selection.dart';
 import 'shape_driver.dart';
@@ -90,13 +95,62 @@ import 'texture_info.dart';
 
 /// `F3DP`, little-endian, so a file opened in a text editor announces itself on
 /// the first line and does not collide with `.f3d`'s own `F3D\n`.
-const int kProjectMagic = 0x50443346;
+const int projectMagic = 0x50443346;
 
 /// Moves only when an existing record changes meaning. A new section does not
 /// need it, because an older reader steps over a kind it does not know.
-const int kProjectVersion = 1;
+///
+/// **2:** a light's `intensity` is lux for a directional light and candela
+/// for the others, as `LightNode.intensity` is. Version 1 held the engine's
+/// pre-1.0 unit, and [readProject] lifts it by `LightNode.defaultIntensity`,
+/// one of that unit, as it reads.
+///
+/// **3:** `.f3d`'s version 2 directory. The header grows a fifth word, the
+/// size of a directory entry (20 or more), and each entry a flags word with
+/// `.f3d`'s bits (`F3dSectionFlags`): a section this build does not know and
+/// marked must-understand refuses the file, and a known section carrying a
+/// high bit this build does not know refuses it too. [writeProject] writes
+/// version 3 only when a section carries flags, so every file this build
+/// makes of its own is still the version 2 a 1.0 reader opens.
+const int projectVersion = 3;
 
-const int kProjectHeaderBytes = 16;
+/// What one of the pre-1.0 light unit a version 1 file holds is worth in lux
+/// or candela.
+const double _v1LightUnit = 5790.583578;
+
+/// `.f3dproj` for a `FormatRegistry`.
+///
+/// A binary format: its envelope is the `F3DP` magic and the version word
+/// after it, and [readProject] refuses a newer version by name with a
+/// [ProjectRefused] rather than an exception, for the reason [ProjectRead]
+/// gives. Every enum the manifest holds is written through the word tables
+/// of `project_wire.dart`, never a Dart name.
+const FormatSpec projectFormat = FormatSpec(
+  id: 'f3d.project',
+  version: projectVersion,
+  suffixes: <String>['.f3dproj'],
+  fixture: 'test/fixtures/v<N>/workshop.f3dproj',
+  enveloped: false,
+  magic: <int>[0x46, 0x33, 0x44, 0x50],
+);
+
+/// Every key the manifest is written with. Any other key a manifest has was
+/// written by a later build and is kept, unread, in `ModelProject.unknown`.
+const Set<String> _manifestKeys = <String>{
+  'profile',
+  'nextId',
+  'importedMeshes',
+  'materials',
+  'images',
+  'skeletons',
+  'clips',
+  'lighting',
+  'animationGraphs',
+  'objects',
+  'rights',
+};
+
+const int projectHeaderBytes = 16;
 
 /// Where the header keeps the CRC-32 of the checksum section itself.
 ///
@@ -106,11 +160,26 @@ const int kProjectHeaderBytes = 16;
 /// refusal names the number that did not add up. Four bytes in the header,
 /// which were reserved and zero, close that: zero still means "no checksums",
 /// so nothing about an older file changes meaning.
-const int kProjectChecksumOffset = 12;
-const int kProjectSectionEntryBytes = 16;
+const int projectChecksumOffset = 12;
+const int projectSectionEntryBytes = 16;
+
+/// The header of a version 3 file: the four words of version 2 and the size
+/// of a directory entry, which the CRC in word 12 left no room for.
+const int projectHeaderBytesV3 = 20;
+
+/// Where a version 3 header keeps the size of a directory entry.
+const int projectEntryBytesOffset = 16;
+
+/// A version 3 directory entry: kind, offset, length, count and flags. The
+/// header's fifth word says the size a file uses, so a later version may
+/// grow the entry at its tail.
+const int projectSectionEntryBytesV3 = 20;
+
+/// The largest directory entry a reader accepts, as `.f3d`'s.
+const int projectMaxSectionEntryBytes = 256;
 
 /// One entry of the edited-mesh table: u32 offset into the blob, u32 length.
-const int kProjectMeshEntryBytes = 8;
+const int projectMeshEntryBytes = 8;
 
 /// One entry of the imported-mesh table: u32 vertex offset, u32 vertex length,
 /// u32 index offset, u32 index length, all into the blob.
@@ -119,19 +188,19 @@ const int kProjectMeshEntryBytes = 8;
 /// they are different widths — floats and `uint32`s — and a reader that took
 /// one run and split it by a count in the manifest would be trusting the
 /// manifest to describe bytes it cannot see.
-const int kProjectImportedEntryBytes = 16;
+const int projectImportedEntryBytes = 16;
 
 /// One entry of the image table: u32 offset into the blob, u32 length.
-const int kProjectImageEntryBytes = 8;
+const int projectImageEntryBytes = 8;
 
 /// One entry of the checksum table: u32 section kind, u32 CRC-32.
-const int kProjectChecksumEntryBytes = 8;
+const int projectChecksumEntryBytes = 8;
 
 /// One entry of the simulation-cache table: u32 offset into the blob, u32
 /// length. The shape of the frames it addresses — how many, and how long each
 /// is — is in the object's own manifest record, for the reason
 /// [ProjectSection.simulationCaches] gives.
-const int kProjectSimulationEntryBytes = 8;
+const int projectSimulationEntryBytes = 8;
 
 /// Section kinds.
 ///
@@ -144,7 +213,7 @@ abstract final class ProjectSection {
   /// The document, as JSON. Everything that is not bulk lives here.
   static const int manifest = 1;
 
-  /// `count` entries of [kProjectMeshEntryBytes], addressing [blob]. A table
+  /// `count` entries of [projectMeshEntryBytes], addressing [blob]. A table
   /// rather than an offset written beside each object, because `doc-31d` wants
   /// a step of history to name a chunk by index and share it with the object
   /// that is still using it.
@@ -153,7 +222,7 @@ abstract final class ProjectSection {
   /// Where the bulk is. Every entry starts on a four-byte boundary.
   static const int blob = 3;
 
-  /// `count` entries of [kProjectImportedEntryBytes], addressing [blob]: the
+  /// `count` entries of [projectImportedEntryBytes], addressing [blob]: the
   /// vertex and index buffers of a mesh that arrived from a file with no
   /// topology behind it.
   ///
@@ -164,7 +233,7 @@ abstract final class ProjectSection {
   /// other depending on which object happens to name it.
   static const int importedMeshes = 4;
 
-  /// `count` entries of [kProjectImageEntryBytes], addressing [blob]: the
+  /// `count` entries of [projectImageEntryBytes], addressing [blob]: the
   /// encoded bytes of each image, in whatever format they arrived as.
   ///
   /// The bytes and nothing else. What an image is called and what it was
@@ -174,7 +243,7 @@ abstract final class ProjectSection {
   /// that could not decode a texture still writes it back out whole.
   static const int images = 5;
 
-  /// `count` entries of [kProjectChecksumEntryBytes]: a section kind and the
+  /// `count` entries of [projectChecksumEntryBytes]: a section kind and the
   /// CRC-32 of that section's bytes, for every section in the file but this
   /// one.
   ///
@@ -223,7 +292,7 @@ abstract final class ProjectSection {
   /// never has to skip.
   static const int history = 7;
 
-  /// `count` entries of [kProjectImageEntryBytes], addressing [blob]: images a
+  /// `count` entries of [projectImageEntryBytes], addressing [blob]: images a
   /// step of [history] still samples and the live project no longer holds —
   /// a texture replaced or removed somewhere inside the kept steps.
   ///
@@ -234,7 +303,7 @@ abstract final class ProjectSection {
   static const int historyImages = 8;
 
   /// `pro-doc-01`'s own `SIMC`: `count` entries of
-  /// [kProjectSimulationEntryBytes], addressing [blob] — one baked
+  /// [projectSimulationEntryBytes], addressing [blob] — one baked
   /// [SimulationCache]'s frames, packed end to end as raw `Float32List`
   /// bytes, in the same host-endian form the imported-mesh buffers already
   /// take.
@@ -252,6 +321,21 @@ abstract final class ProjectSection {
   /// Written only for a project that has one, and absent from every file
   /// written before this existed — the additive rule, same as [historyImages].
   static const int simulationCaches = 9;
+
+  /// Every kind above, the ones this build reads and writes itself. A
+  /// section of any other kind is kept in `ModelProject.unknownSections` and
+  /// written back on save.
+  static const Set<int> known = <int>{
+    manifest,
+    editMeshes,
+    blob,
+    importedMeshes,
+    images,
+    checksums,
+    history,
+    historyImages,
+    simulationCaches,
+  };
 }
 
 /// What [readProject] gives back.
@@ -273,6 +357,11 @@ abstract final class ProjectSection {
 /// An exception was the other candidate and lost for the reason the plan gives:
 /// opening a file the user chose is not exceptional, it is a normal Tuesday,
 /// and the sentence belongs in front of them rather than in a stack trace.
+///
+/// **Closed for good**: opened or refused: the two answers to whether a file
+/// could be read, with the reason inside the refusal. No case can be added
+/// without changing what the type means, so it stays sealed and a `switch` over
+/// it may name every case.
 sealed class ProjectRead {
   const ProjectRead();
 }
@@ -314,8 +403,24 @@ final class ProjectRefused extends ProjectRead {
 
   final String because;
 
+  /// The refusal as an exception, for a caller with nobody to show the
+  /// sentence to that has to stop: a tool started on a file it cannot open.
+  ProjectFormatException toException() => ProjectFormatException(because);
+
   @override
   String toString() => 'ProjectRefused($because)';
+}
+
+/// A `.f3dproj` that will not open, thrown by a caller that cannot go on
+/// without it — [readProject] itself answers [ProjectRefused] instead.
+final class ProjectFormatException extends Flutter3dFormatException {
+  const ProjectFormatException(this.message);
+
+  @override
+  final String message;
+
+  @override
+  String toString() => 'ProjectFormatException: $message';
 }
 
 /// Whether [bytes] begin the way a project file does.
@@ -336,7 +441,7 @@ bool isProjectFile(Uint8List bytes) {
     bytes.offsetInBytes,
     bytes.lengthInBytes,
   );
-  return view.getUint32(0, Endian.little) == kProjectMagic;
+  return view.getUint32(0, Endian.little) == projectMagic;
 }
 
 /// The project as a `.f3dproj` file.
@@ -356,6 +461,15 @@ Uint8List writeProject(
   ModelHistory? history,
   int maxHistoryBytes = 4 * 1024 * 1024,
 }) {
+  for (final ProjectExtraSection extra in project.unknownSections) {
+    if (ProjectSection.known.contains(extra.kind)) {
+      throw ArgumentError.value(
+        extra.kind,
+        'unknownSections',
+        'is one of the sections this build writes itself',
+      );
+    }
+  }
   final meshes = <Uint8List>[];
 
   // Edited meshes, deduplicated by identity *and* by how far that mesh's
@@ -443,6 +557,10 @@ Uint8List writeProject(
           geometry = <String, Object?>{'kind': 'imported', 'mesh': at};
         case SocketGeometry():
           geometry = <String, Object?>{'kind': 'socket'};
+        default:
+          throw UnsupportedError(
+            '.f3dproj has no record for ${object.geometry}',
+          );
       }
       out.add(<String, Object?>{
         'id': object.id,
@@ -462,7 +580,7 @@ Uint8List writeProject(
         // `<ShapeDriver>[]`, the ordinary case of a shape key nobody has
         // wired to a bone yet.
         'shapeDrivers': _shapeDriversJson(object.shapeDrivers),
-        // `pro-lod-03`, younger still — absent reads back as `<LodSpec>[]`,
+        // `pro-lod-03`, younger still — absent reads back as `<LodSettings>[]`,
         // the ordinary case of an object nobody has asked to simplify.
         'lods': _lodsJson(object.lods),
         // The modifier stack, and written only for an object that has one.
@@ -508,7 +626,7 @@ Uint8List writeProject(
           'credit': <String, Object?>{
             'title': credit.title,
             'author': credit.author,
-            'licence': credit.licence,
+            'licence': credit.license,
             'url': credit.url,
           },
       });
@@ -565,7 +683,15 @@ Uint8List writeProject(
   final manifest = utf8.encode(
     jsonEncode(
       _canonical(<String, Object?>{
+        // What a later build wrote that this one does not read, back where it
+        // was. First, so a key this build writes — should a later one have
+        // put it in `unknown` by hand — is this build's own.
+        for (final MapEntry(:key, :value) in project.unknown.entries)
+          if (!_manifestKeys.contains(key)) key: value,
         'profile': _profileJson(project.profile),
+        // Who made it and on what terms, only when the project says: most
+        // projects are somebody's own work and say nothing.
+        'rights': ?_rightsJson(project.rights),
         // Written down rather than worked out from the objects on the way back
         // in: an id belonging to something deleted must not be handed out again,
         // and `objects.length + 1` after a delete is exactly that mistake — a
@@ -614,6 +740,10 @@ Uint8List writeProject(
         // project nobody has lit writes the bytes it always wrote.
         if (!_isDefaultLighting(project.lighting))
           'lighting': _lightingJson(project.lighting),
+        // Written only when there are some, so a project without a graph
+        // writes the bytes it always wrote; absent reads as none.
+        if (project.animationGraphs.isNotEmpty)
+          'animationGraphs': project.animationGraphs,
         'objects': objects,
       }),
     ),
@@ -669,24 +799,24 @@ Uint8List writeProject(
     blob.setRange(placed[i], placed[i] + chunks[i].lengthInBytes, chunks[i]);
   }
 
-  final table = Uint8List(meshes.length * kProjectMeshEntryBytes);
+  final table = Uint8List(meshes.length * projectMeshEntryBytes);
   final tableView = ByteData.view(table.buffer);
   for (var i = 0; i < meshes.length; i++) {
     tableView
-      ..setUint32(i * kProjectMeshEntryBytes, editedOffsets[i], Endian.little)
+      ..setUint32(i * projectMeshEntryBytes, editedOffsets[i], Endian.little)
       ..setUint32(
-        i * kProjectMeshEntryBytes + 4,
+        i * projectMeshEntryBytes + 4,
         meshes[i].lengthInBytes,
         Endian.little,
       );
   }
 
-  final importedTable = Uint8List(imported.length * kProjectImportedEntryBytes);
+  final importedTable = Uint8List(imported.length * projectImportedEntryBytes);
   final importedView = ByteData.view(importedTable.buffer);
   for (var i = 0; i < imported.length; i++) {
     final (int vertexAt, int vertexBytes, int indexAt, int indexBytes) =
         importedOffsets[i];
-    final entry = i * kProjectImportedEntryBytes;
+    final entry = i * projectImportedEntryBytes;
     importedView
       ..setUint32(entry, vertexAt, Endian.little)
       ..setUint32(entry + 4, vertexBytes, Endian.little)
@@ -694,33 +824,33 @@ Uint8List writeProject(
       ..setUint32(entry + 12, indexBytes, Endian.little);
   }
 
-  final imageTable = Uint8List(project.images.length * kProjectImageEntryBytes);
+  final imageTable = Uint8List(project.images.length * projectImageEntryBytes);
   final imageView = ByteData.view(imageTable.buffer);
   for (var i = 0; i < imageOffsets.length; i++) {
     final (int at, int length) = imageOffsets[i];
     imageView
-      ..setUint32(i * kProjectImageEntryBytes, at, Endian.little)
-      ..setUint32(i * kProjectImageEntryBytes + 4, length, Endian.little);
+      ..setUint32(i * projectImageEntryBytes, at, Endian.little)
+      ..setUint32(i * projectImageEntryBytes + 4, length, Endian.little);
   }
 
-  final cacheTable = Uint8List(caches.length * kProjectSimulationEntryBytes);
+  final cacheTable = Uint8List(caches.length * projectSimulationEntryBytes);
   final cacheView = ByteData.view(cacheTable.buffer);
   for (var i = 0; i < cacheOffsets.length; i++) {
     final (int at, int length) = cacheOffsets[i];
     cacheView
-      ..setUint32(i * kProjectSimulationEntryBytes, at, Endian.little)
-      ..setUint32(i * kProjectSimulationEntryBytes + 4, length, Endian.little);
+      ..setUint32(i * projectSimulationEntryBytes, at, Endian.little)
+      ..setUint32(i * projectSimulationEntryBytes + 4, length, Endian.little);
   }
 
   final historyImageTable = Uint8List(
-    historyImages.length * kProjectImageEntryBytes,
+    historyImages.length * projectImageEntryBytes,
   );
   final historyImageView = ByteData.view(historyImageTable.buffer);
   for (var i = 0; i < historyImageOffsets.length; i++) {
     final (int at, int length) = historyImageOffsets[i];
     historyImageView
-      ..setUint32(i * kProjectImageEntryBytes, at, Endian.little)
-      ..setUint32(i * kProjectImageEntryBytes + 4, length, Endian.little);
+      ..setUint32(i * projectImageEntryBytes, at, Endian.little)
+      ..setUint32(i * projectImageEntryBytes + 4, length, Endian.little);
   }
 
   // Г5's own byte limit, trimming the *oldest* steps first — the same
@@ -769,29 +899,47 @@ Uint8List writeProject(
     // to know this section exists.
     if (caches.isNotEmpty)
       (ProjectSection.simulationCaches, cacheTable, caches.length),
+    // What a later build wrote and this one does not read, back where it
+    // was: a project opened and saved here keeps it. Summed below like any
+    // other section.
+    for (final ProjectExtraSection extra in project.unknownSections)
+      (extra.kind, extra.bytes, extra.count),
   ];
 
   // Computed over the section data, before anything knows where in the file it
   // will land: an offset is the directory's business and a sum is about the
   // bytes. That is also what lets the table be built here, one row per section
   // written so far, with itself left out.
-  final checksums = Uint8List(sections.length * kProjectChecksumEntryBytes);
+  final checksums = Uint8List(sections.length * projectChecksumEntryBytes);
   final checksumView = ByteData.view(checksums.buffer);
   for (var i = 0; i < sections.length; i++) {
     final (int kind, Uint8List data, int _) = sections[i];
     checksumView
-      ..setUint32(i * kProjectChecksumEntryBytes, kind, Endian.little)
+      ..setUint32(i * projectChecksumEntryBytes, kind, Endian.little)
       ..setUint32(
-        i * kProjectChecksumEntryBytes + 4,
+        i * projectChecksumEntryBytes + 4,
         crc32(data),
         Endian.little,
       );
   }
   sections.add((ProjectSection.checksums, checksums, sections.length));
 
+  // Version 3 only for a file that needs the flags word, as `.f3d` does, so a
+  // project with nothing flagged stays the version 2 file a 1.0 reader opens.
+  final flagsOf = <int, int>{
+    for (final ProjectExtraSection extra in project.unknownSections)
+      extra.kind: extra.flags,
+  };
+  final flagged = flagsOf.values.any((int flags) => flags != 0);
+  final version = flagged ? 3 : 2;
+  final headerBytes = flagged ? projectHeaderBytesV3 : projectHeaderBytes;
+  final entryBytes = flagged
+      ? projectSectionEntryBytesV3
+      : projectSectionEntryBytes;
+
   final offsets = <int>[];
   final total = sections.fold<int>(
-    _align(kProjectHeaderBytes + sections.length * kProjectSectionEntryBytes),
+    _align(headerBytes + sections.length * entryBytes),
     (int at, (int, Uint8List, int) section) {
       offsets.add(at);
       return _align(at + section.$2.lengthInBytes);
@@ -801,17 +949,20 @@ Uint8List writeProject(
   final out = Uint8List(total);
   final view = ByteData.view(out.buffer);
   view
-    ..setUint32(0, kProjectMagic, Endian.little)
-    ..setUint32(4, kProjectVersion, Endian.little)
+    ..setUint32(0, projectMagic, Endian.little)
+    ..setUint32(4, version, Endian.little)
     ..setUint32(8, sections.length, Endian.little)
     // The sum of the checksum table, which is the one thing the table cannot
     // sum. Zero means a file with no checksums in it, so an older file keeps
     // its meaning.
-    ..setUint32(kProjectChecksumOffset, crc32(checksums), Endian.little);
+    ..setUint32(projectChecksumOffset, crc32(checksums), Endian.little);
+  if (flagged) {
+    view.setUint32(projectEntryBytesOffset, entryBytes, Endian.little);
+  }
 
   for (var i = 0; i < sections.length; i++) {
     final (int kind, Uint8List data, int count) = sections[i];
-    final entry = kProjectHeaderBytes + i * kProjectSectionEntryBytes;
+    final entry = headerBytes + i * entryBytes;
     view
       ..setUint32(entry, kind, Endian.little)
       ..setUint32(entry + 4, offsets[i], Endian.little)
@@ -820,6 +971,9 @@ Uint8List writeProject(
       // takes the entry count from the length instead: two numbers that can
       // disagree are a file that has to say which of them wins.
       ..setUint32(entry + 12, count, Endian.little);
+    if (flagged) {
+      view.setUint32(entry + 16, flagsOf[kind] ?? 0, Endian.little);
+    }
     out.setRange(offsets[i], offsets[i] + data.lengthInBytes, data);
   }
 
@@ -834,10 +988,17 @@ Uint8List writeProject(
 /// did not add up: a file too short to hold a header, a magic from another
 /// format, a version from the future and a section whose length runs past the
 /// end are four different faults and never share a wording.
-ProjectRead readProject(Uint8List bytes) {
-  if (bytes.lengthInBytes < kProjectHeaderBytes) {
+///
+/// [lightingModels] is the engine's table (`Renderer.lightingModels`) a
+/// material's lighting model is read against, and the commands of the
+/// project's history with it (`modelCommandFromJson`): a plugin's model the
+/// engine has installed reads as itself. Null reads against the built-in
+/// models alone, as a tool with no engine does; a name neither knows opens
+/// as unset, with a warning.
+ProjectRead readProject(Uint8List bytes, {LightingModels? lightingModels}) {
+  if (bytes.lengthInBytes < projectHeaderBytes) {
     return ProjectRefused(
-      'A project file starts with a $kProjectHeaderBytes-byte header and this '
+      'A project file starts with a $projectHeaderBytes-byte header and this '
       'one is ${bytes.lengthInBytes} bytes long.',
     );
   }
@@ -849,48 +1010,106 @@ ProjectRead readProject(Uint8List bytes) {
   );
 
   final magic = view.getUint32(0, Endian.little);
-  if (magic != kProjectMagic) {
+  if (magic != projectMagic) {
     return ProjectRefused(
       'Not a project file: it begins 0x${magic.toRadixString(16)} where a '
-      'project begins 0x${kProjectMagic.toRadixString(16)}, which is "F3DP".',
+      'project begins 0x${projectMagic.toRadixString(16)}, which is "F3DP".',
     );
   }
 
   final version = view.getUint32(4, Endian.little);
-  if (version > kProjectVersion) {
+  if (version > projectVersion) {
     return ProjectRefused(
       'This project was written by version $version and this build reads '
-      'version $kProjectVersion. Open it in a newer build; there is nothing '
+      'version $projectVersion. Open it in a newer build; there is nothing '
       'here that can guess what it added.',
     );
   }
 
-  final sectionCount = view.getUint32(8, Endian.little);
-  final directoryEnd =
-      kProjectHeaderBytes + sectionCount * kProjectSectionEntryBytes;
-  if (directoryEnd > bytes.lengthInBytes) {
+  if (version == 0) {
+    return const ProjectRefused(
+      'This project claims version 0, which no build has ever written.',
+    );
+  }
+
+  // Version 3 is `.f3d`'s version 2 directory: the header says how long an
+  // entry is, and each entry carries flags.
+  final headerBytes = version >= 3 ? projectHeaderBytesV3 : projectHeaderBytes;
+  final leastEntry = version >= 3
+      ? projectSectionEntryBytesV3
+      : projectSectionEntryBytes;
+  if (bytes.lengthInBytes < headerBytes) {
     return ProjectRefused(
-      'The header claims $sectionCount sections, whose directory ends at byte '
-      '$directoryEnd, past the end of a ${bytes.lengthInBytes}-byte file.',
+      'A version $version project starts with a $headerBytes-byte header and '
+      'this one is ${bytes.lengthInBytes} bytes long.',
+    );
+  }
+  final entryBytes = version >= 3
+      ? view.getUint32(projectEntryBytesOffset, Endian.little)
+      : projectSectionEntryBytes;
+  if (entryBytes < leastEntry || entryBytes > projectMaxSectionEntryBytes) {
+    return ProjectRefused(
+      'Directory entries are $entryBytes bytes; a version $version entry is '
+      '$leastEntry to $projectMaxSectionEntryBytes.',
+    );
+  }
+
+  final sectionCount = view.getUint32(8, Endian.little);
+  // Divided rather than multiplied, so two words from the file cannot
+  // overflow past the bound.
+  if (sectionCount > (bytes.lengthInBytes - headerBytes) ~/ entryBytes) {
+    return ProjectRefused(
+      'The header claims $sectionCount sections of $entryBytes bytes, whose '
+      'directory runs past the end of a ${bytes.lengthInBytes}-byte file.',
     );
   }
 
   final sections = <int, ({int offset, int length})>{};
+  final unknownSections = <int, ProjectExtraSection>{};
   for (var i = 0; i < sectionCount; i++) {
-    final entry = kProjectHeaderBytes + i * kProjectSectionEntryBytes;
+    final entry = headerBytes + i * entryBytes;
     final kind = view.getUint32(entry, Endian.little);
     final offset = view.getUint32(entry + 4, Endian.little);
     final length = view.getUint32(entry + 8, Endian.little);
+    final count = view.getUint32(entry + 12, Endian.little);
+    final flags = version >= 3 ? view.getUint32(entry + 16, Endian.little) : 0;
     if (offset + length > bytes.lengthInBytes) {
       return ProjectRefused(
         'Section $kind runs from byte $offset for $length bytes, past the end '
         'of a ${bytes.lengthInBytes}-byte file.',
       );
     }
-    // A kind this build has never heard of is kept in the map and never looked
-    // at, which is the whole point of a directory: a project saved by a build
-    // that writes materials opens here as the objects it also wrote.
+    final known = ProjectSection.known.contains(kind);
+    if (!known && flags & F3dSectionFlags.mustUnderstand != 0) {
+      return ProjectRefused(
+        'Section $kind is marked must-understand and this build does not know '
+        'it: the project was written by a newer build. Open it in one.',
+      );
+    }
+    final unread =
+        flags &
+        F3dSectionFlags.mustUnderstandIfSet &
+        ~F3dSectionFlags.understood;
+    if (known && unread != 0) {
+      return ProjectRefused(
+        'Section $kind carries flag bits 0x${unread.toRadixString(16)}, which '
+        'change how it reads and which this build does not know: the project '
+        'was written by a newer build. Open it in one.',
+      );
+    }
+    // A kind this build has never heard of is kept aside and written back on
+    // save, which is the whole point of a directory: a project saved by a
+    // build that writes materials opens here as the objects it also wrote,
+    // and saved again here keeps the materials. Later duplicates win.
     sections[kind] = (offset: offset, length: length);
+    if (!known) {
+      unknownSections[kind] = ProjectExtraSection(
+        kind: kind,
+        bytes: Uint8List.sublistView(bytes, offset, offset + length),
+        count: count,
+        flags: flags,
+      );
+    }
   }
 
   // Before anything is decoded. A manifest that parses as JSON after a byte
@@ -966,6 +1185,7 @@ ProjectRead readProject(Uint8List bytes) {
     document is Map<String, Object?> ? document['materials'] : null,
     warnings,
     pool,
+    lightingModels,
   );
   if (materialRefusal != null) return ProjectRefused(materialRefusal);
 
@@ -1017,7 +1237,16 @@ ProjectRead readProject(Uint8List bytes) {
       document['lighting'],
       warnings,
       imageCount: images.length,
+      fileVersion: version,
     );
+    final animationGraphs = _readAnimationGraphs(document['animationGraphs']);
+    // Kept, not read: what a later minor added to the manifest goes back into
+    // the file when this one saves it.
+    final unknown = <String, Object?>{
+      for (final MapEntry(:key, :value) in document.entries)
+        if (key is String && !_manifestKeys.contains(key)) key: value,
+    };
+    final rights = _rightsFrom(document['rights']);
 
     final (List<HistoryStep> history, String? historyRefusal) = _readHistory(
       bytes,
@@ -1031,9 +1260,15 @@ ProjectRead readProject(Uint8List bytes) {
       skeletons: skeletons,
       clips: clips,
       lighting: lighting,
+      animationGraphs: animationGraphs,
+      unknown: unknown,
+      unknownSections: unknownSections.values.toList(),
+      rights: rights,
       nextId: nextId,
       warnings: warnings,
       simulationChunks: simulationChunks,
+      fileVersion: version,
+      lightingModels: lightingModels,
     );
     if (historyRefusal != null) return ProjectRefused(historyRefusal);
 
@@ -1046,6 +1281,10 @@ ProjectRead readProject(Uint8List bytes) {
         skeletons: skeletons,
         clips: clips,
         lighting: lighting,
+        animationGraphs: animationGraphs,
+        unknown: unknown,
+        unknownSections: unknownSections.values.toList(),
+        rights: rights,
         nextId: nextId,
       ),
       warnings: warnings,
@@ -1088,8 +1327,14 @@ ProjectRead readProject(Uint8List bytes) {
   required List<ProjectSkeleton> skeletons,
   required List<ProjectClip> clips,
   required SceneLighting lighting,
+  required Map<String, Map<String, Object?>> animationGraphs,
+  required Map<String, Object?> unknown,
+  required List<ProjectExtraSection> unknownSections,
+  required DocumentAsset? rights,
   required int nextId,
   required List<String> warnings,
+  required int fileVersion,
+  LightingModels? lightingModels,
   List<Uint8List> simulationChunks = const <Uint8List>[],
 }) {
   final at = sections[ProjectSection.history];
@@ -1139,6 +1384,7 @@ ProjectRead readProject(Uint8List bytes) {
   var carriedSkeletons = skeletons;
   var carriedClips = clips;
   var carriedLighting = lighting;
+  var carriedGraphs = animationGraphs;
   final noticed = <String>[];
 
   final steps = List<HistoryStep?>.filled(entries.length, null);
@@ -1151,7 +1397,10 @@ ProjectRead readProject(Uint8List bytes) {
               'selectionBefore': final Object? selectionJson,
               'objects': final List<Object?> objectEntries,
             }) {
-      final ModelCommand? command = modelCommandFromJson(commandJson);
+      final ModelCommand? command = modelCommandFromJson(
+        commandJson,
+        lightingModels: lightingModels,
+      );
       if (command == null) {
         return (
           const <HistoryStep>[],
@@ -1184,7 +1433,8 @@ ProjectRead readProject(Uint8List bytes) {
         objects.add(object!);
       }
       final author = switch (entries[i]) {
-        {'author': 'agent'} => StepAuthor.agent,
+        {'author': final Object word} =>
+          stepAuthorOf(word) ?? StepAuthor.person,
         _ => StepAuthor.person,
       };
       if (step.containsKey('profile')) {
@@ -1213,6 +1463,7 @@ ProjectRead readProject(Uint8List bytes) {
           step['materials'],
           noticed,
           pool,
+          lightingModels,
         );
         if (refusal != null) {
           return (const <HistoryStep>[], 'History step $i: $refusal');
@@ -1260,7 +1511,11 @@ ProjectRead readProject(Uint8List bytes) {
           step['lighting'],
           noticed,
           imageCount: carriedImages.length,
+          fileVersion: fileVersion,
         );
+      }
+      if (step.containsKey('animationGraphs')) {
+        carriedGraphs = _readAnimationGraphs(step['animationGraphs']);
       }
       steps[i] = HistoryStep(
         command: command,
@@ -1272,6 +1527,12 @@ ProjectRead readProject(Uint8List bytes) {
           skeletons: carriedSkeletons,
           clips: carriedClips,
           lighting: carriedLighting,
+          animationGraphs: carriedGraphs,
+          // Not kept per step: what a later build added is the file's, and
+          // an undo puts back the edit, not the file. Its rights likewise.
+          unknown: unknown,
+          unknownSections: unknownSections,
+          rights: rights,
           nextId: carriedNextId,
         ),
         selectionBefore: selection,
@@ -1316,7 +1577,7 @@ ProjectRead readProject(Uint8List bytes) {
     );
   }
 
-  final count = table.length ~/ kProjectImportedEntryBytes;
+  final count = table.length ~/ projectImportedEntryBytes;
   final described = layouts is List ? layouts.length : 0;
   if (described != count) {
     return (
@@ -1333,7 +1594,7 @@ ProjectRead readProject(Uint8List bytes) {
   );
   final meshes = <MeshData>[];
   for (var i = 0; i < count; i++) {
-    final entry = table.offset + i * kProjectImportedEntryBytes;
+    final entry = table.offset + i * projectImportedEntryBytes;
     final vertexAt = view.getUint32(entry, Endian.little);
     final vertexBytes = view.getUint32(entry + 4, Endian.little);
     final indexAt = view.getUint32(entry + 8, Endian.little);
@@ -1462,10 +1723,10 @@ List<Object?>? _shapeDriversJson(List<ShapeDriver> drivers) {
 /// the same absent-means-empty shape [_shapeSetJson] keeps for the same
 /// reason: a project that never touched `pro-lod-03` writes exactly the
 /// file it would have written before this row existed.
-List<Object?>? _lodsJson(List<LodSpec> lods) {
+List<Object?>? _lodsJson(List<LodSettings> lods) {
   if (lods.isEmpty) return null;
   return <Object?>[
-    for (final LodSpec lod in lods)
+    for (final LodSettings lod in lods)
       <String, Object?>{
         'ratio': lod.ratio,
         'maxScreenFraction': lod.maxScreenFraction,
@@ -1508,7 +1769,7 @@ Map<String, Object?> _stepJson(
     // `mcp-10n`, younger than the section itself — read back as
     // `StepAuthor.person` when absent, the same optional shape every field
     // this file has grown since v1 already takes.
-    'author': step.author.name,
+    'author': stepAuthorWord(step.author),
     'objects': objects,
     if (!identical(before.profile, after.profile))
       'profile': _profileJson(before.profile),
@@ -1535,8 +1796,21 @@ Map<String, Object?> _stepJson(
     // an undo puts back, and "back to the default" is a thing to put back.
     if (!identical(before.lighting, after.lighting))
       'lighting': _lightingJson(before.lighting),
+    if (!identical(before.animationGraphs, after.animationGraphs))
+      'animationGraphs': before.animationGraphs,
   };
 }
+
+/// The graphs a manifest or a history step keeps, by name; none for
+/// anything not shaped as names to objects. Not decoded here: they were
+/// checked when set, and a project opens whether or not this build can run
+/// a graph a later one wrote.
+Map<String, Map<String, Object?>> _readAnimationGraphs(Object? json) =>
+    <String, Map<String, Object?>>{
+      if (json is Map<String, Object?>)
+        for (final MapEntry(:key, :value) in json.entries)
+          if (value is Map<String, Object?>) key: value,
+    };
 
 /// Whether [lighting] is what a project nobody has lit holds.
 bool _isDefaultLighting(SceneLighting lighting) {
@@ -1550,12 +1824,43 @@ bool _isDefaultLighting(SceneLighting lighting) {
       lighting.panorama == null;
 }
 
+/// The word a project file writes for each [LightType].
+///
+/// **A wire table, not `type.name`** (docs/CONTRACTS.md, "Words written to a
+/// file come from explicit wire tables"): renaming a constant in a major must
+/// not change a file. The words are the ones every project written so far
+/// carries, so those read unchanged.
+const Map<LightType, String> _lightTypeWire = <LightType, String>{
+  LightType.directional: 'directional',
+  LightType.point: 'point',
+  LightType.spot: 'spot',
+  LightType.area: 'area',
+};
+
+/// The word a project file writes for each [SceneEnvironmentPreset], for the
+/// reason [_lightTypeWire] gives.
+const Map<SceneEnvironmentPreset, String> _environmentWire =
+    <SceneEnvironmentPreset, String>{
+      SceneEnvironmentPreset.none: 'none',
+      SceneEnvironmentPreset.studio: 'studio',
+      SceneEnvironmentPreset.daylight: 'daylight',
+      SceneEnvironmentPreset.sunset: 'sunset',
+    };
+
+/// The key of [table] whose word is [word], or null for a word this build
+/// does not know.
+T? _fromWire<T>(Map<T, String> table, String word) => table.entries
+    .where((MapEntry<T, String> each) => each.value == word)
+    .firstOrNull
+    ?.key;
+
 Map<String, Object?> _lightingJson(SceneLighting lighting) => <String, Object?>{
   'lights': <Object?>[
     for (final ProjectLight light in lighting.lights)
       <String, Object?>{
-        'type': light.type.name,
-        'color': <double>[light.color.x, light.color.y, light.color.z],
+        // A plugin's own kind is written as the shape it is lit as.
+        'type': _lightTypeWire[light.type.base]!,
+        'color': <double>[light.color.r, light.color.g, light.color.b],
         'intensity': light.intensity,
         'range': light.range,
         'castsShadow': light.castsShadow,
@@ -1564,7 +1869,7 @@ Map<String, Object?> _lightingJson(SceneLighting lighting) => <String, Object?>{
         'transform': <double>[...light.transform.storage],
       },
   ],
-  'environment': lighting.environment.name,
+  'environment': _environmentWire[lighting.environment]!,
   'ambientIntensity': lighting.ambientIntensity,
   'shadows': lighting.shadows,
   'exposure': lighting.exposure,
@@ -1584,11 +1889,16 @@ Map<String, Object?> _lightingJson(SceneLighting lighting) => <String, Object?>{
 /// [imageCount] bounds the panorama, which is an index into the project's
 /// images: one that points past the table is dropped, since a renderer handed
 /// it would be reading an image that is not there.
+///
+/// A light of a [fileVersion] 1 file is in the pre-1.0 unit and is lifted
+/// into lux or candela here; see [projectVersion].
 SceneLighting _readLighting(
   Object? json,
   List<String> warnings, {
   required int imageCount,
+  required int fileVersion,
 }) {
+  final intensityUnit = fileVersion < 2 ? _v1LightUnit : 1.0;
   if (json is! Map<String, Object?>) return const SceneLighting();
   const untouched = SceneLighting();
 
@@ -1604,14 +1914,12 @@ SceneLighting _readLighting(
       'intensity': final num intensity,
       'transform': final List<Object?> transform,
     } when transform.length == 16 && transform.every((v) => v is num)) {
-      final type = ProjectLightType.values
-          .where((ProjectLightType each) => each.name == typeName)
-          .firstOrNull;
+      final type = _fromWire(_lightTypeWire, typeName);
       if (type == null) return null;
       return ProjectLight(
         type: type,
-        color: Vector3(r.toDouble(), g.toDouble(), b.toDouble()),
-        intensity: intensity.toDouble(),
+        color: LinearColor(r.toDouble(), g.toDouble(), b.toDouble()),
+        intensity: intensity.toDouble() * intensityUnit,
         range: (entry['range'] as num?)?.toDouble() ?? 0.0,
         castsShadow: entry['castsShadow'] == true,
         innerConeAngle: (entry['innerConeAngle'] as num?)?.toDouble() ?? 0.0,
@@ -1641,10 +1949,7 @@ SceneLighting _readLighting(
   }
 
   final environment = switch (json['environment']) {
-    final String name =>
-      SceneEnvironmentPreset.values
-          .where((SceneEnvironmentPreset each) => each.name == name)
-          .firstOrNull,
+    final String name => _fromWire(_environmentWire, name),
     _ => null,
   };
   if (json['environment'] != null && environment == null) {
@@ -1681,7 +1986,7 @@ Map<String, Object?> _profileJson(ProjectProfile profile) => <String, Object?>{
   // Written from `doc-13` on, and read back as a default rather than
   // required when absent — see `_readProfileExtras` — so a v1 file
   // written before these existed still opens.
-  'target': profile.target.name,
+  'target': profileTargetWord(profile.target),
   'maxTextureBytes': profile.maxTextureBytes,
   'requireTriangles': profile.requireTriangles,
   'requireManifold': profile.requireManifold,
@@ -1690,7 +1995,7 @@ Map<String, Object?> _profileJson(ProjectProfile profile) => <String, Object?>{
   'textures': <String, Object?>{
     'maxSide': profile.textures.maxSide,
     'maxBytesOnDevice': profile.textures.maxBytesOnDevice,
-    'targetFormat': profile.textures.targetFormat.name,
+    'targetFormat': textureFileFormatWord(profile.textures.targetFormat),
     'requirePowerOfTwo': profile.textures.requirePowerOfTwo,
   },
   // `doc-35n`, younger even than `textures`, read back the same
@@ -1742,6 +2047,35 @@ Map<String, Object?> _trackJson(ProjectTrack track) => <String, Object?>{
   'values': <double>[...track.track.values],
 };
 
+/// A project's [ModelProject.rights] as the manifest writes them, the three
+/// that are said; null when none is.
+Map<String, Object?>? _rightsJson(DocumentAsset? rights) {
+  final json = <String, Object?>{
+    'copyright': ?rights?.copyright,
+    'author': ?rights?.author,
+    'license': ?rights?.license,
+  };
+  return json.isEmpty ? null : json;
+}
+
+/// The manifest's `rights`, or null where it says none. A right of another
+/// type is not a refusal: what the project is made of reads the same
+/// without it.
+DocumentAsset? _rightsFrom(Object? json) {
+  if (json is! Map) return null;
+  String? text(String key) => switch (json[key]) {
+    final String value when value.isNotEmpty => value,
+    _ => null,
+  };
+  final (copyright, author, license) = (
+    text('copyright'),
+    text('author'),
+    text('license'),
+  );
+  if (copyright == null && author == null && license == null) return null;
+  return DocumentAsset(copyright: copyright, author: author, license: license);
+}
+
 Map<String, Object?> _materialJson(ProjectMaterial material) {
   final surface = material.surface;
   return <String, Object?>{
@@ -1755,10 +2089,10 @@ Map<String, Object?> _materialJson(ProjectMaterial material) {
     if (material.paint case final PaintStack stack) 'paint': _paintJson(stack),
     'name': surface.name,
     'baseColor': <double>[
-      surface.baseColor.x,
-      surface.baseColor.y,
-      surface.baseColor.z,
-      surface.baseColor.w,
+      surface.baseColor.toSrgb().r,
+      surface.baseColor.toSrgb().g,
+      surface.baseColor.toSrgb().b,
+      surface.baseColor.a,
     ],
     'metallic': surface.metallic,
     'roughness': surface.roughness,
@@ -1770,15 +2104,21 @@ Map<String, Object?> _materialJson(ProjectMaterial material) {
     'occlusionStrength': surface.occlusionStrength,
     'emissiveTexture': _bindingJson(surface.emissiveTexture),
     'emissive': <double>[
-      surface.emissive.x,
-      surface.emissive.y,
-      surface.emissive.z,
+      surface.emissive.r,
+      surface.emissive.g,
+      surface.emissive.b,
     ],
     'emissiveStrength': surface.emissiveStrength,
-    'alphaMode': surface.alphaMode.name,
+    'alphaMode': alphaModeWord(surface.alphaMode),
     'alphaCutoff': surface.alphaCutoff,
     'doubleSided': surface.doubleSided,
     'unlit': surface.unlit,
+    // Younger still, each written only when said: what the surface is made
+    // of, by its id in the engine's catalogue, and the version of its
+    // program the instance was written at.
+    if (surface.physicalMaterial case final String id) 'physicalMaterial': id,
+    if (surface.materialVersion case final int version)
+      'materialVersion': version,
     // Younger than the fields above, read the same optional way `fmat` and
     // `graph` are (`_readMaterials`'s own doc comment): absent means no
     // shader has been chosen, not a refusal. Only a built-in shader's own
@@ -1806,8 +2146,8 @@ Map<String, Object?>? _bindingJson(TextureBinding? binding) => binding == null
         'minLinear': binding.sampling.minLinear,
         'useMipmaps': binding.sampling.useMipmaps,
         'mipLinear': binding.sampling.mipLinear,
-        'wrapS': binding.sampling.wrapS.name,
-        'wrapT': binding.sampling.wrapT.name,
+        'wrapS': textureWrapWord(binding.sampling.wrapS),
+        'wrapT': textureWrapWord(binding.sampling.wrapT),
       };
 
 /// The materials [json] describes, or the sentence that stops the file.
@@ -1820,6 +2160,7 @@ Map<String, Object?>? _bindingJson(TextureBinding? binding) => binding == null
   Object? json,
   List<String> warnings,
   Map<String, String> pool,
+  LightingModels? models,
 ) {
   if (json == null) return (const <ProjectMaterial>[], null);
   if (json is! List) {
@@ -1861,6 +2202,21 @@ Map<String, Object?>? _bindingJson(TextureBinding? binding) => binding == null
               'and that one is three.',
         );
       }
+      // A graph that does not read refuses the file with a sentence, as
+      // every other field here does, rather than escaping `readProject` as
+      // an exception.
+      final TextureGraph? graph;
+      try {
+        graph = switch (entry['graph']) {
+          final Map<String, Object?> g => TextureGraph.fromJson(g),
+          _ => null,
+        };
+      } on TextureGraphFormatException catch (error) {
+        return (
+          const <ProjectMaterial>[],
+          'Material $i\'s texture graph: ${error.message}',
+        );
+      }
       materials.add(
         ProjectMaterial(
           version: version,
@@ -1874,17 +2230,14 @@ Map<String, Object?>? _bindingJson(TextureBinding? binding) => binding == null
           // Younger than `fmat` above, read the same optional way: absent
           // means a material painted by hand, never touched by
           // `SetMaterialGraph`.
-          graph: switch (entry['graph']) {
-            final Map<String, Object?> g => TextureGraph.fromJson(g),
-            _ => null,
-          },
+          graph: graph,
           bakedAtVersion: entry['bakedAtVersion'] as int?,
           // Younger than `graph` above, read the same optional way: absent
           // means a material nobody painted on, not a refusal.
           paint: _paintFrom(entry['paint']),
           surface: SurfaceMaterial(
             name: name == null ? null : _intern(name, pool),
-            baseColor: Vector4(
+            baseColor: LinearColor.fromSrgb(
               (baseColor[0]! as num).toDouble(),
               (baseColor[1]! as num).toDouble(),
               (baseColor[2]! as num).toDouble(),
@@ -1919,14 +2272,15 @@ Map<String, Object?>? _bindingJson(TextureBinding? binding) => binding == null
               warnings,
               'Material $i\'s emissiveTexture',
             ),
-            emissive: Vector3(
+            emissive: LinearColor(
               (emissive[0]! as num).toDouble(),
               (emissive[1]! as num).toDouble(),
               (emissive[2]! as num).toDouble(),
             ),
             emissiveStrength: emissiveStrength.toDouble(),
             alphaMode: _named(
-              SurfaceAlphaMode.values,
+              alphaModeOf,
+              alphaModeWord,
               alphaMode,
               SurfaceAlphaMode.opaque,
               warnings: warnings,
@@ -1939,6 +2293,7 @@ Map<String, Object?>? _bindingJson(TextureBinding? binding) => binding == null
               entry['lightingModel'],
               warnings,
               'Material $i\'s lightingModel',
+              models,
             ),
             extensions: switch (entry['extensions']) {
               final Map<String, Object?> layers => materialExtensionsFromJson(
@@ -1949,6 +2304,14 @@ Map<String, Object?>? _bindingJson(TextureBinding? binding) => binding == null
                   'Material $i\'s extension texture',
                 ),
               ),
+              _ => null,
+            },
+            physicalMaterial: switch (entry['physicalMaterial']) {
+              final String id when id.isNotEmpty => _intern(id, pool),
+              _ => null,
+            },
+            materialVersion: switch (entry['materialVersion']) {
+              final int version when version >= 1 => version,
               _ => null,
             },
           ),
@@ -1992,16 +2355,18 @@ TextureBinding? _bindingFrom(
         // opens as the default it already meant rather than being refused.
         mipLinear: json['mipLinear'] as bool? ?? true,
         wrapS: _named(
-          TextureWrap.values,
+          textureWrapOf,
+          textureWrapWord,
           wrapS,
-          TextureWrap.repeat,
+          SamplerAddressMode.repeat,
           warnings: warnings,
           context: '$context\'s wrapS',
         ),
         wrapT: _named(
-          TextureWrap.values,
+          textureWrapOf,
+          textureWrapWord,
           wrapT,
-          TextureWrap.repeat,
+          SamplerAddressMode.repeat,
           warnings: warnings,
           context: '$context\'s wrapT',
         ),
@@ -2040,7 +2405,8 @@ ProjectProfile? _readProfile(Object? json, List<String> warnings) {
       name: name,
       target: switch (json['target']) {
         final String word => _named(
-          ProfileTarget.values,
+          profileTargetOf,
+          profileTargetWord,
           word,
           fallback.target,
           warnings: warnings,
@@ -2094,7 +2460,8 @@ TextureBudget? _readTextureBudget(Object? json, List<String> warnings) {
       maxBytesOnDevice: maxBytesOnDevice,
       targetFormat: switch (json['targetFormat']) {
         final String word => _named(
-          TextureFileFormat.values,
+          textureFileFormatOf,
+          textureFileFormatWord,
           word,
           TextureFileFormat.other,
           warnings: warnings,
@@ -2108,26 +2475,27 @@ TextureBudget? _readTextureBudget(Object? json, List<String> warnings) {
   return null;
 }
 
-/// The value of [values] called [name], or [fallback] with a note in
-/// [warnings] naming [context] — the rule for an unknown enum name (see
+/// The value [read] finds for the word [name] in its wire table
+/// (`project_wire.dart`), or [fallback] with a note in [warnings] naming
+/// [context] — the rule for an unknown enum word (see
 /// `_readMaterials`'s own doc comment): a name this build has never heard of
 /// is something a newer build wrote, read rather than refused, but silently
 /// is not the same as safely. `doc-10`'s own `warnings` gap is exactly this:
 /// a project that opens with an alpha mode or a wrap mode quietly downgraded
 /// is a project whose next save can no longer tell the two apart.
-T _named<T extends Enum>(
-  List<T> values,
+T _named<T extends Object>(
+  T? Function(Object? word) read,
+  String Function(T value) wordOf,
   String name,
   T fallback, {
   required List<String> warnings,
   required String context,
 }) {
-  for (final T value in values) {
-    if (value.name == name) return value;
-  }
+  final known = read(name);
+  if (known != null) return known;
   warnings.add(
     '$context names "$name", which this build does not know; opened as '
-    '${fallback.name}.',
+    '${wordOf(fallback)}.',
   );
   return fallback;
 }
@@ -2139,21 +2507,24 @@ T _named<T extends Enum>(
 /// bound. `LightingModel` is not an [Enum] (it is `final` with `const`
 /// instances, the shape a genre-open vocabulary takes in this repository),
 /// so the lookup is by [LightingModel.shaderName] rather than [_named]'s
-/// `Enum.name`. Only [LightingModel.builtIn] is searched: a custom shader
-/// `.fmat` can describe as an object has no representation here yet, since
-/// nothing that writes a project file builds one.
+/// `Enum.name`. [models] is searched — the engine's table, so a plugin's
+/// model the engine has installed reads as itself — or the built-in models
+/// alone when the reader has no engine at hand. A custom shader `.fmat` can
+/// describe as an object has no representation here yet, since nothing
+/// that writes a project file builds one.
 LightingModel? _lightingModelNamed(
   Object? value,
   List<String> warnings,
   String context,
+  LightingModels? models,
 ) {
   if (value == null) return null;
   if (value is! String) {
     warnings.add('$context is not a shader name; ignored.');
     return null;
   }
-  for (final LightingModel model in LightingModel.builtIn) {
-    if (model.shaderName == value) return model;
+  if ((models ?? LightingModels.shipped).named(value) case final model?) {
+    return model;
   }
   warnings.add(
     '$context names "$value", which this build does not know; opened as '
@@ -2184,7 +2555,7 @@ LightingModel? _lightingModelNamed(
     );
   }
 
-  final count = table.length ~/ kProjectImageEntryBytes;
+  final count = table.length ~/ projectImageEntryBytes;
   final names = described is List ? described.length : 0;
   if (names != count) {
     return (
@@ -2201,7 +2572,7 @@ LightingModel? _lightingModelNamed(
   );
   final images = <EncodedImage>[];
   for (var i = 0; i < count; i++) {
-    final entry = table.offset + i * kProjectImageEntryBytes;
+    final entry = table.offset + i * projectImageEntryBytes;
     final at = view.getUint32(entry, Endian.little);
     final length = view.getUint32(entry + 4, Endian.little);
     if (at + length > blob.length) {
@@ -2278,9 +2649,9 @@ LightingModel? _lightingModelNamed(
     bytes.lengthInBytes,
   );
   final chunks = <Uint8List>[];
-  final count = table.length ~/ kProjectSimulationEntryBytes;
+  final count = table.length ~/ projectSimulationEntryBytes;
   for (var i = 0; i < count; i++) {
-    final entry = table.offset + i * kProjectSimulationEntryBytes;
+    final entry = table.offset + i * projectSimulationEntryBytes;
     final at = view.getUint32(entry, Endian.little);
     final length = view.getUint32(entry + 4, Endian.little);
     if (at + length > blob.length) {
@@ -2405,7 +2776,7 @@ String? _verifyChecksums(
   Map<int, ({int offset, int length})> sections,
 ) {
   final table = sections[ProjectSection.checksums];
-  final claimed = view.getUint32(kProjectChecksumOffset, Endian.little);
+  final claimed = view.getUint32(projectChecksumOffset, Endian.little);
   if (table == null) {
     return claimed == 0
         ? null
@@ -2423,19 +2794,19 @@ String? _verifyChecksums(
         '0x${claimed.toRadixString(16)}. Nothing else in the file can be '
         'checked, because the thing that would check it is what went.';
   }
-  if (table.length % kProjectChecksumEntryBytes != 0) {
+  if (table.length % projectChecksumEntryBytes != 0) {
     return 'The checksum table is ${table.length} bytes and each entry is '
-        '$kProjectChecksumEntryBytes.';
+        '$projectChecksumEntryBytes.';
   }
 
   final storedView = ByteData.sublistView(stored);
-  for (var i = 0; i < table.length ~/ kProjectChecksumEntryBytes; i++) {
+  for (var i = 0; i < table.length ~/ projectChecksumEntryBytes; i++) {
     final kind = storedView.getUint32(
-      i * kProjectChecksumEntryBytes,
+      i * projectChecksumEntryBytes,
       Endian.little,
     );
     final want = storedView.getUint32(
-      i * kProjectChecksumEntryBytes + 4,
+      i * projectChecksumEntryBytes + 4,
       Endian.little,
     );
     final at = sections[kind];
@@ -2600,9 +2971,9 @@ VertexLayout? _layoutFrom(Object? json, Map<String, String> pool) {
     bytes.lengthInBytes,
   );
   final meshes = <EditMesh>[];
-  final count = table.length ~/ kProjectMeshEntryBytes;
+  final count = table.length ~/ projectMeshEntryBytes;
   for (var i = 0; i < count; i++) {
-    final entry = table.offset + i * kProjectMeshEntryBytes;
+    final entry = table.offset + i * projectMeshEntryBytes;
     final offset = view.getUint32(entry, Endian.little);
     final length = view.getUint32(entry + 4, Endian.little);
     if (offset + length > blob.length) {
@@ -2715,10 +3086,10 @@ VertexLayout? _layoutFrom(Object? json, Map<String, String> pool) {
   );
 }
 
-/// [json] as a list of [LodSpec], or the sentence that stops the file —
+/// [json] as a list of [LodSettings], or the sentence that stops the file —
 /// `(null, null)` for the ordinary absent case, an object that has never
 /// had a level of detail added to it. Mirrors [_readShapeSet]'s own shape.
-(List<LodSpec>?, String?) _readLods(Object? json, int index, String name) {
+(List<LodSettings>?, String?) _readLods(Object? json, int index, String name) {
   if (json == null) return (null, null);
   if (json is! List<Object?>) {
     return (
@@ -2726,14 +3097,14 @@ VertexLayout? _layoutFrom(Object? json, Map<String, String> pool) {
       'Object $index ("$name") has a lods entry that is not a list.',
     );
   }
-  final lods = <LodSpec>[];
+  final lods = <LodSettings>[];
   for (var i = 0; i < json.length; i++) {
     if (json[i] case {
       'ratio': final num ratio,
       'maxScreenFraction': final num maxScreenFraction,
     }) {
       lods.add(
-        LodSpec(
+        LodSettings(
           ratio: ratio.toDouble(),
           maxScreenFraction: maxScreenFraction.toDouble(),
         ),
@@ -2802,15 +3173,15 @@ VertexLayout? _layoutFrom(Object? json, Map<String, String> pool) {
   }
   final drivers = <ShapeDriver>[];
   for (var i = 0; i < json.length; i++) {
-    final driver = ShapeDriver.fromJson(json[i]);
-    if (driver == null) {
+    try {
+      drivers.add(ShapeDriver.fromJson(json[i]));
+    } on ProjectFormatException {
       return (
         null,
         'Object $index ("$name")\'s shape driver $i is missing a field or '
             'has one of the wrong type.',
       );
     }
-    drivers.add(driver);
   }
   return (drivers, null);
 }
@@ -3091,7 +3462,7 @@ VertexLayout? _layoutFrom(Object? json, Map<String, String> pool) {
         _readShapeDrivers(entry['shapeDrivers'], index, name);
     if (driversRefusal != null) return (null, driversRefusal);
 
-    final (List<LodSpec>? lods, String? lodsRefusal) = _readLods(
+    final (List<LodSettings>? lods, String? lodsRefusal) = _readLods(
       entry['lods'],
       index,
       name,
@@ -3128,7 +3499,7 @@ VertexLayout? _layoutFrom(Object? json, Map<String, String> pool) {
         skeletonIndex: entry['skeletonIndex'] as int?,
         shapeSet: shapeSet ?? const ShapeSet(),
         shapeDrivers: shapeDrivers ?? const <ShapeDriver>[],
-        lods: lods ?? const <LodSpec>[],
+        lods: lods ?? const <LodSettings>[],
         modifiers: modifiers ?? const <ModifierSlot>[],
         // `pro-doc-01`. Absent is an object nobody has baked, which is what
         // every file written before the section existed says.
@@ -3155,11 +3526,16 @@ VertexLayout? _layoutFrom(Object? json, Map<String, String> pool) {
           {
             'title': final String title,
             'author': final String author,
-            'licence': final String licence,
+            'licence': final String license,
             'url': final String url,
           }
               when author.isNotEmpty =>
-            (title: title, author: author, licence: licence, url: url),
+            ModelCredit(
+              title: title,
+              author: author,
+              license: license,
+              url: url,
+            ),
           _ => null,
         },
       ),
@@ -3286,10 +3662,13 @@ PaintStack? _paintFrom(Object? json) {
         final int? key = int.tryParse(each.key);
         final Object? encoded = each.value;
         if (key == null || encoded is! String) return null;
-        final decoded = decodePng(base64Decode(encoded));
-        if (decoded == null ||
-            decoded.width != paintTileSize ||
-            decoded.height != paintTileSize) {
+        final DecodedImage decoded;
+        try {
+          decoded = decodePng(base64Decode(encoded));
+        } on ImageFormatException {
+          return null;
+        }
+        if (decoded.width != paintTileSize || decoded.height != paintTileSize) {
           return null;
         }
         tiles[key] = PaintTile(decoded.rgba);
@@ -3299,9 +3678,9 @@ PaintStack? _paintFrom(Object? json) {
       PaintLayer(
         tilesX: tilesX,
         tilesY: tilesY,
-        blendMode: BlendMode.values.firstWhere(
-          (BlendMode it) => it.name == row['blend'],
-          orElse: () => BlendMode.normal,
+        blendMode: PaintBlendMode.values.firstWhere(
+          (PaintBlendMode it) => it.name == row['blend'],
+          orElse: () => PaintBlendMode.normal,
         ),
         tiles: tiles,
       ),

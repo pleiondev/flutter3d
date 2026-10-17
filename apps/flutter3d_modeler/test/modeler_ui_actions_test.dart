@@ -8,7 +8,7 @@
 ///     flutter test test/modeler_ui_actions_test.dart
 library;
 
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_modeler/src/mcp_ui_actions.dart';
@@ -474,7 +474,7 @@ void main() {
         // **Mutation: leave the licence off the line.** An agent picks a
         // model, the export owes somebody a credit, and nothing it read ever
         // said so.
-        final UiAnswer none = await actions.galleryList(licence: 'cc-by-4.0');
+        final UiAnswer none = await actions.galleryList(license: 'cc-by-4.0');
         expect(none.says, contains('nothing'));
       },
     );

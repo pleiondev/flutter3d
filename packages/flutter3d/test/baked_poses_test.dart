@@ -189,7 +189,7 @@ void main() {
       // animation that was playing.
       final (:scene, :skeleton, :player) = rig(clips: 2);
       player
-        ..play(0)
+        ..play(index: 0)
         ..seek(0.3);
 
       BakedPoses.of(

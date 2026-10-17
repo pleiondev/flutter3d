@@ -6,6 +6,8 @@ import 'package:vector_math/vector_math.dart';
 import 'json_reader.dart';
 import 'json_write_through.dart';
 import 'level_format_exception.dart';
+import 'level_ids.dart';
+import 'level_material.dart';
 
 /// How a brush takes part in the shadow passes, as a document says it.
 ///
@@ -19,21 +21,49 @@ import 'level_format_exception.dart';
 /// document writes — but this package may not import the engine (see the note
 /// at the foot of its `pubspec.yaml`), so the two are spelled twice and the
 /// bridge maps them case by case rather than by name.
-enum ShadowCasting {
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class ShadowCasting {
+  const ShadowCasting._(this.name);
+
   /// Drawn into the shadow maps and into the colour image. The default.
-  on,
+  static const ShadowCasting on = ShadowCasting._('on');
 
   /// Drawn into the colour image and into no shadow map. What a fence wants.
-  off,
+  static const ShadowCasting off = ShadowCasting._('off');
 
   /// Cast from every face, whatever the renderer's caster-face setting says.
   ///
   /// What a single-thickness wall wants: recorded from its lit side only, a
   /// wall lets light along the seam where it meets the floor.
-  doubleSided,
+  static const ShadowCasting doubleSided = ShadowCasting._('doubleSided');
 
   /// Drawn into the shadow maps and into no colour image.
-  shadowsOnly;
+  static const ShadowCasting shadowsOnly = ShadowCasting._('shadowsOnly');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<ShadowCasting> values = <ShadowCasting>[
+    on,
+    off,
+    doubleSided,
+    shadowsOnly,
+  ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static ShadowCasting? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
 
   /// Whether a brush in this mode is drawn into the shadow maps at all.
   bool get casts => this != ShadowCasting.off;
@@ -43,6 +73,30 @@ enum ShadowCasting {
   /// The two finer modes are exactly the ones the boolean loses, so they are
   /// exactly the ones a document has to spell out. See [Brush.toJson].
   bool get needsWord => this != ShadowCasting.on && this != ShadowCasting.off;
+
+  /// The word a level document writes for this mode.
+  ///
+  /// **A table, not [name]**, so renaming the Dart identifier cannot change
+  /// what a saved level says.
+  String get wireName => _wireNames[this]!;
+
+  /// The mode a document's word names, or null for a word that is not one.
+  static ShadowCasting? fromWireName(String word) {
+    for (final MapEntry(:key, :value) in _wireNames.entries) {
+      if (value == word) return key;
+    }
+    return null;
+  }
+
+  static const Map<ShadowCasting, String> _wireNames = <ShadowCasting, String>{
+    ShadowCasting.on: 'on',
+    ShadowCasting.off: 'off',
+    ShadowCasting.doubleSided: 'doubleSided',
+    ShadowCasting.shadowsOnly: 'shadowsOnly',
+  };
+
+  @override
+  String toString() => 'ShadowCasting.$name';
 }
 
 /// One axis-aligned block of level geometry.
@@ -53,7 +107,8 @@ enum ShadowCasting {
 /// that there are no slopes, and vertical movement comes from stairs and lifts.
 final class Brush {
   Brush({
-    required Vector3 centre,
+    String? id,
+    required Vector3 center,
     required Vector3 size,
     this.material = 'default',
     this.solid = true,
@@ -62,8 +117,11 @@ final class Brush {
     String? surface,
     this.layer,
     this.ramp,
+    this.drawOrder = 0,
+    this.depthLayer,
+    this.physicalMaterial,
     Map<String, Object?> source = const <String, Object?>{},
-  }) : centre = centre.clone(),
+  }) : center = center.clone(),
        size = size.clone(),
        // The boolean is the lossy view, here as everywhere else: it says
        // whether the brush casts, and the mode says how. Given both, the mode
@@ -74,7 +132,65 @@ final class Brush {
        // ignore: prefer_initializing_formals
        _source = source,
        // ignore: prefer_initializing_formals
-       _surface = surface;
+       _surface = surface,
+       id =
+           id ??
+           LevelIds.derive(<Object?>[
+             'brush',
+             center.x,
+             center.y,
+             center.z,
+             size.x,
+             size.y,
+             size.z,
+             material,
+           ]);
+
+  factory Brush.fromJson(Map<String, Object?> json) => Brush(
+    id: switch (json['id']) {
+      null => null,
+      final String id when id.isNotEmpty => id,
+      final other => throw LevelFormatException(
+        'a brush\'s "id" must be text, not $other',
+      ),
+    },
+    center: json.vector3('at'),
+    size: json.vector3('size'),
+    material: json.textOrNull('material') ?? 'default',
+    solid: json.flagOr('solid', fallback: true),
+    // The word where the document has one, and the boolean's answer where it
+    // has not — so every level ever authored means what it meant, and a
+    // misspelt mode is a refusal with the four words in it rather than a wall
+    // that quietly stops casting.
+    shadowCasting: switch (json.textOrNull('shadowCasting')) {
+      null =>
+        json.flagOr('castsShadow', fallback: true)
+            ? ShadowCasting.on
+            : ShadowCasting.off,
+      final String word =>
+        ShadowCasting.fromWireName(word) ??
+            (throw LevelFormatException(
+              'unknown brush shadow mode "$word"; expected one of '
+              '${ShadowCasting.values.map((ShadowCasting m) => m.wireName).join(', ')}',
+            )),
+    },
+    surface: json.textOrNull('surface'),
+    layer: json.integerOrNull('layer'),
+    ramp: _rampFromName(json.textOrNull('ramp')),
+    drawOrder: json.integerOrNull('drawOrder') ?? 0,
+    depthLayer: json.integerOrNull('depthLayer'),
+    physicalMaterial: readPhysicalMaterial(json, 'a brush'),
+    source: json,
+  );
+
+  /// What this brush is called by the editor and by tools. See [LevelIds].
+  final String id;
+
+  /// The substance the brush is made of, over its [material]'s
+  /// `LevelMaterial.physicalMaterial`: the id of a material in the engine's
+  /// `MaterialCatalog`, or null to take the material's. A level naming one
+  /// no installed plugin declares is refused (`Level.requireMaterials`).
+  final String? physicalMaterial;
 
   /// The document this brush was read from, or empty when it was built in code.
   ///
@@ -82,25 +198,13 @@ final class Brush {
   /// [writeThrough].
   final Map<String, Object?> _source;
 
-  final Vector3 centre;
+  final Vector3 center;
   final Vector3 size;
 
   /// Name of an entry in [Level.materials]. What this brush **looks** like.
   final String material;
 
   final String? _surface;
-
-  /// What this brush is **made of**, for physics and for sound.
-  ///
-  /// Separate from [material], which is how it is shaded, and the separation is
-  /// the point: a level wanting stone-looking ice, or a metal grate you can
-  /// fall through, could not say so while the only word for a surface was its
-  /// paint. The engine never compares this to anything — a game reads it and
-  /// decides what `ice` means, exactly as it decides what a `crate` is.
-  ///
-  /// Falls back to [material], so every level ever authored keeps behaving the
-  /// way it does and a document that has nothing to say says nothing.
-  String get surface => _surface ?? material;
 
   /// The collision bit this brush sits on, or null for the world's default.
   ///
@@ -109,6 +213,27 @@ final class Brush {
   /// through, a wall the AI respects and the player does not — all of them are
   /// a brush on a bit of its own, and all of them were unauthorable.
   final int? layer;
+
+  /// Where this brush draws among things in the same bucket — `P7`, the
+  /// engine's `MeshNode.drawOrder` said in the level document.
+  ///
+  /// Nought unless the document says otherwise. Higher draws later: a decal
+  /// brush laid over a floor, a water surface that must come after what is
+  /// under it. Brushes with different orders never share a batch, since a
+  /// batch draws as one.
+  final int drawOrder;
+
+  /// Which depth layer this brush's surface is drawn on, or null for its
+  /// material's [LevelMaterial.depthLayer].
+  ///
+  /// **For surfaces that share a plane**: road paint on a road, a sign on a
+  /// wall, a rug on a floor. A higher layer wins the depth test against a
+  /// lower one at the same depth, at any distance, where [drawOrder] only
+  /// says which of two draws comes first and leaves the depth test to decide
+  /// — and lose it, a pixel at a time, as the camera moves. Nought is the
+  /// layer everything is on unless something says otherwise. Format version
+  /// 2; the renderer's `RenderMaterial.depthLayer` draws it.
+  final int? depthLayer;
 
   /// Whether this brush stops anything.
   ///
@@ -123,6 +248,52 @@ final class Brush {
   /// are `off` for a fence and `doubleSided` for a wall one brush thick. See
   /// [ShadowCasting].
   final ShadowCasting shadowCasting;
+
+  /// Which way this brush climbs, or null for an ordinary block.
+  ///
+  /// **A ramp is a brush with a corner cut off**, not a new kind of thing in
+  /// the document: the same centre, the same size, the same material and the
+  /// same surface. Set it and the block fills its box at one end and tapers to
+  /// an edge at the other, which is what makes it walkable rather than a step
+  /// as tall as itself.
+  ///
+  /// There is no angle here on purpose. The slope runs corner to corner, so the
+  /// steepness is the brush's own proportions — a block twice as long as it is
+  /// tall climbs at twenty-six degrees — and an author reads it off the numbers
+  /// already typed rather than keeping two of them in agreement.
+  final WedgeUphill? ramp;
+
+  /// The four directions a ramp may climb, by the name a document uses.
+  ///
+  /// Spelled out rather than taken from `WedgeUphill.name`, because the enum's
+  /// names belong to the physics package and a level document is a file format:
+  /// renaming a Dart identifier must not silently invalidate every level ever
+  /// saved.
+  static const Map<String, WedgeUphill> _ramps = <String, WedgeUphill>{
+    '+x': WedgeUphill.positiveX,
+    '-x': WedgeUphill.negativeX,
+    '+z': WedgeUphill.positiveZ,
+    '-z': WedgeUphill.negativeZ,
+  };
+
+  /// This brush under another [id], everything else as it is.
+  Brush withId(String id) =>
+      Brush.fromJson(<String, Object?>{...toJson(), 'id': id});
+
+  /// What this brush is **made of**, for physics and for sound.
+  ///
+  /// Separate from [material], which is how it is shaded, and the separation is
+  /// the point: a level wanting stone-looking ice, or a metal grate you can
+  /// fall through, could not say so while the only word for a surface was its
+  /// paint. The engine never compares this to anything — a game reads it and
+  /// decides what `ice` means, exactly as it decides what a `crate` is.
+  ///
+  /// Falls back to [material], so every level ever authored keeps behaving the
+  /// way it does and a document that has nothing to say says nothing.
+  String get surface => _surface ?? material;
+
+  /// The layer this brush is drawn on: its own, else its material's.
+  int depthLayerIn(LevelMaterial material) => depthLayer ?? material.depthLayer;
 
   /// Whether it takes part in the lighting, as opposed to merely being lit.
   ///
@@ -147,26 +318,13 @@ final class Brush {
   /// lighting the level.
   bool get castsShadow => shadowCasting.casts;
 
-  /// Which way this brush climbs, or null for an ordinary block.
-  ///
-  /// **A ramp is a brush with a corner cut off**, not a new kind of thing in
-  /// the document: the same centre, the same size, the same material and the
-  /// same surface. Set it and the block fills its box at one end and tapers to
-  /// an edge at the other, which is what makes it walkable rather than a step
-  /// as tall as itself.
-  ///
-  /// There is no angle here on purpose. The slope runs corner to corner, so the
-  /// steepness is the brush's own proportions — a block twice as long as it is
-  /// tall climbs at twenty-six degrees — and an author reads it off the numbers
-  /// already typed rather than keeping two of them in agreement.
-  final WedgeUphill? ramp;
-
   /// Whether this brush is a ramp rather than a block.
   bool get isRamp => ramp != null;
-
   Vector3 get halfExtents => size / 2.0;
-  Vector3 get min => centre - halfExtents;
-  Vector3 get max => centre + halfExtents;
+
+  Vector3 get min => center - halfExtents;
+
+  Vector3 get max => center + halfExtents;
 
   /// How much volume this brush shares with [other]. Zero when they only
   /// touch.
@@ -182,42 +340,6 @@ final class Brush {
     if (z <= 0.0) return 0.0;
     return x * y * z;
   }
-
-  factory Brush.fromJson(Map<String, Object?> json) => Brush(
-    centre: json.vector3('at'),
-    size: json.vector3('size'),
-    material: json.textOrNull('material') ?? 'default',
-    solid: json.flagOr('solid', fallback: true),
-    // The word where the document has one, and the boolean's answer where it
-    // has not — so every level ever authored means what it meant, and a
-    // misspelt mode is a refusal with the four words in it rather than a wall
-    // that quietly stops casting.
-    shadowCasting: json.enumValue(
-      'shadowCasting',
-      ShadowCasting.values,
-      json.flagOr('castsShadow', fallback: true)
-          ? ShadowCasting.on
-          : ShadowCasting.off,
-      describedAs: 'brush shadow mode',
-    ),
-    surface: json.textOrNull('surface'),
-    layer: json.integerOrNull('layer'),
-    ramp: _rampFromName(json.textOrNull('ramp')),
-    source: json,
-  );
-
-  /// The four directions a ramp may climb, by the name a document uses.
-  ///
-  /// Spelled out rather than taken from `WedgeUphill.name`, because the enum's
-  /// names belong to the physics package and a level document is a file format:
-  /// renaming a Dart identifier must not silently invalidate every level ever
-  /// saved.
-  static const Map<String, WedgeUphill> _ramps = <String, WedgeUphill>{
-    '+x': WedgeUphill.positiveX,
-    '-x': WedgeUphill.negativeX,
-    '+z': WedgeUphill.positiveZ,
-    '-z': WedgeUphill.negativeZ,
-  };
 
   static WedgeUphill? _rampFromName(String? name) {
     if (name == null) return null;
@@ -239,7 +361,8 @@ final class Brush {
     // not grow a boolean beside a word that already says more than it could.
     final spelledOut = _source.containsKey('shadowCasting');
     return writeThrough(_source, <WriteThroughField>[
-      WriteThroughField('at', centre.toJson()),
+      WriteThroughField('id', id),
+      WriteThroughField('at', center.toJson()),
       WriteThroughField('size', size.toJson()),
       WriteThroughField(
         'material',
@@ -254,7 +377,7 @@ final class Brush {
       ),
       WriteThroughField(
         'shadowCasting',
-        shadowCasting.name,
+        shadowCasting.wireName,
         whenAbsent: shadowCasting.needsWord,
       ),
       WriteThroughField('surface', _surface, whenAbsent: _surface != null),
@@ -263,6 +386,17 @@ final class Brush {
         'ramp',
         ramp == null ? null : _rampName(ramp!),
         whenAbsent: ramp != null,
+      ),
+      WriteThroughField('drawOrder', drawOrder, whenAbsent: drawOrder != 0),
+      WriteThroughField(
+        'depthLayer',
+        depthLayer,
+        whenAbsent: depthLayer != null,
+      ),
+      WriteThroughField(
+        'physicalMaterial',
+        physicalMaterial,
+        whenAbsent: physicalMaterial != null,
       ),
     ]);
   }

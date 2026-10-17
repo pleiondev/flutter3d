@@ -5,9 +5,10 @@ library;
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import 'package:flutter3d_build/flutter3d_build.dart';
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -27,7 +28,7 @@ final SixWaySheet _sheet = bakeSixWay(
 Float32List _render(
   List<LightNode> lights, {
   bool clustered = false,
-  Vector3? ambient,
+  LinearColor ambient = LinearColor.black,
 }) {
   final device = CpuDevice(
     width: _size,
@@ -39,7 +40,7 @@ Float32List _render(
     height: _sheet.height,
     format: TextureFormat.r8g8b8a8UNormInt,
     pixels: ByteData.sublistView(bytes),
-  )!;
+  );
 
   final particles = ParticleSystem(capacity: 8);
   for (final x in <double>[-0.4, 0.0, 0.4]) {
@@ -49,7 +50,7 @@ Float32List _render(
         emitter: const SphereEmitter(speed: Range.exact(0.0)),
         lifetime: const Range.exact(5.0),
         size: const Range.exact(1.6),
-        color: Vector4(1.0, 1.0, 1.0, 1.0),
+        color: LinearColor(1.0, 1.0, 1.0, 1.0),
       ),
       Vector3(x, 0.0, x * 0.5),
     );
@@ -65,7 +66,7 @@ Float32List _render(
   lights.forEach(scene.add);
 
   final renderer = Renderer.create(device: device)
-    ..addContributor(
+    ..renderSteps.addContributor(
       ParticleContributor(
         particles,
         sixWay: SixWayMaterial(
@@ -79,8 +80,11 @@ Float32List _render(
     width: _size,
     height: _size,
     scene: scene,
-    views: <RenderView>[
-      RenderView(camera: camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+    views: <CameraView>[
+      CameraView(
+        camera: camera,
+        clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
+      ),
     ],
     settings: RenderSettings(
       tonemap: false,
@@ -91,9 +95,11 @@ Float32List _render(
   return device.readHdrPixels(result.frame);
 }
 
-LightNode _point(Vector3 at, Vector3 colour, {double intensity = 12.0}) =>
-    LightNode(type: LightType.point, intensity: intensity)
-      ..color.setFrom(colour)
+/// A point lamp of [candela], about seventy thousand by default: as bright
+/// as the smoke was first lit and looked at.
+LightNode _point(Vector3 at, Vector3 color, {double candela = 69487.0}) =>
+    LightNode(type: LightType.point, intensity: candela)
+      ..color = color.toLinearColor()
       ..setPosition(at.x, at.y, at.z);
 
 /// Red and blue summed over a band of columns, [from] inclusive to [to].
@@ -142,7 +148,7 @@ void main() {
   });
 
   test('ambient reaches every side at once', () {
-    final frame = _render(const <LightNode>[], ambient: Vector3.all(1.0));
+    final frame = _render(const <LightNode>[], ambient: LinearColor.white);
     final left = _band(frame, 0, _size ~/ 2);
     final right = _band(frame, _size ~/ 2, _size);
     expect(left.red, greaterThan(1.0));
@@ -154,7 +160,7 @@ void main() {
     // half times eight, and any light the tail drops or counts twice shows.
     List<LightNode> lamps(int count) => <LightNode>[
       for (var i = 0; i < count; i++)
-        _point(Vector3(0.0, 1.0, 3.0), Vector3.all(1.0), intensity: 0.3),
+        _point(Vector3(0.0, 1.0, 3.0), Vector3.all(1.0), candela: 1737.2),
     ];
 
     // The composite writes sRGB, so light is summed after undoing that; the

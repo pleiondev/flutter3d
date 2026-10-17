@@ -81,6 +81,8 @@ abstract base class Mechanism {
 
 /// What the level's machinery did during one step.
 final class MechanismEvents {
+  MechanismEvents._();
+
   /// Movers that began travelling.
   final List<Mechanism> started = <Mechanism>[];
 
@@ -175,7 +177,7 @@ final class MechanismWorld {
   ///
   /// Filled by [publish]. Empty lists rather than nulls, and cleared rather
   /// than replaced, so a caller that drains them every step allocates nothing.
-  final MechanismEvents events = MechanismEvents();
+  final MechanismEvents events = MechanismEvents._();
 
   void step(double dt) {
     for (var i = 0; i < _all.length; i++) {

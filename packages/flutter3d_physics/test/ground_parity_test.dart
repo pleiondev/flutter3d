@@ -45,6 +45,7 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_matter/flutter3d_matter.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -145,24 +146,32 @@ CollisionWorld _world() {
           0.02 * ((column * 3 + row * 11) % 5);
     }
   }
-  final world = CollisionWorld()
-    ..add(
-      Collider(
-        shape: CollisionHeightfield(
-          columns: n,
-          rows: n,
-          cellSize: 1.0,
-          heights: heights,
-        ),
-        position: Vector3.zero(),
-      ),
-    );
+  // The world the digests below were recorded in: the crates falling at the
+  // 22 m/s² `Dynamics` had of its own, the walker at the 24 its
+  // `MovementSettings` did — both said outright now that each falls by its
+  // world's unless told.
+  final world =
+      CollisionWorld(properties: WorldProperties(gravity: Vector3(0, -22, 0)))
+        ..add(
+          Collider(
+            shape: CollisionHeightfield(
+              columns: n,
+              rows: n,
+              cellSize: 1.0,
+              heights: heights,
+            ),
+            position: Vector3.zero(),
+          ),
+        );
   world.update();
   return world;
 }
 
-CharacterController _walker(CollisionWorld world) =>
-    CharacterController(world: world, position: Vector3(-2.0, 2.0, -2.0));
+CharacterController _walker(CollisionWorld world) => CharacterController(
+  world: world,
+  position: Vector3(-2.0, 2.0, -2.0),
+  tuning: const MovementSettings(gravity: 24.0),
+);
 
 /// Four crates, so the solver's own path over the ground is in the trace too.
 Dynamics _crates(CollisionWorld world) {
@@ -284,50 +293,51 @@ final class _Digest {
   }
 }
 
-/// Recorded on macOS-arm64 under the VM, 2026-09-08, and matched by Chrome.
+/// Recorded on macOS-arm64 under the VM, 2026-09-08, and matched by Chrome;
+/// recorded again 2026-10-11, when the solver's contacts became speculative.
 ///
 /// Forty checkpoints and forty different numbers: the walk is still moving at
 /// the end of it, which is what a trace has to be doing to be able to fail. A
 /// second half that repeats is a second half that cannot.
 const List<String> _recorded = <String>[
-  '5a7bd0fc',
-  '22edc7eb',
-  '038a1da2',
-  '006eaf85',
-  '7f71d670',
-  '563b371f',
-  'f8b5532b',
-  '2d6e4b75',
-  '5fe91720',
-  '28091345',
-  '498e04f0',
-  '62f504fb',
-  '3ef3baa7',
-  '9f148623',
-  '5a5138d8',
-  'd0b56ec2',
-  '953736e3',
-  '8454f74f',
-  'bfd8a1ce',
-  '77a1d70d',
-  'c5a55bab',
-  '3ff17482',
-  'b23bc540',
-  '768632f4',
-  'e16248fd',
-  'd1f3e2d2',
-  '84efd6d9',
-  '27e214ed',
-  '971583a4',
-  '77c39293',
-  'c171a40b',
-  '18303b7f',
-  '8754355d',
-  '57e3e0ba',
-  '980232d1',
-  '0b4acf4d',
-  'e41e861c',
-  '4603175f',
-  '8d107574',
-  '34a49542',
+  'c8820929',
+  'a6dc6592',
+  'cebb22e5',
+  '689a0306',
+  '2c932f24',
+  '7a286a17',
+  '1c4dc58b',
+  '104e262d',
+  '0072a534',
+  '266b709d',
+  'c7aa7ca4',
+  '77129dbb',
+  'c71ca8ef',
+  'cc849c93',
+  'c876e69c',
+  '7c8cdd86',
+  '4bdf0d53',
+  '99c9ab27',
+  '8aa946ba',
+  '252d2975',
+  '17aff30b',
+  '83a18346',
+  '23cf5d94',
+  'e8a36f30',
+  '5ab018c5',
+  'd8265c36',
+  '830a7fb9',
+  'f5e2b595',
+  'e8529dc0',
+  'e2f975a3',
+  '53e1f62a',
+  '682a2bee',
+  '3a450066',
+  '781bb4e2',
+  'c1310907',
+  '362eec4d',
+  'a8b20746',
+  'e38f0709',
+  'ae4b02e8',
+  'f03d303f',
 ];

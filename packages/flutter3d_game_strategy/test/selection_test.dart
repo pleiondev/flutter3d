@@ -19,7 +19,7 @@ Heightfield _flat() => Heightfield(
 StrategySimulation _row(int count) {
   final sim = StrategySimulation(random: GameRandom(1), ground: _flat());
   for (var i = 0; i < count; i++) {
-    sim.add(Unit(position: Vector3(4.0 + i * 4.0, 0.0, 10.0)));
+    sim.add(StrategyUnit(position: Vector3(4.0 + i * 4.0, 0.0, 10.0)));
   }
   return sim;
 }
@@ -28,7 +28,7 @@ void main() {
   group('a click', () {
     test('finds the unit under it', () {
       final sim = _row(4);
-      final picked = Selection(
+      final picked = UnitSelection(
         sim.units,
       ).unitAt(Vector3(8.0, 20.0, 10.0), Vector3(0.0, -1.0, 0.0));
 
@@ -40,7 +40,7 @@ void main() {
       // then hits whichever unit is nearest along it, and clicking empty
       // ground selects somebody across the map.
       final sim = _row(4);
-      final picked = Selection(
+      final picked = UnitSelection(
         sim.units,
       ).unitAt(Vector3(8.0, 20.0, 30.0), Vector3(0.0, -1.0, 0.0));
 
@@ -52,15 +52,15 @@ void main() {
       // one line then resolve by which is nearer to the *centre*, and a unit
       // standing behind a wider one wins the click it should have lost.
       final sim = StrategySimulation(random: GameRandom(1), ground: _flat());
-      final near = sim.add(Unit(position: Vector3(10.0, 0.0, 10.0)));
+      final near = sim.add(StrategyUnit(position: Vector3(10.0, 0.0, 10.0)));
       sim.add(
-        Unit(
+        StrategyUnit(
           position: Vector3(20.0, 0.0, 10.0),
           type: UnitType.worker.copyWith(radius: 1.5),
         ),
       );
 
-      final picked = Selection(
+      final picked = UnitSelection(
         sim.units,
       ).unitAt(Vector3(0.0, 0.4, 10.0), Vector3(1.0, 0.0, 0.0));
 
@@ -71,7 +71,7 @@ void main() {
       // A ray points one way. Mutation: drop the `along < 0.0` test and a
       // click selects the crowd behind the camera.
       final sim = _row(3);
-      final picked = Selection(
+      final picked = UnitSelection(
         sim.units,
       ).unitAt(Vector3(4.0, 0.4, 10.0), Vector3(-1.0, 0.0, 0.0));
 
@@ -82,7 +82,7 @@ void main() {
   group('a drag', () {
     test('takes everybody inside the rectangle', () {
       final sim = _row(6);
-      final chosen = Selection(
+      final chosen = UnitSelection(
         sim.units,
       ).unitsWithin(Vector3(6.0, 0.0, 6.0), Vector3(18.0, 0.0, 14.0));
 
@@ -94,10 +94,10 @@ void main() {
       // Mutation: use the corners as given rather than sorting them. A drag
       // from bottom right then selects nothing, which reads as a broken mouse.
       final sim = _row(6);
-      final forwards = Selection(
+      final forwards = UnitSelection(
         sim.units,
       ).unitsWithin(Vector3(6.0, 0.0, 6.0), Vector3(18.0, 0.0, 14.0));
-      final backwards = Selection(
+      final backwards = UnitSelection(
         sim.units,
       ).unitsWithin(Vector3(18.0, 0.0, 14.0), Vector3(6.0, 0.0, 6.0));
 
@@ -108,7 +108,7 @@ void main() {
       // A selection that came back in a different order every time would give
       // orders in a different order, and two runs of one tape would part.
       final sim = _row(6);
-      final chosen = Selection(
+      final chosen = UnitSelection(
         sim.units,
       ).unitsWithin(Vector3(0.0, 0.0, 0.0), Vector3(40.0, 0.0, 20.0));
 

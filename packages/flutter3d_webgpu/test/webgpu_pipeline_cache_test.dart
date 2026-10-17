@@ -15,12 +15,12 @@
 library;
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:flutter3d_webgpu/flutter3d_webgpu.dart';
+import 'package:flutter3d_webgpu/src/webgpu_pipeline_cache.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// One buffer of interleaved position and normal, stepping per vertex — the
 /// layout every unskinned mesh in the engine has.
-const VertexLayoutSpec _perVertex = VertexLayoutSpec(<BufferLayout>[
+const VertexLayoutDescriptor _perVertex = VertexLayoutDescriptor(<BufferLayout>[
   BufferLayout(
     strideInBytes: 24,
     attributes: <InputAttribute>[
@@ -37,30 +37,32 @@ const VertexLayoutSpec _perVertex = VertexLayoutSpec(<BufferLayout>[
 /// The same vertices with a second buffer of per-instance transforms — what
 /// mesh particles bind, and the layout whose signature must differ from
 /// [_perVertex]'s.
-const VertexLayoutSpec _perInstance = VertexLayoutSpec(<BufferLayout>[
-  BufferLayout(
-    strideInBytes: 24,
-    attributes: <InputAttribute>[
-      InputAttribute(name: 'position', format: VertexFormat.float32x3),
-      InputAttribute(
-        name: 'normal',
-        format: VertexFormat.float32x3,
-        offsetInBytes: 12,
-      ),
-    ],
-  ),
-  BufferLayout(
-    strideInBytes: 16,
-    stepMode: VertexStepMode.instance,
-    attributes: <InputAttribute>[
-      InputAttribute(name: 'i_row0', format: VertexFormat.float32x4),
-    ],
-  ),
-]);
+const VertexLayoutDescriptor _perInstance = VertexLayoutDescriptor(
+  <BufferLayout>[
+    BufferLayout(
+      strideInBytes: 24,
+      attributes: <InputAttribute>[
+        InputAttribute(name: 'position', format: VertexFormat.float32x3),
+        InputAttribute(
+          name: 'normal',
+          format: VertexFormat.float32x3,
+          offsetInBytes: 12,
+        ),
+      ],
+    ),
+    BufferLayout(
+      strideInBytes: 16,
+      stepMode: VertexStepMode.instance,
+      attributes: <InputAttribute>[
+        InputAttribute(name: 'i_row0', format: VertexFormat.float32x4),
+      ],
+    ),
+  ],
+);
 
 WebGpuPipelineSignature _signature({
   String pipeline = 'MeshVertex+PbrFragment',
-  VertexLayoutSpec layout = _perVertex,
+  VertexLayoutDescriptor layout = _perVertex,
   String topology = 'triangle-list',
   String? stripIndexFormat,
   String cullMode = 'back',
@@ -73,7 +75,17 @@ WebGpuPipelineSignature _signature({
   List<String> colorFormats = const <String>['rgba16float'],
   String? depthFormat = 'depth24plus-stencil8',
   int sampleCount = 1,
+  DepthBias depthBias = DepthBias.none,
+  List<ColorWriteMask> writeMasks = const <ColorWriteMask>[],
+  bool unclippedDepth = false,
+  Object? vertexModule,
+  Object? fragmentModule,
 }) => WebGpuPipelineSignature(
+  vertexModule: vertexModule,
+  fragmentModule: fragmentModule,
+  depthBias: depthBias,
+  writeMasks: writeMasks,
+  unclippedDepth: unclippedDepth,
   pipeline: pipeline,
   vertexLayout: webgpuVertexLayoutFingerprint(layout),
   topology: topology,
@@ -95,7 +107,7 @@ void main() {
       expect(
         webgpuVertexLayoutFingerprint(_perVertex),
         webgpuVertexLayoutFingerprint(
-          const VertexLayoutSpec(<BufferLayout>[
+          const VertexLayoutDescriptor(<BufferLayout>[
             BufferLayout(
               strideInBytes: 24,
               attributes: <InputAttribute>[
@@ -120,7 +132,7 @@ void main() {
         webgpuVertexLayoutFingerprint(_perVertex),
         webgpuVertexLayoutFingerprint(_perInstance),
         webgpuVertexLayoutFingerprint(
-          const VertexLayoutSpec(<BufferLayout>[
+          const VertexLayoutDescriptor(<BufferLayout>[
             BufferLayout(
               strideInBytes: 24,
               stepMode: VertexStepMode.instance,
@@ -139,7 +151,7 @@ void main() {
           ]),
         ),
         webgpuVertexLayoutFingerprint(
-          const VertexLayoutSpec(<BufferLayout>[
+          const VertexLayoutDescriptor(<BufferLayout>[
             BufferLayout(
               strideInBytes: 32,
               attributes: <InputAttribute>[
@@ -157,7 +169,7 @@ void main() {
           ]),
         ),
         webgpuVertexLayoutFingerprint(
-          const VertexLayoutSpec(<BufferLayout>[
+          const VertexLayoutDescriptor(<BufferLayout>[
             BufferLayout(
               strideInBytes: 24,
               attributes: <InputAttribute>[
@@ -313,6 +325,66 @@ void main() {
       };
       expect(seen, hasLength(11));
     });
+
+    test('separates the depth bias, the write masks and unclipped depth', () {
+      // The three per-draw setters of 1.0 that WebGPU bakes into a pipeline.
+      // A shadow caster drawn with a bias and the same mesh drawn without one
+      // must not share a pipeline, or the acne comes back.
+      //
+      // Mutation: drop `depthBias` (or `unclippedDepth`, or `_sameMasks`) from
+      // `==`. Two of these collapse into one and the set is short.
+      final seen = <WebGpuPipelineSignature>{
+        _signature(),
+        _signature(depthBias: const DepthBias(constant: 2, slopeScale: 1.5)),
+        _signature(writeMasks: const <ColorWriteMask>[ColorWriteMask.red]),
+        _signature(unclippedDepth: true),
+      };
+      expect(seen, hasLength(4));
+    });
+
+    test('reads an unset write mask as every channel', () {
+      // A list that stops early and one that spells `all` out are one key, so
+      // a pass that never calls setColorWriteMask builds what it built
+      // before 1.0.
+      //
+      // Mutation: compare `writeMasks` as lists. These two become different
+      // pipelines, and every pre-1.0 pass builds a second copy of each.
+      final unset = _signature();
+      final spelled = _signature(
+        writeMasks: const <ColorWriteMask>[ColorWriteMask.all],
+      );
+      expect(spelled, unset);
+      expect(spelled.hashCode, unset.hashCode);
+    });
+  });
+
+  group('the same state for another pair', () {
+    test('keeps every field of the state and takes the new stages', () {
+      // What warming a new pair rests on: the state is carried over whole.
+      // Mutation: leave `depthBias` out of `withStages`. The two differ.
+      final drawn = _signature(
+        cullMode: 'none',
+        depthBias: const DepthBias(constant: 2, slopeScale: 1.5),
+        blends: const <BlendState?>[BlendState.alphaBlend],
+      );
+      final moved = drawn.withStages(
+        pipeline: 'SpriteVertex+Unlit',
+        vertexModule: null,
+        fragmentModule: null,
+        vertexLayout: webgpuVertexLayoutFingerprint(_perInstance),
+      );
+      expect(
+        moved,
+        _signature(
+          pipeline: 'SpriteVertex+Unlit',
+          layout: _perInstance,
+          cullMode: 'none',
+          depthBias: const DepthBias(constant: 2, slopeScale: 1.5),
+          blends: const <BlendState?>[BlendState.alphaBlend],
+        ),
+      );
+      expect(moved, isNot(drawn));
+    });
   });
 
   group('the cache', () {
@@ -331,12 +403,257 @@ void main() {
       expect(cache.length, 2);
     });
 
+    test('a pipeline built ahead of a draw is the one the draw finds', () {
+      // `createPipelineAsync`'s warming offers what it built; a draw that got
+      // there first keeps its own.
+      // Mutation: `offer` overwrites. The second expectation reads 'warm'.
+      final cache = WebGpuPipelineCache<String>();
+      expect(cache.contains(_signature()), isFalse);
+      expect(cache.offer(_signature(), 'warm'), 'warm');
+      expect(cache.get(_signature(), () => 'drawn'), 'warm');
+      expect(cache.offer(_signature(), 'late'), 'warm');
+      expect(cache.contains(_signature()), isTrue);
+    });
+
     test('forgets everything when the device that owns it goes', () {
       final cache = WebGpuPipelineCache<String>()
         ..get(_signature(), () => 'one');
       expect(cache.length, 1);
       cache.clear();
       expect(cache.length, 0);
+    });
+
+    test('forgets one state the browser refused, and builds it again', () {
+      // A pipeline the browser would not build is answered on the error
+      // scope after the draw; it leaves the cache so the next draw in that
+      // state asks again, and the other states keep what they built.
+      //
+      // Mutation: make `forget` do nothing, and the refused object is handed
+      // to every later draw in the state.
+      var builds = 0;
+      String build() => 'pipeline ${builds++}';
+      final cache = WebGpuPipelineCache<String>()
+        ..get(_signature(), build)
+        ..get(_signature(layout: _perInstance), build);
+      cache.forget(_signature());
+      expect(cache.contains(_signature()), isFalse);
+      expect(cache.get(_signature(), build), 'pipeline 2');
+      expect(cache.get(_signature(layout: _perInstance), build), 'pipeline 1');
+    });
+
+    test('forgets every state of one pair and layout, and nothing else', () {
+      // What a released pipeline handle leaves behind: its pair and layout in
+      // whatever states the draws built them. Mutation: compare the modules
+      // by name, or leave the layout out, and another pair's or the
+      // instanced layout's pipelines go with it.
+      final mine = (Object(), Object());
+      final theirs = (Object(), Object());
+      String build() => 'built';
+      final cache = WebGpuPipelineCache<String>()
+        ..get(_signature(vertexModule: mine.$1, fragmentModule: mine.$2), build)
+        ..get(
+          _signature(
+            vertexModule: mine.$1,
+            fragmentModule: mine.$2,
+            cullMode: 'none',
+          ),
+          build,
+        )
+        ..get(
+          _signature(
+            vertexModule: mine.$1,
+            fragmentModule: mine.$2,
+            layout: _perInstance,
+          ),
+          build,
+        )
+        ..get(
+          _signature(vertexModule: theirs.$1, fragmentModule: theirs.$2),
+          build,
+        );
+      final forgotten = cache.forgetStages(
+        WebGpuStages(
+          vertexModule: mine.$1,
+          fragmentModule: mine.$2,
+          vertexLayout: webgpuVertexLayoutFingerprint(_perVertex),
+        ),
+      );
+      expect(forgotten, 2);
+      expect(cache.length, 2);
+    });
+  });
+
+  group('the holders', () {
+    test('free a pair and layout with the last handle, not the first', () {
+      // Two handles over one pair and layout draw from the same pipelines.
+      // Mutation: answer true from every `release`. The first handle given
+      // back takes the second's pipelines with it.
+      final vertex = Object();
+      final fragment = Object();
+      WebGpuStages stages(VertexLayoutDescriptor layout) => WebGpuStages(
+        vertexModule: vertex,
+        fragmentModule: fragment,
+        vertexLayout: webgpuVertexLayoutFingerprint(layout),
+      );
+      final holders = WebGpuPipelineHolders()
+        ..hold(stages(_perVertex))
+        ..hold(stages(_perVertex))
+        ..hold(stages(_perInstance));
+      expect(holders.release(stages(_perVertex)), isFalse);
+      expect(holders.release(stages(_perVertex)), isTrue);
+      // The pair is still held under the instanced layout, so the layouts
+      // its bind groups are made from stay.
+      expect(holders.holdsPair(stages(_perVertex)), isTrue);
+      expect(holders.release(stages(_perInstance)), isTrue);
+      expect(holders.holdsPair(stages(_perVertex)), isFalse);
+      expect(holders.length, 0);
+    });
+  });
+
+  group('a draw that meets a new state', () {
+    /// One frame's draw in [frame]: what [cache] hands it, building in place
+    /// through [built] and off the frame through [later].
+    String? draw(
+      WebGpuPipelineCache<String> cache,
+      int frame, {
+      required List<String> built,
+      required List<WebGpuPipelineSignature> later,
+      WebGpuPipelineSignature? signature,
+      bool defer = true,
+    }) {
+      final at = signature ?? _signature();
+      return cache.forDraw(
+        at,
+        frame: frame,
+        defer: defer,
+        build: () {
+          built.add('now $frame');
+          return 'now $frame';
+        },
+        buildLater: () => later.add(at),
+      );
+    }
+
+    test('waits one frame for a build sent off the frame', () {
+      // Mutation: build in place whenever the cache misses, as before 1.0 —
+      // nothing is sent off the frame and the first draw stalls on a link.
+      final cache = WebGpuPipelineCache<String>();
+      final built = <String>[];
+      final later = <WebGpuPipelineSignature>[];
+      expect(draw(cache, 1, built: built, later: later), isNull);
+      expect(later, <WebGpuPipelineSignature>[_signature()]);
+      expect(built, isEmpty);
+      expect(cache.isPending(_signature()), isTrue);
+
+      // A second draw in the same frame waits with the first and sends
+      // nothing again.
+      expect(draw(cache, 1, built: built, later: later), isNull);
+      expect(later, hasLength(1));
+
+      // The build arrives between frames; the next draw finds it.
+      cache.offer(_signature(), 'async');
+      expect(cache.isPending(_signature()), isFalse);
+      expect(draw(cache, 2, built: built, later: later), 'async');
+      expect(built, isEmpty);
+    });
+
+    test('builds in place when the build has not arrived a frame later', () {
+      // The one-frame fallback. Mutation: keep waiting while the build is
+      // out — a browser slow to compile leaves the draw missing for as many
+      // frames as it takes.
+      final cache = WebGpuPipelineCache<String>();
+      final built = <String>[];
+      final later = <WebGpuPipelineSignature>[];
+      expect(draw(cache, 1, built: built, later: later), isNull);
+      expect(draw(cache, 2, built: built, later: later), 'now 2');
+      expect(built, <String>['now 2']);
+      expect(cache.isPending(_signature()), isFalse);
+
+      // What arrives afterwards does not replace what the draw built.
+      expect(cache.offer(_signature(), 'async'), 'now 2');
+      expect(draw(cache, 3, built: built, later: later), 'now 2');
+    });
+
+    test('builds in place when the device is not deferring', () {
+      // Mutation: defer regardless — a frame drawn once and read back, which
+      // is every golden, misses each draw whose state it met first.
+      final cache = WebGpuPipelineCache<String>();
+      final built = <String>[];
+      final later = <WebGpuPipelineSignature>[];
+      expect(draw(cache, 1, built: built, later: later, defer: false), 'now 1');
+      expect(later, isEmpty);
+    });
+
+    test('a refused build is no longer waited for', () {
+      // Mutation: leave the state pending when the browser refuses — the
+      // next frame's draw takes the fallback and builds what was refused,
+      // instead of asking again off the frame.
+      final cache = WebGpuPipelineCache<String>();
+      final built = <String>[];
+      final later = <WebGpuPipelineSignature>[];
+      draw(cache, 1, built: built, later: later);
+      cache.settle(_signature());
+      expect(cache.isPending(_signature()), isFalse);
+      expect(draw(cache, 2, built: built, later: later), isNull);
+      expect(later, hasLength(2));
+    });
+
+    test('two states wait apart', () {
+      final cache = WebGpuPipelineCache<String>();
+      final built = <String>[];
+      final later = <WebGpuPipelineSignature>[];
+      draw(cache, 1, built: built, later: later);
+      draw(
+        cache,
+        2,
+        built: built,
+        later: later,
+        signature: _signature(layout: _perInstance),
+      );
+      cache.offer(_signature(layout: _perInstance), 'instanced');
+      // The first state's build is a frame late and falls back; the second
+      // arrived and is not built again.
+      expect(draw(cache, 2, built: built, later: later), 'now 2');
+      expect(
+        draw(
+          cache,
+          3,
+          built: built,
+          later: later,
+          signature: _signature(layout: _perInstance),
+        ),
+        'instanced',
+      );
+      expect(built, <String>['now 2']);
+    });
+
+    test('forgets what it waits for with everything else', () {
+      final cache = WebGpuPipelineCache<String>();
+      draw(cache, 1, built: <String>[], later: <WebGpuPipelineSignature>[]);
+      cache.clear();
+      expect(cache.isPending(_signature()), isFalse);
+    });
+
+    test('stops waiting for a build whose pipeline was given back', () {
+      // Mutation: leave the build pending in `forgetStages` — what it brings
+      // back is cached for stages no handle holds any more.
+      final vertex = Object();
+      final fragment = Object();
+      final mine = _signature(vertexModule: vertex, fragmentModule: fragment);
+      final theirs = _signature(layout: _perInstance);
+      final cache = WebGpuPipelineCache<String>();
+      final later = <WebGpuPipelineSignature>[];
+      draw(cache, 1, built: <String>[], later: later, signature: mine);
+      draw(cache, 1, built: <String>[], later: later, signature: theirs);
+      cache.forgetStages(
+        WebGpuStages(
+          vertexModule: vertex,
+          fragmentModule: fragment,
+          vertexLayout: webgpuVertexLayoutFingerprint(_perVertex),
+        ),
+      );
+      expect(cache.isPending(mine), isFalse);
+      expect(cache.isPending(theirs), isTrue);
     });
   });
 }

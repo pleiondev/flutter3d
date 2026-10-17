@@ -17,6 +17,8 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show UnsupportedCapabilityException;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 /// The texture format WebGPU calls [format], or null where it has none.
@@ -60,6 +62,29 @@ String? gpuTextureFormat(TextureFormat format) => switch (format) {
   TextureFormat.astc8x8LDRSRGB => 'astc-8x8-unorm-srgb',
   TextureFormat.astc4x4HDR => null,
   TextureFormat.astc8x8HDR => null,
+  // The 1.0 tail, every one of which WebGPU spells. Named here so the table
+  // stays the whole answer; the spike allocates none of them — its
+  // `textureFormatSupport` answers none for each.
+  TextureFormat.r8g8b8a8SNormInt => 'rgba8snorm',
+  TextureFormat.r8g8b8a8UInt => 'rgba8uint',
+  TextureFormat.r8g8b8a8SInt => 'rgba8sint',
+  TextureFormat.r16Float => 'r16float',
+  TextureFormat.r16g16Float => 'rg16float',
+  TextureFormat.r16g16b16a16UInt => 'rgba16uint',
+  TextureFormat.r16g16b16a16SInt => 'rgba16sint',
+  TextureFormat.r32UInt => 'r32uint',
+  TextureFormat.r32SInt => 'r32sint',
+  TextureFormat.r32g32Float => 'rg32float',
+  TextureFormat.r32g32UInt => 'rg32uint',
+  TextureFormat.r32g32SInt => 'rg32sint',
+  TextureFormat.r32g32b32a32UInt => 'rgba32uint',
+  TextureFormat.r32g32b32a32SInt => 'rgba32sint',
+  TextureFormat.r10g10b10a2UNormInt => 'rgb10a2unorm',
+  TextureFormat.r11g11b10UFloat => 'rg11b10ufloat',
+  TextureFormat.r9g9b9e5UFloat => 'rgb9e5ufloat',
+  TextureFormat.d16UNormInt => 'depth16unorm',
+  TextureFormat.d32Float => 'depth32float',
+  _ => null,
 };
 
 /// The blend factor WebGPU calls [factor], or null where it has none.
@@ -97,12 +122,26 @@ String? gpuBlendFactor(BlendFactor factor) => switch (factor) {
   BlendFactor.oneMinusBlendColor => 'one-minus-constant',
   BlendFactor.blendAlpha => null,
   BlendFactor.oneMinusBlendAlpha => null,
+  // WebGPU's `dual-source-blending` spellings. The spike reports no such
+  // feature and its `setBlend` refuses them first; the names are here so the
+  // table is the whole answer.
+  BlendFactor.source1Color => 'src1',
+  BlendFactor.oneMinusSource1Color => 'one-minus-src1',
+  BlendFactor.source1Alpha => 'src1-alpha',
+  BlendFactor.oneMinusSource1Alpha => 'one-minus-src1-alpha',
+  _ => null,
 };
 
+/// Every operation has a spelling; [BlendOperation.min] and
+/// [BlendOperation.max] are core in WebGPU, and refused by the spike's
+/// `setBlend` only because the spike lists no `minMaxBlend`.
 String gpuBlendOperation(BlendOperation operation) => switch (operation) {
   BlendOperation.add => 'add',
   BlendOperation.subtract => 'subtract',
   BlendOperation.reverseSubtract => 'reverse-subtract',
+  BlendOperation.min => 'min',
+  BlendOperation.max => 'max',
+  _ => throw UnsupportedError('WebGPU has no blend operation for $operation'),
 };
 
 String gpuCompareFunction(CompareFunction compare) => switch (compare) {
@@ -127,6 +166,7 @@ String gpuStencilOperation(StencilOperation operation) => switch (operation) {
   StencilOperation.invert => 'invert',
   StencilOperation.incrementWrap => 'increment-wrap',
   StencilOperation.decrementWrap => 'decrement-wrap',
+  _ => throw UnsupportedError('WebGPU has no stencil operation for $operation'),
 };
 
 String gpuPrimitiveTopology(PrimitiveType type) => switch (type) {
@@ -135,12 +175,14 @@ String gpuPrimitiveTopology(PrimitiveType type) => switch (type) {
   PrimitiveType.line => 'line-list',
   PrimitiveType.lineStrip => 'line-strip',
   PrimitiveType.point => 'point-list',
+  _ => throw UnsupportedError('WebGPU has no primitive topology for $type'),
 };
 
 String gpuCullMode(CullMode mode) => switch (mode) {
   CullMode.none => 'none',
   CullMode.frontFace => 'front',
   CullMode.backFace => 'back',
+  _ => throw UnsupportedError('WebGPU has no cull mode for $mode'),
 };
 
 /// **Straight through — and it was written crossed first, on an argument that
@@ -186,6 +228,7 @@ String gpuLoadOp(LoadAction action) => switch (action) {
   LoadAction.dontCare => 'clear',
   LoadAction.load => 'load',
   LoadAction.clear => 'clear',
+  _ => throw UnsupportedError('WebGPU has no load op for $action'),
 };
 
 /// The store operation, which in WebGPU says nothing about resolving: a resolve
@@ -200,6 +243,7 @@ String gpuStoreOp(StoreAction action) => switch (action) {
   StoreAction.store => 'store',
   StoreAction.multisampleResolve => 'discard',
   StoreAction.storeAndMultisampleResolve => 'store',
+  _ => throw UnsupportedError('WebGPU has no store op for $action'),
 };
 
 /// Whether [action] asks for a resolve, which WebGPU takes as an attachment
@@ -212,21 +256,32 @@ String gpuAddressMode(SamplerAddressMode mode) => switch (mode) {
   SamplerAddressMode.clampToEdge => 'clamp-to-edge',
   SamplerAddressMode.repeat => 'repeat',
   SamplerAddressMode.mirror => 'mirror-repeat',
+  // WebGPU has no border: refused by the feature that names it.
+  SamplerAddressMode.clampToBorder =>
+    throw const UnsupportedCapabilityException(
+      DeviceFeature.samplerBorderColor,
+      backend: 'WebGPU',
+      reason: 'WebGPU has no "clamp-to-border" address mode',
+    ),
+  _ => throw UnsupportedError('WebGPU has no address mode for $mode'),
 };
 
 String gpuFilterMode(MinMagFilter filter) => switch (filter) {
   MinMagFilter.nearest => 'nearest',
   MinMagFilter.linear => 'linear',
+  _ => throw UnsupportedError('WebGPU has no filter mode for $filter'),
 };
 
 String gpuMipmapFilterMode(MipFilter filter) => switch (filter) {
   MipFilter.nearest => 'nearest',
   MipFilter.linear => 'linear',
+  _ => throw UnsupportedError('WebGPU has no mipmap filter mode for $filter'),
 };
 
 String gpuIndexFormat(IndexType type) => switch (type) {
   IndexType.int16 => 'uint16',
   IndexType.int32 => 'uint32',
+  _ => throw UnsupportedError('WebGPU has no index format for $type'),
 };
 
 String gpuVertexFormat(VertexFormat format) => switch (format) {
@@ -242,11 +297,13 @@ String gpuVertexFormat(VertexFormat format) => switch (format) {
   VertexFormat.sint32x2 => 'sint32x2',
   VertexFormat.sint32x3 => 'sint32x3',
   VertexFormat.sint32x4 => 'sint32x4',
+  _ => throw UnsupportedError('WebGPU has no vertex format for $format'),
 };
 
 String gpuVertexStepMode(VertexStepMode mode) => switch (mode) {
   VertexStepMode.vertex => 'vertex',
   VertexStepMode.instance => 'instance',
+  _ => throw UnsupportedError('WebGPU has no vertex step mode for $mode'),
 };
 
 /// The row stride `copyTextureToBuffer` demands for a [width]-pixel region of

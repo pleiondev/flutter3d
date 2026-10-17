@@ -38,6 +38,9 @@ out vec2 v_texcoord;
 out vec4 v_tangent;
 out vec4 v_color;
 out vec2 v_lightmap_uv;
+/// `P8`: an instance's own four numbers, a material's `instance` — from
+/// slot 1 in the instanced stage, nought in every other.
+out vec4 v_instance;
 
 void main() {
   // Morphed first and in the mesh's own space, which is the order glTF
@@ -69,6 +72,7 @@ void main() {
                    mirrored ? -morphed_tangent.w : morphed_tangent.w);
   v_color = color;
   v_lightmap_uv = vec2(0.0);
+  v_instance = vec4(0.0);
 
   gl_Position = frame_info.mvp * vec4(morphed_position, 1.0);
 }

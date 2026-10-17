@@ -10,7 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 GalleryItem _item({
   required String id,
-  required GalleryLicence licence,
+  required GalleryLicence license,
   String? author,
   String name = 'A thing',
   String source = 'somewhere',
@@ -19,7 +19,7 @@ GalleryItem _item({
   name: name,
   about: 'One sentence about what it is.',
   category: RecipeCategory.furniture,
-  licence: licence,
+  license: license,
   sourceId: source,
   author: author,
   open: () async => BuiltModel(EditMesh.cuboid()),
@@ -34,13 +34,13 @@ void main() {
       // than not attributing at all.
       final GalleryItem nameless = _item(
         id: 'somewhere/chair',
-        licence: GalleryLicence.ccBy4,
+        license: GalleryLicence.ccBy4,
       );
       expect(refuseItem(nameless), contains('names no author'));
 
       final GalleryItem credited = _item(
         id: 'somewhere/chair',
-        licence: GalleryLicence.ccBy4,
+        license: GalleryLicence.ccBy4,
         author: 'A. Maker',
       );
       expect(refuseItem(credited), isNull);
@@ -50,7 +50,7 @@ void main() {
       // Two catalogues both offering "chair" is the ordinary case, and an
       // id that does not say which is the bug that follows it.
       expect(
-        refuseItem(_item(id: 'chair', licence: GalleryLicence.cc0)),
+        refuseItem(_item(id: 'chair', license: GalleryLicence.cc0)),
         contains('source id'),
       );
     });
@@ -71,18 +71,18 @@ void main() {
     final List<GalleryItem> sorted = freeFirst(<GalleryItem>[
       _item(
         id: 'a/zebra',
-        licence: GalleryLicence.ccBy4,
+        license: GalleryLicence.ccBy4,
         name: 'Zebra',
         author: 'Someone',
       ),
       _item(
         id: 'a/apple',
-        licence: GalleryLicence.ccBy4,
+        license: GalleryLicence.ccBy4,
         name: 'Apple',
         author: 'Someone',
       ),
-      _item(id: 'a/mug', licence: GalleryLicence.cc0, name: 'Mug'),
-      _item(id: 'a/bench', licence: GalleryLicence.cc0, name: 'Bench'),
+      _item(id: 'a/mug', license: GalleryLicence.cc0, name: 'Mug'),
+      _item(id: 'a/bench', license: GalleryLicence.cc0, name: 'Bench'),
     ]);
 
     // **A sort, not a filter.** Mutation: drop everything that is not

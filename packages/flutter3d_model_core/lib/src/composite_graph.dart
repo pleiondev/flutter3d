@@ -219,7 +219,7 @@ final class CompositeGraph {
 /// caller that got one without the other would have to work the other out,
 /// and working out which passes a bloom edit reached is exactly the thing
 /// this file exists to answer once.
-({RenderSettings settings, CompositeGraph graph}) renderPost(
+PostEdit renderPost(
   RenderSettings from,
   CompositeGraph graph, {
   BloomSettings? bloom,
@@ -240,5 +240,28 @@ final class CompositeGraph {
     settings = settings.copyWith(look: look);
     touched = touched.touched(CompositePass.look);
   }
-  return (settings: settings, graph: touched);
+  return PostEdit(settings: settings, graph: touched);
+}
+
+/// The render settings after a post-pass edit and the graph marking which
+/// passes it reached: what [renderPost] answers.
+final class PostEdit {
+  /// The edited [settings] with the [graph] it dirtied.
+  const PostEdit({required this.settings, required this.graph});
+
+  /// The settings with the edit applied.
+  final RenderSettings settings;
+
+  /// The composite graph with every pass the edit reached marked touched.
+  final CompositeGraph graph;
+
+  @override
+  bool operator ==(Object other) =>
+      other is PostEdit && other.settings == settings && other.graph == graph;
+
+  @override
+  int get hashCode => Object.hash(settings, graph);
+
+  @override
+  String toString() => 'PostEdit($graph)';
 }

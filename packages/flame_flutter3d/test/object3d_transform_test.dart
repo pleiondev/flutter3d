@@ -10,8 +10,10 @@ import 'package:flame/effects.dart';
 import 'package:flame/game.dart';
 import 'package:flame_flutter3d/flame_flutter3d.dart';
 import 'package:flame_test/flame_test.dart';
-import 'package:flutter3d/flutter3d.dart' as engine show Material;
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart' as engine show RenderMaterial;
+import 'package:flutter3d/flutter3d.dart';
+// ignore: implementation_imports
+import 'package:flutter3d_core/src/engine/scene/scene_node.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 Object3dComponent _bridged(
@@ -228,16 +230,16 @@ void main() {
 
       ship.isVisible = false;
       game.update(0.0);
-      expect(ship.node.visible, isFalse);
+      expect(ship.node.isVisible, isFalse);
 
       ship.isVisible = true;
       game.update(0.0);
-      expect(ship.node.visible, isTrue);
+      expect(ship.node.isVisible, isTrue);
 
       // Blinking the node by hand, as a hit flash does, is left alone.
-      ship.node.visible = false;
+      ship.node.isVisible = false;
       game.update(0.0);
-      expect(ship.node.visible, isFalse);
+      expect(ship.node.isVisible, isFalse);
     },
   );
 
@@ -250,11 +252,11 @@ void main() {
       await game.add(shot);
       await game.ready();
       game.update(0.0);
-      expect(shot.node.visible, isTrue);
+      expect(shot.node.isVisible, isTrue);
 
       shot.removeFromParent();
       // Before Flame has processed the removal: already hidden.
-      expect(shot.node.visible, isFalse);
+      expect(shot.node.isVisible, isFalse);
       await game.ready();
       expect(shot.node.parent, isNull);
     },
@@ -299,11 +301,11 @@ void main() {
 
       log.isVisible = false;
       game.update(1 / 60);
-      expect(frog.node.visible, isFalse);
+      expect(frog.node.isVisible, isFalse);
 
       log.isVisible = true;
       game.update(1 / 60);
-      expect(frog.node.visible, isTrue);
+      expect(frog.node.isVisible, isTrue);
     },
   );
 
@@ -341,7 +343,7 @@ void main() {
       final wreck = _bridged(scene);
       final hull = MeshNode(
         CpuMesh(CuboidShape(size: Vector3.all(1.0)).build()),
-        engine.Material(),
+        engine.RenderMaterial(),
       );
       wreck.visual.add(hull);
       wreck.add(OpacityEffect.to(0.0, EffectController(duration: 1.0)));
@@ -349,30 +351,30 @@ void main() {
       await game.ready();
 
       game.update(0.5);
-      expect(hull.tint.w, closeTo(0.5, 1e-6));
+      expect(hull.tint.a, closeTo(0.5, 1e-6));
 
       final model = MeshNode(
         CpuMesh(CuboidShape(size: Vector3.all(1.0)).build()),
-        engine.Material(),
+        engine.RenderMaterial(),
       );
       wreck.visual.add(model);
       game.update(0.25);
-      expect(model.tint.w, closeTo(0.25, 1e-6), reason: 'dressed late');
+      expect(model.tint.a, closeTo(0.25, 1e-6), reason: 'dressed late');
 
       wreck
         ..opacity = 1.0
-        ..tint.setValues(1.0, 0.2, 0.2, 1.0);
+        ..tint = const LinearColor(1.0, 0.2, 0.2);
       game.update(0.0);
-      expect(hull.tint, Vector4(1.0, 0.2, 0.2, 1.0));
+      expect(hull.tint, const LinearColor(1.0, 0.2, 0.2));
 
-      wreck.tint.setValues(1.0, 1.0, 1.0, 1.0);
+      wreck.tint = LinearColor.white;
       wreck.children.whereType<OpacityEffect>().toList().forEach(
         (e) => e.removeFromParent(),
       );
       await game.ready();
       wreck.opacity = 1.0;
       game.update(0.0);
-      expect(hull.tint, Vector4.all(1.0), reason: 'back to plain');
+      expect(hull.tint, LinearColor.white, reason: 'back to plain');
     },
   );
 
@@ -391,15 +393,15 @@ void main() {
       await game.ready();
       game.update(1 / 60);
 
-      final epoch = SceneNode.changeEpoch;
+      final epoch = sceneChangeEpoch;
       for (var i = 0; i < 10; i++) {
         game.update(1 / 60);
       }
-      expect(SceneNode.changeEpoch, epoch, reason: 'nothing moved');
+      expect(sceneChangeEpoch, epoch, reason: 'nothing moved');
 
       tanker.position.x = 4.0;
       game.update(1 / 60);
-      expect(SceneNode.changeEpoch, greaterThan(epoch));
+      expect(sceneChangeEpoch, greaterThan(epoch));
       expect(tanker.node.readPosition().x, closeTo(4.0, 1e-6));
     },
   );
@@ -415,7 +417,7 @@ void main() {
       final scene = Scene();
       final hull = MeshNode(
         CpuMesh(CuboidShape(size: Vector3.all(1.0)).build()),
-        engine.Material(),
+        engine.RenderMaterial(),
       );
       final ship =
           Object3dComponent(
@@ -425,7 +427,7 @@ void main() {
             direction: SyncDirection.flameToScene,
           )..add(
             TintEffect(
-              Vector4(1.0, 0.0, 0.0, 1.0),
+              const LinearColor(1.0, 0.0, 0.0),
               EffectController(duration: 1.0),
             ),
           );
@@ -433,11 +435,11 @@ void main() {
       await game.ready();
 
       game.update(0.5);
-      expect(ship.tint.y, closeTo(0.5, 1e-6));
-      expect(hull.tint.y, closeTo(0.5, 1e-6), reason: 'on the mesh drawn');
+      expect(ship.tint.g, closeTo(0.5, 1e-6));
+      expect(hull.tint.g, closeTo(0.5, 1e-6), reason: 'on the mesh drawn');
       game.update(0.5);
-      expect(hull.tint.x, closeTo(1.0, 1e-6));
-      expect(hull.tint.y, closeTo(0.0, 1e-6));
+      expect(hull.tint.r, closeTo(1.0, 1e-6));
+      expect(hull.tint.g, closeTo(0.0, 1e-6));
     },
   );
 }

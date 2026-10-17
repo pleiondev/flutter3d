@@ -81,9 +81,12 @@
 /// `ktx2_loader.dart` says the rest.
 library;
 
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show Flutter3dFormatException;
+
 /// `AB 4B 54 58 20 32 30 BB 0D 0A 1A 0A` — the twelve-byte identifier every
 /// KTX2 file starts with.
-const List<int> kKtx2Identifier = [
+const List<int> ktx2Identifier = [
   0xAB,
   0x4B,
   0x54,
@@ -98,15 +101,15 @@ const List<int> kKtx2Identifier = [
   0x0A,
 ];
 
-const int kKtx2HeaderOffset = 12;
-const int kKtx2HeaderBytes = 36;
-const int kKtx2IndexOffset = kKtx2HeaderOffset + kKtx2HeaderBytes; // 48
-const int kKtx2IndexBytes = 32;
-const int kKtx2LevelIndexOffset = kKtx2IndexOffset + kKtx2IndexBytes; // 80
-const int kKtx2LevelIndexEntryBytes = 24;
+const int ktx2HeaderOffset = 12;
+const int ktx2HeaderBytes = 36;
+const int ktx2IndexOffset = ktx2HeaderOffset + ktx2HeaderBytes; // 48
+const int ktx2IndexBytes = 32;
+const int ktx2LevelIndexOffset = ktx2IndexOffset + ktx2IndexBytes; // 80
+const int ktx2LevelIndexEntryBytes = 24;
 
 /// Byte offsets of the Index section's fields, relative to
-/// [kKtx2IndexOffset] — the pointers to the data format descriptor, the
+/// [ktx2IndexOffset] — the pointers to the data format descriptor, the
 /// key/value data, and (for a Basis Universal file) the supercompression
 /// global data this stage now reads.
 abstract final class Ktx2IndexField {
@@ -190,7 +193,7 @@ abstract final class Ktx2ImageDescField {
   static const int bytes = 20;
 }
 
-/// Byte offsets of the header fields, relative to [kKtx2HeaderOffset].
+/// Byte offsets of the header fields, relative to [ktx2HeaderOffset].
 abstract final class Ktx2HeaderField {
   static const int vkFormat = 0;
   static const int typeSize = 4;
@@ -289,9 +292,10 @@ abstract final class VkFormat {
 /// A distinct type rather than [FormatException], so a caller can tell "not
 /// our format" from "our format, and a feature we have not built" — the
 /// second is a roadmap item, not a broken file.
-final class Ktx2FormatException implements Exception {
+final class Ktx2FormatException extends Flutter3dFormatException {
   const Ktx2FormatException(this.message);
 
+  @override
   final String message;
 
   @override

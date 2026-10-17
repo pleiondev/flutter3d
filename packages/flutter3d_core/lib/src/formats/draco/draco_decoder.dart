@@ -109,13 +109,16 @@ Never _fail(String message) => throw DracoException(message);
 DracoMesh decodeDraco(Uint8List bytes) {
   try {
     return _decode(bytes);
-  } on RangeError {
+  } on RangeError catch (_, stack) {
     // The cursor's multi-byte reads and every table lookup are bounds-checked
     // by the language rather than by hand. A stream that runs one off the end
     // is truncated or lying about a count, and the caller was promised one
     // kind of exception.
-    throw const DracoException(
-      'the stream ends, or names something out of range, part way through',
+    Error.throwWithStackTrace(
+      const DracoException(
+        'the stream ends, or names something out of range, part way through',
+      ),
+      stack,
     );
   }
 }
@@ -349,6 +352,8 @@ final class _Attribute {
   /// Quantisation, read after every attribute's integers — the stream puts
   /// all the values first and all the parameters after.
   late final Float32List minValues;
+
+  /// The quantization box's side, in the unit of the attribute it quantizes.
   late final double range;
   late final int quantizationBits;
 

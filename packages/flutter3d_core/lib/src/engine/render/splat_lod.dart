@@ -71,8 +71,8 @@ final class SplatLod {
   int _heapSize = 0;
 
   // The assembled cloud's storage, grown to the largest cut drawn.
-  Float32List _centres = Float32List(0);
-  Float32List _colours = Float32List(0);
+  Float32List _centers = Float32List(0);
+  Float32List _colors = Float32List(0);
   Float32List _scales = Float32List(0);
   Float32List _rotations = Float32List(0);
 
@@ -137,9 +137,9 @@ final class SplatLod {
   }
 
   SplatCloud _assemble(List<int> cut, int count) {
-    if (_centres.length < count * 3) {
-      _centres = Float32List(count * 3);
-      _colours = Float32List(count * 4);
+    if (_centers.length < count * 3) {
+      _centers = Float32List(count * 3);
+      _colors = Float32List(count * 4);
       _scales = Float32List(count * 3);
       _rotations = Float32List(count * 4);
     }
@@ -147,15 +147,15 @@ final class SplatLod {
     for (final index in cut) {
       final splats = tree.nodes[index].splats!;
       final n = splats.count;
-      _centres.setRange(at * 3, (at + n) * 3, splats.centres);
-      _colours.setRange(at * 4, (at + n) * 4, splats.colours);
+      _centers.setRange(at * 3, (at + n) * 3, splats.centers);
+      _colors.setRange(at * 4, (at + n) * 4, splats.colors);
       _scales.setRange(at * 3, (at + n) * 3, splats.scales);
       _rotations.setRange(at * 4, (at + n) * 4, splats.rotations);
       at += n;
     }
     return SplatCloud(
-      centres: Float32List.sublistView(_centres, 0, count * 3),
-      colours: Float32List.sublistView(_colours, 0, count * 4),
+      centers: Float32List.sublistView(_centers, 0, count * 3),
+      colors: Float32List.sublistView(_colors, 0, count * 4),
       scales: Float32List.sublistView(_scales, 0, count * 3),
       rotations: Float32List.sublistView(_rotations, 0, count * 4),
     );

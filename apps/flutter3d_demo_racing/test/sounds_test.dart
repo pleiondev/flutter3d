@@ -10,16 +10,16 @@ library;
 import 'dart:io';
 
 import 'package:flutter3d_audio/flutter3d_audio.dart';
-import 'package:flutter3d_audio/testing.dart';
+import 'package:flutter3d_demo_content/repo_checks.dart';
 import 'package:flutter3d_demo_racing/src/sounds.dart';
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
 /// A car whose numbers are set by hand, so that a test about sound is not also
 /// a test about driving.
-final class _Car implements VehicleController {
+final class _Car with VehicleController {
   _Car()
     : collider = Collider(
         shape: CollisionSphere(0.7),
@@ -51,7 +51,7 @@ final class _Car implements VehicleController {
   double slipRatio = 0.0;
 
   @override
-  bool grounded = true;
+  bool isGrounded = true;
 
   @override
   double impactThisStep = 0.0;
@@ -63,10 +63,10 @@ final class _Car implements VehicleController {
   double trackDistance = 0.0;
 
   @override
-  void step(double dt, VehicleInput input) {}
+  void step(VehicleStep context) {}
 
   @override
-  void placeAt(Vector3 at, double yaw, {double? trackDistance}) {}
+  void placeAt(VehiclePlacement placement) {}
 
   /// A stand-in car keeps nothing between steps, so there is nothing to save.
   /// The interface still asks, because a race that can be saved has to be able
@@ -78,7 +78,7 @@ final class _Car implements VehicleController {
   void restore(Map<String, Object?> from) {}
 }
 
-({CarVoice voice, _Car car, AudioScene scene, SilentBackend backend}) heard() {
+({CarVoice voice, _Car car, AudioScene scene, SilentBackend backend}) _heard() {
   final backend = SilentBackend();
   final scene = AudioScene(backend: backend);
   final car = _Car()..velocity.setValues(0.0, 0.0, 30.0);
@@ -115,7 +115,7 @@ void main() {
       // Mutation: drive the note straight from `rpm`. A car on the grid has
       // none, so the field would sit in silence until the lights went out and
       // the first thing anybody heard would be four engines starting at once.
-      final it = heard();
+      final it = _heard();
       it.car
         ..rpm = 0.0
         ..velocity.setZero();
@@ -127,7 +127,7 @@ void main() {
     });
 
     test('rises with the revs', () {
-      final it = heard();
+      final it = _heard();
 
       // Read from the mix rather than from the voices: at nine tenths of the
       // revs the low band is mixed to nothing and has no voice to ask.
@@ -143,7 +143,7 @@ void main() {
     });
 
     test('moves with the car', () {
-      final it = heard();
+      final it = _heard();
       it.car.position.setValues(40.0, 0.0, -12.0);
 
       it.voice.update(offRoad: false);
@@ -166,7 +166,7 @@ void main() {
       // where the tyres squeal down the straight is a racing game nobody
       // believes, and it is the fault most likely to be shipped because it is
       // only wrong by degree.
-      final it = heard();
+      final it = _heard();
 
       it.car.slipAngle = 0.02;
       it.voice.update(offRoad: false);
@@ -180,7 +180,7 @@ void main() {
     });
 
     test('wheelspin squeals too', () {
-      final it = heard();
+      final it = _heard();
       it.car
         ..slipAngle = 0.0
         ..slipRatio = 0.9;
@@ -192,10 +192,10 @@ void main() {
     });
 
     test('a car in the air is silent, however sideways it is', () {
-      final it = heard();
+      final it = _heard();
       it.car
         ..slipAngle = 0.8
-        ..grounded = false;
+        ..isGrounded = false;
 
       it.voice.update(offRoad: false);
       it.scene.update(AudioListener());
@@ -206,7 +206,7 @@ void main() {
     test('a car barely moving is quiet, whatever the angle says', () {
       // Slip angle is an angle, and at a crawl the angle between where a car
       // points and where it is going says nothing about rubber.
-      final it = heard();
+      final it = _heard();
       it.car
         ..slipAngle = 0.9
         ..velocity.setValues(0.0, 0.0, 0.2);
@@ -220,7 +220,7 @@ void main() {
 
   group('off the road', () {
     test('the rumble is heard only out there', () {
-      final it = heard();
+      final it = _heard();
 
       it.voice.update(offRoad: false);
       it.scene.update(AudioListener());

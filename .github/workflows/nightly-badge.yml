@@ -1,0 +1,65 @@
+# **The nightly's badge, which goes stale on its own.** GitHub's own
+# workflow badge shows the last run's colour for as long as there is no new
+# run, so a nightly whose machine was switched off a week ago still shows
+# green. This writes a shields.io endpoint document instead, after every
+# nightly and every six hours between them, and `tool/nightly_badge.sh`
+# turns it orange after 48 hours with no run. Green carries the count of
+# green nights in a row, which is the number the tag waits on (seven).
+#
+# The document lives on a branch of its own, `badges`, which holds nothing
+# else and keeps no history worth reading (each write is one commit that
+# replaces the last). README's badge reads it through shields.io:
+#
+#   https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/pleiondev/flutter3d/badges/nightly.json
+#
+# On a hosted runner: it reads the Actions API and writes one file, and
+# should not wait for the machine whose absence it exists to report.
+name: nightly badge
+
+on:
+  workflow_run:
+    workflows: [nightly]
+    types: [completed]
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: nightly-badge
+  cancel-in-progress: true
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  badge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+
+      # The last twenty runs, newest first: enough to count a streak past
+      # seven, and a scheduled run only ever started on the default branch.
+      - name: write the badge
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run list --workflow nightly.yml --branch "${{ github.event.repository.default_branch }}" \
+            --limit 20 --json status,conclusion,createdAt,updatedAt > "$RUNNER_TEMP/runs.json"
+          tool/nightly_badge.sh < "$RUNNER_TEMP/runs.json" > "$RUNNER_TEMP/nightly.json"
+          cat "$RUNNER_TEMP/nightly.json"
+
+      # An orphan branch with one file, force-pushed: the badge's history is
+      # the nightly's runs, which the Actions tab already keeps. Pushed with
+      # the credentials `checkout` left in this clone, so the token never
+      # appears on a command line.
+      - name: publish it on the badges branch
+        run: |
+          git switch -q --orphan badges
+          cp "$RUNNER_TEMP/nightly.json" nightly.json
+          git add nightly.json
+          git -c user.name='github-actions[bot]' \
+            -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+            commit -q -m "The nightly's badge"
+          git push -q --force origin badges

@@ -4,7 +4,7 @@
 /// **The same question `MaterialHint` answers for a material's own fields,
 /// and a deliberately separate type from it** — decided 2026-09-09 (Г4/Ж2)
 /// once a real one was tried: `MaterialHintKind` is `RangeHint`
-/// (double only), `ColorHint`, `TextureHint` and `EnumHint`, and a command
+/// (double only), `ColorHint`, `TextureHint` and `ChoiceHint`, and a command
 /// argument needs two things that hierarchy has no room for — a whole number
 /// a fraction cannot honestly describe (`LoopCut.cuts`) and a flag that is
 /// neither (`RecalculateNormals.flip`) — plus a unit `MaterialHintKind` never
@@ -12,9 +12,9 @@
 /// command's are metres, radians and counts. Sharing the type would also
 /// mean this package importing `LightingModel` for a picker it never shows.
 ///
-/// Sealed, so a switch building a control from one of these is exhaustive —
-/// the same reasoning `MaterialHintKind` gives for itself.
-sealed class ParamHint {
+/// An open set grown only here, for the reason `MaterialHintKind` gives for
+/// itself: a switch building a control from one ends with a wildcard.
+abstract final class ParamHint {
   const ParamHint();
 }
 
@@ -34,8 +34,13 @@ final class IntHint extends ParamHint {
 final class DoubleHint extends ParamHint {
   const DoubleHint({this.min, this.max, this.step, this.unit});
 
+  /// In [unit] when one is given, otherwise a unitless number.
   final double? min;
+
+  /// In [unit] when one is given, otherwise a unitless number.
   final double? max;
+
+  /// In [unit] when one is given, otherwise a unitless number.
   final double? step;
   final String? unit;
 }
@@ -48,8 +53,8 @@ final class BoolHint extends ParamHint {
 /// One of [values] and nothing else — a command argument's own enum, read
 /// from that enum's `.values` rather than written out by hand, the same way
 /// `builtInMaterialHints` reads `SurfaceAlphaMode.values` for its own.
-final class EnumHint extends ParamHint {
-  const EnumHint(this.values);
+final class ChoiceHint extends ParamHint {
+  const ChoiceHint(this.values);
 
   final List<String> values;
 }
@@ -59,6 +64,7 @@ final class EnumHint extends ParamHint {
 final class Vector3Hint extends ParamHint {
   const Vector3Hint({this.step, this.unit});
 
+  /// In [unit] when one is given, otherwise a unitless number.
   final double? step;
   final String? unit;
 }

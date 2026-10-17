@@ -16,6 +16,8 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'overlay_ink.dart';
+
 /// Draws a wireframe box around the world-space bounds of every obstacle in
 /// [obstacles] into [draw].
 ///
@@ -46,14 +48,14 @@ void drawClothObstacle(
 }) {
   final bounds = Aabb3();
   obstacle.shape.computeBounds(obstacle.position, bounds);
-  _drawWireBox(draw, bounds, color ?? DebugColors.bounds);
+  _drawWireBox(draw, bounds, color?.ink ?? DebugColors.bounds);
 }
 
 /// The twelve edges of [box], as six pairs of parallel lines — the same shape
 /// [DebugDraw] itself has no built-in for (its own overlays draw a mesh's
 /// bounds by looping this same way at the call site of `bounds`, so this
 /// mirrors that rather than inventing a second convention).
-void _drawWireBox(DebugDraw draw, Aabb3 box, Vector4 color) {
+void _drawWireBox(DebugDraw draw, Aabb3 box, LinearColor color) {
   final min = box.min;
   final max = box.max;
 

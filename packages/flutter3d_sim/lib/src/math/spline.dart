@@ -59,7 +59,8 @@ final class CatmullRom {
 
   /// How hard the curve pulls towards each control point. The classical
   /// Catmull-Rom value is `0.5`; lower slackens the curve towards straight lines
-  /// between the points, higher overshoots them.
+  /// between the points, higher overshoots them. A unitless multiplier on
+  /// each point's tangent.
   final double tension;
 
   /// How finely the curve is measured, per segment.
@@ -125,14 +126,14 @@ final class CatmullRom {
     final u = _toU(s);
     _derivative(u, out);
     var scale = out.length;
-    if (scale < Tolerance.divisor) {
+    if (scale < GeometryTolerance.divisor) {
       // Coincident control points can flatten the derivative to nothing. Step a
       // hair along the curve rather than inventing a direction, so that a
       // duplicated point in the track file is a wobble and not a car facing
       // north for one step.
       _derivative(u + 1e-4, out);
       scale = out.length;
-      if (scale < Tolerance.divisor) {
+      if (scale < GeometryTolerance.divisor) {
         out.setValues(0.0, 0.0, 1.0);
         return;
       }
@@ -152,7 +153,7 @@ final class CatmullRom {
     _secondDerivative(u, _second);
 
     final speed = _first.length;
-    if (speed < Tolerance.divisor) return 0.0;
+    if (speed < GeometryTolerance.divisor) return 0.0;
 
     // Written out rather than through `cross`, which allocates a vector: an AI
     // asks this several times per car per step.
@@ -314,10 +315,10 @@ final class CatmullRom {
   /// Narrows the answer from the nearest measured sample to the nearest point on
   /// the curve itself, by ternary search between its neighbours.
   double _refine(Vector3 point, int sampleIndex) {
-    final centre = sampleIndex / _samplesPerSegment;
+    final center = sampleIndex / _samplesPerSegment;
     final step = 1.0 / _samplesPerSegment;
-    var low = centre - step;
-    var high = centre + step;
+    var low = center - step;
+    var high = center + step;
     if (!closed) {
       low = low.clamp(0.0, segmentCount.toDouble());
       high = high.clamp(0.0, segmentCount.toDouble());

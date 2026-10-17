@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter3d_game/flutter3d_game.dart'; // SettingsOverlay, Credit
+import 'package:flutter3d_game_ui/screens.dart' show TitleSheet;
 
 import 'credits.dart';
 
@@ -20,7 +20,8 @@ import 'credits.dart';
 ///
 /// Shown until the game is first played and never again in that session: a
 /// title card that comes back every time the pointer is released is a title
-/// card in the middle of a run.
+/// card in the middle of a run. Laid out by `TitleSheet`; what is here is
+/// this game's name and the lines about its keys.
 class TitleCard extends StatelessWidget {
   const TitleCard({
     super.key,
@@ -83,70 +84,12 @@ class TitleCard extends StatelessWidget {
   final bool resuming;
 
   @override
-  Widget build(BuildContext context) {
-    return ColoredBox(
-      color: Colors.black.withValues(alpha: 0.78),
-      child: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(32),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 520),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                const Text(
-                  'Ascent',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 46,
-                    fontWeight: FontWeight.w200,
-                    letterSpacing: 6,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Two hundred and sixty metres, three lives, and a summit.',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.72),
-                    fontSize: 15,
-                  ),
-                ),
-                const SizedBox(height: 22),
-                for (final line in _controls)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 2),
-                    child: Text(
-                      line,
-                      style: const TextStyle(color: Colors.white, fontSize: 14),
-                    ),
-                  ),
-                if (resuming) ...<Widget>[
-                  const SizedBox(height: 14),
-                  Text(
-                    'Your last checkpoint is waiting.',
-                    style: TextStyle(
-                      color: Colors.amber.withValues(alpha: 0.85),
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 26),
-                const CreditsSection(credits: Credits.models),
-                const SizedBox(height: 26),
-                Text(
-                  prompt,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    letterSpacing: 1,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => TitleSheet(
+    title: 'Ascent',
+    tagline: 'Two hundred and sixty metres, three lives, and a summit.',
+    lines: _controls,
+    notice: resuming ? 'Your last checkpoint is waiting.' : null,
+    credits: credits.models,
+    prompt: prompt,
+  );
 }

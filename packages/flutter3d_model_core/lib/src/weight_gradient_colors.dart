@@ -19,6 +19,7 @@ import 'package:vector_math/vector_math.dart';
 final class _WeightGradientStop {
   const _WeightGradientStop(this.position, this.srgb);
 
+  /// A 0..1 weight.
   final double position;
   final Vector3 srgb;
 }

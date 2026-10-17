@@ -39,8 +39,8 @@ Future<void> _buildAssets(BuildInput input, BuildOutputBuilder output) async {
   final List<Uri> dependencies;
   try {
     dependencies = await buildShaderBundle(packageRoot: packageRoot);
-  } on ShaderBundleBuildException catch (error) {
-    throw BuildError(message: error.message);
+  } on ShaderBundleBuildException catch (error, stack) {
+    Error.throwWithStackTrace(BuildError(message: error.message), stack);
   }
 
   for (final uri in dependencies) {

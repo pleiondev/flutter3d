@@ -37,8 +37,21 @@
 /// records them, is `src/testing_fake_pass.dart`. [FakeShaderLibrary] and
 /// [FakeBackend], the [GraphicsDevice] that opens one, are
 /// `src/testing_fake_backend.dart`. All three are re-exported from here.
+///
+/// **So is [SynchronousBufferReadback]**, since 1.0: the read that stalls
+/// the caller until the GPU is done is a test's or a tool's, never a frame's,
+/// so the main library does not offer it. A backend that has it imports it
+/// from here to mix it in.
+///
+/// **And [MaskedDevice]**, since 1.0.0-rc.1+2: any live device, answering
+/// as if it lacked the features a test names, so the fallback branch of
+/// each runs on the machine at hand.
 library;
 
+export 'src/compute_placement.dart' show computePlacementOf;
+export 'src/masked_device.dart';
+export 'src/synchronous_readback.dart';
 export 'src/testing_fake_backend.dart';
+export 'src/testing_fake_compute.dart';
 export 'src/testing_fake_pass.dart';
 export 'src/testing_recorded.dart';

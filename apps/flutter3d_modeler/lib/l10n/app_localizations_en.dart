@@ -1811,6 +1811,35 @@ class AppLocalizationsEn extends AppLocalizations {
   String get animConstraints => 'Constraints';
 
   @override
+  String get animGraphs => 'Animation graphs';
+
+  @override
+  String get animGraphsNone =>
+      'No graphs yet. Give a name and a graph in JSON.';
+
+  @override
+  String get animGraphName => 'Graph name';
+
+  @override
+  String get animGraphJson => 'Graph (JSON)';
+
+  @override
+  String get animGraphSet => 'Set graph';
+
+  @override
+  String get animGraphRemove => 'Remove graph';
+
+  @override
+  String animGraphSummary(int states, int transitions) {
+    return '$states states · $transitions transitions';
+  }
+
+  @override
+  String animGraphNotJson(String error) {
+    return 'Not JSON: $error';
+  }
+
+  @override
   String get crashTitle => 'Something went wrong';
 
   @override

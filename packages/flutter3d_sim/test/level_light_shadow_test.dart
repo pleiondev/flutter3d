@@ -8,6 +8,7 @@
 /// does not.
 library;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show LightType;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 
@@ -42,14 +43,11 @@ void main() {
     'a light made in code writes the flag only when it is not the default',
     () {
       expect(
-        LevelLight(type: LevelLightType.directional).toJson(),
+        LevelLight(type: LightType.directional).toJson(),
         isNot(contains('castsShadow')),
       );
       expect(
-        LevelLight(
-          type: LevelLightType.directional,
-          castsShadow: false,
-        ).toJson(),
+        LevelLight(type: LightType.directional, castsShadow: false).toJson(),
         containsPair('castsShadow', false),
       );
       expect(LevelLight().toJson(), isNot(contains('castsShadow')));

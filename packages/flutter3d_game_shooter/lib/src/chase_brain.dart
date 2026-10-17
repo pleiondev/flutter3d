@@ -50,7 +50,10 @@ base class ChaseBrain extends Brain {
   /// [MonsterState.hurt] and [MonsterState.alert].
   double stateTime = 0.0;
 
+  /// Seconds until it may attack again.
   double attackCooldown = 0.0;
+
+  /// Seconds until it may be staggered again.
   double painCooldown = 0.0;
 
   /// True once it has noticed the player, and it never goes back to false.
@@ -87,8 +90,8 @@ base class ChaseBrain extends Brain {
   /// Where it is aiming, for the shot and for [Bestiary] to read back.
   void _readTarget(Mind it) {
     final other = quarrel;
-    final at = other?.position;
-    final mine = it.actor.position;
+    final at = other?.body?.position;
+    final mine = it.actor.body?.position;
     if (other == null || at == null || mine == null || !other.isAlive) {
       // A quarrel with something dead, or with something that has no body any
       // more, is over: back to the player.
@@ -105,23 +108,34 @@ base class ChaseBrain extends Brain {
 
   /// Whether it can see what it is dealing with.
   bool _canSeeTarget(Mind it) {
-    final at = quarrel?.position;
+    final at = quarrel?.body?.position;
     return at == null ? it.canSee() : it.canSeePoint(at);
   }
+
+  /// Whether it is at rest — standing, or about whatever a subclass gives it
+  /// to do before it has noticed anyone: where sight, a noise and pain all
+  /// wake it.
+  ///
+  /// **Asked rather than compared with [MonsterState.idle]**, because a
+  /// guard on a beat rests in a state of its own. Each of the three wakings
+  /// compared with idle, so a patrolling guard walked past a player in plain
+  /// view, and past a shotgun going off in the next room.
+  bool get isResting => state == MonsterState.idle;
 
   @override
   void think(Mind it) {
     _readTarget(it);
+    if (isResting) {
+      if (_targetDistance <= def.sightRange && _canSeeTarget(it)) {
+        _enter(MonsterState.alert);
+      }
+      return;
+    }
     switch (state) {
       case MonsterState.dead:
       case MonsterState.hurt:
         // Staggered, and not making decisions.
         return;
-
-      case MonsterState.idle:
-        if (_targetDistance <= def.sightRange && _canSeeTarget(it)) {
-          _enter(MonsterState.alert);
-        }
 
       case MonsterState.alert:
         if (stateTime >= def.alertDuration * difficulty.opponentReaction) {
@@ -146,7 +160,7 @@ base class ChaseBrain extends Brain {
       // whatever the game's own code put it in until that code moves it on.
       // A brain that guessed would fight the game for control of its monster.
       default:
-        return;
+        break;
     }
   }
 
@@ -169,7 +183,7 @@ base class ChaseBrain extends Brain {
         it.turnTowards(_toTarget.x, _toTarget.z);
 
       case MonsterState.chase:
-        final other = quarrel?.position;
+        final other = quarrel?.body?.position;
         if (other == null) {
           it.steerTowardsFocus();
         } else {
@@ -192,13 +206,15 @@ base class ChaseBrain extends Brain {
       // A state this brain does not know: it moves nothing and turns nothing,
       // for the reason `think` gives. The monster still steps — gravity and
       // collision are the world's, not this brain's — it simply is not driven.
+      // ignore: no-equal-switch-case, kept apart from idle and dead for this.
       default:
         break;
     }
   }
 
   @override
-  void onHurt(Mind it, double amount) {
+  void onHurt(BrainHurt hurt) {
+    final it = hurt.mind;
     // Being shot is how a monster notices someone it could not see.
     hasNoticed = true;
 
@@ -209,11 +225,11 @@ base class ChaseBrain extends Brain {
     final culprit = it.hurtBy;
     if (culprit is Actor && !identical(culprit, it.actor) && culprit.isAlive) {
       quarrel = culprit;
-      if (state == MonsterState.idle || state == MonsterState.alert) {
+      if (isResting || state == MonsterState.alert) {
         _enter(MonsterState.chase);
       }
     }
-    if (state == MonsterState.idle) _enter(MonsterState.chase);
+    if (isResting) _enter(MonsterState.chase);
     if (painCooldown <= 0.0 &&
         state != MonsterState.hurt &&
         it.random.nextDouble() < def.painChance) {
@@ -238,8 +254,8 @@ base class ChaseBrain extends Brain {
   /// to learn from a noise, and one that is hurt is staggering — interrupting
   /// that would cancel the flinch the player just earned.
   @override
-  void onNoise(Mind it, Vector3 at) {
-    if (state != MonsterState.idle) return;
+  void onNoise(BrainNoise noise) {
+    if (!isResting) return;
     hasNoticed = true;
     _enter(MonsterState.chase);
   }
@@ -249,7 +265,7 @@ base class ChaseBrain extends Brain {
 
   void _attack(Mind it) {
     final weapon = def.attack;
-    attackCooldown = weapon.cooldownSeconds;
+    attackCooldown = weapon.cooldown;
 
     if (!it.actor.eyeLevel(_eye)) return;
     // At whatever it is dealing with — the player, or the one it has turned
@@ -285,7 +301,7 @@ base class ChaseBrain extends Brain {
     _aim.normalize();
 
     shot.begin(weapon, _eye, _aim, shooter: it.actor.body?.collider);
-    weapon.behaviour.deliver(shot);
+    weapon.behavior.deliver(shot);
 
     // A melee swing lands immediately and reports what it reached; a projectile
     // reports nothing and arrives later, through the projectile system.
@@ -300,7 +316,9 @@ base class ChaseBrain extends Brain {
       // straight through anything standing in the way. `from` is what lets the
       // one that was hit know who to turn on.
       final target = hit.collider?.userData;
-      if (target is Damageable) target.applyDamage(hit.damage, from: it.actor);
+      if (target is Damageable) {
+        target.applyDamage(Damage(amount: hit.damage, from: it.actor));
+      }
     }
   }
 

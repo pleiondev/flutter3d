@@ -11,13 +11,15 @@ final class CollisionCapsule extends CollisionShape {
     : assert(radius > 0.0),
       assert(halfHeight >= 0.0);
 
+  /// The distance from the segment to the surface, in metres.
   final double radius;
 
   /// Half the distance between the two cap centres — **not** half the total
-  /// height, which is `halfHeight + radius`.
+  /// height, which is `halfHeight + radius`. In metres.
   final double halfHeight;
 
-  /// Half the total height, caps included — the sum [halfHeight] is not.
+  /// Half the total height, caps included — the sum [halfHeight] is not. In
+  /// metres.
   ///
   /// The solver works with the segment and the radius separately, which is why
   /// nothing here adds them. It is for a caller sizing something against the
@@ -101,6 +103,17 @@ final class CollisionCapsule extends CollisionShape {
   /// the corner it should have rounded, caught. Along any of the six axes the
   /// two answers are identical, which is why no face in this package could tell
   /// the difference until a ramp had one that was not an axis.
+  @override
+  void supportPoint(double dx, double dy, double dz, Vector3 out) {
+    final length = math.sqrt(dx * dx + dy * dy + dz * dz);
+    final scale = length == 0.0 ? 0.0 : radius / length;
+    out.setValues(
+      dx * scale,
+      (dy >= 0.0 ? halfHeight : -halfHeight) + dy * scale,
+      dz * scale,
+    );
+  }
+
   @override
   double supportAlong(double nx, double ny, double nz) =>
       (ny * halfHeight).abs() + radius;

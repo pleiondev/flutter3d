@@ -16,7 +16,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_cpu/src/cpu_shader_bindings.dart';
 import 'package:flutter3d_cpu/src/cpu_shader_stage.dart';
-import 'package:flutter3d_cpu/src/cpu_shaders_temporal.dart';
+import 'package:flutter3d_cpu/src/cpu_shaders_builtin.dart';
 import 'package:flutter3d_cpu/src/cpu_texture.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:test/test.dart';
@@ -73,11 +73,14 @@ Vector4 _resolve(int x, double motionX) {
       },
     },
     <String, BoundTexture>{
-      'scene_texture': BoundTexture(scene, SamplerOptions.linearClamp),
+      'scene_texture': BoundTexture(scene, SamplerDescriptor.linearClamp),
       // Filtered, as the pass binds it for the colour's Catmull-Rom.
-      'history_texture': BoundTexture(history, SamplerOptions.linearClamp),
-      'velocity_texture': BoundTexture(velocity, SamplerOptions.nearestClamp),
-      'surface_texture': BoundTexture(surface, SamplerOptions.nearestClamp),
+      'history_texture': BoundTexture(history, SamplerDescriptor.linearClamp),
+      'velocity_texture': BoundTexture(
+        velocity,
+        SamplerDescriptor.nearestClamp,
+      ),
+      'surface_texture': BoundTexture(surface, SamplerDescriptor.nearestClamp),
     },
   );
   return const TemporalResolveShader().run(

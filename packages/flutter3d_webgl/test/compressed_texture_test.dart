@@ -26,13 +26,12 @@ import 'package:flutter3d_webgl/src/webgl_formats.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:web/web.dart' as web;
 
-WebGlDevice _makeDevice({int width = 8, int height = 8}) {
-  final device = WebGlDevice.create(
+Future<WebGlDevice> _makeDevice({int width = 8, int height = 8}) async {
+  final device = await WebGlDevice.open(
     width: width,
     height: height,
-    sources: engineShaders,
+    sources: webGlEngineShaders,
   );
-  if (device == null) fail('no WebGL2 context in this browser');
   return device;
 }
 
@@ -46,8 +45,8 @@ ByteData _levelBytes(TextureFormat format, int width, int height) {
 }
 
 void main() {
-  test('ETC2 always uploads cleanly: mandated by WebGL2\'s own core', () {
-    final device = _makeDevice(width: 4, height: 4);
+  test('ETC2 always uploads cleanly: mandated by WebGL2\'s own core', () async {
+    final device = await _makeDevice(width: 4, height: 4);
     device.debugDrainErrors('setup');
 
     final handle = device.createTextureFromPixels(
@@ -57,14 +56,13 @@ void main() {
       pixels: _levelBytes(TextureFormat.etc2RGB8UNormInt, 4, 4),
     );
 
-    expect(handle, isNotNull);
-    expect(handle!.format, TextureFormat.etc2RGB8UNormInt);
+    expect(handle.format, TextureFormat.etc2RGB8UNormInt);
     expect(device.debugDrainErrors('after ETC2 upload'), isNull);
     device.dispose();
   });
 
-  test('an ETC2 mip chain uploads block-rounded sizes at every level', () {
-    final device = _makeDevice(width: 8, height: 8);
+  test('an ETC2 mip chain uploads block-rounded sizes at every level', () async {
+    final device = await _makeDevice(width: 8, height: 8);
     device.debugDrainErrors('setup');
 
     const format = TextureFormat.etc2RGBA8UNormInt;
@@ -78,35 +76,40 @@ void main() {
       mipLevels: [_levelBytes(format, 4, 4)],
     );
 
-    expect(handle, isNotNull);
+    expect(handle.format, format);
     expect(device.debugDrainErrors('after ETC2 mip chain upload'), isNull);
     device.dispose();
   });
 
-  test('a wrong-sized compressed level is refused before any GL call', () {
-    final device = _makeDevice(width: 4, height: 4);
-    device.debugDrainErrors('setup');
+  test(
+    'a wrong-sized compressed level is refused before any GL call',
+    () async {
+      final device = await _makeDevice(width: 4, height: 4);
+      device.debugDrainErrors('setup');
 
-    final short = ByteData(
-      _levelBytes(TextureFormat.etc2RGB8UNormInt, 4, 4).lengthInBytes - 1,
-    );
-    final handle = device.createTextureFromPixels(
-      width: 4,
-      height: 4,
-      format: TextureFormat.etc2RGB8UNormInt,
-      pixels: short,
-    );
-
-    expect(handle, isNull);
-    // Refused in Dart, before `createTexture`/`compressedTexSubImage2D` ever
-    // ran — a texture this device never made would otherwise leave nothing to
-    // blame the missing byte on.
-    expect(device.debugDrainErrors('after refused upload'), isNull);
-    device.dispose();
-  });
+      final short = ByteData(
+        _levelBytes(TextureFormat.etc2RGB8UNormInt, 4, 4).lengthInBytes - 1,
+      );
+      // Thrown rather than answered with null since 1.0.
+      expect(
+        () => device.createTextureFromPixels(
+          width: 4,
+          height: 4,
+          format: TextureFormat.etc2RGB8UNormInt,
+          pixels: short,
+        ),
+        throwsA(isA<DeviceResourceException>()),
+      );
+      // Refused in Dart, before `createTexture`/`compressedTexSubImage2D` ever
+      // ran — a texture this device never made would otherwise leave nothing to
+      // blame the missing byte on.
+      expect(device.debugDrainErrors('after refused upload'), isNull);
+      device.dispose();
+    },
+  );
 
   test('every compressed format either uploads cleanly or refuses by name, '
-      'never silently', () {
+      'never silently', () async {
     const allCompressed = [
       TextureFormat.bc1RGBAUNormInt,
       TextureFormat.bc1RGBAUNormIntSRGB,
@@ -126,7 +129,7 @@ void main() {
     ];
 
     for (final format in allCompressed) {
-      final device = _makeDevice(
+      final device = await _makeDevice(
         width: format.blockLayout.blockWidth,
         height: format.blockLayout.blockHeight,
       );
@@ -153,7 +156,7 @@ void main() {
       if (thrown != null) {
         expect(
           thrown,
-          isA<UnsupportedError>().having(
+          isA<DeviceResourceException>().having(
             (e) => e.message,
             'message',
             contains(format.name),

@@ -16,20 +16,51 @@ library;
 
 import 'dart:io';
 
+import 'package:flutter3d_shaders/flutter3d_shaders.dart'
+    show EngineBundleStamp;
+
 import 'build_assets.dart';
+import 'cli_contract.dart' show CliExit, cliOptions, initUsage, unknownOption;
 import 'layout.dart';
+
+export 'cli_contract.dart' show initUsage;
 
 /// The version constraint a project outside this repository gets on this
 /// package — a caret on the version `flutter3d_build`'s own `pubspec.yaml`
 /// names, the way every sibling in the workspace writes its constraint on
-/// another, and updated by whatever release bumps that version. `init_test`
-/// reads the pubspec and holds the two together.
-const String kFlutter3dBuildVersionConstraint = '^0.8.0';
+/// another, and updated by whatever release bumps that version. It is the
+/// templates' entry for this package (`template_versions.dart`), which
+/// `template_versions_test` holds to every pubspec.
+const String flutter3dBuildVersionConstraint = '^1.0.0-rc.1+1';
 
 /// `hook/build.dart`'s own body — [buildAssets]'s doc comment names this
 /// exact text, kept here as the one place that spells it out so the two
 /// cannot drift apart.
-const String kHookBuildContent = '''
+///
+/// **The `ignore_for_file` line is what lets a new project analyse clean.**
+/// The two packages the hook imports are `dev_dependencies`: they run when
+/// the project builds and never ship in it. `depend_on_referenced_packages`
+/// allows that in `test/` and `tool/` and not in `hook/`, so without the
+/// line `flutter analyze` reports both imports on the first day.
+const String hookBuildContent = '''
+// The build runs these from dev_dependencies; nothing here ships.
+// ignore_for_file: depend_on_referenced_packages
+import 'package:flutter3d_build/flutter3d_build.dart';
+import 'package:hooks/hooks.dart';
+
+void main(List<String> arguments) async {
+  await build(arguments, buildAssets);
+}
+''';
+
+/// What `init` wrote before 1.0.0-rc.1, without the lint line: a hook that
+/// says exactly this is init's own and current, not one a person edited.
+///
+/// **Every text a release wrote stays accepted, within the major and past
+/// it.** A generated project relies on its hook being init's (CONTRACTS,
+/// "Tools and the command line"); `init_test` keeps the list of every one,
+/// and a release that changes [hookBuildContent] adds the old text here.
+const String _hookBuildContentBefore = '''
 import 'package:flutter3d_build/flutter3d_build.dart';
 import 'package:hooks/hooks.dart';
 
@@ -42,7 +73,7 @@ void main(List<String> arguments) async {
 /// (`/`-prefixed) so a project with some unrelated directory of the same
 /// name elsewhere is not swept up by accident, and directory-only (a
 /// trailing `/`) so a same-named file would not be either.
-const String kGitignoreEntry = '/flutter3d_generated/';
+const String gitignoreEntry = '/flutter3d_generated/';
 
 /// One change [planInit] found `init` would make, or one it refuses to
 /// make without `--force`.
@@ -76,16 +107,19 @@ List<InitStep> planInit(Directory projectRoot, {bool force = false}) {
         description: 'write ${hookFile.path}',
         apply: () {
           hookFile.parent.createSync(recursive: true);
-          hookFile.writeAsStringSync(kHookBuildContent);
+          hookFile.writeAsStringSync(hookBuildContent);
         },
       ),
     );
-  } else if (hookFile.readAsStringSync() != kHookBuildContent) {
+  } else if (!const <String>{
+    hookBuildContent,
+    _hookBuildContentBefore,
+  }.contains(hookFile.readAsStringSync())) {
     if (force) {
       steps.add(
         InitStep(
           description: 'overwrite ${hookFile.path} (--force)',
-          apply: () => hookFile.writeAsStringSync(kHookBuildContent),
+          apply: () => hookFile.writeAsStringSync(hookBuildContent),
         ),
       );
     } else {
@@ -116,7 +150,17 @@ List<InitStep> planInit(Directory projectRoot, {bool force = false}) {
   }
 
   final basePubspecLines = withDependency ?? pubspecLines;
-  final generatedEntries = _generatedAssetEntries(layout);
+  final generatedEntries = <String>{
+    ..._generatedAssetEntries(layout),
+    // The engine's bundle and the plugins' materials the hook writes, in a
+    // directory of their own, for a project that draws.
+    if (basePubspecLines.any(
+      (line) => RegExp(
+        r'^\s+flutter3d(_impeller|_webgl|_webgpu)?\s*:',
+      ).hasMatch(line),
+    ))
+      '- ${EngineBundleStamp.projectDirectory}',
+  };
   final missingEntries = generatedEntries
       .where((entry) => !_hasTopLevelAssetEntry(basePubspecLines, entry))
       .toList();
@@ -129,6 +173,12 @@ List<InitStep> planInit(Directory projectRoot, {bool force = false}) {
           var lines = basePubspecLines;
           for (final entry in missingEntries) {
             lines = _withGeneratedAsset(lines, entry) ?? lines;
+            // The directory as well, empty until the first build fills it:
+            // an `assets:` line naming one that is not there is a warning
+            // from `flutter analyze` before anything has been built.
+            Directory(
+              '${projectRoot.path}/${entry.substring(2)}',
+            ).createSync(recursive: true);
           }
           pubspecFile.writeAsStringSync(_join(lines));
         },
@@ -140,16 +190,16 @@ List<InitStep> planInit(Directory projectRoot, {bool force = false}) {
   final gitignoreLines = gitignoreFile.existsSync()
       ? gitignoreFile.readAsLinesSync()
       : const <String>[];
-  if (!gitignoreLines.any((line) => line.trim() == kGitignoreEntry)) {
+  if (!gitignoreLines.any((line) => line.trim() == gitignoreEntry)) {
     steps.add(
       InitStep(
-        description: 'add $kGitignoreEntry to .gitignore',
+        description: 'add $gitignoreEntry to .gitignore',
         apply: () {
-          final result = List<String>.from(gitignoreLines);
+          final result = List<String>.of(gitignoreLines);
           if (result.isNotEmpty && result.last.trim().isNotEmpty) {
             result.add('');
           }
-          result.add(kGitignoreEntry);
+          result.add(gitignoreEntry);
           gitignoreFile.writeAsStringSync(_join(result));
         },
       ),
@@ -219,10 +269,10 @@ bool _hasTopLevelAssetEntry(List<String> lines, String entryText) {
 /// there: a person who pinned a different constraint on purpose keeps it.
 List<String>? _withDevDependency(List<String> lines) {
   const key = 'dev_dependencies';
-  final entry = '  flutter3d_build: $kFlutter3dBuildVersionConstraint';
+  final entry = '  flutter3d_build: $flutter3dBuildVersionConstraint';
   final start = _topLevelKey(lines, key);
   if (start == null) {
-    final result = List<String>.from(lines);
+    final result = List<String>.of(lines);
     if (result.isNotEmpty && result.last.trim().isNotEmpty) result.add('');
     result
       ..add('$key:')
@@ -245,7 +295,7 @@ List<String>? _withDevDependency(List<String> lines) {
 List<String>? _withGeneratedAsset(List<String> lines, String entryText) {
   final flutterStart = _topLevelKey(lines, 'flutter');
   if (flutterStart == null) {
-    final result = List<String>.from(lines);
+    final result = List<String>.of(lines);
     if (result.isNotEmpty && result.last.trim().isNotEmpty) result.add('');
     result
       ..add('flutter:')
@@ -336,29 +386,12 @@ List<String> _insertAtEndOfBlock(
   for (var i = start + 1; i < end; i++) {
     if (lines[i].trim().isNotEmpty) insertAt = i + 1;
   }
-  final result = List<String>.from(lines);
+  final result = List<String>.of(lines);
   result.insertAll(insertAt, entries);
   return result;
 }
 
 String _join(List<String> lines) => '${lines.join('\n')}\n';
-
-const String initUsage = '''
-Usage: dart run flutter3d_build:init [options] [project-directory]
-
-Writes hook/build.dart, a pubspec.yaml dev_dependencies: flutter3d_build
-line, a pubspec.yaml flutter: assets: entry for the generated directory,
-and a .gitignore line for it — everything ap-05's build hook needs to run
-on every build. project-directory defaults to the current directory.
-
-Options:
-  --check      Report what a run would change, without changing it. Exits
-               non-zero if anything is pending.
-  --force      Overwrite hook/build.dart even if its content does not
-               match what init writes. Otherwise a hook a person has
-               edited is left alone and reported instead of overwritten.
-  -h, --help   Show this text.
-''';
 
 /// `dart run flutter3d_build:init`'s own `main`, factored out so a test can
 /// call it against a temporary directory and capture its output rather
@@ -372,35 +405,38 @@ Future<int> runInit(
   final stdoutSink = out ?? stdout;
   final stderrSink = err ?? stderr;
 
-  var check = false;
-  var force = false;
-  String? directory;
-  for (final argument in arguments) {
-    if (argument == '--check') {
-      check = true;
-    } else if (argument == '--force') {
-      force = true;
-    } else if (argument.startsWith('-')) {
-      // Covers `-h`/`--help` too — same convention `runConvert` uses: the
-      // usage text is what an unrecognised option gets, not a separate
-      // success path, so `--help` and a typo answer identically.
-      stderrSink.writeln(initUsage);
-      return 2;
-    } else {
-      directory = argument;
-    }
+  // Asked for, the usage is an answer on stdout; a typo is an error on
+  // stderr. Every command answers the two this way.
+  if (arguments.contains('-h') || arguments.contains('--help')) {
+    stdoutSink.writeln(initUsage);
+    return CliExit.ok;
   }
+  if (cliOptions['init']!.unknownIn(arguments) case final String unknown) {
+    stderrSink.writeln('${unknownOption(unknown)}\n\n$initUsage');
+    return CliExit.usage;
+  }
+  final check = arguments.contains('--check');
+  final force = arguments.contains('--force');
+  final directories = <String>[
+    for (final argument in arguments)
+      if (!argument.startsWith('-')) argument,
+  ];
+  if (directories.length > 1) {
+    stderrSink.writeln('init takes one project directory.\n\n$initUsage');
+    return CliExit.usage;
+  }
+  final directory = directories.firstOrNull;
 
   final root = projectRoot ?? Directory(directory ?? '.');
   if (!root.existsSync()) {
     stderrSink.writeln('No such directory: ${root.path}');
-    return 1;
+    return CliExit.failure;
   }
 
   final steps = planInit(root, force: force);
   if (steps.isEmpty) {
     stdoutSink.writeln('flutter3d_build: already up to date');
-    return 0;
+    return CliExit.ok;
   }
 
   var blocked = false;
@@ -414,6 +450,8 @@ Future<int> runInit(
     if (!check) step.apply!();
   }
 
-  if (check) return 1;
-  return blocked ? 1 : 0;
+  // A hand-edited hook is 1 under --check too: nothing a run could do
+  // would make the project current, which is what 3 says.
+  if (check) return blocked ? CliExit.failure : CliExit.refused;
+  return blocked ? CliExit.failure : CliExit.ok;
 }

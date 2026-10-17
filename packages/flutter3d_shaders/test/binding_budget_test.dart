@@ -8,12 +8,14 @@
 // count is taken from the compiled bundle's own table — the resources the
 // compiler kept, not the ones the source mentions — and held here.
 //
-// The lit models bind eleven samplers today, and several items of the 0.8
-// plan add more. Each is meant to pack rather than append (one irradiance
-// atlas, one cluster texture, one LTC table); this is what says so when one
-// does not.
+// `Pbr` binds 13 samplers and `PbrLayered` all 16, and a lit stage written
+// in the material language leaves a plugin's model the share
+// `MaterialStageBudget.materialTextures` names for all of 1.x
+// (`material_stage_share_test.dart` in flutter3d_core holds that). A new
+// lit feature packs rather than appends (one irradiance atlas, one cluster
+// texture, one LTC table); this is what says so when one does not.
 
-import 'package:flutter3d_shaders/stage_bindings.dart';
+import 'package:flutter3d_shaders/backend.dart';
 import 'package:test/test.dart';
 
 /// `MAX_TEXTURE_IMAGE_UNITS`, the minimum WebGL2 guarantees.

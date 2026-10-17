@@ -12,6 +12,8 @@
 /// nobody can see. Here it is a read and a write.
 library;
 
+import 'resource_desc.dart';
+
 part 'frame_graph_compile.dart';
 
 /// Something a node reads or writes, addressed by name.
@@ -159,7 +161,257 @@ abstract base class FrameGraphNode {
   ///
   /// Asked once at compile, beside [isActive], and reported as
   /// [PassSkip.unsupported].
-  bool get supported => true;
+  bool get isSupported => true;
+
+  /// Whether what the node runs with is ready this frame: false while a
+  /// pipeline, a kernel or a placement it waits for is still loading.
+  ///
+  /// **A registration is synchronous, a load is not.** A node is added at
+  /// once and its work loads behind it (`RendererSteps.addComputeStep`
+  /// places a step while the frame goes on); until the load is done the
+  /// node is left out of the frame as [PassSkip.pending], and whatever only
+  /// read what it writes is culled with it, as for a pass that cannot run.
+  /// The frame after the load is done has it.
+  ///
+  /// Asked once at compile, beside [isActive] and [isSupported].
+  bool get isReady => true;
+
+  /// Lets go of what the node holds on a device: called once, when the
+  /// registration that put it in a frame is cancelled, after no frame in
+  /// flight can still be using it.
+  ///
+  /// Empty here, since most nodes hold nothing of their own between frames.
+  /// A node that keeps a texture, a buffer or a pipeline across frames
+  /// overrides it — the one teardown verb a node has.
+  void dispose() {}
+
+  /// Declares what this node touches, into [builder]: what [FrameGraph.compile]
+  /// works the frame out from (1.0).
+  ///
+  /// **The whole declaration, where the getters are the short one.** By
+  /// default it hands [builder] [reads], [optionalReads], [writes] and
+  /// [keeps], so a node that only names resources keeps doing it with the
+  /// getters. A node that makes resources of its own — a plugin's scratch
+  /// target, the second and third colour attachments of a pass with several
+  /// outputs — declares them here with [FrameGraphBuilder.create], and the
+  /// graph knows how to make each before the node runs, when it stops being
+  /// needed, and that a texture whose lifetime ended earlier in the frame
+  /// may stand behind it (`FrameResources.alias`). A node that asks where it
+  /// runs (a compute step) says so with [FrameGraphBuilder.place].
+  ///
+  /// Called once per compile, before anything is ordered; a node answers
+  /// the same for the same frame, as the getters do.
+  ///
+  /// **`FrameResources.declare` from inside `execute` stays, as the
+  /// documented exception**: a node whose resource's size or format it only
+  /// knows once it runs. Such a resource still has to be named here — a
+  /// write the graph has not seen is one nobody can read — and is made the
+  /// first time it is asked for.
+  void setup(FrameGraphBuilder builder) {
+    reads.forEach(builder.read);
+    optionalReads.forEach(builder.readIfProduced);
+    writes.forEach(builder.write);
+    keeps.forEach(builder.keep);
+  }
+}
+
+/// What a node is handed in [FrameGraphNode.setup]: where it says what it
+/// reads, writes, keeps and makes.
+///
+/// One object that can gain members, rather than a list of parameters that
+/// grows: a later minor that lets a node declare something new (a buffer's
+/// size, a view mask) adds a method here and breaks no node.
+final class FrameGraphBuilder {
+  FrameGraphBuilder._(this.node);
+
+  /// The name of the node declaring, for its messages.
+  final String node;
+
+  // Made at the first declaration of each kind, so a node that declares
+  // two things costs two lists, not six: this runs for every node of every
+  // frame.
+  List<ResourceId>? _reads;
+  List<ResourceId>? _optionalReads;
+  List<ResourceId>? _writes;
+  List<ResourceId>? _keeps;
+  List<ResourceDesc>? _created;
+  PlacementRequest? _placement;
+
+  /// The node needs [id] produced before it runs; see
+  /// [FrameGraphNode.reads].
+  void read(ResourceId id) => (_reads ??= <ResourceId>[]).add(id);
+
+  /// The node samples [id] if the frame produces it; see
+  /// [FrameGraphNode.optionalReads].
+  void readIfProduced(ResourceId id) =>
+      (_optionalReads ??= <ResourceId>[]).add(id);
+
+  /// The node produces [id] fresh this frame; see [FrameGraphNode.writes].
+  void write(ResourceId id) => (_writes ??= <ResourceId>[]).add(id);
+
+  /// The node maintains [id] across frames; see [FrameGraphNode.keeps].
+  void keep(ResourceId id) => (_keeps ??= <ResourceId>[]).add(id);
+
+  /// The node makes [desc]'s resource and writes it, and hands back its id.
+  ///
+  /// **A plugin's resource, made by the graph.** The frame knows its size and
+  /// format before the node runs, holds a texture for it from its first use
+  /// to its last reader, and, with `FrameResources.alias` on, lends it a
+  /// texture another resource of the same description finished with earlier
+  /// in the frame. Several created resources are how a node declares a pass
+  /// with several colour outputs: one per attachment, each opened with
+  /// `FrameResources.texture` and handed to the pass it begins.
+  ///
+  /// [desc]'s id is namespaced like every name a plugin brings:
+  /// `<pluginId>.<name>`.
+  ResourceId create(ResourceDesc desc) {
+    (_created ??= <ResourceDesc>[]).add(desc);
+    write(desc.id);
+    return desc.id;
+  }
+
+  /// The node asks where it runs, with [request]: a compute step's executor
+  /// is picked at compile by the graph's [FramePlacer], and the node reads
+  /// the answer with [CompiledFrameGraph.placementOf]. A node no placer can
+  /// place does not run, and is reported as [PassSkip.unsupported].
+  void place(PlacementRequest request) => _placement = request;
+
+  /// What was declared, as the compile reads it. The lists are the
+  /// builder's own, which nothing else holds: copying them would be a
+  /// second allocation per list per node per frame.
+  NodeDeclarations _declarations() => NodeDeclarations._(
+    reads: _reads ?? const <ResourceId>[],
+    optionalReads: _optionalReads ?? const <ResourceId>[],
+    writes: _writes ?? const <ResourceId>[],
+    keeps: _keeps ?? const <ResourceId>[],
+    created: _created ?? const <ResourceDesc>[],
+    placement: _placement,
+  );
+}
+
+/// What one node declared in [FrameGraphNode.setup], as the compile read it.
+final class NodeDeclarations {
+  const NodeDeclarations._({
+    required this.reads,
+    required this.optionalReads,
+    required this.writes,
+    required this.keeps,
+    required this.created,
+    required this.placement,
+  });
+
+  /// What [node] declared, through its [FrameGraphNode.setup].
+  factory NodeDeclarations.of(FrameGraphNode node) {
+    final builder = FrameGraphBuilder._(node.name);
+    node.setup(builder);
+    return builder._declarations();
+  }
+
+  final List<ResourceId> reads;
+  final List<ResourceId> optionalReads;
+
+  /// Every write, the created resources' among them.
+  final List<ResourceId> writes;
+  final List<ResourceId> keeps;
+
+  /// The resources the node makes, each also among [writes].
+  final List<ResourceDesc> created;
+
+  /// Where the node asked to run, or null for the frame's own device.
+  final PlacementRequest? placement;
+}
+
+/// What a node asks of where it runs: a compute step's wish for the
+/// device's own compute, a sidecar, or the CPU.
+///
+/// **The seam a placement plugs into, and nothing more here.** The kinds of
+/// request and of answer belong to the compute work that defines them; the
+/// graph only carries a request from [FrameGraphBuilder.place] to the
+/// [FramePlacer] and the answer to [CompiledFrameGraph.placementOf].
+abstract base class PlacementRequest {
+  const PlacementRequest();
+
+  /// What the request is called in a report or an error.
+  String get name;
+}
+
+/// What a [FramePlacer] is asked about one node.
+final class FramePlacementContext {
+  const FramePlacementContext._(this.node, this.request, this.declarations);
+
+  /// The node asking.
+  final FrameGraphNode node;
+
+  /// What it asked for.
+  final PlacementRequest request;
+
+  /// Everything it declared, for a placer that weighs what it reads and
+  /// writes.
+  final NodeDeclarations declarations;
+}
+
+/// Picks where each node that asked to be placed runs, once per compile.
+///
+/// Handed to [FrameGraph.compile]. Answers the placement a node reads back
+/// with [CompiledFrameGraph.placementOf], or null when nothing this frame can
+/// run the node — which drops it as [PassSkip.unsupported].
+abstract base class FramePlacer {
+  const FramePlacer();
+
+  /// What [place] answers for a node whose placement is still being
+  /// loaded: the node is left out of this frame as [PassSkip.pending], not
+  /// as [PassSkip.unsupported], and asked again at the next compile.
+  static const Object pending = _PendingPlacement();
+
+  /// Where [context]'s node runs, [pending] while that is still being
+  /// worked out, or null when nowhere can.
+  Object? place(FramePlacementContext context);
+}
+
+final class _PendingPlacement {
+  const _PendingPlacement();
+
+  @override
+  String toString() => 'FramePlacer.pending';
+}
+
+/// A node that threw while it ran, and whose it was: what a frame reports
+/// for a quarantined pass ([PassSkip.failed]).
+///
+/// **The frame goes on, and says whose pass broke.** A node a plugin or the
+/// application placed that throws from its `execute` is taken out of the
+/// frames that follow, until its registration is made again (the plugin
+/// switched off and on); the rest of the frame is drawn, and what only read
+/// the node's output is culled or does without, as for a pass that did not
+/// run.
+final class NodeFailure {
+  /// [node] threw [error] at [stackTrace], in a pass [owner] placed.
+  const NodeFailure({
+    required this.node,
+    required this.owner,
+    required this.error,
+    required this.stackTrace,
+    this.plugin,
+  });
+
+  /// The node's name.
+  final String node;
+
+  /// Who placed it, as a person reads it: `plugin "acme.glow"`, or `the
+  /// application`.
+  final String owner;
+
+  /// The id of the plugin that placed it, or null for the application's.
+  final String? plugin;
+
+  /// What it threw.
+  final Object error;
+
+  /// Where.
+  final StackTrace stackTrace;
+
+  @override
+  String toString() => '"$node" of $owner threw: $error';
 }
 
 /// Why a pass that was registered did not run — `gfx-39n`.
@@ -172,13 +424,12 @@ abstract base class FrameGraphNode {
 /// and is the *graph* being clever, and [starved] means something upstream
 /// could not run and this is the consequence rather than the cause.
 ///
-/// **This is the thing no other engine reports.** three.js, Unity URP, Godot,
-/// Bevy, Filament and Unreal all expose a per-pass switch and none of them
-/// will say what became of it — their `enabled` and `isActive`
-/// read back the input, which answers "did I ask for this" rather than "what
-/// happened". This engine has one caller for whom that is not a nicety: an
-/// agent handed a 256-pixel picture cannot look at it and infer that the
-/// occlusion it asked for was dropped because nothing consumed it.
+/// **It reports what happened, not what was asked.** A per-pass switch that
+/// only reads back its own input answers "did I ask for this"; the frame's
+/// skip list answers "did it run, and if not, why". This engine has one
+/// caller for whom that is not a nicety: an agent handed a 256-pixel picture
+/// cannot look at it and infer that the occlusion it asked for was dropped
+/// because nothing consumed it.
 ///
 /// A [starved] pass is the one to read first when a frame is wrong, because
 /// it names a consequence and some other pass is the cause.
@@ -199,14 +450,18 @@ final class PassSkip {
   /// bloom at zero intensity, occlusion switched off in the settings.
   static const PassSkip settings = PassSkip._('settings');
 
-  /// A caller named it in `RenderSettings.disabledPasses`.
+  /// A caller named it in [FrameGraph.compile]'s `disabled`. The renderer's
+  /// own frames never do: a step is switched off through
+  /// `RenderSettings.without`, and reported as [switchedOff].
   static const PassSkip disabled = PassSkip._('disabled');
 
   /// It could have run, and nothing downstream wanted what it produces.
   static const PassSkip unconsumed = PassSkip._('unconsumed');
 
   /// Something it reads unconditionally was not produced this frame, so it
-  /// could not run. The cause is upstream; this is the effect.
+  /// could not run. The cause is upstream; this is the effect. Like a pass
+  /// that is off, it takes no version: a pass after it that reads what it
+  /// would have drawn over in place reads what the pass before it left.
   static const PassSkip starved = PassSkip._('starved');
 
   /// The device cannot run it — `gfx-50n`, and the fifth reason the note
@@ -224,22 +479,110 @@ final class PassSkip {
   /// probe.
   static const PassSkip unsupported = PassSkip._('unsupported');
 
-  /// All of them, in the order a reader should try them: the two a caller
-  /// asked for, then the two the frame decided, then the one the device did.
+  /// The pass belongs to a `RenderStep` the caller switched off through
+  /// `RenderSettings.without` or `RenderSettings.only`.
+  ///
+  /// **A narrower [settings], not a different mechanism.** The step was
+  /// switched off by changing its own setting, and the pass is inactive for
+  /// exactly the reason a pass off by default is. What this adds is who said
+  /// so: a frame built with `without({RenderStep.bloom})` reports its bloom
+  /// as switched off, and a frame that never asked for light shafts reports
+  /// them as [settings], so a caller reading the list can tell the steps they
+  /// removed from the ones that were never on.
+  ///
+  /// A step that has no pass of its own — the tone curve, the grade, the
+  /// distance fog, all of them arithmetic inside another pass — is reported
+  /// under the step's own name with this reason, in `FrameResult.skipped`.
+  static const PassSkip switchedOff = PassSkip._('switched off');
+
+  /// Something the frame was asked for and did not give, which is not a
+  /// pass at all: the polygon mode, a coverage mode, the multisampling, a
+  /// cube shadow row. Only `FrameResult.skipped` reports it, under the names
+  /// in `FrameResult.declinedNames`.
+  ///
+  /// **The same four facts `FrameResult` already carried as fields**, each
+  /// its own convention — `wireframeDeclined`, `alphaToCoverageDeclined`,
+  /// `antiAliasing.msaaDeclined`, `shadowsDenied`. They stay; this lists
+  /// them where everything else that did not happen is listed, so a caller
+  /// walking `skipped` (or a `RenderListener` handed it entry by entry)
+  /// meets them without knowing four field names.
+  ///
+  /// Not [unsupported]: two of the four are the frame's decision rather
+  /// than the device's — multisampling given up because a pass reads the
+  /// surface buffer, a light refused a row because the atlas was full — and
+  /// a caller can change both.
+  static const PassSkip declined = PassSkip._('declined');
+
+  /// What the pass runs with is still loading — a kernel being placed, a
+  /// pipeline being built ([FrameGraphNode.isReady] false, or a
+  /// [FramePlacer] answering [FramePlacer.pending]). The frame after the
+  /// load is done has it; nothing needs changing.
+  static const PassSkip pending = PassSkip._('pending');
+
+  /// The pass threw when it ran and is quarantined: left out of every frame
+  /// until the registration that placed it is made again.
+  /// [SkippedPass.failure] says what it threw and whose it was.
+  static const PassSkip failed = PassSkip._('failed');
+
+  /// All of them, in the order a reader should try them: the three a caller
+  /// asked for, then the two the frame decided, then the two the device or
+  /// the frame refused, then the one that waits and the one that broke.
   static const List<PassSkip> values = <PassSkip>[
     settings,
+    switchedOff,
     disabled,
     unconsumed,
     starved,
     unsupported,
+    declined,
+    pending,
+    failed,
   ];
+
+  /// The reason called [name], or null for one this version does not know.
+  static PassSkip? byName(String name) {
+    for (final reason in values) {
+      if (reason.name == name) return reason;
+    }
+    return null;
+  }
 
   @override
   String toString() => 'PassSkip.$name';
 }
 
 /// A registered pass that did not run, and why.
-typedef SkippedPass = ({String name, PassSkip reason});
+///
+/// A class rather than a record, so it can later say more (what it would
+/// have read) without breaking a reader.
+final class SkippedPass {
+  const SkippedPass({required this.name, required this.reason, this.failure});
+
+  /// The pass's name.
+  final String name;
+
+  /// Why it did not run.
+  final PassSkip reason;
+
+  /// For a [PassSkip.failed] pass, what it threw and whose it was; null
+  /// for every other reason.
+  final NodeFailure? failure;
+
+  @override
+  bool operator ==(Object other) =>
+      other is SkippedPass &&
+      other.name == name &&
+      other.reason == reason &&
+      identical(other.failure, failure);
+
+  @override
+  int get hashCode => Object.hash(name, reason);
+
+  @override
+  String toString() => failure == null
+      ? 'SkippedPass($name, $reason)'
+      : 'SkippedPass($name, $reason, ${failure!.owner})';
+}
 
 /// A graph that failed to compile, with the reason a person can act on.
 final class FrameGraphError extends Error {
@@ -252,7 +595,7 @@ final class FrameGraphError extends Error {
 /// The result: the nodes to run, in order, what was dropped, and how long each
 /// resource has to stay alive.
 final class CompiledFrameGraph {
-  const CompiledFrameGraph(
+  const CompiledFrameGraph._(
     this._lastUse,
     this._readers,
     this._bindings,
@@ -262,7 +605,30 @@ final class CompiledFrameGraph {
     required this.culled,
     required this.outputs,
     this.skipped = const <SkippedPass>[],
+    this._created = const <String, ResourceDesc>{},
+    this._placements = const <String, Object>{},
   });
+
+  final Map<String, ResourceDesc> _created;
+  final Map<String, Object> _placements;
+
+  /// How to make each resource a surviving node declared with
+  /// [FrameGraphBuilder.create], in the order the nodes run.
+  ///
+  /// `FrameResources` declares every one of them before the first node, so a
+  /// plugin's resource is made at its first use and goes back at its last
+  /// like any of the engine's.
+  Iterable<ResourceDesc> get created => _created.values;
+
+  /// How to make [id], when a surviving node created it; null otherwise.
+  ResourceDesc? descriptorOf(ResourceId id) => _created[id.name];
+
+  /// Where the node called [name] runs, as the [FramePlacer] answered, or
+  /// null for a node that asked nothing (it runs on the frame's device).
+  T? placementOf<T extends Object>(String name) => switch (_placements[name]) {
+    final T placement => placement,
+    _ => null,
+  };
 
   /// Nodes to execute, earliest first.
   final List<FrameGraphNode> order;
@@ -414,8 +780,8 @@ final class CompiledFrameGraph {
   /// *decision* is arithmetic and the release *call* touches a device, and
   /// keeping them apart is what makes the decision testable.
   ///
-  /// A version at a time, because that is the whole point: `hdr_colour@0` goes
-  /// back after its last reader even though `hdr_colour@1` is still live.
+  /// A version at a time, because that is the whole point: `hdr_color@0` goes
+  /// back after its last reader even though `hdr_color@1` is still live.
   List<ResourceVersion> retiredAfter(int index) => <ResourceVersion>[
     for (final entry in _lastUse.entries)
       if (entry.value == index) entry.key,

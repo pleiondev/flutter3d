@@ -73,7 +73,7 @@ void main() {
           project: rigged,
         );
         stage.frameSubject();
-        return (scene: stage.scene, camera: stage.camera);
+        return FrameSubject(scene: stage.scene, camera: stage.camera);
       },
     );
 

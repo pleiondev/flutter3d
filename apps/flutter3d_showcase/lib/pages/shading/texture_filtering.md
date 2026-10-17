@@ -17,7 +17,7 @@ so the texture has to have them. `CheckerboardTexture` makes the pixels and
 ## Step 2: A sampler that blends the levels
 
 Anisotropy needs linear filtering between mip levels too, which is what
-`SamplerOptions.trilinearRepeat` is. Repeat addressing lets the same texels cover
+`SamplerDescriptor.trilinearRepeat` is. Repeat addressing lets the same texels cover
 a floor of any size. The material and the mesh are otherwise ordinary.
 
 {{code floor}}

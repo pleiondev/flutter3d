@@ -59,7 +59,7 @@ void main() {
         mesh: mesh,
         surface: surface,
         // On the join, in space.
-        centre: Vector3(1, 0.5, 0),
+        center: Vector3(1, 0.5, 0),
         radius: 0.3,
         size: 64,
       );
@@ -90,7 +90,7 @@ void main() {
       final List<UvSpan> spans = projectBrush(
         mesh: mesh,
         surface: surface,
-        centre: Vector3(1, 0.5, 0),
+        center: Vector3(1, 0.5, 0),
         radius: 0.3,
         size: 64,
       );
@@ -111,7 +111,7 @@ void main() {
       final List<UvSpan> spans = projectBrush(
         mesh: mesh,
         surface: surface,
-        centre: Vector3(0.5, 0.5, 0),
+        center: Vector3(0.5, 0.5, 0),
         radius: 0.2,
         size: 64,
       );
@@ -128,7 +128,7 @@ void main() {
       final List<UvSpan> spans = projectBrush(
         mesh: mesh,
         surface: surface,
-        centre: Vector3(0.5, 0.5, 0),
+        center: Vector3(0.5, 0.5, 0),
         radius: 0.3,
         size: 64,
       );
@@ -150,7 +150,7 @@ void main() {
         projectBrush(
           mesh: mesh,
           surface: surface,
-          centre: Vector3(0.5, 0.5, 0),
+          center: Vector3(0.5, 0.5, 0),
           radius: 0,
           size: 64,
         ),
@@ -164,7 +164,7 @@ void main() {
         projectBrush(
           mesh: mesh,
           surface: surface,
-          centre: Vector3(50, 50, 50),
+          center: Vector3(50, 50, 50),
           radius: 0.3,
           size: 64,
         ),
@@ -179,7 +179,7 @@ void main() {
       final List<UvSpan> spans = projectBrush(
         mesh: mesh,
         surface: surface,
-        centre: Vector3(0.5, 0.5, 0),
+        center: Vector3(0.5, 0.5, 0),
         radius: 0.3,
         size: 64,
       );

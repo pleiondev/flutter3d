@@ -320,7 +320,7 @@ void main() {
         // Exactly on the surface, which is where a body put down by the ground
         // probe sits and where the joins are hardest.
         world.sweep(body, Vector3(x, 0.9, 0.53), Vector3(0.4, 0.0, 0.0), hit);
-        if (hit.hit) caught.add(x);
+        if (hit.didHit) caught.add(x);
       }
 
       expect(

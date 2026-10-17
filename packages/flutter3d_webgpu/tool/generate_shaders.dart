@@ -42,23 +42,13 @@ library;
 
 import 'dart:io';
 
-// The include resolver, and only the include resolver. A second one would be a
-// second answer to "which headers does this shader really pull in", and the two
-// backends would drift apart in the one place where drifting apart cannot be
-// seen from either side. Called from here rather than from `prepareStage`
-// because `flutter3d_webgl` is a dev dependency and a file under `lib/` may
-// only import what ships.
-//
-// ignore: implementation_imports
-import 'package:flutter3d_webgl/src/glsl_translate.dart';
-import 'package:flutter3d_webgpu/src/glsl_to_wgsl.dart';
-import 'package:flutter3d_webgpu/src/source_package.dart';
-import 'package:flutter3d_webgpu/src/wgsl_compiler.dart';
-// The std140 cross-check and the pair a finished stage is, shared with
-// `tool/pack_wgsl_section.dart`. Two copies of the check would be two rules,
-// and the loadable path — where the GLSL is somebody else's — is the one that
-// needs it most.
-import 'package:flutter3d_webgpu/src/wgsl_section.dart';
+// The translator, the include resolver WebGL2's generator also uses, the two
+// compilers and the std140 cross-check — all in `flutter3d_shaders` since P8,
+// shared with `tool/pack_wgsl_section.dart` and with `flutter3d_build`'s
+// material step. A second include resolver would be a second answer to
+// "which headers does this shader really pull in", and two copies of the
+// check would be two rules.
+import 'package:flutter3d_shaders/compile.dart';
 
 void main(List<String> args) {
   final ShaderSet shaders;
@@ -80,7 +70,7 @@ void main(List<String> args) {
           from: entry.file,
         ),
     };
-  } on GlslTranslateError catch (error) {
+  } on GlslTranslateException catch (error) {
     _fail(error.message);
   }
 
@@ -97,7 +87,7 @@ void main(List<String> args) {
           fragment: entry.fragment,
         ),
     ]);
-  } on WgslPrepareError catch (error) {
+  } on WgslPrepareException catch (error) {
     _fail(error.message);
   }
 
@@ -118,15 +108,15 @@ void main(List<String> args) {
         name: name,
         fragment: entry.fragment,
       );
-    } on WgslPrepareError catch (error) {
+    } on WgslPrepareException catch (error) {
       _fail('$name: ${error.message}');
-    } on WgslCompileError catch (error) {
+    } on WgslCompileException catch (error) {
       _fail('$name: ${error.message}');
     }
 
     try {
       checkStd140Offsets(name, prepared, compiled.offsets);
-    } on WgslSectionError catch (error) {
+    } on WgslSectionException catch (error) {
       _fail(error.message);
     }
 
@@ -150,7 +140,12 @@ void main(List<String> args) {
     ..writeln()
     ..writeln('/// Every shader the engine asks for, in WGSL, beside the')
     ..writeln('/// reflection a `GPUShaderModule` cannot be asked for.')
-    ..writeln('final WebGpuSectionStages engineShaders = (')
+    ..writeln('///')
+    ..writeln(
+      '/// Public, and promised with the rest: `WebGpuDevice.open` takes the',
+    )
+    ..writeln('/// stages it compiles, and uses these when it is given none.')
+    ..writeln('final WebGpuSectionStages webGpuEngineShaders = (')
     ..writeln('  vertex: <String, WebGpuStage>{');
   vertex.forEach((name, stage) => _writeStage(out, name, stage));
   out

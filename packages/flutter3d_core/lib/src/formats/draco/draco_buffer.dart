@@ -19,9 +19,13 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show Flutter3dFormatException;
+
 /// Thrown when a stream is not one this decodes, with the reason in it.
-final class DracoException implements Exception {
+final class DracoException extends Flutter3dFormatException {
   const DracoException(this.message);
+  @override
   final String message;
   @override
   String toString() => 'DracoException: $message';

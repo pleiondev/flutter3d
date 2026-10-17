@@ -27,7 +27,6 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_webgl/engine_shaders.dart';
 import 'package:flutter3d_webgl/flutter3d_webgl.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// The canvas is deliberately larger than the frame drawn into it, which is the
 /// whole of the case being tested: a browser window smaller than the size the
@@ -36,17 +35,16 @@ const int _canvas = 64;
 const int _frame = 16;
 
 void main() {
-  test('presenting covers the canvas even when the frame is smaller', () {
-    final device = WebGlDevice.create(
+  test('presenting covers the canvas even when the frame is smaller', () async {
+    final device = await WebGlDevice.open(
       width: _canvas,
       height: _canvas,
-      sources: engineShaders,
+      sources: webGlEngineShaders,
     );
-    if (device == null) fail('no WebGL2 context in this browser');
     addTearDown(device.dispose);
 
     final target = device.createTexture(
-      const RenderTargetSpec(
+      const RenderTargetDescriptor(
         width: _frame,
         height: _frame,
         format: TextureFormat.r8g8b8a8UNormInt,
@@ -61,7 +59,7 @@ void main() {
             colors: <ColorTarget>[
               ColorTarget(
                 texture: target,
-                clearValue: Vector4(0.0, 1.0, 0.0, 1.0),
+                clearValue: ClearColor(0.0, 1.0, 0.0, 1.0),
               ),
             ],
           ),

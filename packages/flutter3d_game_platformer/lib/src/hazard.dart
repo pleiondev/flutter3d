@@ -1,3 +1,4 @@
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -22,6 +23,7 @@ final class Hazard extends Mechanism with CollisionListener {
 
   final Collider collider;
 
+  /// In hit points per second.
   final double damagePerSecond;
 
   /// Whether touching it is simply fatal, whatever the health.
@@ -50,7 +52,7 @@ final class Hazard extends Mechanism with CollisionListener {
   final Vector3 _at = Vector3.zero();
 
   @override
-  Vector3 get origin => collider.position;
+  Vector3 get origin => collider.position.clone();
 
   /// Seconds accumulated this step, so damage does not depend on how many
   /// overlap callbacks the broadphase happened to dispatch.
@@ -101,18 +103,20 @@ final class Hazard extends Mechanism with CollisionListener {
     final who = by.by?.userData;
     if (who is! Damageable) return const NothingToDo();
     final killed = who.applyDamage(
-      instant ? double.infinity : damagePerSecond * _dt,
+      Damage(amount: instant ? double.infinity : damagePerSecond * _dt),
     );
     return killed ? const Activated() : const NothingToDo();
   }
 
   @override
-  void onCollisionStart(Collider self, Collider other) {
+  void onCollisionStart(CollisionContext context) {
+    final other = context.other;
     activate(world.activationBy(other));
   }
 
   @override
-  void onCollision(Collider self, Collider other) {
+  void onCollision(CollisionContext context) {
+    final other = context.other;
     activate(world.activationBy(other));
   }
 }

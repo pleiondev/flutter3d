@@ -22,7 +22,10 @@ library;
 
 import 'inventory.dart';
 
-abstract interface class Collector {
+/// **Mixed in, not implemented**, outside this library: a `base` type, so a
+/// member added in a 1.x release arrives with a body and nothing that mixes
+/// it in has to change.
+abstract base mixin class Collector {
   /// What they are carrying, and where a gift goes.
   Inventory get inventory;
 }

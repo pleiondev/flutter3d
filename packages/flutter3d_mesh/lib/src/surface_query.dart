@@ -20,11 +20,47 @@ import 'dart:typed_data';
 import 'package:flutter3d_core/geometry.dart' show TriangleBvh;
 import 'package:vector_math/vector_math.dart';
 
+/// The point of a surface nearest a query point, the triangle it lies on,
+/// and how far away it is: what [closestPointOn] answers.
+final class SurfacePoint {
+  /// The nearest [point], on [triangle], [distance] away from the query.
+  const SurfacePoint({
+    required this.triangle,
+    required this.distance,
+    required this.point,
+  });
+
+  /// The index of the triangle the point lies on, in the tree's own order.
+  final int triangle;
+
+  /// How far the point is from the query point, in metres.
+  final double distance;
+
+  /// The point itself, on the surface.
+  final Vector3 point;
+
+  @override
+  bool operator ==(Object other) =>
+      other is SurfacePoint &&
+      other.triangle == triangle &&
+      other.distance == distance &&
+      other.point == point;
+
+  @override
+  int get hashCode =>
+      Object.hash(triangle, distance, point.x, point.y, point.z);
+
+  @override
+  String toString() => 'SurfacePoint($point on $triangle, $distance away)';
+}
+
 /// Where on [tree] the point nearest [point] is, and how far away — or null
 /// when nothing is within [within].
-({int triangle, double distance, Vector3 point})? closestPointOn(
+SurfacePoint? closestPointOn(
   TriangleBvh tree,
   Vector3 point, {
+
+  /// How far to look, in metres.
   double within = double.infinity,
 }) {
   final Float32List positions = tree.positions;
@@ -64,7 +100,11 @@ import 'package:vector_math/vector_math.dart';
     }
   }
   if (bestTriangle < 0) return null;
-  return (triangle: bestTriangle, distance: bestDistance, point: best.clone());
+  return SurfacePoint(
+    triangle: bestTriangle,
+    distance: bestDistance,
+    point: best.clone(),
+  );
 }
 
 /// The point of triangle `abc` nearest [point], written into [into].
@@ -84,39 +124,39 @@ Vector3 closestPointOnTriangle(
   final Vector3 ab = b - a;
   final Vector3 ac = c - a;
   final Vector3 ap = point - a;
-  final double d1 = ab.dot(ap);
-  final double d2 = ac.dot(ap);
+  final d1 = ab.dot(ap);
+  final d2 = ac.dot(ap);
   if (d1 <= 0 && d2 <= 0) return into..setFrom(a);
 
   final Vector3 bp = point - b;
-  final double d3 = ab.dot(bp);
-  final double d4 = ac.dot(bp);
+  final d3 = ab.dot(bp);
+  final d4 = ac.dot(bp);
   if (d3 >= 0 && d4 <= d3) return into..setFrom(b);
 
-  final double vc = d1 * d4 - d3 * d2;
+  final vc = d1 * d4 - d3 * d2;
   if (vc <= 0 && d1 >= 0 && d3 <= 0) {
     final double v = d1 / (d1 - d3);
     return into..setFrom(a + ab.scaled(v));
   }
 
   final Vector3 cp = point - c;
-  final double d5 = ab.dot(cp);
-  final double d6 = ac.dot(cp);
+  final d5 = ab.dot(cp);
+  final d6 = ac.dot(cp);
   if (d6 >= 0 && d5 <= d6) return into..setFrom(c);
 
-  final double vb = d5 * d2 - d1 * d6;
+  final vb = d5 * d2 - d1 * d6;
   if (vb <= 0 && d2 >= 0 && d6 <= 0) {
     final double w = d2 / (d2 - d6);
     return into..setFrom(a + ac.scaled(w));
   }
 
-  final double va = d3 * d6 - d5 * d4;
+  final va = d3 * d6 - d5 * d4;
   if (va <= 0 && (d4 - d3) >= 0 && (d5 - d6) >= 0) {
     final double w = (d4 - d3) / ((d4 - d3) + (d5 - d6));
     return into..setFrom(b + (c - b).scaled(w));
   }
 
-  final double denominator = 1 / (va + vb + vc);
+  final denominator = 1 / (va + vb + vc);
   return into
     ..setFrom(a + ab.scaled(vb * denominator) + ac.scaled(vc * denominator));
 }

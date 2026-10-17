@@ -1,0 +1,43 @@
+# The public API of flutter3d_lab.
+# Generated from v0.8.5 by `dart run api_snapshot:api_baseline` in tool/api. Do not edit.
+# A change here is a semver decision: see "The API is a snapshot" in CONTRIBUTING.md.
+
+library package:flutter3d_lab/flutter3d_lab.dart
+
+final class LabDivergence
+  const LabDivergence({required this.step, required this.assigned, required this.actual})
+  final double actual
+  final double assigned
+  final int step
+
+final class PendulumDivergence
+  const PendulumDivergence({required this.checkpoint, required this.assignmentLength, required this.studentLength})
+  final Divergence checkpoint
+  final double? assignmentLength
+  final double? studentLength
+
+final class PendulumLabRun
+  Demo toDemo({required String levelPath, required Level level, required String buildStamp})
+  Map<String, Object?> stateAt(int step)
+  PendulumDivergence? divergenceFrom(PendulumLabRun assignment)
+  PendulumLabRun branchAt(int atStep, int throughStep, double Function(int step, double currentLength) lengthAt)
+  factory PendulumLabRun({required double startLength, required int steps, double gravity = 9.81, double damping = 0.02, double startAngle = 0.6, int checkpointEvery = 25, double Function(int step, double currentLength)? lengthAt})
+  final DataSourceTrace lengths
+  final DigestTrace checkpoints
+  final PendulumSimulation pendulum
+  final int steps
+
+final class PendulumSimulation
+  Map<String, Object?> get state
+  PendulumSimulation({required double lengthMeters, this.gravity = 9.81, this.damping = 0.02, double startAngle = 0.6})
+  double get lengthMeters
+  double omega
+  double theta
+  final double damping
+  final double gravity
+  set lengthMeters(double value)
+  void step(double dt)
+
+LabDivergence? firstLabDivergence(DataSourceTrace assignment, DataSourceTrace student, {required String path, double tolerance = 1e-9})
+
+const double labFixedDt = 1.0 / 60.0

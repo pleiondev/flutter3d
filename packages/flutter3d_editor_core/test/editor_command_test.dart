@@ -65,14 +65,14 @@ Editing _open() => Editing.parse(_document(), path: '/levels/test.json');
 /// Built rather than const, because half of them carry a `Vector3` and a
 /// `Vector3` is not a constant.
 List<EditorCommand> _everyCommand() => <EditorCommand>[
-  MoveBy(Vector3(0.25, 0.0, 0.0)),
+  MoveSelectionBy(Vector3(0.25, 0.0, 0.0)),
   Resize(Vector3(1.0, 0.0, 0.0)),
   AddBrush(
     Vector3(2.0, 0.0, 0.0),
     size: Vector3(1.0, 2.0, 3.0),
     material: 'stone',
   ),
-  AddLight(Vector3(0.0, 3.0, 0.0), intensity: 6.0, range: 12.0),
+  AddLevelLight(Vector3(0.0, 3.0, 0.0), intensity: 6.0, range: 12.0),
   Place(Piece.entity, 'monster', Vector3(1.0, 0.0, 1.0)),
   const Duplicate(),
   const Delete(),
@@ -82,6 +82,13 @@ List<EditorCommand> _everyCommand() => <EditorCommand>[
   SetLights(<LevelLight>[
     LevelLight(position: Vector3(0.0, 2.5, 0.0), intensity: 9.0, range: 10.0),
   ], why: '3 → 1 lights'),
+  const CreatePrefab('post'),
+  PlacePrefab('post', Vector3(4.0, 0.0, 0.0), called: 'gate', yaw: 0.5),
+  const SetOverride('top/bulb', 'glow.strength', 2.0),
+  const ApplyOverrides(path: 'top/bulb'),
+  const RevertOverrides(path: 'base', key: 'at'),
+  const UnpackPrefab(),
+  const SetPrefabField('post', 'base', 'size', 3),
 ];
 
 void main() {
@@ -140,7 +147,10 @@ void main() {
       // print and a step can be labelled with. "move" and "move by 0.25, 0, 0"
       // answer different questions when somebody is hunting for the change they
       // want to get back past.
-      expect(MoveBy(Vector3(0.25, 0.0, 0.0)).says, 'move by 0.25, 0, 0');
+      expect(
+        MoveSelectionBy(Vector3(0.25, 0.0, 0.0)).says,
+        'move by 0.25, 0, 0',
+      );
       expect(const Delete().says, 'delete the selection');
       expect(const SetField('solid', false).says, 'set solid to false');
       expect(const SetField('surface', null).says, 'clear surface');
@@ -154,14 +164,17 @@ void main() {
     test('changes the document and leaves one step behind', () {
       final editing = _open()..select(Piece.brush, 0);
 
-      expect(editing.history.run(MoveBy(Vector3(0.0, 1.0, 0.0))), isTrue);
+      expect(
+        editing.history.run(MoveSelectionBy(Vector3(0.0, 1.0, 0.0))),
+        isTrue,
+      );
 
-      expect(editing.brush!.centre.y, 1.0);
+      expect(editing.brush!.center.y, 1.0);
       expect(editing.history.undoSays, 'move by 0, 1, 0');
 
       editing.history.undo();
 
-      expect(editing.brush!.centre.y, 0.0);
+      expect(editing.brush!.center.y, 0.0);
       expect(editing.history.canUndo, isFalse);
       expect(editing.history.redoSays, 'move by 0, 1, 0');
     });
@@ -177,7 +190,10 @@ void main() {
       final editing = _open();
       final before = editing.write();
 
-      expect(editing.history.run(MoveBy(Vector3(0.0, 1.0, 0.0))), isFalse);
+      expect(
+        editing.history.run(MoveSelectionBy(Vector3(0.0, 1.0, 0.0))),
+        isFalse,
+      );
       expect(editing.history.run(Resize(Vector3(1.0, 0.0, 0.0))), isFalse);
       expect(editing.history.run(const Duplicate()), isFalse);
       expect(editing.history.run(const Delete()), isFalse);
@@ -222,7 +238,7 @@ void main() {
         isFalse,
       );
 
-      expect(editing.brush!.centre.x, 0.0);
+      expect(editing.brush!.center.x, 0.0);
       expect(editing.fields['at'], isA<List<Object?>>());
       expect(editing.history.canUndo, isFalse);
     });
@@ -248,12 +264,12 @@ void main() {
         }
       });
 
-      expect(editing.brush!.centre.x, closeTo(7.5, 1e-6));
+      expect(editing.brush!.center.x, closeTo(7.5, 1e-6));
       expect(editing.history.undoSays, 'drag the brush');
 
       editing.history.undo();
 
-      expect(editing.brush!.centre.x, 0.0);
+      expect(editing.brush!.center.x, 0.0);
       expect(editing.history.canUndo, isFalse);
     });
 
@@ -308,10 +324,10 @@ void main() {
       const beyond = 6;
 
       for (var i = 0; i < EditorHistory.undoDepth + beyond; i++) {
-        editing.history.run(MoveBy(Vector3(0.25, 0.0, 0.0)));
+        editing.history.run(MoveSelectionBy(Vector3(0.25, 0.0, 0.0)));
       }
       expect(
-        editing.brush!.centre.x,
+        editing.brush!.center.x,
         closeTo((EditorHistory.undoDepth + beyond) * 0.25, 1e-6),
       );
 
@@ -321,7 +337,7 @@ void main() {
 
       expect(editing.history.canUndo, isFalse);
       expect(
-        editing.brush!.centre.x,
+        editing.brush!.center.x,
         closeTo(beyond * 0.25, 1e-6),
         reason: 'the six oldest steps were kept, or more than six were lost',
       );
@@ -337,12 +353,12 @@ void main() {
       // costs somebody the thing they were working on.
       final editing = _open()..select(Piece.brush, 1);
 
-      editing.history.run(MoveBy(Vector3(0.0, 1.0, 0.0)));
+      editing.history.run(MoveSelectionBy(Vector3(0.0, 1.0, 0.0)));
       editing.history.undo();
 
       expect(editing.kind, Piece.brush);
       expect(editing.selected, 1);
-      expect(editing.brush!.centre.y, 0.0);
+      expect(editing.brush!.center.y, 0.0);
     });
 
     test('and drops one it has taken away', () {

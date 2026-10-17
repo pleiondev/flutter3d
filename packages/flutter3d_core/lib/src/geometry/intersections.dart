@@ -1,13 +1,13 @@
 import 'dart:math' as math;
 
-import 'package:vector_math/vector_math.dart' hide Ray;
+import 'package:vector_math/vector_math.dart';
 
 /// Returned instead of a distance when nothing was hit.
 ///
 /// A sentinel rather than `double?`: these run once per triangle of a mesh, and
 /// a nullable double allocates a box on every miss. `-1` is unambiguous because
 /// every function here rejects intersections behind the ray's origin.
-const double kNoHit = -1.0;
+const double noHit = -1.0;
 
 /// A ray: an origin and a direction.
 ///
@@ -20,10 +20,12 @@ const double kNoHit = -1.0;
 ///
 /// A mutable object with `out`-style methods, because picking runs inside a
 /// pointer-move handler and should not allocate per candidate mesh.
-final class Ray {
-  Ray.zero() : origin = Vector3.zero(), direction = Vector3(0.0, 0.0, -1.0);
+final class LocalRay {
+  LocalRay.zero()
+    : origin = Vector3.zero(),
+      direction = Vector3(0.0, 0.0, -1.0);
 
-  Ray(Vector3 origin, Vector3 direction)
+  LocalRay(Vector3 origin, Vector3 direction)
     : origin = origin.clone(),
       direction = direction.clone();
 
@@ -35,7 +37,7 @@ final class Ray {
     this.direction.setFrom(direction);
   }
 
-  void copyFrom(Ray other) => setFrom(other.origin, other.direction);
+  void copyFrom(LocalRay other) => setFrom(other.origin, other.direction);
 
   /// Normalizes [direction] **in place** and returns this ray.
   ///
@@ -43,7 +45,7 @@ final class Ray {
   /// original untouched, and a caller that reads its own field afterwards gets
   /// the un-normalized value. The renderer already lost an afternoon to exactly
   /// that shape of bug with light directions.
-  Ray normalizeDirection() {
+  LocalRay normalizeDirection() {
     if (direction.length2 > 0.0) direction.normalize();
     return this;
   }
@@ -64,7 +66,7 @@ final class Ray {
   /// `node.inverseWorldMatrix`. Transforming the ray is much cheaper than
   /// transforming the mesh's triangles, and it is the only version that stays
   /// cheap as the triangle count grows.
-  Ray transformInto(Matrix4 inverse, Ray out) {
+  LocalRay transformInto(Matrix4 inverse, LocalRay out) {
     out.origin.setFrom(origin);
     inverse.transform3(out.origin);
     out.direction.setFrom(direction);
@@ -76,11 +78,11 @@ final class Ray {
   String toString() => 'Ray($origin -> $direction)';
 }
 
-/// Distance along [ray] to [box], or [kNoHit].
+/// Distance along [ray] to [box], or [noHit].
 ///
 /// A ray starting inside the box returns `0`: for picking, "the click was inside
 /// this object" is a hit at zero distance, not a hit at the far wall.
-double rayAabb(Ray ray, Aabb3 box) {
+double rayAabb(LocalRay ray, Aabb3 box) {
   final o = ray.origin;
   final d = ray.direction;
   final min = box.min;
@@ -97,7 +99,7 @@ double rayAabb(Ray ray, Aabb3 box) {
 
     if (direction.abs() < 1e-20) {
       // Parallel to this slab: either always inside it, or never.
-      if (origin < lo || origin > hi) return kNoHit;
+      if (origin < lo || origin > hi) return noHit;
       continue;
     }
 
@@ -111,32 +113,32 @@ double rayAabb(Ray ray, Aabb3 box) {
     }
     if (near > tMin) tMin = near;
     if (far < tMax) tMax = far;
-    if (tMin > tMax) return kNoHit;
+    if (tMin > tMax) return noHit;
   }
 
-  if (tMax < 0.0) return kNoHit;
+  if (tMax < 0.0) return noHit;
   return tMin < 0.0 ? 0.0 : tMin;
 }
 
-/// Distance along [ray] to a sphere, or [kNoHit]. Inside counts as `0`.
-double raySphere(Ray ray, Vector3 centre, double radius) {
-  if (radius <= 0.0) return kNoHit;
+/// Distance along [ray] to a sphere, or [noHit]. Inside counts as `0`.
+double raySphere(LocalRay ray, Vector3 center, double radius) {
+  if (radius <= 0.0) return noHit;
 
   // Solved with the origin-to-centre vector rather than by expanding the
   // quadratic, which keeps the numbers small when the sphere is far away.
-  final ocX = ray.origin.x - centre.x;
-  final ocY = ray.origin.y - centre.y;
-  final ocZ = ray.origin.z - centre.z;
+  final ocX = ray.origin.x - center.x;
+  final ocY = ray.origin.y - center.y;
+  final ocZ = ray.origin.z - center.z;
 
   final d = ray.direction;
   final a = d.x * d.x + d.y * d.y + d.z * d.z;
-  if (a < 1e-20) return kNoHit;
+  if (a < 1e-20) return noHit;
 
   final b = 2.0 * (ocX * d.x + ocY * d.y + ocZ * d.z);
   final c = ocX * ocX + ocY * ocY + ocZ * ocZ - radius * radius;
 
   final discriminant = b * b - 4.0 * a * c;
-  if (discriminant < 0.0) return kNoHit;
+  if (discriminant < 0.0) return noHit;
 
   final root = math.sqrt(discriminant);
   final inverse = 1.0 / (2.0 * a);
@@ -144,13 +146,13 @@ double raySphere(Ray ray, Vector3 centre, double radius) {
   if (near >= 0.0) return near;
 
   final far = (-b + root) * inverse;
-  if (far < 0.0) return kNoHit;
+  if (far < 0.0) return noHit;
   return 0.0; // the origin is inside
 }
 
 /// Möller–Trumbore ray/triangle intersection.
 ///
-/// Returns the distance along [ray], or [kNoHit]. When it hits, [outUv] receives
+/// Returns the distance along [ray], or [noHit]. When it hits, [outUv] receives
 /// the barycentric coordinates `(u, v)` of the second and third vertices, which
 /// is what interpolating a normal or a texture coordinate at the hit needs.
 ///
@@ -158,7 +160,7 @@ double raySphere(Ray ray, Vector3 centre, double radius) {
 /// precomputed per-triangle data — which matters because the alternative would
 /// mean building and invalidating an acceleration structure per mesh.
 double rayTriangle(
-  Ray ray,
+  LocalRay ray,
   Vector3 a,
   Vector3 b,
   Vector3 c, {
@@ -179,9 +181,9 @@ double rayTriangle(
   // A determinant at zero means the ray is parallel to the triangle's plane, or
   // the triangle is degenerate. Both are misses, and both would divide by zero.
   if (cullBackFace) {
-    if (determinant < 1e-12) return kNoHit;
+    if (determinant < 1e-12) return noHit;
   } else if (determinant.abs() < 1e-12) {
-    return kNoHit;
+    return noHit;
   }
 
   final inverse = 1.0 / determinant;
@@ -191,7 +193,7 @@ double rayTriangle(
   final tz = ray.origin.z - a.z;
 
   final u = (tx * px + ty * py + tz * pz) * inverse;
-  if (u < 0.0 || u > 1.0) return kNoHit;
+  if (u < 0.0 || u > 1.0) return noHit;
 
   // q = t x edge1
   final qx = ty * e1z - tz * e1y;
@@ -199,10 +201,10 @@ double rayTriangle(
   final qz = tx * e1y - ty * e1x;
 
   final v = (d.x * qx + d.y * qy + d.z * qz) * inverse;
-  if (v < 0.0 || u + v > 1.0) return kNoHit;
+  if (v < 0.0 || u + v > 1.0) return noHit;
 
   final t = (e2x * qx + e2y * qy + e2z * qz) * inverse;
-  if (t < 0.0) return kNoHit;
+  if (t < 0.0) return noHit;
 
   outUv?.setValues(u, v);
   return t;

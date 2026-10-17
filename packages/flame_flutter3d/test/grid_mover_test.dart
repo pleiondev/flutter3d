@@ -7,8 +7,8 @@ import 'package:flame/components.dart';
 import 'package:flame/game.dart';
 import 'package:flame_flutter3d/flame_flutter3d.dart';
 import 'package:flame_test/flame_test.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' as engine show Material;
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d/flutter3d.dart' as engine show RenderMaterial;
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -27,7 +27,7 @@ Future<({_World game, CellGridComponent maze})> _maze(
     device: device,
     scene: game.scene,
     plane: BridgePlane.ground(),
-    material: engine.Material(),
+    material: engine.RenderMaterial(),
     instanced: instanced,
     hitboxes: hitboxes,
   );
@@ -41,7 +41,7 @@ Future<(PositionComponent, GridMover)> _walker(
   CellGridComponent maze,
   Vector2 at, {
   bool wraps = false,
-  void Function(int, int)? onArrive,
+  void Function(GridArrival arrival)? onArrive,
 }) async {
   final mover = GridMover(
     grid: maze,
@@ -68,7 +68,7 @@ void main() {
       game,
       grid,
       Vector2(1.4, 1.6),
-      onArrive: (c, r) => arrived.add((c, r)),
+      onArrive: (cell) => arrived.add((cell.column, cell.row)),
     );
     expect(body.position, Vector2(1.5, 1.5), reason: 'stood in its cell');
 
@@ -115,7 +115,7 @@ void main() {
     );
     mover.wanted = GridHeading.left;
     game.update(0.5);
-    expect(mover.cell, (4, 1));
+    expect(mover.cell, const GridCell(column: 4, row: 1));
     expect(body.position.x, closeTo(4.5, 1e-9));
   });
 

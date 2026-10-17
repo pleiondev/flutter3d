@@ -25,7 +25,7 @@ import 'bench_util.dart';
 /// worth keeping on its own — these rows are the slowest of the three suites,
 /// and re-measuring them should not cost a teapot parse.
 ///
-/// The numbers matter more than the convenience does: `kRadixThreshold`,
+/// The numbers matter more than the convenience does: `radixThreshold`,
 /// `RenderList.bvhThreshold` and the decision that this engine ships no native
 /// sorting code are all quoted from this suite, and a measurement nobody can
 /// re-run is a measurement nobody can contradict.
@@ -41,7 +41,7 @@ Future<void> benchFrameMath() async {
   // The shapes culling and sorting actually work on, at a scale where a native
   // rewrite would even be considered.
   const objectCount = 50000;
-  final centres = List<Vector3>.generate(
+  final centers = List<Vector3>.generate(
     objectCount,
     (i) => Vector3(
       (i % 100) - 50.0,
@@ -67,7 +67,7 @@ Future<void> benchFrameMath() async {
     () async {
       visible = 0;
       for (var i = 0; i < objectCount; i++) {
-        probe.center.setFrom(centres[i]);
+        probe.center.setFrom(centers[i]);
         probe.radius = radii[i];
         if (frustum.intersectsWithSphere(probe)) visible++;
       }
@@ -240,7 +240,7 @@ Future<void> benchFrameMath() async {
     20,
     () async {
       for (var i = 0; i < objectCount; i++) {
-        shipped[i] = (keys[i] << kPayloadBits) | i;
+        shipped[i] = (keys[i] << payloadBits) | i;
       }
       sortPackedKeys(shipped, shippedScratch, objectCount, counts: histogram);
     },
@@ -255,7 +255,7 @@ Future<void> benchFrameMath() async {
   final smallScratch = Int64List(smallCount);
   await bench('sortPackedKeys (shipped), $smallCount entries', 2000, () async {
     for (var i = 0; i < smallCount; i++) {
-      small[i] = (keys[i] << kPayloadBits) | i;
+      small[i] = (keys[i] << payloadBits) | i;
     }
     sortPackedKeys(small, smallScratch, smallCount, counts: histogram);
   });

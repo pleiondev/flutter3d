@@ -1,3 +1,5 @@
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -8,31 +10,58 @@ import 'looks.dart';
 /// **Three, and a material is deliberately not a fourth.** A material is the
 /// other thing an editor authors — it is what a brush's `material` names, and
 /// the panel that edits one is `material_panel.dart` — so the question of
-/// adding it here was asked and answered no. Everything this enum reaches is
+/// adding it here was asked and answered no. Everything this set reaches is
 /// *a list and an index into it*: [Handle] carries an `index`, `Editing`
 /// selects with an `int`, and its `switch`es turn a kind into `brushes`,
 /// `lights` or `entities` and then call `removeAt` on one. A level's materials
 /// are a map keyed by name, with no position, nothing to draw, nothing to
-/// point at and nothing to nudge — so a fourth member would be a member every
-/// one of those `switch`es had to answer "not that one" to, and the enum would
-/// stop meaning what [Handle]'s own doc says it means: something in the
-/// document that can be pointed at and moved.
+/// point at and nothing to nudge — so a material as a fourth member would be
+/// one every one of those `switch`es had to answer "not that one" to, and the
+/// set would stop meaning what [Handle]'s own doc says it means: something in
+/// the document that can be pointed at and moved. A fourth list in a level
+/// that *can* be pointed at is another matter, and why the set is open.
 ///
 /// So the material panel selects by name instead, and that selection is the
 /// panel's own: nothing else in the editor — no gizmo, no arrow key, no click
 /// — needs to know which material is open, which is exactly the difference
 /// from a selected brush.
-enum Piece {
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class Piece {
+  const Piece._(this.name);
+
   /// Geometry. The only one of the three that is drawn by the game.
-  brush,
+  static const Piece brush = Piece._('brush');
 
   /// A light: a lamp, the sun, a torch's flame.
-  light,
+  static const Piece light = Piece._('light');
 
   /// Everything else the document names — a monster, a lift, a door, a
   /// pickup, the point the player starts at. What any of those *are* belongs
   /// to the game; where they are does not.
-  entity,
+  static const Piece entity = Piece._('entity');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<Piece> values = <Piece>[brush, light, entity];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static Piece? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'Piece.$name';
 }
 
 /// Something in the document that can be pointed at and moved.
@@ -47,7 +76,7 @@ final class Handle {
   const Handle({
     required this.kind,
     required this.index,
-    required this.centre,
+    required this.center,
     required this.size,
     required this.tint,
     this.volume = false,
@@ -58,12 +87,13 @@ final class Handle {
   /// Which one, in the document's own list for [kind].
   final int index;
 
-  final Vector3 centre;
+  final Vector3 center;
   final Vector3 size;
 
-  /// What to draw it in. A light wears its own colour, which is the fastest way
-  /// to see that a room is lit orange because somebody made it orange.
-  final Vector3 tint;
+  /// What to draw it in, linear. A light wears its own colour, which is the
+  /// fastest way to see that a room is lit orange because somebody made it
+  /// orange.
+  final LinearColor tint;
 
   /// Whether the *document* gave this a size of its own.
   ///
@@ -74,8 +104,8 @@ final class Handle {
   /// wall it was placed on. Those are drawn as a cage of edges instead.
   final bool volume;
 
-  Vector3 get min => centre - size / 2.0;
-  Vector3 get max => centre + size / 2.0;
+  Vector3 get min => center - size / 2.0;
+  Vector3 get max => center + size / 2.0;
 }
 
 /// How big the mark for something with no geometry is, in metres.
@@ -83,7 +113,7 @@ final class Handle {
 /// Half a metre: large enough to hit with a mouse from across a room, small
 /// enough not to hide the thing it stands for. A monster is about this wide
 /// anyway, which makes the mark read as the monster rather than as a label.
-const double kGizmoSize = 0.5;
+const double gizmoSize = 0.5;
 
 /// Every handle in [level], brushes included.
 ///
@@ -95,16 +125,16 @@ List<Handle> handlesOf(Level level, {Looks looks = Looks.none}) => <Handle>[
     Handle(
       kind: Piece.brush,
       index: i,
-      centre: level.brushes[i].centre,
+      center: level.brushes[i].center,
       size: level.brushes[i].size,
-      tint: Vector3(1.0, 0.45, 0.05),
+      tint: const LinearColor(1.0, 0.45, 0.05),
     ),
   for (var i = 0; i < level.lights.length; i++)
     Handle(
       kind: Piece.light,
       index: i,
-      centre: level.lights[i].position,
-      size: Vector3.all(kGizmoSize),
+      center: level.lights[i].position,
+      size: Vector3.all(gizmoSize),
       // Its own colour, brightened so a dim lamp is still visible as a mark.
       tint: atLeast(level.lights[i].color, 0.35),
     ),
@@ -112,13 +142,13 @@ List<Handle> handlesOf(Level level, {Looks looks = Looks.none}) => <Handle>[
     Handle(
       kind: Piece.entity,
       index: i,
-      centre: level.entities[i].position,
+      center: level.entities[i].position,
       // **Its own size when the document gives it one**, then whatever the
       // game said this type is, then a mark. A door is six metres by five
       // and a lift is a platform somebody stands on, and both say so in
       // `size`; a torch says nothing, and the game's `editor.json` can say
       // it is a slim upright thing rather than a cube.
-      size: looks.sizeFor(level.entities[i]) ?? Vector3.all(kGizmoSize),
+      size: looks.sizeFor(level.entities[i]) ?? Vector3.all(gizmoSize),
       volume: level.entities[i].vector('size') != null,
       tint: looks.tintFor(level.entities[i]) ?? tintFor(level.entities[i].type),
     ),
@@ -136,8 +166,8 @@ List<Handle> handlesOf(Level level, {Looks looks = Looks.none}) => <Handle>[
 /// The one exception is anything with `spawn` in its name, which is green,
 /// because where the player starts is the one thing an editor is always looking
 /// for.
-Vector3 tintFor(String type) {
-  if (type.contains('spawn')) return Vector3(0.35, 1.0, 0.4);
+LinearColor tintFor(String type) {
+  if (type.contains('spawn')) return const LinearColor(0.35, 1.0, 0.4);
   var hash = 0;
   for (final unit in type.codeUnits) {
     hash = (hash * 31 + unit) & 0x7fffffff;
@@ -147,33 +177,33 @@ Vector3 tintFor(String type) {
 
 /// A saturated colour at [hue], which is the whole of the colour wheel this
 /// needs: the marks are small and want to be told apart, not shaded.
-Vector3 _fromHue(double hue) {
+LinearColor _fromHue(double hue) {
   final sector = hue * 6.0;
   final rise = sector - sector.floorToDouble();
   final fall = 1.0 - rise;
   return switch (sector.floor() % 6) {
-    0 => Vector3(1.0, rise, 0.0),
-    1 => Vector3(fall, 1.0, 0.0),
-    2 => Vector3(0.0, 1.0, rise),
-    3 => Vector3(0.0, fall, 1.0),
-    4 => Vector3(rise, 0.0, 1.0),
-    _ => Vector3(1.0, 0.0, fall),
+    0 => LinearColor(1.0, rise, 0.0),
+    1 => LinearColor(fall, 1.0, 0.0),
+    2 => LinearColor(0.0, 1.0, rise),
+    3 => LinearColor(0.0, fall, 1.0),
+    4 => LinearColor(rise, 0.0, 1.0),
+    _ => LinearColor(1.0, 0.0, fall),
   };
 }
 
-/// [colour], brightened up to [floor] if it is dimmer than that.
+/// [color], brightened up to [floor] if it is dimmer than that.
 ///
 /// Public rather than a private helper of this file alone: `palette_items.dart`
 /// needs the same brightening for a palette row's swatch, and a colour that
 /// reads as black in one place and is nudged up in the other is a colour that
 /// looks like two different bugs.
-Vector3 atLeast(Vector3 colour, double floor) {
+LinearColor atLeast(LinearColor color, double floor) {
   final brightest = <double>[
-    colour.x,
-    colour.y,
-    colour.z,
+    color.r,
+    color.g,
+    color.b,
   ].reduce((double a, double b) => a > b ? a : b);
-  if (brightest >= floor) return colour.clone();
-  if (brightest < 1e-6) return Vector3.all(floor);
-  return colour * (floor / brightest);
+  if (brightest >= floor) return color;
+  if (brightest < 1e-6) return LinearColor(floor, floor, floor, color.a);
+  return color.scaled(floor / brightest);
 }

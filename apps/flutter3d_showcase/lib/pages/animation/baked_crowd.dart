@@ -75,17 +75,17 @@ final class BakedCrowdDemo extends ShowcaseDemo {
     // one matrix (see `{{code read}}`), but one a crowd actually reads as
     // people rather than furniture.
     final Scene scene = Scene();
-    final Material torso = Material(
+    final RenderMaterial torso = RenderMaterial(
       name: 'torso',
-      baseColor: Vector4(0.55, 0.6, 0.68, 1.0),
+      baseColor: LinearColor.fromSrgb(0.55, 0.6, 0.68, 1.0),
     );
-    final Material limb = Material(
+    final RenderMaterial limb = RenderMaterial(
       name: 'arm',
-      baseColor: Vector4(0.85, 0.5, 0.3, 1.0),
+      baseColor: LinearColor.fromSrgb(0.85, 0.5, 0.3, 1.0),
     );
-    final Material skin = Material(
+    final RenderMaterial skin = RenderMaterial(
       name: 'head',
-      baseColor: Vector4(0.85, 0.68, 0.55, 1.0),
+      baseColor: LinearColor.fromSrgb(0.85, 0.68, 0.55, 1.0),
     );
     final DeviceMesh torsoMesh = DeviceMesh.upload(
       context.device,

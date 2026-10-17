@@ -64,7 +64,9 @@ Future<ExportReport> exportChecked(
   CheckedModelWriter writer, {
   String name = 'model',
 }) async {
-  final ModelWrite written = writer.write(document, baseName: name);
+  final ModelWrite written = writer.write(
+    ModelWriteContext(document: document, baseName: name),
+  );
   final ModelDocument readBack = await writer.readBack(written);
   return ExportReport(
     files: <String, Uint8List>{

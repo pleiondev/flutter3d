@@ -7,7 +7,6 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class MeshParticlesDemo extends ShowcaseDemo {
   late final ParticleSystem _particles;
@@ -47,19 +46,19 @@ final class MeshParticlesDemo extends ShowcaseDemo {
       emitter: const SphereEmitter(speed: Range(1.0, 2.5)),
       lifetime: const Range(1.0, 1.8),
       size: const Range(0.6, 1.2),
-      color: Vector4(0.8, 0.75, 0.7, 1.0),
-      affectors: <ParticleAffector>[const ParticleGravity(-3.0)],
+      color: LinearColor(0.8, 0.75, 0.7, 1.0),
+      affectors: <ParticleAffector>[const ParticleGravity(acceleration: -3.0)],
     );
     _particles.burst(_debrisEffect, Vector3.zero());
 
     // #region contributor
-    _contributor = context.renderer.addContributor(
+    _contributor = context.renderer.renderSteps.addContributor(
       MeshParticleContributor(_particles, mesh: shard),
     );
     // #endregion contributor
 
     return Scene()..add(
-      LightNode(name: 'sun', intensity: 2.0)
+      LightNode(name: 'sun', intensity: 2.0 * LightNode.defaultIntensity)
         ..setLocalForward(Vector3(-0.3, -0.6, -0.4)),
     );
   }

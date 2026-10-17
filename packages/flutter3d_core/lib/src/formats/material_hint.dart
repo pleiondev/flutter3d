@@ -12,9 +12,11 @@ import 'surface_material.dart';
 /// them. So this hierarchy answers one question — how should somebody be shown
 /// this value — and nothing else.
 ///
-/// Sealed, so a `switch` over the kinds in an inspector is exhaustive and the
-/// day a sixth kind arrives the compiler names every place that has to grow.
-sealed class MaterialHintKind {
+/// An open set, grown only here: `abstract final` so nobody outside adds a
+/// kind, and not sealed, so a kind a later release adds breaks no inspector.
+/// A `switch` over the kinds ends with a wildcard that shows the value as it
+/// is.
+abstract final class MaterialHintKind {
   const MaterialHintKind();
 }
 
@@ -25,8 +27,13 @@ sealed class MaterialHintKind {
 final class RangeHint extends MaterialHintKind {
   const RangeHint(this.min, this.max, {this.step});
 
+  /// In the unit of the value the hint is for.
   final double min;
+
+  /// In the unit of the value the hint is for.
   final double max;
+
+  /// In the unit of the value the hint is for.
   final double? step;
 }
 
@@ -72,7 +79,7 @@ final class EnumHint extends MaterialHintKind {
 /// given no label is its own label, which is the common case for a value that
 /// was already a word.
 final class EnumHintValue {
-  const EnumHintValue(this.value, [String? label]) : label = label ?? value;
+  const EnumHintValue(this.value, {String? label}) : label = label ?? value;
 
   final String value;
   final String label;
@@ -148,18 +155,22 @@ final Map<String, MaterialHint> builtInMaterialHints = <String, MaterialHint>{
   'alphaMode': MaterialHint(
     EnumHint(<EnumHintValue>[
       for (final mode in SurfaceAlphaMode.values)
-        EnumHintValue(mode.name, switch (mode) {
-          SurfaceAlphaMode.opaque => 'Opaque',
-          SurfaceAlphaMode.mask => 'Cut out at the threshold',
-          SurfaceAlphaMode.blend => 'Blended',
-        }),
+        EnumHintValue(
+          mode.name,
+          label: switch (mode) {
+            SurfaceAlphaMode.opaque => 'Opaque',
+            SurfaceAlphaMode.mask => 'Cut out at the threshold',
+            SurfaceAlphaMode.blend => 'Blended',
+            _ => mode.name,
+          },
+        ),
     ]),
     label: 'Alpha',
   ),
   'lightingModel': MaterialHint(
     EnumHint(<EnumHintValue>[
       for (final model in LightingModel.builtIn)
-        EnumHintValue(model.shaderName, model.label),
+        EnumHintValue(model.shaderName, label: model.label),
     ]),
     label: 'Shader',
     help:

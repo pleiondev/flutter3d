@@ -15,7 +15,7 @@ class VersionChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final int minor = int.tryParse(feature.since.split('.')[1]) ?? 0;
-    final Color colour = HSLColor.fromAHSL(
+    final Color color = HSLColor.fromAHSL(
       1,
       (minor * 47.0) % 360,
       0.55,
@@ -29,13 +29,13 @@ class VersionChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
         decoration: BoxDecoration(
-          border: Border.all(color: colour),
+          border: Border.all(color: color),
           borderRadius: BorderRadius.circular(999),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: colour,
+            color: color,
             fontSize: 12,
             fontWeight: FontWeight.w600,
           ),

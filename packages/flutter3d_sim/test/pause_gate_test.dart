@@ -76,4 +76,25 @@ void main() {
       reason: 'the panel never paused a browser or a phone at all',
     );
   });
+
+  test(
+    'photo mode holds the world still while every device flies the camera',
+    () {
+      // Mutation: drop the `photoMode` clause. The pointer is captured and the
+      // pad is in hand, because both are moving the camera, so every clause after
+      // it says run — and the picture is of a level carrying on without the
+      // player in it.
+      bool framing({required bool pointerIsTheGate}) => shouldPause(
+        ready: true,
+        menuOpen: false,
+        pointerIsTheGate: pointerIsTheGate,
+        pointerHeld: true,
+        padConnected: true,
+        photoMode: true,
+      );
+      expect(framing(pointerIsTheGate: true), isTrue);
+      expect(framing(pointerIsTheGate: false), isTrue);
+      expect(desktop(), isFalse, reason: 'and closing it lets the game go on');
+    },
+  );
 }

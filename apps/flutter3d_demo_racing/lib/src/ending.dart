@@ -8,13 +8,14 @@
 /// say about finishing it — no lap count, no best lap, no list of the circuits
 /// won, and no credits.
 ///
-/// The shape is the platformer's `Ending`, and the crypt's, for the reason
-/// given there: three games in one repository whose endings are each laid out
-/// differently is three designs where there is one decision.
+/// The shape is `EndingSheet`'s, from `flutter3d_game_ui/screens.dart`, which the
+/// platformer and the crypt end on too: three games whose endings were each
+/// laid out by hand were three designs where there is one decision. What is
+/// here is the season's sentence and its three numbers.
 library;
 
 import 'package:flutter/material.dart';
-import 'package:flutter3d_game/flutter3d_game.dart'; // CreditsSection
+import 'package:flutter3d_game_ui/screens.dart';
 
 import 'credits.dart';
 import 'race_readout.dart';
@@ -51,99 +52,27 @@ class SeasonEnding extends StatelessWidget {
   final bool touch;
 
   @override
-  Widget build(BuildContext context) => ColoredBox(
-    color: Colors.black.withValues(alpha: 0.86),
-    child: Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(32),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 520),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              const Text(
-                'The season is yours.',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 30,
-                  fontWeight: FontWeight.w300,
-                  letterSpacing: 2,
-                ),
-              ),
-              const SizedBox(height: 20),
-              // `Wrap` and not `Row`: three tallies at a large text size is a
-              // row that runs off a handset held in landscape.
-              Wrap(
-                spacing: 28,
-                runSpacing: 12,
-                children: <Widget>[
-                  _Tally(
-                    label: circuits == 1 ? 'circuit' : 'circuits',
-                    value: '$circuits',
-                  ),
-                  _Tally(label: laps == 1 ? 'lap' : 'laps', value: '$laps'),
-                  // The null goes straight through: `formatLapTime` answers a
-                  // lap nobody drove with the same dashes the HUD's own line
-                  // shows, and `0:00.000` at the end of a season would read as
-                  // a world record.
-                  _Tally(label: 'best lap', value: formatLapTime(bestLap)),
-                ],
-              ),
-              const SizedBox(height: 26),
-              const CreditsSection(credits: Credits.models, heading: 'The car'),
-              const SizedBox(height: 22),
-              Text(
-                // The same sentence the caption used to carry alone, and still
-                // the only place the wording and the control that honours it
-                // are decided — see [seasonCompleteNotice].
-                seasonCompleteNotice(touch: touch),
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.75),
-                  fontSize: 14,
-                  letterSpacing: 1,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+  Widget build(BuildContext context) => EndingSheet(
+    title: 'The season is yours.',
+    tallies: <EndingTally>[
+      EndingTally(circuits == 1 ? 'circuit' : 'circuits', '$circuits'),
+      EndingTally(laps == 1 ? 'lap' : 'laps', '$laps'),
+      // The null goes straight through: `formatLapTime` answers a lap nobody
+      // drove with the same dashes the HUD's own line shows, and `0:00.000`
+      // at the end of a season would read as a world record.
+      EndingTally('best lap', formatLapTime(bestLap)),
+    ],
+    valueStyle: const TextStyle(
+      color: Colors.white,
+      fontSize: 28,
+      fontWeight: FontWeight.w600,
+      fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
     ),
-  );
-}
-
-/// One number and what it counts, read as one thing.
-class _Tally extends StatelessWidget {
-  const _Tally({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) => Semantics(
-    label: '$label $value',
-    excludeSemantics: true,
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Text(
-          value,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 28,
-            fontWeight: FontWeight.w600,
-            fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
-          ),
-        ),
-        Text(
-          label,
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.7),
-            fontSize: 12,
-            letterSpacing: 2,
-          ),
-        ),
-      ],
-    ),
+    credits: credits.models,
+    creditsHeading: 'The car',
+    // The same sentence the caption used to carry alone, and still the only
+    // place the wording and the control that honours it are decided — see
+    // [seasonCompleteNotice].
+    again: seasonCompleteNotice(touch: touch),
   );
 }

@@ -41,7 +41,7 @@ extension _GltfWriterMaterials on GltfWriter {
       final key = _SamplerKey(sampling);
       final existing = samplerIndexByValue[key];
       if (existing != null) return existing;
-      final (magFilter, minFilter) = toGltfFilters(sampling);
+      final GltfFilters(:magFilter, :minFilter) = toGltfFilters(sampling);
       samplers.add(<String, Object?>{
         'magFilter': magFilter,
         'minFilter': minFilter,
@@ -130,12 +130,12 @@ extension _GltfWriterMaterials on GltfWriter {
               // (1.0) is not `SurfaceMaterial`'s (0.0 metallic, 0.5
               // roughness), so leaving either out on the strength of "that's
               // the default anyway" would read back as the wrong number.
-              // Back to linear, the loader's conversion undone.
+              // Linear, as the engine holds it.
               'baseColorFactor': <double>[
-                srgbToLinear(material.baseColor.x),
-                srgbToLinear(material.baseColor.y),
-                srgbToLinear(material.baseColor.z),
-                material.baseColor.w,
+                material.baseColor.r,
+                material.baseColor.g,
+                material.baseColor.b,
+                material.baseColor.a,
               ],
               'metallicFactor': material.metallic,
               'roughnessFactor': material.roughness,
@@ -158,9 +158,9 @@ extension _GltfWriterMaterials on GltfWriter {
             if (material.emissiveTexture case final t?)
               'emissiveTexture': textureInfo(t),
             'emissiveFactor': <double>[
-              material.emissive.x,
-              material.emissive.y,
-              material.emissive.z,
+              material.emissive.r,
+              material.emissive.g,
+              material.emissive.b,
             ],
             if (material.alphaMode != SurfaceAlphaMode.opaque)
               'alphaMode': material.alphaMode == SurfaceAlphaMode.mask
@@ -185,10 +185,10 @@ extension _GltfWriterMaterials on GltfWriter {
   }
 }
 
-const Map<TextureWrap, int> _kGltfWrap = <TextureWrap, int>{
-  TextureWrap.repeat: 10497,
-  TextureWrap.clampToEdge: 33071,
-  TextureWrap.mirroredRepeat: 33648,
+const Map<SamplerAddressMode, int> _kGltfWrap = <SamplerAddressMode, int>{
+  SamplerAddressMode.repeat: 10497,
+  SamplerAddressMode.clampToEdge: 33071,
+  SamplerAddressMode.mirror: 33648,
 };
 
 /// Structural-equality key for [TextureSampling], which has none of its own —

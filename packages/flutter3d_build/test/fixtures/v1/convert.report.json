@@ -1,0 +1,21 @@
+{
+  "format": "f3d.convertReport",
+  "version": 1,
+  "requires": [],
+  "generator": "flutter3d",
+  "reports": [
+    {
+      "input": "wedge.stl",
+      "format": "stl",
+      "outcome": "converted",
+      "written": [
+        "wedge.f3d"
+      ],
+      "mapped": [
+        "1 mesh, 8 triangles"
+      ],
+      "dropped": [],
+      "warnings": []
+    }
+  ]
+}

@@ -29,7 +29,8 @@ final class SoundDef {
   /// Asset path, resolved by the backend.
   final String asset;
 
-  /// Volume before distance is taken into account.
+  /// Volume before distance is taken into account. A linear gain, one being
+  /// the file as recorded.
   final double gain;
 
   final bool loop;
@@ -41,6 +42,8 @@ final class SoundDef {
   /// **Rate, not pitch.** Pitch implies resampling that keeps the duration, and
   /// neither SoLoud's `setRelativePlaySpeed` nor WebAudio's `playbackRate` does
   /// that. Calling it pitch would be a promise the backends cannot keep.
+  ///
+  /// A unitless multiplier on the file's speed.
   final double rate;
 
   /// How much to vary [rate] on each play, either side of it.

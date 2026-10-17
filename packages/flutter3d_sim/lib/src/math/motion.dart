@@ -9,7 +9,7 @@ library;
 
 import 'dart:math' as math;
 
-import 'portable_math.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 
 const double _twoPi = 2.0 * math.pi;
 

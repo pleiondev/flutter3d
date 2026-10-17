@@ -20,7 +20,7 @@ import 'package:flutter3d_core/src/engine/animation/animation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
-final class _Recorder implements AnimationTarget {
+final class _Recorder with AnimationTarget {
   final Vector3 position = Vector3.zero();
   final Quaternion rotation = Quaternion.identity();
   final Vector3 scale = Vector3.all(1.0);
@@ -111,7 +111,7 @@ void main() {
         _still('b', node: 0, x: 10.0),
       ]);
       rig.player
-        ..play(0)
+        ..play(index: 0)
         ..crossFadeTo(1, duration: 0.2)
         ..update(0.1);
 
@@ -128,7 +128,7 @@ void main() {
         _pose('walk', <int, double>{1: 1.0, 2: 2.0}),
         _pose('wave', <int, double>{1: 9.0, 2: 9.0}),
       ]);
-      rig.player.play(0);
+      rig.player.play(index: 0);
       rig.player.playLayer(1, mask: AnimationMask(<int>[1]), fadeIn: 0.0);
       rig.player.update(0.0);
 
@@ -144,7 +144,7 @@ void main() {
         _pose('walk', <int, double>{1: 1.0}),
         _pose('wave', <int, double>{1: 9.0}),
       ]);
-      rig.player.play(0);
+      rig.player.play(index: 0);
       rig.player.addLayer(
         AnimationLayer(clip: 1, mask: AnimationMask(<int>[1]), weight: 0.5),
       );
@@ -158,7 +158,7 @@ void main() {
         _pose('walk', <int, double>{1: 1.0}),
         _pose('wave', <int, double>{1: 9.0}),
       ]);
-      rig.player.play(0);
+      rig.player.play(index: 0);
       rig.player.addLayer(
         AnimationLayer(clip: 1, mask: AnimationMask(<int>[1]), weight: 0.0),
       );
@@ -177,7 +177,7 @@ void main() {
         _pose('walk', <int, double>{1: 1.0}),
         _pose('wave', <int, double>{3: 7.0}),
       ]);
-      rig.player.play(0);
+      rig.player.play(index: 0);
       rig.player.addLayer(
         AnimationLayer(clip: 1, mask: AnimationMask(<int>[3]), weight: 0.5),
       );
@@ -191,7 +191,7 @@ void main() {
         _pose('walk', <int, double>{1: 1.0}),
         _pose('wave', <int, double>{1: 9.0}),
       ]);
-      rig.player.play(0);
+      rig.player.play(index: 0);
       final layer = rig.player.addLayer(
         AnimationLayer(clip: 1, wrap: AnimationWrap.loop, speed: 2.0),
       );
@@ -207,7 +207,7 @@ void main() {
         _pose('a', <int, double>{1: 4.0}),
         _pose('b', <int, double>{1: 8.0}),
       ]);
-      rig.player.play(0);
+      rig.player.play(index: 0);
       rig.player.addLayer(AnimationLayer(clip: 1));
       rig.player.addLayer(AnimationLayer(clip: 2));
       rig.player.update(0.0);
@@ -224,7 +224,7 @@ void main() {
         _pose('wave', <int, double>{1: 9.0}),
       ]);
       rig.player
-        ..play(0)
+        ..play(index: 0)
         ..pause();
       final layer = rig.player.addLayer(
         AnimationLayer(clip: 1, wrap: AnimationWrap.loop),
@@ -239,7 +239,7 @@ void main() {
         _pose('walk', <int, double>{1: 1.0}),
         _pose('wave', <int, double>{1: 9.0}),
       ]);
-      rig.player.play(0);
+      rig.player.play(index: 0);
       final layer = rig.player.playLayer(
         1,
         wrap: AnimationWrap.once,
@@ -315,7 +315,7 @@ void main() {
         _pose('walk', <int, double>{1: 1.0}),
         _pose('wave', <int, double>{1: 9.0}),
       ]);
-      rig.player.play(0);
+      rig.player.play(index: 0);
       rig.player.addLayer(
         AnimationLayer(clip: 1, mask: AnimationMask(const <int>[])),
       );
@@ -347,7 +347,7 @@ void main() {
       final rig = _rig(<AnimationClip>[
         _pose('walk', <int, double>{1: 1.0}),
       ]);
-      rig.player.play(0);
+      rig.player.play(index: 0);
       rig.player.addLayer(AnimationLayer(clip: 7));
       rig.player.update(0.1);
 

@@ -1,4 +1,4 @@
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'plane.dart';
@@ -18,7 +18,7 @@ import 'plane.dart';
 /// game's own `size`, which is the canvas both layers share.
 ///
 /// **One view of several.** [viewport] is the part of the canvas [camera]
-/// is drawn into, as a `RenderView.viewportFraction` says: the left half of
+/// is drawn into, as a `CameraView.viewportFraction` says: the left half of
 /// a split screen. Screen points stay the canvas's, and the camera's lens
 /// is that part's shape. Null is the whole canvas.
 final class BridgeProjector {
@@ -100,7 +100,7 @@ final class BridgeProjector {
   Vector2? onPlane(Vector2 screen, BridgePlane plane) {
     final ray = rayThrough(screen);
     if (ray == null) return null;
-    final (near, far) = ray;
+    final BridgeRay(:near, :far) = ray;
     final normal = plane.normal;
     final start = near.dot(normal);
     final run = far.dot(normal) - start;
@@ -120,12 +120,12 @@ final class BridgeProjector {
     final hit = onPlane(screen, plane);
     if (hit != null) return hit;
     final ray = rayThrough(screen);
-    return ray == null ? null : plane.to2d(ray.$2);
+    return ray == null ? null : plane.to2d(ray.far);
   }
 
   /// The near and far ends of the ray from the camera through [screen]:
   /// where a tap enters the scene, and where it leaves the view.
-  (Vector3, Vector3)? rayThrough(Vector2 screen) {
+  BridgeRay? rayThrough(Vector2 screen) {
     final area = _area();
     if (area == null) return null;
     final inverse = Matrix4.copy(
@@ -139,7 +139,7 @@ final class BridgeProjector {
     final near = _unproject(inverse, ndcX, ndcY, 0.0);
     final far = _unproject(inverse, ndcX, ndcY, 1.0);
     if (near == null || far == null) return null;
-    return (near, far);
+    return BridgeRay(near: near, far: far);
   }
 
   static Vector3? _unproject(Matrix4 inverse, double x, double y, double z) {
@@ -147,4 +147,29 @@ final class BridgeProjector {
     if (v.w.abs() < 1e-12) return null;
     return Vector3(v.x / v.w, v.y / v.w, v.z / v.w);
   }
+}
+
+/// The ray from a [BridgeProjector]'s camera through a screen point, by its
+/// two ends, as [BridgeProjector.rayThrough] answers it.
+final class BridgeRay {
+  /// The ray from [near] to [far].
+  const BridgeRay({required this.near, required this.far});
+
+  /// Where the ray enters the scene, on the camera's near plane, in world
+  /// space.
+  final Vector3 near;
+
+  /// Where the ray leaves the view, on the camera's far plane, in world
+  /// space.
+  final Vector3 far;
+
+  @override
+  bool operator ==(Object other) =>
+      other is BridgeRay && other.near == near && other.far == far;
+
+  @override
+  int get hashCode => Object.hash(near, far);
+
+  @override
+  String toString() => 'BridgeRay($near -> $far)';
 }

@@ -11,7 +11,9 @@ library;
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
-import 'frame_graph.dart' show PassSkip, SkippedPass;
+import 'frame_graph.dart' show NodeFailure, PassSkip, ResourceId, SkippedPass;
+import 'frame_pacing.dart' show PipelineStall;
+import 'physical_camera.dart' show PhysicalCamera;
 import 'render_settings.dart' show RenderSettings;
 
 /// What one node of the frame graph cost — `gfx-01n`'s own row.
@@ -22,32 +24,93 @@ import 'render_settings.dart' show RenderSettings;
 /// shadow map gained a cascade or somebody added an overlay. Per pass, it is
 /// one sentence and it names the pass.
 ///
-/// A record rather than a class because it is read and never built by
-/// anything outside the renderer, and a named one because the shape is
-/// written out in four files and was drifting.
-typedef FramePass = ({
+/// A class rather than a record, so a field the telemetry learns to keep
+/// later is an addition and not a break for whoever reads it. Kept while
+/// `RenderSettings.telemetry` records nodes; [micros] and [gpuMicros] are
+/// read only while it records times.
+final class FramePass {
+  const FramePass({
+    required this.name,
+    required this.active,
+    required this.micros,
+    required this.gpuMicros,
+    required this.drawCalls,
+    required this.triangles,
+    required this.pipelineSwitches,
+  });
+
   /// The graph node's own name.
-  String name,
+  final String name;
 
   /// What `RenderNode.isActive` said at the node this timing came from. See
   /// [FrameResult.passes] for why absence, not `false`, is how a pass that
   /// did not run is reported.
-  bool active,
+  final bool active;
 
-  /// Wall-clock time inside this node's own `execute`.
-  int micros,
+  /// Wall-clock time inside this node's own `execute`; nought while the
+  /// telemetry is not timing.
+  final int micros;
 
   /// What the GPU spent in the passes this node opened, or null where the
-  /// device does not measure it — `H2`. See
-  /// `GraphicsDevice.supportsGpuTimestamps`.
-  int? gpuMicros,
+  /// device does not measure it — `H2` — or the telemetry is not timing.
+  /// See `DeviceFeature.gpuTimestamps`.
+  final int? gpuMicros;
 
   /// Draws this node encoded. Zero for a node that only moves textures
   /// about — the composite's own full-screen triangle is a draw and counts.
-  int drawCalls,
-  int triangles,
-  int pipelineSwitches,
-});
+  final int drawCalls;
+
+  /// Triangles those draws covered.
+  final int triangles;
+
+  /// How often the pipeline changed between those draws.
+  final int pipelineSwitches;
+
+  @override
+  String toString() =>
+      'FramePass($name, ${micros}us'
+      '${gpuMicros == null ? '' : ', gpu ${gpuMicros}us'}, '
+      '$drawCalls draws, $triangles triangles)';
+}
+
+/// What one resource of the frame graph stood on this frame: the texture a
+/// version of it held last, and how many versions the frame made of it.
+///
+/// One per resource a node read, wrote or provided, kept while
+/// `RenderSettings.telemetry` records nodes, in `FrameResult.resources`.
+/// Typed, so a profiler or a capture tool reads the id and the size rather
+/// than parsing a label.
+final class FrameResourceUse {
+  const FrameResourceUse({
+    required this.id,
+    required this.versions,
+    required this.width,
+    required this.height,
+    required this.format,
+    required this.bytes,
+  });
+
+  /// The resource, as the graph's nodes declare it.
+  final ResourceId id;
+
+  /// How many versions of it the frame bound: one for a target drawn once,
+  /// more for one a chain of passes reads and writes back.
+  final int versions;
+
+  /// The size and format of the texture its last version stood on.
+  final int width;
+  final int height;
+  final TextureFormat format;
+
+  /// What that texture holds, by `FrameResources`' own account of a
+  /// texture: its base level and its chain, the floor every backend sits on.
+  final int bytes;
+
+  @override
+  String toString() =>
+      'FrameResourceUse(${id.name}, $versions version(s), ${width}x$height '
+      '${format.name}, $bytes B)';
+}
 
 /// What smoothed the edges of a frame, as opposed to what was asked for —
 /// `gfx-20n`.
@@ -94,7 +157,7 @@ final class EffectiveAntiAliasing {
   final String? msaaDeclined;
 
   /// Whether the frame got no anti-aliasing at all.
-  bool get none => msaaSamples <= 1 && !fxaa && !temporal;
+  bool get isNone => msaaSamples <= 1 && !fxaa && !temporal;
 
   @override
   String toString() =>
@@ -123,15 +186,96 @@ final class FrameResult {
     this.shadowsDenied = 0,
     this.batchedDraws = 0,
     this.wireframeDeclined = false,
+    this.alphaToCoverageDeclined = false,
+    this.targetBytes = 0,
     this.exposure = RenderSettings.defaultExposure,
     this.passes = const <FramePass>[],
+    this.resources = const <FrameResourceUse>[],
     this.skipped = const <SkippedPass>[],
     this.antiAliasing = const EffectiveAntiAliasing(
       msaaSamples: 1,
       fxaa: false,
       msaaDeclined: null,
     ),
+    this.pipelineStalls = const <PipelineStall>[],
+    this.pipelineRefusals = const <PipelineRefusedException>[],
+    this.nodeFailures = const <NodeFailure>[],
+    this.held = false,
   });
+
+  /// The nodes a plugin or the application placed that threw in this
+  /// frame, each with whose it was — quarantined from the next frame on,
+  /// where [skipped] lists each as `PassSkip.failed`.
+  ///
+  /// **Told once, on the frame that met it**, as [pipelineRefusals] are:
+  /// what a debug build reports (`SceneSurface`, under `Flutter3dView`,
+  /// hands each to `FlutterError.reportError`), and what a test asserts on.
+  /// Empty on
+  /// every frame nothing threw in.
+  final List<NodeFailure> nodeFailures;
+
+  /// Pipelines the device would not build that this frame met for the first
+  /// time, one entry per pipeline — taken from
+  /// `GraphicsDevice.pipelineRefusals`.
+  ///
+  /// **Told once, on the frame that met it.** The draws that needed one were
+  /// skipped and the rest of the frame drew; the backend builds it again at
+  /// its next use, at most `PipelineRefusals.maxBuilds` times, and skips its
+  /// draws for good after that, without telling this list again. Empty on
+  /// every frame of a device whose driver builds everything, and on every
+  /// frame of a backend that does not report.
+  final List<PipelineRefusedException> pipelineRefusals;
+
+  /// Pipelines this frame built that took longer than
+  /// `FramePacing.stallThreshold`, each with the material and geometry that
+  /// asked for it — `A1.7`. Empty on almost every frame, and on every frame
+  /// drawn inside `Renderer.warmUp`, which is where builds are meant to be.
+  final List<PipelineStall> pipelineStalls;
+
+  /// Whether this is the previous frame handed back again because the GPU
+  /// was `FramePacing.framesInFlight` frames behind — `A1.4`.
+  ///
+  /// A held result is the last drawn one with this set: the same [frame] to
+  /// present, the same counters. Nothing was drawn and no time was spent on
+  /// the GPU's behalf; `Renderer.heldFrames` counts these.
+  final bool held;
+
+  /// [exposure] as an exposure value at ISO 100, in `PhysicalCamera`'s
+  /// units — what a camera's dial would read for the exposure this frame
+  /// used, whether a camera, a multiplier or the auto exposure meter set it.
+  double get ev100 => PhysicalCamera.ev100ForExposure(exposure);
+
+  /// This result again, marked [held]: what `Renderer.render` answers while
+  /// the GPU is behind.
+  FrameResult toHeld() => FrameResult(
+    frame: frame,
+    cpuMicros: cpuMicros,
+    submitMicros: submitMicros,
+    drawCalls: drawCalls,
+    triangles: triangles,
+    instances: instances,
+    culled: culled,
+    pipelineSwitches: pipelineSwitches,
+    debugLines: debugLines,
+    lights: lights,
+    lightsDropped: lightsDropped,
+    pipelines: pipelines,
+    shadowCasters: shadowCasters,
+    skinnedDraws: skinnedDraws,
+    shadowsDenied: shadowsDenied,
+    batchedDraws: batchedDraws,
+    wireframeDeclined: wireframeDeclined,
+    alphaToCoverageDeclined: alphaToCoverageDeclined,
+    targetBytes: targetBytes,
+    exposure: exposure,
+    passes: passes,
+    resources: resources,
+    skipped: skipped,
+    antiAliasing: antiAliasing,
+    pipelineStalls: pipelineStalls,
+    pipelineRefusals: pipelineRefusals,
+    held: true,
+  );
 
   /// How many individual draws the automatic batcher replaced — `gfx-67n`.
   ///
@@ -160,7 +304,47 @@ final class FrameResult {
   /// something and here is what you actually got" three times, and those three
   /// each needed their own field because there was no general form. This is
   /// the general form.
+  ///
+  /// Two kinds of entry are not passes. A step switched off through
+  /// `RenderSettings.without` is named here under its own name with
+  /// [PassSkip.switchedOff], whether or not it has a pass — the tone curve
+  /// does not. And a request the frame declined is named under one of
+  /// [declinedNames] with [PassSkip.declined]; the fields that report the
+  /// same facts stay beside it.
   final List<SkippedPass> skipped;
+
+  /// The names [skipped] reports a declined request under, each with
+  /// [PassSkip.declined] — none of them a pass:
+  ///
+  ///  * `wireframe` — [wireframeDeclined];
+  ///  * `alpha to coverage` — [alphaToCoverageDeclined];
+  ///  * `multisampling` — [EffectiveAntiAliasing.msaaDeclined] was set;
+  ///  * `point shadow rows` — [shadowsDenied] above nought.
+  static const List<String> declinedNames = <String>[
+    'wireframe',
+    'alpha to coverage',
+    'multisampling',
+    'point shadow rows',
+  ];
+
+  /// The [PassSkip.declined] entries for the four requests a frame can
+  /// decline, in [declinedNames]' order — what the renderer appends to
+  /// [skipped].
+  static List<SkippedPass> declinedSkips({
+    required bool wireframe,
+    required bool alphaToCoverage,
+    required bool multisampling,
+    required int shadowsDenied,
+  }) => <SkippedPass>[
+    if (wireframe)
+      SkippedPass(name: declinedNames[0], reason: PassSkip.declined),
+    if (alphaToCoverage)
+      SkippedPass(name: declinedNames[1], reason: PassSkip.declined),
+    if (multisampling)
+      SkippedPass(name: declinedNames[2], reason: PassSkip.declined),
+    if (shadowsDenied > 0)
+      SkippedPass(name: declinedNames[3], reason: PassSkip.declined),
+  ];
 
   /// Why [name] did not run this frame, or null if it ran or was never
   /// registered.
@@ -259,6 +443,20 @@ final class FrameResult {
   /// [lightsDropped] is: a setting that did nothing should say so.
   final bool wireframeDeclined;
 
+  /// Whether a material asked for `RenderMaterial.alphaToCoverage` and was drawn
+  /// with its hard cutoff instead — `P7`: the device has none (Impeller, the
+  /// software rasteriser), or the scene pass gave its multisampling up.
+  final bool alphaToCoverageDeclined;
+
+  /// What the targets this frame drew into or read from hold, in bytes —
+  /// `P6`. Each texture once, its base level, every slice and sample: the
+  /// scene's colour and depth, the surface buffer, the glow's chain, the
+  /// shadow atlas, every scratch target a pass took from the pool. What a
+  /// frame costs in memory before a driver's padding, and what grows when a
+  /// render scale or an effect is turned up — `textureBytes` says how one is
+  /// counted.
+  final int targetBytes;
+
   /// Pipelines the renderer has built so far.
   ///
   /// Reported per frame because it is the number that has to stay put: light
@@ -273,7 +471,7 @@ final class FrameResult {
 
   /// Point and spot lights that asked for a cube shadow and got no atlas row.
   ///
-  /// The atlas has `kShadowedLights` rows, and a light past them shades
+  /// The atlas has `shadowedLights` rows, and a light past them shades
   /// unshadowed — which one, decided by relevance and hysteresis rather than
   /// by scene order, so the count can change as the player walks. Reported for the same reason [lightsDropped] is: a
   /// `castsShadow` that did nothing should say so, rather than leave the
@@ -297,6 +495,11 @@ final class FrameResult {
   /// itself say about its own readiness" — happen to agree now and are not
   /// the same question.
   final List<FramePass> passes;
+
+  /// One entry per resource the frame's nodes read, wrote or provided, in the
+  /// order the frame first bound each — empty unless
+  /// `RenderSettings.telemetry` records nodes.
+  final List<FrameResourceUse> resources;
 }
 
 /// What [Renderer.renderPost] handed back.

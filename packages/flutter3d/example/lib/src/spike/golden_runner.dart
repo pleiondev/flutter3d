@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:typed_data';
-import 'dart:ui' as ui;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:path/path.dart' as p;
@@ -25,8 +24,8 @@ import 'png.dart';
 /// a match and 1 on a mismatch, so `tool/golden.sh` can launch the built
 /// application once per scene and read the code. The same three names still work
 /// as `--dart-define`s for a run driven by hand, but the environment is what the
-/// harness uses, because a define is a compile-time input and seventy-eight
-/// of them are seventy-eight builds.
+/// harness uses, because a define is a compile-time input and seventy-nine
+/// of them are seventy-nine builds.
 final class GoldenRunner {
   GoldenRunner._(this.scene, {required this.update, required this.directory});
 
@@ -122,7 +121,7 @@ final class GoldenRunner {
       scene,
       // The store's answer wins where it has one. A desktop run takes the
       // direction from the environment and a browser run from the URL, for the
-      // same reason on both: one build has to serve seventy-eight scenes in both
+      // same reason on both: one build has to serve 96 scenes in both
       // directions, and anything the compiler sees is another build.
       update:
           updateOverride ??
@@ -160,11 +159,7 @@ final class GoldenRunner {
         finish(1);
       }
 
-      final actual = await device.readPixels(target);
-      if (actual == null) {
-        printLine('GOLDEN ${scene.name}: the frame read back as nothing.');
-        finish(1);
-      }
+      final actual = await device.readback(target);
 
       // Before the frame is recorded or compared, because a frame the device
       // refused part of is not a picture of the scene whatever it matches. The
@@ -232,25 +227,10 @@ final class GoldenRunner {
     }
   }
 
-  Future<Uint8List> _decode(Uint8List png) async {
-    final codec = await ui.instantiateImageCodec(png);
-    final frame = await codec.getNextFrame();
-    try {
-      final data = await frame.image.toByteData(
-        format: ui.ImageByteFormat.rawRgba,
-      );
-      if (data == null) {
-        throw StateError('the reference image decoded to nothing');
-      }
-      return data.buffer.asUint8List();
-    } finally {
-      // The image and its codec are native objects, disposed the way png.dart
-      // in this tree does it. A golden run only decodes one reference per
-      // scene, but there is no reason to leak even that.
-      frame.image.dispose();
-      codec.dispose();
-    }
-  }
+  /// The reference's bytes exactly as they were written, against the frame's
+  /// exactly as the target held them — `png.dart` says why neither goes
+  /// through `dart:ui` any more.
+  Future<Uint8List> _decode(Uint8List png) async => decodePngBytes(png);
 
   _Comparison _compare(Uint8List expected, Uint8List actual) {
     if (expected.length != actual.length) {

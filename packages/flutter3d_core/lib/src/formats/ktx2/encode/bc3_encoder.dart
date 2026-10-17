@@ -30,7 +30,7 @@ Uint8List encodeBc3(Rgba8Image image) {
     for (var bx = 0; bx < blocksX; bx++) {
       final pixels = readBlock(image, bx, by);
       final alphaBlock = encodeBc3AlphaBlock([
-        for (final (_, _, _, a) in pixels) a,
+        for (final Rgba8Texel(:a) in pixels) a,
       ]);
       final colorBlock = encodeBc1Block(pixels);
       out.setRange(offset, offset + 8, alphaBlock);

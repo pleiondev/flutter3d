@@ -14,14 +14,13 @@
 /// **The last group is the half that touches a device.** `bindMaterial` and
 /// `loadMaterial` are exported from `flutter3d.dart` and had no caller
 /// anywhere — no app, no sample, no test — so a published path from a file on
-/// disk to a `Material` the renderer draws with had never been run once. It
+/// disk to a `RenderMaterial` the renderer draws with had never been run once. It
 /// runs here, against `FakeBackend` and a hand-built KTX2, which needs no
 /// live binding: `uploadEncodedImage` sniffs KTX2 before `dart:ui` sees the
 /// bytes.
 library;
 
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_hardware/testing.dart';
@@ -34,7 +33,7 @@ import 'helpers/build_ktx2.dart';
 /// Deliberately not a real format. What is being checked is that the engine
 /// hands the file over and takes back a material, not that anybody can parse
 /// anything.
-final class _ToyMaterials implements MaterialDecoder {
+final class _ToyMaterials extends MaterialDecoder {
   const _ToyMaterials({this.greedy = false});
 
   /// Whether it also claims `.fmat`, which is how *replacing* the built-in
@@ -42,11 +41,13 @@ final class _ToyMaterials implements MaterialDecoder {
   final bool greedy;
 
   @override
-  bool handles(String fileName, Uint8List bytes) =>
-      greedy || fileName.endsWith('.toymat');
+  bool handles(MaterialProbe probe) {
+    final fileName = probe.fileName;
+    return greedy || fileName.endsWith('.toymat');
+  }
 
   @override
-  MaterialDocument decode(Uint8List bytes, String fileName) =>
+  MaterialDocument decode(MaterialDecodeContext context) =>
       MaterialDocument(surface: SurfaceMaterial(name: 'toy', roughness: 0.125));
 }
 
@@ -149,7 +150,7 @@ void main() {
         FileAssetSource(_fileNamed('rusty.toymat', 'TOYMAT 0.125')),
       ),
       throwsA(
-        isA<FormatException>().having(
+        isA<FmatFormatException>().having(
           (e) => e.message,
           'message',
           allOf(contains('MaterialDecoder'), contains('.fmat')),
@@ -164,7 +165,7 @@ void main() {
   // touches a device had never run. These four take the same path an
   // application would.
   group('and the half that reaches a device', () {
-    // Mutation: passing `albedo: null` to `Material`'s constructor in
+    // Mutation: passing `albedo: null` to `RenderMaterial`'s constructor in
     // `bindMaterial` — the document still reads, and the two expectations
     // that the image reached the device report false.
     test('loads a file into a drawable material', () async {
@@ -193,6 +194,27 @@ void main() {
       expect(warnings, isEmpty);
     });
 
+    // Mutation: leave `physicalMaterial:` out of either `RenderMaterial` the
+    // loader builds. The look still loads, and a hit on the surface asks the
+    // catalogue about nothing: a footstep on oak sounds of no material.
+    test('carries what the surface is made of', () async {
+      final material = await loadMaterial(
+        FileAssetSource(
+          _materialBeside(
+            '{"fmat": 1, "name": "plank", "physicalMaterial": "f3d.oak"}',
+          ),
+        ),
+        device: FakeBackend(),
+      );
+      expect(material.physicalMaterial, 'f3d.oak');
+
+      final bound = await bindSurfaceMaterial(
+        SurfaceMaterial(name: 'plank', physicalMaterial: 'f3d.oak'),
+        textureFor: (_, _) async => null,
+      );
+      expect(bound.physicalMaterial, 'f3d.oak');
+    });
+
     // Mutation: make `resolve` rethrow instead of catching — the load fails
     // and this whole test throws rather than reporting a warning.
     test('costs a missing image a warning, not the material', () async {
@@ -210,7 +232,7 @@ void main() {
     });
 
     // The extension point, end to end: a slot no `SurfaceMaterial` field
-    // names becomes a `Material.extraTextures` entry the encoder binds by
+    // names becomes a `RenderMaterial.extraTextures` entry the encoder binds by
     // name. Mutation: dropping the `extraTextures` loop from `bindMaterial`
     // leaves the map empty and this reports false.
     test('binds a slot only the application\'s shader knows', () async {
@@ -229,7 +251,7 @@ void main() {
       expect(material.extraTextures.keys, <String>['flow']);
     });
 
-    // A `.fmat` may ask an extra slot for a sampler, and `Material` has
+    // A `.fmat` may ask an extra slot for a sampler, and `RenderMaterial` has
     // nowhere to keep one: `extraTextures` is `Map<String, TextureHandle>`
     // and the encoder binds those with the device's default. Said out loud
     // rather than dropped. Mutation: deleting the `sampling` check in
@@ -254,5 +276,65 @@ void main() {
         expect(warnings.single, allOf(contains('flow'), contains('sampler')));
       },
     );
+  });
+
+  // D45 on the render path: a material instance keeps the version it was
+  // written at, and the loader carries its values to the program's own.
+  // `hatch.f3dmat` is at version 2, which renamed `ink` to `inkColor` and
+  // halved `spacing`; the two `.fmat` fixtures were written at 1 and at 2.
+  group('lifts what a file sets to the material\'s version', () {
+    final program = parseMaterial(
+      File('test/fixtures/materials/hatch.f3dmat').readAsStringSync(),
+    );
+    Future<(RenderMaterial, List<String>)> load(String fixture) async {
+      final warnings = <String>[];
+      final material = await loadMaterial(
+        FileAssetSource('test/fixtures/materials/$fixture'),
+        device: FakeBackend(),
+        warnings: warnings,
+        programs: <String, MaterialProgram>{program.name: program},
+      );
+      return (material, warnings);
+    }
+
+    // Mutation: pass `document.parameters` through as written, and the
+    // version 1 file sets a member the stage does not have.
+    test(
+      'a file written at version 1 is carried through the updates',
+      () async {
+        final (material, warnings) = await load('hatch_at_1.fmat');
+        expect(material.parameters.names.toSet(), <String>{
+          'inkColor',
+          'spacing',
+        });
+        expect(material.parameters['inkColor'], <double>[0.25, 0.5, 0.75]);
+        expect(material.parameters['spacing'], <double>[4.0]);
+        expect(warnings, isEmpty);
+      },
+    );
+
+    test('a file written at version 2 is read as written', () async {
+      final (material, warnings) = await load('hatch_at_2.fmat');
+      expect(material.parameters['inkColor'], <double>[0.25, 0.5, 0.75]);
+      expect(material.parameters['spacing'], <double>[4.0]);
+      expect(warnings, isEmpty);
+    });
+
+    test('a file from a newer version keeps its values, and says so', () async {
+      final path = _fileNamed(
+        'hatched.fmat',
+        '{"fmat": 1, "lighting": {"shader": "Hatch"}, "materialVersion": 3, '
+            '"parameters": {"inkColor": [1, 1, 1]}}',
+      );
+      final warnings = <String>[];
+      final material = await loadMaterial(
+        FileAssetSource(path),
+        device: FakeBackend(),
+        warnings: warnings,
+        programs: <String, MaterialProgram>{program.name: program},
+      );
+      expect(material.parameters['inkColor'], <double>[1, 1, 1]);
+      expect(warnings.single, contains('cannot be carried'));
+    });
   });
 }

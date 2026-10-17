@@ -44,9 +44,9 @@ void main() {
     });
 
     test('has its origin a base centre away from where it stands', () {
-      expect(audit.baseCentre!.x, closeTo(100, 1e-4));
-      expect(audit.baseCentre!.y, closeTo(20, 1e-4));
-      expect(audit.baseCentre!.z, closeTo(0, 1e-4));
+      expect(audit.baseCenter!.x, closeTo(100, 1e-4));
+      expect(audit.baseCenter!.y, closeTo(20, 1e-4));
+      expect(audit.baseCenter!.z, closeTo(0, 1e-4));
       expect(
         audit.pivotDistance,
         closeTo(math.sqrt(100 * 100 + 20 * 20), 1e-3),
@@ -99,7 +99,7 @@ void main() {
       expect(lines.first, contains('100.00 m × 190.00 m × 100.00 m'));
       expect(lines[1], '${audit.findings.length} findings:');
       expect(lines.skip(2), hasLength(audit.findings.length));
-      expect(audit.clean, isFalse);
+      expect(audit.isClean, isFalse);
     });
   });
 
@@ -121,7 +121,7 @@ void main() {
     final audit = AssetAudit.of(project);
     expect(audit.size, closeTo(1, 1e-6));
     expect(audit.pivotDistance, closeTo(0, 1e-6));
-    expect(audit.clean, isTrue, reason: audit.says);
+    expect(audit.isClean, isTrue, reason: audit.says);
     expect(audit.says, endsWith('nothing to fix'));
   });
 
@@ -147,7 +147,7 @@ void main() {
   test('an empty project has nothing to measure and nothing to fix', () {
     final audit = AssetAudit.of(const ModelProject());
     expect(audit.bounds, isNull);
-    expect(audit.clean, isTrue);
+    expect(audit.isClean, isTrue);
     expect(audit.says, 'nothing drawn to measure\nnothing to fix');
   });
 }

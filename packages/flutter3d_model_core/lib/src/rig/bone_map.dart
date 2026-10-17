@@ -43,7 +43,7 @@ String mirrorBoneName(String name) {
 /// A source bone name → target bone name mapping, used by [retargetClip] to
 /// find, for each animated source bone, which bone (if any) on the target
 /// skeleton it drives.
-class BoneMap {
+final class BoneMap {
   const BoneMap(Map<String, String> map) : _map = map;
 
   final Map<String, String> _map;
@@ -244,10 +244,8 @@ bool _isUpperLetter(String char) => RegExp('[A-Z]').hasMatch(char);
   final List<String> tokens = _looseTokens(afterPrefix);
   for (int i = 0; i < tokens.length; i++) {
     final bool? left = switch (tokens[i].toLowerCase()) {
-      'left' => true,
-      'right' => false,
-      'l' => true,
-      'r' => false,
+      'left' || 'l' => true,
+      'right' || 'r' => false,
       _ => null,
     };
     if (left == null) continue;
@@ -331,10 +329,8 @@ String? _chainCanonicalOf(String rawName) {
   bool? left;
   for (final String token in tokens.sublist(1, tokens.length - 1)) {
     left = switch (token.toLowerCase()) {
-      'left' => true,
-      'right' => false,
-      'l' => true,
-      'r' => false,
+      'left' || 'l' => true,
+      'right' || 'r' => false,
       _ => null,
     };
     if (left != null) break;

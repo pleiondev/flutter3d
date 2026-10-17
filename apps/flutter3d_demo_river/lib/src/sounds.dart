@@ -156,9 +156,9 @@ extension RiverGameSound on RiverGame {
   /// the throttle, and hails an extra jet.
   void _listen() {
     final flying = phase == Phase.flying;
-    _engineLoop.playing = flying;
-    _refuelLoop.playing = flying && refuelling;
-    _alarmLoop.playing = flying && run.fuelLow && !refuelling;
+    _engineLoop.isPlaying = flying;
+    _refuelLoop.isPlaying = flying && refuelling;
+    _alarmLoop.isPlaying = flying && run.fuelLow && !refuelling;
     final throttle =
         ((speed - RiverGame.slowSpeed) /
                 (RiverGame.fastSpeed - RiverGame.slowSpeed))

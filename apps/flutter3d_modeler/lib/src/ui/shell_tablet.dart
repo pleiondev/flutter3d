@@ -72,7 +72,7 @@ class ModelerTabletShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colours = theme.extension<ModelerColors>() ?? ModelerColors.dark;
+    final colors = theme.extension<ModelerColors>() ?? ModelerColors.dark;
     return Scaffold(
       // `ux-32`: the hand-off's own "фон окна" is `surfaceContainerLowest`,
       // not `surface`. The two differ by five points of lightness, which is
@@ -149,7 +149,7 @@ class ModelerTabletShell extends StatelessWidget {
                 Expanded(
                   child: Stack(
                     children: <Widget>[
-                      ColoredBox(color: colours.viewport, child: viewport),
+                      ColoredBox(color: colors.viewport, child: viewport),
                       // A sheet over the viewport's own bottom edge rather
                       // than a fourth column: the properties panel is
                       // something reached for and put away, not something a

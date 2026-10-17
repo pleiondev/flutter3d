@@ -126,6 +126,10 @@ final class RemoveMaterial extends ModelCommand {
         skeletons: project.skeletons,
         clips: project.clips,
         lighting: project.lighting,
+        animationGraphs: project.animationGraphs,
+        unknown: project.unknown,
+        unknownSections: project.unknownSections,
+        rights: project.rights,
       ),
     );
   }
@@ -177,6 +181,7 @@ final class SetMaterialField extends ModelCommand {
     required this.index,
     required this.field,
     required this.value,
+    this.lightingModels,
   });
 
   final int index;
@@ -185,6 +190,13 @@ final class SetMaterialField extends ModelCommand {
   /// A number, a string, a bool, or a list of three or four numbers,
   /// depending on [field]. See `_fieldSet` for which.
   final Object? value;
+
+  /// The engine's lighting models (`Renderer.lightingModels`) a
+  /// `lightingModel` value is looked up in, so a plugin's model can be
+  /// chosen; null looks among the built-in ones alone. Not written with the
+  /// command: whoever reads it back hands the table again
+  /// (`modelCommandFromJson`).
+  final LightingModels? lightingModels;
 
   @override
   String get name => 'setMaterialField';
@@ -205,7 +217,12 @@ final class SetMaterialField extends ModelCommand {
       return Outcome.refused('there is no material $index');
     }
     final ProjectMaterial material = project.materials[index];
-    final SurfaceMaterial? next = _fieldSet(material.surface, field, value);
+    final SurfaceMaterial? next = _fieldSet(
+      material.surface,
+      field,
+      value,
+      lightingModels ?? LightingModels.shipped,
+    );
     if (next == null) {
       return Outcome.refused(
         '"$field" is not a material field, or its value is the wrong shape',
@@ -462,8 +479,8 @@ final class SetTexture extends ModelCommand {
     'magLinear': sampling.magLinear,
     'minLinear': sampling.minLinear,
     'useMipmaps': sampling.useMipmaps,
-    'wrapS': sampling.wrapS.name,
-    'wrapT': sampling.wrapT.name,
+    'wrapS': textureWrapWord(sampling.wrapS),
+    'wrapT': textureWrapWord(sampling.wrapT),
   };
 
   @override
@@ -637,7 +654,12 @@ final class AssignMaterial extends ModelCommand {
 /// edits by the same names, and "link" ought to mean the file's whole look,
 /// minus only the one part this row does not resolve.
 final class LinkMaterialFile extends ModelCommand {
-  const LinkMaterialFile({required this.index, required this.path, this.bytes});
+  const LinkMaterialFile({
+    required this.index,
+    required this.path,
+    this.bytes,
+    this.lightingModels,
+  });
 
   final int index;
   final String path;
@@ -645,6 +667,12 @@ final class LinkMaterialFile extends ModelCommand {
   /// The `.fmat` already read from disk, or null to link without adopting a
   /// look yet.
   final Uint8List? bytes;
+
+  /// The engine's lighting models (`Renderer.lightingModels`) [bytes] are
+  /// read against, so a file drawn with a plugin's model reads as that
+  /// model; null reads against the built-in ones alone. Not written with the
+  /// command, as [SetMaterialField.lightingModels] is not.
+  final LightingModels? lightingModels;
 
   @override
   String get name => 'linkMaterialFile';
@@ -670,8 +698,8 @@ final class LinkMaterialFile extends ModelCommand {
     if (read != null) {
       final MaterialDocument document;
       try {
-        document = readFmat(read, name: path);
-      } on FormatException catch (error) {
+        document = readFmat(read, name: path, lightingModels: lightingModels);
+      } on FmatFormatException catch (error) {
         return Outcome.refused(
           '$path did not read as a material: ${error.message}',
         );
@@ -770,7 +798,7 @@ const Object _unset = Object();
 SurfaceMaterial _surfaceWith(
   SurfaceMaterial s, {
   Object? name = _unset,
-  Vector4? baseColor,
+  LinearColor? baseColor,
   double? metallic,
   double? roughness,
   TextureBinding? baseColorTexture,
@@ -785,7 +813,7 @@ SurfaceMaterial _surfaceWith(
   double? occlusionStrength,
   TextureBinding? emissiveTexture,
   bool setEmissiveTexture = false,
-  Vector3? emissive,
+  LinearColor? emissive,
   double? emissiveStrength,
   SurfaceAlphaMode? alphaMode,
   double? alphaCutoff,
@@ -819,6 +847,8 @@ SurfaceMaterial _surfaceWith(
   extensions: identical(extensions, _unset)
       ? s.extensions
       : extensions as MaterialExtensions?,
+  physicalMaterial: s.physicalMaterial,
+  materialVersion: s.materialVersion,
 );
 
 /// [s] with [field] set to [value], or null when [field] is not a field or
@@ -826,10 +856,16 @@ SurfaceMaterial _surfaceWith(
 ///
 /// The shapes: `name` is a string or null; `baseColor` and `emissive` are four
 /// and three numbers; `alphaMode` is one of [SurfaceAlphaMode]'s names;
-/// `lightingModel` is one of [LightingModel.builtIn]'s `shaderName`s or null
-/// to clear it; every other field is a number or, for `doubleSided`/`unlit`,
-/// a bool.
-SurfaceMaterial? _fieldSet(SurfaceMaterial s, String field, Object? value) {
+/// `lightingModel` is a model [models] names (`LightingModels.named`: a
+/// built-in one in any case, a plugin's by its name or stage) or null to
+/// clear it; every other field is a number or, for `doubleSided`/`unlit`, a
+/// bool.
+SurfaceMaterial? _fieldSet(
+  SurfaceMaterial s,
+  String field,
+  Object? value,
+  LightingModels models,
+) {
   switch (field) {
     case 'name':
       return value == null || value is String
@@ -839,7 +875,7 @@ SurfaceMaterial? _fieldSet(SurfaceMaterial s, String field, Object? value) {
       return switch (_doubles(value, 4)) {
         final List<double> c => _surfaceWith(
           s,
-          baseColor: Vector4(c[0], c[1], c[2], c[3]),
+          baseColor: LinearColor.fromSrgb(c[0], c[1], c[2], c[3]),
         ),
         _ => null,
       };
@@ -859,7 +895,7 @@ SurfaceMaterial? _fieldSet(SurfaceMaterial s, String field, Object? value) {
       return switch (_doubles(value, 3)) {
         final List<double> c => _surfaceWith(
           s,
-          emissive: Vector3(c[0], c[1], c[2]),
+          emissive: LinearColor(c[0], c[1], c[2]),
         ),
         _ => null,
       };
@@ -868,11 +904,10 @@ SurfaceMaterial? _fieldSet(SurfaceMaterial s, String field, Object? value) {
           ? _surfaceWith(s, emissiveStrength: value.toDouble())
           : null;
     case 'alphaMode':
-      if (value is! String) return null;
-      for (final SurfaceAlphaMode mode in SurfaceAlphaMode.values) {
-        if (mode.name == value) return _surfaceWith(s, alphaMode: mode);
-      }
-      return null;
+      return switch (alphaModeOf(value)) {
+        final SurfaceAlphaMode mode => _surfaceWith(s, alphaMode: mode),
+        null => null,
+      };
     case 'alphaCutoff':
       return value is num
           ? _surfaceWith(s, alphaCutoff: value.toDouble())
@@ -884,25 +919,23 @@ SurfaceMaterial? _fieldSet(SurfaceMaterial s, String field, Object? value) {
     case 'lightingModel':
       if (value == null) return _surfaceWith(s, lightingModel: null);
       if (value is! String) return null;
-      for (final LightingModel model in LightingModel.builtIn) {
-        if (model.shaderName == value) {
-          return _surfaceWith(s, lightingModel: model);
-        }
-      }
-      return null;
+      return switch (models.named(value)) {
+        final LightingModel model => _surfaceWith(s, lightingModel: model),
+        null => null,
+      };
     default:
       return null;
   }
 }
 
-/// The wrap mode [json] names, [TextureWrap.repeat] for anything else — the
+/// The wrap mode [json] names, [SamplerAddressMode.repeat] for anything else — the
 /// same fallback `_readSampling` in `project_format.dart` gives, because a
 /// sampler that does not say how it wraps is one nothing has ever asked to
 /// wrap unusually.
-TextureWrap _wrapNamed(Object? json) => switch (json) {
-  'clampToEdge' => TextureWrap.clampToEdge,
-  'mirroredRepeat' => TextureWrap.mirroredRepeat,
-  _ => TextureWrap.repeat,
+SamplerAddressMode _wrapNamed(Object? json) => switch (json) {
+  'clampToEdge' => SamplerAddressMode.clampToEdge,
+  'mirroredRepeat' => SamplerAddressMode.mirror,
+  _ => SamplerAddressMode.repeat,
 };
 
 /// Whether [a] and [b] hold the same bytes.

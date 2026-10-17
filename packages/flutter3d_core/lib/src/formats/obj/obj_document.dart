@@ -29,6 +29,7 @@ final class MtlMaterial {
   final double? specularExponent;
 
   /// `d`, or `1 - Tr`.
+  /// A 0..1 fraction.
   final double opacity;
 
   /// `map_Kd`, relative to the `.mtl` file.
@@ -51,6 +52,7 @@ final class MtlMaterial {
   /// OBJ has no notion of metalness. A bright, near-neutral `Ks` is the closest
   /// signal a Phong material gives, so it is mapped conservatively: most OBJ
   /// materials should come out dielectric rather than accidentally chrome.
+  /// A 0..1 fraction.
   double get approximateMetallic {
     final ks = specular;
     if (ks == null) return 0.0;

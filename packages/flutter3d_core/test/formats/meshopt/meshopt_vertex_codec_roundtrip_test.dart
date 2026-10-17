@@ -11,6 +11,7 @@ library;
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:flutter3d_core/src/formats/format_exceptions.dart';
 import 'package:flutter3d_core/src/formats/meshopt/meshopt_vertex_codec.dart';
 import 'package:test/test.dart';
 
@@ -161,7 +162,7 @@ void main() {
     final bad = Uint8List.fromList(<int>[0xff, ...List<int>.filled(31, 0)]);
     expect(
       () => decodeMeshoptVertexBufferV0(bad, 0, 12),
-      throwsFormatException,
+      throwsA(isA<MeshoptFormatException>()),
     );
   });
 

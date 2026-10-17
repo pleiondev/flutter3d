@@ -221,12 +221,12 @@ void main() {
 /// Answers every read with nothing and every write as if it landed —
 /// `ModelerScreen`'s own autosave writes through this during the test
 /// instead of reaching for a real file or IndexedDB.
-final class _NullBinaryStorage implements BinaryStorage {
+final class _NullBinaryStorage extends BinaryStorage {
   @override
   Future<Uint8List?> read(String name) async => null;
 
   @override
-  Future<bool> write(String name, Uint8List contents) async => true;
+  Future<void> write(String name, Uint8List contents) async {}
 
   @override
   Future<void> remove(String name) async {}

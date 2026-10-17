@@ -1,8 +1,23 @@
 import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart';
+
+/// Where a body starts in a level, and which way it faces: what
+/// [LevelWalk.spawnIn] reads from the level's first spawn.
+///
+/// **A class, not a record**, so it can say more in a minor release (the
+/// spawn's entity, a pitch) without breaking a caller that reads it.
+final class SpawnPoint {
+  const SpawnPoint({required this.at, this.yaw = 0.0});
+
+  /// Where the body's centre goes, in the level's space.
+  final Vector3 at;
+
+  /// Which way it faces, in radians about world up; nought looks down -Z.
+  final double yaw;
+}
 
 /// A body that walks a level: it collides, jumps and runs, turns where it is
 /// dragged, and carries a camera at eye height.
@@ -31,11 +46,11 @@ final class LevelWalk {
   /// A spawn is authored at the feet, which is the only place an author can
   /// see, and a body put there starts inside the floor. The first entity whose
   /// type names a spawn wins; a level with none starts at the origin.
-  static ({Vector3 at, double yaw}) spawnIn(Level level, {double lift = 0.9}) {
+  static SpawnPoint spawnIn(Level level, {double lift = 0.9}) {
     final spawn = level.entities
         .where((EntityDef it) => it.type.contains('spawn'))
         .firstOrNull;
-    return (
+    return SpawnPoint(
       at: (spawn?.position ?? Vector3.zero()) + Vector3(0.0, lift, 0.0),
       yaw: spawn?.yaw ?? 0.0,
     );
@@ -48,7 +63,7 @@ final class LevelWalk {
   /// The body that collides with the level.
   final CharacterController body;
 
-  /// How far above the body's centre the eye is.
+  /// How far above the body's centre the eye is, in metres.
   final double eyeHeight;
 
   /// Radians turned per logical pixel dragged.
@@ -82,7 +97,7 @@ final class LevelWalk {
     if (input.pressed(GameAction.jump)) body.requestJump();
     body.step(
       dt.clamp(0.0, 0.1),
-      wishDirection: wishFor(input.moveAxis),
+      wishDirection: wishFor(input.dualAxis(DualAxisAction.move)),
       sprint: input.held(GameAction.sprint),
     );
   }
@@ -112,18 +127,10 @@ final class LevelWalk {
   }
 }
 
-/// A kind for a type the application has not been taught yet.
-///
-/// **A level names things a game does not spawn yet**, and a registry that has
-/// never heard of them refuses the document at all. So every type is accepted
-/// and none is given a meaning: they are coordinates with words attached until
-/// there is something to spawn them into.
-final class OpenKind extends EntityKind {
-  const OpenKind(super.type);
-}
-
 /// A registry that accepts every type [level] names and gives none of them a
-/// meaning — see [OpenKind].
+/// meaning, each an [OpenKind]: a level names things a game does not spawn
+/// yet, and they are coordinates with words attached until there is
+/// something to spawn them into.
 EntityRegistry openRegistryFor(Level level) => EntityRegistry(<EntityKind>[
   for (final type in level.entities.map((EntityDef e) => e.type).toSet())
     OpenKind(type),

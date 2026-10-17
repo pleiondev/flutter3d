@@ -74,7 +74,10 @@ enum TransformAxis {
     TransformAxis.x => TransformAxis.yz,
     TransformAxis.y => TransformAxis.xz,
     TransformAxis.z => TransformAxis.xy,
-    _ => TransformAxis.free,
+    TransformAxis.free ||
+    TransformAxis.yz ||
+    TransformAxis.xz ||
+    TransformAxis.xy => TransformAxis.free,
   };
 
   /// What the status line says.
@@ -219,7 +222,11 @@ final class TransformModal {
         : switch (axis) {
             TransformAxis.y => Vector3(0, said, 0),
             TransformAxis.z => Vector3(0, 0, said),
-            _ => Vector3(said, 0, 0),
+            TransformAxis.x ||
+            TransformAxis.free ||
+            TransformAxis.yz ||
+            TransformAxis.xz ||
+            TransformAxis.xy => Vector3(said, 0, 0),
           };
     final allows = axis.allows;
     if (!allows.x) raw.x = 0;

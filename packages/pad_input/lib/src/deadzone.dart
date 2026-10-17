@@ -34,7 +34,8 @@ final class Deadzone {
   /// default to is settled by moving it.
   final double stick;
 
-  /// The same for a trigger, which rests at zero and only travels one way.
+  /// The same for a trigger, which rests at zero and only travels one way: the
+  /// fraction of its travel that counts as released.
   final double trigger;
 
   Deadzone copyWith({double? stick, double? trigger}) =>

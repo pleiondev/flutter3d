@@ -21,6 +21,7 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -47,7 +48,7 @@ Level _shipped([String path = 'assets/levels/first_steps.json']) =>
   final half = uphill.axis == 0 ? ramp.size.x / 2.0 : ramp.size.z / 2.0;
   return (
     foot:
-        ramp.centre - along.scaled(half) - Vector3(0.0, ramp.size.y / 2.0, 0.0),
+        ramp.center - along.scaled(half) - Vector3(0.0, ramp.size.y / 2.0, 0.0),
     towards: along,
   );
 }
@@ -80,7 +81,7 @@ final class _Walk {
   }
 
   final Level level;
-  final CollisionWorld world = CollisionWorld();
+  final CollisionWorld world = CollisionWorld(properties: platformerWorld);
   final InputState input = InputState();
   late final Runner runner;
   late final PlatformerSimulation sim;
@@ -127,7 +128,7 @@ final class _Walk {
     final uphill = ramp.ramp!;
     final axis = uphill.axis;
     final half = axis == 0 ? ramp.size.x / 2.0 : ramp.size.z / 2.0;
-    final centre = axis == 0 ? ramp.centre.x : ramp.centre.z;
+    final center = axis == 0 ? ramp.center.x : ramp.center.z;
     final sign = uphill.sign;
     for (var i = 0; i < steps; i++) {
       input.beginStep();
@@ -139,7 +140,7 @@ final class _Walk {
       final at = axis == 0 ? runner.position.x : runner.position.z;
       // How far up the climb the body is, from nought at the foot to one at
       // the crest.
-      final up = (sign * (at - centre) / half + 1.0) / 2.0;
+      final up = (sign * (at - center) / half + 1.0) / 2.0;
       if (!runner.isGrounded && up > 0.05 && up < 0.92) airborne++;
     }
     return (highest: highest, airborne: airborne);
@@ -193,7 +194,7 @@ void main() {
             isTrue,
             reason:
                 'nothing to stand on in front of the ramp at '
-                '${ramp.centre}',
+                '${ramp.center}',
           );
         });
 
@@ -212,13 +213,13 @@ void main() {
             climbed.highest,
             greaterThan(startY + ramp.size.y * 0.8),
             reason:
-                'walked into the ramp at ${ramp.centre} instead of up '
+                'walked into the ramp at ${ramp.center} instead of up '
                 'it: reached ${climbed.highest} from $startY',
           );
           expect(
             climbed.airborne,
             0,
-            reason: 'left the ground walking up the ramp at ${ramp.centre}',
+            reason: 'left the ground walking up the ramp at ${ramp.center}',
           );
         });
       }
@@ -238,7 +239,7 @@ void main() {
       if (!brush.isRamp) continue;
       final wedge = CollisionWedge(brush.halfExtents, uphill: brush.ramp!);
       expect(
-        wedge.containsPoint(brush.centre, coin.position),
+        wedge.containsPoint(brush.center, coin.position),
         isFalse,
         reason: 'the coin is inside the slope',
       );

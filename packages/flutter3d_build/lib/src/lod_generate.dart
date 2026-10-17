@@ -8,6 +8,8 @@ import 'dart:math' as math;
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 
+import 'build_exceptions.dart';
+
 /// What one generated level turned out to be, across every node that got one.
 final class LodLevelReport {
   const LodLevelReport({
@@ -208,15 +210,17 @@ ModelDocument generateLods(
   );
 }
 
-/// `0.5,0.25,0.1` as ratios, or null when any entry is not a number strictly
-/// between zero and one — a level at the base's own size is no level, and a
-/// ratio past it asks the simplifier for detail there is not.
-List<double>? parseLodRatios(String text) {
-  final ratios = <double>[];
-  for (final part in text.split(',')) {
-    final ratio = double.tryParse(part.trim());
-    if (ratio == null || ratio <= 0 || ratio >= 1) return null;
-    ratios.add(ratio);
-  }
-  return ratios;
-}
+/// `0.5,0.25,0.1` as ratios. Throws a [ConvertUsageException] naming the
+/// entry that is not a number strictly between zero and one — a level at the
+/// base's own size is no level, and a ratio past it asks the simplifier for
+/// detail there is not.
+List<double> parseLodRatios(String text) => <double>[
+  for (final part in text.split(','))
+    switch (double.tryParse(part.trim())) {
+      final double ratio when ratio > 0 && ratio < 1 => ratio,
+      _ => throw ConvertUsageException(
+        'a level of detail is a ratio between 0 and 1, not "${part.trim()}" '
+        '(--lods 0.5,0.25)',
+      ),
+    },
+];

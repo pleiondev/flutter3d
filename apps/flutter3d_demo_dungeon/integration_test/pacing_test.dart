@@ -48,6 +48,10 @@ const int _repeats = int.fromEnvironment(
   defaultValue: 3,
 );
 
+/// Passes played before the timed ones and not counted: the numbers of a
+/// crypt that has been running, not of its first minute.
+const int _warmUp = int.fromEnvironment('FLUTTER3D_PACING_WARMUP');
+
 /// `RenderSettings.frameWorkBudget` for the run, in microseconds.
 const int _budget = int.fromEnvironment('FLUTTER3D_PACING_BUDGET');
 
@@ -66,7 +70,9 @@ void main() {
     final device = await openDevice(width: _width, height: _height);
     final renderer = Renderer.create(device: device);
     final crypt = await CryptReplay.open(device: device, renderer: renderer);
-    final settings = crypt.settings(frameWorkBudget: _budget);
+    final settings = crypt.settings(
+      frameWorkBudget: Duration(microseconds: _budget),
+    );
 
     // The loading screen's work, done where the game does it: every
     // pipeline the level needs is linked, and every probe captured, before
@@ -86,30 +92,43 @@ void main() {
     );
     await gpuSettled(device);
 
+    Future<void> drawFrame(int frame) async {
+      crypt.draw(width: _width, height: _height, settings: settings);
+      await gpuSettled(device);
+    }
+
+    if (_warmUp > 0) {
+      await replayPacing(
+        demo: demo,
+        input: crypt.input,
+        repeats: _warmUp,
+        rewind: () => crypt.rewind(demo),
+        onStep: crypt.step,
+        drawFrame: drawFrame,
+      );
+    }
     final pacing = await replayPacing(
       demo: demo,
       input: crypt.input,
       repeats: _repeats,
       rewind: () => crypt.rewind(demo),
       onStep: crypt.step,
-      drawFrame: (frame) async {
-        crypt.draw(width: _width, height: _height, settings: settings);
-        await gpuSettled(device);
-      },
+      drawFrame: drawFrame,
     );
 
     binding.reportData = <String, Object?>{
       'pacing': <String, Object?>{
         ...pacing.toJson(),
         'millis': <double>[
-          for (final ms in pacing.millis)
-            (ms * 1000.0).roundToDouble() / 1000.0,
+          for (final seconds in pacing.seconds)
+            (seconds * 1e6).roundToDouble() / 1000.0,
         ],
       },
       'about': <String, Object?>{
         'run': _runName,
         'steps': demo.tape.frames.length,
         'repeats': _repeats,
+        'warmUpPasses': _warmUp,
         'width': _width,
         'height': _height,
         'frameWorkBudget': _budget,

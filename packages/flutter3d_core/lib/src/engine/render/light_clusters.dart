@@ -61,6 +61,8 @@ final class LightClusters {
 
   /// Where slices begin, and slices per unit of `ln(w / near)`.
   double near = 0.1;
+
+  /// Slices per unit of `ln(w / near)`.
   double sliceScale = 1.0;
 
   /// Entries across every cell; what the index rows hold.
@@ -140,6 +142,108 @@ final class LightClusters {
     for (var i = 0; i < lights; i++) {
       _visit(i * 6, (cluster) => _entries[cursor[cluster]++] = i);
     }
+    _rankCrowded(table);
+  }
+
+  /// Puts the strongest lights of every cell that holds more than the shader
+  /// reads first — readiness review, the light-fade walk.
+  ///
+  /// **The shader reads a cell's first `LightBuffer.maxExtraLights` entries
+  /// and no more**, and in scene order those were whichever lamps the scene
+  /// happened to add first. A bright lamp added after thirty dim ones then
+  /// reached no fragment through the cell and lit the floor only while a
+  /// draw's eight slots held it — on and off at full strength as the draw's
+  /// ranking moved, which is the pop the slots' fade exists to remove and
+  /// which the cells were meant not to have. Ranked by the per-draw
+  /// selection's own score against the cell's bounding sphere, the lamps a
+  /// crowded cell drops are its weakest, as a draw's are.
+  ///
+  /// Only the crowded cells pay: one the shader reads whole keeps scene
+  /// order, which is every cell of a scene within the slots and the tail.
+  /// Stable, so equal lamps keep scene order, as the per-draw ranking keeps
+  /// an incumbent on a tie.
+  void _rankCrowded(LightBuffer table) {
+    const reach = LightBuffer.maxExtraLights;
+    Matrix4? inverse;
+    final scored = <(double, int)>[];
+    for (var c = 0; c < count; c++) {
+      final n = _counts[c];
+      if (n <= reach) continue;
+      inverse ??= Matrix4.inverted(viewProjection);
+      final sphere = _sphereOf(c, inverse);
+      if (sphere == null) continue;
+      final (centre, radius) = sphere;
+      final offset = _offsets[c];
+      scored.clear();
+      for (var k = 0; k < n; k++) {
+        final light = _entries[offset + k];
+        scored.add((
+          table.relevanceTo(light, centre.x, centre.y, centre.z, radius),
+          light,
+        ));
+      }
+      // Stronger first; on a tie the earlier light, as scene order had it.
+      scored.sort(
+        (a, b) => a.$1 != b.$1 ? b.$1.compareTo(a.$1) : a.$2.compareTo(b.$2),
+      );
+      for (var k = 0; k < n; k++) {
+        _entries[offset + k] = scored[k].$2;
+      }
+    }
+  }
+
+  /// The sphere round [cluster]'s cell in world space: its middle at the
+  /// tile's centre and the slice's geometric middle, out to its furthest
+  /// corner. Null when the matrix gives no finite point to work from.
+  (Vector3, double)? _sphereOf(int cluster, Matrix4 inverse) {
+    final tx = cluster % tilesX;
+    final ty = (cluster ~/ tilesX) % tilesY;
+    final s = cluster ~/ (tilesX * tilesY);
+    final x0 = tx / tilesX * 2.0 - 1.0, x1 = (tx + 1) / tilesX * 2.0 - 1.0;
+    final y0 = ty / tilesY * 2.0 - 1.0, y1 = (ty + 1) / tilesY * 2.0 - 1.0;
+    final w0 = near * math.exp(s / sliceScale);
+    final w1 = near * math.exp((s + 1) / sliceScale);
+    final centre = _pointAt(
+      inverse,
+      (x0 + x1) * 0.5,
+      (y0 + y1) * 0.5,
+      math.sqrt(w0 * w1),
+    );
+    if (centre == null) return null;
+    var radius = 0.0;
+    for (final x in <double>[x0, x1]) {
+      for (final y in <double>[y0, y1]) {
+        for (final w in <double>[w0, w1]) {
+          final corner = _pointAt(inverse, x, y, w);
+          if (corner == null) return null;
+          radius = math.max(radius, corner.distanceTo(centre));
+        }
+      }
+    }
+    return (centre, radius);
+  }
+
+  /// The world point at NDC `(x, y)` whose clip w is [w]: two points on the
+  /// ray through the pixel, and w is affine along it. Through an
+  /// orthographic lens w is one everywhere and the ray's middle stands in.
+  Vector3? _pointAt(Matrix4 inverse, double x, double y, double w) {
+    Vector3? unproject(double z) {
+      final p = inverse.transformed(Vector4(x, y, z, 1.0));
+      if (!(p.w.abs() > 1e-12)) return null;
+      final point = Vector3(p.x / p.w, p.y / p.w, p.z / p.w);
+      return point.x.isFinite && point.y.isFinite && point.z.isFinite
+          ? point
+          : null;
+    }
+
+    final a = unproject(0.0);
+    final b = unproject(0.5);
+    if (a == null || b == null) return null;
+    final m = viewProjection.storage;
+    double wOf(Vector3 p) => m[3] * p.x + m[7] * p.y + m[11] * p.z + m[15];
+    final wa = wOf(a), wb = wOf(b);
+    if ((wb - wa).abs() < 1e-9) return (a + b)..scale(0.5);
+    return a + (b - a) * ((w - wa) / (wb - wa));
   }
 
   /// Writes the headers and then the entries into [out] at [at], sixteen

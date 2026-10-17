@@ -8,6 +8,15 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
+    show preparePhysics;
 import 'package:flutter3d_showcase/src/shell/app.dart';
 
-void main() => runApp(const ShowcaseApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // The physics every page runs on, chosen once: the core, which the
+  // browser fetches as WebAssembly, or the reference where it will not
+  // start.
+  await preparePhysics();
+  runApp(const ShowcaseApp());
+}

@@ -22,29 +22,12 @@ library;
 
 import 'dart:math' as math;
 import 'dart:typed_data';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Severity;
 
 import 'package:vector_math/vector_math.dart';
 
 import 'edit_mesh.dart';
 import 'selection.dart';
-
-/// Roughly how much an issue matters.
-///
-/// Machinery: three levels is what a panel can show and what a person can
-/// triage, and a fourth would be a shade of one of these rather than a new
-/// kind of answer. Named in `boundaryEnumExempt` for that reason, which is
-/// decision Б7 of `doc/model-editor-plan.md`.
-enum IssueSeverity {
-  /// Worth knowing. A boundary edge on a plane, an n-gon in a file.
-  note,
-
-  /// Probably not what somebody meant. Vertices in the same place, a shell
-  /// wound inside out.
-  warning,
-
-  /// Will not survive being drawn or written out. A face with no area.
-  error,
-}
 
 /// A kind of thing a check can find.
 ///
@@ -59,44 +42,44 @@ final class MeshIssueKind {
   /// A stable slug, which is what a report or a tool call carries.
   final String name;
 
-  final IssueSeverity severity;
+  final Severity severity;
 
   /// What the ids of an issue of this kind are.
   final ElementLevel level;
 
   static const MeshIssueKind ngon = MeshIssueKind(
     'ngon',
-    IssueSeverity.note,
+    Severity.note,
     ElementLevel.face,
   );
   static const MeshIssueKind boundaryEdge = MeshIssueKind(
     'boundary-edge',
-    IssueSeverity.note,
+    Severity.note,
     ElementLevel.edge,
   );
   static const MeshIssueKind nonManifoldVertex = MeshIssueKind(
     'non-manifold-vertex',
-    IssueSeverity.warning,
+    Severity.warning,
     ElementLevel.vertex,
   );
   static const MeshIssueKind isolatedVertex = MeshIssueKind(
     'isolated-vertex',
-    IssueSeverity.warning,
+    Severity.warning,
     ElementLevel.vertex,
   );
   static const MeshIssueKind duplicateVertex = MeshIssueKind(
     'duplicate-vertex',
-    IssueSeverity.warning,
+    Severity.warning,
     ElementLevel.vertex,
   );
   static const MeshIssueKind invertedShell = MeshIssueKind(
     'inverted-shell',
-    IssueSeverity.warning,
+    Severity.warning,
     ElementLevel.face,
   );
   static const MeshIssueKind degenerateFace = MeshIssueKind(
     'degenerate-face',
-    IssueSeverity.error,
+    Severity.error,
     ElementLevel.face,
   );
 
@@ -118,7 +101,7 @@ final class MeshIssue {
   /// A sentence for a person, with the count in it.
   final String message;
 
-  IssueSeverity get severity => kind.severity;
+  Severity get severity => kind.severity;
 
   /// The elements as something a viewport can highlight.
   Selection get selection => Selection.of(kind.level, ids);
@@ -140,6 +123,7 @@ final class MeshChecks {
   /// Scaled to the model by default, because a millimetre on a building and a
   /// millimetre on a bolt are not the same question — the same rule the import
   /// welds by.
+  /// In metres (and, squared, the area threshold in square metres).
   final double tolerance;
 
   /// Everything that is wrong, worst first.

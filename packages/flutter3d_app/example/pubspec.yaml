@@ -1,11 +1,12 @@
 name: flutter3d_app_example
-description: "The smallest application on the engine: a device, a renderer, a lit cube and a camera that orbits it. What a project that is not a game starts from."
+description: "What a project that is not a game starts from: a lit cube in a Flutter3dView, and a digital twin fed by a real REST source, with its history on a tape and a timeline to scrub it."
 publish_to: 'none'
 version: 0.1.0+1
 resolution: workspace
 
 environment:
   sdk: ">=3.12.0 <4.0.0"
+  flutter: '>=3.44.0'
 
 dependencies:
   flutter:
@@ -23,9 +24,28 @@ dependencies:
 
   vector_math: ^2.2.0
 
+  # The twin (`lib/twin_main.dart`): the loop it steps and the readings it
+  # is fed, the state of what it models, and the timeline it scrubs.
+  flutter3d_sim:
+    path: ../../flutter3d_sim
+  flutter3d_plugin_api:
+    path: ../../flutter3d_plugin_api
+  flutter3d_matter:
+    path: ../../flutter3d_matter
+  flutter3d_game:
+    path: ../../flutter3d_game
+
+  # The twin's one real source is a REST endpoint, polled in this example's
+  # own code; `http` runs the same on a desktop, a phone and the web.
+  http: ^1.4.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
+
+  # A device that draws nothing, for the twin's screen in a test.
+  flutter3d_hardware:
+    path: ../../flutter3d_hardware
 
   # A renderer with no GPU under it, so a test can build the scene the way the
   # application does.

@@ -4,6 +4,8 @@
 ///     dart test test/simulation_bake_particles_test.dart
 library;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:test/test.dart';
@@ -18,7 +20,7 @@ ParticleSystem _burningTorch({int seed = 7, int capacity = 64}) {
       emitter: const SphereEmitter(speed: Range.exact(1.0)),
       lifetime: const Range.exact(0.6),
       size: const Range.exact(0.05),
-      color: Vector4(1, 0.6, 0.1, 1),
+      color: LinearColor(1, 0.6, 0.1, 1),
     ),
     Vector3.zero(),
     perSecond: 40,

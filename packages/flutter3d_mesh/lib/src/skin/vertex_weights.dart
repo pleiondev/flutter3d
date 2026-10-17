@@ -97,7 +97,11 @@ void mirrorWeights(
   Iterable<int> vertices, {
   required int axis,
   required Map<int, int> jointMirror,
+
+  /// In metres along [axis].
   double plane = 0.0,
+
+  /// In metres.
   double tolerance = 1e-4,
 }) {
   final list = vertices.toList(growable: false);
@@ -143,6 +147,8 @@ void mirrorWeights(
 void smoothVertexWeights(
   EditMesh mesh,
   Iterable<int> vertices, {
+
+  /// The 0..1 fraction of the way toward the average.
   double lambda = 0.5,
   int iterations = 1,
   int maxInfluences = 4,

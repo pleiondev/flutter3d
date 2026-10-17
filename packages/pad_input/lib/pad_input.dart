@@ -24,7 +24,7 @@
 ///
 /// It knows nothing about games: no actions, no bindings, no vocabulary. What
 /// turns `face.south` into "jump" lives in the game layer beside the keyboard's
-/// equivalent, for the same reason `pointer_lock` reports deltas and lets
+/// equivalent, for the same reason `flutter3d_pointer_lock` reports deltas and lets
 /// `DesktopInput` decide what they mean.
 ///
 /// ## One pad a player
@@ -45,7 +45,7 @@ import 'src/pad_snapshot.dart';
 
 export 'src/deadzone.dart';
 export 'src/gamepad_platform_interface.dart'
-    show GamepadPlatform, PadConnection, UnsupportedGamepad;
+    show GamepadPlatform, PadConnection, PadReadContext, UnsupportedGamepad;
 export 'src/pad_button.dart';
 export 'src/pad_snapshot.dart';
 
@@ -107,10 +107,17 @@ final class Gamepad {
 
   final List<double> _stick = <double>[0.0, 0.0];
 
+  /// What [GamepadPlatform.readPad] is handed, made on the first read and
+  /// set on each after: a read allocates nothing.
+  PadReadContext? _reading;
+
   /// Fills [out] with what the pad is doing, dead zone already applied.
   void read(PadSnapshot out) {
-    _platform.readPad(index, out);
-    if (!out.connected) return;
+    _platform.readPad(switch (_reading) {
+      null => _reading = PadReadContext(index: index, out: out),
+      final reading => reading..out = out,
+    });
+    if (!out.isConnected) return;
 
     _stick[0] = out.axis(PadAxis.leftStickX);
     _stick[1] = out.axis(PadAxis.leftStickY);

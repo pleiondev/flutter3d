@@ -10,7 +10,6 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class TexturedParticlesDemo extends ShowcaseDemo {
   late final ParticleSystem _particles;
@@ -64,7 +63,7 @@ final class TexturedParticlesDemo extends ShowcaseDemo {
       height: _size,
       format: TextureFormat.r8g8b8a8UNormInt,
       pixels: _sparkSprite(),
-    )!;
+    );
     // #endregion texture
 
     _particles = ParticleSystem(capacity: _count, seed: 909);
@@ -73,18 +72,18 @@ final class TexturedParticlesDemo extends ShowcaseDemo {
       emitter: const SphereEmitter(speed: Range(1.0, 2.0)),
       lifetime: const Range(0.8, 1.4),
       size: const Range(0.1, 0.16),
-      color: Vector4(1.0, 1.0, 1.0, 1.0),
+      color: LinearColor(1.0, 1.0, 1.0, 1.0),
     );
     _particles.burst(_sparksEffect, Vector3.zero());
 
     // #region contributor
-    _contributor = context.renderer.addContributor(
+    _contributor = context.renderer.renderSteps.addContributor(
       ParticleContributor(_particles, texture: sprite),
     );
     // #endregion contributor
 
     return Scene()..add(
-      LightNode(name: 'sun', intensity: 2.0)
+      LightNode(name: 'sun', intensity: 2.0 * LightNode.defaultIntensity)
         ..setLocalForward(Vector3(-0.3, -0.6, -0.4)),
     );
   }

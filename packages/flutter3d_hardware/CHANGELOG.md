@@ -1,3 +1,762 @@
+## 1.0.0-rc.1+2
+
+- **Direct3D 12 is the fourth standard the HAL answers to**, beside
+  Vulkan, Metal and WebGPU. HAL.md's new "The reference standards" maps
+  the vocabulary and every `DeviceFeature` onto it, and each feature a
+  change adds says how it maps; a structure rule fails on a feature
+  without its row. Nothing frozen had to change for it.
+- **`workGraphs` and `samplerFeedback` are reserved**: Direct3D 12's, which
+  the other three standards lack, named before the freeze so a minor can
+  give each its calls.
+- **The Direct3D 12 handle kinds.** `NativeHandleKind.d3d12SharedResource`
+  and `d3d12SharedFence` (new), and `isFence` (new) to tell a fence kind
+  from memory; a share never picks a fence kind for a texture or a buffer.
+  `checkNativeImport` (new, in `backend.dart`) is what a backend's imports
+  call: a kind the device does not list, or memory handed in as a fence, is
+  refused by name rather than read as the nearest kind it does list. No
+  backend takes the new kinds yet, and every one refuses them.
+- **The `d3d12` bundle section is reserved** (`ShaderBundle.d3d12Section`,
+  new). Nothing writes it yet.
+- **A feature mask over a live device.** `MaskedDevice` (new, in
+  `testing.dart`) wraps any device and answers as if it lacked the
+  features a test names: the report, the limits and format answers they
+  carry, and a refusal by name from every call they gate. A fallback branch
+  runs on the machine at hand; the honesty check passes through it on the
+  software rasteriser with each feature masked in turn.
+
+- **A platform image becomes a texture without a copy, where the device
+  can.** `PlatformTextures<I>` (new) is a device mixin asked with `is`, the
+  `EncodedImageUpload` pattern, with the platform's image as a type
+  parameter so this layer names no Flutter: `textureFromPlatformImage`
+  wraps the image's own GPU texture, and its body refuses with a
+  `DeviceResourceException` so a backend overrides what it can and a member
+  a minor adds (a video frame, a camera image) reaches an old backend as a
+  refusal. Impeller is one for `dart:ui`'s `Image`.
+- **A second `dispose` does nothing**, as `GraphicsDevice.dispose` now
+  says: no throw and no second loss on `lost`, on every backend, so a
+  renderer and the owner that opened the device can both let go of it.
+  HAL.md says it under "Lifetime", and the conformance suite checks it.
+- **HAL.md tells where 1.0's features are checked by their output**: the
+  two new tiers, `featureOutputChecks` and `drawnOutputChecks`, and the
+  `outputChecks` table of which check holds each feature. WebGL2's
+  `gpuTimestamps` and `multiview` rows follow the backend.
+- **A workload states a requirement, and the layer meets it.**
+  `ComputeRequirement` (new, an open set) is what a piece of compute cannot
+  do without: `bitExact`, the same bytes on every machine for a replay or a
+  rollback, and `beyondPortableProfile`. `ComputeWorkload.requirements` says
+  it (none by default), `ComputeNeeds` (new) carries it with the size of the
+  work's kernels to `FrameCompute.place` and `placeHosted`, and the rule
+  passes over a device that does not meet it, saying why. Nothing above the
+  layer still names a placement; HAL.md's frozen sentence now says so.
+- **Exact, and within a declared tolerance.** The integers and f32 `+`,
+  `-`, `*` are the same bits on every placement; `/`, `sqrt`, `sin`, `cos`
+  and `pow` carry a `KernelTolerance` in `kernelTolerances` (new), WGSL's
+  own accuracy rounded up, which conformance holds every device to against
+  the Dart translation. `ulpsBetween` (new) counts the units between two
+  f32 values.
+- **The portable kernel profile.** `PortableComputeProfile` (new): 128
+  invocations a workgroup and 8 storage buffers a kernel, what Vulkan and
+  OpenGL ES 3.1 guarantee. Work past it is refused on every device unless
+  it declares `beyondPortableProfile`, and is then held to each device's
+  `DeviceLimits`.
+- **Every encoder checks its ranges and its dispatches.**
+  `checkStorageBinding` and `checkDispatch` (new, in `backend.dart`) refuse
+  a storage offset off `minStorageBufferOffsetAlignment` and a dispatch
+  past `maxComputeWorkgroupsPerDimension` with a `RangeError` at the call,
+  on every backend, where WebGPU drained a validation error later and the
+  CPU ran it.
+- **A fallback is reported, and a test stops at it.** A kernel that fails
+  on a device and runs elsewhere is a `ComputeFallback` (new) on
+  `FrameCompute.fallbacks`, a `compute fallback` event on the timeline and
+  a `flutter3d.compute` log line, with the reason; `PlacedWork.passedOver`
+  lists each `PassedOver` (new) device. Where assertions are on —
+  tests, debug builds, conformance — it throws `ComputeFallbackError`
+  instead (`FrameCompute.strict`); a `CapabilityException` falls back
+  quietly either way.
+- **Compute belongs to the engine instance and goes with it.**
+  `FrameCompute` disposes the sidecar and the CPU device it opened, and
+  every value `FrameCompute.cached` (new) keeps, when its drawing device is
+  lost or disposed, or on `FrameCompute.dispose`; a device adopted again
+  lets go of its old compute. A key holds one type of value: asked for
+  another, `cached` refuses with a `StateError` naming both, where a cast
+  failed inside it.
+- **The one door to a compute pass above the layer.**
+  `ComputeSite.beginPass` (new) opens the pass on the site the rule placed,
+  and `FrameCompute.placeOnFrame` (new) answers at once for work only the
+  drawing device can run. A structure rule holds every `lib/` outside the
+  layer and the backends to opening passes there.
+- **A range read back.** `WorkloadRecorder.readBackRange` (new, with a
+  default body) reads a range of a workload's buffer, so a few counters of
+  a large state do not copy the state.
+- **Compute in the fake.** `FakeBackend(compute: true)` reports compute,
+  makes compute pipelines and opens a `FakeComputePass` (new) that records
+  every bind and dispatch after the checks a real encoder makes, in
+  `FakeBackend.computePasses`.
+- **Breaking: an opener takes one `DeviceRequest`.** `BackendOpener` and
+  `ComputeOpener` were functions of a width and a height, and of nothing;
+  a parameter added later would have made every backend's opener
+  unassignable. Each takes a `DeviceRequest` now (new): the size, and
+  `requiredFeatures`, `requiredLimits` (by `DeviceLimits.toMap` name),
+  `powerPreference` (`PowerPreference`, new), `validation` and `label`, each
+  defaulted. `DeviceRegistry.openFor` (new) opens for a request, `open`
+  keeps its width and height, and the registry holds every device an opener
+  answers to `DeviceRequest.checkSatisfiedBy`, disposing one that falls
+  short and trying the next backend. A backend's own `open` keeps its
+  shape; its registration hands it the request's size.
+- **Breaking: a clear colour is a `ClearColor`.** `ColorTarget.clearValue`
+  and `TraceColorTarget.clearValue` were a `vector_math` `Vector4`: mutable
+  inside an immutable descriptor, the one third-party type in the
+  contract, and float32, so an integer target cleared exactly only up to
+  2^24. `ClearColor` (new) is immutable doubles in three kinds
+  (`ClearColorKind`: `float`, `uint`, `sint`), `channels` reads them back,
+  and `ClearColor.fromLinear` takes a `LinearColor`. A trace writes a float
+  clear as the four numbers it always did.
+- **Breaking: the viewport is a `PassViewport`.** `PassEncoder.setViewport`,
+  `FakePass.setViewport`, `PassState.viewport` and its `copyWith`,
+  `RecordedViewport` and `TraceSetViewport` took a `ScreenRect` of whole
+  pixels with the depth range fixed at `[0, 1]`. `PassViewport` (new) is a
+  rectangle in doubles with a `minDepth`..`maxDepth` window range;
+  `PassViewport.ofRect` is the viewport over a `ScreenRect`'s pixels, and a
+  rectangle off whole pixels needs `DeviceFeature.fractionalViewport` (new),
+  asked through `PassViewport.checkFeatures`. `RecordedViewport.rect` reads
+  the rectangle in whole pixels; `TraceSetViewport.viewport` replaces its
+  `rect`. The scissor stays a `ScreenRect`.
+- **Strips, points and 32-bit indices are capabilities.**
+  `DeviceFeature.primitiveStrips`, `pointPrimitives` and `indexUint32`
+  (new) name what every backend had been assumed to have, before a 1.0
+  backend accepts the calls without listing them. Primitive restart is
+  always on for strips: an all-ones index (`IndexTypeFeatures.restartIndex`)
+  ends one. `PrimitiveTypeFeatures.checkFeatures` and
+  `IndexTypeFeatures.checkFeatures` (new) are what a backend calls from
+  `setPrimitiveType` and the index binds.
+- **The blend constant is two features.** `DeviceFeature.blendConstant`
+  is the setter and the colour pair, which WebGPU has;
+  `DeviceFeature.blendConstantAlpha` (new) is the alpha pair, which it has
+  not. `BlendState.checkFeatures` asks for the second after the first, and
+  `BlendState.usesBlendAlpha` (new) says when.
+- **A refusal that arrives late is a `DeviceError`.** `GraphicsDevice.errors`
+  (new, empty by default) carries what an API refused after the call
+  returned, as a `DeviceError` (`kind`, a `DeviceErrorKind`; `operation`;
+  `message`; the typed `exception`); a fatal one is a `DeviceLoss` instead.
+  `beginFrame` never throws a deferred error. `RecordingDevice` forwards its
+  inner device's, and `FakeBackend.reportError` (new) reports one; the
+  fake's `dispose` reports `DeviceLossReason.destroyed` on `lost`.
+- **A buffer range binds as a uniform block.**
+  `PassEncoder.bindUniformBuffer(stage, blockName, buffer, offsetInBytes,
+  sizeInBytes)` (new) refuses by `DeviceFeature.uniformBuffers` (new)
+  until a backend overrides it.
+- **`PassState` has a field for every setter.** `colorWriteMask` with its
+  `colorWriteMaskAttachment`, `depthBias`, `depthClamp` and
+  `alphaToCoverage` (new) are carried, compared and emitted by `setState`.
+- **`overwriteTexture`'s refusals are typed**: a format outside
+  `readbackFormats` or a level above zero is a `DeviceResourceException`
+  (the fake's too), where the doc said `UnsupportedError`.
+- **The fake device can fail a frame halfway.**
+  `FakeBackend.onBeginRenderPass` (new) is called with each render pass
+  before it opens, and what it throws `beginRenderPass` throws: a test
+  makes a frame fail on the engine's side after the passes it wants to
+  have run.
+
+## 1.0.0-rc.1+1
+
+- **Breaking: results that were records are final classes.** `FakeBackend`,
+  `cappedImageSize`, `encodedImageSize` and `indexWindow` answered or held a
+  record, which can never gain a field. Each answers a final class now, with
+  the record's field names (a positional `$1` has a name of its own), `==`
+  and `hashCode`. A field read compiles as before; a destructuring pattern
+  names the class, and `flutter3d_build:migrate` rewrites the `$1` reads.
+
+- **Breaking: where compute runs is this package's alone.** A step no
+  longer demands a placement: `ComputeExecutors.place` takes no `demand`,
+  and `ComputePlacementException` has none to report (its constructor
+  takes none and `demand` is gone). `ComputeRefusalReason.placementUnavailable`
+  stays, so a `switch` written against 1.0.0-rc.1 compiles, and no refusal
+  gives it. Nothing above this layer, nor any backend, used a demand but
+  the engine's own steps and their tests, which now configure the devices
+  they build instead.
+- **`FrameCompute` and `ComputeSite` (new) are how the engine asks.**
+  `FrameCompute.of(device)` is the compute of frames drawn on a device: the
+  device itself, and the sidecar and CPU device of the `DeviceRegistry`
+  that opened it, opened the first time a frame needs them.
+  `place` loads a step's work on each in the rule's order and answers the
+  `ComputeSite` it landed on — the device to encode on, and whether that is
+  the frame's — never a placement; `placeHosted` is the workload rule for
+  work with host code of its own; `placeStorage` puts a field's buffer.
+  `DeviceRegistry.open` attaches its compute to every device it opens, and
+  `DeviceRegistry.adopt` (new) to a device opened another way. A test reads
+  where a site is through `computePlacementOf` in `testing.dart`.
+- **A simulation hands its compute over as kernels and buffers.**
+  `ComputeWorkload` (new) is a step described once — its kernels in the
+  kernel language, the `WorkloadBuffer`s they bind, what a frame records
+  with a `WorkloadRecorder` (writes, dispatches, reads back), and whether
+  it has an implementation of its own on the host — and the engine places
+  it, telling it the outcome as a `WorkloadBinding` (`isOnHost`, its
+  `site`, the drawn buffers). The rule is `ComputeExecutors.placeWorkload`:
+  the drawing device's compute, then the sidecar
+  (`ComputeExecutors.aheadOfHost`), then the workload's own host code,
+  then the CPU executor. A physics core's fluid runs on WebGPU, on the wgpu
+  sidecar or on the core itself without a branch of its own on which.
+- **A device says whether it is software.** `GraphicsDevice.isSoftware`
+  (new, false by default) is true for a device that does its work on the
+  CPU; the workload rule keeps a workload with host code off one, and
+  `ComputeExecutors.workloadCandidates` lists where the rule may put a
+  workload, in order.
+
+## 1.0.0-rc.1
+
+- **A pipeline is built from a descriptor.** `PipelineDescriptor` (`vertex`,
+  `fragment`, `layout`, `label`) and `ComputePipelineDescriptor` (`shader`,
+  `label`) are final classes, and `GraphicsDevice.createPipelineFrom`,
+  `createPipelineFromAsync`, `createComputePipelineFrom` and
+  `createComputePipelineFromAsync` take them, with default bodies over the
+  parameter forms, so a backend written before them builds the same
+  pipeline either way. A member a backend overrides cannot gain a parameter
+  within a major; every pipeline input after 1.0 lands as a descriptor
+  field. `RecordingDevice` records the descriptor forms, label included,
+  and the replay builds through them.
+- **Breaking: a border colour applies on `clampToBorder` axes only.**
+  `SamplerAddressMode.clampToBorder` is new; `SamplerDescriptor.borderColor`
+  is the colour those axes read (transparent black when null) and an axis
+  clamped to the edge ignores it. `checkFeatures` asks for
+  `samplerBorderColor` when an axis clamps to the border
+  (`clampsToBorder`), never for a colour no axis uses.
+  `effectiveBorderColor` is the colour a border axis reads.
+- **Breaking: `TraceColorTarget` and `TraceDepthTarget` are final classes**
+  where they were records, with `ColorTarget`'s and `DepthTarget`'s
+  defaults, and carry `layer`, and the depth target's `mipLevel`, `layer`,
+  `face`, `depthReadOnly` and `stencilReadOnly`. A record literal becomes a
+  constructor call. `TraceCreateTexture.spec` is a `TextureDescriptor`: a
+  texture of any shape is recorded with its dimension, layers, levels,
+  usage and label, and a pool's target still reads back as a
+  `RenderTargetDescriptor`. A trace without the new keys reads as it did.
+- **`.f3dtrace` is format version 2.** The keys above change what a replay
+  draws, so a trace that carries them says a version an older reader
+  refuses rather than replays wrong. A version 1 trace is lifted unchanged
+  (absent keys read as their defaults); `test/fixtures/v2/frame.f3dtrace`
+  holds a layered pass, a read-only depth and an array texture.
+- **Breaking: `StencilFace` is gone.** No member of the HAL took it; which
+  face a stencil state is for is `PassEncoder.setStencil`'s two parameters.
+- **A pass over the attachment limit is a `DeviceResourceException`**
+  (operation `beginRenderPass`) from `checkAttachmentLimit`, where it was an
+  untyped `UnsupportedError`.
+- **`DeviceLossReason.byName`** reads a logged reason back.
+- **A pipeline-statistics set's stride is frozen**: the five counters, in
+  `PipelineStatistic.values` order, for all of 1.x; `createQuerySet`'s doc
+  names `pipelineStatisticsQuery`.
+- **A handle says its shape once.** `TextureHandle.type` and
+  `sliceCount` are read from `dimension`, and `StorageBuffer.hostReadable`
+  from `usage`; `wrapTexture(type:)` and `wrapStorageBuffer(hostReadable:)`
+  are still read when the newer field is absent, and throw an
+  `ArgumentError` when the two disagree.
+- **A 1D texture and a depth-bias clamp have their features.**
+  `DeviceFeature.texture1D` and `DeviceFeature.depthBiasClamp`;
+  `TextureDescriptor.checkFeatures` asks for the first, and the new
+  `DepthBias.checkFeatures(features, backend:)` for `depthBias` and, for a
+  non-zero clamp, the second. Both shapes were refused untyped before.
+- **A release may come while submitted work still reads the handle.**
+  `GraphicsDevice` states it for every `release…` member and `dispose`: the
+  device defers destruction until the work is done, and `releaseTexture`'s
+  doc no longer says the opposite.
+- **The defaults name their own feature.** `readQueryResults` refuses the
+  feature of the set's type (a timestamp set no longer names occlusion), and
+  `beginTransferPass` opens a pass whose copies refuse by their features
+  rather than refusing `bufferCopy` itself.
+- **A recording says it did not trace a multiview pass.** A view mask is
+  listed in `RecordingDevice.unrecorded` instead of traced as one view.
+- **`GraphicsDevice.backendId`: one name a backend is matched by.**
+  `backendName` is for people ("WebGL2", "the software rasteriser"); the
+  id is what a `MaterialCompiler`'s `backend` and a plugin manifest give,
+  compared exactly: `cpu`, `webgl`, `webgpu` and `impeller` for the
+  engine's four, and the name in lower case by default for any other.
+- **A descriptor says which features its fields need.**
+  `SamplerDescriptor`, `BlendState`, `TextureDescriptor` and
+  `BufferDescriptor` gain `checkFeatures(features, backend:)`, as
+  `RenderPassDescriptor` had: a backend asks the descriptor at its
+  entrance instead of mapping fields to features by hand, so a field a
+  minor adds with its feature is refused by a backend written before it
+  rather than ignored. Each feature is asked for alone: a comparison
+  sampler no longer needs `samplerLodClamp` on the reference null backend
+  and in the `--kind backend` template, which asked for it for any
+  extended sampler.
+- **A stage has a kind, and the bundle writes it.** `ShaderStageKind`
+  (`vertex`, `fragment`, `compute`) is an open class, so mesh, task and
+  ray stages can be added in a minor. `ShaderBundleStage` takes `kind:`
+  beside `fragment:`, which is now derived from it. F3SB version 2 writes a
+  stage's kind as its code, where version 1 wrote 1 for a fragment stage
+  and 0 for any other, so a 1.0 reader took a compute stage for a vertex
+  one; a version 1 bundle still reads as it did, and a kind code this
+  reader does not know is refused as stale.
+- **Breaking: `StageBindings` and `UniformMemberLayout` are classes.** Both
+  were records, and a record cannot gain a field, so no binding kind
+  (storage buffers, storage textures) and no array stride could be added
+  to them in a minor. The fields and their names are the same; a literal
+  `(blocks: …, samplers: …)` becomes `StageBindings(blocks: …, samplers:
+  …)`, each field defaulting to empty, and `UniformMemberLayout.elements`
+  defaults to one. Both compare by value, as the records did.
+- **Breaking: `TraceDraw` and `RecordedCall` take named arguments.**
+  `TraceDraw(pass, instanceCount:, firstIndex:, indexCount:)` and
+  `RecordedCall(name, arguments:)`: an optional positional list can never
+  grow by a named argument.
+- **`RecordingDevice` forwards `createPipelineAsync` and
+  `createComputePipelineAsync`** to the device it records, so a device that
+  links off the thread still does under the recorder; the pipeline enters
+  the trace when its link completes.
+- **`DeviceFeature.viewportBeyondTarget`**: `setViewport` takes a
+  rectangle that starts outside the target and reaches past it, and draws
+  what falls on the target. The software rasteriser and WebGL2 list it;
+  WebGPU, whose viewport must lie inside the attachment, and Impeller do
+  not. Appended to `DeviceFeature.values`.
+- **A pipeline the driver will not build skips its draws instead of
+  failing the frame.** `PipelineRefusedException`, a `ResourceException` with an
+  open `PipelineRefusalReason` (`compile`, `link`, `unsupportedFormat`,
+  `deviceLost`, `other`), is reported to the device's new
+  `GraphicsDevice.pipelineRefusals` rather than thrown from
+  `PassEncoder.draw` or `createPipeline`. The draw is skipped, the backend
+  builds the pipeline again at its next use, and after
+  `PipelineRefusals.maxBuilds` (three) failed builds it stops trying. Each
+  refusal is told once, through `PipelineRefusals.drain`. A lazily linking
+  OpenGL ES driver refused one pair at the first draw, and that one pair
+  failed every frame. The record has a default body, so a backend from
+  outside this repository compiles as before and reports nothing until it
+  calls `report`. `FakeBackend` takes `refusingPipelines` and
+  `refusedBuilds` to play such a driver.
+- **Compute has a placement (for outside backends).** `ComputePlacement`
+  (`device`, `sidecar`, `cpu`), `ComputeExecutor` and `ComputeExecutors`
+  name where a compute step runs and decide it: the drawing device's own
+  compute, then a compute-only sidecar, then the CPU; a step that demands a
+  placement runs there or is refused with `ComputePlacementException` and an
+  open `ComputeRefusalReason`. `DeviceRegistry.addComputeDevice` and
+  `computeExecutors` are how a backend offers a sidecar or a CPU device and
+  how an engine opens them. A kernel travels in a bundle's new
+  `ShaderBundle.kernelSection` (`encodeKernelSection`,
+  `decodeKernelSection`), its `.f3dmat compute` source by stage name, and
+  each device with compute translates it as it loads it.
+- **Multiview in the contract (for outside backends).**
+  `DeviceFeature.multiview`, `DeviceLimits.maxMultiviewViews` and
+  `RenderPassDescriptor.viewMask`: one pass draws several views into the
+  layers of an array target. No backend has it yet, so a masked pass is
+  refused by `checkFeatures` with the feature named, and `ViewPasses.draw`
+  draws the views one pass each through `RenderPassDescriptor.forView`.
+- **Sharing between devices (for outside backends).** `SharedTexture` and
+  `SharedBuffer` hand one device's writes to another: without a copy where
+  both export and import a common `NativeHandleKind` and share a
+  `GpuFence`, through host memory otherwise, which is what every backend
+  does today. `GraphicsDevice` gains `shareableKinds`, `exportTexture`,
+  `importTexture`, `exportBuffer`, `importBuffer`, `createFence`,
+  `signalFence`, `waitFence`, `exportFence`, `importFence` and
+  `releaseFence`, each refusing by default under
+  `DeviceFeature.sharedTextures`, `sharedBuffers` or `sharedFences`;
+  `wrapFence` is in `backend.dart`. Zero copy demanded where it is missing
+  is `SharingException`, saying which half.
+- **Seven names reserved for what comes after 1.0**:
+  `variableRateShading`, `depthResolve`, `asyncCompute`, `shaderInt64`
+  (with 64-bit atomics), `conservativeRasterization`, `depthBounds` and
+  `presenterColorSpaces`. No call exists for them and no device may report
+  one; a minor gives each its calls without anything else having taken the
+  name.
+- **Breaking (for outside backends): `BlendFactor`, `BlendOperation`,
+  `CullMode`, `DepthRange`, `GeometryUsage`, `IndexType`, `LoadAction`,
+  `MinMagFilter`, `MipFilter`, `PolygonMode`, `PrimitiveType`,
+  `SamplerAddressMode`, `StencilOperation`, `StorageMode`, `StoreAction`,
+  `TextureType` and `VertexStepMode` are open sets.** Each is a class with
+  constants rather than an enum, so the value a later minor adds (another
+  blend factor, a cull mode for both faces) does not break a backend written
+  against this one. The constants, `values`, `name` and the enum's
+  `toString` are as they were, and `byName` reads a name back (null for one
+  this version does not know). A backend's `switch` over one ends with a
+  wildcard that refuses the value by name, as the four here do.
+  `FeatureStability`, `MapMode`, `PipelineStatistic`, `SamplerBorderColor`,
+  `TextureDimension` and `TextureSampleKind`, new in this release, are open
+  from the start. `CompareFunction`, `WindingOrder`, `StencilFace`,
+  `FramebufferOrigin` and `StorageTextureAccess` stay enums, closed for
+  good, and say why.
+- **`UniformScratch`, in `backend.dart`**: one zeroed buffer per uniform
+  block size, kept for the device's life, for a backend's
+  `bindUniformBlock` to fill before its API copies it. Every backend here
+  made a fresh list per block per draw, six to ten a mesh a view and four
+  kilobytes for a skinned one's joints, all garbage the moment it was
+  copied.
+- **Breaking (for outside backends): `DeviceRegistry` is typed by its
+  presenter.** `DeviceRegistry<P>` holds presenters of type `P`:
+  `addPresenter` takes one and `presenterFor` answers one, where both used
+  `Object` and every caller cast. `flutter3d_app`'s `platformDevices` makes
+  a `DeviceRegistry<FramePresenter>`; a bare `DeviceRegistry()` is a
+  `DeviceRegistry<Object>` and behaves as before. A backend's
+  `register…Backend` still takes `DeviceRegistry`, and what it adds is
+  checked against the registry's own type when it is added.
+- **Breaking (for outside backends): `EncodedImageUpload.decodeTexture`
+  throws where it answered null.** An image the platform will not decode is
+  a `DeviceResourceException`, which a caller catches to decode on the CPU
+  instead; the future completes with a `TextureHandle`, never null.
+- **Breaking (for outside backends): `createStorageBuffer` is folded into
+  `createBuffer`.** A storage buffer is `createBuffer(BufferDescriptor(
+  lengthInBytes: n, usage: BufferUsage.standardStorage), contents: bytes)`,
+  with `BufferUsage.hostReadable` for `hostReadable: true` and
+  `BufferUsage.index` for `bindableAsIndices: true`; one call where there
+  were two for one allocation. A backend drops its override and makes the
+  storage usages in `createBuffer`. `RecordingDevice` records such a buffer
+  as the `createStorageBuffer` event a trace has always carried, so traces
+  read and replay as before. `dart run flutter3d_build:migrate` rewrites a
+  call with no named arguments.
+- **Breaking (for outside backends): `SynchronousBufferReadback` is not in
+  the main library.** A stall belongs in a test or a tool, never a frame:
+  a caller imports it from `package:flutter3d_hardware/testing.dart`, and a
+  backend mixes it in from `backend.dart`. Its member and its meaning are
+  unchanged.
+- **Breaking (for outside backends): `PassEncoder.setBlendColor` takes a
+  `LinearColor`**, the engine's one colour type, where it took a `Vector4`;
+  `RecordedBlendColor.color` and `TraceSetBlendColor.color` hold one too. A
+  trace writes it as the same four numbers, so a trace recorded before reads
+  the same. An encoder of your own changes the parameter's type; a caller
+  writes `setBlendColor(LinearColor(r, g, b, a))`, which `dart run
+  flutter3d_build:migrate` does for it.
+- **Breaking: `Recorded` is an `abstract base class`**, not `sealed`: a pass
+  gains calls in minor releases, and each would have been a new case every
+  exhaustive `switch` had to add. A `switch` over a `Recorded` ends with a
+  wildcard; `migrate` adds one where it is missing.
+- **Every feature-gated encoder member has a default body.** The
+  1.0 members of `PassEncoder` (`drawIndexed`, `multiDraw`,
+  `multiDrawIndirect`, `executeBundles`, the query, depth-bias,
+  write-mask, depth-clamp and storage members, `bindUniformBytes`,
+  `drawIndirect`, `drawNonIndexed`) and `setBlendColor`, the gated members
+  of `ComputeEncoder` and every copy of `TransferEncoder` throw
+  `UnsupportedCapabilityException` naming their feature unless a backend overrides
+  them; `drawIndexed` with both bases zero is `draw`, and
+  `setAlphaToCoverage` is ignored, as a device without it promises. An
+  encoder from outside this repository written against 1.0.0 keeps
+  compiling when a minor adds a member.
+- **The dispose contract is written down and checked in debug builds.**
+  `GraphicsDevice` says who owns a handle and what `dispose` promises on each
+  backend. Disposing a texture, buffer, pipeline, query set or bundle twice
+  asserts, and `debugCheckLive` (from `backend.dart`) is the check a backend
+  makes before it uses a handle it was given; `FakePass` makes it at every
+  bind. A `ShaderHandle`, handed by its library to every caller that names
+  it, is not checked.
+- **`FakeBackend.liveHandles`** lists what a test made and did not give back,
+  oldest first, and `liveHandleCount` counts it: a leak on a fake is a handle
+  still listed after the test has torn down what it built.
+- **`backend.dart` is as stable as the contract.** The handle constructors
+  and `debugCheckLive` are in the snapshot and gain only optional parameters
+  within a major, so a backend written against 1.0.0 compiles against every
+  1.x.
+
+- **`UnsupportedCapabilityException` moved to `flutter3d_foundation`**, and
+  `DeviceFeature` extends the foundation's `Capability`. Import the
+  refusal from the foundation (or `package:flutter3d/flutter3d.dart`, which
+  still exports it); its constructor, fields and sentence are unchanged.
+
+- **A whole sRGB texture is refused for readback, not converted.**
+  `readbackConverts` answers false for an sRGB format, so a backend sends
+  it to `readbackRegionOf`, which refuses it with its own reason, as it
+  already refused a region of one.
+- **Breaking (for outside backends): `GraphicsDevice.lost` is every
+  backend's obligation.** Its contract now says each backend reports there
+  what its API lets it see, and at least its own `dispose` as
+  `DeviceLossReason.destroyed`, with `isLost` answering for a caller that
+  subscribed late. The signatures are unchanged, and the empty default
+  still compiles; a backend of your own that inherits it reads as never
+  lost, and owes the report.
+
+- **Breaking: `Registration` is not re-exported.** It is
+  `flutter3d_foundation`'s, imported from there.
+
+- **Depends on `flutter3d_foundation` instead of the plugin API**: the
+  exceptions it throws and the `Registration` its registries hand back are
+  the foundation's, so the hardware layer needs no plugin contract.
+
+- **`ShaderHandle.dispose`.** A stage belongs to the library that compiled
+  it; dispose gives the caller's reference back, so the library forgets the
+  handle, frees what the backend compiled for it where there is anything
+  (WebGL deletes the shader object), and answers the name with a new handle
+  next time. Pipelines already linked keep drawing, and a refresh no longer
+  counts a disposed stage as in use. A backend's library passes
+  `wrapShader(release:)`; `forgetShader` in `backend.dart` is the usual one.
+- **`GraphicsDevice.releaseSampler`.** A `SamplerDescriptor` is a value, so
+  there is nothing to dispose on it; a backend that keeps an object per
+  distinct description (WebGPU, Impeller) drops it, and the others do
+  nothing, which is the default.
+- **Debug groups, markers and labels are in the trace.** `RecordingDevice`
+  writes `pushDebugGroup`, `popDebugGroup`, `insertDebugMarker`
+  (`TracePushDebugGroup`, `TracePopDebugGroup`, `TraceInsertDebugMarker`)
+  and `setLabel` on a texture, geometry buffer, pipeline or storage buffer
+  the trace made (`TraceSetLabel`, `TraceLabeled`), and a replay hands
+  them to the replaying device. A trace with them is refused by name by a
+  reader from before them, as any unknown event is.
+- **Breaking: `ShaderBundleRefused` is `ShaderBundleException`** (decision
+  H: a type that is thrown is named `*Exception`), with the same members.
+  `decodeMaterialSection` throws it, naming the bundle, for a section that
+  is not its payload, where it threw a bare `FormatException`.
+- **Breaking: a trace that will not read throws `TraceFormatException`**, a
+  `Flutter3dFormatException`, where `Trace.decode` threw the SDK's
+  `FormatException`: no magic, a newer version, a header that is not JSON,
+  an event or a value this build does not know.
+- **The trace and the shader bundle are formats in the registry.**
+  `Trace.format` (`f3d.trace`) and `ShaderBundle.format`
+  (`f3d.shaderBundle`), with their fixtures, and `hardwareFormats` lists
+  both for `coreFormats`.
+
+- **Breaking: a device throws where it answered null.**
+  `createTextureFromPixels`, `createCubeTextureFromPixels` and
+  `createCubeRenderTarget` return a `TextureHandle`: a device without cubes
+  throws `UnsupportedCapabilityException`, and pixels of the wrong size a new
+  `DeviceResourceException`. `DeviceRegistry.open` throws a new
+  `DeviceUnavailableException`, with each backend's refusal, rather than a
+  `StateError`. A null travelled a long way from the call that declined; a
+  throw names the call and the backend where it happened.
+- **Breaking: one readback, one creator.** `GraphicsDevice.readPixels` is
+  gone: `readback` converts the whole of a float target as it did, and throws
+  where it answered null. `createTextureWithDescriptor` is `createTexture`,
+  which takes any `TextureDescriptor`; `RenderTargetDescriptor` extends it,
+  so every call that made a target is unchanged, and an allocator overrides
+  `createTexture(TextureDescriptor)`. `dart fix` carries the renames.
+- **Breaking: `readBufferSync` is a capability a device opts into**, the
+  `SynchronousBufferReadback` mixin, rather than a member three of four
+  backends answered with a refusal.
+- **Breaking: the deprecated capability getters are gone**, as 1.0 is the
+  window for it: the twelve `supportsX` getters, `supportsTextureFormat`,
+  `maxAnisotropy` and `maxColorAttachments` on `GraphicsDevice`, and
+  `DeviceCapabilityForwarders`, which answered them. `features`, `limits`
+  and `textureFormatSupport` were already the answer; `migrate` rewrites
+  each call.
+- **Breaking: `TraceEvent` and `TracePassEvent` are `abstract base`, not
+  `sealed`**, so a HAL call added in a 1.x minor adds a trace event without
+  breaking anybody. A `switch` over them ends in a `default`; the replay's
+  throws naming the event.
+- **`GeometryBuffer.dispose()`**, the one teardown verb, as a texture has:
+  a buffer from `uploadGeometry` gives itself back to its device once; a
+  `slice` is a view and gives back nothing. `releaseGeometry` stays the
+  device's half.
+- **`DeviceRegistry.presenterFor` matches with `is`**, so a subclass of a
+  registered device finds its presenter. `FakeBackend.lose` loses a fake
+  device for a test of whoever listens to `lost`.
+- **Breaking: one suffix for settings, Settings, and Descriptor in the
+  HAL.** `RenderTargetSpec` is `RenderTargetDescriptor`, `SamplerOptions`
+  is `SamplerDescriptor`, `VertexLayoutSpec` is `VertexLayoutDescriptor`.
+  Every settings class is `final` with a `const` constructor and a
+  `copyWith` over every field; a nullable field is reset with
+  `copyWith(clearX: true)`. `dart fix` carries the renames.
+- **Breaking: public constants are lowerCamelCase, without the k prefix,
+  as Effective Dart asks.** `kMaterialSectionVersion` is
+  `materialSectionVersion`. The values are the same; `dart fix` carries the
+  renames.
+- **Breaking: a boolean reads as a question, and no `bool` is positional.**
+  `FakeBackend.disposed`, a field anybody could set, is the getter
+  `isDisposed`; `PassEncoder.setDepthWrite`, `setDepthClamp` and
+  `setAlphaToCoverage` take `{required bool enabled}`, so a call reads
+  `setDepthWrite(enabled: false)`. `dart fix` carries the renames.
+- **Breaking: one verb per job.** `TraceBlobWriter.take` is `drain`.
+  `EncodedImageUpload.createTextureFromEncodedImage` is `decodeTexture`: it
+  is asynchronous and decodes bytes, and `create` is the synchronous GPU
+  verb. A backend that implements it renames its override.
+- **Breaking: American spelling in identifiers, as Flutter and Dart
+  use.** `colour` is `color`, `colours` is `colors`. Only the Dart names
+  changed: a file keeps the keys it was written with, and `dart fix`
+  carries the renames.
+- **Breaking: the HAL is base classes.** `GraphicsDevice`, the encoders
+  (`PassEncoder` with the `CommandEncoder` and `RenderBundleEncoder`
+  mixins, `ComputeEncoder`, `TransferEncoder`), `ShaderLibrary` and
+  `LoadedShaderLibrary`, `TextureAllocator`, `MappedBuffer` and the
+  `EncodedImageUpload` mixin are extended, not implemented, so a member a
+  minor adds breaks no backend. Feature-gated members have bodies that
+  throw `UnsupportedCapabilityException` through `refuse`; the deprecated `supportsX`
+  getters are answered by the base class.
+- **Debug groups, device loss, asynchronous pipelines and labels.**
+  `pushDebugGroup`, `popDebugGroup` and `insertDebugMarker` on every
+  encoder; `GraphicsDevice.lost` (a `Stream<DeviceLoss>`) and `isLost`;
+  `createPipelineAsync` and `createComputePipelineAsync`; `setLabel` and
+  `labelOf`; `releasePipeline`, `releaseComputePipeline` and
+  `releaseRenderBundle`.
+- **Breaking: handles are handed out, not made.** `TextureHandle`,
+  `ShaderHandle`, `PipelineHandle`, `ComputePipelineHandle`,
+  `StorageBuffer`, `GeometryBuffer`, `QuerySet` and `RenderBundle` have no
+  public constructor; a backend wraps its own objects with the `wrap*`
+  functions of `package:flutter3d_hardware/backend.dart`, naming its device
+  as the owner, and the handle's `dispose` gives the object back.
+- **Breaking: one registry per engine.** `DeviceRegistry` holds the
+  backends an engine may open (`addBackend`, `open`) and the presenters
+  that show their frames (`addPresenter`, `presenterFor`), each addition a
+  `Registration`. `registerBackendOpener`, `openRegisteredDevice`,
+  `registerDevicePresenter`, `lookUpDevicePresenter` and their
+  registration types went with the global lists.
+- **Breaking: `TextureFormat`, `VertexFormat` and `QueryType` are open
+  sets.** Classes with constants: a `switch` over one needs a `_ =>` case;
+  `name` is the wire name, and `byName` reads it back. `QueryType.feature`
+  says what a query set needs.
+
+- **A trace writes its own words for the HAL's enums**, from explicit tables
+  (`trace_wire_names.dart`) rather than each value's Dart name. The words are
+  the names as they were, so every trace reads as before; a rename in the API
+  no longer changes what a trace says.
+- **`UnsupportedCapabilityException` is a `CapabilityException`, not an
+  `UnsupportedError`.** A device without a feature is a fact about the
+  hardware that a correct program meets, not a programmer's mistake, so it is
+  an exception like the rest of the engine's, under `Flutter3dException` from
+  `flutter3d_plugin_api`. Its `message`, `feature`, `backend` and `reason` are
+  what they were, and the constructor is `const`. A check for the refusal
+  catches `UnsupportedCapabilityException` (or `CapabilityException`), not
+  `UnsupportedError`.
+- **Breaking:** `ShaderBundleException` extends `ResourceException` instead of
+  implementing `Exception`, and it is the one type for a stale bundle too:
+  `asset`, `refreshing` and `advice` carry what `flutter3d`'s
+  `StaleShaderBundle` used to add, and `message` is the sentence to show.
+- **1.0.0 is a promise: strict semver from there.** This release candidate
+  already keeps it. A patch fixes bugs and
+  breaks nothing, a minor adds, and a break waits for a major. The whole
+  public API is stable, with no experimental exceptions, and is held to the
+  snapshot in `api/`. A deprecated name stays until the next major and for
+  at least six months, and says what replaces it.
+  [CONTRIBUTING.md](https://github.com/pleiondev/flutter3d/blob/main/CONTRIBUTING.md#the-api-is-a-snapshot)
+  has the rules, and
+  [SUPPORT.md](https://github.com/pleiondev/flutter3d/blob/main/SUPPORT.md)
+  says which releases get fixes and on which platforms.
+
+- **Breaking: `RenderTargetPool.trim` returns the bytes it handed back.** It
+  used to return nothing; a call that ignores the answer is unchanged.
+  `RenderTargetPool.pooledBytes` and `lentBytes` say what the pool holds, and
+  `TextureHandle.estimatedBytes` counts what a texture's texels need, every
+  level, layer and sample, a compressed format by its blocks.
+
+- **`DeviceFeature.reversedDepth` says where a reversed projection gains
+  precision.** Clip depth in `[0, 1]` and a floating-point
+  `defaultDepthStencilFormat`: every device draws a projection turned round
+  correctly, and this is where doing so keeps depth precise to the horizon
+  rather than merely correct. No call of its own; the renderer's
+  `RenderSettings.reversedDepth` asks it. `DepthRange`'s note now says that
+  WebGL2 reaches `zeroToOne` through `EXT_clip_control`.
+
+- **A shader bundle the runtime cannot read says a rebuild cures it.**
+  `ShaderBundleException.stale` is true when the bundle is sound but was built
+  by another toolchain: a newer container, a newer section, or another SDK.
+  A bundle is a build artifact and `flutter3d_build` rebuilds it when any of
+  those versions moves, so a stale refusal at run time means a bundle the
+  build did not make. Bytes that are not a bundle stay `stale: false`.
+  `ShaderBundle.decode` reads every container version up to its own, and
+  `decodeMaterialSection` every payload version up to the new
+  `materialSectionVersion`.
+
+- **A trace reads every older format.** `Trace.decode` takes every
+  `.f3dtrace` version up to `Trace.formatVersion` through a migration list
+  and refuses only a newer one, so a trace attached to a bug report still
+  replays after an update. A version 1 fixture of the trace and the bundle
+  lives under `test/fixtures/v1/`.
+
+- **The `supportsX` getters are deprecated.** `supportsCompute`,
+  `supportsWireframe`, `supportsTextureFormat`, `maxAnisotropy` and the other
+  eleven on `GraphicsDevice` and `DeviceCapabilityForwarders` name their
+  replacement — `features.has(DeviceFeature.x)`,
+  `textureFormatSupport(format).sampled` or `limits` — and go in 2.0.0.
+  Nothing in the repository asks them any more.
+
+- **The HAL says it is implementable.** `GraphicsDevice`, the encoders,
+  `ShaderLibrary`, `LoadedShaderLibrary`, `MappedBuffer` and
+  `TextureAllocator` each say in their doc comment that outside code may
+  implement them and that a capability added later arrives beside them rather
+  than as a new member.
+
+This release is the one published as **1.0.0**: from it on the package is
+under strict semver, and `api/flutter3d_hardware.api` is the contract.
+
+- **Capabilities are one typed answer.** `GraphicsDevice.features` is a
+  `DeviceFeatures` set of `DeviceFeature` constants, `limits` a
+  `DeviceLimits` of WebGPU-named numbers, and `textureFormatSupport(format)`
+  a per-format table (sampled, filterable, renderable, blendable,
+  multisample, resolve, depth-stencil, storage, read-write storage). A
+  feature is a final class with const instances rather than an enum value,
+  so a capability added in a minor release breaks no `switch`. The fifteen
+  `supportsX` getters and `maxAnisotropy`/`maxColorAttachments` stay, and
+  every backend now answers them from the set through
+  `DeviceCapabilityForwarders`, so the old question and the new one cannot
+  disagree. They are documented as superseded rather than `@Deprecated`,
+  because the engine still asks them in about sixty places and the
+  deprecation notice fails `flutter analyze`.
+
+- **A refusal is one type.** Every call a feature gates throws
+  `UnsupportedCapabilityException` — a `CapabilityException` naming the feature, the
+  backend and the reason — on a device without it, before anything reaches a
+  driver. `DeviceFeatures.require` is how a backend says so in the same words
+  as every other, and `RenderPassDescriptor.checkFeatures` refuses a pass
+  that names a layer, a mip level, an occlusion query set or timestamp
+  writes the device cannot honour.
+
+- **The contract covers what WebGPU and WebGL2 can do between them.**
+  Texture arrays, 3D and cube-array textures through
+  `createTextureWithDescriptor`, and `writeTexture` for any format, level and
+  layer; general buffers (`createBuffer`, `writeBuffer`, `BufferUsage`),
+  mapped staging (`mapBuffer`, `MappedBuffer`) and a synchronous
+  `readBufferSync`; a `TransferEncoder` for buffer, texture and
+  buffer–texture copies, `clearBuffer` and an explicit `resolveTexture`;
+  storage buffers and storage textures in compute and render stages;
+  `drawIndirect`, `dispatchIndirect`, `multiDraw`, `multiDrawIndirect` with a
+  GPU-written count, `drawNonIndexed` and `drawIndexed` with a base vertex and
+  first instance; occlusion, timestamp and pipeline-statistics query sets;
+  render bundles; depth bias, colour write masks, depth clamp, min/max and
+  dual-source blending; comparison, level-clamped and border-colour samplers;
+  `bindUniformBytes` for integer and packed uniforms; and nineteen texture
+  formats appended after the mirrored ones — the integer, packed and
+  depth-only formats a storage texture or a reversed-Z target needs.
+  `TextureFormatInfo` states every format's texel facts once.
+
+- **Four futures are reserved, not built.** Ray queries, mesh shaders,
+  bindless resources and immediate data are named `DeviceFeature`s that no
+  backend may report and no call implements yet, so turning one on later is
+  additive.
+
+- **An API snapshot holds the surface.** `api/flutter3d_hardware.api` lists
+  every public symbol and signature, and the repository's structure scan
+  fails on any difference until `dart run api_snapshot --update` is run in
+  its `tool/api`, which is the moment a version decision has to be made. The
+  same snapshot now covers every published package.
+
+- **`FakeBackend` reports features like a backend.** Its flags build the
+  set, `extraFeatures` turns on more of it, and a 1.0 call is recorded as a
+  `RecordedCall` where the fake has the feature and refused where it has not.
+  `RecordingDevice` forwards every 1.0 call and lists the ones its trace
+  format does not carry yet in `unrecorded`; samplers' new fields are traced.
+
+- **A storage buffer a draw can bind as its indices** —
+  `createStorageBuffer(bindableAsIndices: true)` and
+  `StorageBuffer.asIndices`, for `H11`: a compute pass writes a draw's
+  order and the draw reads it without a round trip through the CPU. The
+  trace records it as geometry and replays it as such.
+
+- **`ShaderLibraryStack`**: any number of libraries consulted in order, the
+  first that answers winning — `P8`. What a game with more than one compiled
+  material bundle hands a renderer.
+
+- **`ShaderBundle.materialSection`**, with `encodeMaterialSection` and
+  `decodeMaterialSection`: each stage's material-language source, by name —
+  `P8`. The backend that compiles nothing compiles it, and a runtime reads a
+  material's lighting model out of it.
+
+- **`GraphicsDevice.supportsAlphaToCoverage` and
+  `PassEncoder.setAlphaToCoverage`**: a fragment's alpha as the share of a
+  multisampled pixel's samples it covers. WebGL2 and WebGPU answer true;
+  Impeller, whose flutter_gpu has no such control, and the software
+  rasteriser answer false and ignore the call. Traced as
+  `TraceSetAlphaToCoverage`; `FakeBackend` takes the answer and `FakePass`
+  records `RecordedAlphaToCoverage`. Every `PassEncoder` gains the method.
+
+- **A draw can read a window of the bound indices.** `PassEncoder.draw` takes
+  `firstIndex` and `indexCount`, so one buffer holding a model's every part is
+  bound once and drawn a part at a time. Leaving both out draws the whole
+  binding, as before. Every implementation of `PassEncoder` changes its
+  signature. A window past the end of the binding is refused with a
+  `RangeError` by `indexWindow`, which every backend calls, rather than left
+  to four drivers that answer it four different ways. Traces record the
+  window only when there is one, so older traces read as they were recorded.
+
+- **A device can decode an image itself.** `EncodedImageUpload` is an
+  optional interface a `GraphicsDevice` may also implement:
+  `decodeTexture` takes a PNG, JPEG, WebP or GIF as it is,
+  decodes it with the platform's decoder, scales it to a `maxDimension`
+  while decoding, and builds the mip chain on the GPU. The WebGL2 and WebGPU
+  devices implement it; every other device is asked nothing new.
+  `cappedImageSize` is the fit-inside-a-square arithmetic every cap uses, and
+  `encodedImageSize` reads an image's size from its header so the cap can be
+  applied before the decode rather than after it.
+
+Its `flutter3d_*` dependencies ask for `^1.0.0`.
+
 ## 0.8.0+1
 
 **Resolves on Flutter 3.44 and Dart 3.12.0.** The constraints asked for Dart

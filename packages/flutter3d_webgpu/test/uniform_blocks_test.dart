@@ -11,13 +11,16 @@
 /// number of bytes.
 library;
 
-import 'package:flutter3d_shaders/uniform_blocks.dart';
+import 'package:flutter3d_shaders/backend.dart';
 import 'package:flutter3d_webgpu/engine_shaders.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('every member sits where both compilers put it', () {
-    final stages = {...engineShaders.vertex, ...engineShaders.fragment};
+    final stages = {
+      ...webGpuEngineShaders.vertex,
+      ...webGpuEngineShaders.fragment,
+    };
     var compared = 0;
     final disagreements = <String>[];
     for (final MapEntry(key: stage, value: wgsl) in stages.entries) {

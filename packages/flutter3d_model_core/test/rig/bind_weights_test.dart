@@ -6,9 +6,10 @@ library;
 
 import 'dart:math' as math;
 
+import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:test/test.dart';
-import 'package:vector_math/vector_math.dart' hide Ray;
+import 'package:vector_math/vector_math.dart';
 
 /// A capped tube of triangles: one ring of [segments] vertices per entry of
 /// [heights] (ascending, along Y), a triangle strip between consecutive
@@ -69,7 +70,7 @@ import 'package:vector_math/vector_math.dart' hide Ray;
   return (positions: positions, triangles: triangles, ringStart: ringStart);
 }
 
-/// The ordinary pipeline: raw [bindWeights], pruned to [kMaxSkinInfluences]
+/// The ordinary pipeline: raw [bindWeights], pruned to [maxSkinInfluences]
 /// and renormalized — the shape `paintWeights`' own callers already expect a
 /// finished binding in.
 Map<int, List<WeightPair>> _bind({

@@ -3,8 +3,8 @@
 /// explaining why rather than silently clamped.
 ///
 /// A `part` of `command.dart` for the reason every other command file gives:
-/// [ModelCommand] is sealed, and a journal writer's exhaustive `switch` is
-/// only exhaustive if the compiler can see every case inside one library.
+/// [ModelCommand] is `abstract final`, so every command lives in one library,
+/// beside the journal reader that names them all.
 part of 'command.dart';
 
 /// Changes [ModelProject.profile]'s own `maxJoints`/`maxInfluences`,

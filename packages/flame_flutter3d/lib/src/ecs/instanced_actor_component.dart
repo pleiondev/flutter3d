@@ -3,7 +3,7 @@
 library;
 
 import 'package:flame/components.dart' show Component;
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart' show Actor, ActorSystem;
 import 'package:vector_math/vector_math.dart' show Matrix4, Vector3;
 
@@ -29,7 +29,7 @@ import '../host/step_clock.dart';
 /// **[batch] sits at the scene's origin, unturned**, as for
 /// `InstancedObject3dComponent`: the transform written is the body's place in
 /// the scene as it is.
-class InstancedActorComponent extends Component implements StepFollower {
+base class InstancedActorComponent extends Component with StepFollower {
   InstancedActorComponent({
     required this.actor,
     required this.batch,
@@ -90,7 +90,7 @@ class InstancedActorComponent extends Component implements StepFollower {
     stepper?.unfollow(this);
     final slot = _slot;
     _slot = null;
-    if (slot != null && slot.live) batch.release(slot);
+    if (slot != null && slot.isLive) batch.release(slot);
     final system = removesFrom;
     if (system != null && actor.exists) system.remove(actor);
     super.onRemove();
@@ -142,7 +142,7 @@ class InstancedActorComponent extends Component implements StepFollower {
 /// answers false once it is gone, which takes this component and its slot
 /// away. For a sim's own list of short-lived things the game mirrors one
 /// component per item.
-class InstancedPoseComponent extends Component {
+base class InstancedPoseComponent extends Component {
   InstancedPoseComponent({
     required this.batch,
     required this.place,
@@ -169,7 +169,7 @@ class InstancedPoseComponent extends Component {
   void onRemove() {
     final slot = _slot;
     _slot = null;
-    if (slot != null && slot.live) batch.release(slot);
+    if (slot != null && slot.isLive) batch.release(slot);
     super.onRemove();
   }
 

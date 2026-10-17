@@ -18,6 +18,8 @@ import 'dart:typed_data';
 double openCutoff({
   required int sampleRate,
   required double rate,
+
+  /// The wanted cutoff, in hertz.
   double open = 16000.0,
 }) => math.min(open, 0.45 * sampleRate * math.max(rate, 0.01));
 

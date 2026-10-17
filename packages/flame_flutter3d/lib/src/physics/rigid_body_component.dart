@@ -6,7 +6,7 @@ import 'dart:async' show scheduleMicrotask;
 
 import 'package:flame/collisions.dart';
 import 'package:flame/components.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 
 import '../host/step_clock.dart';
@@ -39,9 +39,8 @@ import 'physics_step_component.dart';
 /// nothing here supports writing a Flame position back onto a [RigidBody]'s
 /// [Collider], because [Collider.moveTo] is [Dynamics]'s to call, not a
 /// transform bridge's.
-class RigidBodyComponent extends Object3dComponent
-    with CollisionCallbacks
-    implements StepFollower {
+base class RigidBodyComponent extends Object3dComponent
+    with CollisionCallbacks, StepFollower {
   RigidBodyComponent({
     required this.body,
     required super.node,
@@ -82,7 +81,7 @@ class RigidBodyComponent extends Object3dComponent
   /// to bump into. Taken out when the component is gone, not when Flame
   /// moves it to a new parent, and never from inside a contact: Flame
   /// removes components at the start of a frame, between steps.
-  final Dynamics? removeFrom;
+  final RigidDynamics? removeFrom;
 
   final Vector3 _before = Vector3.zero();
   final Vector3 _drawn = Vector3.zero();
@@ -92,7 +91,7 @@ class RigidBodyComponent extends Object3dComponent
   /// by [stepper] before each step.
   @override
   void rememberPlace() {
-    _before.setFrom(body.position);
+    _before.setFrom(body.collider.position);
     _remembered = true;
   }
 
@@ -119,7 +118,7 @@ class RigidBodyComponent extends Object3dComponent
   void shiftScene(Vector3 by) {
     super.shiftScene(by);
     body.collider
-      ..moveTo(body.position + by)
+      ..moveTo(body.collider.position + by)
       ..clearDelta();
     _before.add(by);
   }
@@ -160,10 +159,10 @@ class RigidBodyComponent extends Object3dComponent
   void update(double dt) {
     final steps = stepper;
     if (steps != null && _remembered) {
-      Vector3.mix(_before, body.position, steps.alpha, _drawn);
+      Vector3.mix(_before, body.collider.position, steps.alpha, _drawn);
       placeNode(_drawn);
     } else {
-      placeNode(body.position);
+      placeNode(body.collider.position);
     }
     super.update(dt);
   }

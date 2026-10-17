@@ -121,7 +121,7 @@ void main() {
       // built from this map would offer a control for a 4×4 matrix no
       // `ParamHint` here can describe.
       expect(hints.keys, unorderedEquals(<String>['operation', 'operandId']));
-      expect(hints['operation'], isA<EnumHint>());
+      expect(hints['operation'], isA<ChoiceHint>());
       expect(hints['operandId'], isA<IntHint>());
     });
   });

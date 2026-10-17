@@ -36,7 +36,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// `createWebGpuPipeline` carries whatever a library handed it straight into the
 /// pipeline and only the encoder ever casts it, so a stage pair's group shapes
 /// can be built and read with no adapter in the browser at all.
-final class _NoModules implements WgslModuleCompiler {
+final class _NoModules with WgslModuleCompiler {
   @override
   Object compileModule(String name, String wgsl) => name;
 }

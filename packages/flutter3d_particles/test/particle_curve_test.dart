@@ -8,6 +8,8 @@ library;
 
 import 'dart:math' as math;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -22,7 +24,7 @@ ParticleEffect _steady() => ParticleEffect(
   emitter: const SphereEmitter(speed: Range.exact(0.0)),
   lifetime: const Range.exact(1000.0),
   size: const Range.exact(0.5),
-  color: Vector4(1.0, 1.0, 1.0, 1.0),
+  color: LinearColor(1.0, 1.0, 1.0, 1.0),
 );
 
 /// Advances [system] in 60 Hz frames, which is how a game calls it.
@@ -124,8 +126,8 @@ void main() {
   group('a gradient', () {
     test('interpolates every channel together', () {
       final gradient = ParticleGradient.linear(
-        Vector4(0.0, 1.0, 0.0, 1.0),
-        Vector4(1.0, 0.0, 1.0, 0.0),
+        LinearColor(0.0, 1.0, 0.0, 1.0),
+        LinearColor(1.0, 0.0, 1.0, 0.0),
       );
       final out = Vector4.zero();
       gradient.sampleInto(out, 0.5);
@@ -140,7 +142,9 @@ void main() {
       // fresh vector, the caller's colour stops changing and every particle
       // renders at its birth colour — which looks like the gradient being
       // ignored rather than like an aliasing mistake.
-      final gradient = ParticleGradient.constant(Vector4(1.0, 2.0, 3.0, 4.0));
+      final gradient = ParticleGradient.constant(
+        LinearColor(1.0, 2.0, 3.0, 4.0),
+      );
       final out = Vector4.zero();
       final same = out;
       gradient.sampleInto(out, 0.5);
@@ -162,11 +166,11 @@ void main() {
         ..lifetime = 1.0;
 
       particle.age = 0.5;
-      sized.apply(particle, 1.0 / 60.0);
+      sized.apply(ParticleStep(particle: particle, dt: 1.0 / 60.0));
       expect(particle.size, closeTo(1.5, 1e-12));
 
       // Applied a second time at the same age it must give the same answer.
-      sized.apply(particle, 1.0 / 60.0);
+      sized.apply(ParticleStep(particle: particle, dt: 1.0 / 60.0));
       expect(
         particle.size,
         closeTo(1.5, 1e-12),
@@ -190,7 +194,7 @@ void main() {
 
       double component(Vector3 at, int axis) {
         final particle = _at(at);
-        field.apply(particle, dt);
+        field.apply(ParticleStep(particle: particle, dt: dt));
         return particle.velocity[axis];
       }
 
@@ -221,7 +225,7 @@ void main() {
         // "the property holds" from "there is no field".
         const field = ParticleTurbulence(strength: 2.0, scale: 1.0);
         final particle = _at(Vector3(1.0, 2.0, 3.0));
-        field.apply(particle, 1.0 / 60.0);
+        field.apply(ParticleStep(particle: particle, dt: 1.0 / 60.0));
         expect(particle.velocity.length, greaterThan(1e-3));
       },
     );
@@ -229,11 +233,11 @@ void main() {
     test('scales with dt, so the frame rate does not change the motion', () {
       const field = ParticleTurbulence(strength: 1.0, scale: 1.0);
       final once = _at(Vector3(0.5, 0.5, 0.5));
-      field.apply(once, 1.0 / 30.0);
+      field.apply(ParticleStep(particle: once, dt: 1.0 / 30.0));
 
       final twice = _at(Vector3(0.5, 0.5, 0.5));
-      field.apply(twice, 1.0 / 60.0);
-      field.apply(twice, 1.0 / 60.0);
+      field.apply(ParticleStep(particle: twice, dt: 1.0 / 60.0));
+      field.apply(ParticleStep(particle: twice, dt: 1.0 / 60.0));
 
       // Not exactly equal — the second half-step reads the field at the same
       // position, because this affector does not move the particle — but the
@@ -342,7 +346,14 @@ void main() {
       var sawSpread = false;
       for (var i = 0; i < 500; i++) {
         final particle = Particle();
-        emitter.emit(particle, origin, Vector3(1.0, 0.0, 0.0), random);
+        emitter.emit(
+          ParticleBirth(
+            particle: particle,
+            origin: origin,
+            direction: Vector3(1.0, 0.0, 0.0),
+            random: random,
+          ),
+        );
         expect((particle.position.x - origin.x).abs(), lessThanOrEqualTo(2.0));
         expect((particle.position.y - origin.y).abs(), lessThanOrEqualTo(0.5));
         expect((particle.position.z - origin.z).abs(), lessThanOrEqualTo(3.0));
@@ -364,10 +375,12 @@ void main() {
       );
       final particle = Particle();
       emitter.emit(
-        particle,
-        Vector3.zero(),
-        Vector3(1.0, 0.0, 0.0),
-        math.Random(1),
+        ParticleBirth(
+          particle: particle,
+          origin: Vector3.zero(),
+          direction: Vector3(1.0, 0.0, 0.0),
+          random: math.Random(1),
+        ),
       );
       expect(particle.velocity.x, 0.0);
       expect(particle.velocity.y, -3.0);
@@ -380,10 +393,12 @@ void main() {
       );
       final particle = Particle();
       emitter.emit(
-        particle,
-        Vector3.zero(),
-        Vector3(0.0, 0.0, 1.0),
-        math.Random(1),
+        ParticleBirth(
+          particle: particle,
+          origin: Vector3.zero(),
+          direction: Vector3(0.0, 0.0, 1.0),
+          random: math.Random(1),
+        ),
       );
       expect(particle.velocity.z, 2.0);
     });
@@ -405,7 +420,7 @@ void main() {
       final wind = ParticleWind(Vector3(2.0, -1.0, 0.5));
       final particle = _at(Vector3.zero())..velocity.setValues(1.0, 1.0, 1.0);
 
-      wind.apply(particle, 0.5);
+      wind.apply(ParticleStep(particle: particle, dt: 0.5));
 
       expect(particle.velocity.x, closeTo(1.0 + 1.0, 1e-12));
       expect(particle.velocity.y, closeTo(1.0 - 0.5, 1e-12));
@@ -424,7 +439,7 @@ void main() {
       source.setValues(100.0, 0.0, 0.0);
 
       final particle = _at(Vector3.zero());
-      wind.apply(particle, 1.0);
+      wind.apply(ParticleStep(particle: particle, dt: 1.0));
 
       expect(particle.velocity.x, 1.0);
     });
@@ -432,11 +447,11 @@ void main() {
     test('scales with dt, so the frame rate does not change the motion', () {
       final wind = ParticleWind(Vector3(0.0, 3.0, 0.0));
       final once = _at(Vector3.zero());
-      wind.apply(once, 1.0 / 30.0);
+      wind.apply(ParticleStep(particle: once, dt: 1.0 / 30.0));
 
       final twice = _at(Vector3.zero());
-      wind.apply(twice, 1.0 / 60.0);
-      wind.apply(twice, 1.0 / 60.0);
+      wind.apply(ParticleStep(particle: twice, dt: 1.0 / 60.0));
+      wind.apply(ParticleStep(particle: twice, dt: 1.0 / 60.0));
 
       expect(twice.velocity.y, closeTo(once.velocity.y, 1e-12));
     });
@@ -461,7 +476,14 @@ void main() {
       var sawWander = false;
       for (var i = 0; i < 500; i++) {
         final particle = Particle();
-        emitter.emit(particle, origin, Vector3(1.0, 0.0, 0.0), random);
+        emitter.emit(
+          ParticleBirth(
+            particle: particle,
+            origin: origin,
+            direction: Vector3(1.0, 0.0, 0.0),
+            random: random,
+          ),
+        );
 
         expect(particle.position, origin, reason: 'a point emitter, not a box');
         expect(particle.velocity.y, inInclusiveRange(0.3, 1.0));
@@ -485,10 +507,12 @@ void main() {
       );
       final particle = Particle();
       emitter.emit(
-        particle,
-        Vector3.zero(),
-        Vector3(0.0, 0.0, -1.0),
-        math.Random(3),
+        ParticleBirth(
+          particle: particle,
+          origin: Vector3.zero(),
+          direction: Vector3(0.0, 0.0, -1.0),
+          random: math.Random(3),
+        ),
       );
 
       expect(particle.velocity, Vector3(0.0, 0.7, 0.0));

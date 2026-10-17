@@ -4,22 +4,33 @@
 /// opened, so a demo's own state never survives a visit.
 library;
 
+import 'package:flutter3d_showcase/pages/physics_particles/breakable_joints.dart';
 import 'package:flutter3d_showcase/pages/physics_particles/burst_light.dart';
 import 'package:flutter3d_showcase/pages/physics_particles/character_controller.dart';
 import 'package:flutter3d_showcase/pages/physics_particles/collision_layers.dart';
 import 'package:flutter3d_showcase/pages/physics_particles/collision_queries.dart';
 import 'package:flutter3d_showcase/pages/physics_particles/collision_shapes.dart';
+import 'package:flutter3d_showcase/pages/physics_particles/compound_shapes.dart';
+import 'package:flutter3d_showcase/pages/physics_particles/continuous_collision.dart';
+import 'package:flutter3d_showcase/pages/physics_particles/convex_shapes.dart';
 import 'package:flutter3d_showcase/pages/physics_particles/flipbook.dart';
+import 'package:flutter3d_showcase/pages/physics_particles/heat_and_fire.dart';
 import 'package:flutter3d_showcase/pages/physics_particles/heightfield_collision.dart';
+import 'package:flutter3d_showcase/pages/physics_particles/joints_and_motors.dart';
+import 'package:flutter3d_showcase/pages/physics_particles/liquids.dart';
 import 'package:flutter3d_showcase/pages/physics_particles/mesh_particles.dart';
+import 'package:flutter3d_showcase/pages/physics_particles/multibody_chain.dart';
 import 'package:flutter3d_showcase/pages/physics_particles/particle_curves.dart';
 import 'package:flutter3d_showcase/pages/physics_particles/particle_emitters.dart';
 import 'package:flutter3d_showcase/pages/physics_particles/particle_lights.dart';
 import 'package:flutter3d_showcase/pages/physics_particles/particle_modifiers.dart';
 import 'package:flutter3d_showcase/pages/physics_particles/particle_pool.dart';
+import 'package:flutter3d_showcase/pages/physics_particles/physics_core.dart';
+import 'package:flutter3d_showcase/pages/physics_particles/ragdoll.dart';
 import 'package:flutter3d_showcase/pages/physics_particles/rigid_bodies.dart';
 import 'package:flutter3d_showcase/pages/physics_particles/six_way_smoke.dart';
 import 'package:flutter3d_showcase/pages/physics_particles/textured_particles.dart';
+import 'package:flutter3d_showcase/pages/physics_particles/vehicle.dart';
 import 'package:flutter3d_showcase/pages/physics_particles/xpbd_cloth.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
@@ -39,6 +50,17 @@ final Map<String, DemoBuilder> physicsParticlesDemos = <String, DemoBuilder>{
   'collision-layers': CollisionLayersDemo.new,
   'character-controller': CharacterControllerDemo.new,
   'rigid-bodies': RigidBodiesDemo.new,
+  'physics-core': PhysicsCoreDemo.new,
   'heightfield-collision': HeightfieldCollisionDemo.new,
   'xpbd-cloth': XpbdClothDemo.new,
+  'compound-shapes': CompoundShapesDemo.new,
+  'breakable-joints': BreakableJointsDemo.new,
+  'vehicle': VehicleDemo.new,
+  'multibody-chain': MultibodyChainDemo.new,
+  'joints-and-motors': JointsAndMotorsDemo.new,
+  'ragdoll': RagdollDemo.new,
+  'convex-shapes': ConvexShapesDemo.new,
+  'continuous-collision': ContinuousCollisionDemo.new,
+  'heat-and-fire': HeatAndFireDemo.new,
+  'liquids': LiquidsDemo.new,
 };

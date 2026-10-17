@@ -17,7 +17,7 @@ here because both ride on the same step loop.
 ## Step 2: Record inputs and keyframes together
 
 Each step, the loop records this step's input into the buffer's own recorder,
-takes a snapshot when `keyframeDue` says to, and times the step itself.
+takes a snapshot when `isKeyframeDue` says to, and times the step itself.
 
 {{code step}}
 

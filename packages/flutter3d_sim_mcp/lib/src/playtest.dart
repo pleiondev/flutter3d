@@ -2,26 +2,60 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 
+import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
+    show choosePhysics, usePhysics;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 const double _dt = 1.0 / 60.0;
 
 /// How one playthrough ended.
-enum PlaytestOutcome {
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class PlaytestOutcome {
+  const PlaytestOutcome._(this.name);
+
   /// The run ended badly — [RunOutcome.lost].
-  died,
+  static const PlaytestOutcome died = PlaytestOutcome._('died');
 
   /// The run ended well — [RunOutcome.won].
-  exited,
+  static const PlaytestOutcome exited = PlaytestOutcome._('exited');
 
   /// The player's own position moved less than [Playtest.stuckStride]
   /// metres over the last [Playtest.stuckAfter] steps — wedged in geometry,
   /// most often, or circling something a policy this blind can never think
   /// its way past.
-  stuck,
+  static const PlaytestOutcome stuck = PlaytestOutcome._('stuck');
 
   /// Neither of the above happened within [Playtest.maxSteps].
-  timedOut,
+  static const PlaytestOutcome timedOut = PlaytestOutcome._('timedOut');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<PlaytestOutcome> values = <PlaytestOutcome>[
+    died,
+    exited,
+    stuck,
+    timedOut,
+  ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static PlaytestOutcome? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'PlaytestOutcome.$name';
 }
 
 /// The arguments one playthrough needs, bundled so [Isolate.run] has one
@@ -29,6 +63,7 @@ enum PlaytestOutcome {
 /// the whole reason it can cross an isolate boundary at all.
 typedef _PlaytestArgs = ({
   HeadlessGame game,
+  String physics,
   String levelPath,
   int seed,
   int maxSteps,
@@ -53,7 +88,7 @@ final class PlaytestRun {
 
   /// Sampled every [Playtest.sampleEvery] steps — the trail
   /// [Playtest.heatmap] bins into cells.
-  final List<(double x, double z)> positions;
+  final List<TrailPoint> positions;
 }
 
 /// `ai-01`: many independent playthroughs of the same level of [game], run in
@@ -99,6 +134,8 @@ final class Playtest {
 
   /// How many steps without moving [stuckStride] metres counts as stuck.
   final int stuckAfter;
+
+  /// The distance that counts as moving, in metres.
   final double stuckStride;
 
   /// Plays [levelPath] [runs] times, seeded `0` through `runs - 1` so the
@@ -109,6 +146,9 @@ final class Playtest {
           Isolate.run(
             () => _playOneForIsolate((
               game: game,
+              // An isolate starts on the reference; this one plays on the
+              // session's physics.
+              physics: usePhysics().name,
               levelPath: levelPath,
               seed: seed,
               maxSteps: maxSteps,
@@ -123,46 +163,28 @@ final class Playtest {
   /// metres on a side, counting how many positions from how many distinct
   /// runs landed in each — the JSON `ai-01`'s own row promises, and the
   /// same shape `ai-02`'s editor layer draws directly over the level.
+  ///
+  /// [Heatmap] does the binning, and N7's telemetry server bins real players'
+  /// runs through it too, so the two reports are one format.
   static Map<String, Object?> heatmap(
     List<PlaytestRun> runs, {
     double cellSize = 1.0,
-  }) {
-    final counts = <(int, int), int>{};
-    final runsThroughCell = <(int, int), Set<int>>{};
-    for (final run in runs) {
-      for (final (x, z) in run.positions) {
-        final cell = ((x / cellSize).floor(), (z / cellSize).floor());
-        counts[cell] = (counts[cell] ?? 0) + 1;
-        (runsThroughCell[cell] ??= <int>{}).add(run.seed);
-      }
-    }
-    return <String, Object?>{
-      'cellSize': cellSize,
-      'cells': <Map<String, Object?>>[
-        for (final entry in counts.entries)
-          <String, Object?>{
-            'x': entry.key.$1,
-            'z': entry.key.$2,
-            'samples': entry.value,
-            'runs': runsThroughCell[entry.key]!.length,
-          },
-      ],
-      'deaths': <Map<String, Object?>>[
-        for (final run in runs)
-          if (run.outcome == PlaytestOutcome.died && run.positions.isNotEmpty)
-            <String, Object?>{
-              'seed': run.seed,
-              'step': run.steps,
-              'x': run.positions.last.$1,
-              'z': run.positions.last.$2,
-            },
-      ],
-      'outcomes': <String, int>{
-        for (final outcome in PlaytestOutcome.values)
-          outcome.name: runs.where((r) => r.outcome == outcome).length,
-      },
-    };
-  }
+  }) => Heatmap.bin(
+    <HeatmapTrail>[
+      for (final run in runs)
+        HeatmapTrail(
+          run: run.seed,
+          steps: run.steps,
+          outcome: run.outcome.name,
+          positions: run.positions,
+          endedBadly: run.outcome == PlaytestOutcome.died,
+        ),
+    ],
+    cellSize: cellSize,
+    outcomeNames: <String>[
+      for (final outcome in PlaytestOutcome.values) outcome.name,
+    ],
+  ).toJson();
 }
 
 /// A random policy's intent for one step — held for a stretch rather than
@@ -214,22 +236,26 @@ final class _RandomDriver {
 /// sends its argument to a fresh isolate with no access to anything a
 /// [Playtest] instance closed over.
 PlaytestRun _playOneForIsolate(_PlaytestArgs args) {
+  choosePhysics(args.physics);
   final level = Level.fromJson(
     jsonDecode(File(args.levelPath).readAsStringSync()) as Map<String, Object?>,
   );
-  final world = CollisionWorld();
+  final world = CollisionWorld(backend: usePhysics());
   level.addTo(world);
+  world.backend.attach(world);
   final input = InputState();
-  final run = args.game.start(level, world, input);
+  final run = args.game.start(
+    HeadlessStart(level: level, world: world, input: input),
+  );
   world.update();
 
   final driver = _RandomDriver(
     GameRandom(args.seed + 1),
     args.game.buttons.values.toList(),
   );
-  final positions = <(double, double)>[];
+  final positions = <TrailPoint>[];
   var stuckSince = 0;
-  var lastStuckCheck = run.position.clone();
+  var lastStuckCheck = run.position;
 
   for (var step = 1; step <= args.maxSteps; step++) {
     driver.apply(input);
@@ -239,7 +265,7 @@ PlaytestRun _playOneForIsolate(_PlaytestArgs args) {
 
     if (step % args.sampleEvery == 0) {
       final at = run.position;
-      positions.add((at.x, at.z));
+      positions.add(TrailPoint(x: at.x, z: at.z));
     }
 
     if (run.outcome.isOver) {
@@ -256,7 +282,7 @@ PlaytestRun _playOneForIsolate(_PlaytestArgs args) {
     stuckSince++;
     if (stuckSince >= args.stuckAfter) {
       final now = run.position;
-      if ((now - lastStuckCheck).length < args.stuckStride) {
+      if (now.distanceTo(lastStuckCheck) < args.stuckStride) {
         return PlaytestRun(
           seed: args.seed,
           steps: step,
@@ -265,7 +291,7 @@ PlaytestRun _playOneForIsolate(_PlaytestArgs args) {
         );
       }
       stuckSince = 0;
-      lastStuckCheck = now.clone();
+      lastStuckCheck = now;
     }
   }
 

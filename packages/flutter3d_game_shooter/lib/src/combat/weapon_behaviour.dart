@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -53,7 +55,7 @@ final class WeaponShot {
 /// ways a shot arrives have almost nothing in common — one traces rays, one
 /// sweeps an arc, one launches something with a flight time — and every place
 /// that fired a weapon would otherwise repeat the same three-way branch. The
-/// firing code now says `weapon.behaviour.deliver(shot)` and knows nothing.
+/// firing code now says `weapon.behavior.deliver(shot)` and knows nothing.
 ///
 /// Note what stayed data: [WeaponDef] is still a record of numbers. Damage,
 /// rate and spread get adjusted by feel hundreds of times, and putting them in
@@ -68,15 +70,15 @@ final class WeaponShot {
 ///
 /// `base` so that a member added here later is inherited rather than missing —
 /// see [Shape] in the engine for the same reasoning. A game's behaviour is
-/// `final class MyBeam extends WeaponBehaviour`.
+/// `final class MyBeam extends WeaponBehavior`.
 ///
 /// [deliver] is handed the whole [WeaponShot]: the world, the hitscan, the
 /// projectile system, where the shot came from and where it is pointed. That
 /// is deliberately everything the three below need between them, so a
 /// behaviour written outside this package is not held to a narrower seam than
 /// the ones inside it.
-abstract base class WeaponBehaviour {
-  const WeaponBehaviour();
+abstract base class WeaponBehavior {
+  const WeaponBehavior();
 
   /// Puts this shot into the world. Called once per trigger pull, inside the
   /// step, with [WeaponShot.hits] ready to be filled.
@@ -84,8 +86,8 @@ abstract base class WeaponBehaviour {
 }
 
 /// Rays, arriving the instant the trigger does.
-final class HitscanBehaviour extends WeaponBehaviour {
-  const HitscanBehaviour();
+final class HitscanBehavior extends WeaponBehavior {
+  const HitscanBehavior();
 
   @override
   void deliver(WeaponShot shot) {
@@ -106,11 +108,11 @@ final class HitscanBehaviour extends WeaponBehaviour {
 /// misses a monster standing beside the player's shoulder, and a punch should
 /// not — the reach of a swing is an arc, and an arc is what a player expects to
 /// connect with.
-final class MeleeBehaviour extends WeaponBehaviour {
-  const MeleeBehaviour({this.arcDegrees = 70.0});
+final class MeleeBehavior extends WeaponBehavior {
+  const MeleeBehavior({this.arc = 70.0 * math.pi / 180.0});
 
-  /// Full width of the arc the swing covers.
-  final double arcDegrees;
+  /// Full width of the arc the swing covers, in radians.
+  final double arc;
 
   @override
   void deliver(WeaponShot shot) {
@@ -120,7 +122,7 @@ final class MeleeBehaviour extends WeaponBehaviour {
 
     // Centred half a reach ahead, so the sphere covers the arm's length rather
     // than a bubble around the player.
-    final centre = Vector3(
+    final center = Vector3(
       shot.origin.x + forward.x * reach * 0.5,
       shot.origin.y + forward.y * reach * 0.5,
       shot.origin.z + forward.z * reach * 0.5,
@@ -129,13 +131,13 @@ final class MeleeBehaviour extends WeaponBehaviour {
     final candidates = <Collider>[];
     shot.world.overlap(
       CollisionSphere(reach * 0.5),
-      centre,
+      center,
       candidates,
       ignore: shot.shooter,
       includeTriggers: false,
     );
 
-    final minimumCosine = Portable.cos(arcDegrees * 0.5 * math.pi / 180.0);
+    final minimumCosine = Portable.cos(arc * 0.5);
     final toTarget = Vector3.zero();
     // The arc is horizontal, so the cone test ignores height. Measuring it in
     // three dimensions from the swinger's eye rejects anything shorter than
@@ -203,8 +205,8 @@ final class MeleeBehaviour extends WeaponBehaviour {
 /// needs to be its own class rather than an early return in the middle of the
 /// firing code: [WeaponShot.hits] stays empty and the damage arrives later,
 /// through the projectile system, from wherever the rocket ends up.
-final class ProjectileBehaviour extends WeaponBehaviour {
-  const ProjectileBehaviour();
+final class ProjectileBehavior extends WeaponBehavior {
+  const ProjectileBehavior();
 
   @override
   void deliver(WeaponShot shot) {

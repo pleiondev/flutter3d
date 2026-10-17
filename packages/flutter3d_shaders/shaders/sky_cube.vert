@@ -12,7 +12,10 @@
 // Why any of it travels on the vertices at all is written out in `sky.vert`.
 precision highp float;
 
-layout(location = 0) in vec2 position;
+// xy: the corner in clip space. z: the depth the triangle is drawn at — the
+// far plane less a hair the ordinary way round, nought reversed. See the
+// note on depth in `sky.vert`.
+layout(location = 0) in vec3 position;
 
 /// The world-space view ray at this corner.
 layout(location = 1) in vec3 corner_ray;
@@ -26,5 +29,5 @@ out vec4 v_tint;
 void main() {
   v_ray = corner_ray;
   v_tint = tint;
-  gl_Position = vec4(position, 0.999999, 1.0);
+  gl_Position = vec4(position, 1.0);
 }

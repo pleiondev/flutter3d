@@ -9,22 +9,52 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor, UnsupportedCapabilityException;
+import 'package:flutter3d_hardware/backend.dart' show debugCheckLive;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter_gpu/gpu.dart' as gpu;
-import 'package:vector_math/vector_math.dart' show Vector4;
 
 import 'gpu_device.dart';
 import 'gpu_formats.dart';
+import 'gpu_frame.dart';
+import 'gpu_pipeline.dart';
 import 'gpu_texture.dart';
+import 'gpu_vertex_index.dart' show pipelineIndexStreams;
 
 /// [CommandEncoder] over one flutter_gpu command buffer with its one open
 /// pass — see the library comment on why the two are fused. [submit] is the
 /// end of both: it hands the buffer to the queue and moves the frame's
 /// accounting from "encoding" to "outstanding".
-final class GpuCommandEncoder implements CommandEncoder {
-  GpuCommandEncoder(this._buffer, this._pass, this._backend, this._frame);
+final class GpuCommandEncoder extends PassEncoder with CommandEncoder {
+  GpuCommandEncoder(
+    this._buffer,
+    this._pass,
+    this._backend,
+    this._frame, {
+    this._depthReadOnly = false,
+    this._stencilReadOnly = false,
+    this._label,
+  }) {
+    if (_depthReadOnly) _pass.setDepthWriteEnable(false);
+  }
+
+  /// `DepthTarget.depthReadOnly`: the attachment is loaded and stored as it
+  /// was (see `GpuRenderBackend._toRenderTarget`) and no draw of this pass
+  /// writes it, whatever [setDepthWrite] asks.
+  final bool _depthReadOnly;
+
+  /// `DepthTarget.stencilReadOnly`: every stencil state this pass sets has
+  /// its write mask cleared.
+  final bool _stencilReadOnly;
 
   final GpuFrame _frame;
+
+  /// `RenderPassDescriptor.label`: a labelled pass is timed, see
+  /// `GpuFrame.timePass`.
+  final String? _label;
+
+  DeviceFeatures get _features => _backend.features;
 
   final gpu.CommandBuffer _buffer;
   final gpu.RenderPass _pass;
@@ -36,10 +66,25 @@ final class GpuCommandEncoder implements CommandEncoder {
 
   gpu.BufferView _emplace(ByteData bytes) => _backend.emplace(bytes);
 
+  /// Whole pixels, as flutter_gpu's `Viewport` takes them, with its depth
+  /// range; a fractional rectangle is refused rather than truncated.
   @override
-  void setViewport(ScreenRect rect) => _pass.setViewport(
-    gpu.Viewport(x: rect.x, y: rect.y, width: rect.width, height: rect.height),
-  );
+  void setViewport(PassViewport viewport) {
+    viewport.checkFeatures(_features, backend: impellerBackendName);
+    final rect = viewport.rect;
+    _pass.setViewport(
+      gpu.Viewport(
+        x: rect.x,
+        y: rect.y,
+        width: rect.width,
+        height: rect.height,
+        depthRange: gpu.DepthRange(
+          zNear: viewport.minDepth,
+          zFar: viewport.maxDepth,
+        ),
+      ),
+    );
+  }
 
   @override
   void setScissor(ScreenRect rect) => _pass.setScissor(
@@ -47,11 +92,24 @@ final class GpuCommandEncoder implements CommandEncoder {
   );
 
   @override
-  void setPrimitiveType(PrimitiveType type) =>
-      _pass.setPrimitiveType(type.toGpu());
+  void setPrimitiveType(PrimitiveType type) {
+    type.checkFeatures(_features, backend: impellerBackendName);
+    _pass.setPrimitiveType(type.toGpu());
+  }
 
+  /// A line mode on a device without `DeviceFeature.wireframe` (Impeller's
+  /// OpenGL ES path) is refused, rather than drawn filled.
   @override
-  void setPolygonMode(PolygonMode mode) => _pass.setPolygonMode(mode.toGpu());
+  void setPolygonMode(PolygonMode mode) {
+    if (mode == PolygonMode.line) {
+      _features.require(
+        DeviceFeature.wireframe,
+        backend: impellerBackendName,
+        reason: 'OpenGL ES has no glPolygonMode',
+      );
+    }
+    _pass.setPolygonMode(mode.toGpu());
+  }
 
   @override
   void setCullMode(CullMode mode) => _pass.setCullMode(mode.toGpu());
@@ -82,7 +140,7 @@ final class GpuCommandEncoder implements CommandEncoder {
   /// argument for `PassState`'s fields being optional — a redundant
   /// `setDepthWrite(false)` flipped behaviour on two backends out of three
   /// while this bug was live — and it is what a backdrop rests on:
-  /// `Material.depthWrite` is a promise this backend could not keep until now.
+  /// `RenderMaterial.depthWrite` is a promise this backend could not keep until now.
   ///
   /// **Settled on a machine with a GPU, and the note it replaces was wrong.**
   /// `particle-stack` used to be recorded deliberately showing the broken
@@ -95,7 +153,12 @@ final class GpuCommandEncoder implements CommandEncoder {
   /// agreement to that tolerance is the flag arriving here too. Nothing is
   /// pending.
   @override
-  void setDepthWrite(bool enabled) => _pass.setDepthWriteEnable(enabled);
+  void setDepthWrite({required bool enabled}) =>
+      _pass.setDepthWriteEnable(enabled && !_depthReadOnly);
+
+  /// Nothing — `P7`: flutter_gpu has no alpha-to-coverage to set; `supportsAlphaToCoverage` is false.
+  @override
+  void setAlphaToCoverage({required bool enabled}) {}
 
   @override
   void setDepthCompare(CompareFunction compare) =>
@@ -110,14 +173,22 @@ final class GpuCommandEncoder implements CommandEncoder {
   @override
   void setStencil(StencilState front, {StencilState? back}) {
     if (back == null) {
-      _pass.setStencilConfig(front.toGpu());
+      _pass.setStencilConfig(_stencilOf(front));
       return;
     }
     _pass.setStencilConfig(
-      front.toGpu(),
-      targetFace: StencilFace.front.toGpu(),
+      _stencilOf(front),
+      targetFace: gpu.StencilFace.front,
     );
-    _pass.setStencilConfig(back.toGpu(), targetFace: StencilFace.back.toGpu());
+    _pass.setStencilConfig(_stencilOf(back), targetFace: gpu.StencilFace.back);
+  }
+
+  /// A fresh config per call (see `StencilStateToGpu`), so clearing its
+  /// write mask for a read-only stencil touches nothing shared.
+  gpu.StencilConfig _stencilOf(StencilState state) {
+    final config = state.toGpu();
+    if (_stencilReadOnly) config.writeMask = 0;
+    return config;
   }
 
   @override
@@ -134,16 +205,46 @@ final class GpuCommandEncoder implements CommandEncoder {
   /// default, transparent black: the term evaluates to zero and the frame is a
   /// plausible picture with a term missing from it, on the one backend a phone
   /// actually runs.
+  ///
+  /// The two 1.0 refusals sit beside it for the same reason: a factor or an
+  /// operation flutter_gpu has no value for is refused by the feature it
+  /// needs, rather than reaching `toGpu` mid-draw.
   @override
   void setBlend(BlendState? state, {int attachment = 0}) {
-    if (state != null && state.usesBlendColor) {
-      throw UnsupportedError(
-        'this blend state names a BlendFactor that reads a blend constant, and '
-        'flutter_gpu has no way to set one — see '
-        'GraphicsDevice.supportsBlendColor, which this backend answers false. '
-        'Drawing it anyway would multiply by transparent black and lose the '
-        'term with no error.',
-      );
+    if (state != null) {
+      if (state.usesBlendColor) {
+        // TODO(impeller): no blend-constant setter on flutter_gpu's
+        // RenderPass — unblocked by an upstream RenderPass.setBlendConstant.
+        throw UnsupportedCapabilityException(
+          DeviceFeature.blendConstant,
+          backend: impellerBackendName,
+          reason:
+              'this blend state names a BlendFactor that reads a blend '
+              'constant, and flutter_gpu has no way to set one. Drawing it '
+              'anyway would multiply by transparent black and lose the term '
+              'with no error',
+        );
+      }
+      if (state.usesDualSource) {
+        // TODO(impeller): no second-source BlendFactor in flutter_gpu —
+        // unblocked by upstream dual-source blending.
+        throw UnsupportedCapabilityException(
+          DeviceFeature.dualSourceBlending,
+          backend: impellerBackendName,
+          reason: 'flutter_gpu has no second-source blend factors',
+        );
+      }
+      if (state.usesMinMax) {
+        // TODO(impeller): flutter_gpu's BlendOperation has no min or max —
+        // unblocked by upstream adding them.
+        throw UnsupportedCapabilityException(
+          DeviceFeature.minMaxBlend,
+          backend: impellerBackendName,
+          reason: 'flutter_gpu has no min or max blend operation',
+        );
+      }
+      // Whatever else the state needs, by the feature it names.
+      state.checkFeatures(_features, backend: impellerBackendName);
     }
     _pass.setColorBlendEnable(state != null, colorAttachmentIndex: attachment);
     if (state == null) return;
@@ -168,15 +269,21 @@ final class GpuCommandEncoder implements CommandEncoder {
   /// constant at Impeller's own transparent black and the caller believing it
   /// had been set, which is the whole reason
   /// `GraphicsDevice.supportsBlendColor` exists to be asked first.
+  // TODO(impeller): no blend-constant setter on flutter_gpu's RenderPass —
+  // unblocked by an upstream RenderPass.setBlendConstant.
   @override
-  Never setBlendColor(Vector4 color) => throw UnsupportedError(
-    'flutter_gpu has no blend-constant setter, so this backend answers false '
-    'to GraphicsDevice.supportsBlendColor. Ask it before naming '
-    'BlendFactor.blendColor and the three beside it.',
-  );
+  Never setBlendColor(LinearColor color) =>
+      throw UnsupportedCapabilityException(
+        DeviceFeature.blendConstant,
+        backend: impellerBackendName,
+        reason:
+            'flutter_gpu has no blend-constant setter; ask before naming '
+            'BlendFactor.blendColor and the three beside it',
+      );
 
   @override
   void bindPipeline(PipelineHandle pipeline) {
+    debugCheckLive(pipeline, 'bindPipeline');
     // Every binding this pass has been handed dies here, and it is not
     // housekeeping — it is the fix for a monster drawn as a splinter.
     //
@@ -197,8 +304,24 @@ final class GpuCommandEncoder implements CommandEncoder {
     // its draw needs after binding the pipeline, never before.
     _pass.clearBindings();
     _indexCount = 0;
-    _pass.bindPipeline(pipeline.backend as gpu.RenderPipeline);
+    _indexView = null;
+    // Linked again here when a refusal dropped it, and null when it cannot
+    // be: the draws until the next bind are skipped rather than drawn with
+    // whatever pipeline the pass had before.
+    final linked = (pipeline.backend as GpuPipeline<gpu.RenderPipeline>).linked(
+      pipeline,
+      _backend.pipelineRefusals,
+      deviceLost: _backend.isLost,
+    );
+    _pipeline = pipeline;
+    _pipelineRefused = linked == null;
+    if (linked != null) _pass.bindPipeline(linked);
   }
+
+  /// The pipeline last bound, and whether it is refused: the draws until the
+  /// next bind are skipped while it is.
+  PipelineHandle? _pipeline;
+  bool _pipelineRefused = false;
 
   /// How many indices the last index bind described.
   ///
@@ -215,23 +338,66 @@ final class GpuCommandEncoder implements CommandEncoder {
     GeometryBuffer buffer,
     int vertexCount, {
     int slot = 0,
-  }) => _pass.bindVertexBuffer(_view(buffer), slot: slot);
-
-  @override
-  void bindVertexData(ByteData bytes, int vertexCount, {int slot = 0}) =>
-      _pass.bindVertexBuffer(_emplace(bytes), slot: slot);
-
-  @override
-  void bindIndexBuffer(GeometryBuffer buffer, IndexType type, int indexCount) {
-    _pass.bindIndexBuffer(_view(buffer), type.toGpu());
-    _indexCount = indexCount;
+  }) {
+    if (slot == 0) _vertexCount = vertexCount;
+    _pass.bindVertexBuffer(_view(buffer), slot: slot);
   }
 
   @override
-  void bindIndexData(ByteData bytes, IndexType type, int indexCount) {
-    _pass.bindIndexBuffer(_emplace(bytes), type.toGpu());
-    _indexCount = indexCount;
+  void bindVertexData(ByteData bytes, int vertexCount, {int slot = 0}) {
+    if (slot == 0) _vertexCount = vertexCount;
+    _pass.bindVertexBuffer(_emplace(bytes), slot: slot);
   }
+
+  /// How many vertices slot 0 holds: how much of the index buffer a draw on
+  /// OpenGL ES binds (D56).
+  int _vertexCount = 0;
+
+  /// The index buffers the bound pipeline reads on OpenGL ES, bound before
+  /// each draw for [vertices] and [instances] — see `gpu_vertex_index.dart`.
+  /// Nothing on a pipeline linked without them, which is every pipeline on
+  /// Metal and Vulkan.
+  void _bindIndexStreams(int vertices, int instances) {
+    final pipeline = _pipeline;
+    if (pipeline == null) return;
+    final slots = pipelineIndexStreams[pipeline.backend];
+    if (slots == null) return;
+    if (slots.vertex case final slot?) {
+      _pass.bindVertexBuffer(_backend.indexView(vertices), slot: slot);
+    }
+    if (slots.instance case final slot?) {
+      _pass.bindVertexBuffer(_backend.indexView(instances), slot: slot);
+    }
+  }
+
+  @override
+  void bindIndexBuffer(GeometryBuffer buffer, IndexType type, int indexCount) =>
+      _bindIndices(_view(buffer), type, indexCount);
+
+  @override
+  void bindIndexData(ByteData bytes, IndexType type, int indexCount) =>
+      _bindIndices(_emplace(bytes), type, indexCount);
+
+  void _bindIndices(gpu.BufferView view, IndexType type, int indexCount) {
+    type.checkFeatures(_features, backend: impellerBackendName);
+    _pass.bindIndexBuffer(view, type.toGpu());
+    _indexView = view;
+    _indexType = type;
+    _indexCount = indexCount;
+    _boundFirstIndex = 0;
+  }
+
+  /// The view the last index bind named, kept so a draw of a window can bind
+  /// a narrower one — `P7`. flutter_gpu's `drawIndexed` takes a count and no
+  /// first index, so where the window starts is said with the view's offset.
+  gpu.BufferView? _indexView;
+  IndexType _indexType = IndexType.int32;
+
+  /// Where the view bound on the pass right now starts, in indices from the
+  /// start of [_indexView]. A window draw moves it, and the next draw that
+  /// wants a different start binds again rather than reading from wherever
+  /// the last window left it.
+  int _boundFirstIndex = 0;
 
   @override
   bool bindUniformBlock(
@@ -242,13 +408,19 @@ final class GpuCommandEncoder implements CommandEncoder {
     // `gfx-92n`: a block the compiled stage dropped is refused here, before
     // anything reaches the driver — binding one is a native crash on Metal.
     if (!shader.mayBindBlock(blockName)) return false;
-    final slot = (shader.backend as gpu.Shader).getUniformSlot(blockName);
-    final size = slot.sizeInBytes;
-    if (size == null || size == 0) return false;
+    final layout = _backend.uniformLayout(
+      shader.backend as gpu.Shader,
+      blockName,
+    );
+    if (layout == null) return false;
+    final size = layout.sizeInBytes;
 
-    final data = ByteData(size);
+    // The device's scratch for this size, zeroed: `emplace` copies it, so one
+    // buffer serves every block of the size, and it is already on the grid,
+    // so no rounded copy is made either.
+    final data = _backend.uniformScratchFor(layout);
     members.forEach((name, values) {
-      final offset = slot.getMemberOffsetInBytes(name);
+      final offset = layout.offsetOf(name);
       // Loud, because silence here is indistinguishable from working: the
       // member the caller wrote leaves zeros in its place, and zero is a
       // plausible value for most of them — a shadow strength of zero is a
@@ -281,16 +453,19 @@ final class GpuCommandEncoder implements CommandEncoder {
           'overruns exactly like this.',
         );
       }
-      // Whole arrays written from their reflected base offset. Impeller
-      // reflects the array, not its elements — `lights[0]` comes back null —
-      // but the std140 stride for a vec4 array is a flat 16 bytes, so a
-      // contiguous write lands each element correctly.
-      for (var i = 0; i < values.length; i++) {
-        data.setFloat32(offset + i * 4, values[i], Endian.host);
-      }
+      // Whole arrays written from their reflected base offset, in place and
+      // at once — the skin's sixty-four joint matrices are one copy, not a
+      // thousand `setFloat32`s. Impeller reflects the array, not its
+      // elements — `lights[0]` comes back null — but the std140 stride for a
+      // vec4 array is a flat 16 bytes, so a contiguous write lands each
+      // element correctly.
+      data.setRange(offset ~/ 4, offset ~/ 4 + values.length, values);
     });
 
-    _pass.bindUniform(slot, _emplace(data));
+    _pass.bindUniform(
+      layout.slot as gpu.UniformSlot,
+      _emplace(ByteData.sublistView(data)),
+    );
     return true;
   }
 
@@ -304,8 +479,15 @@ final class GpuCommandEncoder implements CommandEncoder {
     ShaderHandle shader,
     String slot,
     TextureHandle texture, {
-    SamplerOptions? sampler,
+    SamplerDescriptor? sampler,
   }) {
+    debugCheckLive(texture, 'bindTexture');
+    // Gated first, before the slot is looked at: a sampler flutter_gpu
+    // cannot describe is refused whatever it was going to be bound to.
+    // `depthAddressMode` needs no gate — it addresses a 3D texture's depth,
+    // and there are no 3D textures here to sample.
+    if (sampler != null && sampler.usesExtendedState) _refuseSampler(sampler);
+    sampler?.checkFeatures(_features, backend: impellerBackendName);
     if (!shader.mayBindSampler(slot)) return false;
     // Tile memory cannot be sampled, and the backend's own assertion for this
     // fires from inside `bindTexture` with no idea which slot or which pass.
@@ -320,7 +502,7 @@ final class GpuCommandEncoder implements CommandEncoder {
       _pass.bindTexture(
         (shader.backend as gpu.Shader).getUniformSlot(slot),
         texture.gpuTexture,
-        sampler: (sampler ?? SamplerOptions.linearRepeat).toGpu(),
+        sampler: (sampler ?? SamplerDescriptor.linearRepeat).toGpu(),
       );
       return true;
     } on Exception catch (error) {
@@ -336,12 +518,293 @@ final class GpuCommandEncoder implements CommandEncoder {
     // draw after a `clearBindings` inherit the previous mesh's index count,
     // which is the kind of state leak that draws a plausible wrong picture.
     _indexCount = 0;
+    _indexView = null;
   }
 
   @override
-  void draw({int instanceCount = 1}) {
-    if (_indexCount == 0 || instanceCount <= 0) return;
-    _pass.drawIndexed(_indexCount, instanceCount: instanceCount);
+  void draw({int instanceCount = 1, int firstIndex = 0, int? indexCount}) {
+    final window = indexWindow(
+      _indexCount,
+      firstIndex: firstIndex,
+      indexCount: indexCount,
+    );
+    final view = _indexView;
+    if (window.count == 0 || instanceCount <= 0 || view == null) return;
+    if (_pipelineRefused) return;
+    if (window.first != _boundFirstIndex) {
+      final skip = window.first * (_indexType == IndexType.int16 ? 2 : 4);
+      _pass.bindIndexBuffer(
+        gpu.BufferView(
+          view.buffer,
+          offsetInBytes: view.offsetInBytes + skip,
+          lengthInBytes: view.lengthInBytes - skip,
+        ),
+        _indexType.toGpu(),
+      );
+      _boundFirstIndex = window.first;
+    }
+    _bindIndexStreams(_vertexCount, instanceCount);
+    _drawOrRefuse(
+      () => _pass.drawIndexed(window.count, instanceCount: instanceCount),
+    );
+  }
+
+  /// Runs flutter_gpu's [draw], and takes a refused link for what it is.
+  ///
+  /// The field case: OpenGL ES links lazily, at the first draw, and a pair its
+  /// driver will not link fails there as "Failed to append drawIndexed".
+  /// Thrown, it failed every frame; reported, the draw is skipped and the
+  /// frame goes on. The pipeline is dropped and linked again at its next bind.
+  void _drawOrRefuse(void Function() draw) {
+    try {
+      draw();
+    } on Exception catch (error) {
+      final pipeline = _pipeline;
+      if (pipeline == null || !isRefusedDraw(error)) rethrow;
+      (pipeline.backend as GpuPipeline<gpu.RenderPipeline>).refusedAtDraw(
+        pipeline,
+        _backend.pipelineRefusals,
+        error,
+        deviceLost: _backend.isLost,
+      );
+      _pipelineRefused = true;
+    }
+  }
+
+  /// The refusal for a sampler [SamplerDescriptor.usesExtendedState] says
+  /// flutter_gpu cannot describe, by the first feature it needs.
+  // TODO(impeller): flutter_gpu's SamplerDescriptor has filters, address modes
+  // and anisotropy only — comparison, LOD clamps and border colours are
+  // unblocked by upstream fields for them (Impeller's own SamplerDescriptor
+  // has the first two).
+  Never _refuseSampler(SamplerDescriptor sampler) {
+    final (feature, what) = switch (sampler) {
+      SamplerDescriptor(compare: CompareFunction _) => (
+        DeviceFeature.samplerCompare,
+        'a comparison sampler',
+      ),
+      SamplerDescriptor(clampsToBorder: true) => (
+        DeviceFeature.samplerBorderColor,
+        'clamp-to-border address mode',
+      ),
+      _ => (DeviceFeature.samplerLodClamp, 'a level-of-detail clamp'),
+    };
+    throw UnsupportedCapabilityException(
+      feature,
+      backend: impellerBackendName,
+      reason: "flutter_gpu's SamplerOptions has no $what",
+    );
+  }
+
+  // ------------------------------------------------- the 1.0 surface
+
+  /// [draw], when the base vertex and first instance are zero — which is
+  /// all flutter_gpu's `drawIndexed` takes.
+  @override
+  void drawIndexed(IndexedDraw draw) {
+    if (draw.usesBaseVertexOrInstance) _refuseBaseVertexOrInstance();
+    this.draw(
+      instanceCount: draw.instanceCount,
+      firstIndex: draw.firstIndex,
+      indexCount: draw.indexCount,
+    );
+  }
+
+  // TODO(impeller): flutter_gpu's draw and drawIndexed take a count and an
+  // instance count only — unblocked by upstream base vertex / first
+  // instance (first vertex) arguments on them.
+  Never _refuseBaseVertexOrInstance() => throw UnsupportedCapabilityException(
+    DeviceFeature.baseVertexBaseInstance,
+    backend: impellerBackendName,
+    reason:
+        'flutter_gpu draws take no base vertex, first vertex or first '
+        'instance',
+  );
+
+  /// A loop of [drawIndexed], which the contract allows: one call per entry,
+  /// with every entry checked before the first is drawn so a refusal leaves
+  /// nothing half-recorded.
+  @override
+  void multiDraw(List<IndexedDraw> draws) {
+    _features.require(DeviceFeature.multiDraw, backend: impellerBackendName);
+    if (draws.any((IndexedDraw d) => d.usesBaseVertexOrInstance)) {
+      _refuseBaseVertexOrInstance();
+    }
+    for (final entry in draws) {
+      drawIndexed(entry);
+    }
+  }
+
+  // TODO(impeller): flutter_gpu has no indirect draw — unblocked by an
+  // upstream RenderPass.drawIndexedIndirect (and a compute pass to write
+  // the arguments, flutter/flutter#188480).
+  Never _noIndirect(DeviceFeature feature) =>
+      throw UnsupportedCapabilityException(
+        feature,
+        backend: impellerBackendName,
+        reason: 'flutter_gpu has no indirect draw',
+      );
+
+  @override
+  void multiDrawIndirect(
+    StorageBuffer arguments,
+    int drawCount, {
+    int offsetInBytes = 0,
+    StorageBuffer? countBuffer,
+    int countOffsetInBytes = 0,
+  }) => _noIndirect(DeviceFeature.multiDrawIndirect);
+
+  @override
+  void drawIndirect(StorageBuffer arguments, {int offsetInBytes = 0}) =>
+      _noIndirect(DeviceFeature.indirectDraw);
+
+  // TODO(impeller): no render bundles in flutter_gpu — see
+  // `GpuRenderBackend.createRenderBundleEncoder`.
+  @override
+  void executeBundles(List<RenderBundle> bundles) => _features.require(
+    DeviceFeature.renderBundles,
+    backend: impellerBackendName,
+    reason: 'flutter_gpu has no render bundles',
+  );
+
+  // TODO(impeller): flutter_gpu has no query objects — unblocked by an
+  // upstream query-set API.
+  @override
+  void beginPipelineStatisticsQuery(QuerySet querySet, int queryIndex) =>
+      _features.require(
+        DeviceFeature.pipelineStatisticsQuery,
+        backend: impellerBackendName,
+        reason: 'flutter_gpu has no pipeline-statistics queries',
+      );
+
+  @override
+  void endPipelineStatisticsQuery() => _features.require(
+    DeviceFeature.pipelineStatisticsQuery,
+    backend: impellerBackendName,
+    reason: 'flutter_gpu has no pipeline-statistics queries',
+  );
+
+  @override
+  void beginOcclusionQuery(int queryIndex) => _features.require(
+    DeviceFeature.occlusionQuery,
+    backend: impellerBackendName,
+    reason: 'flutter_gpu has no occlusion queries',
+  );
+
+  @override
+  void endOcclusionQuery() => _features.require(
+    DeviceFeature.occlusionQuery,
+    backend: impellerBackendName,
+    reason: 'flutter_gpu has no occlusion queries',
+  );
+
+  // TODO(impeller): flutter_gpu's RenderPass has no depth-bias setter —
+  // unblocked by an upstream RenderPass.setDepthBias (Impeller's own
+  // pipeline descriptor has one).
+  @override
+  void setDepthBias(DepthBias bias) => _features.require(
+    DeviceFeature.depthBias,
+    backend: impellerBackendName,
+    reason: "flutter_gpu's RenderPass has no depth-bias setter",
+  );
+
+  // TODO(impeller): flutter_gpu's ColorBlendEquation carries no write mask —
+  // unblocked by an upstream colour write mask on it (Impeller's
+  // ColorAttachmentDescriptor has one).
+  @override
+  void setColorWriteMask(ColorWriteMask mask, {int attachment = 0}) =>
+      _features.require(
+        DeviceFeature.colorWriteMask,
+        backend: impellerBackendName,
+        reason: 'flutter_gpu has no colour write mask',
+      );
+
+  // TODO(impeller): flutter_gpu exposes no depth clip mode — unblocked by an
+  // upstream RenderPass.setDepthClamp / depth-clip control.
+  @override
+  void setDepthClamp({required bool enabled}) => _features.require(
+    DeviceFeature.depthClamp,
+    backend: impellerBackendName,
+    reason: 'flutter_gpu has no depth clamp',
+  );
+
+  // TODO(impeller): flutter_gpu binds uniforms and samplers only — storage
+  // buffers and textures in a render stage are unblocked by an upstream
+  // storage binding on RenderPass.
+  Never _noRenderStorage() => throw UnsupportedCapabilityException(
+    DeviceFeature.renderStageStorage,
+    backend: impellerBackendName,
+    reason: 'flutter_gpu binds no storage to a render stage',
+  );
+
+  @override
+  bool bindStorageBuffer(
+    ShaderHandle shader,
+    String name,
+    StorageBuffer buffer, {
+    int offsetInBytes = 0,
+    int? sizeInBytes,
+  }) => _noRenderStorage();
+
+  @override
+  bool bindStorageTexture(
+    ShaderHandle shader,
+    String name,
+    TextureHandle texture, {
+    int mipLevel = 0,
+    StorageTextureAccess access = StorageTextureAccess.writeOnly,
+  }) => _noRenderStorage();
+
+  /// [bytes] as the block, as laid out by impellerc: flutter_gpu's
+  /// `bindUniform` takes a view of bytes and nothing else, so this is
+  /// [bindUniformBlock] without the member arithmetic. Shorter than the
+  /// block is zero-padded, the way the member path leaves what it does not
+  /// write; longer is refused by name.
+  @override
+  bool bindUniformBytes(ShaderHandle shader, String blockName, ByteData bytes) {
+    _features.require(DeviceFeature.uniformBytes, backend: impellerBackendName);
+    if (!shader.mayBindBlock(blockName)) return false;
+    final slot = (shader.backend as gpu.Shader).getUniformSlot(blockName);
+    final size = slot.sizeInBytes;
+    if (size == null || size == 0) return false;
+    if (bytes.lengthInBytes > size) {
+      throw StateError(
+        'uniform block "$blockName" is $size bytes and was handed '
+        '${bytes.lengthInBytes}',
+      );
+    }
+    final block = ByteData(size);
+    for (var i = 0; i < bytes.lengthInBytes; i++) {
+      block.setUint8(i, bytes.getUint8(i));
+    }
+    _pass.bindUniform(slot, _emplace(block));
+    return true;
+  }
+
+  /// flutter_gpu's `draw`: [vertexCount] vertices in order, the bound index
+  /// buffer left where it is. A first vertex or first instance is refused —
+  /// flutter_gpu's draw takes neither, and moving the vertex buffers would
+  /// leave `gl_VertexIndex` counting from zero.
+  @override
+  void drawNonIndexed({
+    required int vertexCount,
+    int firstVertex = 0,
+    int instanceCount = 1,
+    int firstInstance = 0,
+  }) {
+    _features.require(
+      DeviceFeature.nonIndexedDraw,
+      backend: impellerBackendName,
+    );
+    if (firstVertex != 0 || firstInstance != 0) _refuseBaseVertexOrInstance();
+    if (vertexCount < 0 || instanceCount < 0) {
+      throw RangeError(
+        'drawNonIndexed: $vertexCount vertices, $instanceCount instances',
+      );
+    }
+    if (vertexCount == 0 || instanceCount == 0 || _pipelineRefused) return;
+    _bindIndexStreams(vertexCount, instanceCount);
+    _drawOrRefuse(() => _pass.draw(vertexCount, instanceCount: instanceCount));
   }
 
   @override
@@ -351,8 +814,11 @@ final class GpuCommandEncoder implements CommandEncoder {
     // for — see `GpuFrame.encoding`.
     _frame.encoding--;
     _frame.outstanding++;
+    final label = _label;
+    final timed = label == null ? null : _frame.timePass(label);
     _buffer.submit(
       completionCallback: (bool ok) {
+        timed?.call();
         // **`ok` used to be bound and never read**, which meant a command
         // buffer the driver refused produced exactly the same accounting, the
         // same `FrameResult` and the same draw count as one that ran. In a
@@ -378,9 +844,15 @@ final class GpuCommandEncoder implements CommandEncoder {
     );
   }
 
-  static gpu.BufferView _view(GeometryBuffer buffer) => gpu.BufferView(
-    buffer.backend as gpu.DeviceBuffer,
-    offsetInBytes: buffer.offsetInBytes,
-    lengthInBytes: buffer.lengthInBytes,
-  );
+  /// [buffer] as flutter_gpu's view of it. Its memory comes back through
+  /// the collector here, so a disposed buffer would still draw; the debug
+  /// check is what says it should not have been bound.
+  static gpu.BufferView _view(GeometryBuffer buffer) {
+    debugCheckLive(buffer, 'a geometry bind');
+    return gpu.BufferView(
+      buffer.backend as gpu.DeviceBuffer,
+      offsetInBytes: buffer.offsetInBytes,
+      lengthInBytes: buffer.lengthInBytes,
+    );
+  }
 }

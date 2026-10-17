@@ -48,4 +48,92 @@ void main() {
     expect(find.textContaining('seed 5'), findsOneWidget);
     expect(find.textContaining('step 120'), findsOneWidget);
   });
+
+  group('N7: players\' runs from a telemetry server', () {
+    // What `cloud/server`'s `/api/telemetry/heatmap` answers: the playtest
+    // report's keys, with a run id under `seed`.
+    const String heatmap =
+        '{"cellSize":1.0,"cells":[{"x":0,"z":0,"samples":6,"runs":3}],'
+        '"deaths":[{"seed":41,"step":300,"x":0.5,"z":0.5}],'
+        '"outcomes":{"won":2,"lost":1,"unfinished":0},'
+        '"level":"cafe0001","says":"3 runs of cafe0001"}';
+
+    Future<void> fetch(WidgetTester tester) async {
+      await tester.tap(find.byIcon(Icons.cloud_download));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Fetch'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('asks for the open level by its digest, and draws what the '
+        'server binned', (tester) async {
+      // Mutation: asking for the level by path, or not at all, draws
+      // somebody else's level.
+      Uri? asked;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: PlaytestReportScreen(
+            levelHash: 'cafe0001',
+            get: (url) async {
+              asked = url;
+              return (status: 200, body: heatmap);
+            },
+          ),
+        ),
+      );
+      await fetch(tester);
+
+      expect(asked!.path, '/api/telemetry/heatmap');
+      expect(asked!.queryParameters['level'], 'cafe0001');
+      expect(find.textContaining('Players: 3 runs'), findsOneWidget);
+      expect(find.byType(PlaytestHeatmapView), findsOneWidget);
+    });
+
+    testWidgets('a lost run is named as a run on the server, not a seed to '
+        'play again', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: PlaytestReportScreen(
+            levelHash: 'cafe0001',
+            get: (url) async => (status: 200, body: heatmap),
+          ),
+        ),
+      );
+      await fetch(tester);
+
+      final view = tester.widget<PlaytestHeatmapView>(
+        find.byType(PlaytestHeatmapView),
+      );
+      final origin = tester.getTopLeft(find.byType(PlaytestHeatmapView));
+      final size = tester.getSize(find.byType(PlaytestHeatmapView));
+      final layout = HeatmapLayout(report: view.report, size: size);
+      await tester.tapAt(origin + layout.toScreen(0.5, 0.5));
+      await tester.pumpAndSettle();
+
+      expect(find.text('A run lost, from telemetry'), findsOneWidget);
+      expect(find.textContaining('run 41 on the server'), findsOneWidget);
+    });
+
+    testWidgets('a server that refuses is quoted, and nothing is drawn', (
+      tester,
+    ) async {
+      // Mutation: drawing an empty report on a refusal looks like a level
+      // nobody struggled with.
+      await tester.pumpWidget(
+        MaterialApp(
+          home: PlaytestReportScreen(
+            levelHash: 'cafe0001',
+            get: (url) async => (
+              status: 400,
+              body: '{"says":"name the level: ?level=<its digest>"}',
+            ),
+          ),
+        ),
+      );
+      await fetch(tester);
+
+      expect(find.text('No report open.'), findsOneWidget);
+      expect(find.text('name the level: ?level=<its digest>'), findsOneWidget);
+    });
+  });
 }

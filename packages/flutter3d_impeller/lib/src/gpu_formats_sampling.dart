@@ -1,16 +1,18 @@
 /// Filtering and addressing: how a sampler reads a texture, translated to and
-/// from flutter_gpu's vocabulary, plus the cache that keeps [SamplerOptions]
+/// from flutter_gpu's vocabulary, plus the cache that keeps [SamplerDescriptor]
 /// from allocating a native object on every bind.
 library;
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter_gpu/gpu.dart' as gpu;
+import 'gpu_refusal.dart' show impellerRefusal;
 
 /// Maps the engine's [MinMagFilter] to its `package:flutter_gpu` equivalent.
 extension MinMagFilterToGpu on MinMagFilter {
   gpu.MinMagFilter toGpu() => switch (this) {
     MinMagFilter.nearest => gpu.MinMagFilter.nearest,
     MinMagFilter.linear => gpu.MinMagFilter.linear,
+    _ => throw impellerRefusal('toGpu', 'flutter_gpu has no filter for $this'),
   };
 }
 
@@ -28,6 +30,10 @@ extension MipFilterToGpu on MipFilter {
   gpu.MipFilter toGpu() => switch (this) {
     MipFilter.nearest => gpu.MipFilter.nearest,
     MipFilter.linear => gpu.MipFilter.linear,
+    _ => throw impellerRefusal(
+      'toGpu',
+      'flutter_gpu has no mip filter for $this',
+    ),
   };
 }
 
@@ -46,6 +52,16 @@ extension SamplerAddressModeToGpu on SamplerAddressMode {
     SamplerAddressMode.clampToEdge => gpu.SamplerAddressMode.clampToEdge,
     SamplerAddressMode.repeat => gpu.SamplerAddressMode.repeat,
     SamplerAddressMode.mirror => gpu.SamplerAddressMode.mirror,
+    // Not reached through a bind: the encoder refuses a border axis by
+    // `DeviceFeature.samplerBorderColor` before a sampler is made.
+    SamplerAddressMode.clampToBorder => throw impellerRefusal(
+      'toGpu',
+      'flutter_gpu has no clamp-to-border address mode',
+    ),
+    _ => throw impellerRefusal(
+      'toGpu',
+      'flutter_gpu has no address mode for $this',
+    ),
   };
 }
 
@@ -64,22 +80,31 @@ extension SamplerAddressModeFromGpu on gpu.SamplerAddressMode {
 /// `bindTexture` is called several times per draw and there are hundreds of
 /// draws in a frame, but the engine only ever uses a handful of distinct
 /// samplers. Building a fresh `gpu.SamplerOptions` per bind would allocate for
-/// nothing; [SamplerOptions] is immutable and has value equality precisely so
+/// nothing; [SamplerDescriptor] is immutable and has value equality precisely so
 /// this map can exist.
 ///
-/// It never evicts and does not need to: five enum fields of two, two, two,
+/// It evicts only when told to, by `GraphicsDevice.releaseSampler`
+/// ([forgetGpuSampler]), and does not otherwise need to: five enum fields of two, two, two,
 /// three and three values bound the isotropic samplers at seventy-two entries
 /// however many models a session loads, and the anisotropy field — an integer
 /// the engine only ever sets from `min(8, maxAnisotropy)` or a setting —
 /// multiplies that by the handful of levels anything asks for. Sharing one
 /// object between call sites is safe too — `bindTexture` reads the fields
 /// into integers on every call and retains nothing.
-final Map<SamplerOptions, gpu.SamplerOptions> _samplerCache =
-    <SamplerOptions, gpu.SamplerOptions>{};
+final Map<SamplerDescriptor, gpu.SamplerOptions> _samplerCache =
+    <SamplerDescriptor, gpu.SamplerOptions>{};
 
-/// Maps [SamplerOptions] to its `package:flutter_gpu` equivalent, served from
+/// Drops the cached options for [sampler] — `GraphicsDevice.releaseSampler`
+/// on this backend. The next bind of an equal description builds them again.
+void forgetGpuSampler(SamplerDescriptor sampler) =>
+    _samplerCache.remove(sampler);
+
+/// How many descriptions the cache holds, for a test.
+int get debugGpuSamplerCount => _samplerCache.length;
+
+/// Maps [SamplerDescriptor] to its `package:flutter_gpu` equivalent, served from
 /// the cache above rather than built per call — see the note on the cache.
-extension SamplerOptionsToGpu on SamplerOptions {
+extension SamplerOptionsToGpu on SamplerDescriptor {
   gpu.SamplerOptions toGpu() => _samplerCache[this] ??= gpu.SamplerOptions(
     minFilter: minFilter.toGpu(),
     magFilter: magFilter.toGpu(),
@@ -95,7 +120,7 @@ extension SamplerOptionsToGpu on SamplerOptions {
 }
 
 /// Maps `package:flutter_gpu`'s sampler options back to the engine's
-/// [SamplerOptions], built fresh each call — the cache above is keyed the
+/// [SamplerDescriptor], built fresh each call — the cache above is keyed the
 /// other way.
 ///
 /// `maxAnisotropy` comes across only where the engine's constructor would
@@ -105,7 +130,7 @@ extension SamplerOptionsToGpu on SamplerOptions {
 /// conversion is not the place for that throw, and one tap is the only
 /// sampler such options can describe without it.
 extension SamplerOptionsFromGpu on gpu.SamplerOptions {
-  SamplerOptions toEngine() => SamplerOptions(
+  SamplerDescriptor toEngine() => SamplerDescriptor(
     minFilter: minFilter.toEngine(),
     magFilter: magFilter.toEngine(),
     mipFilter: mipFilter.toEngine(),

@@ -41,6 +41,7 @@ library;
 
 import 'command_encoder.dart';
 import 'formats.dart';
+import 'resources.dart';
 
 /// Distinguishes "leave blending alone" from "turn blending off".
 ///
@@ -51,6 +52,13 @@ import 'formats.dart';
 const Object _unsetBlend = Object();
 
 /// A pass's rasteriser state. Unset fields are not emitted.
+///
+/// **Every setter a pass has, since 1.0.0-rc.1+2**: the colour write mask,
+/// the depth bias, the depth clamp and alpha to coverage joined the seven it
+/// was written with, so a backend that accumulates state for a pipeline
+/// object has the whole of it in one value. The four are gated by their
+/// features, as the setters are; [PassStateApply.setState] emits them only
+/// when set, so a state that never names them works on every device.
 final class PassState {
   const PassState({
     this.viewport,
@@ -66,6 +74,11 @@ final class PassState {
     this.stencil,
     this.stencilBack,
     this.stencilReference,
+    this.colorWriteMask,
+    this.colorWriteMaskAttachment = 0,
+    this.depthBias,
+    this.depthClamp,
+    this.alphaToCoverage,
   }) : blend = identical(blend, _unsetBlend) ? null : blend as BlendState?,
        setsBlend = !identical(blend, _unsetBlend),
        assert(
@@ -74,7 +87,9 @@ final class PassState {
          'on: setStencil takes the front and, optionally, the back',
        );
 
-  final ScreenRect? viewport;
+  /// The viewport, a [PassViewport] since 1.0.0-rc.1+2 (`PassViewport.ofRect` for
+  /// the pixels of a [ScreenRect]).
+  final PassViewport? viewport;
   final ScreenRect? scissor;
   final PrimitiveType? primitiveType;
   final PolygonMode? polygonMode;
@@ -105,13 +120,31 @@ final class PassState {
   /// The reference value the stencil test compares against.
   final int? stencilReference;
 
+  /// The channels the draws may change — `PassEncoder.setColorWriteMask`,
+  /// `DeviceFeature.colorWriteMask`.
+  final ColorWriteMask? colorWriteMask;
+
+  /// The colour attachment [colorWriteMask] is for.
+  final int colorWriteMaskAttachment;
+
+  /// The depth offset — `PassEncoder.setDepthBias`, `DeviceFeature.depthBias`.
+  final DepthBias? depthBias;
+
+  /// Whether depth is clamped rather than clipped —
+  /// `PassEncoder.setDepthClamp`, `DeviceFeature.depthClamp`.
+  final bool? depthClamp;
+
+  /// Whether alpha becomes coverage — `PassEncoder.setAlphaToCoverage`,
+  /// ignored where `DeviceFeature.alphaToCoverage` is absent.
+  final bool? alphaToCoverage;
+
   /// This state with some fields replaced.
   ///
   /// Cannot clear a field: passing null means "leave it as it was", which is
   /// what every `copyWith` in this repository means. A state that needs a field
   /// unset is a different constant, and naming it is better than clearing one.
   PassState copyWith({
-    ScreenRect? viewport,
+    PassViewport? viewport,
     ScreenRect? scissor,
     PrimitiveType? primitiveType,
     PolygonMode? polygonMode,
@@ -124,6 +157,11 @@ final class PassState {
     StencilState? stencil,
     StencilState? stencilBack,
     int? stencilReference,
+    ColorWriteMask? colorWriteMask,
+    int? colorWriteMaskAttachment,
+    DepthBias? depthBias,
+    bool? depthClamp,
+    bool? alphaToCoverage,
   }) => PassState(
     viewport: viewport ?? this.viewport,
     scissor: scissor ?? this.scissor,
@@ -140,6 +178,12 @@ final class PassState {
     stencil: stencil ?? this.stencil,
     stencilBack: stencilBack ?? this.stencilBack,
     stencilReference: stencilReference ?? this.stencilReference,
+    colorWriteMask: colorWriteMask ?? this.colorWriteMask,
+    colorWriteMaskAttachment:
+        colorWriteMaskAttachment ?? this.colorWriteMaskAttachment,
+    depthBias: depthBias ?? this.depthBias,
+    depthClamp: depthClamp ?? this.depthClamp,
+    alphaToCoverage: alphaToCoverage ?? this.alphaToCoverage,
   );
 
   @override
@@ -158,10 +202,15 @@ final class PassState {
       other.depthCompare == depthCompare &&
       other.stencil == stencil &&
       other.stencilBack == stencilBack &&
-      other.stencilReference == stencilReference;
+      other.stencilReference == stencilReference &&
+      other.colorWriteMask == colorWriteMask &&
+      other.colorWriteMaskAttachment == colorWriteMaskAttachment &&
+      other.depthBias == depthBias &&
+      other.depthClamp == depthClamp &&
+      other.alphaToCoverage == alphaToCoverage;
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll(<Object?>[
     viewport,
     scissor,
     primitiveType,
@@ -176,7 +225,12 @@ final class PassState {
     stencil,
     stencilBack,
     stencilReference,
-  );
+    colorWriteMask,
+    colorWriteMaskAttachment,
+    depthBias,
+    depthClamp,
+    alphaToCoverage,
+  ]);
 
   @override
   String toString() {
@@ -193,6 +247,10 @@ final class PassState {
       if (stencil != null) 'stencil: ${stencil!.compare.name}',
       if (stencilBack != null) 'stencilBack: ${stencilBack!.compare.name}',
       if (stencilReference != null) 'stencilReference: $stencilReference',
+      if (colorWriteMask != null) 'colorWriteMask: $colorWriteMask',
+      if (depthBias != null) 'depthBias: $depthBias',
+      if (depthClamp != null) 'depthClamp: $depthClamp',
+      if (alphaToCoverage != null) 'alphaToCoverage: $alphaToCoverage',
     ];
     return 'PassState(${parts.join(', ')})';
   }
@@ -215,7 +273,8 @@ extension PassStateApply on PassEncoder {
   ///
   /// Geometry first, then topology, then blending, then depth, then the
   /// stencil — which reads in the order a reader asks the questions: where,
-  /// what shape, how combined, how occluded, and what the mask says.
+  /// what shape, how combined, how occluded, and what the mask says. The four
+  /// 1.0 setters follow.
   void setState(PassState state) {
     if (state.viewport != null) setViewport(state.viewport!);
     if (state.scissor != null) setScissor(state.scissor!);
@@ -226,7 +285,7 @@ extension PassStateApply on PassEncoder {
     if (state.setsBlend) {
       setBlend(state.blend, attachment: state.blendAttachment);
     }
-    if (state.depthWrite != null) setDepthWrite(state.depthWrite!);
+    if (state.depthWrite != null) setDepthWrite(enabled: state.depthWrite!);
     if (state.depthCompare != null) setDepthCompare(state.depthCompare!);
     if (state.stencil != null) {
       setStencil(state.stencil!, back: state.stencilBack);
@@ -234,5 +293,16 @@ extension PassStateApply on PassEncoder {
     if (state.stencilReference != null) {
       setStencilReference(state.stencilReference!);
     }
+    if (state.alphaToCoverage != null) {
+      setAlphaToCoverage(enabled: state.alphaToCoverage!);
+    }
+    if (state.depthBias != null) setDepthBias(state.depthBias!);
+    if (state.colorWriteMask != null) {
+      setColorWriteMask(
+        state.colorWriteMask!,
+        attachment: state.colorWriteMaskAttachment,
+      );
+    }
+    if (state.depthClamp != null) setDepthClamp(enabled: state.depthClamp!);
   }
 }

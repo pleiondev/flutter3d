@@ -18,7 +18,7 @@ import '../animation/morph_sink.dart';
 /// the vertex stage reads — see `lib/morph.glsl`. Nothing here is recomputed:
 /// a weight is set by an animation clip, by a game, or by nobody, and the cost
 /// of a face holding an expression is the same as the cost of one at rest.
-final class MorphState implements MorphSink {
+final class MorphState with MorphSink {
   MorphState({
     required this.texture,
     required int targetCount,
@@ -73,6 +73,8 @@ final class MorphState implements MorphSink {
   /// gives: a radius grows the box in directions the deltas never point, and on
   /// a model whose targets are large next to itself that is the difference
   /// between a subject filling a frame and a third of one.
+  ///
+  /// Live: the object's own cache, read-only by contract.
   Aabb3 get growth {
     if (_reachVersion == _version) return _growth;
     _reachVersion = _version;
@@ -130,6 +132,9 @@ final class _MorphWeights extends ListBase<double> {
   @override
   int get length => _values.length;
 
+  // `UnsupportedError`, not `UnsupportedCapabilityException`: a fixed-length list
+  // refuses a resize this way everywhere in Dart, and asking is a mistake in
+  // the caller, not something a platform lacks.
   @override
   set length(int value) =>
       throw UnsupportedError('A morph has as many weights as it has targets.');

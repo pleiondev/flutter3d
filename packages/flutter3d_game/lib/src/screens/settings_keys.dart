@@ -2,8 +2,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
-import '../input/bindings.dart';
-import 'settings_cubit.dart';
+import '../input/bindings.dart' show InputSource;
+import 'game_settings.dart';
 
 /// The keys that belong to the settings rather than to the game.
 ///
@@ -38,15 +38,15 @@ import 'settings_cubit.dart';
 /// it always did and gives the pointer back.
 KeyEventResult? settingsKeys(
   KeyEvent event,
-  SettingsCubit settings, {
+  GameSettingsController settings, {
   required void Function() opening,
   bool canOpen = true,
 }) {
   if (event is! KeyDownEvent) {
-    return settings.state.isOpen ? KeyEventResult.ignored : null;
+    return settings.value.isOpen ? KeyEventResult.ignored : null;
   }
 
-  if (settings.state.waitingFor != null) {
+  if (settings.value.waitingFor != null) {
     if (event.logicalKey == LogicalKeyboardKey.escape) {
       settings.rebind(null);
     } else {
@@ -56,11 +56,11 @@ KeyEventResult? settingsKeys(
   }
 
   if (event.logicalKey == LogicalKeyboardKey.escape &&
-      (canOpen || settings.state.isOpen)) {
-    if (!settings.state.isOpen) opening();
+      (canOpen || settings.value.isOpen)) {
+    if (!settings.value.isOpen) opening();
     settings.toggle();
     return KeyEventResult.handled;
   }
 
-  return settings.state.isOpen ? KeyEventResult.ignored : null;
+  return settings.value.isOpen ? KeyEventResult.ignored : null;
 }

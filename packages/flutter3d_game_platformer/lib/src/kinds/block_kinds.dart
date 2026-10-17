@@ -1,3 +1,5 @@
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Severity;
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -11,7 +13,9 @@ final class BreakableKind extends EntityKind {
   static Vector3 get defaultSize => Vector3(2.0, 2.0, 2.0);
 
   @override
-  void spawn(EntityDef entity, SpawnContext context) {
+  void spawn(EntitySpawn spawn) {
+    final entity = spawn.entity;
+    final context = spawn.context;
     final collider = place(
       entity,
       context,
@@ -38,12 +42,15 @@ final class ClimbableKind extends EntityKind {
   static Vector3 get defaultSize => Vector3(1.0, 6.0, 1.0);
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     final size = entity.vector('size') ?? defaultSize;
     if (size.y < 2.0) {
       out.add(
         LevelIssue(
-          LevelIssueSeverity.warning,
+          Severity.warning,
           'is ${size.y} m tall, which is a ladder shorter than the runner '
           'climbing it',
           where: scope.describe(entity),
@@ -53,7 +60,9 @@ final class ClimbableKind extends EntityKind {
   }
 
   @override
-  void spawn(EntityDef entity, SpawnContext context) {
+  void spawn(EntitySpawn spawn) {
+    final entity = spawn.entity;
+    final context = spawn.context;
     final collider = place(
       entity,
       context,

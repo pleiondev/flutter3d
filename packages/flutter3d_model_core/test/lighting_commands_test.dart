@@ -4,6 +4,7 @@
 ///     dart test test/lighting_commands_test.dart
 library;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show LightType;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -41,7 +42,10 @@ void main() {
 
       expect(said, isNotNull);
       // Refused, not silently ignored: the light's own field is unchanged.
-      expect(history.project.lighting.lights.single.intensity, 1.0);
+      expect(
+        history.project.lighting.lights.single.intensity,
+        ProjectLight().intensity,
+      );
     });
 
     test('a real number is accepted', () {
@@ -71,13 +75,10 @@ void main() {
         ),
         isNull,
       );
-      // Vector3's own storage is a Float32List, so a double literal loses
-      // precision on the way in — 1e-6 is this codebase's own established
-      // tolerance for that, not a loose assertion.
-      final Vector3 color = history.project.lighting.lights.single.color;
-      expect(color.x, closeTo(0.2, 1e-6));
-      expect(color.y, closeTo(0.4, 1e-6));
-      expect(color.z, closeTo(0.6, 1e-6));
+      final color = history.project.lighting.lights.single.color;
+      expect(color.r, closeTo(0.2, 1e-6));
+      expect(color.g, closeTo(0.4, 1e-6));
+      expect(color.b, closeTo(0.6, 1e-6));
     });
 
     test('a field that is not a light field is refused', () {
@@ -101,10 +102,7 @@ void main() {
         ),
         isNull,
       );
-      expect(
-        history.project.lighting.lights.single.type,
-        ProjectLightType.point,
-      );
+      expect(history.project.lighting.lights.single.type, LightType.point);
     });
   });
 

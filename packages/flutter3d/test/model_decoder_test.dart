@@ -50,7 +50,7 @@ final class _NamedDocument extends ModelDocument {
 /// Deliberately not a real format. What is being checked is that the engine
 /// hands the file over and takes back a document, not that anybody can parse
 /// anything.
-final class _ToyDecoder implements ModelDecoder {
+final class _ToyDecoder extends ModelDecoder {
   const _ToyDecoder();
 
   static bool isToy(Uint8List bytes) =>
@@ -61,30 +61,27 @@ final class _ToyDecoder implements ModelDecoder {
       bytes[3] == 0x21;
 
   @override
-  bool handles(String fileName, Uint8List bytes) =>
-      fileName.endsWith('.toy') || isToy(bytes);
+  bool handles(ModelProbe probe) {
+    final fileName = probe.fileName;
+    final bytes = probe.bytes;
+    return fileName.endsWith('.toy') || isToy(bytes);
+  }
 
   @override
-  Future<ModelDocument> decode(
-    Uint8List bytes,
-    ModelLoadRequest request,
-    AssetUriResolver resolveUri,
-  ) async => const _NamedDocument('toy');
+  Future<ModelDocument> decode(ModelDecodeContext context) async =>
+      const _NamedDocument('toy');
 }
 
 /// Claims everything, so it can be shown to win against a built-in format.
-final class _GreedyDecoder implements ModelDecoder {
+final class _GreedyDecoder extends ModelDecoder {
   const _GreedyDecoder();
 
   @override
-  bool handles(String fileName, Uint8List bytes) => true;
+  bool handles(ModelProbe probe) => true;
 
   @override
-  Future<ModelDocument> decode(
-    Uint8List bytes,
-    ModelLoadRequest request,
-    AssetUriResolver resolveUri,
-  ) async => const _NamedDocument('greedy');
+  Future<ModelDocument> decode(ModelDecodeContext context) async =>
+      const _NamedDocument('greedy');
 }
 
 /// No siblings: this format has none, and asking for one is a test bug.

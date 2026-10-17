@@ -18,6 +18,8 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show UnsupportedCapabilityException;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 /// The texture format WebGPU calls [format], or null where it has none.
@@ -70,7 +72,339 @@ String? gpuTextureFormat(TextureFormat format) => switch (format) {
   TextureFormat.astc8x8LDRSRGB => 'astc-8x8-unorm-srgb',
   TextureFormat.astc4x4HDR => null,
   TextureFormat.astc8x8HDR => null,
+  // The 1.0 tail of the enum: every one is a core WebGPU format, so each has
+  // a spelling and none rides on a feature to be allocated at all. What each
+  // can be *used* for is [webgpuTextureFormatSupport]'s question.
+  TextureFormat.r8g8b8a8SNormInt => 'rgba8snorm',
+  TextureFormat.r8g8b8a8UInt => 'rgba8uint',
+  TextureFormat.r8g8b8a8SInt => 'rgba8sint',
+  TextureFormat.r16Float => 'r16float',
+  TextureFormat.r16g16Float => 'rg16float',
+  TextureFormat.r16g16b16a16UInt => 'rgba16uint',
+  TextureFormat.r16g16b16a16SInt => 'rgba16sint',
+  TextureFormat.r32UInt => 'r32uint',
+  TextureFormat.r32SInt => 'r32sint',
+  TextureFormat.r32g32Float => 'rg32float',
+  TextureFormat.r32g32UInt => 'rg32uint',
+  TextureFormat.r32g32SInt => 'rg32sint',
+  TextureFormat.r32g32b32a32UInt => 'rgba32uint',
+  TextureFormat.r32g32b32a32SInt => 'rgba32sint',
+  TextureFormat.r10g10b10a2UNormInt => 'rgb10a2unorm',
+  TextureFormat.r11g11b10UFloat => 'rg11b10ufloat',
+  TextureFormat.r9g9b9e5UFloat => 'rgb9e5ufloat',
+  TextureFormat.d16UNormInt => 'depth16unorm',
+  TextureFormat.d32Float => 'depth32float',
+  _ => null,
 };
+
+/// What [format] can be used for on a device that was granted the features
+/// [granted] answers true for — the table `GraphicsDevice.textureFormatSupport`
+/// reads.
+///
+/// **The specification's own table, written out per format**, because every
+/// column of it varies independently: `rgba8snorm` is a storage format that
+/// cannot be drawn into, `rgba32float` is drawn into and cannot be
+/// multisampled, `r32float` filters and blends only behind two separate
+/// features, and `rg11b10ufloat` is a colour attachment only behind a third.
+/// Pure Dart, so `webgpu_formats_test.dart` holds it on the VM.
+///
+/// **`sampled` is exactly what `supportsTextureFormat` always answered**: a
+/// spelling, and the compression family's feature where there is one. That is
+/// why `depth32float-stencil8` says sampled without its feature — the getter
+/// said so before 1.0 and the forwarder may not change a legacy answer — while
+/// its `depthStencil` asks the feature, which is what an attachment needs.
+TextureFormatSupport webgpuTextureFormatSupport(
+  TextureFormat format, {
+  required bool Function(String feature) granted,
+}) {
+  final family = gpuTextureFormatFeature(format);
+  if (gpuTextureFormat(format) == null ||
+      (family != null && !granted(family))) {
+    return TextureFormatSupport.none;
+  }
+  if (format.isCompressed) {
+    return const TextureFormatSupport(sampled: true, filterable: true);
+  }
+  final filter32 = granted('float32-filterable');
+  final blend32 = granted('float32-blendable');
+  final rg11 = granted('rg11b10ufloat-renderable');
+  // Renders, blends, multisamples and resolves: the ordinary colour formats.
+  TextureFormatSupport color({bool storage = false}) => TextureFormatSupport(
+    sampled: true,
+    filterable: true,
+    renderable: true,
+    blendable: true,
+    multisample: true,
+    resolve: true,
+    storage: storage,
+  );
+  // Integer: drawn into and stored, never filtered, blended or resolved.
+  TextureFormatSupport integer({
+    bool multisample = false,
+    bool readWrite = false,
+  }) => TextureFormatSupport(
+    sampled: true,
+    renderable: true,
+    multisample: multisample,
+    storage: true,
+    storageReadWrite: readWrite,
+  );
+  const depth = TextureFormatSupport(
+    sampled: true,
+    multisample: true,
+    depthStencil: true,
+  );
+  return switch (format) {
+    TextureFormat.r8g8b8a8UNormInt ||
+    TextureFormat.r16g16b16a16Float => color(storage: true),
+    TextureFormat.r8UNormInt ||
+    TextureFormat.r8g8UNormInt ||
+    TextureFormat.r8g8b8a8UNormIntSRGB ||
+    TextureFormat.b8g8r8a8UNormInt ||
+    TextureFormat.b8g8r8a8UNormIntSRGB ||
+    TextureFormat.r16Float ||
+    TextureFormat.r16g16Float ||
+    TextureFormat.r10g10b10a2UNormInt => color(),
+    TextureFormat.r8g8b8a8SNormInt => const TextureFormatSupport(
+      sampled: true,
+      filterable: true,
+      storage: true,
+    ),
+    TextureFormat.r8g8b8a8UInt ||
+    TextureFormat.r8g8b8a8SInt ||
+    TextureFormat.r16g16b16a16UInt ||
+    TextureFormat.r16g16b16a16SInt => integer(multisample: true),
+    // The three formats WebGPU lets a stage read and write in one binding.
+    TextureFormat.r32UInt ||
+    TextureFormat.r32SInt => integer(multisample: true, readWrite: true),
+    TextureFormat.r32g32UInt ||
+    TextureFormat.r32g32SInt ||
+    TextureFormat.r32g32b32a32UInt ||
+    TextureFormat.r32g32b32a32SInt => integer(),
+    TextureFormat.r32Float => TextureFormatSupport(
+      sampled: true,
+      filterable: filter32,
+      renderable: true,
+      blendable: blend32,
+      multisample: true,
+      storage: true,
+      storageReadWrite: true,
+    ),
+    TextureFormat.r32g32Float ||
+    TextureFormat.r32g32b32a32Float => TextureFormatSupport(
+      sampled: true,
+      filterable: filter32,
+      renderable: true,
+      blendable: blend32,
+      storage: true,
+    ),
+    TextureFormat.r11g11b10UFloat => TextureFormatSupport(
+      sampled: true,
+      filterable: true,
+      renderable: rg11,
+      blendable: rg11,
+      multisample: rg11,
+      resolve: rg11,
+    ),
+    TextureFormat.r9g9b9e5UFloat => const TextureFormatSupport(
+      sampled: true,
+      filterable: true,
+    ),
+    TextureFormat.s8UInt ||
+    TextureFormat.d16UNormInt ||
+    TextureFormat.d24UnormS8Uint ||
+    TextureFormat.d32Float => depth,
+    TextureFormat.d32FloatS8UInt =>
+      granted('depth32float-stencil8')
+          ? depth
+          : const TextureFormatSupport(sampled: true),
+    _ => TextureFormatSupport.none,
+  };
+}
+
+/// What [operation] throws for a request this backend has the feature for
+/// and still cannot honour — a value WebGPU has no spelling for, one a later
+/// version names — since 1.0.0-rc.1+2: the HAL's `DeviceResourceException`,
+/// where it was an untyped `UnsupportedError`.
+DeviceResourceException webgpuRefusal(String operation, String reason) =>
+    DeviceResourceException(
+      operation: operation,
+      backend: 'WebGPU',
+      reason: reason,
+    );
+
+/// The features a WebGPU device has, given the optional ones [granted]
+/// answers true for.
+///
+/// **Decided here, on the VM, and read by the device once.** Everything
+/// listed unconditionally is core WebGPU and implemented in this package;
+/// everything behind [granted] is an adapter feature `WebGpuDevice.open`
+/// requests whenever the adapter offers it, and what came back is what is
+/// reported. The ones never listed are each answered at their refusal:
+///
+///  * `blend-constant-alpha` — GL's `CONSTANT_ALPHA` pair, which this API
+///    cannot form in a colour equation. Until the blend constant was split
+///    in two (1.0.0-rc.1+2) that pair took `blend-constant` with it; see
+///    `WebGpuEncoder.setBlendColor`.
+///  * `wireframe` — WebGPU has no polygon fill mode.
+///  * `render-stage-storage` — the render stages' reflection carries no
+///    storage bindings to bind by name.
+///  * `sampler-border-color` and `texture-compression-astc-hdr` — absent from
+///    the API.
+///  * `synchronous-readback` — absent from the API by design.
+///  * `pipeline-statistics-query` — not in the specification.
+DeviceFeatures webgpuDeviceFeatures({
+  required bool Function(String feature) granted,
+}) => DeviceFeatures(<DeviceFeature>[
+  DeviceFeature.offscreenMultisample,
+  DeviceFeature.manualMipmaps,
+  DeviceFeature.cubeTextures,
+  DeviceFeature.renderToMipLevel,
+  DeviceFeature.alphaToCoverage,
+  DeviceFeature.stencil,
+  if (granted('timestamp-query')) DeviceFeature.gpuTimestamps,
+  DeviceFeature.compute,
+  if (granted('float32-filterable')) DeviceFeature.float32Filterable,
+  // Core: `r32float`, `rg32float` and `rgba32float` are colour attachments on
+  // every device. Listed unconditionally, so `supportsFloat32Filtering` —
+  // which asks for both — answers exactly what it answered before 1.0.
+  DeviceFeature.float32Renderable,
+  DeviceFeature.independentBlend,
+  DeviceFeature.textureArrays,
+  DeviceFeature.texture1D,
+  DeviceFeature.texture3D,
+  DeviceFeature.cubeArrayTextures,
+  DeviceFeature.renderToArrayLayer,
+  DeviceFeature.textureWrites,
+  DeviceFeature.buffers,
+  DeviceFeature.bufferCopy,
+  DeviceFeature.textureCopy,
+  DeviceFeature.bufferTextureCopy,
+  DeviceFeature.storageTextures,
+  DeviceFeature.readWriteStorageTextures,
+  DeviceFeature.indirectDraw,
+  DeviceFeature.indirectDispatch,
+  if (granted('indirect-first-instance')) DeviceFeature.indirectFirstInstance,
+  DeviceFeature.nonIndexedDraw,
+  DeviceFeature.depthBias,
+  DeviceFeature.depthBiasClamp,
+  DeviceFeature.colorWriteMask,
+  if (granted('depth-clip-control')) DeviceFeature.depthClamp,
+  DeviceFeature.minMaxBlend,
+  if (granted('dual-source-blending')) DeviceFeature.dualSourceBlending,
+  DeviceFeature.samplerCompare,
+  DeviceFeature.samplerLodClamp,
+  DeviceFeature.occlusionQuery,
+  if (granted('timestamp-query')) DeviceFeature.timestampQuery,
+  if (granted('texture-compression-bc')) DeviceFeature.textureCompressionBC,
+  if (granted('texture-compression-etc2')) DeviceFeature.textureCompressionETC2,
+  if (granted('texture-compression-astc')) DeviceFeature.textureCompressionASTC,
+  if (granted('float32-blendable')) DeviceFeature.float32Blendable,
+  if (granted('rg11b10ufloat-renderable')) DeviceFeature.rg11b10Renderable,
+  if (granted('shader-f16')) DeviceFeature.shaderF16,
+  if (granted('subgroups')) DeviceFeature.subgroups,
+  if (granted('clip-distances')) DeviceFeature.clipDistances,
+  DeviceFeature.uniformBytes,
+  DeviceFeature.mappedBuffers,
+  DeviceFeature.renderBundles,
+  // Looped: one `drawIndexed` per entry, which costs calls and not
+  // correctness, as the contract allows.
+  DeviceFeature.multiDraw,
+  if (granted('multi-draw-indirect') ||
+      granted('chromium-experimental-multi-draw-indirect'))
+    DeviceFeature.multiDrawIndirect,
+  DeviceFeature.baseVertexBaseInstance,
+  // `A2.8`: clip depth is `[0, 1]`, and with `depth32float-stencil8` granted
+  // the depth this backend allocates is a float — see
+  // `WebGpuDevice.defaultDepthStencilFormat`. `depth24plus` may be either,
+  // and the specification leaves it to the browser which.
+  if (granted('depth32float-stencil8')) DeviceFeature.reversedDepth,
+  // Not `viewportBeyondTarget`: `setViewport` is a validation error unless
+  // the rectangle lies inside the attachment, so a window of a larger frame
+  // is drawn here through a crop of its projection.
+  //
+  // Since 1.0.0-rc.1+2: `setBlendConstant` and the colour pair it feeds,
+  // every topology with restart always on for strips, `uint32` indices,
+  // and a viewport in floats. Not `blend-constant-alpha`, which this API
+  // cannot form — see [gpuBlendFactor].
+  DeviceFeature.blendConstant,
+  DeviceFeature.primitiveStrips,
+  DeviceFeature.pointPrimitives,
+  DeviceFeature.indexUint32,
+  DeviceFeature.fractionalViewport,
+]);
+
+/// The `GPUTextureDimension` a texture of [dimension] is allocated as: the
+/// array and cube shapes are 2D textures with layers, and only a view says
+/// otherwise.
+String gpuTextureDimension(TextureDimension dimension) => switch (dimension) {
+  TextureDimension.d1 => '1d',
+  TextureDimension.d3 => '3d',
+  TextureDimension.d2 ||
+  TextureDimension.d2Array ||
+  TextureDimension.cube ||
+  TextureDimension.cubeArray => '2d',
+  _ => throw webgpuRefusal(
+    'gpuTextureDimension',
+    'WebGPU has no texture dimension for $dimension',
+  ),
+};
+
+String gpuStorageTextureAccess(StorageTextureAccess access) => switch (access) {
+  StorageTextureAccess.writeOnly => 'write-only',
+  StorageTextureAccess.readOnly => 'read-only',
+  StorageTextureAccess.readWrite => 'read-write',
+};
+
+/// How texels of [format] sit in a buffer for a copy or a `writeTexture`, or
+/// null where WebGPU gives the format no byte layout in that direction.
+///
+/// Uncompressed formats are one-texel blocks. [intoTexture] is the direction:
+/// a depth aspect can be copied *out* of `depth16unorm` and `depth32float` but
+/// written *into* only `depth16unorm`, and `depth24plus` has no byte layout
+/// either way — the specification's rule, refused here with a reason rather
+/// than by the browser with a message about an aspect. The combined
+/// depth-stencil formats are refused as well: a copy names one aspect, and
+/// the contract has no word for which.
+({int blockWidth, int blockHeight, int bytesPerBlock})? gpuCopyBlock(
+  TextureFormat format, {
+  required bool intoTexture,
+}) {
+  if (format.isCompressed) {
+    final block = format.blockLayout;
+    return (
+      blockWidth: block.blockWidth,
+      blockHeight: block.blockHeight,
+      bytesPerBlock: block.bytesPerBlock,
+    );
+  }
+  final copyable = switch (format) {
+    TextureFormat.unknown ||
+    TextureFormat.a8UNormInt ||
+    TextureFormat.d24UnormS8Uint ||
+    TextureFormat.d32FloatS8UInt => false,
+    TextureFormat.d32Float => !intoTexture,
+    _ => true,
+  };
+  if (!copyable || format.bytesPerTexel == 0) return null;
+  return (blockWidth: 1, blockHeight: 1, bytesPerBlock: format.bytesPerTexel);
+}
+
+/// The `bytesPerRow` an encoded copy between a buffer and a texture insists
+/// on: a multiple of 256. Throws an [ArgumentError] naming the number
+/// otherwise — the contract's `BufferTextureLayout` says a backend that needs
+/// the alignment says so by refusing, and padding the caller's rows would
+/// move every row but the first.
+void gpuCheckCopyBytesPerRow(int bytesPerRow) {
+  if (bytesPerRow > 0 && bytesPerRow % 256 == 0) return;
+  throw ArgumentError.value(
+    bytesPerRow,
+    'bytesPerRow',
+    'must be a positive multiple of 256 for a copy between a buffer and a '
+        'texture on WebGPU; lay the rows out padded (see paddedBytesPerRow), '
+        'or write from the host with writeTexture, which takes any stride',
+  );
+}
 
 /// The adapter feature [format] rides on, or null for one every WebGPU device
 /// has.
@@ -79,7 +413,7 @@ String? gpuTextureFormat(TextureFormat format) => switch (format) {
 /// `bc7-rgba-unorm` is a name the specification defines and a device that did
 /// not request `texture-compression-bc` refuses outright, allocation and sample
 /// alike. So `GraphicsDevice.supportsTextureFormat` is two questions and this is
-/// the second: whether the family's feature was granted. `WebGpuDevice.create`
+/// the second: whether the family's feature was granted. `WebGpuDevice.open`
 /// asks the adapter which of the three it has and requests exactly those,
 /// because requesting one the adapter lacks does not answer with a lesser
 /// device — it rejects the promise, and a game that will not start is a worse
@@ -176,12 +510,28 @@ String? gpuBlendFactor(BlendFactor factor) => switch (factor) {
   BlendFactor.oneMinusBlendColor => 'one-minus-constant',
   BlendFactor.blendAlpha => null,
   BlendFactor.oneMinusBlendAlpha => null,
+  // Dual-source, behind `dual-source-blending`: the fragment's
+  // `@blend_src(1)` output.
+  BlendFactor.source1Color => 'src1',
+  BlendFactor.oneMinusSource1Color => 'one-minus-src1',
+  BlendFactor.source1Alpha => 'src1-alpha',
+  BlendFactor.oneMinusSource1Alpha => 'one-minus-src1-alpha',
+  _ => null,
 };
 
+/// [min] and [max] are core in WebGPU, and the API requires both factors of
+/// a component using one to be `"one"` — which is what the contract means by
+/// "ignore both factors", and what `WebGpuEncoder` writes for them.
 String gpuBlendOperation(BlendOperation operation) => switch (operation) {
   BlendOperation.add => 'add',
   BlendOperation.subtract => 'subtract',
   BlendOperation.reverseSubtract => 'reverse-subtract',
+  BlendOperation.min => 'min',
+  BlendOperation.max => 'max',
+  _ => throw webgpuRefusal(
+    'gpuBlendOperation',
+    'WebGPU has no blend operation for $operation',
+  ),
 };
 
 String gpuCompareFunction(CompareFunction compare) => switch (compare) {
@@ -206,6 +556,10 @@ String gpuStencilOperation(StencilOperation operation) => switch (operation) {
   StencilOperation.invert => 'invert',
   StencilOperation.incrementWrap => 'increment-wrap',
   StencilOperation.decrementWrap => 'decrement-wrap',
+  _ => throw webgpuRefusal(
+    'gpuStencilOperation',
+    'WebGPU has no stencil operation for $operation',
+  ),
 };
 
 String gpuPrimitiveTopology(PrimitiveType type) => switch (type) {
@@ -214,12 +568,17 @@ String gpuPrimitiveTopology(PrimitiveType type) => switch (type) {
   PrimitiveType.line => 'line-list',
   PrimitiveType.lineStrip => 'line-strip',
   PrimitiveType.point => 'point-list',
+  _ => throw webgpuRefusal(
+    'gpuPrimitiveTopology',
+    'WebGPU has no primitive topology for $type',
+  ),
 };
 
 String gpuCullMode(CullMode mode) => switch (mode) {
   CullMode.none => 'none',
   CullMode.frontFace => 'front',
   CullMode.backFace => 'back',
+  _ => throw webgpuRefusal('gpuCullMode', 'WebGPU has no cull mode for $mode'),
 };
 
 /// **Straight through — and it was written crossed first, on an argument that
@@ -266,6 +625,7 @@ String gpuLoadOp(LoadAction action) => switch (action) {
   LoadAction.dontCare => 'clear',
   LoadAction.load => 'load',
   LoadAction.clear => 'clear',
+  _ => throw webgpuRefusal('gpuLoadOp', 'WebGPU has no load op for $action'),
 };
 
 /// The store operation, which in WebGPU says nothing about resolving: a resolve
@@ -280,6 +640,7 @@ String gpuStoreOp(StoreAction action) => switch (action) {
   StoreAction.store => 'store',
   StoreAction.multisampleResolve => 'discard',
   StoreAction.storeAndMultisampleResolve => 'store',
+  _ => throw webgpuRefusal('gpuStoreOp', 'WebGPU has no store op for $action'),
 };
 
 /// Whether a target described by [spec] is allocated as a WebGPU transient
@@ -291,7 +652,7 @@ String gpuStoreOp(StoreAction action) => switch (action) {
 /// the browser knows the flag ([supported]); elsewhere the target stays the
 /// attachment-only texture it always was.
 bool webgpuIsTransientAttachment(
-  RenderTargetSpec spec, {
+  RenderTargetDescriptor spec, {
   required bool supported,
 }) => supported && spec.storageMode == StorageMode.deviceTransient;
 
@@ -317,21 +678,46 @@ String gpuAddressMode(SamplerAddressMode mode) => switch (mode) {
   SamplerAddressMode.clampToEdge => 'clamp-to-edge',
   SamplerAddressMode.repeat => 'repeat',
   SamplerAddressMode.mirror => 'mirror-repeat',
+  // Not reached through a bind: `webgpuCheckSampler` refuses a border axis
+  // by `DeviceFeature.samplerBorderColor` before a sampler is made, and this
+  // refuses it by the same feature.
+  SamplerAddressMode.clampToBorder =>
+    throw const UnsupportedCapabilityException(
+      DeviceFeature.samplerBorderColor,
+      backend: 'WebGPU',
+      reason: 'WebGPU has no "clamp-to-border" address mode',
+    ),
+  _ => throw webgpuRefusal(
+    'gpuAddressMode',
+    'WebGPU has no address mode for $mode',
+  ),
 };
 
 String gpuFilterMode(MinMagFilter filter) => switch (filter) {
   MinMagFilter.nearest => 'nearest',
   MinMagFilter.linear => 'linear',
+  _ => throw webgpuRefusal(
+    'gpuFilterMode',
+    'WebGPU has no filter mode for $filter',
+  ),
 };
 
 String gpuMipmapFilterMode(MipFilter filter) => switch (filter) {
   MipFilter.nearest => 'nearest',
   MipFilter.linear => 'linear',
+  _ => throw webgpuRefusal(
+    'gpuMipmapFilterMode',
+    'WebGPU has no mipmap filter mode for $filter',
+  ),
 };
 
 String gpuIndexFormat(IndexType type) => switch (type) {
   IndexType.int16 => 'uint16',
   IndexType.int32 => 'uint32',
+  _ => throw webgpuRefusal(
+    'gpuIndexFormat',
+    'WebGPU has no index format for $type',
+  ),
 };
 
 String gpuVertexFormat(VertexFormat format) => switch (format) {
@@ -347,11 +733,19 @@ String gpuVertexFormat(VertexFormat format) => switch (format) {
   VertexFormat.sint32x2 => 'sint32x2',
   VertexFormat.sint32x3 => 'sint32x3',
   VertexFormat.sint32x4 => 'sint32x4',
+  _ => throw webgpuRefusal(
+    'gpuVertexFormat',
+    'WebGPU has no vertex format for $format',
+  ),
 };
 
 String gpuVertexStepMode(VertexStepMode mode) => switch (mode) {
   VertexStepMode.vertex => 'vertex',
   VertexStepMode.instance => 'instance',
+  _ => throw webgpuRefusal(
+    'gpuVertexStepMode',
+    'WebGPU has no vertex step mode for $mode',
+  ),
 };
 
 /// The row stride `copyTextureToBuffer` demands for a [width]-pixel region of

@@ -145,7 +145,7 @@ EditMesh applyStep(EditMesh mesh, Step step) {
       );
       mesh.endStep();
     case 8:
-      final (welded, _) = mergeByDistance(mesh);
+      final MergedMesh(mesh: welded) = mergeByDistance(mesh);
       return welded;
   }
   return mesh;

@@ -34,7 +34,7 @@ void main() {
       height: 1,
       format: TextureFormat.r8g8b8a8UNormInt,
       pixels: ByteData.sublistView(Uint8List.fromList(rgba)),
-    )!;
+    );
     final renderer = Renderer.create(
       device: device,
       fallbackAlbedo: texel(<int>[255, 255, 255, 255]),
@@ -47,7 +47,7 @@ void main() {
       width: _width,
       height: _height,
       scene: built.scene,
-      views: <RenderView>[RenderView(camera: built.camera)],
+      views: <CameraView>[CameraView(camera: built.camera)],
       settings: const RenderSettings(
         bloom: BloomSettings(enabled: false),
         shadows: ShadowSettings(enabled: false),
@@ -55,11 +55,11 @@ void main() {
     );
     final ms = DateTime.now().difference(started).inMilliseconds;
 
-    final pixels = await device.readPixels(result.frame);
+    final pixels = await device.readback(result.frame);
     final out = Directory('build/cpu')..createSync(recursive: true);
     final file = File('${out.path}/shapes.png')
       ..writeAsBytesSync(
-        encodePng(pixels!.buffer.asUint8List(), _width, _height),
+        encodePng(pixels.buffer.asUint8List(), _width, _height),
       );
 
     // ignore: avoid_print

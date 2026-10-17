@@ -9,31 +9,30 @@ library;
 
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show ShaderCompileException, ShaderDiagnostic;
+import 'package:flutter3d_hardware/shader_bundle.dart';
+import 'package:flutter3d_shaders/compile.dart' show engineRevisionAt;
+import 'package:flutter3d_shaders/flutter3d_shaders.dart'
+    show EngineBundleStamp;
 import 'package:meta/meta.dart';
 
-/// Thrown on any failure here — `hook/build.dart` wraps it as a
-/// [BuildError][], `bin/build_shader_bundle.dart` prints it and exits
-/// non-zero. Plain rather than a `package:hooks` type, because this file
-/// has no reason to depend on hooks at all.
-///
-/// [BuildError]: https://pub.dev/documentation/hooks/latest/hooks/BuildError-class.html
-final class ShaderBundleBuildException implements Exception {
-  const ShaderBundleBuildException(this.message);
-  final String message;
-  @override
-  String toString() => message;
-}
+import 'shader_bundle_build_exception.dart';
+
+export 'shader_bundle_build_exception.dart';
 
 /// Where the compiled bundle lives inside this package, relative to its own
 /// root — the path `pubspec.yaml` lists under `flutter.assets` and the path
-/// `ShaderLibrary.fromAsset` loads at run time. One spelling, because the
-/// three have to agree.
+/// `loadEngineShaderLibrary` falls back to at run time. One spelling, because
+/// the three have to agree.
 const String bundlePath = 'assets/shaders/flutter3d.shaderbundle';
 
 /// Compiles `flutter3d_shaders`'s own manifest into
 /// `<packageRoot>/assets/shaders/flutter3d.shaderbundle` through
-/// `impellerc`, and returns the sources it read — the manifest and every
+/// `impellerc`, in the engine's container with the SDK it was compiled on
+/// ([stampedEngineBundle]), and returns the sources it read — the manifest and every
 /// GLSL file under `flutter3d_shaders/shaders/` — so a caller with a build
 /// hook's own dependency list can declare them.
 ///
@@ -92,9 +91,11 @@ Future<List<Uri>> buildShaderBundle({
 
   outFile.parent.createSync(recursive: true);
 
+  final compiled = File('${outFile.path}.impellerc');
+  final manifestText = manifest.readAsStringSync();
   final result = await Process.run(impellerc.path, <String>[
-    '--shader-bundle=${manifest.readAsStringSync()}',
-    '--sl=${outFile.path}',
+    '--shader-bundle=$manifestText',
+    '--sl=${compiled.path}',
     '--include=${shadersRoot.path}/shaders',
     '--include=$shaderLib',
   ], workingDirectory: shadersRoot.path);
@@ -102,8 +103,23 @@ Future<List<Uri>> buildShaderBundle({
   if (result.exitCode != 0) {
     throw ShaderBundleBuildException(
       'impellerc failed (${result.exitCode}):\n${result.stderr}',
+      cause: impellercRefusal('${result.stderr}', bundle: manifest.path),
     );
   }
+
+  // Amendment 4: the output goes into the engine's own container with the
+  // SDK it was compiled on, so the copy this package ships is a fallback a
+  // device can check rather than bytes it has to trust.
+  final bytes = stampedEngineBundle(
+    compiled.readAsBytesSync(),
+    manifest: manifestText,
+    dart: runningDart,
+    engine: engineRevisionAt(sdkRoot),
+  );
+  compiled.deleteSync();
+  outFile.writeAsBytesSync(
+    bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),
+  );
 
   sink.writeln(
     'flutter3d_impeller: shader bundle written to ${outFile.path} '
@@ -117,6 +133,76 @@ Future<List<Uri>> buildShaderBundle({
     ).listSync(recursive: true))
       if (entity is File) entity.uri,
   ];
+}
+
+/// The Dart this build runs on, as a bundle's header carries it: the token
+/// `runningSdk` reads on the device that loads the bundle.
+String get runningDart => Platform.version.split(' ').first;
+
+/// [impellerc]'s output for the stages [manifest] (the bundle manifest's JSON)
+/// lists, in the engine's container: the stage list, the compiled section, and
+/// the [EngineBundleStamp] with [dart] and [engine].
+///
+/// Pure, so a test reads what a build would write without `impellerc`.
+ByteData stampedEngineBundle(
+  List<int> impellerc, {
+  required String manifest,
+  required String dart,
+  required String engine,
+  List<String> needs = const <String>[],
+  bool full = true,
+}) {
+  final entries = (jsonDecode(manifest) as Map<String, Object?>).entries;
+  final stages = <ShaderBundleStage>[
+    for (final MapEntry(key: name, value: entry) in entries)
+      ShaderBundleStage(
+        name,
+        fragment: (entry! as Map<String, Object?>)['type'] == 'fragment',
+      ),
+  ];
+  return EngineBundleStamp(
+        dart: dart,
+        engine: engine,
+        needs: needs,
+        full: full,
+        stages: stages.length,
+      )
+      .bundle(
+        stages: stages,
+        sections: <String, ByteData>{
+          ShaderBundle.impellerSection: Uint8List.fromList(
+            impellerc,
+          ).buffer.asByteData(),
+        },
+      )
+      .encode();
+}
+
+/// What `impellerc` said when it refused [bundle], as a
+/// [ShaderCompileException]: its log whole, and each error it placed as a
+/// [ShaderDiagnostic] — `impellerc` writes glslang's
+/// `file:line:column: error: message` — with the stage taken from the
+/// file's extension when every error names the same kind.
+ShaderCompileException impellercRefusal(String log, {required String bundle}) {
+  final diagnostics = ShaderDiagnostic.parseLog(log);
+  final stages = <String?>{
+    for (final line in log.split('\n'))
+      if (RegExp(r'\.(vert|frag|comp)(?:\.glsl)?:\d+').firstMatch(line)
+          case final m?)
+        switch (m[1]) {
+          'vert' => 'vertex',
+          'frag' => 'fragment',
+          _ => 'compute',
+        },
+  };
+  return ShaderCompileException(
+    shader: bundle,
+    backend: 'Impeller',
+    log: log.trim(),
+    target: 'impeller',
+    stage: stages.length == 1 ? stages.single : null,
+    diagnostics: diagnostics,
+  );
 }
 
 /// Resolves another workspace package's own root directory by reading
@@ -157,8 +243,11 @@ Directory resolvePackageRoot(String packageName, Directory from) {
   final Object? decoded;
   try {
     decoded = jsonDecode(configFile.readAsStringSync());
-  } on FormatException catch (error) {
-    throw ShaderBundleBuildException('${configFile.path}: ${error.message}');
+  } on FormatException catch (error, stack) {
+    Error.throwWithStackTrace(
+      ShaderBundleBuildException('${configFile.path}: ${error.message}'),
+      stack,
+    );
   }
   if (decoded is! Map<String, Object?> || decoded['packages'] is! List) {
     throw ShaderBundleBuildException(

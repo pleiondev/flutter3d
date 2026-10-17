@@ -27,7 +27,7 @@ import '../world/wrap_space.dart';
 ///
 /// Any bridged component: an `Object3dComponent`, or one instance of a
 /// batch drawn as an `InstancedObject3dComponent`.
-mixin Tap3dCallbacks on Component, HasVisibility, Drawn3d {
+base mixin Tap3dCallbacks on Component, HasVisibility, Drawn3d {
   /// The tap at [screen], in logical pixels from the top left, fell on
   /// this component and on nothing nearer.
   void onTap3d(Vector2 screen) {}
@@ -54,11 +54,27 @@ mixin Tap3dCallbacks on Component, HasVisibility, Drawn3d {
     }
   }
 
-  /// Whether [screen] falls on what this component draws, as [projector]
-  /// sees it: the screen rectangle round one of [drawnBoxes3d]. Override
-  /// for a tighter shape.
-  bool hitAt3d(Vector2 screen, BridgeProjector projector) =>
-      drawnBoxes3d().any((box) => _covers(projector, box, screen));
+  /// Whether the probe's screen point falls on what this component draws,
+  /// as its projector sees it: the screen rectangle round one of
+  /// [drawnBoxes3d]. Override for a tighter shape.
+  bool hitAt3d(Tap3dProbe probe) =>
+      drawnBoxes3d().any((box) => _covers(probe.projector, box, probe.screen));
+}
+
+/// What [Tap3dCallbacks.hitAt3d] is handed: where the tap is, and what
+/// sees the scene.
+///
+/// **One object, so a minor can hand a component more** — the ray through
+/// the tap, the pointer's kind — without breaking an override written
+/// against 1.0. One per tap, asked of every candidate under it.
+final class Tap3dProbe {
+  const Tap3dProbe({required this.screen, required this.projector});
+
+  /// The tap, in logical pixels from the top left.
+  final Vector2 screen;
+
+  /// How the game's camera puts the scene on the screen.
+  final BridgeProjector projector;
 }
 
 bool _covers(BridgeProjector projector, Aabb3 box, Vector2 screen) {
@@ -84,7 +100,7 @@ bool _covers(BridgeProjector projector, Aabb3 box, Vector2 screen) {
 /// field, whose middle was nearer the camera. The distance is to where the
 /// ray through the tap enters the box, and to its middle only for a box the
 /// ray misses although its screen rectangle is hit.
-class Taps3dComponent extends PositionComponent
+base class Taps3dComponent extends PositionComponent
     with TapCallbacks, HasGameReference<HasFlutter3d> {
   Taps3dComponent({super.priority});
 
@@ -138,19 +154,20 @@ class Taps3dComponent extends PositionComponent
   /// The nearest [Tap3dCallbacks] component drawn under [screen], or null.
   Tap3dCallbacks? nearestAt(Vector2 screen) {
     final ray = game.projector.rayThrough(screen);
-    final eye = ray?.$1 ?? game.camera3d.readWorldPosition();
+    final eye = ray?.near ?? game.camera3d.readWorldPosition();
     Tap3dCallbacks? nearest;
     var nearestDistance = double.infinity;
+    final probe = Tap3dProbe(screen: screen, projector: game.projector);
     for (final candidate in game.descendants().whereType<Tap3dCallbacks>()) {
       if (!shownInFlame(candidate)) continue;
-      if (!candidate.hitAt3d(screen, game.projector)) continue;
+      if (!candidate.hitAt3d(probe)) continue;
       // Of its boxes, the nearest the tap is on: a craft and its ghost are
       // never both under one finger, but the one that is decides.
       for (final box in candidate.drawnBoxes3d()) {
         if (!_covers(game.projector, box, screen)) continue;
         final distance = ray == null
             ? eye.distanceTo(box.center)
-            : _entry(ray.$1, ray.$2, box) ?? eye.distanceTo(box.center);
+            : _entry(ray.near, ray.far, box) ?? eye.distanceTo(box.center);
         if (distance < nearestDistance) {
           nearestDistance = distance;
           nearest = candidate;

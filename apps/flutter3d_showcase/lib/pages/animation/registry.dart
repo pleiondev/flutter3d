@@ -5,6 +5,7 @@
 library;
 
 import 'package:flutter3d_showcase/pages/animation/additive_blend.dart';
+import 'package:flutter3d_showcase/pages/animation/animation_graph.dart';
 import 'package:flutter3d_showcase/pages/animation/animation_layers.dart';
 import 'package:flutter3d_showcase/pages/animation/baked_crowd.dart';
 import 'package:flutter3d_showcase/pages/animation/clip_playback.dart';
@@ -33,4 +34,5 @@ final Map<String, DemoBuilder> animationDemos = <String, DemoBuilder>{
   'pose-sampling': PoseSamplingDemo.new,
   'skeleton-debug': SkeletonDebugDemo.new,
   'baked-crowd': BakedCrowdDemo.new,
+  'animation-graph': AnimationGraphDemo.new,
 };

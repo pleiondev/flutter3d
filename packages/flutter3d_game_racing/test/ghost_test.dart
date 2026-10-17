@@ -3,12 +3,13 @@ import 'dart:math' as math;
 
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart' show GhostFrame;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
 /// A car that goes exactly where it is told, so that a test about recording is
 /// not also a test about driving.
-final class ScriptedCar implements VehicleController {
+final class ScriptedCar with VehicleController {
   ScriptedCar()
     : collider = Collider(
         shape: CollisionSphere(0.7),
@@ -43,7 +44,7 @@ final class ScriptedCar implements VehicleController {
   double slipRatio = 0.0;
 
   @override
-  bool grounded = true;
+  bool isGrounded = true;
 
   @override
   double impactThisStep = 0.0;
@@ -55,10 +56,12 @@ final class ScriptedCar implements VehicleController {
   double trackDistance = 0.0;
 
   @override
-  void step(double dt, VehicleInput input) {}
+  void step(VehicleStep context) {}
 
   @override
-  void placeAt(Vector3 at, double yaw, {double? trackDistance}) {
+  void placeAt(VehiclePlacement placement) {
+    final at = placement.position;
+    final yaw = placement.headingYaw;
     collider.position.setFrom(at);
     headingYaw = yaw;
   }

@@ -72,7 +72,7 @@ final class _FakePicker extends FileSelectorPlatform
 
 /// Where the six committed case documents live.
 const String _fixtures =
-    '../../packages/flutter3d_model_mcp/test/fixtures/tutorial';
+    '../../packages/flutter3d_mcp/test/model/fixtures/tutorial';
 
 /// The teapot case 1 actually imports — a real STL, which is what puts the
 /// import screen on the screen at all.
@@ -125,7 +125,14 @@ void main() {
     // the pumps above have run out — and it is still the screen a person has
     // to answer before anything opens. Settling and looking again is what
     // makes this helper work for a real model as well as a fixture.
-    for (var attempt = 0; attempt < 3; attempt++) {
+    //
+    // **Not for a project file**, which never meets that screen: the loop's
+    // first look found no Import button, settled six more frames of the whole
+    // window on the software rasteriser to be sure, and found none again —
+    // on every case document, before the two settles below that every open
+    // takes anyway.
+    final bool asksImport = !name.endsWith('.f3dproj');
+    for (var attempt = 0; asksImport && attempt < 3; attempt++) {
       final Finder confirm = find.widgetWithText(FilledButton, 'Import');
       if (confirm.evaluate().isEmpty) {
         await settleFrames(tester);
@@ -139,6 +146,26 @@ void main() {
       }
       await tester.pump(const Duration(milliseconds: 400));
     }
+    // **A project file is in once its name is on the screen, and not
+    // before.** Opening one decodes its textures through the engine's image
+    // codec, real asynchronous work that moves only while a hop is open. Two
+    // settles were enough on an idle machine and not on a busy one: the
+    // document landed in the second settle's hop, after the frame that hop
+    // decodes had been drawn, and `05-outliner-after-import` came out as the
+    // launch's cube under the case's own outliner. Bounded, and moving no
+    // clock; the frames drawn while it waits are never the picture.
+    for (var wait = 0; !asksImport && wait < 60; wait++) {
+      if (find.textContaining(name).evaluate().isNotEmpty) break;
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 50)),
+      );
+      await tester.pump();
+    }
+    expect(
+      asksImport || find.textContaining(name).evaluate().isNotEmpty,
+      isTrue,
+      reason: '$name never opened',
+    );
     // Twice: the document lands on one frame and the scene it builds is
     // rasterised and decoded over the next two.
     await settleFrames(tester);
@@ -357,7 +384,8 @@ void main() {
         tester,
         'Preview — see it the way the game would draw it',
       );
-      await settleFrames(tester);
+      // `openByTooltip` ends on a settle of its own; a second one here drew
+      // six more full-window frames of a preview that had already settled.
       await shootWindow(tester, 'character-from-a-bare-mesh/06-game-preview');
     });
 
@@ -500,8 +528,9 @@ void main() {
           socket
             ..add(
               utf8.encode(
-                'POST /mcp?token=$token HTTP/1.1\r\n'
+                'POST /mcp HTTP/1.1\r\n'
                 'Host: 127.0.0.1:$port\r\n'
+                'Authorization: Bearer $token\r\n'
                 'Content-Type: application/json\r\n'
                 'Content-Length: ${payload.length}\r\n'
                 'Connection: close\r\n'
@@ -512,16 +541,23 @@ void main() {
           await socket.flush();
           unawaited(socket.drain<void>().whenComplete(socket.destroy));
         });
-        // Alternating on purpose: the pump lets the server's own handler take
-        // its next step, the real delay lets the socket deliver whatever that
-        // step asked for. Neither alone gets a request answered.
+        // Alternating on purpose: the fake clock's turn lets the server's own
+        // handler take its next step, the real delay lets the socket deliver
+        // whatever that step asked for. Neither alone gets a request answered.
+        //
+        // **The clock is moved without drawing a frame.** This loop used to
+        // `pump`, and every pump is a frame of the whole window through the
+        // software rasteriser — twenty-four of them per call and a settle on
+        // top, seven calls, over five minutes for one picture. The handler
+        // needs the zone's microtasks and timers to run, which
+        // `binding.delayed` does, and nothing on the screen is looked at
+        // until every call is in.
         for (var step = 0; step < 24; step++) {
-          await tester.pump(const Duration(milliseconds: 16));
+          await tester.binding.delayed(const Duration(milliseconds: 16));
           await tester.runAsync(
             () => Future<void>.delayed(const Duration(milliseconds: 10)),
           );
         }
-        await settleFrames(tester);
       }
 
       await call(<String, Object?>{
@@ -576,6 +612,9 @@ void main() {
         'field': 'baseColor',
         'value': <double>[0.72, 0.36, 0.22, 1],
       });
+
+      // Drawn now, once, with every call handled.
+      await settleFrames(tester);
 
       // The badge only exists once a client has introduced itself, which is
       // the state this picture is of.

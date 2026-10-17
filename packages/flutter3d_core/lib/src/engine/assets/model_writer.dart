@@ -1,32 +1,62 @@
 import 'dart:developer' as developer;
-import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/formats.dart';
+
+import '../platform/background.dart';
 
 /// Whether this build has no isolates in it — see `model_loader.dart`'s own
 /// copy of this constant for why it replaces `kIsWeb` here (mcp-03n).
 const bool _isWeb = bool.fromEnvironment('dart.library.js_interop');
 
 /// Which format [encodeModel]/[encodeModelInIsolate] writes.
-enum ModelWriteFormat {
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class ModelWriteFormat {
+  const ModelWriteFormat._(this.name);
+
   /// `GltfWriter.writeGlb()` — one self-contained binary file.
-  glb,
+  static const ModelWriteFormat glb = ModelWriteFormat._('glb');
 
   /// `ObjWriter.write()`. The `.mtl` beside it, when the document has
   /// materials, is a second call this request does not carry: unlike every
   /// other format here, OBJ is two files, and asking for one still has to
   /// leave room for a caller that does not want the other.
-  obj,
+  static const ModelWriteFormat obj = ModelWriteFormat._('obj');
 
   /// `F3dWriter.write()`.
-  f3d,
+  static const ModelWriteFormat f3d = ModelWriteFormat._('f3d');
 
   /// `StlWriter.write()` — binary.
-  stl,
+  static const ModelWriteFormat stl = ModelWriteFormat._('stl');
 
   /// `StlWriter.writeAscii()`.
-  stlAscii;
+  static const ModelWriteFormat stlAscii = ModelWriteFormat._('stlAscii');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<ModelWriteFormat> values = <ModelWriteFormat>[
+    glb,
+    obj,
+    f3d,
+    stl,
+    stlAscii,
+  ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static ModelWriteFormat? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
 
   /// The writer `flutter3d_formats` keeps for this format.
   ///
@@ -39,7 +69,11 @@ enum ModelWriteFormat {
     ModelWriteFormat.f3d => const F3dModelWriter(),
     ModelWriteFormat.stl => const StlModelWriter(),
     ModelWriteFormat.stlAscii => const StlModelWriter(ascii: true),
+    _ => throw UnsupportedError('no writer for $this'),
   };
+
+  @override
+  String toString() => 'ModelWriteFormat.$name';
 }
 
 /// What to encode, and as which format — `fmt-13`'s own row, the write-side
@@ -66,7 +100,9 @@ final class ModelWriteRequest {
 /// [encodeModelInIsolate] falls back to on the web, and what a caller with
 /// no isolate to spare can call directly.
 Uint8List encodeModel(ModelWriteRequest request) => request.format.writer
-    .write(request.document, baseName: request.name)
+    .write(
+      ModelWriteContext(document: request.document, baseName: request.name),
+    )
     .files
     .first
     .bytes;
@@ -95,7 +131,7 @@ Future<Uint8List> encodeModelInIsolate(ModelWriteRequest request) async {
       arguments: <String, Object?>{'format': request.format.name},
     );
   try {
-    return await Isolate.run(() => encodeModel(request));
+    return await runInBackground(() => encodeModel(request));
   } finally {
     task.finish();
   }

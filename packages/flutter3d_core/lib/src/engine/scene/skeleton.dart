@@ -45,7 +45,11 @@ final class Skeleton {
   /// into the per-frame host buffer on every skinned draw: at 64 bytes a matrix
   /// this is a 4 KB upload, and doubling it doubles that cost for every skinned
   /// mesh whether or not it has the joints to justify it.
-  static const int maxJoints = 64;
+  ///
+  /// A getter, not a constant, so the shader may hold more in a later release
+  /// without breaking code that reads it.
+  static int get maxJoints => _maxJoints;
+  static const int _maxJoints = 64;
 
   final String? name;
 
@@ -65,6 +69,12 @@ final class Skeleton {
   final Float32List matrices = Float32List(maxJoints * 16);
 
   int get jointCount => joints.length;
+
+  /// Joint [index] in its bind pose, in the skinned mesh's own space: the
+  /// inverse of its inverse bind matrix. Times the mesh's world matrix, where
+  /// the joint stood when the skin was bound — the rest a ragdoll takes its
+  /// joints' limits from.
+  Matrix4 bindPoseOf(int index) => Matrix4.inverted(_inverseBind[index]);
 
   final Matrix4 _scratch = Matrix4.identity();
   final Matrix4 _measure = Matrix4.identity();

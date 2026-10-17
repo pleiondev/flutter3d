@@ -42,12 +42,13 @@ List<AudioBus> busesIn(Iterable<SoundDef> sounds) {
   ];
 }
 
-/// Copies every saved volume into [mixer].
+/// Copies every saved volume into [mixer]: the buses [settableBuses] lists,
+/// and any other the player has a volume for.
 ///
 /// Called when the settings are loaded and again whenever one changes, which is
 /// the whole of what an application has to do about volume.
-void applySavedVolumes(GameConfig config, Mixer mixer) {
-  for (final bus in settableBuses) {
-    mixer.setVolume(bus, config.volumeOf(bus.name));
+void applySavedVolumes(GameSettings config, Mixer mixer) {
+  for (final bus in <AudioBus>{...settableBuses, ...config.volumes.keys}) {
+    mixer.setVolume(bus, config.volumeOf(bus));
   }
 }

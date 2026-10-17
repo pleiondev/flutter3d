@@ -18,6 +18,7 @@ Future<void> pump(
   double max = 1.0,
   double? step,
   ValueChanged<double>? onChanged,
+  ValueChanged<double>? onPreview,
   bool enabled = true,
   bool editable = false,
 }) => tester.pumpWidget(
@@ -32,6 +33,7 @@ Future<void> pump(
         enabled: enabled,
         editable: editable,
         onChanged: onChanged ?? (double _) {},
+        onPreview: onPreview,
       ),
     ),
   ),
@@ -70,6 +72,40 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(said, hasLength(1));
+    });
+
+    testWidgets('a drag previews every stop on the way, and writes once', (
+      WidgetTester tester,
+    ) async {
+      // `HR4`: a running game shows the value while the thumb moves; the
+      // document still gets one write, where the drag ends.
+      final previewed = <double>[];
+      final written = <double>[];
+      await pump(
+        tester,
+        label: 'Metallic',
+        value: 0.2,
+        step: 0.05,
+        onPreview: previewed.add,
+        onChanged: written.add,
+      );
+
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.byType(Slider)),
+      );
+      for (var i = 0; i < 4; i++) {
+        await gesture.moveBy(const Offset(15, 0));
+        await tester.pump();
+      }
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(previewed.length, greaterThan(1));
+      for (final at in previewed) {
+        expect((at / 0.05 - (at / 0.05).round()).abs(), lessThan(1e-9));
+      }
+      expect(written, hasLength(1));
+      expect(written.single, previewed.last);
     });
 
     testWidgets('a null step writes what the drag produced, unrounded', (

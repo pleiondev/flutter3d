@@ -7,12 +7,11 @@
 /// and a material changed behind it is changed here on the next frame.
 library;
 
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart' show Ticker;
 import 'package:flutter/services.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
-import 'package:vector_math/vector_math.dart' show Vector2;
 
 import '../../../l10n/app_localizations.dart';
 import '../modeler_viewport.dart';

@@ -6,49 +6,112 @@
 /// carries everything its call took, with resources named by the order they
 /// were created in rather than by handles that die with the process.
 ///
-/// Sealed, and complete for the whole contract in 0.8.0 — compute included,
-/// though no backend runs it yet — because a variant added in a patch would
-/// break every exhaustive switch over it, the replay's among them.
+/// **Open, not sealed, since 1.0**, so a call the HAL gains in a 1.x minor
+/// adds an event without breaking anybody: a `switch` over these ends in a
+/// `default` (or `_`) branch. What that branch does is the documented
+/// default — the replay throws a [StateError] naming the event's [kind],
+/// because an event it cannot replay is a frame it cannot reproduce, and a
+/// reader meeting a kind it does not know refuses the whole trace with a
+/// `TraceFormatException` rather than dropping the event. The events are
+/// `final` themselves: a new call is a new event, never a subclass of an old
+/// one.
 library;
 
 import 'dart:typed_data';
 
-import 'package:vector_math/vector_math.dart' show Vector4;
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 
 import '../formats.dart';
 import '../geometry_buffer.dart';
 import '../render_pass_descriptor.dart';
-import '../render_target_pool.dart';
+import '../resources.dart';
 import '../sampler.dart';
 import '../vertex_layout_spec.dart';
+import 'trace_format_exception.dart';
 import 'trace_values.dart';
+import 'trace_wire_names.dart';
 
 /// A slice of a geometry buffer: which buffer, and which bytes of it.
 typedef TraceGeometryRange = ({int buffer, int offset, int length});
 
-/// One colour attachment, with its textures named by id.
-typedef TraceColorTarget = ({
-  int texture,
-  int? resolveTexture,
-  LoadAction loadAction,
-  StoreAction storeAction,
-  Vector4? clearValue,
-  int face,
-  int mipLevel,
-});
+/// One colour attachment, with its textures named by id: a `ColorTarget`
+/// as a trace writes it.
+///
+/// **A class, not a record, since 1.0**, so a field `ColorTarget` gains in
+/// a minor is a field here with the same default, and a trace written
+/// before it reads as what it was. The defaults are `ColorTarget`'s.
+final class TraceColorTarget {
+  const TraceColorTarget({
+    required this.texture,
+    this.resolveTexture,
+    this.loadAction = LoadAction.clear,
+    this.storeAction = StoreAction.store,
+    this.clearValue,
+    this.face = 0,
+    this.mipLevel = 0,
+    this.layer = 0,
+  });
 
-/// The depth attachment, with its texture named by id.
-typedef TraceDepthTarget = ({
-  int texture,
-  double clearValue,
-  LoadAction loadAction,
-  StoreAction storeAction,
-  LoadAction stencilLoadAction,
-  StoreAction stencilStoreAction,
-  int stencilClearValue,
-});
+  /// The attachment, by the id the trace created it under.
+  final int texture;
 
-sealed class TraceEvent {
+  /// Where a multisampled attachment resolves, by id; null for none.
+  final int? resolveTexture;
+  final LoadAction loadAction;
+  final StoreAction storeAction;
+
+  /// The colour a clear writes, linear RGBA, unitless; null clears to
+  /// transparent black.
+  final ClearColor? clearValue;
+
+  /// The cube face, mip level and array layer the pass draws into.
+  final int face;
+  final int mipLevel;
+  final int layer;
+}
+
+/// The depth attachment, with its texture named by id: a `DepthTarget` as
+/// a trace writes it. A class for [TraceColorTarget]'s reason, with
+/// `DepthTarget`'s defaults.
+final class TraceDepthTarget {
+  const TraceDepthTarget({
+    required this.texture,
+    this.clearValue = 1.0,
+    this.loadAction = LoadAction.clear,
+    this.storeAction = StoreAction.dontCare,
+    this.stencilLoadAction = LoadAction.clear,
+    this.stencilStoreAction = StoreAction.dontCare,
+    this.stencilClearValue = 0,
+    this.mipLevel = 0,
+    this.layer = 0,
+    this.face = 0,
+    this.depthReadOnly = false,
+    this.stencilReadOnly = false,
+  });
+
+  /// The attachment, by the id the trace created it under.
+  final int texture;
+
+  /// The depth a clear writes. A depth from 0 to 1, unitless.
+  final double clearValue;
+  final LoadAction loadAction;
+  final StoreAction storeAction;
+  final LoadAction stencilLoadAction;
+  final StoreAction stencilStoreAction;
+  final int stencilClearValue;
+
+  /// The mip level, array layer and cube face the pass draws into.
+  final int mipLevel;
+  final int layer;
+  final int face;
+
+  /// Whether the pass only reads depth, or stencil, from the attachment.
+  final bool depthReadOnly;
+  final bool stencilReadOnly;
+}
+
+abstract base class TraceEvent {
   const TraceEvent();
 
   /// The event's name in a trace file.
@@ -80,14 +143,14 @@ sealed class TraceEvent {
       id: asInt(j['id']),
       width: asInt(j['width']),
       height: asInt(j['height']),
-      format: byName(TextureFormat.values, j['format']),
+      format: textureFormatWire.read(j['format']),
       pixels: blob.read(j['pixels']),
       mipLevels: (j['mipLevels'] as List<Object?>?)?.map(blob.read).toList(),
     ),
     'createCubeTextureFromPixels' => TraceCreateCubeTextureFromPixels(
       id: asInt(j['id']),
       size: asInt(j['size']),
-      format: byName(TextureFormat.values, j['format']),
+      format: textureFormatWire.read(j['format']),
       faces: (j['faces']! as List<Object?>).map(blob.read).toList(),
       mipLevels: (j['mipLevels'] as List<Object?>?)
           ?.map((f) => (f! as List<Object?>).map(blob.read).toList())
@@ -96,7 +159,7 @@ sealed class TraceEvent {
     'createCubeRenderTarget' => TraceCreateCubeRenderTarget(
       id: asInt(j['id']),
       size: asInt(j['size']),
-      format: byName(TextureFormat.values, j['format']),
+      format: textureFormatWire.read(j['format']),
       mipLevels: asInt(j['mipLevels']),
     ),
     'overwriteTexture' => TraceOverwriteTexture(
@@ -118,43 +181,26 @@ sealed class TraceEvent {
       label: j['label'] as String?,
       colors: <TraceColorTarget>[
         for (final c in (j['colors']! as List<Object?>).map(asMap))
-          (
+          TraceColorTarget(
             texture: asInt(c['texture']),
             resolveTexture: c['resolveTexture'] == null
                 ? null
                 : asInt(c['resolveTexture']),
-            loadAction: byName(LoadAction.values, c['loadAction']),
-            storeAction: byName(StoreAction.values, c['storeAction']),
+            loadAction: loadActionWire.read(c['loadAction']),
+            storeAction: storeActionWire.read(c['storeAction']),
             clearValue: c['clearValue'] == null
                 ? null
-                : vector4FromJson(c['clearValue']),
+                : clearColorFromJson(c['clearValue']),
             face: asInt(c['face']),
             mipLevel: asInt(c['mipLevel']),
+            // Absent from a trace written before 1.0 recorded layers, and
+            // from any attachment at layer zero.
+            layer: c['layer'] == null ? 0 : asInt(c['layer']),
           ),
       ],
       depth: switch (j['depth']) {
         null => null,
-        final Object d => (
-          texture: asInt(asMap(d)['texture']),
-          clearValue: asDouble(asMap(d)['clearValue']),
-          // Absent from a trace written before `R8` let a pass load depth,
-          // and absent means what every pass did then.
-          loadAction: asMap(d)['loadAction'] == null
-              ? LoadAction.clear
-              : byName(LoadAction.values, asMap(d)['loadAction']),
-          storeAction: asMap(d)['storeAction'] == null
-              ? StoreAction.dontCare
-              : byName(StoreAction.values, asMap(d)['storeAction']),
-          stencilLoadAction: byName(
-            LoadAction.values,
-            asMap(d)['stencilLoadAction'],
-          ),
-          stencilStoreAction: byName(
-            StoreAction.values,
-            asMap(d)['stencilStoreAction'],
-          ),
-          stencilClearValue: asInt(asMap(d)['stencilClearValue']),
-        ),
+        final Object d => _depthTarget(asMap(d)),
       },
     ),
     'readPixels' => TraceReadPixels(asInt(j['texture'])),
@@ -164,7 +210,7 @@ sealed class TraceEvent {
     ),
     'setViewport' => TraceSetViewport(
       asInt(j['pass']),
-      screenRectFromJson(j['rect']),
+      viewportFromJson(j['rect']),
     ),
     'setScissor' => TraceSetScissor(
       asInt(j['pass']),
@@ -172,27 +218,31 @@ sealed class TraceEvent {
     ),
     'setPrimitiveType' => TraceSetPrimitiveType(
       asInt(j['pass']),
-      byName(PrimitiveType.values, j['value']),
+      primitiveTypeWire.read(j['value']),
     ),
     'setPolygonMode' => TraceSetPolygonMode(
       asInt(j['pass']),
-      byName(PolygonMode.values, j['value']),
+      polygonModeWire.read(j['value']),
     ),
     'setCullMode' => TraceSetCullMode(
       asInt(j['pass']),
-      byName(CullMode.values, j['value']),
+      cullModeWire.read(j['value']),
     ),
     'setWindingOrder' => TraceSetWindingOrder(
       asInt(j['pass']),
-      byName(WindingOrder.values, j['value']),
+      windingOrderWire.read(j['value']),
     ),
     'setDepthWrite' => TraceSetDepthWrite(
       asInt(j['pass']),
       j['value']! as bool,
     ),
+    'setAlphaToCoverage' => TraceSetAlphaToCoverage(
+      asInt(j['pass']),
+      j['value']! as bool,
+    ),
     'setDepthCompare' => TraceSetDepthCompare(
       asInt(j['pass']),
-      byName(CompareFunction.values, j['value']),
+      compareFunctionWire.read(j['value']),
     ),
     'setStencil' => TraceSetStencil(
       asInt(j['pass']),
@@ -210,7 +260,21 @@ sealed class TraceEvent {
     ),
     'setBlendColor' => TraceSetBlendColor(
       asInt(j['pass']),
-      vector4FromJson(j['color']),
+      linearColorFromJson(j['color']),
+    ),
+    'pushDebugGroup' => TracePushDebugGroup(
+      asInt(j['pass']),
+      j['label']! as String,
+    ),
+    'popDebugGroup' => TracePopDebugGroup(asInt(j['pass'])),
+    'insertDebugMarker' => TraceInsertDebugMarker(
+      asInt(j['pass']),
+      j['label']! as String,
+    ),
+    'setLabel' => TraceSetLabel(
+      resource: TraceLabeled.fromWire(j['resource']),
+      id: asInt(j['id']),
+      label: j['label']! as String,
     ),
     'bindPipeline' => TraceBindPipeline(asInt(j['pass']), asInt(j['pipeline'])),
     'bindVertexBuffer' => TraceBindVertexBuffer(
@@ -228,13 +292,13 @@ sealed class TraceEvent {
     'bindIndexBuffer' => TraceBindIndexBuffer(
       pass: asInt(j['pass']),
       buffer: _range(j['buffer']),
-      type: byName(IndexType.values, j['type']),
+      type: indexTypeWire.read(j['type']),
       indexCount: asInt(j['indexCount']),
     ),
     'bindIndexData' => TraceBindIndexData(
       pass: asInt(j['pass']),
       bytes: blob.read(j['bytes']),
-      type: byName(IndexType.values, j['type']),
+      type: indexTypeWire.read(j['type']),
       indexCount: asInt(j['indexCount']),
     ),
     'bindUniformBlock' => TraceBindUniformBlock(
@@ -251,12 +315,18 @@ sealed class TraceEvent {
       sampler: j['sampler'] == null ? null : samplerFromJson(j['sampler']),
     ),
     'clearBindings' => TraceClearBindings(asInt(j['pass'])),
-    'draw' => TraceDraw(asInt(j['pass']), asInt(j['instanceCount'])),
+    'draw' => TraceDraw(
+      asInt(j['pass']),
+      instanceCount: asInt(j['instanceCount']),
+      firstIndex: j['firstIndex'] == null ? 0 : asInt(j['firstIndex']),
+      indexCount: j['indexCount'] == null ? null : asInt(j['indexCount']),
+    ),
     'submit' => TraceSubmit(asInt(j['pass'])),
     'createStorageBuffer' => TraceCreateStorageBuffer(
       id: asInt(j['id']),
       bytes: blob.read(j['bytes']),
       hostReadable: j['hostReadable']! as bool,
+      indices: j['indices'] == null ? null : asInt(j['indices']),
     ),
     'releaseStorageBuffer' => TraceReleaseStorageBuffer(asInt(j['buffer'])),
     'createComputePipeline' => TraceCreateComputePipeline(
@@ -291,11 +361,34 @@ sealed class TraceEvent {
     ),
     'computeSubmit' => TraceComputeSubmit(asInt(j['pass'])),
     'readBuffer' => TraceReadBuffer(asInt(j['buffer'])),
-    final other => throw FormatException(
+    final other => throw TraceFormatException(
       'a trace event of kind $other, which this build does not know',
     ),
   };
 }
+
+/// A depth attachment read back. Every key 1.0 added is written only when
+/// it is not its default, so a trace without them reads as the pass it was.
+TraceDepthTarget _depthTarget(Map<String, Object?> d) => TraceDepthTarget(
+  texture: asInt(d['texture']),
+  clearValue: asDouble(d['clearValue']),
+  // Absent from a trace written before `R8` let a pass load depth, and
+  // absent means what every pass did then.
+  loadAction: d['loadAction'] == null
+      ? LoadAction.clear
+      : loadActionWire.read(d['loadAction']),
+  storeAction: d['storeAction'] == null
+      ? StoreAction.dontCare
+      : storeActionWire.read(d['storeAction']),
+  stencilLoadAction: loadActionWire.read(d['stencilLoadAction']),
+  stencilStoreAction: storeActionWire.read(d['stencilStoreAction']),
+  stencilClearValue: asInt(d['stencilClearValue']),
+  mipLevel: d['mipLevel'] == null ? 0 : asInt(d['mipLevel']),
+  layer: d['layer'] == null ? 0 : asInt(d['layer']),
+  face: d['face'] == null ? 0 : asInt(d['face']),
+  depthReadOnly: d['depthReadOnly'] == true,
+  stencilReadOnly: d['stencilReadOnly'] == true,
+);
 
 TraceGeometryRange _range(Object? json) {
   final m = asMap(json);
@@ -350,7 +443,7 @@ final class TraceUploadGeometry extends TraceEvent {
   @override
   Map<String, Object?> toJson(TraceBlobWriter blob) => <String, Object?>{
     'id': id,
-    'usage': usage.name,
+    'usage': geometryUsageWire.write(usage),
     'bytes': blob.add(bytes),
   };
 }
@@ -388,7 +481,11 @@ final class TraceReleaseGeometry extends TraceEvent {
 final class TraceCreateTexture extends TraceEvent {
   const TraceCreateTexture({required this.id, required this.spec});
   final int id;
-  final RenderTargetSpec spec;
+
+  /// Everything the texture was made from: its shape, layers, levels,
+  /// samples, usage and label. A `RenderTargetDescriptor` (a pool's
+  /// target) reads back as one, since a backend makes those its own way.
+  final TextureDescriptor spec;
   @override
   String get kind => 'createTexture';
   @override
@@ -420,7 +517,7 @@ final class TraceCreateTextureFromPixels extends TraceEvent {
     'id': id,
     'width': width,
     'height': height,
-    'format': format.name,
+    'format': textureFormatWire.write(format),
     'pixels': blob.add(pixels),
     'mipLevels': mipLevels?.map(blob.add).toList(),
   };
@@ -445,7 +542,7 @@ final class TraceCreateCubeTextureFromPixels extends TraceEvent {
   Map<String, Object?> toJson(TraceBlobWriter blob) => <String, Object?>{
     'id': id,
     'size': size,
-    'format': format.name,
+    'format': textureFormatWire.write(format),
     'faces': faces.map(blob.add).toList(),
     'mipLevels': mipLevels?.map((face) => face.map(blob.add).toList()).toList(),
   };
@@ -468,7 +565,7 @@ final class TraceCreateCubeRenderTarget extends TraceEvent {
   Map<String, Object?> toJson(TraceBlobWriter blob) => <String, Object?>{
     'id': id,
     'size': size,
-    'format': format.name,
+    'format': textureFormatWire.write(format),
     'mipLevels': mipLevels,
   };
 }
@@ -529,7 +626,7 @@ final class TraceCreatePipeline extends TraceEvent {
   /// Stage names, looked up again on the device a trace is replayed on.
   final String vertex;
   final String fragment;
-  final VertexLayoutSpec? layout;
+  final VertexLayoutDescriptor? layout;
   @override
   String get kind => 'createPipeline';
   @override
@@ -565,13 +662,16 @@ final class TraceBeginRenderPass extends TraceEvent {
         <String, Object?>{
           'texture': c.texture,
           'resolveTexture': c.resolveTexture,
-          'loadAction': c.loadAction.name,
-          'storeAction': c.storeAction.name,
+          'loadAction': loadActionWire.write(c.loadAction),
+          'storeAction': storeActionWire.write(c.storeAction),
           'clearValue': c.clearValue == null
               ? null
-              : vector4ToJson(c.clearValue!),
+              : clearColorToJson(c.clearValue!),
           'face': c.face,
           'mipLevel': c.mipLevel,
+          // Since 1.0, written only when set, so a trace of a pass at layer
+          // zero is byte for byte what it was.
+          if (c.layer != 0) 'layer': c.layer,
         },
     ],
     'depth': switch (depth) {
@@ -579,11 +679,16 @@ final class TraceBeginRenderPass extends TraceEvent {
       final d => <String, Object?>{
         'texture': d.texture,
         'clearValue': d.clearValue,
-        'loadAction': d.loadAction.name,
-        'storeAction': d.storeAction.name,
-        'stencilLoadAction': d.stencilLoadAction.name,
-        'stencilStoreAction': d.stencilStoreAction.name,
+        'loadAction': loadActionWire.write(d.loadAction),
+        'storeAction': storeActionWire.write(d.storeAction),
+        'stencilLoadAction': loadActionWire.write(d.stencilLoadAction),
+        'stencilStoreAction': storeActionWire.write(d.stencilStoreAction),
         'stencilClearValue': d.stencilClearValue,
+        if (d.mipLevel != 0) 'mipLevel': d.mipLevel,
+        if (d.layer != 0) 'layer': d.layer,
+        if (d.face != 0) 'face': d.face,
+        if (d.depthReadOnly) 'depthReadOnly': true,
+        if (d.stencilReadOnly) 'stencilReadOnly': true,
       },
     },
   };
@@ -616,20 +721,24 @@ final class TraceReadback extends TraceEvent {
 // ------------------------------------------------------------------ pass
 
 /// An event recorded into an open render pass.
-sealed class TracePassEvent extends TraceEvent {
+abstract base class TracePassEvent extends TraceEvent {
   const TracePassEvent(this.pass);
   final int pass;
 }
 
+/// `PassEncoder.setViewport`: a [PassViewport] since 1.0.0-rc.1+2, written as
+/// the four whole numbers a `ScreenRect` was whenever it covers whole pixels
+/// and the whole depth range, so older traces read and newer ones of such a
+/// pass are byte for byte what they were.
 final class TraceSetViewport extends TracePassEvent {
-  const TraceSetViewport(super.pass, this.rect);
-  final ScreenRect rect;
+  const TraceSetViewport(super.pass, this.viewport);
+  final PassViewport viewport;
   @override
   String get kind => 'setViewport';
   @override
   Map<String, Object?> toJson(TraceBlobWriter blob) => <String, Object?>{
     'pass': pass,
-    'rect': screenRectToJson(rect),
+    'rect': viewportToJson(viewport),
   };
 }
 
@@ -653,7 +762,7 @@ final class TraceSetPrimitiveType extends TracePassEvent {
   @override
   Map<String, Object?> toJson(TraceBlobWriter blob) => <String, Object?>{
     'pass': pass,
-    'value': value.name,
+    'value': primitiveTypeWire.write(value),
   };
 }
 
@@ -665,7 +774,7 @@ final class TraceSetPolygonMode extends TracePassEvent {
   @override
   Map<String, Object?> toJson(TraceBlobWriter blob) => <String, Object?>{
     'pass': pass,
-    'value': value.name,
+    'value': polygonModeWire.write(value),
   };
 }
 
@@ -677,7 +786,7 @@ final class TraceSetCullMode extends TracePassEvent {
   @override
   Map<String, Object?> toJson(TraceBlobWriter blob) => <String, Object?>{
     'pass': pass,
-    'value': value.name,
+    'value': cullModeWire.write(value),
   };
 }
 
@@ -689,7 +798,21 @@ final class TraceSetWindingOrder extends TracePassEvent {
   @override
   Map<String, Object?> toJson(TraceBlobWriter blob) => <String, Object?>{
     'pass': pass,
-    'value': value.name,
+    'value': windingOrderWire.write(value),
+  };
+}
+
+/// `PassEncoder.setAlphaToCoverage` — `P7`. A trace recorded before it had
+/// none, which replays as it was recorded: off.
+final class TraceSetAlphaToCoverage extends TracePassEvent {
+  const TraceSetAlphaToCoverage(super.pass, this.value);
+  final bool value;
+  @override
+  String get kind => 'setAlphaToCoverage';
+  @override
+  Map<String, Object?> toJson(TraceBlobWriter blob) => <String, Object?>{
+    'pass': pass,
+    'value': value,
   };
 }
 
@@ -713,7 +836,7 @@ final class TraceSetDepthCompare extends TracePassEvent {
   @override
   Map<String, Object?> toJson(TraceBlobWriter blob) => <String, Object?>{
     'pass': pass,
-    'value': value.name,
+    'value': compareFunctionWire.write(value),
   };
 }
 
@@ -759,13 +882,110 @@ final class TraceSetBlend extends TracePassEvent {
 
 final class TraceSetBlendColor extends TracePassEvent {
   const TraceSetBlendColor(super.pass, this.color);
-  final Vector4 color;
+  final LinearColor color;
   @override
   String get kind => 'setBlendColor';
   @override
   Map<String, Object?> toJson(TraceBlobWriter blob) => <String, Object?>{
     'pass': pass,
-    'color': vector4ToJson(color),
+    'color': linearColorToJson(color),
+  };
+}
+
+/// `PassEncoder.pushDebugGroup`: a named group opened in pass [pass].
+final class TracePushDebugGroup extends TracePassEvent {
+  const TracePushDebugGroup(super.pass, this.label);
+  final String label;
+  @override
+  String get kind => 'pushDebugGroup';
+  @override
+  Map<String, Object?> toJson(TraceBlobWriter blob) => <String, Object?>{
+    'pass': pass,
+    'label': label,
+  };
+}
+
+/// `PassEncoder.popDebugGroup`.
+final class TracePopDebugGroup extends TracePassEvent {
+  const TracePopDebugGroup(super.pass);
+  @override
+  String get kind => 'popDebugGroup';
+  @override
+  Map<String, Object?> toJson(TraceBlobWriter blob) => <String, Object?>{
+    'pass': pass,
+  };
+}
+
+/// `PassEncoder.insertDebugMarker`.
+final class TraceInsertDebugMarker extends TracePassEvent {
+  const TraceInsertDebugMarker(super.pass, this.label);
+  final String label;
+  @override
+  String get kind => 'insertDebugMarker';
+  @override
+  Map<String, Object?> toJson(TraceBlobWriter blob) => <String, Object?>{
+    'pass': pass,
+    'label': label,
+  };
+}
+
+/// What kind of resource a [TraceSetLabel] names, which says whose ids its
+/// number is among.
+final class TraceLabeled {
+  const TraceLabeled._(this.wire);
+
+  /// A texture, by the id its creation was recorded under.
+  static const TraceLabeled texture = TraceLabeled._('texture');
+
+  /// A geometry buffer, by its upload's id.
+  static const TraceLabeled geometry = TraceLabeled._('geometry');
+
+  /// A render pipeline, by its creation's id.
+  static const TraceLabeled pipeline = TraceLabeled._('pipeline');
+
+  /// A storage buffer, by its creation's id.
+  static const TraceLabeled storage = TraceLabeled._('storage');
+
+  static const List<TraceLabeled> values = <TraceLabeled>[
+    texture,
+    geometry,
+    pipeline,
+    storage,
+  ];
+
+  /// The word written to a trace file.
+  final String wire;
+
+  /// The kind [value] names, or a [TraceFormatException] for a word this
+  /// build does not know.
+  static TraceLabeled fromWire(Object? value) {
+    for (final kind in values) {
+      if (kind.wire == value) return kind;
+    }
+    throw TraceFormatException('a label on an unknown resource kind: $value');
+  }
+
+  @override
+  String toString() => 'TraceLabeled.$wire';
+}
+
+/// `GraphicsDevice.setLabel`: [label] given to a resource the trace made.
+final class TraceSetLabel extends TraceEvent {
+  const TraceSetLabel({
+    required this.resource,
+    required this.id,
+    required this.label,
+  });
+  final TraceLabeled resource;
+  final int id;
+  final String label;
+  @override
+  String get kind => 'setLabel';
+  @override
+  Map<String, Object?> toJson(TraceBlobWriter blob) => <String, Object?>{
+    'resource': resource.wire,
+    'id': id,
+    'label': label,
   };
 }
 
@@ -839,7 +1059,7 @@ final class TraceBindIndexBuffer extends TracePassEvent {
   Map<String, Object?> toJson(TraceBlobWriter blob) => <String, Object?>{
     'pass': pass,
     'buffer': _rangeToJson(buffer),
-    'type': type.name,
+    'type': indexTypeWire.write(type),
     'indexCount': indexCount,
   };
 }
@@ -860,7 +1080,7 @@ final class TraceBindIndexData extends TracePassEvent {
   Map<String, Object?> toJson(TraceBlobWriter blob) => <String, Object?>{
     'pass': pass,
     'bytes': blob.add(bytes),
-    'type': type.name,
+    'type': indexTypeWire.write(type),
     'indexCount': indexCount,
   };
 }
@@ -900,7 +1120,7 @@ final class TraceBindTexture extends TracePassEvent {
   final String shader;
   final String slot;
   final int texture;
-  final SamplerOptions? sampler;
+  final SamplerDescriptor? sampler;
   @override
   String get kind => 'bindTexture';
   @override
@@ -924,14 +1144,27 @@ final class TraceClearBindings extends TracePassEvent {
 }
 
 final class TraceDraw extends TracePassEvent {
-  const TraceDraw(super.pass, [this.instanceCount = 1]);
+  const TraceDraw(
+    super.pass, {
+    this.instanceCount = 1,
+    this.firstIndex = 0,
+    this.indexCount,
+  });
   final int instanceCount;
+
+  /// The window of the bound indices — `P7`. Written only when it is not the
+  /// whole binding, so a trace recorded before windows existed reads as it
+  /// was recorded and needs no new format version.
+  final int firstIndex;
+  final int? indexCount;
   @override
   String get kind => 'draw';
   @override
   Map<String, Object?> toJson(TraceBlobWriter blob) => <String, Object?>{
     'pass': pass,
     'instanceCount': instanceCount,
+    if (firstIndex != 0) 'firstIndex': firstIndex,
+    if (indexCount != null) 'indexCount': indexCount,
   };
 }
 
@@ -952,10 +1185,15 @@ final class TraceCreateStorageBuffer extends TraceEvent {
     required this.id,
     required this.bytes,
     required this.hostReadable,
+    this.indices,
   });
   final int id;
   final ByteData bytes;
   final bool hostReadable;
+
+  /// The geometry id its `asIndices` is recorded under, or null when it was
+  /// not asked to be bindable as indices — `H11`.
+  final int? indices;
   @override
   String get kind => 'createStorageBuffer';
   @override
@@ -963,6 +1201,7 @@ final class TraceCreateStorageBuffer extends TraceEvent {
     'id': id,
     'bytes': blob.add(bytes),
     'hostReadable': hostReadable,
+    if (indices != null) 'indices': indices,
   };
 }
 

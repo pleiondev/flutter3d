@@ -23,7 +23,14 @@
 uniform sampler2D normal_texture;
 
 /// glTF's ORM packing: g is roughness, b is metallic. Neutral is white.
+///
+/// Left out under `F3D_NO_METALLIC_ROUGHNESS_MAP`, for a model that never
+/// reads it: declared and unread, the compiler drops it from the Metal
+/// function while the reflection still lists it, and binding that slot is a
+/// crash in the driver.
+#ifndef F3D_NO_METALLIC_ROUGHNESS_MAP
 uniform sampler2D metallic_roughness_texture;
+#endif
 
 /// Ambient occlusion in r. Neutral is white.
 uniform sampler2D occlusion_texture;
@@ -59,13 +66,25 @@ vec3 SampleLightmap() {
 /// same set truthfully. `tool/build_shaders.sh` prints the compiled slots so
 /// the two cannot drift apart unnoticed.
 
+/// The three maps whose numbers are factors — metallic, roughness, occlusion
+/// and an emissive texel before its strength — are read at mediump in a
+/// material stage. The coordinate each is read at is the highp varying, and
+/// the emissive light itself is made of highp uniforms, so nothing that can
+/// run past a half float's range is mediump here.
+// `A1.1`: a mediump stretch in a material stage — `shaders/PRECISION.md`.
+#ifdef F3D_MEDIUMP
+precision mediump float;
+#endif
+
 /// glTF's ORM packing: roughness in g, metallic in b, both multiplying the
 /// material factors.
+#ifndef F3D_NO_METALLIC_ROUGHNESS_MAP
 void ApplyMetallicRoughnessMap(inout Surface s) {
   vec3 orm = texture(metallic_roughness_texture, MapUv(kMapMetallicRoughness), MaterialLodBias()).rgb;
   s.metallic = clamp(s.metallic * orm.b, 0.0, 1.0);
   s.roughness = clamp(s.roughness * orm.g, 0.02, 1.0);
 }
+#endif
 
 void ApplyOcclusionMap(inout Surface s) {
   float occlusion = texture(occlusion_texture, MapUv(kMapOcclusion), MaterialLodBias()).r;
@@ -78,6 +97,8 @@ void ApplyEmissiveMap(inout Surface s) {
   vec3 emissive = SrgbToLinear(texture(emissive_texture, MapUv(kMapEmissive), MaterialLodBias()).rgb);
   s.emissive = emissive * frag_info.emissive.rgb * frag_info.material2.w;
 }
+// The end of the stretch: highp again.
+precision highp float;
 
 /// Perturbs the surface normal by the tangent-space normal map.
 void ApplyNormalMap(inout Surface s) {

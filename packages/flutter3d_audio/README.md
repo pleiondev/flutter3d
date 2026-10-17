@@ -24,6 +24,17 @@ second backend, not an edit to this one.
 ## Shape
 
 ```dart
+// The game's own sounds.
+abstract final class Sounds {
+  static const pistol = SoundDef(name: 'pistol', asset: 'audio/pistol.ogg');
+  static const door = SoundDef(name: 'door', asset: 'audio/door.ogg');
+  static const torch = SoundDef(
+    name: 'torch',
+    asset: 'audio/torch.ogg',
+    loop: true,
+  );
+}
+
 final scene = AudioScene(
   backend: SoLoudBackend()..open(),
   maxVoices: 24,
@@ -43,6 +54,33 @@ scene.update(listener);
 
 `play` returns an emitter so whatever owns a moving source can move it. The
 mixer updates that voice instead of restarting it.
+
+## Opening the speakers, and where the ears are
+
+`openSpeakers` opens the device and hands back `Speakers`: the backend, to
+pause, resume and dispose, and the scene, to play through. When there is no
+device it throws `AudioDeviceException`, and a game catches it and plays
+silent. What the backend could not play it reports as an `Issue`, the same
+type `flutter3d_app` reports in.
+
+Positions are metres from an origin the game names, as float32 offsets: the
+scene's origin, which a scene graph keeps near the camera. A place in the
+world, a `WorldPosition` in doubles, comes in through `placeAt` with that
+origin. `Flutter3dView` says where the camera is after every frame, so the
+listener is one line:
+
+```dart
+Flutter3dView(
+  onListenerMoved: (ears) => listener.placeAt(
+    ears.position,
+    ears.forward,
+    origin: ears.origin,
+    up: ears.up,
+  ),
+  onPausedChanged: (paused) =>
+      paused ? speakers.pause() : speakers.resume(),
+)
+```
 
 ## What the mixer decides
 
@@ -67,7 +105,7 @@ sound off, should use it too, instead of a branch at every call site.
 
 Part of [flutter3d](https://github.com/pleiondev/flutter3d), an independent
 implementation of a 3D engine for Flutter. It is not a fork or a binding of
-another engine, and it is not affiliated with the Flutter team. It has four
+another engine, and it is not affiliated with Google or the Flutter project. It has four
 switchable rendering backends: Impeller via Flutter GPU, WebGL2, WebGPU and a
 software rasteriser. It loads glTF, OBJ and `.f3d`, and has six lighting models,
 shadows, bloom, skinning, animation, BVH culling and picking, plus a

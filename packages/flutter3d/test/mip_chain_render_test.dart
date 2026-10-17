@@ -32,7 +32,6 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 64;
 const int _height = 48;
@@ -82,13 +81,6 @@ Future<Uint8List> _renderPatch(
     decodeImage: defaultImageDecoder,
     sampling: const TextureSampling(),
   );
-  // Not a hardware limit reached honestly, as `wg-00`/`net-00` name theirs —
-  // a genuine test-authoring failure if it ever fires, since every format
-  // and size above is this package's own and chosen to be unobjectionable.
-  if (handle == null) {
-    fail('the device left the texture out — see report, none was wired up.');
-  }
-
   // Camera-facing, far enough that a 64px-square texture covers only a
   // handful of screen pixels: at z = -60 with fovY = 1.0 rad the frustum is
   // about 65 units tall, so a plane 6 units square covers roughly
@@ -101,11 +93,11 @@ Future<Uint8List> _renderPatch(
             device,
             const PlaneShape(width: 6.0, depth: 6.0).build(),
           ),
-          Material(
+          RenderMaterial(
             name: 'checker',
             lighting: LightingModel.unlit,
             albedo: handle,
-            albedoSampler: SamplerOptions.trilinearRepeat,
+            albedoSampler: SamplerDescriptor.trilinearRepeat,
           ),
           name: 'checker',
         )
@@ -115,11 +107,7 @@ Future<Uint8List> _renderPatch(
         );
 
   final camera = CameraNode(
-    projection: const PerspectiveProjection(
-      fovYRadians: 1.0,
-      near: 0.1,
-      far: 200.0,
-    ),
+    projection: const PerspectiveProjection(fovY: 1.0, near: 0.1, far: 200.0),
   );
   camera.lookAt(Vector3(0.0, 0.0, -1.0));
   final scene = Scene()
@@ -131,9 +119,9 @@ Future<Uint8List> _renderPatch(
     width: _width,
     height: _height,
     scene: scene,
-    views: <RenderView>[RenderView(camera: camera)],
+    views: <CameraView>[CameraView(camera: camera)],
   );
-  final frame = (await device.readPixels(result.frame))!.buffer.asUint8List();
+  final frame = (await device.readback(result.frame)).buffer.asUint8List();
 
   // The plane's own screen footprint: roughly a 5x5 block centred on the
   // frame, generous enough either way not to catch the empty sky around it

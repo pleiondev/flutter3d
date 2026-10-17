@@ -1,9 +1,7 @@
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_game_ui/hud.dart' show lightBeacon;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart';
-
-import 'way_out_glow.dart';
 
 /// The doorway a level ends at.
 ///
@@ -63,11 +61,11 @@ Future<ModelAsset?> addExitsTo(
       final instance = asset.instantiate(
         scene,
         name: 'exit-${exit.name ?? 'way'}',
-        // Own materials, because [lightTheWayOut] writes into them and the
+        // Own materials, because [lightBeacon] writes into them and the
         // editor draws this same asset as one of its marks.
         shareMaterials: false,
       );
-      lightTheWayOut(instance.meshes);
+      lightBeacon(instance.meshes);
       instance.root
         ..setPositionFrom(exit.position)
         ..setRotation(Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), exit.yaw));

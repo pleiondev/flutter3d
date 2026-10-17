@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:vector_math/vector_math.dart';
 
 /// Reading a saved body back.
@@ -23,6 +25,38 @@ bool readVector(Object? value, Vector3 out) {
   // which is somewhere nobody has ever been.
   if (x is! num || y is! num || z is! num) return false;
   out.setValues(x.toDouble(), y.toDouble(), z.toDouble());
+  return true;
+}
+
+/// Reading a saved orientation back, by the same rules as [readVector].
+///
+/// **Written as it was saved, not renormalised**, unless it is plainly not a
+/// rotation. What `save()` wrote is already unit length to the precision it is
+/// stored in, and normalising it again moves its last bits — which is a
+/// restored run that is not the run that was saved. A hand-edited document
+/// that says `[0, 0, 1, 1]` is a different matter, and is scaled to unit
+/// length rather than left to stretch the body it turns. Zero length and
+/// non-finite values are refused, leaving [out] as it was.
+bool readQuaternion(Object? value, Quaternion out) {
+  if (value is! List || value.length < 4) return false;
+  final x = value[0], y = value[1], z = value[2], w = value[3];
+  if (x is! num || y is! num || z is! num || w is! num) return false;
+  final (qx, qy, qz, qw) = (
+    x.toDouble(),
+    y.toDouble(),
+    z.toDouble(),
+    w.toDouble(),
+  );
+  final length2 = qx * qx + qy * qy + qz * qz + qw * qw;
+  if (!(length2 > 0.0) || !length2.isFinite) return false;
+  // A single-precision unit quaternion is within a few millionths of length
+  // one; anything further out was not written by `save()`.
+  if ((length2 - 1.0).abs() <= 1e-5) {
+    out.setValues(qx, qy, qz, qw);
+  } else {
+    final length = math.sqrt(length2);
+    out.setValues(qx / length, qy / length, qz / length, qw / length);
+  }
   return true;
 }
 

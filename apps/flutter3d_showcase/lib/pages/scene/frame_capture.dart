@@ -3,7 +3,6 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class FrameCaptureDemo extends ShowcaseDemo {
   late final FrameCapture _capture;
@@ -26,12 +25,15 @@ final class FrameCaptureDemo extends ShowcaseDemo {
             context.device,
             CuboidShape(size: Vector3.all(1.2)).build(),
           ),
-          Material(name: 'probe', baseColor: Vector4(0.85, 0.42, 0.18, 1.0)),
+          RenderMaterial(
+            name: 'probe',
+            baseColor: LinearColor.fromSrgb(0.85, 0.42, 0.18, 1.0),
+          ),
           name: 'probe cube',
         ),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.4, -0.8, -0.3)),
       );
     final CameraNode probeCamera = CameraNode()
@@ -46,7 +48,7 @@ final class FrameCaptureDemo extends ShowcaseDemo {
       width: 96,
       height: 96,
       scene: probe,
-      views: <RenderView>[RenderView(camera: probeCamera)],
+      views: <CameraView>[CameraView(camera: probeCamera)],
       settings: const RenderSettings(),
     );
     _capture = await pending;
@@ -57,24 +59,24 @@ final class FrameCaptureDemo extends ShowcaseDemo {
   Scene build(DemoContext context) {
     // #region scene
     final Scene scene = Scene()
-      ..ambientColor = Vector3(0.42, 0.48, 0.64)
-      ..ambientIntensity = 0.16
+      ..ambientColor = LinearColor(0.42, 0.48, 0.64)
+      ..ambientIntensity = 0.16 * LightNode.defaultIntensity
       ..add(
         MeshNode(
           DeviceMesh.upload(
             context.device,
             const TorusShape(radius: 1.0, tubeRadius: 0.4).build(),
           ),
-          Material(
+          RenderMaterial(
             name: 'torus',
-            baseColor: Vector4(0.28, 0.62, 0.9, 1.0),
+            baseColor: LinearColor.fromSrgb(0.28, 0.62, 0.9, 1.0),
             roughness: 0.4,
           ),
           name: 'torus',
         ),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 3.2)
+        LightNode(name: 'sun', intensity: 3.2 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.42, -0.8, -0.34)),
       );
     // #endregion scene
@@ -85,11 +87,13 @@ final class FrameCaptureDemo extends ShowcaseDemo {
   void verify(Scene scene, FrameResult frame) {
     // #region check
     final CapturedPass? scenePass = _capture.passNamed('scene');
-    final CapturedImage? colour = scenePass?.imageOf('hdr_colour');
+    final CapturedImage? color = scenePass?.imageOf(
+      FrameResourceIds.hdrColor.name,
+    );
     if (scenePass == null ||
         !scenePass.active ||
-        colour == null ||
-        colour.isBlack ||
+        color == null ||
+        color.isBlack ||
         frame.drawCalls < 1) {
       throw StateError('the captured frame did not record a lit scene pass');
     }

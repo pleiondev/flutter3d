@@ -1,15 +1,17 @@
 import 'dart:math' as math;
 
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show LinearColor;
 import 'package:vector_math/vector_math.dart';
 
 /// The colour of the sky in the direction asked about.
-typedef SkyColour = Vector4 Function(SkyLook look);
+typedef SkyColor = LinearColor Function(SkyLook look);
 
-/// Where a [SkyColour] is being asked to look.
+/// Where a [SkyColor] is being asked to look.
 ///
 /// **One object rather than a bare vector, so this can grow.** A function type
 /// is frozen the day it is published: telling a sky what time it is, or where
-/// the sun is, means widening `Vector4 Function(Vector3)` and breaking every
+/// the sun is, means widening `LinearColor Function(Vector3)` and breaking every
 /// sky anybody has written. Adding a field here does not.
 ///
 /// **Reused between calls, never held.** Painting a dome asks this once per
@@ -43,26 +45,25 @@ final class SkyGradient {
     required this.horizon,
     required this.nadir,
     Vector3? directionToSun,
-    Vector3? sunColour,
+    this.sunColor = const LinearColor(1.0, 0.95, 0.86),
     this.glowExponent = 6.0,
     this.glowStrength = 0.3,
   }) : directionToSun = (directionToSun ?? Vector3(0.34, 0.56, 0.76))
-           .normalized(),
-       sunColour = sunColour ?? Vector3(1.0, 0.95, 0.86);
+           .normalized();
 
   /// Straight up, level with the horizon, and straight down. Linear.
   ///
   /// [nadir] is not the ground: it is what the sky reads as when the camera
   /// looks down at nothing — over the edge of a drop, mostly — which is haze,
   /// and haze is darker.
-  final Vector3 zenith;
-  final Vector3 horizon;
-  final Vector3 nadir;
+  final LinearColor zenith;
+  final LinearColor horizon;
+  final LinearColor nadir;
 
   /// A unit vector pointing **at** the sun. A directional light points the
   /// other way, so a scene built from one preset negates this for the light.
   final Vector3 directionToSun;
-  final Vector3 sunColour;
+  final LinearColor sunColor;
 
   /// The wide scattering lobe: how tight it is, and how bright.
   ///
@@ -71,10 +72,12 @@ final class SkyGradient {
   /// so this uses, the finest thing expressible is about seven degrees. What is
   /// here is the lobe around the sun, which is the part that reads at all.
   final double glowExponent;
+
+  /// A unitless multiplier on [sunColor] at the lobe's peak.
   final double glowStrength;
 
-  /// The gradient as a [SkyColour], ready for `paintSky`.
-  SkyColour get colour => (SkyLook look) {
+  /// The gradient as a [SkyColor], ready for `paintSky`.
+  SkyColor get color => (SkyLook look) {
     final y = look.direction.y.clamp(-1.0, 1.0);
     final far = y >= 0.0 ? zenith : nadir;
     // Smoothstep rather than linear, so the band near the horizon is wide.
@@ -88,11 +91,10 @@ final class SkyGradient {
         ? 0.0
         : glowStrength * math.pow(towards, glowExponent).toDouble();
 
-    return Vector4(
-      horizon.x + (far.x - horizon.x) * t + sunColour.x * lobe,
-      horizon.y + (far.y - horizon.y) * t + sunColour.y * lobe,
-      horizon.z + (far.z - horizon.z) * t + sunColour.z * lobe,
-      1.0,
+    return LinearColor(
+      horizon.r + (far.r - horizon.r) * t + sunColor.r * lobe,
+      horizon.g + (far.g - horizon.g) * t + sunColor.g * lobe,
+      horizon.b + (far.b - horizon.b) * t + sunColor.b * lobe,
     );
   };
 }

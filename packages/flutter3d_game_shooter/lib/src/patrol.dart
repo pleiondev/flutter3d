@@ -76,16 +76,22 @@ final class PatrolBrain extends ChaseBrain {
   int leg = 0;
 
   /// How long this monster has been standing at the point it reached.
+  /// In seconds.
   double waited = 0.0;
 
   final Vector3 _target = Vector3.zero();
+
+  /// On its beat is at rest: sight, a noise and pain wake it as they wake
+  /// one standing.
+  @override
+  bool get isResting => state == patrolling || super.isResting;
 
   @override
   void act(Mind it) {
     super.act(it);
     if (state != patrolling) return;
 
-    final here = it.actor.position;
+    final here = it.actor.body?.position;
     if (here == null) return;
 
     _target.setFrom(route[leg % route.length]);

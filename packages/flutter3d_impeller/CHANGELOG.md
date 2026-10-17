@@ -1,3 +1,217 @@
+## 1.0.0-rc.1+1
+
+- **A widget drawn into a texture is wrapped, not copied.** The device is
+  `PlatformTextures<ui.Image>`: `textureFromPlatformImage` wraps an image's
+  own GPU texture through flutter_gpu's `Texture.fromImage`, the inverse
+  of `frameImage`, and refuses an image with no texture of its own yet with
+  a `DeviceResourceException`, after which the caller copies its pixels.
+- **Strips, points and 32-bit indices are listed**, as the HAL names them
+  before the freeze: every flutter_gpu path draws them.
+- **The viewport carries its depth range** to flutter_gpu's
+  `Viewport.depthRange`; a rectangle off whole pixels is refused rather
+  than truncated.
+- **Every refusal is typed.** A value flutter_gpu has no spelling for is a
+  `DeviceResourceException` (`impellerRefusal`, and `unmirroredFormat`
+  answers one), where it was an `UnsupportedError`. The opener takes the
+  HAL's `DeviceRequest`.
+
+- **The shader bundle is the one the sources compile to.** 1.0.0-rc.1 went
+  up with a bundle built before 18 of its shaders last changed, so a stage
+  could ask for a slot the compiled one does not have. Nothing else differs.
+
+## 1.0.0-rc.1
+
+- **`wireframe` is listed where a line mode draws lines**: on Metal and
+  Vulkan, not on Impeller's OpenGL ES path, which has no `glPolygonMode`;
+  there `setPolygonMode(PolygonMode.line)` is refused by the feature.
+- **`preferredSampleCount` is 1 without `offscreenMultisample`**, where it
+  answered 4 on every device.
+- **An axis clamped to the border is refused by `samplerBorderColor`.**
+- **`texture1D` is listed**: a 1D texture is a 2D one a texel high.
+- **`releasePipeline` lets go of the linked pipeline.** flutter_gpu has no
+  dispose for a `RenderPipeline`, so a pipeline's `dispose` drops the
+  backend's reference to it and to the stages it would be linked from, and
+  links nothing again: the handle a renderer still holds in a field no
+  longer keeps them. It did nothing.
+- **A storage buffer is refused by the feature its shape asks for**:
+  `compute` for the copy usages of `BufferUsage.standardStorage`,
+  `renderStageStorage` for a bare storage usage. Both were
+  `renderStageStorage`, and the capability check's compute probe failed.
+- **A debug point is one pixel.** The debug-line stage writes
+  `gl_PointSize` under `impellerc`; Metal drew points of an undefined size
+  without it, and the primitive-type check failed in two runs of four.
+- **The engine's bundle is held to the SDK it runs on.** `open` loads the
+  project's bundle, which `flutter3d_build`'s hook compiles for the SDK that
+  builds the application, and the one this package ships only when the
+  project has none. Both are the engine's container with the Dart in the
+  header, and either is refused with `ShaderBundleException(stale: true)`
+  when it was compiled on another SDK, naming the asset and what to do. The
+  shipped `assets/shaders/flutter3d.shaderbundle` is that container now;
+  `impellerc`'s own output, which `tool/build_shaders.sh` writes in a
+  checkout, still loads as it is.
+- **Linux, and an Android phone without Vulkan, can draw.** On OpenGL ES a
+  pipeline over a stage that reads the vertex or instance index is linked
+  with a slot for `f3d_vertex_index` or `f3d_instance_index` after its own,
+  and a shared buffer of 0, 1, 2 … is bound there before each draw. Metal
+  and Vulkan are tried once and never again. `tool/conformance.sh --linux`
+  runs the checks through Impeller on a Linux desktop.
+- **Breaking: `GpuRenderBackend.open` takes no `extraBundles`.** An
+  application's own stages reach the renderer one way on every backend: a
+  bundle loaded with `loadShaders` and handed to
+  `RendererSteps.addMaterials`. `dart fix` removes the argument.
+- **Registers its material compiler beside the device.**
+  `registerGpuBackend(compilers:)` adds `ImpellerSectionCompiler` to a
+  `MaterialCompilerRegistry`: it names the `impeller` section and compiles
+  nothing while a game runs, so `RuntimeShaders` refuses a data plugin's
+  material on Impeller by the registry's sentence. Its
+  `isSectionWrittenByBuild` is true: `impellerc` writes the section in the
+  build, which keeps it when this compiler refuses.
+- **A pipeline flutter_gpu will not link skips its draws.** A link refused
+  at `createPipeline`, or at the first draw where OpenGL ES links lazily
+  (`Failed to append drawIndexed`), is reported to
+  `GraphicsDevice.pipelineRefusals` instead of thrown. The draws with it
+  are skipped, and it is linked again at its next bind until it is left
+  refused. On an Adreno phone that fell back to OpenGL ES, one such pair
+  failed every frame.
+- **Compute and sharing, refused with the reason.** A bundle of compute
+  kernels is refused as one: flutter_gpu has no compute pipelines yet, and a
+  frame on Impeller places its compute steps on the wgpu sidecar or the CPU.
+  `importTexture` and `exportTexture` refuse `DeviceFeature.sharedTextures`
+  saying flutter_gpu cannot wrap or hand out a native texture, so a texture
+  the sidecar computed reaches Impeller by `SharedTexture`'s copy through
+  host memory.
+- **A stage `impellerc` refused says where.** `ShaderBundleBuildException`
+  takes a `cause`, and a failed compile's is a `ShaderCompileException`
+  read from `impellerc`'s output: `target` `impeller`, the stage when every
+  error names one kind, and a `ShaderDiagnostic` per placed error.
+- **GPU timings on Impeller, through the Dart timeline.** flutter_gpu has
+  no timestamp query, so each labelled pass is timed from its submission to
+  the queue's completion callback: a span named `GPU <label>` with its frame
+  on the timeline DevTools and Perfetto read, and a `GpuFrameTimings` per
+  frame to an `onGpuTimings` listener, which used to be ignored. The span
+  includes any wait behind earlier passes, so `gpuTimestamps` stays out of
+  the features.
+- **A uniform block costs no allocation, and its layout is asked once.**
+  The block is filled in place in the device's `UniformScratch`, already
+  rounded to the host buffer's granule so no rounded copy is made either; a
+  joint palette is one copy rather than a `setFloat32` per float. Each
+  stage's slot and member offsets are kept beside it instead of asked of
+  flutter_gpu per member per draw, and a block filler is a view of one
+  zeroed block.
+- **The readback's staging pool is bounded.** At most
+  `GpuReadback.idleCapacity` (eight) idle staging textures are kept, across
+  every size, the one given back longest ago dropped for the collector;
+  before, one stayed for every size ever read back.
+- **A disposed handle is named at the bind**: pipelines, geometry and
+  textures pass `debugCheckLive` in a debug build. Their memory returns
+  through the collector here, so without the check a disposed buffer would
+  still draw.
+- **Breaking: `GpuRenderBackend.open` takes `width` and `height`**, required,
+  as every backend's `open` does since 1.0, so a caller writes one call for
+  all four. Impeller still sizes each target as it is drawn and does not
+  hold the size; a size that is not one (a side below one pixel) is an
+  `ArgumentError`. `registerGpuBackend` passes the registry's size through.
+- **Breaking: `GpuRenderBackend.createStorageBuffer` is gone**, folded into
+  `createBuffer` as in `flutter3d_hardware`. It refused every call here,
+  and `createBuffer` refuses a storage usage the same way.
+- **Breaking: `GpuCommandEncoder.setBlendColor` takes a `LinearColor`**,
+  as `PassEncoder.setBlendColor` does since 1.0. It is still refused, since
+  flutter_gpu has no blend-constant setter.
+- **`GpuRenderBackend.dispose` is reported as a device loss.** The first
+  call sets `isLost` and sends one `DeviceLossReason.destroyed` on `lost`,
+  then closes it; `lost` used to be empty. A context the platform takes
+  away is still not reported, since flutter_gpu does not say.
+
+- **Depends on `flutter3d_foundation` instead of the plugin API**, for the
+  exceptions its refusals extend.
+
+- **`releaseSampler` drops the cached `SamplerOptions`** for a
+  description, and `ShaderHandle.dispose` lets the library forget a stage;
+  flutter_gpu keeps the compiled stage, which the next lookup wraps again.
+- **Breaking: the device's plumbing is not exported.** `emplace` (with
+  flutter_gpu's `BufferView` in its signature), `granule`,
+  `noteRejectedSubmission`, `debugReadbackStagingCount` and
+  `debugTransientRecreations` were the backend's own and are not part of its
+  API. `GpuRenderBackend.open` throws a `DeviceUnavailableException` for a
+  bundle it cannot load.
+- **Breaking: the device follows the HAL** — `readPixels` is `readback`,
+  `createTextureWithDescriptor` is `createTexture`, the creators throw where
+  they answered null, and `readBufferSync`, which only ever refused, is gone.
+- **Breaking: one suffix for settings, Settings, and Descriptor in the
+  HAL.** `RenderTargetSpec` is `RenderTargetDescriptor`, `VertexLayoutSpec`
+  is `VertexLayoutDescriptor`. Every settings class is `final` with a
+  `const` constructor and a `copyWith` over every field; a nullable field
+  is reset with `copyWith(clearX: true)`. `dart fix` carries the renames.
+- **Breaking: `GpuRenderBackend.create` is `open`**: a device is opened,
+  asynchronously, and `create` is the synchronous verb. `dart fix` carries
+  it.
+- **Breaking: `flutter_gpu` is not in the API.** The translations
+  (`toGpu`, `*FromGpu`), `GpuCommandEncoder`, `GpuFrame`, the shader
+  libraries and the transfer encoder are not exported. `GpuRenderBackend`,
+  `GpuFrameImage` and `GpuRenderBackend.frameImage` are what an application
+  needs. `registerGpuBackend(registry)` replaces
+  `ensureGpuBackendRegistered()`. Debug groups, labels and device loss are
+  the base class's defaults here (`TODO(impeller)`: flutter_gpu has none).
+
+- **`ShaderBundleBuildException` is exported**, so the type
+  `buildShaderBundle` throws is in the snapshot like every other thrown type.
+  It extends `ResourceException` from `flutter3d_plugin_api`, and lives in a
+  file of its own so the library still reaches no `dart:io`.
+- **1.0.0 is a promise: strict semver from there.** This release candidate
+  already keeps it. A patch fixes bugs and
+  breaks nothing, a minor adds, and a break waits for a major. The whole
+  public API is stable, with no experimental exceptions, and is held to the
+  snapshot in `api/`. A deprecated name stays until the next major and for
+  at least six months, and says what replaces it.
+  [CONTRIBUTING.md](https://github.com/pleiondev/flutter3d/blob/main/CONTRIBUTING.md#the-api-is-a-snapshot)
+  has the rules, and
+  [SUPPORT.md](https://github.com/pleiondev/flutter3d/blob/main/SUPPORT.md)
+  says which releases get fixes and on which platforms.
+
+- **The bundle carries the lit models' opaque variants and the depth
+  pre-draw — `A1.2`** — and the sky's depth on its vertices and the shadow
+  map's storage mode — `A2.8`. `DeviceFeature.reversedDepth` is reported
+  where the context's depth format is `d32FloatS8UInt`, which on Metal it
+  is.
+
+- **A bundle compiled on another SDK is refused as stale.** The refusal
+  sets `ShaderBundleException.stale`, since rebuilding the bundle with the
+  application's SDK cures it.
+
+**The device answers `features`, `limits` and `textureFormatSupport`, and
+the `supportsX` getters read them.** Every old answer is what it was: each
+came from a flutter_gpu query, and the query now decides a feature instead.
+Of the new surface this backend lists what flutter_gpu really offers —
+`textureWrites` (any region, level and face, through
+`CommandBuffer.copyBufferToTexture`), `buffers`, `nonIndexedDraw`,
+`multiDraw`, `uniformBytes` and the compression families flutter_gpu
+reports — and refuses the rest with `UnsupportedCapabilityException`, each refusal
+carrying a `TODO(impeller)` that names what flutter_gpu lacks. Compute still
+waits on flutter/flutter#188480.
+
+**The nineteen new texture formats, the second-source blend factors and
+min/max are refused by name**, because flutter_gpu has no value for any of
+them. `test/gpu_formats_test.dart` holds the same-name mapping over the
+mirrored values and the refusal over the rest.
+
+**A buffer `createBuffer` made reads back.** Nothing on this backend lets the
+GPU write a buffer, so the host's copy kept beside each `DeviceBuffer` is
+its contents, and `readBuffer` answers from it. Mapping and synchronous
+readback stay refused until flutter_gpu can reach a buffer's own memory.
+
+**A read-only depth or stencil attachment keeps what it holds**: loaded and
+stored whatever the actions say, with depth writes and the stencil write mask
+held off for the pass. A transfer pass resolves a multisampled texture
+through an empty render pass.
+
+- `createStorageBuffer` takes `bindableAsIndices`, and refuses it as it
+  refuses every storage buffer: no compute here, so splats sort on the CPU.
+
+- **`supportsAlphaToCoverage` is false**: flutter_gpu has no
+  alpha-to-coverage and no sample mask. `setAlphaToCoverage` does nothing.
+
+Its `flutter3d_*` dependencies ask for `^1.0.0`.
+
 ## 0.8.1+1
 
 **Resolves on Flutter 3.44 and Dart 3.12.0.** The constraints asked for Dart

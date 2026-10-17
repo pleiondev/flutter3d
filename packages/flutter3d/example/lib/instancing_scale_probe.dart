@@ -113,7 +113,7 @@ class _InstancingScaleProbeState extends State<InstancingScaleProbe> {
 
   Renderer? _renderer;
   late final Scene _scene;
-  late final RenderView _view;
+  late final CameraView _view;
   late final InstancedMeshNode _crowd;
 
   final List<InstancingScaleRung> _rungs = <InstancingScaleRung>[];
@@ -147,9 +147,9 @@ class _InstancingScaleProbeState extends State<InstancingScaleProbe> {
         device,
         CuboidShape(size: vm.Vector3(0.6, 1.2, 0.6)).build(),
       ),
-      Material(
+      RenderMaterial(
         lighting: LightingModel.pbr,
-        baseColor: vm.Vector4(0.72, 0.68, 0.6, 1.0),
+        baseColor: LinearColor.fromSrgb(0.72, 0.68, 0.6, 1.0),
         roughness: 0.6,
       ),
       capacity: _ladder.last,
@@ -164,8 +164,8 @@ class _InstancingScaleProbeState extends State<InstancingScaleProbe> {
     _scene.add(
       LightNode(
         type: LightType.directional,
-        color: vm.Vector3(1.0, 0.97, 0.9),
-        intensity: 3.0,
+        color: LinearColor(1.0, 0.97, 0.9),
+        intensity: 3.0 * LightNode.defaultIntensity,
         name: 'sun',
       )..lookAt(vm.Vector3(0.3, -1.0, 0.4)),
     );
@@ -175,7 +175,7 @@ class _InstancingScaleProbeState extends State<InstancingScaleProbe> {
     final camera = _scene.add(CameraNode(name: 'camera'))
       ..setPosition(0.0, 90.0, 90.0)
       ..lookAt(vm.Vector3.zero());
-    _view = RenderView(camera: camera);
+    _view = CameraView(camera: camera);
 
     setState(() => _renderer = Renderer.create(device: device));
   }
@@ -264,7 +264,7 @@ class _InstancingScaleProbeState extends State<InstancingScaleProbe> {
           width: (constraints.maxWidth * dpr).round().clamp(1, 8192),
           height: (constraints.maxHeight * dpr).round().clamp(1, 8192),
           scene: _scene,
-          views: <RenderView>[_view],
+          views: <CameraView>[_view],
           settings: const RenderSettings(),
         );
         encode.stop();

@@ -120,9 +120,7 @@ void lookFrom(
 /// next frame the way it does for every other frame.
 void useLens(CameraNode camera, ViewLens lens, OrbitController orbit) {
   camera.projection = switch (lens) {
-    ViewLens.perspective => PerspectiveProjection(
-      fovYRadians: orbit.framingFov,
-    ),
+    ViewLens.perspective => PerspectiveProjection(fovY: orbit.framingFovY),
     ViewLens.orthographic => OrthographicProjection(height: orbit.orthoHeight),
   };
 }

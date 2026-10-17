@@ -41,6 +41,8 @@ import 'edit_mesh.dart';
 /// dragging one, is every frame — and a pair of fresh `Float32List`s per frame
 /// on a 200 000-face mesh is nine megabytes a second of garbage for numbers
 /// that are overwritten immediately.
+///
+/// A caller keeps one, `MeshNormals()`, to reuse its buffers.
 final class MeshNormals {
   /// The angle beyond which two faces are taken to disagree, in radians.
   ///
@@ -103,7 +105,7 @@ final class MeshNormals {
     _buildPrevious(mesh);
     _groupCorners(mesh, math.cos(smoothAngle));
     _accumulate(mesh);
-    _normalise(mesh);
+    _normalize(mesh);
   }
 
   /// Recomputes only what moving [vertices] can have changed, and answers how
@@ -422,7 +424,7 @@ final class MeshNormals {
     }
   }
 
-  void _normalise(EditMesh mesh) {
+  void _normalize(EditMesh mesh) {
     for (var face = 0; face < _faceSlots; face++) {
       if (!mesh.isFaceAlive(face)) continue;
       mesh.forEachHalfEdge(face, (int half) {

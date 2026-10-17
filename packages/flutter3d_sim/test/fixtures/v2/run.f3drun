@@ -1,0 +1,47 @@
+{
+  "version": 2,
+  "level": "assets/levels/crypt.json",
+  "levelHash": "c0ffee01",
+  "run": {
+    "version": 1,
+    "random": 7,
+    "health": 100
+  },
+  "tape": {
+    "seed": 7,
+    "frames": [
+      {
+        "pressed": [
+          "fire"
+        ]
+      },
+      {},
+      {},
+      {}
+    ]
+  },
+  "buildStamp": "fixture-mint",
+  "checkpoints": {
+    "every": 2,
+    "steps": [
+      2,
+      4
+    ],
+    "digests": [
+      "6afdc9f9",
+      "25a7fa49"
+    ]
+  },
+  "platform": "macos",
+  "levelSwaps": [
+    {
+      "step": 2,
+      "levelHash": "76e52adc",
+      "document": {
+        "version": 1,
+        "name": "crypt",
+        "fogDensity": 0.02
+      }
+    }
+  ]
+}

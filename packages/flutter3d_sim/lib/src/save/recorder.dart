@@ -12,9 +12,10 @@ import 'tape.dart';
 final class Recorder {
   Recorder({this.hz = 15.0});
 
+  /// Poses written per second of the run, in hertz.
   final double hz;
 
-  final List<Pose> _poses = <Pose>[];
+  final List<GhostFrame> _poses = <GhostFrame>[];
   double _nextAt = 0.0;
 
   int get length => _poses.length;
@@ -32,7 +33,7 @@ final class Recorder {
   }) {
     if (_poses.isNotEmpty && time < _nextAt) return;
 
-    final pose = Pose(time: time, yaw: yaw)..position.setFrom(position);
+    final pose = GhostFrame(time: time, yaw: yaw)..position.setFrom(position);
     if (up != null) pose.up.setFrom(up);
 
     _poses.add(pose);
@@ -41,7 +42,7 @@ final class Recorder {
 
   /// Ends the recording and hands over what was recorded.
   Tape finish(double seconds) =>
-      Tape(poses: List<Pose>.of(_poses), seconds: seconds);
+      Tape(poses: List<GhostFrame>.of(_poses), seconds: seconds);
 
   /// Throws the recording away and starts again.
   void reset() {

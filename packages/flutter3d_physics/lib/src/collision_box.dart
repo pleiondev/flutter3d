@@ -8,14 +8,16 @@ part of 'collision_shape.dart';
 /// against one box grown by the other's half-extents, so the swept test is
 /// analytic and cannot tunnel.
 final class CollisionBox extends CollisionShape {
-  CollisionBox(this.halfExtents);
+  CollisionBox(this.halfExtents) : boundsHalfExtents = halfExtents;
 
-  CollisionBox.size(Vector3 size) : halfExtents = size / 2.0;
+  CollisionBox.size(Vector3 size) : this(size / 2.0);
 
   final Vector3 halfExtents;
 
+  /// [halfExtents] itself, in metres: the box is its own bounds, so this is
+  /// the same live vector rather than a copy.
   @override
-  Vector3 get boundsHalfExtents => halfExtents;
+  final Vector3 boundsHalfExtents;
 
   @override
   bool overlaps(

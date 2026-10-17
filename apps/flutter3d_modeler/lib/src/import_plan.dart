@@ -17,11 +17,11 @@ import 'package:vector_math/vector_math.dart';
 enum ImportUnit {
   millimetres(0.001),
   centimetres(0.01),
-  metres(1.0);
+  meters(1.0);
 
   const ImportUnit(this.scale);
 
-  /// [ImportOptions.scale]'s own value for a file authored in this unit.
+  /// [ImportSettings.scale]'s own value for a file authored in this unit.
   final double scale;
 }
 
@@ -52,7 +52,7 @@ final class ImportPlan {
   ImportPlan({
     required this.document,
     required this.profile,
-    this.unit = ImportUnit.metres,
+    this.unit = ImportUnit.meters,
     this.weld = true,
     this.fixNormals = false,
     this.triangulate = false,
@@ -111,10 +111,10 @@ final class ImportPlan {
     return Aabb3.minMax(raw.min * scale, raw.max * scale);
   }
 
-  /// [ImportOptions] this plan's own [unit] and [upAxis] choice resolve
+  /// [ImportSettings] this plan's own [unit] and [upAxis] choice resolve
   /// to — what `fromModelDocument` actually reads.
-  ImportOptions optionsWith({UpAxis upAxis = UpAxis.y}) =>
-      ImportOptions(scale: unit.scale, upAxis: upAxis);
+  ImportSettings optionsWith({UpAxis upAxis = UpAxis.y}) =>
+      ImportSettings(scale: unit.scale, upAxis: upAxis);
 }
 
 /// `weld`'s own epsilon for [importMeshData]: the default (a millionth of

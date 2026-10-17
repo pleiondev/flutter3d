@@ -19,8 +19,7 @@ dependencies:
 
   # The scene graph this app builds by hand — one machine mesh, one light,
   # one panel, not a `Level` document: this is one incident, not a place
-  # worth a level format's own generality, `flutter3d_lab_twin`'s own
-  # reasoning for its own one twin.
+  # worth a level format's own generality.
   flutter3d:
     path: ../../packages/flutter3d
 

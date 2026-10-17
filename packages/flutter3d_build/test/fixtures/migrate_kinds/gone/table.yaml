@@ -1,0 +1,120 @@
+format: 1
+from: 0.8.5
+to: 1.0.0-rc.1
+date: 2026-10-08
+guide: https://flutter3d.pleion.dev/reference/migrating-to-1.0/
+entries:
+  - id: kinds-Shade
+    package: flutter3d_kinds
+    symbol: Shade
+    kind: rename
+    to: KindShade
+  - id: kinds-Board-table
+    package: flutter3d_kinds
+    symbol: Board.table
+    kind: rewrite
+    template: '{target}.fill(Table())'
+    imports: [package:flutter3d_kinds/flutter3d_kinds.dart]
+  - id: kinds-srgbColor
+    package: flutter3d_kinds
+    symbol: srgbColor
+    kind: rewrite
+    template: 'LinearColor.fromSrgb({arguments})'
+    imports: [package:flutter3d_kinds/flutter3d_kinds.dart]
+  - id: kinds-Tally-has
+    package: flutter3d_kinds
+    symbol: Tally.has
+    kind: rewrite
+    on: List
+    template: '{target}.whereType<{typeArguments}>().isNotEmpty'
+  - id: kinds-Mode-touch
+    package: flutter3d_kinds
+    symbol: Mode.touch
+    kind: rewrite
+    static: true
+    template: 'Mode.ofPlatform().touch'
+  - id: kinds-oldHelperGone
+    package: flutter3d_kinds
+    symbol: oldHelperGone
+    kind: manual
+    guidance: >-
+      `oldHelperGone` is gone; count by hand.
+  - id: kinds-roster
+    package: flutter3d_kinds
+    symbol: package:flutter3d_kinds/roster.dart
+    kind: manual
+    members: [Roster]
+    guidance: >-
+      The roster was one game's; copy it into your own code.
+  - id: kinds-Shelf
+    package: flutter3d_kinds
+    symbol: Shelf
+    kind: manual
+    guidance: >-
+      Only code that implements `Shelf` has anything to do: `count` answers
+      a `Future<int>`.
+  - id: kinds-Dial-constructor
+    package: flutter3d_kinds
+    symbol: Dial.Dial
+    kind: manual
+    guidance: >-
+      `label` is gone: a dial shows its level alone.
+  - id: kinds-Match
+    package: flutter3d_kinds
+    symbol: Match
+    kind: rename
+    to: KindMatch
+  - id: kinds-Ledger
+    package: flutter3d_kinds
+    symbol: Ledger
+    kind: rename
+    to: KindLedger
+  - id: kinds-Ledger-total
+    package: flutter3d_kinds
+    symbol: Ledger.total
+    kind: rewrite
+    template: '{target}.sum'
+  - id: kinds-Ledger-count
+    package: flutter3d_kinds
+    symbol: Ledger.count
+    kind: rename
+    to: tally
+  - id: kinds-Wrench
+    package: flutter3d_kinds
+    symbol: Wrench
+    kind: moved
+    to: package:flutter3d_kinds/tools.dart
+  - id: kinds-Board-pile
+    package: flutter3d_kinds
+    symbol: Board.pile
+    kind: rewrite
+    types: [Table]
+    template: 'Board.pile(Pile({0})).table'
+  - id: kinds-Store-load
+    package: flutter3d_kinds
+    symbol: Store
+    kind: manual
+    members: [load, save]
+    async: true
+    guidance: >-
+      `load` is asynchronous: await it.
+  - id: kinds-Seat
+    package: flutter3d_kinds
+    symbol: Seat
+    kind: rename
+    to: KindSeat
+  - id: kinds2-Seat
+    package: flutter3d_kinds
+    symbol: Seat
+    kind: rename
+    to: ToolSeat
+  - id: kinds-Wheel-rolling
+    package: flutter3d_kinds
+    symbol: Wheel.rolling
+    kind: rename
+    to: isRolling
+  - id: kinds-Credit-licence
+    package: flutter3d_kinds
+    symbol: Credit.licence
+    kind: rename
+    to: license

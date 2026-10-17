@@ -58,7 +58,7 @@ final class Exit extends Mechanism with CollisionListener {
   bool justReached = false;
 
   @override
-  Vector3 get origin => collider.position;
+  Vector3 get origin => collider.position.clone();
 
   @override
   ActivationOutcome activate(Activation by) {
@@ -77,7 +77,8 @@ final class Exit extends Mechanism with CollisionListener {
   }
 
   @override
-  void onCollisionStart(Collider self, Collider other) {
+  void onCollisionStart(CollisionContext context) {
+    final other = context.other;
     activate(world.activationBy(other));
   }
 

@@ -162,7 +162,7 @@ void main() {
       // straight corner is never taken — the base's collinear corners then
       // surround the outline with corners nothing can remove, and this is
       // true.
-      expect(cutter.fannedLastFace, isFalse);
+      expect(cutter.didFanLastFace, isFalse);
 
       // Five teeth, two square units apiece.
       expect(shoelace(comb), closeTo(10, 1e-9));
@@ -244,7 +244,7 @@ void main() {
       expect(count, 2);
       // The flag is the point: the caller gets triangles rather than an
       // exception, and something it can put in front of a person.
-      expect(cutter.fannedLastFace, isTrue);
+      expect(cutter.didFanLastFace, isTrue);
     });
 
     test('an ordinary face leaves the flag down', () {
@@ -256,7 +256,7 @@ void main() {
         Vector3(0, 1, 0),
       ], (int _, int _, int _) {});
 
-      expect(cutter.fannedLastFace, isFalse);
+      expect(cutter.didFanLastFace, isFalse);
     });
   });
 
@@ -330,7 +330,7 @@ void _triangulateFacesTests() {
       late final OpResult result;
       _edit(mesh, () => result = triangulateFaces(mesh, all));
 
-      expect(result.ok, isTrue);
+      expect(result.isOk, isTrue);
       expect(result.topologyChanged, isTrue);
       // Six quads, one diagonal each.
       expect(mesh.faceCount, 12);
@@ -359,7 +359,7 @@ void _triangulateFacesTests() {
       // — `splitFace` refuses a cut between neighbours, so every attempt is a
       // no-op that still reports success, and an exporter loops for ever
       // waiting for a mesh that is "not triangulated yet" to become so.
-      expect(again.ok, isFalse);
+      expect(again.isOk, isFalse);
       expect(again.reason, contains('already'));
       expect(mesh.faceCount, faces);
     });
@@ -394,7 +394,7 @@ void _triangulateFacesTests() {
       // every triangle the clipper emits rather than on the diagonals only,
       // and the cuts between neighbours are refused one at a time — which
       // leaves the count right by luck on a quad and wrong on anything larger.
-      expect(result.ok, isTrue);
+      expect(result.isOk, isTrue);
       expect(mesh.faceCount, 3);
       mesh.validate();
     });
@@ -472,7 +472,7 @@ void _triangulateFacesTests() {
             result = triangulateFaces(mesh, Selection.empty(ElementLevel.face)),
       );
 
-      expect(result.ok, isFalse);
+      expect(result.isOk, isFalse);
       expect(result.reason, contains('no faces'));
     });
   });

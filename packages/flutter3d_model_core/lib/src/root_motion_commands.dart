@@ -11,11 +11,10 @@
 /// these two commands are the document-side half, over `ProjectClip` alone.
 part of 'command.dart';
 
-/// The key [ExtractRootMotion]/[BakeRootMotionIntoClip] store a clip's own
-/// unflattened root translation under, inside [ProjectClip.extras] — the
-/// `flutter3dRootMotion` an export "by code" reads instead of baking the
-/// motion into the clip itself.
-const String kRootMotionExtra = 'flutter3dRootMotion';
+// [ExtractRootMotion] and [BakeRootMotionIntoClip] keep a clip's unflattened
+// root translation under `flutter3d_core`'s `rootMotionExtra`, inside
+// [ProjectClip.extras]: the key `AnimationPlayer` reads it back by, so the
+// document and the runtime cannot drift to two spellings of it.
 
 /// The translation track for [rootJoint] on clip [clipIndex], and its own
 /// index in [ProjectClip.tracks] — or the sentence to refuse with.
@@ -54,7 +53,7 @@ const String kRootMotionExtra = 'flutter3dRootMotion';
 
 /// Flattens clip [clipIndex]'s own translation track for [rootJoint] to its
 /// first key's own value — the root stands still — after saving every key's
-/// real value under the clip's own `extras[kRootMotionExtra]`, so
+/// real value under the clip's own `extras[rootMotionExtra]`, so
 /// [BakeRootMotionIntoClip] can restore them exactly.
 ///
 /// Refused, not a no-op, when the clip already carries extracted motion:
@@ -88,7 +87,7 @@ final class ExtractRootMotion extends ModelCommand {
     if (track == null) return Outcome.refused(refused!);
     final clip = project.clips[clipIndex];
     if ((clip.extras ?? const <String, Object?>{}).containsKey(
-      kRootMotionExtra,
+      rootMotionExtra,
     )) {
       return Outcome.refused(
         'clip $clipIndex already has its root motion extracted',
@@ -128,7 +127,7 @@ final class ExtractRootMotion extends ModelCommand {
 }
 
 /// Restores clip [clipIndex]'s own translation track for [rootJoint] from
-/// whatever [ExtractRootMotion] last saved under `extras[kRootMotionExtra]`
+/// whatever [ExtractRootMotion] last saved under `extras[rootMotionExtra]`
 /// — the exact inverse, key for key — and clears the extra once restored.
 ///
 /// Refused when the clip carries no extracted motion at all, or when the
@@ -166,7 +165,7 @@ final class BakeRootMotionIntoClip extends ModelCommand {
     if (track == null) return Outcome.refused(refused!);
 
     final clip = project.clips[clipIndex];
-    final saved = clip.extras?[kRootMotionExtra];
+    final saved = clip.extras?[rootMotionExtra];
     if (saved is! List) {
       return Outcome.refused(
         'clip $clipIndex has no extracted root motion to bake back in',
@@ -212,7 +211,7 @@ final class BakeRootMotionIntoClip extends ModelCommand {
 }
 
 /// [project] with clip [clipIndex]'s own translation track for [rootJoint]
-/// replaced by [table], and `extras[kRootMotionExtra]` set to [extra] — or
+/// replaced by [table], and `extras[rootMotionExtra]` set to [extra] — or
 /// removed when [extra] is null.
 ModelProject _withRootTrack(
   ModelProject project,
@@ -234,9 +233,9 @@ ModelProject _withRootTrack(
     clip.extras ?? const <String, Object?>{},
   );
   if (extra == null) {
-    extras.remove(kRootMotionExtra);
+    extras.remove(rootMotionExtra);
   } else {
-    extras[kRootMotionExtra] = extra;
+    extras[rootMotionExtra] = extra;
   }
 
   final clips = List<ProjectClip>.of(project.clips)

@@ -25,7 +25,6 @@ library;
 import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
-import 'package:vector_math/vector_math.dart';
 
 import 'stereo_rig.dart';
 
@@ -67,10 +66,10 @@ final class StereoScreen {
     );
   }
 
-  /// The long side, the one the two eyes divide between them.
+  /// The long side, the one the two eyes divide between them, in metres.
   final double width;
 
-  /// The short side, the one the tray height is measured along.
+  /// The short side, the one the tray height is measured along, in metres.
   final double height;
 
   @override
@@ -113,9 +112,10 @@ final class StereoViewer {
   /// How far apart the lenses are. This is what separates the eyes, in place
   /// of an interpupillary distance: a viewer's own eyes look through wherever
   /// the lenses are, and being 2 mm wider than the holder does not move them.
+  /// In metres.
   final double interLensDistance;
 
-  /// From the screen to the lens, along the lens axis.
+  /// From the screen to the lens, along the lens axis, in metres.
   final double screenToLensDistance;
 
   /// From the edge the phone rests on to the lens axis, across the screen's
@@ -132,8 +132,14 @@ final class StereoViewer {
   /// face, towards the nose, and up and down. Radians from the lens axis, the
   /// way the rest of this repository states an angle.
   final double outerFieldOfView;
+
+  /// As [outerFieldOfView], towards the nose: radians from the lens axis.
   final double innerFieldOfView;
+
+  /// As [outerFieldOfView], upwards: radians from the lens axis.
   final double topFieldOfView;
+
+  /// As [outerFieldOfView], downwards: radians from the lens axis.
   final double bottomFieldOfView;
 
   /// The frustum [eye] sees through this holder at [screen].

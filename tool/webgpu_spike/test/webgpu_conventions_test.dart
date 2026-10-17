@@ -14,6 +14,8 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show UnsupportedCapabilityException;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webgpu_spike/webgpu_spike.dart';
@@ -48,6 +50,26 @@ const Set<String> _textureFormats = <String>{
   'astc-4x4-unorm-srgb',
   'astc-8x8-unorm',
   'astc-8x8-unorm-srgb',
+  // The 1.0 tail of TextureFormat.
+  'rgba8snorm',
+  'rgba8uint',
+  'rgba8sint',
+  'r16float',
+  'rg16float',
+  'rgba16uint',
+  'rgba16sint',
+  'r32uint',
+  'r32sint',
+  'rg32float',
+  'rg32uint',
+  'rg32sint',
+  'rgba32uint',
+  'rgba32sint',
+  'rgb10a2unorm',
+  'rg11b10ufloat',
+  'rgb9e5ufloat',
+  'depth16unorm',
+  'depth32float',
 };
 
 const Set<String> _blendFactors = <String>{
@@ -64,6 +86,11 @@ const Set<String> _blendFactors = <String>{
   'src-alpha-saturated',
   'constant',
   'one-minus-constant',
+  // `dual-source-blending`.
+  'src1',
+  'one-minus-src1',
+  'src1-alpha',
+  'one-minus-src1-alpha',
 };
 
 const Set<String> _blendOperations = <String>{
@@ -231,9 +258,22 @@ void main() {
       );
       expect(
         <String>[
-          for (final mode in SamplerAddressMode.values) gpuAddressMode(mode),
+          for (final mode in SamplerAddressMode.values)
+            if (mode != SamplerAddressMode.clampToBorder) gpuAddressMode(mode),
         ],
         <String>['clamp-to-edge', 'repeat', 'mirror-repeat'],
+      );
+      // WebGPU has no border: the mapping refuses it by the feature that
+      // names it, not by a sentence.
+      expect(
+        () => gpuAddressMode(SamplerAddressMode.clampToBorder),
+        throwsA(
+          isA<UnsupportedCapabilityException>().having(
+            (e) => e.feature,
+            'feature',
+            DeviceFeature.samplerBorderColor,
+          ),
+        ),
       );
       expect(
         <String>[

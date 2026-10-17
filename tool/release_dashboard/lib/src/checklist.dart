@@ -23,7 +23,7 @@ final class ReleaseConfig {
     this.integrationBranches = const <String>['modeler'],
     this.ownLine = const <String>{
       'pad_input',
-      'pointer_lock',
+      'flutter3d_pointer_lock',
       'flutter3d_samples',
     },
     this.endedNames = const <String>[

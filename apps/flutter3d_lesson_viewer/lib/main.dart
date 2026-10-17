@@ -10,28 +10,30 @@
 /// anything, so building one would be state nothing reads.
 ///
 /// `edu-02`'s own honest-scope line: this plays a step's `at`/`yaw` and its
-/// `visible`/`hidden` lists (through `applyLessonStepToCamera`) and renders
-/// `widget_surface` annotations through the same pipeline the dungeon's
-/// terminal (`wg-02`) already proved. It does not apply `offsets`, does not
-/// draw an `edu_clip_plane`, does not read `bindings`/`edu_data_source`, and
-/// does not ask a `check` question — see `src/lesson_player.dart`'s own doc
-/// comment for why each is a separate, later step.
+/// `visible`/`hidden` lists (through `flutter3d_stereo`'s
+/// `applyLessonStepTo`, the one lesson player for a flat screen and a
+/// holder) and renders `widget_surface` annotations through the same
+/// pipeline the dungeon's terminal (`wg-02`) already proved. It does not
+/// draw an `edu_clip_plane` and does not read `bindings`/`edu_data_source`:
+/// each is a separate, later step.
 library;
 
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
-import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
+import 'package:flutter3d_education/lesson.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
+import 'package:flutter3d_stereo/flutter3d_stereo.dart' show LessonPlayer;
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:vector_math/vector_math.dart' show Vector3;
 
-import 'src/lesson_player.dart';
+import 'src/lesson_loading_screen.dart';
+import 'src/lesson_theme.dart';
 import 'src/lesson_view.dart';
 
 /// The lesson this build opens, as a bundled asset path.
@@ -81,7 +83,7 @@ final class OpenKind extends EntityKind {
 /// warning, not a running caption — is the row a *reactive* widget_surface
 /// belongs to, once one is written.
 Widget _viewerCaption(BuildContext context) => const ColoredBox(
-  color: Color(0xCC0E1013),
+  color: LessonTheme.scrim,
   child: Center(
     child: Padding(
       padding: EdgeInsets.all(16.0),
@@ -89,7 +91,7 @@ Widget _viewerCaption(BuildContext context) => const ColoredBox(
         'Обойти изделие',
         textAlign: TextAlign.center,
         style: TextStyle(
-          color: Colors.white,
+          color: LessonTheme.text,
           fontSize: 20.0,
           fontWeight: FontWeight.w600,
         ),
@@ -100,9 +102,30 @@ Widget _viewerCaption(BuildContext context) => const ColoredBox(
 
 /// Every widget a `widget_surface` entity in this application's own levels
 /// may name.
-Map<String, WidgetBuilder> widgetRegistry() => <String, WidgetBuilder>{
-  'viewer-caption': _viewerCaption,
-};
+///
+/// **The student's reduced-motion flag, carried in.** A surface is built in
+/// a pipeline of its own, under a `MediaQuery` that knows the texture's size
+/// and nothing of the system's settings, so a widget hosted there would
+/// animate whatever the student asked for. With [reduceMotion], each one
+/// reads `MediaQuery.disableAnimationsOf` as the screen around it does.
+Map<String, WidgetBuilder> widgetRegistry({
+  ValueListenable<bool>? reduceMotion,
+}) {
+  WidgetBuilder carried(WidgetBuilder build) => reduceMotion == null
+      ? build
+      : (BuildContext context) => ValueListenableBuilder<bool>(
+          valueListenable: reduceMotion,
+          builder: (BuildContext context, bool reduce, Widget? child) =>
+              MediaQuery(
+                data: MediaQuery.of(
+                  context,
+                ).copyWith(disableAnimations: reduce),
+                child: child!,
+              ),
+          child: Builder(builder: build),
+        );
+  return <String, WidgetBuilder>{'viewer-caption': carried(_viewerCaption)};
+}
 
 /// [level]'s own `part` entities — `ls-e-00`'s removable pieces — as plain
 /// boxed [MeshNode]s, named after their own entity so an `edu_step`'s
@@ -159,7 +182,7 @@ final class LessonReady extends LessonState {
 
   /// Every fixture the level placed, by the name its own entity carries —
   /// what a step's `visible`/`hidden` list reaches through
-  /// `applyLessonStepToCamera`.
+  /// `applyLessonStepTo`.
   final Map<String, SceneNode> nodes;
 }
 
@@ -219,7 +242,7 @@ class LessonCubit extends Cubit<LessonState> {
       }
 
       // `ls-e-00`'s own nodes map: every fixture the level placed, by the
-      // name its own entity carries — `applyLessonStepToCamera`'s own doc
+      // name its own entity carries — `applyLessonStepTo`'s own doc
       // comment names this split (the engine says what a step means, an
       // application says which node that name resolves to). Built *after*
       // `widgetSurfaces` rather than before: a `widget_surface`'s own
@@ -233,6 +256,12 @@ class LessonCubit extends Cubit<LessonState> {
         for (final mesh in loaded.scene.meshes) ?mesh.name: mesh,
       };
 
+      // The screen went while the level was loading: nobody will show these
+      // surfaces, and a closed cubit cannot be handed them.
+      if (isClosed) {
+        widgetSurfaces.dispose();
+        return;
+      }
       emit(
         LessonReady(
           loaded.scene..add(camera),
@@ -243,7 +272,7 @@ class LessonCubit extends Cubit<LessonState> {
         ),
       );
     } catch (error) {
-      emit(LessonFailed(error));
+      if (!isClosed) emit(LessonFailed(error));
     }
   }
 
@@ -264,6 +293,7 @@ class LessonScreen extends StatefulWidget {
 
 class _LessonScreenState extends State<LessonScreen>
     with SingleTickerProviderStateMixin {
+  GraphicsDevice? _device;
   Renderer? _renderer;
   Object? _initError;
 
@@ -272,18 +302,34 @@ class _LessonScreenState extends State<LessonScreen>
 
   Ticker? _ticker;
 
+  /// The system's reduced-motion flag, handed to the widgets the lesson's
+  /// surfaces host ([widgetRegistry]), which cannot read it themselves.
+  final ValueNotifier<bool> _reduceMotion = ValueNotifier<bool>(false);
+
   @override
   void initState() {
     super.initState();
     unawaited(_open());
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _reduceMotion.value = MediaQuery.disableAnimationsOf(context);
+  }
+
   Future<void> _open() async {
     final GraphicsDevice device;
     try {
       device = await openDevice(width: 1280, height: 720);
-      if (!mounted) return;
-      setState(() => _renderer = Renderer.create(device: device));
+      if (!mounted) {
+        device.dispose();
+        return;
+      }
+      setState(() {
+        _device = device;
+        _renderer = Renderer.create(device: device);
+      });
     } catch (error) {
       if (mounted) setState(() => _initError = error);
       return;
@@ -291,8 +337,11 @@ class _LessonScreenState extends State<LessonScreen>
     await _lesson.open(
       device,
       camera: _camera,
-      widgetRegistry: widgetRegistry(),
+      widgetRegistry: widgetRegistry(reduceMotion: _reduceMotion),
     );
+    // Gone while the lesson loaded: a ticker cannot be made for a disposed
+    // state.
+    if (!mounted) return;
     // `widgetSurfaces.tickAll()` redraws whichever `widget_surface` this
     // lesson named, only on the frames its own pipeline marks dirty
     // (`wg-00`'s own rule) — driven by a ticker rather than only by the step
@@ -304,10 +353,17 @@ class _LessonScreenState extends State<LessonScreen>
     })..start();
   }
 
+  /// The device and the renderer are this screen's: `SceneSurface` only
+  /// borrows them, so they are given back here — after `close`, which
+  /// disposes the lesson's widget surfaces before it awaits anything, since
+  /// those surfaces release their meshes and textures to this same device.
   @override
   void dispose() {
     _ticker?.dispose();
     unawaited(_lesson.close());
+    _renderer?.dispose();
+    _device?.dispose();
+    _reduceMotion.dispose();
     super.dispose();
   }
 
@@ -338,12 +394,9 @@ class _LessonScreenState extends State<LessonScreen>
 
   Widget _didNotStart(Object error) => DidNotStart(
     error,
-    background: const Color(0xFF14161A),
-    foreground: const Color(0xFFFF8A80),
+    background: LessonTheme.background,
+    foreground: LessonTheme.error,
   );
 
-  Widget _loading() => const Scaffold(
-    backgroundColor: Color(0xFF14161A),
-    body: Center(child: CircularProgressIndicator()),
-  );
+  Widget _loading() => const LessonLoadingScreen();
 }

@@ -17,6 +17,8 @@ import 'dart:math' as math;
 /// running sets the clock to whichever is longer instead of adding — so a
 /// player who hoards four of them gets thirty seconds and not two minutes,
 /// which is the difference between a power-up and a savings account.
+///
+/// A game keeps one per body, made with `Powers()`.
 final class Powers {
   /// Seconds left on each, by name. Empty when nothing is running.
   Map<String, double> get remaining =>

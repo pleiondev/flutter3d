@@ -14,7 +14,7 @@
 /// **One chunk type, not two.** `mesh-10` looked at chunked, copy-on-write
 /// persistent vectors for undo and rejected them by measurement — a scattered
 /// edit touches nearly every chunk, so a step costs 92-100% of a full copy,
-/// and `journal.dart`'s `JournalledFloats`/`JournalledInts` replaced them with
+/// and `journal.dart`'s `JournaledFloats`/`JournaledInts` replaced them with
 /// a diff-based journal instead. That means there is no existing chunked CoW
 /// structure in this package to reuse: `mesh-10`'s array is journalled, not
 /// chunked. `SculptMesh` is the first one, built for the access pattern a
@@ -123,6 +123,134 @@ final class SculptMesh {
     _buildGrid();
   }
 
+  // ------------------------------------------------------------- conversion
+
+  /// Builds a [SculptMesh] from [mesh]'s current, live geometry.
+  ///
+  /// **Triangulated on the way in.** `EditMesh` allows faces of any valency;
+  /// sculpting works on triangles, so every face is cut with the same
+  /// [FaceTriangulator] `MeshLayoutPlan` uses. Dead vertices and faces are
+  /// skipped and the live ones renumbered densely from zero — a sculpt
+  /// session's vertex numbering does not need to match the document's slot
+  /// numbers, only [toEditMesh] converting back needs to be consistent with
+  /// this mapping, and it is, because it only ever sees a `SculptMesh` this
+  /// factory built.
+  ///
+  /// **Renumbered by Morton (Z-order) code, not by slot order.** `pro-sc-02`'s
+  /// own ≤2%-chunks-per-1%-stroke guarantee is a claim about a chunk of
+  /// *consecutive indices*, and a document's own vertex slot order carries no
+  /// promise about spatial locality — an import, a mirror modifier or a
+  /// scrambled undo history can hand this factory vertices in any order at
+  /// all. Sorting live vertices by a Morton code over their quantized
+  /// position (ten bits per axis — coarse enough to stay inside dart2js's
+  /// 32-bit-safe bitwise range, fine enough that two vertices sharing a code
+  /// are already closer than any chunk-sized region needs) means a brush's
+  /// compact spatial footprint lands in a compact run of new indices, and
+  /// therefore in a small number of [chunkSize]-sized chunks, regardless of
+  /// what order the input arrived in. `sculpt_mesh_test.dart`'s own
+  /// "scrambled" acceptance test is the adversarial case this exists for.
+  ///
+  /// **One UV per vertex.** `EditMesh` stores UVs per corner, so a seam can
+  /// give the same vertex different coordinates in different faces.
+  /// `SculptMesh` has no notion of a corner — a brush moves a vertex, not a
+  /// face corner — so each vertex takes the UV of whichever corner is reached
+  /// first while walking faces; a mesh with UV seams keeps whichever corner
+  /// that happens to be, which is a real limitation on a mesh with islands,
+  /// and not one a sculpting brush's own geometry ever has cause to hit: a
+  /// stroke moves positions, never corner UVs, so there is nothing here for a
+  /// seam value to disagree with itself over.
+  factory SculptMesh.fromEditMesh(EditMesh mesh) {
+    final vertexMap = Int32List(mesh.vertexSlotCount)
+      ..fillRange(0, mesh.vertexSlotCount, EditMesh.none);
+    final liveVertices = <int>[
+      for (var v = 0; v < mesh.vertexSlotCount; v++)
+        if (mesh.isVertexAlive(v)) v,
+    ];
+    var vertexCount = 0;
+    for (final v in _sortedByMortonCode(mesh, liveVertices)) {
+      vertexMap[v] = vertexCount++;
+    }
+
+    final positions = Float32List(vertexCount * 3);
+    final uvs = Float32List(vertexCount * 2);
+    final uvWritten = List<bool>.filled(vertexCount, false);
+    final trianglesOut = <int>[];
+    final cutter = FaceTriangulator();
+    final loopPositions = <Vector3>[];
+    final loopVertices = <int>[];
+    final loopHalfEdges = <int>[];
+    final position = Vector3.zero();
+    final uv = Vector2.zero();
+
+    for (var f = 0; f < mesh.faceSlotCount; f++) {
+      if (!mesh.isFaceAlive(f)) continue;
+      loopPositions.clear();
+      loopVertices.clear();
+      loopHalfEdges.clear();
+      mesh.forEachHalfEdge(f, (int half) {
+        final origin = mesh.originOf(half);
+        loopVertices.add(vertexMap[origin]);
+        loopHalfEdges.add(half);
+        loopPositions.add(mesh.positionOf(origin, position).clone());
+      });
+
+      for (var i = 0; i < loopVertices.length; i++) {
+        final sculptVertex = loopVertices[i];
+        if (uvWritten[sculptVertex]) continue;
+        mesh.uvOf(loopHalfEdges[i], uv);
+        uvs[sculptVertex * 2] = uv.x;
+        uvs[sculptVertex * 2 + 1] = uv.y;
+        uvWritten[sculptVertex] = true;
+      }
+
+      cutter.triangulate(loopPositions, (int a, int b, int c) {
+        trianglesOut
+          ..add(loopVertices[a])
+          ..add(loopVertices[b])
+          ..add(loopVertices[c]);
+      });
+    }
+
+    for (var v = 0; v < mesh.vertexSlotCount; v++) {
+      final sculptVertex = vertexMap[v];
+      if (sculptVertex == EditMesh.none) continue;
+      mesh.positionOf(v, position);
+      positions[sculptVertex * 3] = position.x;
+      positions[sculptVertex * 3 + 1] = position.y;
+      positions[sculptVertex * 3 + 2] = position.z;
+    }
+
+    final chunkCount = vertexCount == 0 ? 0 : (vertexCount / chunkSize).ceil();
+    final chunks = <_VertexChunk>[
+      for (var c = 0; c < chunkCount; c++)
+        _VertexChunk(
+          Float32List.sublistView(
+            positions,
+            c * chunkSize * 3,
+            _end(c, chunkCount, vertexCount, positions.length, 3),
+          ),
+          Float32List.sublistView(
+            uvs,
+            c * chunkSize * 2,
+            _end(c, chunkCount, vertexCount, uvs.length, 2),
+          ),
+          0,
+        ),
+    ];
+
+    final sourceVertices = Int32List(vertexCount);
+    for (var v = 0; v < mesh.vertexSlotCount; v++) {
+      if (vertexMap[v] != EditMesh.none) sourceVertices[vertexMap[v]] = v;
+    }
+
+    return SculptMesh._(
+      chunks,
+      vertexCount,
+      Uint32List.fromList(trianglesOut),
+      sourceVertices: sourceVertices,
+    );
+  }
+
   /// Which `EditMesh` vertex slot each sculpt vertex came from, when this was
   /// built by [SculptMesh.fromEditMesh] — empty otherwise.
   ///
@@ -141,17 +269,16 @@ final class SculptMesh {
   /// a brush's chunk-touch fraction is only a meaningful, comparable number
   /// across strokes and meshes if the chunk size does not move under it.
   static const int chunkSize = 1024;
-
   final List<_VertexChunk> _chunks;
+
   final int _vertexCount;
 
   /// The mesh's index buffer: three vertex indices per triangle, flat — the
   /// same shape `MeshData.indices` and `MeshLayoutPlan.indices` use.
   final Uint32List triangles;
-
   Int32List _adjacencyOffsets = Int32List(0);
-  Int32List _adjacencyNeighbors = Int32List(0);
 
+  Int32List _adjacencyNeighbors = Int32List(0);
   // The uniform grid: a cell key to the vertices bucketed in it. A `Map`
   // rather than an array because vertex positions are not bounded to a known
   // integer range, unlike the CSR adjacency above — there is nothing to build
@@ -160,6 +287,7 @@ final class SculptMesh {
   // per candidate, and it does: it hashes once per cell, not once per vertex.
   final Map<int, List<int>> _grid = <int, List<int>>{};
   double _cellSize = 1;
+
   double _minX = 0, _minY = 0, _minZ = 0;
 
   final Set<int> _dirtyChunks = <int>{};
@@ -438,134 +566,6 @@ final class SculptMesh {
     return BrushResult(
       touchedVertices: touchedVertices,
       touchedChunks: sortedChunks,
-    );
-  }
-
-  // ------------------------------------------------------------- conversion
-
-  /// Builds a [SculptMesh] from [mesh]'s current, live geometry.
-  ///
-  /// **Triangulated on the way in.** `EditMesh` allows faces of any valency;
-  /// sculpting works on triangles, so every face is cut with the same
-  /// [FaceTriangulator] `MeshLayoutPlan` uses. Dead vertices and faces are
-  /// skipped and the live ones renumbered densely from zero — a sculpt
-  /// session's vertex numbering does not need to match the document's slot
-  /// numbers, only [toEditMesh] converting back needs to be consistent with
-  /// this mapping, and it is, because it only ever sees a `SculptMesh` this
-  /// factory built.
-  ///
-  /// **Renumbered by Morton (Z-order) code, not by slot order.** `pro-sc-02`'s
-  /// own ≤2%-chunks-per-1%-stroke guarantee is a claim about a chunk of
-  /// *consecutive indices*, and a document's own vertex slot order carries no
-  /// promise about spatial locality — an import, a mirror modifier or a
-  /// scrambled undo history can hand this factory vertices in any order at
-  /// all. Sorting live vertices by a Morton code over their quantized
-  /// position (ten bits per axis — coarse enough to stay inside dart2js's
-  /// 32-bit-safe bitwise range, fine enough that two vertices sharing a code
-  /// are already closer than any chunk-sized region needs) means a brush's
-  /// compact spatial footprint lands in a compact run of new indices, and
-  /// therefore in a small number of [chunkSize]-sized chunks, regardless of
-  /// what order the input arrived in. `sculpt_mesh_test.dart`'s own
-  /// "scrambled" acceptance test is the adversarial case this exists for.
-  ///
-  /// **One UV per vertex.** `EditMesh` stores UVs per corner, so a seam can
-  /// give the same vertex different coordinates in different faces.
-  /// `SculptMesh` has no notion of a corner — a brush moves a vertex, not a
-  /// face corner — so each vertex takes the UV of whichever corner is reached
-  /// first while walking faces; a mesh with UV seams keeps whichever corner
-  /// that happens to be, which is a real limitation on a mesh with islands,
-  /// and not one a sculpting brush's own geometry ever has cause to hit: a
-  /// stroke moves positions, never corner UVs, so there is nothing here for a
-  /// seam value to disagree with itself over.
-  factory SculptMesh.fromEditMesh(EditMesh mesh) {
-    final vertexMap = Int32List(mesh.vertexSlotCount)
-      ..fillRange(0, mesh.vertexSlotCount, EditMesh.none);
-    final liveVertices = <int>[
-      for (var v = 0; v < mesh.vertexSlotCount; v++)
-        if (mesh.isVertexAlive(v)) v,
-    ];
-    var vertexCount = 0;
-    for (final v in _sortedByMortonCode(mesh, liveVertices)) {
-      vertexMap[v] = vertexCount++;
-    }
-
-    final positions = Float32List(vertexCount * 3);
-    final uvs = Float32List(vertexCount * 2);
-    final uvWritten = List<bool>.filled(vertexCount, false);
-    final trianglesOut = <int>[];
-    final cutter = FaceTriangulator();
-    final loopPositions = <Vector3>[];
-    final loopVertices = <int>[];
-    final loopHalfEdges = <int>[];
-    final position = Vector3.zero();
-    final uv = Vector2.zero();
-
-    for (var f = 0; f < mesh.faceSlotCount; f++) {
-      if (!mesh.isFaceAlive(f)) continue;
-      loopPositions.clear();
-      loopVertices.clear();
-      loopHalfEdges.clear();
-      mesh.forEachHalfEdge(f, (int half) {
-        final origin = mesh.originOf(half);
-        loopVertices.add(vertexMap[origin]);
-        loopHalfEdges.add(half);
-        loopPositions.add(mesh.positionOf(origin, position).clone());
-      });
-
-      for (var i = 0; i < loopVertices.length; i++) {
-        final sculptVertex = loopVertices[i];
-        if (uvWritten[sculptVertex]) continue;
-        mesh.uvOf(loopHalfEdges[i], uv);
-        uvs[sculptVertex * 2] = uv.x;
-        uvs[sculptVertex * 2 + 1] = uv.y;
-        uvWritten[sculptVertex] = true;
-      }
-
-      cutter.triangulate(loopPositions, (int a, int b, int c) {
-        trianglesOut
-          ..add(loopVertices[a])
-          ..add(loopVertices[b])
-          ..add(loopVertices[c]);
-      });
-    }
-
-    for (var v = 0; v < mesh.vertexSlotCount; v++) {
-      final sculptVertex = vertexMap[v];
-      if (sculptVertex == EditMesh.none) continue;
-      mesh.positionOf(v, position);
-      positions[sculptVertex * 3] = position.x;
-      positions[sculptVertex * 3 + 1] = position.y;
-      positions[sculptVertex * 3 + 2] = position.z;
-    }
-
-    final chunkCount = vertexCount == 0 ? 0 : (vertexCount / chunkSize).ceil();
-    final chunks = <_VertexChunk>[
-      for (var c = 0; c < chunkCount; c++)
-        _VertexChunk(
-          Float32List.sublistView(
-            positions,
-            c * chunkSize * 3,
-            _end(c, chunkCount, vertexCount, positions.length, 3),
-          ),
-          Float32List.sublistView(
-            uvs,
-            c * chunkSize * 2,
-            _end(c, chunkCount, vertexCount, uvs.length, 2),
-          ),
-          0,
-        ),
-    ];
-
-    final sourceVertices = Int32List(vertexCount);
-    for (var v = 0; v < mesh.vertexSlotCount; v++) {
-      if (vertexMap[v] != EditMesh.none) sourceVertices[vertexMap[v]] = v;
-    }
-
-    return SculptMesh._(
-      chunks,
-      vertexCount,
-      Uint32List.fromList(trianglesOut),
-      sourceVertices: sourceVertices,
     );
   }
 

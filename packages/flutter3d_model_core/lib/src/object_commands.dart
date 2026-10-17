@@ -221,8 +221,8 @@ final class AddLathe extends ModelCommand {
 }
 
 /// Adds a named point with no geometry of its own — a place for an
-/// accessory or an attachment to hang off of, the way an empty in Blender or
-/// a `Marker3D` in Godot works. See [SocketGeometry]'s own doc comment for
+/// accessory or an attachment to hang off of, the way an empty in Blender
+/// works. See [SocketGeometry]'s own doc comment for
 /// why it shares its type with what an imported empty group already
 /// becomes.
 final class AddSocket extends ModelCommand {
@@ -312,6 +312,9 @@ final class SetParametric extends ModelCommand {
       SocketGeometry() => Outcome.refused(
         '"${object.name}" is a socket and was never described by numbers',
       ),
+      _ => Outcome.refused(
+        'object $id holds geometry this command cannot change',
+      ),
     };
   }
 }
@@ -360,6 +363,9 @@ final class BakeToMesh extends ModelCommand {
       SocketGeometry() => Outcome.refused(
         '"${object.name}" is a socket, and there is no shape underneath it '
         'to turn into a mesh',
+      ),
+      _ => Outcome.refused(
+        'object $id holds geometry this command cannot change',
       ),
     };
   }
@@ -414,7 +420,7 @@ final class BuildTopology extends ModelCommand {
         data,
         weldEpsilon: weld,
       )) {
-        (final EditMesh mesh, _, _) => Outcome.done(
+        ImportedMesh(:final mesh) => Outcome.done(
           project.withObject(object.copyWith(geometry: EditedGeometry(mesh))),
         ),
       },
@@ -427,6 +433,9 @@ final class BuildTopology extends ModelCommand {
       ),
       SocketGeometry() => Outcome.refused(
         '"${object.name}" is a socket and has no shape underneath it',
+      ),
+      _ => Outcome.refused(
+        'object $id holds geometry this command cannot change',
       ),
     };
   }
@@ -486,6 +495,8 @@ final class RotateBy extends ModelCommand {
   });
 
   final Vector3 axis;
+
+  /// The turn about [axis], in radians.
   final double radians;
 
   /// The point the turn happens about.
@@ -504,16 +515,20 @@ final class RotateBy extends ModelCommand {
   Map<String, Object?> get arguments => <String, Object?>{
     'axis': <double>[axis.x, axis.y, axis.z],
     'radians': radians,
-    'pivot': pivot.name,
-    'space': space.name,
+    'pivot': transformPivotWord(pivot),
+    'space': transformSpaceWord(space),
   };
 
   @override
   Map<String, ParamHint> get hints => <String, ParamHint>{
     'axis': const Vector3Hint(step: 0.01),
     'radians': const DoubleHint(unit: 'rad', step: 0.01),
-    'pivot': EnumHint(<String>[for (final p in TransformPivot.values) p.name]),
-    'space': EnumHint(<String>[for (final s in TransformSpace.values) s.name]),
+    'pivot': ChoiceHint(<String>[
+      for (final p in TransformPivot.values) transformPivotWord(p),
+    ]),
+    'space': ChoiceHint(<String>[
+      for (final s in TransformSpace.values) transformSpaceWord(s),
+    ]),
   };
 
   @override
@@ -543,6 +558,7 @@ final class RotateBy extends ModelCommand {
 final class ScaleBy extends ModelCommand {
   const ScaleBy(this.by, {this.pivot = TransformPivot.median});
 
+  /// A unitless multiplier on size.
   final double by;
 
   /// The point the scale happens about.
@@ -557,13 +573,15 @@ final class ScaleBy extends ModelCommand {
   @override
   Map<String, Object?> get arguments => <String, Object?>{
     'by': by,
-    'pivot': pivot.name,
+    'pivot': transformPivotWord(pivot),
   };
 
   @override
   Map<String, ParamHint> get hints => <String, ParamHint>{
     'by': const DoubleHint(min: 0.001, step: 0.01),
-    'pivot': EnumHint(<String>[for (final p in TransformPivot.values) p.name]),
+    'pivot': ChoiceHint(<String>[
+      for (final p in TransformPivot.values) transformPivotWord(p),
+    ]),
   };
 
   @override
@@ -633,6 +651,7 @@ Outcome _aboutThePivot(
     final Vector3 about = switch (pivot) {
       TransformPivot.median => middle,
       TransformPivot.individual => object.transform.getTranslation(),
+      _ => throw UnsupportedError('no pivot point for $pivot'),
     };
     final Matrix4 moved = _sandwiched(
       about,
@@ -651,7 +670,56 @@ Outcome _aboutThePivot(
 /// standing on a floor wants, and it is the one an engine expects of a prop;
 /// the world origin is how a model that was authored off-centre gets put back
 /// where the exporter assumes it is.
-enum OriginPlacement { boundsCentre, boundsBottom, worldOrigin }
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class OriginPlacement {
+  const OriginPlacement._(this.name, this.wire);
+
+  static const OriginPlacement boundsCenter = OriginPlacement._(
+    'boundsCenter',
+    'boundsCentre',
+  );
+
+  static const OriginPlacement boundsBottom = OriginPlacement._(
+    'boundsBottom',
+    'boundsBottom',
+  );
+
+  static const OriginPlacement worldOrigin = OriginPlacement._(
+    'worldOrigin',
+    'worldOrigin',
+  );
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<OriginPlacement> values = <OriginPlacement>[
+    boundsCenter,
+    boundsBottom,
+    worldOrigin,
+  ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static OriginPlacement? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  /// The word a journal and the `setOrigin` tool write for it, which stays
+  /// as it was written when the Dart name changed (`boundsCentre`).
+  final String wire;
+
+  @override
+  String toString() => 'OriginPlacement.$name';
+}
 
 /// Moves an object's origin without moving the object.
 ///
@@ -672,7 +740,7 @@ enum OriginPlacement { boundsCentre, boundsBottom, worldOrigin }
 /// moving the vertices out from under the radius leaves a description that no
 /// longer describes the thing.
 final class SetOrigin extends ModelCommand {
-  const SetOrigin({required this.id, this.to = OriginPlacement.boundsCentre});
+  const SetOrigin({required this.id, this.to = OriginPlacement.boundsCenter});
 
   final int id;
   final OriginPlacement to;
@@ -686,7 +754,7 @@ final class SetOrigin extends ModelCommand {
   @override
   Map<String, Object?> get arguments => <String, Object?>{
     'id': id,
-    'to': to.name,
+    'to': to.wire,
   };
 
   @override
@@ -715,7 +783,7 @@ final class SetOrigin extends ModelCommand {
 
     mesh.beginStep();
     final OpResult moved = translateSelection(mesh, vertices, by: -origin);
-    if (!moved.ok) {
+    if (!moved.isOk) {
       mesh.abandonStep();
       return Outcome.refused(moved.reason!);
     }
@@ -745,8 +813,8 @@ final class SetOrigin extends ModelCommand {
       Vector3.min(low, at, low);
       Vector3.max(high, at, high);
     }
-    final Vector3 centre = (low + high) * 0.5;
-    return bottom ? Vector3(centre.x, low.y, centre.z) : centre;
+    final Vector3 center = (low + high) * 0.5;
+    return bottom ? Vector3(center.x, low.y, center.z) : center;
   }
 }
 
@@ -798,7 +866,7 @@ final class ApplyTransform extends ModelCommand {
 
     mesh.beginStep();
     final OpResult moved = transformSelection(mesh, vertices, by: node);
-    if (!moved.ok) {
+    if (!moved.isOk) {
       mesh.abandonStep();
       return Outcome.refused(moved.reason!);
     }
@@ -849,6 +917,7 @@ final class ApplyTransform extends ModelCommand {
       mesh: null,
       refused: '"${object.name}" is a socket and has no vertices to move',
     ),
+    _ => (object: null, mesh: null, refused: 'object $id is not a mesh'),
   };
 }
 

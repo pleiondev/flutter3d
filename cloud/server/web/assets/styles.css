@@ -296,6 +296,14 @@ details.danger form { margin-top: 14px; }
 details.publish { margin-top: 28px; border-top: 1px solid var(--border-soft); padding-top: 16px; }
 details.publish summary { cursor: pointer; color: var(--amber); font-weight: 600; }
 details.publish form { margin-top: 14px; }
+
+details.download-as { margin-top: 12px; }
+details.download-as summary { cursor: pointer; font-weight: 600; font-size: 14px; }
+details.download-as ul { list-style: none; margin: 8px 0 0; padding: 0; }
+details.download-as li { padding: 3px 0; font-size: 14px; }
+details.download-as .hint { color: var(--muted); font-size: 13px; margin: 2px 0 0; }
+.convert-file > .hint { flex-basis: 100%; color: var(--muted); font-size: 13px; margin: 4px 0 0; }
+.convert-file > details.download-as { flex-basis: 100%; margin-top: 4px; }
 fieldset { border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; margin: 0; }
 fieldset legend { font-weight: 600; font-size: 14px; padding: 0 4px; }
 .radio-option { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 400; padding: 4px 0; }
@@ -318,6 +326,30 @@ section.settings > p { color: var(--muted); margin-top: 0; }
 
 .prose p, .prose li { max-width: 66ch; }
 .prose h2 { margin-top: 32px; }
+
+/* --- converting ----------------------------------------------------------- */
+form.convert { max-width: 560px; margin-bottom: 32px; }
+form.convert.busy { opacity: .75; pointer-events: none; }
+form.convert input[type=file] { font: inherit; color: var(--text); }
+form.convert [data-convert-status] { min-height: 1.4em; font-size: 14px; margin: 0; }
+form.convert [data-convert-status][data-kind=error] { color: var(--rose); }
+.cabinet-convert { color: var(--muted); font-size: 14px; margin: -8px 0 24px; }
+.convert-result, .convert-report { margin-top: 28px; }
+.convert-files { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.convert-file {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding: 10px 12px; border: 1px solid var(--border-soft); border-radius: var(--radius);
+  font-size: 14px;
+}
+.convert-file a { font-family: var(--mono); overflow-wrap: anywhere; }
+.convert-file .muted { font: 12px var(--mono); }
+.convert-file form.inline { margin-left: auto; }
+.input-report { padding: 14px 0; border-top: 1px solid var(--border-soft); }
+.input-report h3 { font-size: 15px; margin: 0 0 8px; overflow-wrap: anywhere; }
+.input-report .error { color: var(--rose); margin: 0 0 8px; }
+.input-report .report-head { font-weight: 600; font-size: 13px; margin: 10px 0 4px; }
+.input-report ul { margin: 0; padding-left: 20px; font-size: 13px; }
+.input-report details summary { cursor: pointer; color: var(--muted); font-size: 13px; margin-top: 10px; }
 
 /* --- footer --------------------------------------------------------------- */
 .foot {

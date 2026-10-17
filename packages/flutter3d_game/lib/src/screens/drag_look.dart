@@ -14,6 +14,8 @@ import 'package:vector_math/vector_math.dart';
 /// step — so on a frame where the loop ran twice, or none, the camera would
 /// find the drag already thrown away. Whoever turns the view takes it from
 /// here, once, and gets everything that arrived since they last asked.
+///
+/// A screen with no pointer to lock makes one with `DragLook()`.
 final class DragLook {
   /// Whether a finger or a button is down.
   ///
@@ -42,7 +44,7 @@ final class DragLook {
   }
 
   /// The same, for a caller that has nowhere to put it.
-  Vector2 take() {
+  Vector2 drain() {
     final taken = _pending.clone();
     _pending.setZero();
     return taken;

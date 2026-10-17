@@ -41,8 +41,8 @@ void _expectSame(SplatCloud actual, SplatCloud expected) {
     }
   }
 
-  same('centres', actual.centres, expected.centres, 1e-6);
-  same('colours', actual.colours, expected.colours, 1e-5);
+  same('centres', actual.centers, expected.centers, 1e-6);
+  same('colours', actual.colors, expected.colors, 1e-5);
   same('scales', actual.scales, expected.scales, 1e-5);
   same('rotations', actual.rotations, expected.rotations, 1e-5);
   same('shRest', actual.shRest, expected.shRest, 1e-6);
@@ -72,9 +72,9 @@ void main() {
       axes: SplatAxes.rightDownFront,
     );
     for (var i = 0; i < stored.count; i++) {
-      expect(stored.centres[i * 3], ply.centres[i * 3]);
-      expect(stored.centres[i * 3 + 1], -ply.centres[i * 3 + 1]);
-      expect(stored.centres[i * 3 + 2], -ply.centres[i * 3 + 2]);
+      expect(stored.centers[i * 3], ply.centers[i * 3]);
+      expect(stored.centers[i * 3 + 1], -ply.centers[i * 3 + 1]);
+      expect(stored.centers[i * 3 + 2], -ply.centers[i * 3 + 2]);
       expect(stored.rotations[i * 4 + 1], -ply.rotations[i * 4 + 1]);
       expect(stored.rotations[i * 4 + 3], ply.rotations[i * 4 + 3]);
       // Band 1 is `y, z, x`: the first two change sign, the third does not.
@@ -94,22 +94,22 @@ void main() {
   test('colour bytes are sRGB, clamped and decoded as a PLY is', () {
     // The twin test above holds the SPZ reader to the PLY one, so it would
     // pass with both left undecoded; this holds the SPZ reader to the curve.
-    // Mutation: pass `SplatColourSpace.linear` down in place of the argument
+    // Mutation: pass `SplatColorSpace.linear` down in place of the argument
     // and the default read equals the linear one.
     final raw = parseSplatSpz(
       _bytes('cloud_v4.spz'),
-      colourSpace: SplatColourSpace.linear,
+      colorSpace: SplatColorSpace.linear,
     );
     final decoded = parseSplatSpz(_bytes('cloud_v4.spz'));
     for (var i = 0; i < raw.count; i++) {
       for (var c = 0; c < 3; c++) {
-        final channel = raw.colours[i * 4 + c];
+        final channel = raw.colors[i * 4 + c];
         expect(channel, greaterThanOrEqualTo(0.0));
         final clamped = channel.clamp(0.0, 1.0);
         final linear = clamped <= 0.04045
             ? clamped / 12.92
             : math.pow((clamped + 0.055) / 1.055, 2.4);
-        expect(decoded.colours[i * 4 + c], closeTo(linear, 1e-6));
+        expect(decoded.colors[i * 4 + c], closeTo(linear, 1e-6));
       }
     }
   });

@@ -10,6 +10,7 @@ library;
 
 import 'dart:convert';
 
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -40,6 +41,77 @@ Demo _demo({int steps = 3}) {
 }
 
 void main() {
+  group('a version past what a double holds', () {
+    // `jsonDecode` reads 1e999 as infinity, which passed every whole-number
+    // check and threw `UnsupportedError` from `toInt()` or `truncate()`.
+    // Mutation: drop `isFinite` from `FormatSpec.wholeNumber`.
+    Map<String, Object?> said(String format) =>
+        jsonDecode('{"format": "$format", "version": 1e999}')
+            as Map<String, Object?>;
+
+    test('is refused as a run, a tape and a snapshot', () {
+      expect(
+        () => Demo.fromJson(said('f3d.run')),
+        throwsA(isA<DemoFormatException>()),
+      );
+      expect(
+        () => InputTape.fromJson(said('f3d.inputTape')),
+        throwsA(isA<InputTapeFormatException>()),
+      );
+      expect(
+        () => Snapshot.fromJson(said('f3d.save')),
+        throwsA(isA<SnapshotFormatException>()),
+      );
+    });
+  });
+
+  group('a playback', () {
+    test('of a recorded run refuses another simulation itself', () {
+      // Every replay of a file goes through this constructor, so none can
+      // forget the check. Mutation: drop `demo.checkSimulation` from
+      // `InputTapePlayback`'s unnamed constructor, and the newer run plays.
+      final recorded = Demo.fromJson(
+        _demo().toJson()
+          ..['simulation'] = const SimulationVersion(engine: 99).toJson(),
+      );
+      expect(
+        () => InputTapePlayback(
+          recorded,
+          simulation: SimulationVersion.engineOnly,
+        ),
+        throwsA(isA<ReplayException>()),
+      );
+      final same = Demo.fromJson(
+        _demo().toJson()
+          ..['simulation'] = SimulationVersion.engineOnly.toJson(),
+      );
+      expect(
+        InputTapePlayback(same, simulation: SimulationVersion.engineOnly).step,
+        0,
+      );
+    });
+
+    test('checks the whole simulation, a plugin\'s number included', () {
+      // Recorded with a plugin at 1, replayed with it at 2: the base alone
+      // agrees, and the run would diverge instead of being refused.
+      final recorded = Demo.fromJson(
+        _demo().toJson()
+          ..['simulation'] = SimulationVersion.engineOnly.withPlugins(
+            const <String, int>{'acme.wind': 1},
+          ).toJson(),
+      );
+      expect(
+        () => InputTapePlayback(
+          recorded,
+          simulation: SimulationVersion.engineOnly.withPlugins(
+            const <String, int>{'acme.wind': 2},
+          ),
+        ),
+        throwsA(isA<ReplayException>()),
+      );
+    });
+  });
+
   group('the document', () {
     test('survives a round trip through JSON', () {
       final written = _demo();
@@ -59,27 +131,34 @@ void main() {
       expect(read.checkpoints.steps, written.checkpoints.steps);
       expect(read.platform, isNull);
       expect(read.recordedBy, isNull);
+      expect(read.physics, isNull);
     });
 
-    test('carries platform and who recorded it, when given them', () {
-      final written = Demo(
-        level: 'assets/levels/crypt.json',
-        levelHash: 'deadbeef',
-        start: const Snapshot(<String, Object?>{}),
-        tape: InputTape(seed: 1, frames: const <InputFrame>[]),
-        buildStamp: 'test-build',
-        checkpoints: DigestTrace(every: 1),
-        platform: 'macos',
-        recordedBy: 'dmitrii',
-      );
+    test(
+      'carries platform, who recorded it and on what physics, when given them',
+      () {
+        final written = Demo(
+          level: 'assets/levels/crypt.json',
+          levelHash: 'deadbeef',
+          start: const Snapshot(<String, Object?>{}),
+          tape: InputTape(seed: 1, frames: const <InputFrame>[]),
+          buildStamp: 'test-build',
+          checkpoints: DigestTrace(every: 1),
+          platform: 'macos',
+          recordedBy: 'dmitrii',
+          physics: 'dart',
+        );
 
-      final read = Demo.fromJson(
-        jsonDecode(jsonEncode(written.toJson())) as Map<String, Object?>,
-      );
+        final read = Demo.fromJson(
+          jsonDecode(jsonEncode(written.toJson())) as Map<String, Object?>,
+        );
 
-      expect(read.platform, 'macos');
-      expect(read.recordedBy, 'dmitrii');
-    });
+        expect(read.platform, 'macos');
+        expect(read.recordedBy, 'dmitrii');
+        // What it replays on. Mutation: dropping it on the way out.
+        expect(read.physics, 'dart');
+      },
+    );
 
     test('refuses a demo from a newer build, and says so', () {
       // The case the version exists for: the file can still be opened by the
@@ -92,7 +171,7 @@ void main() {
           isA<DemoFormatException>().having(
             (e) => e.message,
             'message',
-            contains('newer build'),
+            contains('newer than this build reads'),
           ),
         ),
       );
@@ -173,6 +252,113 @@ void main() {
     });
   });
 
+  group('HR3: a level swapped under the run', () {
+    Demo swapped(List<DemoLevelSwap> swaps) {
+      final plain = _demo(steps: 6);
+      return Demo(
+        level: plain.level,
+        levelHash: plain.levelHash,
+        start: plain.start,
+        tape: plain.tape,
+        buildStamp: plain.buildStamp,
+        checkpoints: plain.checkpoints,
+        levelSwaps: swaps,
+      );
+    }
+
+    test('carries the document and its step through JSON', () {
+      final edit = Level(name: 'crypt', fogDensity: 0.02);
+      final json =
+          jsonDecode(
+                jsonEncode(
+                  swapped(<DemoLevelSwap>[
+                    DemoLevelSwap(step: 4, level: edit),
+                  ]).toJson(),
+                ),
+              )
+              as Map<String, Object?>;
+
+      final read = Demo.fromJson(json);
+
+      expect(read.levelSwaps.single.step, 4);
+      expect(read.levelSwaps.single.levelHash, edit.digestHex);
+      expect(read.levelSwaps.single.level.fogDensity, 0.02);
+      // Mutation: write 1 whatever the run holds — a build that cannot
+      // replay the swap opens the file and plays through it to a divergence.
+      expect(json['version'], 2);
+    });
+
+    test('a run with no swap is still written as format 1', () {
+      // Mutation: always write `formatVersion` — every demo this build
+      // records becomes unreadable to the build before it, for nothing.
+      expect(_demo().toJson()['version'], 1);
+      expect(_demo().toJson().containsKey('levelSwaps'), isFalse);
+    });
+
+    test('refuses a document that no longer digests to its hash', () {
+      final json = swapped(<DemoLevelSwap>[
+        DemoLevelSwap(step: 2, level: Level(name: 'crypt')),
+      ]).toJson();
+      final swap = (json['levelSwaps']! as List<Map<String, Object?>>).single;
+      (swap['document']! as Map<String, Object?>)['fogDensity'] = 0.5;
+
+      // Mutation: trust the hash — the replay swaps in a level nobody played.
+      expect(
+        () =>
+            Demo.fromJson(jsonDecode(jsonEncode(json)) as Map<String, Object?>),
+        throwsA(
+          isA<DemoFormatException>().having(
+            (e) => e.message,
+            'message',
+            contains('digests to'),
+          ),
+        ),
+      );
+    });
+
+    test('refuses swaps out of order, or past the end of the tape', () {
+      final level = Level(name: 'crypt');
+      for (final swaps in <List<DemoLevelSwap>>[
+        <DemoLevelSwap>[
+          DemoLevelSwap(step: 4, level: level),
+          DemoLevelSwap(step: 2, level: level),
+        ],
+        <DemoLevelSwap>[
+          DemoLevelSwap(step: 3, level: level),
+          DemoLevelSwap(step: 3, level: level),
+        ],
+        <DemoLevelSwap>[DemoLevelSwap(step: 7, level: level)],
+      ]) {
+        // Mutation: drop the order check — a replay walking the list once
+        // would skip the swap that came second and play the wrong level.
+        expect(
+          () => Demo.fromJson(
+            jsonDecode(jsonEncode(swapped(swaps).toJson()))
+                as Map<String, Object?>,
+          ),
+          throwsA(isA<DemoFormatException>()),
+          reason: 'steps ${swaps.map((s) => s.step).toList()}',
+        );
+      }
+    });
+
+    test('a trace forgets what was observed after a step, and keeps the '
+        'rest', () {
+      final trace = DigestTrace(every: 2);
+      for (var step = 1; step <= 8; step++) {
+        trace.observe(step, <String, Object?>{'step': step});
+      }
+
+      trace.forgetAfter(5);
+
+      // Mutation: forget from the step on — the checkpoint at the swap's own
+      // step, taken under the old level and still true, goes with it.
+      expect(trace.steps, <int>[2, 4]);
+      trace.forgetAfter(4);
+      expect(trace.steps, <int>[2, 4]);
+    });
+  });
+
   group('the loop', () {
     test('records one entry per step, with the step\'s look in it', () {
       // The moment is the whole point: after the look for the step is added
@@ -181,14 +367,15 @@ void main() {
       // where the mouse never moved.
       final input = InputState();
       final seen = <double>[];
-      final loop = GameLoop(
-        input: input,
-        onStep: (_) => seen.add(input.lookDelta.x),
-        drainLook: (out) => out.setValues(0.3, 0.0),
-      )..recorders.add(InputTapeRecorder(seed: 1));
+      final loop =
+          EngineLoop(input: input, drainLook: (out) => out.setValues(0.3, 0.0))
+            ..addSystem('look', LoopPhase.rules, (_) {
+              seen.add(input.lookDelta.x);
+            })
+            ..recorders.add(InputTapeRecorder(seed: 1));
 
       input.press(_fire);
-      final steps = loop.advance(3 / 60);
+      final steps = loop.frame(3 / 60);
 
       expect(steps, 3);
       final tape = loop.recorders.single.tape;
@@ -213,18 +400,21 @@ void main() {
       final fired = <bool>[];
       final looked = <double>[];
       final slots = <int?>[];
-      final loop = GameLoop(
-        input: input,
-        onStep: (_) {
-          fired.add(input.held(_fire));
-          looked.add(input.lookDelta.x);
-          slots.add(input.slotRequest);
-        },
-        // The mouse moves the whole time, and none of it may reach the run.
-        drainLook: (out) => out.setValues(9.0, 9.0),
-      )..playback = InputTapePlayback(tape);
+      final loop =
+          EngineLoop(
+              input: input,
+              // The mouse moves the whole time, and none of it may reach the
+              // run.
+              drainLook: (out) => out.setValues(9.0, 9.0),
+            )
+            ..addSystem('read', LoopPhase.rules, (_) {
+              fired.add(input.held(_fire));
+              looked.add(input.lookDelta.x);
+              slots.add(input.slotRequest);
+            })
+            ..playback = InputTapePlayback.tape(tape);
 
-      loop.advance(2 / 60);
+      loop.frame(2 / 60);
 
       expect(fired, <bool>[true, true]);
       expect(looked, <double>[0.5, 0.25]);
@@ -245,7 +435,7 @@ void main() {
         jsonDecode(jsonEncode(recorder.tape.toJson())) as Map<String, Object?>,
       );
       final replayed = InputState();
-      InputTapePlayback(read).applyTo(replayed);
+      InputTapePlayback.tape(read).applyTo(replayed);
 
       expect(replayed.slotRequest, 2);
     });
@@ -257,19 +447,18 @@ void main() {
       final input = InputState();
       final looked = <double>[];
       final loop =
-          GameLoop(
-              input: input,
-              onStep: (_) => looked.add(input.lookDelta.x),
-              drainLook: (out) => out.setValues(2.0, 0.0),
-            )
-            ..playback = InputTapePlayback(
+          EngineLoop(input: input, drainLook: (out) => out.setValues(2.0, 0.0))
+            ..addSystem('look', LoopPhase.rules, (_) {
+              looked.add(input.lookDelta.x);
+            })
+            ..playback = InputTapePlayback.tape(
               InputTape(
                 seed: 1,
                 frames: const <InputFrame>[InputFrame(lookX: 0.5)],
               ),
             );
 
-      loop.advance(2 / 60);
+      loop.frame(2 / 60);
 
       expect(looked, <double>[0.5, 1.0]);
     });
@@ -283,7 +472,7 @@ void main() {
       input.press(_fire);
       expect(input.held(_fire), isFalse, reason: 'the keyboard is dropped');
 
-      InputTapePlayback(
+      InputTapePlayback.tape(
         InputTape(
           seed: 1,
           frames: const <InputFrame>[
@@ -302,10 +491,10 @@ void main() {
       // entry has to say so or the replay stands still.
       final input = InputState()..press(GameAction.moveForward);
       input.endStep(); // the press is now history; only the hold remains
-      final loop = GameLoop(input: input, onStep: (_) {})
+      final loop = EngineLoop(input: input)
         ..recorders.add(InputTapeRecorder(seed: 1));
 
-      loop.advance(2 / 60);
+      loop.frame(2 / 60);
 
       final frames = loop.recorders.single.tape.frames;
       expect(frames.first.pressed, contains('moveForward'));
@@ -317,8 +506,166 @@ void main() {
 
       // And the replay walks.
       final replayed = InputState();
-      InputTapePlayback(loop.recorders.single.tape).applyTo(replayed);
+      InputTapePlayback.tape(loop.recorders.single.tape).applyTo(replayed);
       expect(replayed.moveAxis, Vector2(0.0, 1.0));
     });
   });
+
+  group('version 5', () {
+    test('is written for a start that carries change stamps', () {
+      // A version-4 build restores the world without them, and a system on
+      // `query().changed<T>()` replays another run: it must refuse the file
+      // by its number. Mutation: leave `writtenVersion` at the tape's rule —
+      // this writes 1.
+      final loop = EngineLoop(input: InputState());
+      loop.world.components.register<_Count>(_Count.codec);
+      loop.world.set(loop.world.spawn(), _Count(1));
+      final run = Demo(
+        level: 'assets/levels/crypt.json',
+        levelHash: 'deadbeef',
+        start: loop.capture(),
+        tape: InputTape(seed: 7, frames: const <InputFrame>[InputFrame()]),
+        buildStamp: 'test-build',
+        checkpoints: DigestTrace(every: 1),
+      );
+      expect(run.toJson()['version'], 5);
+      expect(_demo().toJson()['version'], 1, reason: 'a run of its own state');
+    });
+
+    test('keeps the probes and the external inputs a later build writes', () {
+      // Reserved for wave 3: probe readings are outputs an older build may
+      // skip, external inputs are not. Mutation: write external inputs at
+      // the version the rest asks for — a version-4 build replays without
+      // them.
+      final probes = <Object?>[
+        <String, Object?>{'step': 1, 'probe': 'p', 'value': 2.5},
+      ];
+      final external = <Object?>[
+        <String, Object?>{'step': 2, 'at': 0.03, 'kind': 'k'},
+      ];
+      final read = Demo.fromJson(
+        _demo().toJson()
+          ..['version'] = 5
+          ..['probes'] = probes
+          ..['externalInputs'] = external,
+      );
+      final written = read.toJson();
+      expect(written['probes'], probes);
+      expect(written['externalInputs'], external);
+      expect(written['version'], 5);
+      expect(
+        Demo.fromJson(
+          _demo().toJson()..['probes'] = probes,
+        ).toJson()['version'],
+        1,
+        reason: 'probes alone are skipped correctly by an older build',
+      );
+    });
+
+    test('refuses a reserved field that is not a list of steps', () {
+      for (final bad in <Object?>[
+        'nope',
+        <Object?>[3],
+        <Object?>[
+          <String, Object?>{'step': 9},
+        ],
+        <Object?>[
+          <String, Object?>{'step': 2},
+          <String, Object?>{'step': 1},
+        ],
+      ]) {
+        expect(
+          () => Demo.fromJson(_demo().toJson()..['externalInputs'] = bad),
+          throwsA(isA<DemoFormatException>()),
+          reason: '$bad',
+        );
+      }
+    });
+
+    test('keeps the run a branch starts from, and what an external input '
+        'says of itself', () {
+      // Reserved for branching runs on the timeline and for inputs from
+      // outside, read and written back as they were. Mutation: drop
+      // `parent` from what is read — it does not come back.
+      const parent = <String, Object?>{'digest': '1a2b3c4d', 'step': 120};
+      final external = <Object?>[
+        <String, Object?>{
+          'step': 1,
+          'sourceTime': 12.5,
+          'receivedTime': 12.75,
+          'quality': 'uncertain',
+          'tag': 'pump.3',
+          'unit': 'kPa',
+        },
+        // A quality this build has no word for is kept, not refused: the
+        // set is open.
+        <String, Object?>{'step': 2, 'quality': 'interpolated'},
+      ];
+      final written = Demo.fromJson(
+        _demo().toJson()
+          ..['parent'] = parent
+          ..['externalInputs'] = external,
+      ).toJson();
+      expect(written['parent'], parent);
+      expect(written['externalInputs'], external);
+    });
+
+    test('refuses a parent or an external input field of the wrong '
+        'shape', () {
+      // Mutation: pass them through unread — a run naming a parent with no
+      // digest, or a time that is text, opens and misleads whoever branches
+      // from it.
+      for (final bad in <Map<String, Object?>>[
+        <String, Object?>{'parent': 'nope'},
+        <String, Object?>{
+          'parent': <String, Object?>{'step': 3},
+        },
+        <String, Object?>{
+          'parent': <String, Object?>{'digest': 'x', 'step': -1},
+        },
+        for (final field in <String, Object?>{
+          'sourceTime': 'noon',
+          'receivedTime': double.nan,
+          'quality': 3,
+          'tag': <Object?>[],
+          'unit': 1,
+        }.entries)
+          <String, Object?>{
+            'externalInputs': <Object?>[
+              <String, Object?>{'step': 1, field.key: field.value},
+            ],
+          },
+      ]) {
+        expect(
+          () => Demo.fromJson(<String, Object?>{..._demo().toJson(), ...bad}),
+          throwsA(isA<DemoFormatException>()),
+          reason: '$bad',
+        );
+      }
+    });
+
+    test('keeps a top-level key it does not know', () {
+      // A run a later minor wrote survives being opened and saved here.
+      // Mutation: write only the known keys.
+      final written = Demo.fromJson(
+        _demo().toJson()..['laterMinor'] = <String, Object?>{'a': 1},
+      ).toJson();
+      expect(written['laterMinor'], <String, Object?>{'a': 1});
+    });
+  });
+}
+
+final class _Count {
+  _Count(this.value);
+
+  final int value;
+
+  static final ComponentCodec<_Count> codec = ComponentCodec<_Count>.of(
+    id: 'test.count',
+    encode: (count) => count.value,
+    decode: (context) {
+      final data = context.data;
+      return data is int ? _Count(data) : null;
+    },
+  );
 }

@@ -39,6 +39,8 @@ import 'gltf_accessor.dart';
 Future<List<String>> validateGltfExport(
   Uint8List bytes, {
   AssetUriResolver? resolveUri,
+
+  /// In metres, as the `POSITION` bounds it is held against.
   double tolerance = 1e-5,
 }) async {
   final container = GlbContainer.parse(bytes);

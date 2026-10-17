@@ -3,26 +3,42 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:vector_math/vector_math.dart' show Vector4;
 
 /// One thing recorded into a pass, in order.
 ///
-/// A sealed hierarchy rather than a list of strings, so a test asserts on
+/// A hierarchy of values rather than a list of strings, so a test asserts on
 /// values it can construct rather than on a rendering of them — a string
 /// comparison would pass for the wrong reasons the first time a `toString`
 /// changed.
-sealed class Recorded {
+///
+/// **Open, not sealed, since 1.0.** A pass gains calls in minor releases, and
+/// each new kind of record would have been a new case every exhaustive
+/// `switch` over a sealed type had to add: a break in a minor. A `switch`
+/// over a [Recorded] ends with a wildcard, as a test that names only the
+/// records it cares about already does.
+abstract base class Recorded {
   const Recorded();
 }
 
 final class RecordedDraw extends Recorded {
-  const RecordedDraw({this.instanceCount = 1});
+  const RecordedDraw({
+    this.instanceCount = 1,
+    this.firstIndex = 0,
+    this.indexCount,
+  });
 
   /// How many instances the draw asked for. One for every draw this engine
   /// made before mesh particles, which is why the characterisation snapshots
   /// print `draw` unadorned unless it is anything else.
   final int instanceCount;
+
+  /// The window of the bound indices the draw read — `P7`. Zero and null, the
+  /// whole binding, for every draw that did not ask for less.
+  final int firstIndex;
+  final int? indexCount;
 }
 
 final class RecordedPipeline extends Recorded {
@@ -38,14 +54,14 @@ final class RecordedBlend extends Recorded {
 
 final class RecordedBlendColor extends Recorded {
   const RecordedBlendColor(this.color);
-  final Vector4 color;
+  final LinearColor color;
 }
 
 final class RecordedTexture extends Recorded {
   const RecordedTexture(this.slot, this.texture, this.sampler, {this.shader});
   final String slot;
   final TextureHandle texture;
-  final SamplerOptions? sampler;
+  final SamplerDescriptor? sampler;
 
   /// The stage it was bound through. It was not recorded, so a test could not
   /// tell a texture bound to the vertex stage from one bound to the fragment
@@ -81,8 +97,14 @@ final class RecordedIndices extends Recorded {
 }
 
 final class RecordedViewport extends Recorded {
-  const RecordedViewport(this.rect);
-  final ScreenRect rect;
+  const RecordedViewport(this.viewport);
+
+  /// The viewport as it was set — a [PassViewport] since 1.0.0-rc.1+2.
+  final PassViewport viewport;
+
+  /// [viewport]'s rectangle in whole pixels, which is what every pass of
+  /// the engine sets and what a test asserts on.
+  ScreenRect get rect => viewport.rect;
 }
 
 final class RecordedScissor extends Recorded {
@@ -116,6 +138,11 @@ final class RecordedPolygonMode extends Recorded {
   final PolygonMode mode;
 }
 
+final class RecordedAlphaToCoverage extends Recorded {
+  const RecordedAlphaToCoverage(this.enabled);
+  final bool enabled;
+}
+
 final class RecordedCullMode extends Recorded {
   const RecordedCullMode(this.mode);
   final CullMode mode;
@@ -146,4 +173,23 @@ final class RecordedStencil extends Recorded {
 final class RecordedStencilReference extends Recorded {
   const RecordedStencilReference(this.value);
   final int value;
+}
+
+/// A 1.0-surface call — a storage bind, a query, an indirect or bundled
+/// draw, a buffer write, a copy — recorded by name with its arguments.
+///
+/// **One variant for the whole 1.0 surface rather than one per call**, so
+/// that a test switching over [Recorded] keeps compiling when the contract
+/// gains a call, which under 1.0's semver it may in any minor release. A test
+/// that cares asks for [name] and reads [arguments], which is whatever value
+/// the call was handed (a descriptor, a record of its parameters).
+final class RecordedCall extends Recorded {
+  const RecordedCall(this.name, {this.arguments});
+
+  /// The member's name, as the contract spells it.
+  final String name;
+  final Object? arguments;
+
+  @override
+  String toString() => 'RecordedCall($name, $arguments)';
 }

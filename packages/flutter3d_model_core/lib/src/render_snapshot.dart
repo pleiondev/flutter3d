@@ -35,6 +35,9 @@ import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart' show meshWorkStaysHere;
 import 'package:vector_math/vector_math.dart';
 
@@ -138,7 +141,9 @@ final class RenderPreset {
   final int tilesX;
   final int tilesY;
 
-  final Vector4? clearColor;
+  /// The background, linear as `CameraView.clearColor` is; opaque
+  /// black when null.
+  final LinearColor? clearColor;
 }
 
 /// A snapshot of [project] at [preset], each tile rendered on a device of its
@@ -603,7 +608,7 @@ TextureHandle _texel(GraphicsDevice device, List<int> rgba) =>
       height: 1,
       format: TextureFormat.r8g8b8a8UNormInt,
       pixels: ByteData.sublistView(Uint8List.fromList(rgba)),
-    )!;
+    );
 
 /// A plain box filter, [factor] × [factor] source pixels averaged per channel
 /// into one destination pixel — the resolve half of "SSAA ×2" that
@@ -705,21 +710,15 @@ Future<Uint8List> drawTile(
     width: tileWidth,
     height: tileHeight,
     scene: scene,
-    views: <RenderView>[
-      RenderView(
+    views: <CameraView>[
+      CameraView(
         camera: camera,
-        clearColor: preset.clearColor ?? Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColor: preset.clearColor ?? LinearColor.black,
       ),
     ],
     settings: preset.settings,
   );
 
-  final tile = await device.readPixels(result.frame);
-  if (tile == null) {
-    throw StateError(
-      'tile $tileX,$tileY could not be read back from the device it was '
-      'drawn on',
-    );
-  }
+  final tile = await device.readback(result.frame);
   return tile.buffer.asUint8List();
 }

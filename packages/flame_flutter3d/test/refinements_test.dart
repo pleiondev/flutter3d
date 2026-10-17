@@ -12,8 +12,10 @@ import 'package:flame/game.dart';
 import 'package:flame_flutter3d/flame_flutter3d.dart';
 import 'package:flame_test/flame_test.dart';
 import 'package:flutter3d_cpu/testing.dart';
-import 'package:flutter3d_game/flutter3d_game.dart' show Bindings, InputSource;
-import 'package:flutter3d_sim/flutter3d_sim.dart' show GameAction, InputState;
+import 'package:flutter3d_game/flutter3d_game.dart'
+    show ActionMap, Bindings, InputSource;
+import 'package:flutter3d_sim/flutter3d_sim.dart'
+    show ActionSet, GameAction, InputState;
 import 'package:flutter_test/flutter_test.dart';
 
 final class _Stepped extends FlameGame with HasFixedStep {}
@@ -108,7 +110,10 @@ void main() {
       // Mutation: close the step in the component's own update.
       const fire = GameAction('fire');
       final input = FlameInputBridge(
-        bindings: Bindings(<InputSource, GameAction>{}),
+        actions: ActionMap(
+          actions: ActionSet.common,
+          buttons: Bindings(<InputSource, GameAction>{}),
+        ),
         inputState: InputState(),
       );
       final reader = _Reader(input.inputState, fire);

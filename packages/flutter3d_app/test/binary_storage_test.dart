@@ -12,6 +12,7 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -30,7 +31,7 @@ void main() {
         253,
         for (var i = 0; i < 300; i++) i % 256,
       ]);
-      expect(await storage.write('probe.bin', bytes), isTrue);
+      await storage.write('probe.bin', bytes);
 
       final readBack = await defaultBinaryStorage(
         'flutter3d_app_test',
@@ -92,10 +93,36 @@ void main() {
       final bytes = Uint8List.fromList(<int>[4, 5, 6]);
       // Mutation: create the storage's own root instead of the file's own
       // parent — the only shape of name that then still works is one with no
-      // directory in it, and this write answers `false`.
-      expect(await storage.write('nested/deeper/probe.bin', bytes), isTrue);
+      // directory in it, and this write throws.
+      await storage.write('nested/deeper/probe.bin', bytes);
 
       expect(await storage.read('nested/deeper/probe.bin'), bytes);
     });
+
+    // A write the platform refused throws, as `Storage.write` does: it used
+    // to answer `false` and say nothing a screen could show.
+    test(
+      'a refused write throws a StorageException naming the document',
+      () async {
+        final storage = defaultBinaryStorage('flutter3d_app_test');
+        addTearDown(() => storage.remove('blocker.bin'));
+        await storage.write('blocker.bin', Uint8List.fromList(<int>[1]));
+
+        // Mutation: catch the failure and return as before, and nothing is
+        // thrown for a document whose parent is a file.
+        await expectLater(
+          storage.write('blocker.bin/inner.bin', Uint8List.fromList(<int>[2])),
+          throwsA(
+            isA<StorageException>().having(
+              (StorageException e) => e.name,
+              'name',
+              'blocker.bin/inner.bin',
+            ),
+          ),
+        );
+      },
+      // IndexedDB keys are strings; no name it is given can be refused.
+      skip: kIsWeb,
+    );
   });
 }

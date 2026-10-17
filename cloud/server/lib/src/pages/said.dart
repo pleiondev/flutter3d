@@ -36,6 +36,11 @@ const _sentences = <String, (String, String)>{
   'project-created': ('ok', 'Project created.'),
   'project-deleted': ('ok', 'Project deleted.'),
   'name-saved': ('ok', 'Name saved.'),
+  'converted': (
+    'ok',
+    'Converted and kept. It is private, like every upload, until you '
+        'publish it.',
+  ),
 };
 
 /// The notice for [code], or nothing when the code is unknown or absent.

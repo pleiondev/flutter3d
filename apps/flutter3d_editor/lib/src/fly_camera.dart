@@ -2,11 +2,10 @@ import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// A camera that goes where it is told and stops for nothing.
 ///
-/// **Not [CameraRig], and not because the rig is wrong.** Every camera in this
+/// **Not `CameraRig`, and not because the rig is wrong.** Every camera in this
 /// repository follows something and is kept out of walls, which is right for
 /// all three games and exactly wrong here: the thing an editor most needs to
 /// look at is the inside of a wall, from where the wall is. A camera that
@@ -85,16 +84,37 @@ final class FlyCamera {
     required GameAction fast,
   }) {
     _rebuild();
-    final metres = (input.held(fast) ? fastSpeed : speed) * dt;
+    final meters = (input.held(fast) ? fastSpeed : speed) * dt;
     void go(Vector3 axis, double amount) =>
-        position.addScaled(axis, amount * metres);
+        position.addScaled(axis, amount * meters);
 
     if (input.held(forward)) go(_ground, 1.0);
     if (input.held(back)) go(_ground, -1.0);
     if (input.held(right)) go(_right, 1.0);
     if (input.held(left)) go(_right, -1.0);
-    if (input.held(up)) position.y += metres;
-    if (input.held(down)) position.y -= metres;
+    if (input.held(up)) position.y += meters;
+    if (input.held(down)) position.y -= meters;
+  }
+
+  /// Stands [distance] metres back from [target], a little above it, and
+  /// looks at it — what double-clicking a row in the outliner does.
+  ///
+  /// Back along the way the camera already faces, so somebody who asks for
+  /// a torch on the wall in front of them is not turned round to see it
+  /// from inside the next room.
+  void frame(Vector3 target, {double distance = 5.0}) {
+    _rebuild();
+    final back = _ground.clone()..scale(-distance);
+    position
+      ..setFrom(target)
+      ..add(back)
+      ..y += distance * 0.4;
+    final towards = target - position;
+    yaw = math.atan2(towards.x, -towards.z);
+    pitch = math
+        .asin((towards.y / towards.length).clamp(-1.0, 1.0))
+        .clamp(-_limit, _limit);
+    _rebuild();
   }
 
   /// Puts [node] where this camera is and points it the same way.

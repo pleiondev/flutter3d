@@ -7,8 +7,8 @@
 library;
 
 import 'package:flutter3d_core/formats.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:test/test.dart';
-import 'package:vector_math/vector_math.dart';
 
 void main() {
   test('a default material writes only baseColor — everything else is '
@@ -38,12 +38,12 @@ void main() {
       'back the exact value', () {
     final surface = SurfaceMaterial(
       name: 'brick',
-      baseColor: Vector4(0.6, 0.3, 0.2, 1.0),
+      baseColor: LinearColor.fromSrgb(0.6, 0.3, 0.2, 1.0),
       metallic: 0.4,
       roughness: 0.8,
       normalScale: 1.5,
       occlusionStrength: 0.9,
-      emissive: Vector3(0.1, 0.2, 0.3),
+      emissive: LinearColor(0.1, 0.2, 0.3),
       emissiveStrength: 2.0,
       alphaMode: SurfaceAlphaMode.blend,
       alphaCutoff: 0.3,
@@ -55,12 +55,20 @@ void main() {
     final back = surfaceMaterialFromJson(json);
 
     expect(back.name, 'brick');
-    expect(back.baseColor, Vector4(0.6, 0.3, 0.2, 1.0));
+    // The colour is written as the sRGB triple it was authored as, cleaned to
+    // Float32, so what reads back is that triple to Float32 precision.
+    final srgb = back.baseColor.toSrgb();
+    expect(srgb.r, closeTo(0.6, 1e-6));
+    expect(srgb.g, closeTo(0.3, 1e-6));
+    expect(srgb.b, closeTo(0.2, 1e-6));
+    expect(back.baseColor.a, 1.0);
     expect(back.metallic, 0.4);
     expect(back.roughness, 0.8);
     expect(back.normalScale, 1.5);
     expect(back.occlusionStrength, 0.9);
-    expect(back.emissive, Vector3(0.1, 0.2, 0.3));
+    expect(back.emissive.r, closeTo(0.1, 1e-7));
+    expect(back.emissive.g, closeTo(0.2, 1e-7));
+    expect(back.emissive.b, closeTo(0.3, 1e-7));
     expect(back.emissiveStrength, 2.0);
     expect(back.alphaMode, SurfaceAlphaMode.blend);
     expect(back.alphaCutoff, 0.3);

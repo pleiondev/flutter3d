@@ -8,9 +8,10 @@ import 'dart:ui' as ui;
 import 'package:flame/components.dart';
 import 'package:flame/game.dart';
 import 'package:flame_flutter3d/flame_flutter3d.dart';
+import 'package:flame_flutter3d/testing.dart';
 import 'package:flame_test/flame_test.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' as f3d show Material;
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d/flutter3d.dart' as f3d show RenderMaterial;
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -21,7 +22,7 @@ CpuDevice _device() => CpuDevice(
 );
 
 /// A sphere instead of a model file, which a test has no bundle to read.
-class _Sphere extends Model3dComponent {
+final class _Sphere extends Model3dComponent {
   _Sphere({super.device}) : super(size: Vector2.all(32), pixelRatio: 1.0);
 
   @override
@@ -29,7 +30,9 @@ class _Sphere extends Model3dComponent {
     final asset = ModelAsset.fromMesh(
       device,
       const SphereShape(radius: 1.0).build(),
-      material: f3d.Material(baseColor: Vector4(0.9, 0.4, 0.3, 1.0)),
+      material: f3d.RenderMaterial(
+        baseColor: LinearColor.fromSrgb(0.9, 0.4, 0.3, 1.0),
+      ),
     );
     asset.instantiate(scene);
     frameModel(asset.localBounds);
@@ -103,13 +106,15 @@ void main() {
       // Mutation: open a device per component, or forget the count and
       // keep the first device for ever.
       var opened = 0;
-      final saved = Model3dComponent.openSharedDevice;
-      addTearDown(() => Model3dComponent.openSharedDevice = saved);
-      Model3dComponent.openSharedDevice =
-          ({required int width, required int height}) async {
-            opened++;
-            return _device();
-          };
+      addTearDown(
+        overrideSharedDeviceOpener(({
+          required int width,
+          required int height,
+        }) async {
+          opened++;
+          return _device();
+        }),
+      );
 
       final game = await _game();
       final first = _Sphere();

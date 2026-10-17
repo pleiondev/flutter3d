@@ -1,3 +1,6 @@
+import 'dart:math' as math;
+
+import 'package:flutter3d/flutter3d.dart' show LinearColor;
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -16,7 +19,7 @@ abstract final class Effects {
     count: 14,
     lifetime: const Range(0.25, 0.55),
     size: const Range(0.14, 0.34),
-    color: Vector4(0.72, 0.68, 0.60, 0.9),
+    color: LinearColor(0.72, 0.68, 0.60, 0.9),
     // Outwards and barely upwards: dust is thrown sideways by a foot, and a
     // cone pointing up reads as steam.
     // A shell rather than a point, so the puff starts as a ring under the
@@ -27,7 +30,7 @@ abstract final class Effects {
       speed: Range(1.2, 2.6),
     ),
     affectors: <ParticleAffector>[
-      const ParticleGravity(-2.2),
+      const ParticleGravity(acceleration: -2.2),
       const ParticleDrag(3.4),
       const ParticleSizeOverLife(from: 0.7, to: 1.6),
       const ParticleFade(startsAt: 0.35),
@@ -39,13 +42,13 @@ abstract final class Effects {
     count: 26,
     lifetime: const Range(0.35, 0.75),
     size: const Range(0.20, 0.5),
-    color: Vector4(0.85, 0.78, 0.62, 1.0),
+    color: LinearColor(0.85, 0.78, 0.62, 1.0),
     emitter: const SphereEmitter(
       radius: Range(0.2, 0.5),
       speed: Range(3.0, 6.5),
     ),
     affectors: <ParticleAffector>[
-      const ParticleGravity(-3.0),
+      const ParticleGravity(acceleration: -3.0),
       const ParticleDrag(2.6),
       const ParticleSizeOverLife(from: 0.6, to: 2.0),
       const ParticleFade(),
@@ -57,7 +60,7 @@ abstract final class Effects {
     count: 10,
     lifetime: const Range(0.18, 0.34),
     size: const Range(0.16, 0.30),
-    color: Vector4(0.55, 0.80, 1.0, 1.0),
+    color: LinearColor(0.55, 0.80, 1.0, 1.0),
     emitter: const SphereEmitter(
       radius: Range(0.1, 0.3),
       speed: Range(0.2, 0.9),
@@ -74,13 +77,13 @@ abstract final class Effects {
     count: 12,
     lifetime: const Range(0.22, 0.45),
     size: const Range(0.08, 0.18),
-    color: Vector4(1.6, 1.25, 0.35, 1.0),
+    color: LinearColor(1.6, 1.25, 0.35, 1.0),
     emitter: const SphereEmitter(
       radius: Range(0.05, 0.15),
       speed: Range(1.4, 3.0),
     ),
     affectors: <ParticleAffector>[
-      const ParticleGravity(-3.5),
+      const ParticleGravity(acceleration: -3.5),
       const ParticleDrag(2.2),
       const ParticleFade(),
     ],
@@ -91,10 +94,13 @@ abstract final class Effects {
     count: 18,
     lifetime: const Range(0.20, 0.40),
     size: const Range(0.12, 0.26),
-    color: Vector4(1.2, 0.95, 0.45, 1.0),
-    emitter: const ConeEmitter(halfAngleDegrees: 26.0, speed: Range(3.0, 6.0)),
+    color: LinearColor(1.2, 0.95, 0.45, 1.0),
+    emitter: const ConeEmitter(
+      halfAngle: 26.0 * math.pi / 180.0,
+      speed: Range(3.0, 6.0),
+    ),
     affectors: <ParticleAffector>[
-      const ParticleGravity(-4.0),
+      const ParticleGravity(acceleration: -4.0),
       const ParticleDrag(2.0),
       const ParticleFade(),
     ],
@@ -105,10 +111,13 @@ abstract final class Effects {
     count: 30,
     lifetime: const Range(0.5, 1.0),
     size: const Range(0.10, 0.22),
-    color: Vector4(0.45, 1.6, 0.75, 1.0),
-    emitter: const ConeEmitter(halfAngleDegrees: 16.0, speed: Range(2.0, 4.5)),
+    color: LinearColor(0.45, 1.6, 0.75, 1.0),
+    emitter: const ConeEmitter(
+      halfAngle: 16.0 * math.pi / 180.0,
+      speed: Range(2.0, 4.5),
+    ),
     affectors: <ParticleAffector>[
-      const ParticleGravity(-1.2),
+      const ParticleGravity(acceleration: -1.2),
       const ParticleDrag(1.6),
       const ParticleFade(),
     ],
@@ -119,13 +128,13 @@ abstract final class Effects {
     count: 40,
     lifetime: const Range(0.4, 0.9),
     size: const Range(0.14, 0.30),
-    color: Vector4(1.4, 0.5, 0.35, 1.0),
+    color: LinearColor(1.4, 0.5, 0.35, 1.0),
     emitter: const SphereEmitter(
       radius: Range(0.15, 0.4),
       speed: Range(2.5, 7.0),
     ),
     affectors: <ParticleAffector>[
-      const ParticleGravity(-6.0),
+      const ParticleGravity(acceleration: -6.0),
       const ParticleDrag(1.4),
       const ParticleFade(),
     ],
@@ -136,14 +145,14 @@ abstract final class Effects {
     count: 20,
     lifetime: const Range(0.4, 0.9),
     size: const Range(0.10, 0.24),
-    color: Vector4(0.62, 0.55, 0.46, 1.0),
+    color: LinearColor(0.62, 0.55, 0.46, 1.0),
     emitter: BoxEmitter(
       halfExtents: Vector3(1.6, 0.1, 1.6),
       speed: const Range(0.2, 1.2),
       along: Vector3(0.0, -1.0, 0.0),
     ),
     affectors: <ParticleAffector>[
-      const ParticleGravity(-7.0),
+      const ParticleGravity(acceleration: -7.0),
       const ParticleFade(startsAt: 0.35),
     ],
   );
@@ -154,10 +163,13 @@ abstract final class Effects {
     count: 1,
     lifetime: const Range(0.18, 0.36),
     size: const Range(0.08, 0.16),
-    color: Vector4(1.0, 0.66, 0.26, 1.0),
-    emitter: const ConeEmitter(halfAngleDegrees: 11.0, speed: Range(0.20, 0.5)),
+    color: LinearColor(1.0, 0.66, 0.26, 1.0),
+    emitter: const ConeEmitter(
+      halfAngle: 11.0 * math.pi / 180.0,
+      speed: Range(0.20, 0.5),
+    ),
     affectors: <ParticleAffector>[
-      const ParticleGravity(1.0),
+      const ParticleGravity(acceleration: 1.0),
       const ParticleDrag(2.6),
       const ParticleTurbulence(strength: 0.5, scale: 3.0),
       const ParticleFade(),

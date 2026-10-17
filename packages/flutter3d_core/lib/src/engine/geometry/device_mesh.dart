@@ -53,7 +53,11 @@ import 'package:vector_math/vector_math.dart';
 /// Nothing here is CPU-readable: the buffers are opaque handles, and
 /// [MeshGeometry.source] is still where triangles come from when anything needs
 /// them.
-abstract interface class DrawableGeometry implements MeshGeometry {
+///
+/// **Extended, not implemented**, outside this library: a `base` type, so a
+/// member added in a 1.x release arrives with a body and nothing that
+/// extends it has to change.
+abstract base class DrawableGeometry with MeshGeometry {
   /// Interleaved vertex attributes, in the layout the vertex stage declares.
   GeometryBuffer get vertices;
 
@@ -69,7 +73,23 @@ abstract interface class DrawableGeometry implements MeshGeometry {
   /// The indices are here as well as the table because the device keeps no
   /// readable copy and [MeshGeometry.source] may have been dropped; a mesh
   /// with clusters keeps its indices either way.
-  ({MeshClusters table, Uint32List indices})? get clusters;
+  ClusteredIndices? get clusters;
+}
+
+/// A mesh's cluster table and the indices it cuts into runs, on the CPU —
+/// what [DrawableGeometry.clusters] hands the culling pass.
+///
+/// **A class, because an outside geometry implements the getter**: a record
+/// could never carry the bounds or cone a later culling test wants beside
+/// the table, and a class takes them with a default.
+final class ClusteredIndices {
+  const ClusteredIndices({required this.table, required this.indices});
+
+  /// The runs, with each one's bounds.
+  final MeshClusters table;
+
+  /// The mesh's indices, in the order [table]'s runs read them.
+  final Uint32List indices;
 }
 
 /// A [MeshData] that has been uploaded to a device.
@@ -90,7 +110,7 @@ abstract interface class DrawableGeometry implements MeshGeometry {
 /// draws the mesh: a backend whose collector frees them treats that as a no-op,
 /// and one that does not — WebGL, WebGPU — otherwise keeps them until the
 /// device itself goes.
-final class DeviceMesh implements DrawableGeometry {
+final class DeviceMesh extends DrawableGeometry {
   DeviceMesh._({
     required this.vertices,
     required this.indices,
@@ -100,7 +120,11 @@ final class DeviceMesh implements DrawableGeometry {
     required this.bounds,
     required this.source,
     required this.clusters,
-  });
+    GraphicsDevice? device,
+    // A named parameter may not be private; the device is the mesh's own
+    // business, kept only to give the buffers back.
+    // ignore: prefer_initializing_formals
+  }) : _device = device;
 
   /// Uploads [mesh] through [device].
   ///
@@ -115,6 +139,7 @@ final class DeviceMesh implements DrawableGeometry {
   }) {
     final packed = mesh.packIndices();
     return DeviceMesh._(
+      device: device,
       vertices: device.uploadGeometry(mesh.vertexBytes, GeometryUsage.vertices),
       indices: device.uploadGeometry(packed.bytes, GeometryUsage.indices),
       vertexCount: mesh.vertexCount,
@@ -123,14 +148,17 @@ final class DeviceMesh implements DrawableGeometry {
       bounds: mesh.computeBounds(),
       source: keepSourceData ? mesh : null,
       clusters: switch (mesh.clusters) {
-        final table? => (table: table, indices: mesh.indices),
+        final table? => ClusteredIndices(table: table, indices: mesh.indices),
         null => null,
       },
     );
   }
 
+  final GraphicsDevice? _device;
+
+  bool _disposed = false;
   @override
-  final ({MeshClusters table, Uint32List indices})? clusters;
+  final ClusteredIndices? clusters;
 
   @override
   final GeometryBuffer vertices;
@@ -150,16 +178,6 @@ final class DeviceMesh implements DrawableGeometry {
   @override
   Aabb3 bounds;
 
-  /// Bumped on every [overwriteVertices] call.
-  ///
-  /// [bounds] is compared by a caller that caches it — `MeshNode.
-  /// markBoundsDirty` is the escape hatch for that cache today, since
-  /// `MeshNode`'s own invalidation compares this mesh by identity and an
-  /// in-place overwrite changes nothing an identity check can see. This
-  /// counter is for a future caller that would rather poll than remember to
-  /// call one, the same reason `MorphState.version` and `SceneNode.
-  /// worldVersion` already exist.
-  int get version => _version;
   int _version = 0;
 
   /// The geometry this was uploaded from, retained for anything the CPU still
@@ -173,6 +191,34 @@ final class DeviceMesh implements DrawableGeometry {
   @override
   final MeshData? source;
 
+  /// Gives the two buffers back to the device that holds them — item 20:
+  /// one release verb, on whatever holds GPU memory. A node still drawing
+  /// this mesh draws nothing after it; a second call does nothing.
+  void dispose() {
+    if (_disposed) return;
+    _disposed = true;
+    final device = _device;
+    if (device == null) return;
+    device
+      ..releaseGeometry(vertices)
+      ..releaseGeometry(indices);
+  }
+
+  /// Whether [dispose] has run.
+  bool get isDisposed => _disposed;
+
+  /// Bumped on every [overwriteVertices] call.
+  ///
+  /// [bounds] is compared by a caller that caches it — `MeshNode.
+  /// markBoundsDirty` is the escape hatch for that cache today, since
+  /// `MeshNode`'s own invalidation compares this mesh by identity and an
+  /// in-place overwrite changes nothing an identity check can see. This
+  /// counter is for a future caller that would rather poll than remember to
+  /// call one, the same reason `MorphState.version` and `SceneNode.
+  /// worldVersion` already exist.
+  int get version => _version;
+
+  /// Half the bounds' diagonal, in metres.
   @override
   double get boundingRadius {
     final extent = (bounds.max - bounds.min)..scale(0.5);

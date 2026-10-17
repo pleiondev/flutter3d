@@ -19,10 +19,12 @@ final device = await openWebGpu(width: 960, height: 540);
 ```
 
 Most applications call `openDevice` from `flutter3d_app` instead.
-WebGPU is opened only behind `--dart-define=FLUTTER3D_WEBGPU=true` (the engine's
-example takes `?backend=webgpu`), because a probe able to call either opener
-keeps both backends reachable and dart2js ships what it can reach — 376,649
-bytes of `main.dart.js` on the strategy demo.
+A browser build tries WebGPU first and falls back to WebGL2 where no adapter is
+handed out. `--dart-define=FLUTTER3D_WEBGPU=false` keeps WebGL2 only, for a game
+that would rather not ship both backends: a probe able to call either opener
+keeps both reachable, and dart2js ships what it can reach, 376,649 bytes of
+`main.dart.js` on the strategy demo. The engine's example also takes
+`?backend=webgpu`.
 
 ## The generated WGSL, and three flags that are not optional
 

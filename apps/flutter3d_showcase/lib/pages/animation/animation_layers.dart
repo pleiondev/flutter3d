@@ -9,7 +9,6 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class AnimationLayersDemo extends ShowcaseDemo {
   late final AnimationPlayer _player;
@@ -38,12 +37,18 @@ final class AnimationLayersDemo extends ShowcaseDemo {
 
     final MeshNode bodyMesh = MeshNode(
       torso,
-      Material(name: 'body', baseColor: Vector4(0.5, 0.55, 0.65, 1.0)),
+      RenderMaterial(
+        name: 'body',
+        baseColor: LinearColor.fromSrgb(0.5, 0.55, 0.65, 1.0),
+      ),
       name: 'body',
     );
     final MeshNode armMesh = MeshNode(
       limb,
-      Material(name: 'arm', baseColor: Vector4(0.85, 0.5, 0.2, 1.0)),
+      RenderMaterial(
+        name: 'arm',
+        baseColor: LinearColor.fromSrgb(0.85, 0.5, 0.2, 1.0),
+      ),
       name: 'arm',
     )..setPosition(0.6, 0.3, 0.0);
     _body = bodyMesh;
@@ -72,7 +77,7 @@ final class AnimationLayersDemo extends ShowcaseDemo {
     _player = AnimationPlayer(
       clips: <AnimationClip>[walk, wave],
       targets: <AnimationTarget?>[bodyMesh, armMesh],
-    )..play(0);
+    )..play(index: 0);
     _wave = _player.playLayer(
       1,
       mask: AnimationMask(<int>[1]),
@@ -85,7 +90,7 @@ final class AnimationLayersDemo extends ShowcaseDemo {
       ..add(bodyMesh)
       ..add(armMesh)
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.4, -0.7, -0.5)),
       );
   }

@@ -26,24 +26,18 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/geometry.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Portable;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart'
     show WeightPair, normalizeWeights;
-import 'package:vector_math/vector_math.dart' hide Ray;
+import 'package:vector_math/vector_math.dart';
 
 import 'bone_map.dart';
-import 'portable_pow.dart';
-
-/// [WeightPair] is `flutter3d_mesh`'s own type, and every function on this
-/// page hands one back or takes one in — exported here so a caller of
-/// `bindWeights` never has to add that package as a dependency of its own
-/// just to spell the return type.
-export 'package:flutter3d_mesh/flutter3d_mesh.dart' show WeightPair;
 
 /// Simultaneous bone influences a vertex may keep — the plan's own decision
 /// log entry З1, "four influences as a hard limit"
 /// (`doc/model-editor-plan.md`), the same cap `flutter3d_mesh`'s
 /// `toVertexAttributes` bakes into storage. [pruneSkinWeights]' own default.
-const int kMaxSkinInfluences = 4;
+const int maxSkinInfluences = 4;
 
 /// One bone, as the line segment [bindWeights] measures distance and
 /// visibility against — [head] to [tail], both bind-pose world positions.
@@ -143,7 +137,7 @@ bool _isVisible(TriangleBvh bvh, Vector3 from, Vector3 to) {
   final remaining = distance - skip;
   if (remaining <= 0.0) return true;
 
-  final ray = Ray(origin, direction);
+  final ray = LocalRay(origin, direction);
   final hit = bvh.raycast(ray, maxDistance: remaining);
   return hit == null;
 }
@@ -172,8 +166,12 @@ Map<int, List<WeightPair>> bindWeights({
   required List<Vector3> positions,
   required List<int> triangles,
   required List<BoneSegment> bones,
+
+  /// A unitless exponent on distance.
   double falloffPower = 2.0,
   bool useVisibility = true,
+
+  /// In metres, added to every distance.
   double epsilon = 1e-4,
 }) {
   if (bones.isEmpty) return <int, List<WeightPair>>{};
@@ -189,7 +187,7 @@ Map<int, List<WeightPair>> bindWeights({
     ];
     final raw = <double>[
       for (final closest in closestPoints)
-        1.0 / powPositive((closest - vertex).length + epsilon, falloffPower),
+        1.0 / Portable.pow((closest - vertex).length + epsilon, falloffPower),
     ];
 
     var visible = List<bool>.filled(bones.length, true);
@@ -223,7 +221,10 @@ Map<int, List<WeightPair>> bindWeights({
 /// the survivors are renormalized against them by their weight-before-drop.
 Map<int, List<WeightPair>> pruneSkinWeights(
   Map<int, List<WeightPair>> weights, {
-  int maxInfluences = kMaxSkinInfluences,
+  int maxInfluences = maxSkinInfluences,
+
+  /// In the weights' own unit: a 0..1 share once normalized, metres to the
+  /// power minus falloffPower for raw bindWeights output.
   double threshold = 1e-3,
 }) => <int, List<WeightPair>>{
   for (final entry in weights.entries)
@@ -259,6 +260,8 @@ Map<int, List<WeightPair>> normalizeSkinWeights(
 Map<int, List<WeightPair>> smoothSkinWeights(
   Map<int, List<WeightPair>> weights,
   Map<int, List<int>> adjacency, {
+
+  /// The 0..1 fraction of the way toward the average.
   double lambda = 0.5,
   int iterations = 1,
 }) {
@@ -328,7 +331,11 @@ Map<int, List<WeightPair>> mirrorSkinWeights(
   List<Vector3> positions,
   List<BoneSegment> bones, {
   int axis = 0,
+
+  /// In metres along [axis].
   double plane = 0.0,
+
+  /// In metres.
   double tolerance = 1e-4,
 }) {
   final boneIndexByName = <String, int>{

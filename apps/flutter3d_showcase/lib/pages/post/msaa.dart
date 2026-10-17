@@ -19,7 +19,9 @@ final class MsaaDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     // #region ask
-    _deviceCanMsaa = context.device.supportsOffscreenMsaa;
+    _deviceCanMsaa = context.device.features.has(
+      DeviceFeature.offscreenMultisample,
+    );
     // #endregion ask
     return PostStage.build(context).scene;
   }

@@ -12,8 +12,10 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+// ignore: implementation_imports
+import 'package:flutter3d_cpu/src/cpu_shaders_builtin.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart' hide Ray;
+import 'package:vector_math/vector_math.dart';
 
 /// One triangle, skinned three ways per vertex, so the comparison below
 /// exercises a rigid bind, a renormalized blend across two joints, and a

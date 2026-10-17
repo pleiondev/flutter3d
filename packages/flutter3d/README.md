@@ -2,7 +2,7 @@
 
 An independent implementation of a real-time 3D engine for Flutter, written
 from the geometry layer up. It does not fork, bind or wrap another engine, and
-it is not affiliated with the Flutter team.
+it is not affiliated with Google or the Flutter project.
 
 Homepage: **<https://flutter3d.pleion.dev>** · API reference:
 **<https://flutter3d.pleion.dev/docs>** · Source:
@@ -38,6 +38,8 @@ Homepage: **<https://flutter3d.pleion.dev>** · API reference:
 
 `ARCHITECTURE.md` at the repository root explains how all of it fits together
 and why.
+
+[API.md](API.md) maps the public API for applications and games, area by area.
 
 What works today:
 
@@ -104,7 +106,7 @@ What works today:
   `CUBICSPLINE` with authored tangents), slerped rotations, an `AnimationPlayer`
   with play/pause/seek/speed and once/loop/ping-pong, and the decoded node
   hierarchy rebuilt on instantiation so an animated parent carries its subtree;
-- 1616 tests covering projection, scene, sorting, debug draw, raycasting,
+- 1769 tests covering projection, scene, sorting, debug draw, raycasting,
   animation, skinning, lighting, render targets, BVH, LOD, glTF, OBJ and `.f3d`,
   plus a real frame drawn through `flutter3d_cpu`'s software rasteriser for the
   ones that need one, all without a GPU. The geometry the engine is written in
@@ -194,8 +196,8 @@ the obvious alternative does not work.
 | Materials | `.mtl` through a resolver: `newmtl`, `Kd`, `Ks`, `Ns`, `d`, `Tr`, `map_Kd` |
 | Robustness | unknown directives, malformed faces and missing libraries go to `warnings` instead of failing the file |
 
-The test model is the [Utah teapot](https://github.com/mauricelam/Teapot)
-(`flutter3d_samples`): `v` and `f` only, 1202 vertices, 2256 triangles, no
+The test model is the [Utah teapot](https://en.wikipedia.org/wiki/Utah_teapot)
+(`flutter3d_samples`, tessellated by its `tool/make_teapot.py`): `v` and `f` only, 1202 vertices, 2256 triangles, no
 normals and no materials, which is exactly the case that needs normal
 generation.
 
@@ -303,7 +305,7 @@ either does not start or silently renders nothing.
 | Shadows look right but toggling them changes nothing | Check that the setting actually reaches `RenderSettings`. A control wired to the panel but not to the renderer looks completely convincing. To find out, capture the same frame with the feature on and off and diff the two; a zero difference means the setting never arrived |
 | A draw is submitted, the counter goes up, nothing appears | There is no non-indexed draw. `draw()` with only a vertex buffer bound succeeds and renders nothing. Bind an index buffer even when the indices are the identity `0, 1, 2, …` sequence; the debug line overlay keeps one in a device buffer that only grows |
 | `PathAccessException … Operation not permitted` when writing a file | macOS Flutter apps are sandboxed. Anything outside `~/Library/Containers/<bundle id>/Data` is refused, so frame captures resolve relative paths against the app's own temp directory |
-| The view stops turning when the cursor reaches the edge of the window | Flutter exposes no pointer lock on any desktop platform. `packages/pointer_lock` supplies it on macOS by turning off the association between the physical mouse and the on-screen cursor, which leaves `mouseMoved` events arriving with their deltas while the cursor stays put |
+| The view stops turning when the cursor reaches the edge of the window | Flutter exposes no pointer lock on any desktop platform. `packages/flutter3d_pointer_lock` supplies it on macOS by turning off the association between the physical mouse and the on-screen cursor, which leaves `mouseMoved` events arriving with their deltas while the cursor stays put |
 | `failed to bind texture` on one lighting model and not the others | The model's metadata claims a sampler the compiled shader does not have. `LightingModel` now asserts that a model sampling no material maps cannot sample the metallic-roughness one either. Unlit was in exactly that state and nothing exercised it, because the demo hardcoded PBR on every material it loaded |
 | Golden references that all pass and all look the same | Five of the six lighting goldens recorded byte-identical images: the scene's lighting model reached the UI field but never the materials, so every one rendered as PBR. The check that found it is worth keeping as a habit: swap one reference for another's and confirm the comparison fails. A golden suite that cannot fail is worse than none, because people believe it |
 | No cursor anywhere after a hot restart | A plugin holding the pointer outlives the Dart isolate, because the engine's registrar owns it. The Dart side comes back remembering nothing, so nothing asks for the cursor back. `MouseCapture` issues a reset on construction for this case |
@@ -322,7 +324,7 @@ lib/src/engine/assets/          glTF, OBJ and .f3d decoders, isolate loading, ca
 example/lib/                    the demo, and the frame capture hook
 skills/                         the conventions, as agent skills — see below
 bin/skills.dart                 what copies them into a project that uses this
-test/                           1616 tests, all runnable without a GPU
+test/                           1769 tests, all runnable without a GPU
 ```
 
 The GLSL is not here. Every shader this package draws with lives in
@@ -400,7 +402,7 @@ with three lights and one with a single light both report one pipeline.
 
 Part of [flutter3d](https://github.com/pleiondev/flutter3d), an independent
 implementation of a 3D engine for Flutter. It is not a fork or a binding of
-another engine, and it is not affiliated with the Flutter team. It has four
+another engine, and it is not affiliated with Google or the Flutter project. It has four
 switchable rendering backends: Impeller via Flutter GPU, WebGL2, WebGPU and a
 software rasteriser. It loads glTF, OBJ and `.f3d`, and has six lighting models,
 shadows, bloom, skinning, animation, BVH culling and picking, plus a

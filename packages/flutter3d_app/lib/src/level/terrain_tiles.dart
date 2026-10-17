@@ -5,8 +5,8 @@
 /// samples a tile keeps at each level and how deep a skirt has to hang; this
 /// one owns a [MeshNode] per tile and, once a frame, points it at the mesh for
 /// the level its distance calls for. Here because this is the package that
-/// sees both the simulation's heights and the engine's meshes — the same reason
-/// `meshDataOf` is here.
+/// sees both the simulation's heights and the engine's meshes; `meshDataOf`,
+/// which interleaves them, is `flutter3d_level_scene`'s.
 ///
 /// **A level's mesh is uploaded the first time a tile needs it and kept.** A
 /// camera sweeping back and forth across a threshold would otherwise upload
@@ -21,10 +21,10 @@
 library;
 
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_level_scene/flutter3d_level_scene.dart'
+    show meshDataOf;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
-
-import 'surface_mesh.dart';
 
 /// Every tile of [tiles] as a node, and the levels they draw at.
 final class TerrainTiles {
@@ -36,7 +36,7 @@ final class TerrainTiles {
     required this.tiles,
     required this.material,
     required this.chooser,
-    this.metresPerTexture = 8.0,
+    this.metersPerTexture = 8.0,
     this.skirts = true,
   }) {
     for (var z = 0; z < tiles.tilesZ; z++) {
@@ -53,9 +53,11 @@ final class TerrainTiles {
 
   final GraphicsDevice device;
   final HeightfieldTiles tiles;
-  final Material material;
+  final RenderMaterial material;
   final TileLevelChooser chooser;
-  final double metresPerTexture;
+
+  /// How many metres of ground one repeat of the texture covers.
+  final double metersPerTexture;
 
   /// Off only for a field drawn at one level everywhere — see
   /// `HeightfieldTiles.build`.
@@ -123,7 +125,7 @@ final class TerrainTiles {
           z,
           level: level,
           material: material.name ?? 'terrain',
-          metresPerTexture: metresPerTexture,
+          metersPerTexture: metersPerTexture,
           skirts: skirts,
         );
         return DeviceMesh.upload(device, meshDataOf(surface));

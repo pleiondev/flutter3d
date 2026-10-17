@@ -27,9 +27,9 @@ void main() {
       return;
     }
     expect(
-      result.centre,
+      result.center,
       spikeTriangleColour,
-      reason: 'the centre came back ${result.centre} rather than the triangle',
+      reason: 'the centre came back ${result.center} rather than the triangle',
     );
     // The corner is outside it, so the clear reached and the readback is not
     // simply the triangle colour everywhere.
@@ -48,8 +48,8 @@ void main() {
   /// back-face culling" would pass just as happily on a backend that had stopped
   /// culling altogether, which is the same picture and a different bug.
   test('which winding WebGPU calls front-facing', () async {
-    Future<List<int>?> centre(WindingOrder winding, CullMode cull) async =>
-        (await drawSpikeTriangle(cull: cull, winding: winding)).centre;
+    Future<List<int>?> center(WindingOrder winding, CullMode cull) async =>
+        (await drawSpikeTriangle(cull: cull, winding: winding)).center;
 
     final probe = await drawSpikeTriangle(cull: CullMode.none);
     if (!probe.ran) {
@@ -58,7 +58,7 @@ void main() {
     }
 
     expect(
-      await centre(WindingOrder.counterClockwise, CullMode.backFace),
+      await center(WindingOrder.counterClockwise, CullMode.backFace),
       spikeTriangleColour,
       reason:
           'a clip-space counter-clockwise triangle was culled as a back face. '
@@ -68,19 +68,19 @@ void main() {
           'the two over after all.',
     );
     expect(
-      await centre(WindingOrder.counterClockwise, CullMode.frontFace),
+      await center(WindingOrder.counterClockwise, CullMode.frontFace),
       spikeClearColour,
       reason: 'the same triangle was not discarded as a front face',
     );
     expect(
-      await centre(WindingOrder.clockwise, CullMode.frontFace),
+      await center(WindingOrder.clockwise, CullMode.frontFace),
       spikeTriangleColour,
       reason:
           'with clockwise named as front-facing, the triangle is a back face '
           'and front-face culling must leave it alone',
     );
     expect(
-      await centre(WindingOrder.clockwise, CullMode.backFace),
+      await center(WindingOrder.clockwise, CullMode.backFace),
       spikeClearColour,
     );
   });

@@ -121,7 +121,7 @@ class _Line extends StatelessWidget {
     final ThemeData theme = Theme.of(context);
     // The same three levels the status line paints, for the same reason: a
     // refusal has to be the one line somebody notices.
-    final Color colour = switch (entry.kind) {
+    final Color color = switch (entry.kind) {
       ConsoleKind.report => theme.colorScheme.onSurface,
       ConsoleKind.warning => theme.colorScheme.tertiary,
       ConsoleKind.refusal => theme.colorScheme.error,
@@ -156,7 +156,7 @@ class _Line extends StatelessWidget {
             child: Text(
               entry.tool == null ? entry.text : '${entry.tool}: ${entry.text}',
               style: theme.textTheme.bodySmall?.copyWith(
-                color: colour,
+                color: color,
                 fontWeight: entry.kind == ConsoleKind.refusal
                     ? FontWeight.w600
                     : FontWeight.w400,

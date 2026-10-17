@@ -10,7 +10,7 @@
 library;
 
 import 'package:flutter/widgets.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/capability_report.dart';
 
 /// Makes a fresh demo. Called every time a page is opened, so nothing a demo
@@ -33,7 +33,7 @@ final class DemoContext {
 
   /// The camera the viewport draws through. The host adds it to the scene.
   final CameraNode camera;
-  final RenderView view;
+  final CameraView view;
 
   /// Turns [camera] as the pointer drags. A demo that wants a different start
   /// sets it in [ShowcaseDemo.configureView].
@@ -111,10 +111,14 @@ abstract class ShowcaseDemo {
   /// Called every frame with the seconds since the last, before it is drawn.
   void update(DemoContext context, double dt) {}
 
+  /// Lets go of what the page holds beyond its scene — a physics core's
+  /// world — when the page is left. Nothing by default.
+  void dispose() {}
+
   /// The views one frame is made of. One, the viewport's own, unless a page
   /// is about drawing the same scene several ways at once — tiles of one
   /// picture, say — and hands back more.
-  List<RenderView> views(DemoContext context) => <RenderView>[context.view];
+  List<CameraView> views(DemoContext context) => <CameraView>[context.view];
 
   /// What to draw it with, read every frame, so a control that changes a
   /// setting only has to change a field.

@@ -1021,5 +1021,6 @@ List<ModelerTool> toolsFor(
   // panel, and a rail of one tool called "select" would say a mode is
   // emptier than it is. Returning an empty list rather than throwing,
   // because a rail asking such a mode what it holds is not a bug.
+  // ignore: avoid-wildcard-cases-with-enums, the modes above are the ones with tools
   _ => const <ModelerTool>[],
 };

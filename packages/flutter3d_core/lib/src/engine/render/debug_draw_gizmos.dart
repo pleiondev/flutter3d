@@ -1,17 +1,22 @@
 import 'dart:math' as math;
 
 import 'package:flutter3d_core/geometry.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:vector_math/vector_math.dart';
 
 import '../scene/camera_node.dart';
 import '../scene/light_node.dart';
 import '../scene/mesh_node.dart';
+import '../scene/projection.dart';
 import '../scene/scene.dart';
 import '../scene/scene_node.dart';
 import 'debug_draw.dart';
 
 /// The shape-level overlays — boxes, axes, normals, frusta, spheres, light
 /// gizmos — and [buildForScene], which assembles them from a [Scene].
+///
+/// Every point, box and matrix here is in scene space, as [DebugDraw]'s own
+/// lines are: a node's `worldMatrix` and `worldBounds` are already there.
 ///
 /// Kept apart from [DebugDraw]'s buffer core in an ordinary file rather than a
 /// `part`: every one of these reaches the buffer only through [DebugDraw]'s
@@ -20,7 +25,7 @@ import 'debug_draw.dart';
 /// live in its own library.
 extension DebugDrawGizmos on DebugDraw {
   /// The twelve edges of an axis-aligned box.
-  void addBox(Aabb3 box, Vector4 color) {
+  void addBox(Aabb3 box, LinearColor color) {
     final min = box.min;
     final max = box.max;
     _addBoxCorners(min.x, min.y, min.z, max.x, max.y, max.z, color);
@@ -33,7 +38,7 @@ extension DebugDrawGizmos on DebugDraw {
     double x1,
     double y1,
     double z1,
-    Vector4 color,
+    LinearColor color,
   ) {
     // Bottom face.
     addLineXyz(x0, y0, z0, x1, y0, z0, color);
@@ -57,7 +62,7 @@ extension DebugDrawGizmos on DebugDraw {
   /// Unlike [addBox] on world bounds, this shows the object's actual orientation:
   /// a rotated cube reads as a rotated cube rather than as the larger axis-aligned
   /// box that encloses it.
-  void addTransformedBox(Aabb3 local, Matrix4 transform, Vector4 color) {
+  void addTransformedBox(Aabb3 local, Matrix4 transform, LinearColor color) {
     final corners = List<Vector3>.generate(8, (i) {
       final v = Vector3(
         (i & 1) == 0 ? local.min.x : local.max.x,
@@ -72,7 +77,7 @@ extension DebugDrawGizmos on DebugDraw {
 
   /// Corner order is the bit pattern `zyx`, as produced above and by
   /// [addFrustum].
-  void _addBoxEdgesFromCorners(List<Vector3> c, Vector4 color) {
+  void _addBoxEdgesFromCorners(List<Vector3> c, LinearColor color) {
     const edges = <int>[
       0, 1, 1, 3, 3, 2, 2, 0, // z = min
       4, 5, 5, 7, 7, 6, 6, 4, // z = max
@@ -118,7 +123,7 @@ extension DebugDrawGizmos on DebugDraw {
     Matrix4 worldMatrix,
     Matrix4 normalMatrix, {
     required double length,
-    Vector4? color,
+    LinearColor? color,
   }) {
     final normalOffset = mesh.layout.floatOffsetOf('normal');
     if (normalOffset < 0) return;
@@ -172,7 +177,7 @@ extension DebugDrawGizmos on DebugDraw {
   /// near plane is at z = 0, not z = -1: every projection in this engine targets
   /// the Metal/Vulkan `[0, 1]` depth range, and using the OpenGL convention here
   /// would draw a frustum that reaches half as far as the real one.
-  void addFrustum(Matrix4 viewProjection, Vector4 color) {
+  void addFrustum(Matrix4 viewProjection, LinearColor color) {
     final inverse = Matrix4.copy(viewProjection);
     if (inverse.invert() == 0.0) return; // singular, nothing to draw
 
@@ -189,9 +194,9 @@ extension DebugDrawGizmos on DebugDraw {
 
   /// A wire sphere as three orthogonal rings.
   void addSphere(
-    Vector3 centre,
+    Vector3 center,
     double radius,
-    Vector4 color, {
+    LinearColor color, {
     int segments = 24,
   }) {
     if (radius <= 0.0 || segments < 3) return;
@@ -209,12 +214,12 @@ extension DebugDrawGizmos on DebugDraw {
         final z = plane == 0 ? 0.0 : s;
         if (i > 0) {
           addLineXyz(
-            centre.x + px,
-            centre.y + py,
-            centre.z + pz,
-            centre.x + x,
-            centre.y + y,
-            centre.z + z,
+            center.x + px,
+            center.y + py,
+            center.z + pz,
+            center.x + x,
+            center.y + y,
+            center.z + z,
             color,
           );
         }
@@ -246,7 +251,7 @@ extension DebugDrawGizmos on DebugDraw {
       DebugColors.light,
     );
 
-    if (light.type == LightType.spot) {
+    if (light.type.base == LightType.spot) {
       // The outer cone, sketched with four ribs: enough to see the angle without
       // turning the gizmo into geometry of its own.
       final length = direction.length;
@@ -276,7 +281,7 @@ extension DebugDrawGizmos on DebugDraw {
     Vector3 from,
     Vector3 to,
     double width,
-    Vector4 color,
+    LinearColor color,
   ) {
     final axis = to - from;
     final length = axis.length;
@@ -300,7 +305,7 @@ extension DebugDrawGizmos on DebugDraw {
   /// A three-line crosshair at [center] — what a joint with no child to
   /// stretch a bone toward ([addBoneOctahedron] needs two ends) is drawn as
   /// instead, the same way a light with no cone still needs a marker.
-  void addJointCross(Vector3 center, double size, Vector4 color) {
+  void addJointCross(Vector3 center, double size, LinearColor color) {
     addLineXyz(
       center.x - size,
       center.y,
@@ -334,8 +339,9 @@ extension DebugDrawGizmos on DebugDraw {
   /// [addJointCross] at every joint [parents] gives no child — `anim-08`'s
   /// own row.
   ///
-  /// [worldPositions] and [parents] are index-aligned and [parents] holds
-  /// each joint's own parent index, or a value outside `0..worldPositions
+  /// [scenePositions] (each joint in scene space, relative to `Scene.origin`)
+  /// and [parents] are index-aligned and [parents] holds
+  /// each joint's own parent index, or a value outside `0..scenePositions
   /// .length` for a root — the same convention `Pose.parents` already
   /// keeps, so a caller already holding one hands it straight through.
   /// [problem] names indices to draw in [DebugColors.jointProblem] instead
@@ -347,33 +353,33 @@ extension DebugDrawGizmos on DebugDraw {
   /// both app-layer, and neither is here — this is the drawing this row's
   /// picking half would need a joint to already be visible to hit.
   void addSkeletonOverlay(
-    List<Vector3> worldPositions,
+    List<Vector3> scenePositions,
     List<int> parents, {
-    Vector4? color,
+    LinearColor? color,
     double boneWidth = 0.02,
     double crossSize = 0.03,
     Set<int> problem = const <int>{},
   }) {
     final normal = color ?? DebugColors.selection;
-    final hasChild = List<bool>.filled(worldPositions.length, false);
+    final hasChild = List<bool>.filled(scenePositions.length, false);
     for (final parent in parents) {
       if (parent >= 0 && parent < hasChild.length) hasChild[parent] = true;
     }
-    for (var joint = 0; joint < worldPositions.length; joint++) {
+    for (var joint = 0; joint < scenePositions.length; joint++) {
       final own = problem.contains(joint) ? DebugColors.jointProblem : normal;
       if (hasChild[joint]) {
         for (var child = 0; child < parents.length; child++) {
           if (parents[child] == joint) {
             addBoneOctahedron(
-              worldPositions[joint],
-              worldPositions[child],
+              scenePositions[joint],
+              scenePositions[child],
               boneWidth,
               own,
             );
           }
         }
       } else {
-        addJointCross(worldPositions[joint], crossSize, own);
+        addJointCross(scenePositions[joint], crossSize, own);
       }
     }
   }
@@ -416,12 +422,15 @@ extension DebugDrawGizmos on DebugDraw {
   /// the camera you are looking through would just outline the screen.
   void buildForScene(
     Scene scene,
-    DebugDrawOptions options, {
+    DebugDrawSettings options, {
     CameraNode? activeCamera,
     double aspect = 1.0,
     Iterable<SceneNode> highlighted = const <SceneNode>[],
   }) {
     clear();
+    // Before anything returns: a game's own lines are added after this, and
+    // a world line among them is measured from the scene drawn now.
+    origin = scene.origin;
     if (!options.anyEnabled && highlighted.isEmpty) return;
 
     final sceneBounds = scene.computeBounds();
@@ -438,7 +447,7 @@ extension DebugDrawGizmos on DebugDraw {
 
     if (options.bounds || options.normals) {
       for (final node in scene.meshes) {
-        if (!node.visibleInHierarchy) continue;
+        if (!node.isVisibleInHierarchy) continue;
         if (options.bounds) addBox(node.worldBounds, DebugColors.bounds);
         if (options.normals) {
           final source = node.mesh.source;
@@ -464,7 +473,19 @@ extension DebugDrawGizmos on DebugDraw {
     if (options.cameraFrustums) {
       for (final camera in scene.cameras) {
         if (identical(camera, activeCamera)) continue;
-        addFrustum(camera.viewProjection(aspect), DebugColors.frustum);
+        // A camera with no far plane is drawn out to the scene's own size:
+        // its far corners are at infinity, and a line to one is no line.
+        final lens = camera.projection;
+        final matrix = lens.far.isFinite
+            ? camera.viewProjection(aspect)
+            : ((withDepthPlanes(
+                      lens.toMatrix(aspect),
+                      near: lens.near,
+                      far: math.max(sceneSize, lens.near * 100.0),
+                    ) ??
+                    lens.toMatrix(aspect))
+                ..multiply(camera.viewMatrix));
+        addFrustum(matrix, DebugColors.frustum);
       }
     }
 
@@ -472,9 +493,9 @@ extension DebugDrawGizmos on DebugDraw {
       final position = Vector3.zero();
       for (final node in scene.meshes) {
         final skeleton = node.skeleton;
-        if (skeleton == null || !node.visibleInHierarchy) continue;
+        if (skeleton == null || !node.isVisibleInHierarchy) continue;
         final joints = skeleton.joints;
-        final worldPositions = List<Vector3>.generate(joints.length, (i) {
+        final scenePositions = List<Vector3>.generate(joints.length, (i) {
           joints[i].readWorldPosition(position);
           return position.clone();
         });
@@ -485,7 +506,7 @@ extension DebugDrawGizmos on DebugDraw {
           joints.length,
           (i) => indexOf[joints[i].parent] ?? -1,
         );
-        addSkeletonOverlay(worldPositions, parents);
+        addSkeletonOverlay(scenePositions, parents);
       }
     }
 

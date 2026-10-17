@@ -1,0 +1,11 @@
+format: 1
+from: 0.8.5
+to: 1.0.0-rc.1
+date: 2026-10-08
+guide: https://flutter3d.pleion.dev/reference/migrating-to-1.0/
+entries:
+  - id: kinds-loadText-throws
+    package: flutter3d_kinds
+    symbol: loadText
+    kind: nullToThrow
+    exception: AssetNotFoundException

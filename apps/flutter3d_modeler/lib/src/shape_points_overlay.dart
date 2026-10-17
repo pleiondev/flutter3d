@@ -25,7 +25,8 @@ import 'dart:ui' show Color;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart' show ShapeKey;
-import 'package:vector_math/vector_math.dart';
+
+import 'overlay_ink.dart';
 
 /// One shape's own marker: where it sits, in the object's own local space,
 /// and whether it is the one a person is looking at in `MorphsPanel` right
@@ -53,14 +54,14 @@ void emitShapePointsOverlay(
   required Vector4 active,
 }) {
   for (final ShapeMarker marker in markers) {
-    overlay.point(marker.position, marker.active ? active : primary);
+    overlay.point(marker.position, (marker.active ? active : primary).ink);
   }
 }
 
-/// [colour]'s own channels as a debug-line [Vector4], 0 to 1 each — the one
+/// [color]'s own channels as a debug-line [Vector4], 0 to 1 each — the one
 /// place a [ColorScheme] role (`ui/theme.dart`'s own `kModelerScheme`) needs
 /// to reach a [MeshOverlay] rather than a widget, so the morphs sub-mode's
 /// own markers read the same primary/secondary hues a person already sees
 /// in the panel, rather than a second literal naming the same colour again.
-Vector4 colourAsVector4(Color colour) =>
-    Vector4(colour.r, colour.g, colour.b, colour.a);
+Vector4 colourAsVector4(Color color) =>
+    Vector4(color.r, color.g, color.b, color.a);

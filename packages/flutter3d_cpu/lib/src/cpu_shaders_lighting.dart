@@ -37,11 +37,33 @@ int lightCount(ShaderBindings bindings, Vector3 world) {
 bool clustered(ShaderBindings bindings) =>
     bindings.vec4('LightListInfo', 'cluster_grid', Vector4.zero()).w > 0.5;
 
+/// Where a cluster cell's entries start in the light list, and how many there
+/// are, as [clusterAt] reads them from the cell's header texel.
+final class ClusterSpan {
+  /// [count] entries from entry [offset].
+  const ClusterSpan({required this.offset, required this.count});
+
+  /// The first entry of the cell, in no unit: an entry index held as a texel
+  /// value, rounded by its reader.
+  final double offset;
+
+  /// How many entries the cell holds, in no unit: a count held as a texel
+  /// value, rounded by its reader.
+  final double count;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ClusterSpan && other.offset == offset && other.count == count;
+
+  @override
+  int get hashCode => Object.hash(offset, count);
+
+  @override
+  String toString() => 'ClusterSpan(offset: $offset, count: $count)';
+}
+
 /// `FindCluster`: where the entries of [world]'s cell start, and how many.
-({double offset, double count}) clusterAt(
-  ShaderBindings bindings,
-  Vector3 world,
-) {
+ClusterSpan clusterAt(ShaderBindings bindings, Vector3 world) {
   final m = bindings.mat4('LightListInfo', 'cluster_view_projection');
   final grid = bindings.vec4('LightListInfo', 'cluster_grid', Vector4.zero());
   final depth = bindings.vec4('LightListInfo', 'cluster_depth', Vector4.zero());
@@ -60,7 +82,7 @@ bool clustered(ShaderBindings bindings) =>
     depth.z.round() + cell ~/ 4,
     cell % 4,
   );
-  return (offset: header.x, count: header.y);
+  return ClusterSpan(offset: header.x, count: header.y);
 }
 
 /// `ClusterRow`: the row entry [slot] of [world]'s cell names.
@@ -213,7 +235,7 @@ double rectangleFormFactor(List<Vector3> corners, Vector3 n) {
 
 /// `RectangleClosestPoint` — the representative point for the specular lobe.
 Vector3 rectangleClosestPoint(
-  Vector3 centre,
+  Vector3 center,
   Vector3 halfWidth,
   Vector3 halfHeight,
   Vector3 world,
@@ -221,10 +243,10 @@ Vector3 rectangleClosestPoint(
 ) {
   final n = halfWidth.cross(halfHeight);
   final nLen = n.length;
-  if (nLen < 1e-12) return centre;
+  if (nLen < 1e-12) return center;
   n.scale(1.0 / nLen);
 
-  final toPlane = centre - world;
+  final toPlane = center - world;
   final denom = mirror.dot(n);
   final Vector3 onPlane;
   if (denom.abs() < 1e-5) {
@@ -239,14 +261,24 @@ Vector3 rectangleClosestPoint(
   final hLen2 = math.max(halfHeight.dot(halfHeight), 1e-12);
   final u = (offset.dot(halfWidth) / wLen2).clamp(-1.0, 1.0);
   final v = (offset.dot(halfHeight) / hLen2).clamp(-1.0, 1.0);
-  return centre + halfWidth * u + halfHeight * v;
+  return center + halfWidth * u + halfHeight * v;
 }
 
 /// `SampleLight`.
 ///
 /// Returns null for a light that contributes nothing, which is the `n_dot_l <=
 /// 0` early-out in `AccumulateLights`.
-LightSample? sampleLight(ShaderBindings bindings, int index, Surface s) {
+///
+/// [lightType] is `F3dLightTypeHook` (version 3 of the material language): told
+/// every light's type code and its row's last `vec4` before it is sampled,
+/// it answers whether a plugin's light (a code from 16 up) is one the stage
+/// lights, which is then sampled as a point at its row.
+LightSample? sampleLight(
+  ShaderBindings bindings,
+  int index,
+  Surface s, {
+  bool Function(double code, Vector4 params)? lightType,
+}) {
   // A light past the eighth comes from the frame's light list — `gfx-74n`. The
   // row holds the same four vectors the slot arrays do, in the same order, so
   // everything below this reads one shape.
@@ -264,7 +296,7 @@ LightSample? sampleLight(ShaderBindings bindings, int index, Surface s) {
   final position = fromList
       ? lightListTexel(bindings, row, 0)
       : bindings.vec4('FragInfo', 'light_position', Vector4.zero(), at: index);
-  final colour = fromList
+  final color = fromList
       ? (lightListTexel(bindings, row, 1)
           // The intensity and not the colour, for `_pack`'s own reason: the
           // same multiply, and only one of them is a number nobody authored.
@@ -280,12 +312,22 @@ LightSample? sampleLight(ShaderBindings bindings, int index, Surface s) {
       ? lightListTexel(bindings, row, 3)
       : bindings.vec4('FragInfo', 'light_cone', Vector4.zero(), at: index);
 
+  // `F3D_LIGHT_TYPE_HOOK`: a plugin's light the stage declares is lit as a
+  // point at its row.
+  final hooked = lightType != null && lightType(position.w, coneOf());
+  final type = hooked && position.w > 15.5 ? 1.0 : position.w;
+
+  // A plugin's light type (codes from 16 up) leaves first: its own hook
+  // packed the row and its own lighting model reads it — `SampleLight`'s
+  // branch of the same name.
+  if (type > 15.5) return null;
+
   // **A rectangle leaves before the aim is normalised — `gfx-77n`.** For every
   // other kind `direction.xyz` points somewhere and its length means nothing;
   // for this one the length *is* half the panel's width, and normalising would
   // throw the size away. Transcribed from the branch of the same name in
   // `SampleLight`.
-  if (position.w > 2.5) {
+  if (type > 2.5) {
     final cone = coneOf();
     final halfWidth = Vector3(direction.x, direction.y, direction.z);
     final halfHeight = Vector3(cone.x, cone.y, cone.z);
@@ -331,7 +373,7 @@ LightSample? sampleLight(ShaderBindings bindings, int index, Surface s) {
     final h = (l + s.view)..normalize();
     return (
       direction: l,
-      radiance: Vector3(colour.x, colour.y, colour.z) * (colour.w * radiance),
+      radiance: Vector3(color.x, color.y, color.z) * (color.w * radiance),
       nDotL: formFactor,
       nDotH: math.max(s.normal.dot(h), 0.0),
       vDotH: math.max(s.view.dot(h), 0.0),
@@ -355,7 +397,7 @@ LightSample? sampleLight(ShaderBindings bindings, int index, Surface s) {
 
   Vector3 toLight;
   var lightAttenuation = 1.0;
-  if (position.w < 0.5) {
+  if (type < 0.5) {
     // Directional: the direction to the light is the reverse of the one it
     // points.
     toLight = -aim;
@@ -375,15 +417,14 @@ LightSample? sampleLight(ShaderBindings bindings, int index, Surface s) {
   // not transcribed, left behind when they were. This file's header promises
   // that where it departs from the GLSL it says so, which is only worth
   // anything if a departure it names is one it has.
-  if (position.w > 1.5) {
+  if (type > 1.5) {
     final cone = fromList
         ? lightListTexel(bindings, row, 3)
         : bindings.vec4('FragInfo', 'light_cone', Vector4.zero(), at: index);
     final cosAngle = aim.dot(-toLight);
-    lightAttenuation *= ((cosAngle - cone.y) / (cone.x - cone.y)).clamp(
-      0.0,
-      1.0,
-    );
+    final ramp = ((cosAngle - cone.y) / (cone.x - cone.y)).clamp(0.0, 1.0);
+    // Squared, as `surface.glsl`'s and KHR_lights_punctual's falloff is.
+    lightAttenuation *= ramp * ramp;
   }
 
   final half = (toLight + s.view)..normalize();
@@ -391,8 +432,7 @@ LightSample? sampleLight(ShaderBindings bindings, int index, Surface s) {
   if (nDotL <= 0.0) return null;
   return (
     direction: toLight,
-    radiance:
-        Vector3(colour.x, colour.y, colour.z) * (colour.w * lightAttenuation),
+    radiance: Vector3(color.x, color.y, color.z) * (color.w * lightAttenuation),
     nDotL: nDotL,
     nDotH: math.max(s.normal.dot(half), 0.0),
     vDotH: math.max(s.view.dot(half), 0.0),
@@ -411,16 +451,18 @@ Vector3 accumulateLights(
   FragmentContext c, {
   required Vector3 Function(Surface s, LightSample light) shade,
   required bool shadowed,
+  bool Function(double code, Vector4 params)? lightType,
 }) {
   var total = Vector3.zero();
   final count = lightCount(b, s.world);
   for (var i = 0; i < count; i++) {
-    final light = sampleLight(b, i, s);
+    final light = sampleLight(b, i, s, lightType: lightType);
     if (light == null) continue;
     // `LightHasShadow` — `gfx-74n`. Only the first eight carry one: the atlas
     // has six rows and the slot table eight entries, so a light from the list
     // has no row to read and asking would index past the table.
     var visibility = 1.0;
+    shadowTransmittance.setValues(1.0, 1.0, 1.0);
     if (i < kMaxLights) {
       visibility = shadowed ? shadowFactor(s, b, i, light.nDotL, c) : 1.0;
       visibility *= pointShadowFactor(b, s.world, s.normal, i, c);
@@ -428,9 +470,9 @@ Vector3 accumulateLights(
     if (visibility <= 0.0) continue;
     final response = shade(s, light);
     total += Vector3(
-      response.x * light.radiance.x,
-      response.y * light.radiance.y,
-      response.z * light.radiance.z,
+      response.x * light.radiance.x * shadowTransmittance.x,
+      response.y * light.radiance.y * shadowTransmittance.y,
+      response.z * light.radiance.z * shadowTransmittance.z,
     )..scale(light.nDotL * visibility);
   }
   return total;
@@ -451,7 +493,7 @@ int contributorLightCount(ShaderBindings bindings, Vector3 world) {
 /// `ContributorLight` — `N6`: light [index] as [world] receives it, with no
 /// surface to face. A rectangle is read as a point at its centre, as the GLSL
 /// reads it.
-({Vector3 toLight, Vector3 radiance}) contributorLight(
+ContributorLightSample contributorLight(
   ShaderBindings bindings,
   int index,
   Vector3 world,
@@ -470,9 +512,9 @@ int contributorLightCount(ShaderBindings bindings, Vector3 world) {
       ? lightListTexel(bindings, row, column)
       : bindings.vec4(block, member, Vector4.zero(), at: index);
   final position = read('light_position', 0);
-  final colour = read('light_color', 1);
+  final color = read('light_color', 1);
   if (fromList) {
-    colour.w *= fromCell
+    color.w *= fromCell
         ? (inSlots(bindings, row) ? 0.0 : 1.0)
         : lightListScale(bindings, slot);
   }
@@ -497,16 +539,47 @@ int contributorLightCount(ShaderBindings bindings, Vector3 world) {
   final falloff = window * window / math.max(distance * distance, 1e-4);
 
   final spot = type > 1.5 && type < 2.5;
-  final ramp = spot
+  final linearRamp = spot
       ? ((aim.dot(-toLight) - cone.y) / math.max(cone.x - cone.y, 1e-4)).clamp(
           0.0,
           1.0,
         )
       : 1.0;
+  final ramp = linearRamp * linearRamp;
 
-  final attenuation = directional ? 1.0 : (degenerate ? 0.0 : falloff * ramp);
-  return (
+  // A plugin's light type (codes from 16 up) gives nothing here.
+  final attenuation = type > 15.5
+      ? 0.0
+      : (directional ? 1.0 : (degenerate ? 0.0 : falloff * ramp));
+  return ContributorLightSample(
     toLight: toLight,
-    radiance: Vector3(colour.x, colour.y, colour.z) * (colour.w * attenuation),
+    radiance: Vector3(color.x, color.y, color.z) * (color.w * attenuation),
   );
+}
+
+/// One light as a point with no surface receives it, as [contributorLight]
+/// answers it.
+final class ContributorLightSample {
+  /// Light arriving along [toLight] with [radiance].
+  const ContributorLightSample({required this.toLight, required this.radiance});
+
+  /// The unit direction from the point towards the light, in world space.
+  final Vector3 toLight;
+
+  /// The light's colour times its intensity and its attenuation at the
+  /// point, linear; zero for a light that gives this point nothing.
+  final Vector3 radiance;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ContributorLightSample &&
+      other.toLight == toLight &&
+      other.radiance == radiance;
+
+  @override
+  int get hashCode => Object.hash(toLight, radiance);
+
+  @override
+  String toString() =>
+      'ContributorLightSample(toLight: $toLight, radiance: $radiance)';
 }

@@ -13,9 +13,9 @@
 /// boundary.** No genre package in this repository depends on
 /// `flutter3d_game`; a session is what an *application* has, because only an
 /// application knows where a save lives and which side the person at the mouse
-/// is playing. What the package owes one is two methods — `Match.save` and
-/// `Match.restore` — and both were written before there was a session to call
-/// them.
+/// is playing. What the package owes one is two methods — `StrategyMatch.save`
+/// and `StrategyMatch.restore` — and both were written before there was a
+/// session to call them.
 ///
 /// **Restoring happens after the level is whole**, which is `RunSession`'s own
 /// contract and not a habit: [open] returns a fully staged match, and only then
@@ -27,10 +27,8 @@
 /// document instead of against the save.
 library;
 
-import 'package:flutter3d/flutter3d.dart' show GraphicsDevice;
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_strategy/flutter3d_game_strategy.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import 'level_document.dart';
 import 'staging.dart';
@@ -43,27 +41,27 @@ import 'staging.dart';
 /// distance per step, so the size of the step is the speed of the match.
 const double strategyStep = 1.0 / 60.0;
 
-/// The clock a frame is spent through.
+/// The world's timing the match is stepped at by the `EngineLoop`: sixty
+/// steps a second, whose step is [strategyStep] to the bit — the loop hands
+/// its systems `1 / stepRate`, the same division [strategyStep] is.
 ///
-/// A builder rather than one shared instance, because a [FixedStep] carries an
-/// accumulator: two loops handed the same one would spend each other's time.
-/// The ceiling on steps per frame is the class's own, and it earns its keep
-/// here more than anywhere else in this repository — a step over a crowd of
-/// hundreds is the most expensive step any of these games runs, so a frame that
-/// fell behind and then tried to catch up is exactly the spiral that class was
-/// written to refuse.
-FixedStep strategyClock() => FixedStep(stepSeconds: strategyStep);
+/// The loop's catch-up is left at its default, five steps a frame and the
+/// rest announced: a step over a crowd of hundreds is the most expensive
+/// step any of these games runs, and a frame that fell behind and then tried
+/// to catch up all at once is the spiral that ceiling refuses.
+const WorldTiming strategyWorld = WorldTiming(stepRate: 60.0);
 
 /// How a match reads to the side watching it, in the words every genre shares.
 ///
 /// **Three answers folded onto two, and the draw is where the folding shows.**
-/// A match can quite properly finish level — `Match` treats that as a real
-/// answer rather than a missing one, because two sides running one policy from
-/// mirrored starts *should* come out equal. [RunOutcome] has no word for it, so
-/// a draw is read here as a loss, and what makes that the right reading is what
-/// the caller does next: `RunSession.advance` clears the save when a run is won
-/// and hands a loss to `onLost`, and a match that ended without this side
-/// crossing the line is a match there is nothing to carry out of either way.
+/// A match can quite properly finish level — `StrategyMatch` treats that as a
+/// real answer rather than a missing one, because two sides running one policy
+/// from mirrored starts *should* come out equal. [RunOutcome] has no word for
+/// it, so a draw is read here as a loss, and what makes that the right reading
+/// is what the caller does next: `RunSession.advance` clears the save when a
+/// run is won and hands a loss to `onLost`, and a match that ended without this
+/// side crossing the line is a match there is nothing to carry out of either
+/// way.
 ///
 /// The screen is not told this. `standingText` in `hud_readout.dart` reads the
 /// [Standing] itself and says "drawn", which is the honest word for a player;
@@ -103,7 +101,7 @@ final class StrategyRun extends RunSession<Staged> {
   ///
   /// [asset] and [levelHash] are `rp-01`/`rp-04`'s own reason for being here
   /// at all: `_beginDemo` needs the map's own name and digest to write a
-  /// demo down, and neither survives past [open] — [Staged] holds the match
+  /// demo down, and neither survives past [loadLevel] — [Staged] holds the match
   /// this staged, not the [StrategyMap] it was staged from.
   final void Function(String asset, String levelHash, Staged staged)
   onLevelBuilt;
@@ -121,7 +119,7 @@ final class StrategyRun extends RunSession<Staged> {
   /// `RunSession`, which puts the filename on the screen instead of leaving a
   /// black one.
   @override
-  Future<Staged> open(String asset) async {
+  Future<Staged> loadLevel(String asset) async {
     final StrategyMap map = await StrategyMap.load(asset: asset);
     final Staged staged = await stage(device: await openDevice(), map: map);
     onLevelBuilt(asset, map.level.digestHex, staged);
@@ -144,6 +142,9 @@ final class StrategyRun extends RunSession<Staged> {
   Snapshot snapshotOf(Staged level) => level.match.save();
 
   @override
-  void restoreInto(Staged level, Snapshot snapshot) =>
-      level.match.restore(snapshot);
+  void restoreInto(RunRestoreContext<Staged> context) {
+    final level = context.level;
+    final snapshot = context.snapshot;
+    level.match.restore(snapshot);
+  }
 }

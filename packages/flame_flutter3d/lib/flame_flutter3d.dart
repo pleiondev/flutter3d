@@ -6,7 +6,7 @@
 /// system ([ActorComponent], [ActorSystemComponent]), physics
 /// ([RigidBodyComponent], [PhysicsStepComponent], [CollisionBridge]), input
 /// ([FlameInputBridge]) and camera ([CameraSyncController],
-/// [CameraSyncComponent], [ChaseCamera], [BridgeProjector]) and an endless
+/// [CameraSyncComponent], [FlameChaseCamera], [BridgeProjector]) and an endless
 /// world built piece by piece ([ChunkStreamer]). See
 /// `apps/flutter3d_showcase`'s `flame` pages for one mechanism per page.
 library;

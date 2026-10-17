@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show LinearColor;
 import 'package:vector_math/vector_math.dart';
 
 import 'mesh_clusters.dart';
@@ -11,25 +13,25 @@ export 'morph_target.dart';
 
 /// Opaque white: a vertex colour multiplies the surface, so this is the value
 /// that changes nothing.
-final Vector4 kNeutralColor = Vector4(1.0, 1.0, 1.0, 1.0);
+const LinearColor neutralColor = LinearColor.white;
 
 /// Every vertex bound to joint zero.
 ///
-/// Paired with [kNeutralWeights], this leaves a vertex following the first
+/// Paired with [neutralWeights], this leaves a vertex following the first
 /// joint rigidly, which is what an unrigged vertex in a skinned mesh should do.
-final Vector4 kNeutralJoints = Vector4(0.0, 0.0, 0.0, 0.0);
+final Vector4 neutralJoints = Vector4(0.0, 0.0, 0.0, 0.0);
 
 /// All the influence on the first joint.
 ///
 /// Not all zeros: weights that sum to zero collapse the vertex to the origin,
 /// so a mesh missing WEIGHTS_0 would implode rather than simply not deform.
-final Vector4 kNeutralWeights = Vector4(1.0, 0.0, 0.0, 0.0);
+final Vector4 neutralWeights = Vector4(1.0, 0.0, 0.0, 0.0);
 
 /// A unit tangent along +X with a positive bitangent sign.
 ///
 /// Arbitrary in direction — any unit vector would do for a mesh with no UVs —
 /// but it must not be zero, because the shader normalizes it.
-final Vector4 kNeutralTangent = Vector4(1.0, 0.0, 0.0, 1.0);
+final Vector4 neutralTangent = Vector4(1.0, 0.0, 0.0, 1.0);
 
 /// Indices packed for GPU upload.
 final class PackedIndices {
@@ -217,24 +219,25 @@ final class MeshData {
     return total / 6.0;
   }
 
-  /// A copy with every vertex coloured [color], linear RGBA (see
-  /// [VertexLayout.color]).
+  /// A copy with every vertex coloured [color], in linear light as a vertex
+  /// colour is (see [VertexLayout.color]); a colour picked on screen is
+  /// `LinearColor.fromSrgb`.
   ///
   /// For building one mesh out of several shapes in several colours, drawn
   /// with one white material: paint each part, place it with [transformed],
   /// and [merge] them. A whole tree, or a stretch of scenery, is then one draw
   /// rather than a node and a material per part. A layout with no colour
   /// attribute has nowhere to put it, and gets an unchanged copy.
-  MeshData withColor(Vector4 color) {
+  MeshData withColor(LinearColor color) {
     final stride = layout.floatsPerVertex;
     final at = layout.floatOffsetOf(VertexLayout.color.name);
     final out = Float32List.fromList(vertices);
     if (at >= 0) {
       for (var i = at; i < out.length; i += stride) {
-        out[i] = color.x;
-        out[i + 1] = color.y;
-        out[i + 2] = color.z;
-        out[i + 3] = color.w;
+        out[i] = color.r;
+        out[i + 1] = color.g;
+        out[i + 2] = color.b;
+        out[i + 3] = color.a;
       }
     }
     return MeshData(

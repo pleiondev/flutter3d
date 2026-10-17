@@ -54,7 +54,7 @@ void main() {
         Vector3(2.0, 2.0, 2.0),
         Vector3(4.0, 4.0, 4.0),
       );
-      orbit.frameBounds(bounds, fovYRadians: math.pi / 4);
+      orbit.frameBounds(bounds, fovY: math.pi / 4);
 
       expect(orbit.target.x, closeTo(3.0, 1e-6));
       // The sphere around a 2-unit cube has radius sqrt(3); at a 45 degree fov
@@ -133,7 +133,7 @@ void main() {
     test('the two lenses frame the same bounds the same size', () {
       final bounds = Aabb3.minMax(Vector3(-1, -1, -1), Vector3(1, 1, 1));
       final orbit = OrbitController(SceneNode());
-      orbit.frameBounds(bounds, fovYRadians: math.pi / 4);
+      orbit.frameBounds(bounds, fovY: math.pi / 4);
 
       // What a perspective camera shows at the target's own depth, against what
       // the orthographic lens was told to show. Mutation: frame the sphere's

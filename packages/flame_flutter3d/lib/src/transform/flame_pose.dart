@@ -17,10 +17,21 @@ import 'package:flame/components.dart';
 /// Mutable, and read into, because it is read for every bridged component
 /// every frame.
 final class FlamePose {
+  /// Where it is along Flame's x, in Flame's world units, which the bridge
+  /// places one to a metre.
   double x = 0.0;
+
+  /// Where it is along Flame's y, in the same world units as [x].
   double y = 0.0;
+
+  /// How it is turned, in radians, as Flame's angles are.
   double turn = 0.0;
+
+  /// Its scale along Flame's x, a unitless multiplier whose sign says
+  /// whether it is mirrored.
   double scaleX = 1.0;
+
+  /// Its scale along Flame's y, a unitless multiplier as [scaleX] is.
   double scaleY = 1.0;
 
   /// Reads [component]'s pose. One with no positioned ancestor is read from

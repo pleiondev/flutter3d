@@ -45,13 +45,14 @@ live game, running on the same WebGL2 backend as its own demo page.
 
 ## Opening a run
 
-A downloaded `.f3drun` opens in the desktop level editor
-(`apps/flutter3d_editor`, `flutter run -d macos`), on the timeline panel
-described in [the level editor](/core/editor/). There you can pause, step and
-scrub to any recorded moment.
+A downloaded `.f3drun` opens in the level editor, on the desktop or in its
+web build ([where to get it](/download/)). "Open a run" picks the file, or
+drop it on the window, and the editor shows what the file says: the level and
+its hash, the build that recorded it, how long it ran and how many
+checkpoints it carries.
 
-<div class="warn">
-<p><strong>You can't open a run from this page, or from any browser.</strong> The editor is desktop-only by design: it writes a level document back to the disk it came from, which a browser will not do. So unlike the four games above it has no web build, and a downloaded run opens on whichever desktop has the editor installed.</p>
+<div class="note">
+<p><strong>A run file is read, not replayed, in the editor.</strong> Stepping through a saved run needs the genre's own simulation, and the editor knows no genre. To pause, step and scrub a run, play it in its game and attach the editor's timeline to the game while it runs, as <a href="/core/editor/">the level editor</a> describes. The web build attaches over the same VM service address the desktop one does.</p>
 </div>
 
 ## Recording your own
@@ -75,6 +76,6 @@ more than writing a third `tool/record_sample.dart`.
 
 ## Next
 
-- [Quickstart](/quickstart/): build these four yourself, from a fresh checkout
-- [The level editor](/core/editor/): what opens the run you just downloaded
+- [Quickstart](/quickstart/): a scene of your own from pub.dev, and the checkout these are built from
+- [The level editor](/core/editor/): what opens the run you just downloaded, and [where to get it](/download/)
 - [Testing](/reference/testing/): how a run's checkpoints are recorded and compared

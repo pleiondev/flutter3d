@@ -16,8 +16,11 @@
 library;
 
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter3d_game_strategy/flutter3d_game_strategy.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show SimulationVersion;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -38,12 +41,14 @@ void main() {
       // a gallop — and nothing in the document says so, because a tape of four
       // entries is a perfectly well formed tape of four entries.
       final sim = StrategySimulation(random: GameRandom(1), ground: flat());
-      final unit = sim.add(Unit(position: Vector3(20.0, 0.0, 20.0)));
+      final unit = sim.add(StrategyUnit(position: Vector3(20.0, 0.0, 20.0)));
       final recorder = OrderTapeRecorder(seed: sim.random.state);
       sim.orders.recorder = recorder;
 
       for (var i = 0; i < 10; i++) {
-        if (i == 7) sim.orders.moveTo(<Unit>[unit], Vector3(60.0, 0.0, 60.0));
+        if (i == 7) {
+          sim.orders.moveTo(<StrategyUnit>[unit], Vector3(60.0, 0.0, 60.0));
+        }
         sim.step(1.0 / 30.0);
       }
 
@@ -122,7 +127,7 @@ void main() {
     });
 
     test('runs out rather than looping when the match outlasts it', () {
-      final playback = OrderTapePlayback(
+      final playback = OrderTapePlayback.tape(
         OrderTape(seed: 1, frames: <List<StrategyOrder>>[<StrategyOrder>[]]),
       );
       final sim = StrategySimulation(random: GameRandom(1), ground: flat());
@@ -153,6 +158,50 @@ void main() {
         jsonDecode(jsonEncode(demo(tape: tape).toJson()))
             as Map<String, Object?>;
 
+    test('is played only on the simulation it was recorded on', () {
+      // The playback checks the match itself, so no caller can forget to.
+      // Mutation: drop `demo.checkSimulation` from `OrderTapePlayback`'s
+      // unnamed constructor, and the newer match plays.
+      final newer = MatchDemo(
+        level: 'assets/levels/map_a.json',
+        levelHash: 'deadbeef',
+        start: const Snapshot(<String, Object?>{'random': 7}),
+        tape: OrderTape(seed: 7),
+        buildStamp: 'test-build',
+        checkpoints: DigestTrace(),
+        simulation: const SimulationVersion(genre: 'strategy', genreVersion: 2),
+      );
+      expect(
+        () => OrderTapePlayback(newer, simulation: strategySimulationVersion),
+        throwsA(isA<ReplayException>()),
+      );
+      final same = MatchDemo(
+        level: 'assets/levels/map_a.json',
+        levelHash: 'deadbeef',
+        start: const Snapshot(<String, Object?>{'random': 7}),
+        tape: OrderTape(seed: 7),
+        buildStamp: 'test-build',
+        checkpoints: DigestTrace(),
+        simulation: strategySimulationVersion,
+      );
+      expect(
+        OrderTapePlayback(same, simulation: strategySimulationVersion).step,
+        0,
+      );
+    });
+
+    test('a version past what a double holds is refused as a demo', () {
+      // `jsonDecode` reads 1e999 as infinity, which used to escape as an
+      // `UnsupportedError` from `truncate()`.
+      expect(
+        () => MatchDemo.fromJson(
+          jsonDecode('{"format": "f3d.match", "version": 1e999}')
+              as Map<String, Object?>,
+        ),
+        throwsA(isA<DemoFormatException>()),
+      );
+    });
+
     test('survives the trip a file makes', () {
       final MatchDemo came = MatchDemo.fromJson(
         written(
@@ -182,6 +231,62 @@ void main() {
         () =>
             MatchDemo.fromJson(<String, Object?>{...written(), 'version': 99}),
         throwsA(isA<DemoFormatException>()),
+      );
+    });
+
+    test('opens one recorded before the map world was in the match, and '
+        'refuses to replay its tape', () {
+      // A version-one start and its checkpoints say nothing of the water
+      // and the fires, and its waders were held back outside the step: the
+      // tape cannot replay to them. That is another simulation, so the file
+      // opens and the replay is what is refused, with the sentence.
+      final MatchDemo old = MatchDemo.fromJson(<String, Object?>{
+        ...written(),
+        'version': 1,
+      });
+
+      // Mutation: the 1 → 2 step left as an identity — the file names no
+      // simulation, reads as today's, and is replayed into a divergence.
+      expect(old.simulation, MatchDemo.preWaterSimulation);
+      expect(
+        old.refusalOn(strategySimulationVersion),
+        allOf(contains('strategy 0'), contains('not replayed')),
+      );
+      expect(
+        () => old.checkSimulation(strategySimulationVersion),
+        throwsA(isA<ReplayException>()),
+      );
+      // Today's match, written with its number, replays.
+      expect(
+        MatchDemo.fromJson(<String, Object?>{
+          ...written(),
+          'simulation': strategySimulationVersion.toJson(),
+        }).refusalOn(strategySimulationVersion),
+        isNull,
+      );
+    });
+
+    test('every version this build reads has a fixture, and opens', () {
+      // `doc-28`: bytes minted once, never re-minted —
+      // `test/fixtures/v<N>/match.f3drun`. Mutation: bump
+      // `MatchDemo.formatVersion` without a `v3/` beside it.
+      for (int version = 1; version <= MatchDemo.formatVersion; version++) {
+        final MatchDemo read = MatchDemo.fromJson(
+          jsonDecode(
+                File('test/fixtures/v$version/match.f3drun').readAsStringSync(),
+              )
+              as Map<String, Object?>,
+        );
+        expect(read.steps, 2, reason: 'v$version');
+        expect(read.tape.frames.first.single, isA<MoveOrder>());
+        expect(read.checkpoints.steps, <int>[2]);
+      }
+      expect(
+        File(
+          'test/fixtures/v${MatchDemo.formatVersion + 1}/match.f3drun',
+        ).existsSync(),
+        isFalse,
+        reason: 'a fixture from a version this build cannot read',
       );
     });
 

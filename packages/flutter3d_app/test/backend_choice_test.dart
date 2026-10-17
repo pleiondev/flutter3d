@@ -36,7 +36,7 @@ void main() {
 
     expect(device, isA<GraphicsDevice>());
     expect(
-      device.shaders,
+      device.shaders['MeshVertex'],
       isNotNull,
       reason: 'a device with no shader library cannot draw a frame',
     );
@@ -44,11 +44,11 @@ void main() {
   });
 
   test('and says whether it draws at a size the caller chose', () {
-    // `kFixedResolution` is a compile-time constant, and the native file's own
+    // `fixedResolution` is a compile-time constant, and the native file's own
     // doc admits the runtime software fallback invalidates it: a fallback frame
     // is drawn at a fixed size and this constant cannot know. Asserted as it
     // is rather than as it should be, so that the day it becomes a property of
     // the device instead, this test is what says the meaning changed.
-    expect(kFixedResolution, isFalse);
+    expect(fixedResolution, isFalse);
   });
 }

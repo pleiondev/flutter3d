@@ -69,7 +69,7 @@ a thin-lens circle-of-confusion needs. Every post row keeps reading
 answer attached.
 
 **`gfx-58n` landed 2026-09-18, as a rule rather than a paragraph.** "The
-surface buffer keeps carrying depth in metres" is one of the thirty-five
+surface buffer keeps carrying depth in metres" is one of the thirty-six
 checks `tool/structure.dart` runs: it fails if `lib/color.glsl` stops writing
 `ViewDepth()` into the channel, and it fails if any shader declares a depth
 sampler. A rule can be read by somebody who never opened this document, which

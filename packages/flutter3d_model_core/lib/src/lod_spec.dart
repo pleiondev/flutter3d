@@ -5,7 +5,7 @@ library;
 ///
 /// **A recipe, not a mesh.** Simplifying is real work —
 /// `simplifyMeshWithAttributes` (`pro-lod-01`/`pro-lod-02`, in
-/// `flutter3d_mesh`) walks every triangle of the base mesh — so a `LodSpec`
+/// `flutter3d_mesh`) walks every triangle of the base mesh — so a `LodSettings`
 /// only ever holds what was asked for; `LodMeshCache` (`lod_cache.dart`) is
 /// what turns one into an actual `MeshData`, generated once per
 /// `ModelObject.version` and kept until either the ratio changes or the
@@ -16,8 +16,8 @@ library;
 /// `LodGroup` — this is the editor-side half that says how each level was
 /// made, where `LodLevel` is the viewport-side half that only cares what it
 /// looks like once made.
-final class LodSpec {
-  const LodSpec({required this.ratio, required this.maxScreenFraction});
+final class LodSettings {
+  const LodSettings({required this.ratio, required this.maxScreenFraction});
 
   /// Target triangle count against the base mesh's own, as a fraction in
   /// `(0, 1]` — `1.0` asks for no reduction at all, which
@@ -31,10 +31,11 @@ final class LodSpec {
   /// depending on the engine that consumes it.
   final double maxScreenFraction;
 
-  LodSpec copyWith({double? ratio, double? maxScreenFraction}) => LodSpec(
-    ratio: ratio ?? this.ratio,
-    maxScreenFraction: maxScreenFraction ?? this.maxScreenFraction,
-  );
+  LodSettings copyWith({double? ratio, double? maxScreenFraction}) =>
+      LodSettings(
+        ratio: ratio ?? this.ratio,
+        maxScreenFraction: maxScreenFraction ?? this.maxScreenFraction,
+      );
 
   @override
   String toString() =>

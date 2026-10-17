@@ -4,7 +4,9 @@
 draws through.
 
 ```dart
-final device = await GpuRenderBackend.create();
+// Every backend opens this way. Impeller sizes its targets per frame and
+// only checks that the size is one.
+final device = await GpuRenderBackend.open(width: 1280, height: 720);
 final renderer = Renderer.create(device: device);
 ```
 
@@ -45,7 +47,7 @@ package outside this repository runs the same build against its own shaders:
 
 Part of [flutter3d](https://github.com/pleiondev/flutter3d), an independent
 implementation of a 3D engine for Flutter. It is not a fork or a binding of
-another engine, and it is not affiliated with the Flutter team. It has four
+another engine, and it is not affiliated with Google or the Flutter project. It has four
 switchable rendering backends: Impeller via Flutter GPU, WebGL2, WebGPU and a
 software rasteriser. It loads glTF, OBJ and `.f3d`, and has six lighting models,
 shadows, bloom, skinning, animation, BVH culling and picking, plus a

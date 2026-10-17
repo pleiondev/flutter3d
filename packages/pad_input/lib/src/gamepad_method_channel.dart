@@ -9,7 +9,8 @@ import 'pad_snapshot.dart';
 
 /// A gamepad behind a platform channel.
 ///
-/// Android, macOS and iOS. The channel carries **what the platform said**, not a
+/// Android, macOS and iOS, Windows and Linux. The channel carries **what the
+/// platform said**, not a
 /// normalised pad: the native side forwards values and this side chooses what
 /// they mean, in a [PadMirror] per platform. That is deliberate and it is the
 /// whole reason these backends could be written without a controller in hand —
@@ -41,12 +42,13 @@ final class MethodChannelGamepad extends GamepadPlatform {
   /// Platforms with a native implementation.
   ///
   /// A **whitelist**, never try-and-see: subscribing where nothing is listening
-  /// is a `MissingPluginException` for the first listener. Windows and Linux
-  /// join this set when somebody writes XInput and evdev, and not before.
+  /// is a `MissingPluginException` for the first listener.
   static const Set<TargetPlatform> _supported = <TargetPlatform>{
     TargetPlatform.android,
     TargetPlatform.macOS,
     TargetPlatform.iOS,
+    TargetPlatform.windows,
+    TargetPlatform.linux,
   };
 
   /// Where a gamepad's buttons come from as well as the channel.
@@ -66,9 +68,13 @@ final class MethodChannelGamepad extends GamepadPlatform {
   /// Every controller the platform reports, each in its player's slot;
   /// built once and only where it is used.
   @visibleForTesting
-  late final PadSlots slots = defaultTargetPlatform == TargetPlatform.android
-      ? AndroidPads()
-      : DarwinPads();
+  late final PadSlots slots = switch (defaultTargetPlatform) {
+    TargetPlatform.android => AndroidPads(),
+    TargetPlatform.windows => XInputPads(),
+    TargetPlatform.linux => JoystickPads(),
+    // ignore: avoid-wildcard-cases-with-enums, a platform Flutter adds later reads as the Darwin pads rather than failing to compile.
+    _ => DarwinPads(),
+  };
 
   final StreamController<PadConnection> _connections =
       StreamController<PadConnection>.broadcast();
@@ -83,10 +89,12 @@ final class MethodChannelGamepad extends GamepadPlatform {
   }
 
   @override
-  void read(PadSnapshot out) => readPad(0, out);
+  void read(PadSnapshot out) => readPad(PadReadContext(index: 0, out: out));
 
   @override
-  void readPad(int index, PadSnapshot out) {
+  void readPad(PadReadContext context) {
+    final index = context.index;
+    final out = context.out;
     _ensureListening();
     slots.fill(index, out);
   }
@@ -117,7 +125,10 @@ final class MethodChannelGamepad extends GamepadPlatform {
   void _ensureListening() {
     if (_listening || !isSupported) return;
     _listening = true;
-    _subscription = eventChannel.receiveBroadcastStream().listen(_onEvent);
+    _subscription = eventChannel.receiveBroadcastStream().listen(
+      _onEvent,
+      onError: _onChannelError,
+    );
     if (_buttonsThroughKeyboard.contains(defaultTargetPlatform)) {
       HardwareKeyboard.instance.addHandler(_onKey);
     }
@@ -125,7 +136,7 @@ final class MethodChannelGamepad extends GamepadPlatform {
 
   /// Handles one event from the native side.
   ///
-  /// The payload's **type** says what it is, which is `pointer_lock`'s trick
+  /// The payload's **type** says what it is, which is `flutter3d_pointer_lock`'s trick
   /// and for its reason: a motion sample is the hot path and deserves one typed
   /// list rather than a map with a discriminator in it.
   ///
@@ -150,6 +161,20 @@ final class MethodChannelGamepad extends GamepadPlatform {
     _connections.add(
       now > was ? PadConnection.connected : PadConnection.disconnected,
     );
+  }
+
+  /// An error from the native side: a [MissingPluginException] where the
+  /// platform has no listener on the channel, or a [PlatformException] it
+  /// raised.
+  ///
+  /// **Answered as no controller, never thrown.** The stream is listened to
+  /// from inside a frame's read, where an unhandled error would surface in
+  /// the zone of whoever read first. Every pad reads as disconnected, which
+  /// is what a platform without the plugin has.
+  void _onChannelError(Object error) {
+    if (error is! MissingPluginException && error is! PlatformException) {
+      Error.throwWithStackTrace(error, StackTrace.current);
+    }
   }
 
   bool _onKey(KeyEvent event) {

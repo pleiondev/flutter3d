@@ -218,7 +218,7 @@ void main() {
     final scene = Scene();
     final camera = CameraNode(
       projection: const PerspectiveProjection(
-        fovYRadians: 1.05,
+        fovY: 1.05,
         near: 0.1,
         far: 100.0,
       ),
@@ -226,7 +226,8 @@ void main() {
     camera.lookAt(Vector3.zero());
     scene.add(camera);
     scene.add(
-      LightNode(intensity: 4.0, name: 'sun')..lookAt(Vector3(-0.4, -1.0, -0.6)),
+      LightNode(intensity: 4.0 * LightNode.defaultIntensity, name: 'sun')
+        ..lookAt(Vector3(-0.4, -1.0, -0.6)),
     );
 
     final document = await decodeModel(
@@ -242,14 +243,15 @@ void main() {
       width: 32,
       height: 32,
       scene: scene,
-      views: <RenderView>[
-        RenderView(camera: camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+      views: <CameraView>[
+        CameraView(
+          camera: camera,
+          clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
+        ),
       ],
       settings: const RenderSettings(),
     );
-    final pixels = (await device.readPixels(
-      result.frame,
-    ))!.buffer.asUint8List();
+    final pixels = (await device.readback(result.frame)).buffer.asUint8List();
 
     var lit = 0;
     for (var i = 0; i < pixels.length; i += 4) {
@@ -288,13 +290,20 @@ void main() {
       test('and carries its own normals', () {
         // The loader will invent flat ones for a mesh with none, by de-indexing
         // it — so a generator that forgot them is invisible in the picture and
-        // costs every model its vertex sharing.
-        for (final surface in asset.surfaces) {
-          expect(
-            surface.mesh.layout.floatOffsetOf(VertexLayout.normal.name),
-            isNotNull,
-          );
-        }
+        // costs every model its vertex sharing. Which is also why this reads
+        // the file rather than the loaded layout: that has a normal either way.
+        expect(
+          _gltfJsonOf(bytes),
+          containsPair(
+            'meshes',
+            everyElement(
+              containsPair(
+                'primitives',
+                everyElement(containsPair('attributes', contains('NORMAL'))),
+              ),
+            ),
+          ),
+        );
       });
 
       test('and is not made of metal', () {

@@ -9,9 +9,8 @@ library;
 import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart';
+import 'package:flutter3d_pointer_lock/flutter3d_pointer_lock.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pointer_lock/pointer_lock.dart';
 
 /// A pointer capture that does nothing and can be told to change its mind.
 final class _FakeCapture extends PointerLockPlatform {
@@ -54,14 +53,14 @@ void main() {
   late InputState state;
   late DesktopInput input;
 
-  setUp(() {
+  setUp(() async {
+    // Through the platform's own capture, as a game gets it, so the plugin's
+    // states are what this test sees turned into the game's.
     platform = _FakeCapture();
     PointerLockPlatform.instance = platform;
+    await PointerLock.disposeInstance();
     state = InputState();
-    input = DesktopInput(
-      state: state,
-      capture: PointerLock(platform: platform),
-    );
+    input = DesktopInput(state: state, capture: MouseCapture.platform());
   });
 
   tearDown(() => input.dispose());

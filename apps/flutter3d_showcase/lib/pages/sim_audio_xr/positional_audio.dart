@@ -14,7 +14,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/scene_kit.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class PositionalAudioDemo extends ShowcaseDemo {
   late final String _report;
@@ -24,7 +23,7 @@ final class PositionalAudioDemo extends ShowcaseDemo {
   bool orbiting = true;
   bool turnedAway = false;
 
-  late final SoundEmitter _emitter;
+  late final AudioEmitter _emitter;
   late final AudioScene _audio;
   late final AudioListener _listener;
   late final MeshNode _source;

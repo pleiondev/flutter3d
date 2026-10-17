@@ -27,6 +27,7 @@ import 'package:flutter3d_core/src/engine/scene/camera_node.dart';
 import 'package:flutter3d_core/src/engine/scene/light_node.dart';
 import 'package:flutter3d_core/src/engine/scene/mesh_node.dart';
 import 'package:flutter3d_core/src/engine/scene/scene.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show LightType;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -35,7 +36,7 @@ import 'package:vector_math/vector_math.dart';
 /// A renderer over a fake device, and a room with one cube in it.
 ///
 /// [pointCasters] point lights are hung around the cube, each asking for a
-/// cube shadow, so a count above `Renderer.kShadowedLights` is a scene where
+/// cube shadow, so a count above `Renderer.shadowedLights` is a scene where
 /// the allocator has to turn somebody away.
 ({FakeBackend device, Renderer renderer, Scene scene, CameraNode camera})
 _build({bool supportsWireframe = true, int pointCasters = 0}) {
@@ -45,7 +46,7 @@ _build({bool supportsWireframe = true, int pointCasters = 0}) {
     height: 1,
     format: TextureFormat.r8g8b8a8UNormInt,
     pixels: ByteData(4),
-  )!;
+  );
   final renderer = Renderer.create(
     device: device,
     fallbackAlbedo: texel,
@@ -57,7 +58,7 @@ _build({bool supportsWireframe = true, int pointCasters = 0}) {
   scene.root.add(
     MeshNode(
       DeviceMesh.upload(device, CuboidShape(size: Vector3.all(1.0)).build()),
-      Material(name: 'cube'),
+      RenderMaterial(name: 'cube'),
       name: 'cube',
     ),
   );
@@ -65,7 +66,7 @@ _build({bool supportsWireframe = true, int pointCasters = 0}) {
     final angle = i * 2.0 * math.pi / pointCasters;
     scene.root.add(
       LightNode(name: 'torch $i', type: LightType.point)
-        ..intensity = 5.0
+        ..intensity = 5.0 * LightNode.defaultIntensity
         ..range = 12.0
         ..castsShadow = true
         // Spread around the cube rather than stacked, so relevance has
@@ -84,7 +85,7 @@ FrameResult _render(
   width: 64,
   height: 48,
   scene: frame.scene,
-  views: <RenderView>[RenderView(camera: frame.camera)],
+  views: <CameraView>[CameraView(camera: frame.camera)],
   settings: settings,
 );
 
@@ -148,7 +149,7 @@ void main() {
 
   group('shadowsDenied', () {
     test('more casters than the atlas has rows leaves a count behind', () {
-      // Eight is `LightBuffer.maxLights`, so this is the most crowded room the
+      // Eight is `LightNode.maxLights`, so this is the most crowded room the
       // engine can be handed: every light is shaded and two of them cannot be
       // shadowed.
       //
@@ -168,14 +169,14 @@ void main() {
       );
       expect(
         result.shadowsDenied,
-        casters - Renderer.kShadowedLights,
+        casters - Renderer.shadowedLights,
         reason: 'every light past the atlas rows shades unshadowed',
       );
     });
 
     test('a scene inside the atlas denies nobody', () {
       final result = _render(
-        _build(pointCasters: Renderer.kShadowedLights),
+        _build(pointCasters: Renderer.shadowedLights),
         settings: _plain(shadows: true),
       );
       expect(result.shadowsDenied, 0);

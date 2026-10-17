@@ -1,3 +1,4 @@
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -27,7 +28,7 @@ export 'platformer_entities.dart';
 /// A game composes this itself — there is no default registry and that is the
 /// point — but the eight the format ships are wanted verbatim, so listing them
 /// here is the honest version of "and the usual".
-EntityRegistry platformerRegistry({Dynamics? dynamics}) =>
+EntityRegistry platformerRegistry({RigidDynamics? dynamics}) =>
     EntityRegistry(<EntityKind>[
       const PlayerSpawnKind(),
       const DoorKind(),
@@ -39,7 +40,7 @@ EntityRegistry platformerRegistry({Dynamics? dynamics}) =>
       const CollectibleKind(),
       const HazardKind(),
       const CheckpointKind(),
-      const KeyKind(),
+      const PlatformerKeyKind(),
       CrateKind(dynamics: dynamics),
       const SpringKind(),
       const OneWayKind(),
@@ -53,7 +54,7 @@ EntityRegistry platformerRegistry({Dynamics? dynamics}) =>
       const EnemyKind(),
       LightFixtureKind(
         PlatformerEntities.lamp,
-        defaultBehaviour: const FlameFlicker(),
+        defaultBehavior: const FlameFlicker(),
         defaultSize: Vector3(0.4, 1.6, 0.4),
       ),
     ]);

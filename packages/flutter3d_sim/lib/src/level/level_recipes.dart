@@ -81,10 +81,19 @@ const Map<String, LevelKit> levelKits = <String, LevelKit>{
 /// returned level has no recipes left — expanding it again changes nothing.
 /// A level with no recipes comes back as itself.
 ///
+/// **Prefab instances are expanded too**, after the recipes so a `scatter`
+/// of instances expands like any instance — see [expandPrefabs]. Everything
+/// that uses a level already calls this, so this is where a template's edit
+/// reaches the game. A level with neither recipes nor instances is still the
+/// very level it was given.
+///
 /// Throws [LevelFormatException] naming the recipe for a kind nobody knows or
-/// params a kit cannot read. The validator turns that into an error; the
-/// loader lets it through, for the same reason it refuses any broken level.
-Level expandRecipes(Level level) {
+/// params a kit cannot read, and for a prefab that is missing or contains
+/// itself. The validator turns that into an error; the loader lets it
+/// through, for the same reason it refuses any broken level.
+Level expandRecipes(Level level) => expandPrefabs(_recipesExpanded(level));
+
+Level _recipesExpanded(Level level) {
   if (level.recipes.isEmpty) return level;
   final sketch = LevelSketch();
   for (final (index, recipe) in level.recipes.indexed) {
@@ -96,15 +105,21 @@ Level expandRecipes(Level level) {
         ));
     try {
       kit(sketch, recipe);
-    } on LevelFormatException catch (e) {
-      throw LevelFormatException(
-        'recipe ${index + 1} (${recipe.kind}): ${e.message}',
+    } on LevelFormatException catch (e, stackTrace) {
+      Error.throwWithStackTrace(
+        LevelFormatException(
+          'recipe ${index + 1} (${recipe.kind}): ${e.message}',
+        ),
+        stackTrace,
       );
-    } on TypeError catch (e) {
+    } on TypeError catch (e, stackTrace) {
       // A param of the wrong JSON type reaches a cast inside a kit. Named
       // like every other refusal of a document, rather than a stack trace.
-      throw LevelFormatException(
-        'recipe ${index + 1} (${recipe.kind}): a param has the wrong type: $e',
+      Error.throwWithStackTrace(
+        LevelFormatException(
+          'recipe ${index + 1} (${recipe.kind}): a param has the wrong type: $e',
+        ),
+        stackTrace,
       );
     }
   }
@@ -123,8 +138,12 @@ Level expandRecipes(Level level) {
     heightfield: level.heightfield,
     fogColor: level.fogColor,
     fogDensity: level.fogDensity,
+    world: level.world,
     music: level.music,
     next: level.next,
+    prefabs: level.prefabs,
+    renderSettings: level.renderSettings,
+    geoOrigin: level.geoOrigin,
     source: <String, Object?>{...level.toJson()}..remove('recipes'),
   );
 }
@@ -448,11 +467,12 @@ List<RoomDoor> _doors(Map<String, Object?> params) => <RoomDoor>[
   for (final door in (params['doors'] as List<Object?>?) ?? const <Object?>[])
     switch (door) {
       final Map<String, Object?> d => RoomDoor(
-        d['side'] as String? ??
+        side:
+            d['side'] as String? ??
             (throw const LevelFormatException('a door has no "side"')),
-        _number(d, 'offset', 0.0),
-        _number(d, 'width', 2.0),
-        _number(d, 'height', 3.0),
+        offset: _number(d, 'offset', 0.0),
+        width: _number(d, 'width', 2.0),
+        height: _number(d, 'height', 3.0),
         sill: (d['sill'] as num?)?.toDouble(),
       ),
       _ => throw LevelFormatException('a door is $door, not an object'),

@@ -35,7 +35,7 @@ void main() {
         journal.toBytes(),
         const ModelProject(),
       );
-      expect(replay.ok, isTrue, reason: replay.refused);
+      expect(replay.isOk, isTrue, reason: replay.refused);
       // Mutation: record with no author, or always `StepAuthor.agent` —
       // this is `ModelerCubit.run`'s own shape, `now.history.run(command)`,
       // which is exactly how a person's edit reaches this method today.
@@ -54,7 +54,7 @@ void main() {
         journal.toBytes(),
         const ModelProject(),
       );
-      expect(replay.ok, isTrue, reason: replay.refused);
+      expect(replay.isOk, isTrue, reason: replay.refused);
       expect(replay.history!.topStepAuthor, StepAuthor.agent);
     });
 
@@ -92,7 +92,7 @@ void main() {
         journal.toBytes(),
         const ModelProject(),
       );
-      expect(replay.ok, isTrue, reason: replay.refused);
+      expect(replay.isOk, isTrue, reason: replay.refused);
       // Mutation: forget to bracket the attached journal the same way
       // `history`'s own undo stack is bracketed — this would replay as four
       // steps instead of two (the add, then the drag).
@@ -121,7 +121,7 @@ void main() {
         journal.toBytes(),
         const ModelProject(),
       );
-      expect(replay.ok, isTrue, reason: replay.refused);
+      expect(replay.isOk, isTrue, reason: replay.refused);
       // Mutation: record the amend under a fixed author regardless of who
       // adjusted it — the live undo stack's own adjusted step is marked with
       // whoever made the adjustment (`ux-45`, `history_author_test.dart`),
@@ -162,7 +162,7 @@ void main() {
       history.run(MoveBy(Vector3(1, 0, 0)));
 
       final replay = CommandJournal.replay(journal.toBytes(), project);
-      expect(replay.ok, isTrue, reason: replay.refused);
+      expect(replay.isOk, isTrue, reason: replay.refused);
       // Object 2 moved and object 1 did not — proof the pick itself
       // replayed, not only the move that read it.
       expect(
@@ -190,7 +190,7 @@ void main() {
       // =` directly again instead of running this command — this would
       // refuse with "no faces are selected to extrude", the exact sentence
       // `tut-05` used to leave case 2's own cold replay stuck on.
-      expect(replay.ok, isTrue, reason: replay.refused);
+      expect(replay.isOk, isTrue, reason: replay.refused);
       final EditMesh mesh =
           (replay.history!.project[1]!.geometry as EditedGeometry).mesh;
       expect(mesh.faceCount, greaterThan(6));

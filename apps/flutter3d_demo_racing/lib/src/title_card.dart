@@ -1,19 +1,17 @@
 /// What the game says before the lights.
 ///
-/// **There was nothing here, and the licence made that a problem rather than
-/// an omission.** The car is CC BY 4.0, whose text asks that attribution
-/// travel wherever the work does; the only place this game named Dave Love was
-/// inside the settings panel, behind a gear, past the volume sliders — which is
-/// a screen most players never open and none is asked to. The other two games
-/// each put their credits on a title card, met once by everybody, and this one
-/// was the game that actually needed to.
-///
-/// So the attribution moves here. The settings keep their copy: two places is
-/// not a duplication problem, it is the licence being honoured twice.
+/// **There was nothing here, and a licence once made that a problem rather
+/// than an omission.** The first car was CC BY 4.0, whose text asks that
+/// attribution travel wherever the work does, and the only place this game
+/// named its author was inside the settings panel, behind a gear — a screen
+/// most players never open. So the credits are here, met once by everybody,
+/// and the settings keep their copy. The car is CC0 now; whatever comes in
+/// under an attribution licence next is named here without anybody having to
+/// remember to.
 library;
 
 import 'package:flutter/material.dart';
-import 'package:flutter3d_game/flutter3d_game.dart'; // CreditsSection, Credit
+import 'package:flutter3d_game_ui/screens.dart' show TitleSheet;
 
 import 'credits.dart';
 
@@ -101,73 +99,19 @@ class TitleCard extends StatelessWidget {
         ];
 
   @override
-  Widget build(BuildContext context) {
-    final begin = onBegin;
-    final card = _card();
-    if (begin == null) return card;
-    return Listener(onPointerDown: (_) => begin(), child: card);
-  }
-
-  Widget _card() => ColoredBox(
-    color: Colors.black.withValues(alpha: 0.78),
-    child: Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(32),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 520),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              const Text(
-                'Ring',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 46,
-                  fontWeight: FontWeight.w200,
-                  letterSpacing: 6,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Five circuits, one car, and a lap time that outlives the '
-                'evening.',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.72),
-                  fontSize: 15,
-                ),
-              ),
-              const SizedBox(height: 22),
-              for (final line in _controls)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 2),
-                  child: Text(
-                    line,
-                    style: const TextStyle(color: Colors.white, fontSize: 14),
-                  ),
-                ),
-              const SizedBox(height: 26),
-              // The licence's own condition, on the screen every player meets.
-              // `owed` rather than every model shipped. The roadside is CC0
-              // and asks for nothing, so listing it here would be four lines
-              // of courtesy that push the "touch to start" line off a 600-point
-              // screen — which is how this was found. What the game ships is
-              // still accounted for in `Credits.models`, and the test reads
-              // that from the assets directory.
-              CreditsSection(credits: Credits.owed),
-              const SizedBox(height: 26),
-              Text(
-                prompt,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  letterSpacing: 1,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    ),
+  Widget build(BuildContext context) => TitleSheet(
+    title: 'Ring',
+    tagline:
+        'Five circuits, one car, and a lap time that outlives the evening.',
+    lines: _controls,
+    // The licence's own condition, on the screen every player meets. `owed`
+    // rather than every model shipped. The roadside is CC0 and asks for
+    // nothing, so listing it here would be four lines of courtesy that push
+    // the "touch to start" line off a 600-point screen — which is how this was
+    // found. What the game ships is still accounted for in `credits.models`,
+    // and the test reads that from the assets directory.
+    credits: credits.owed,
+    prompt: prompt,
+    onBegin: onBegin,
   );
 }

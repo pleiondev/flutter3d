@@ -20,8 +20,8 @@
 library;
 
 import 'package:flutter/widgets.dart';
-import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
+import 'package:flutter3d_game_ui/flutter3d_game_ui.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 /// Everything the runner can be driven by, on a device with no keyboard.

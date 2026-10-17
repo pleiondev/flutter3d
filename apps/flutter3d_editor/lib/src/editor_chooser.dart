@@ -1,38 +1,32 @@
 import 'dart:async';
-import 'dart:io';
 
-import 'package:file_selector/file_selector.dart';
-import 'package:flutter/material.dart' hide Material;
+import 'package:file_selector/file_selector.dart' show XTypeGroup;
+import 'package:flutter/material.dart';
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 
+import 'disk/editor_disk.dart';
 import 'editor_cubit.dart';
 
 /// Asks the person which document they mean, and answers with its path.
 ///
-/// **The only call into a plugin nobody here can fix, and it is four lines.**
-/// The other two plugins this repository uses are packages in it; this one
-/// comes off pub.dev, because the system's open panel is the one thing no
-/// amount of Dart can produce and is exactly what "open a level" has always
-/// meant everywhere else on this machine. Keeping it alone in a function keeps
-/// the rest honest: what a path means is `Documents`, which projects are still
+/// **The open panel is a plugin nobody here can fix**, and it is reached only
+/// through the disk's `choose`. The other two plugins this repository uses are
+/// packages in it; this one comes off pub.dev, because the system's open panel
+/// is the one thing no amount of Dart can produce and is exactly what "open a
+/// level" has always meant everywhere else on this machine. Keeping it behind
+/// one call keeps the rest honest: what a path means is `Documents`, which projects are still
 /// there is `RecentProjects`, and both are tested with no plugin registered and
 /// no window open.
 ///
 /// Null when the panel was dismissed, which is a person saying no rather than
 /// anything going wrong — so nobody is told about it.
 ///
-/// The macOS sandbox is off for this application already — see
-/// `macos/Runner/*.entitlements`, which explains why — so a chosen path is
-/// readable and writable the same way a `--dart-define` one is. The panel is
-/// here to save somebody typing a path, not to buy access.
-Future<String?> askForLevel() async {
-  const level = XTypeGroup(
-    label: 'level documents',
-    extensions: <String>['json'],
-  );
-  final file = await openFile(acceptedTypeGroups: const <XTypeGroup>[level]);
-  return file?.path;
-}
+/// Through [EditorDisk.choose], so in a browser the answer is a path in the
+/// page the picked bytes were read into, rather than a path on a disk the
+/// page cannot reach.
+Future<String?> askForLevel({EditorDisk? disk}) => (disk ?? editorDisk).choose(
+  const XTypeGroup(label: 'level documents', extensions: <String>['json']),
+);
 
 /// The screen for when no document is open yet.
 ///
@@ -55,7 +49,11 @@ final class EditorChooser extends StatelessWidget {
     required this.recent,
     required this.onCreate,
     required this.onOpen,
+    this.disk,
   });
+
+  /// Where the documents are; this build's own when null.
+  final EditorDisk? disk;
 
   final EditorChoosing state;
 
@@ -78,11 +76,20 @@ final class EditorChooser extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final where = projectAt(
-      File(levelPath).isAbsolute
-          ? levelPath
-          : '${Directory.current.path}/$levelPath',
-    );
+    final disk = this.disk ?? editorDisk;
+    final where = projectAt(disk.absolute(levelPath));
+    // **In a browser the first sentence is about where the work goes**,
+    // because that is the thing about this page nobody would guess: there is
+    // no disk behind it, so a level is read in, and a save is a download.
+    final about = disk.savesInPlace
+        ? 'There is nothing at ${where.level} yet. Open a document from '
+              'anywhere on this machine, come back to one you were working '
+              'on, or write a new project here from a template.'
+        : 'This editor is running in a browser, which keeps documents in the '
+              'page: open a level from this computer, and saving it '
+              'downloads it. A new project from a template is made here and '
+              'downloaded as a zip. Play attaches to a game you started '
+              'yourself.';
     return Scaffold(
       backgroundColor: const Color(0xFF14161A),
       body: Center(
@@ -101,9 +108,7 @@ final class EditorChooser extends StatelessWidget {
                 const _Heading('Open a level'),
                 const SizedBox(height: 6),
                 Text(
-                  'There is nothing at ${where.level} yet. Open a document from '
-                  'anywhere on this machine, come back to one you were working '
-                  'on, or write a new project here from a template.',
+                  about,
                   style: const TextStyle(
                     color: Color(0xFF9AA4B2),
                     fontSize: 13,
@@ -112,8 +117,11 @@ final class EditorChooser extends StatelessWidget {
                 const SizedBox(height: 18),
                 _Row(
                   title: 'Choose a file…',
-                  about: 'The open panel, on any .json level document.',
-                  onTap: () => unawaited(_choose()),
+                  about: disk.savesInPlace
+                      ? 'The open panel, on any .json level document.'
+                      : 'Any .json level document on this computer — read '
+                            'into the page, without its game\'s textures.',
+                  onTap: () => unawaited(_choose(disk)),
                 ),
                 if (recent.isNotEmpty) ...<Widget>[
                   const SizedBox(height: 14),
@@ -152,8 +160,8 @@ final class EditorChooser extends StatelessWidget {
   }
 
   /// The panel, and then the same opening every other row here does.
-  Future<void> _choose() async {
-    final path = await askForLevel();
+  Future<void> _choose(EditorDisk disk) async {
+    final path = await askForLevel(disk: disk);
     if (path == null) return;
     await onOpen(path);
   }

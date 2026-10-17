@@ -1,26 +1,40 @@
 import 'package:flutter3d_core/flutter3d_core.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show Flutter3dException;
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'default_image_decoder.dart';
 import 'material_loader.dart';
 
-// `ModelPart` is a plain value type with no coupling to the loading logic
-// below, so it is re-exported from its own file rather than declared here —
-// the same shape as `render_settings.dart` off `renderer.dart`. `instantiate`
-// is the opposite case: a genuine method of this class that has to stay
-// reachable through every existing import of this file, which is what a
-// `part` buys and an ordinary file cannot — see `model_instance.dart`'s doc
-// comment.
-export 'package:flutter3d_core/flutter3d_core.dart' show ModelPart;
+// `instantiate` is a genuine method of this class that has to stay reachable
+// through every existing import of this file, which is what a `part` buys and
+// an ordinary file cannot — see `model_instance.dart`'s doc comment.
+// `ModelPart`, the value it hands back, is `flutter3d_core`'s, and the
+// package's barrel names it.
 
 part 'model_instance.dart';
 
 /// An impostor level's uploaded card and atlases — see [ModelAsset.impostors].
-typedef ImpostorPart = ({
-  DeviceMesh card,
-  TextureHandle albedo,
-  TextureHandle normalDepth,
-});
+///
+/// A class rather than a record, so an impostor can later carry more maps
+/// without breaking a reader.
+final class ImpostorPart {
+  const ImpostorPart({
+    required this.card,
+    required this.albedo,
+    required this.normalDepth,
+  });
+
+  /// The card the atlas is drawn on.
+  final DeviceMesh card;
+
+  /// The atlas of colours.
+  final TextureHandle albedo;
+
+  /// The atlas of normals, with depth in alpha.
+  final TextureHandle normalDepth;
+}
 
 /// An immutable, GPU-resident model that can be placed in a scene any number of
 /// times.
@@ -39,15 +53,42 @@ final class ModelAsset {
     this.warnings = const <String>[],
     this.name,
     this.variants = const <String>[],
-    this.materials = const <int, Material>{},
+    this.materials = const <int, RenderMaterial>{},
     Map<ModelImpostor, ImpostorPart> impostors =
         const <ModelImpostor, ImpostorPart>{},
-  }) : impostors = Map.unmodifiable(impostors),
+    GraphicsDevice? device,
+    // A named parameter may not be private; the device is the asset's own
+    // business, kept only to give the textures back.
+    // ignore: prefer_initializing_formals
+  }) : _device = device,
+       impostors = Map.unmodifiable(impostors),
        skins = List.unmodifiable(skins),
        nodes = nodes ?? _flatNodesFor(parts),
        roots = roots ?? <int>[for (var i = 0; i < parts.length; i++) i];
 
+  /// Wraps a single procedurally generated mesh.
+  factory ModelAsset.fromMesh(
+    GraphicsDevice device,
+    MeshData mesh, {
+    RenderMaterial? material,
+    String? name,
+  }) {
+    final uploaded = DeviceMesh.upload(device, mesh);
+    return ModelAsset(
+      name: name,
+      parts: <ModelPart>[
+        ModelPart(mesh: uploaded, material: material ?? RenderMaterial()),
+      ],
+      localBounds: uploaded.bounds,
+    );
+  }
+
   final List<ModelPart> parts;
+
+  /// The device [fromDocument] uploaded to, which [dispose] gives the
+  /// textures back to; null for an asset assembled by hand, whose textures
+  /// are given back through their own handles.
+  final GraphicsDevice? _device;
 
   /// What each impostor level in [nodes] draws with — `C4`: its card and its
   /// two atlases, uploaded once however many instances stand in a scene.
@@ -73,8 +114,8 @@ final class ModelAsset {
   /// Bounds in the model's own space, for framing a camera before anything is
   /// instantiated.
   final Aabb3 localBounds;
-
   final List<String> warnings;
+
   final String? name;
 
   /// The material variants the file offers, by name — see
@@ -88,7 +129,9 @@ final class ModelAsset {
   /// not by the part that happens to wear it: one material on three parts is
   /// one roughness track, and a material only a variant uses is still one a
   /// clip may animate.
-  final Map<int, Material> materials;
+  final Map<int, RenderMaterial> materials;
+
+  bool _disposed = false;
 
   /// Whether the file brought any animation with it.
   ///
@@ -136,23 +179,6 @@ final class ModelAsset {
     return total;
   }
 
-  /// Wraps a single procedurally generated mesh.
-  factory ModelAsset.fromMesh(
-    GraphicsDevice device,
-    MeshData mesh, {
-    Material? material,
-    String? name,
-  }) {
-    final uploaded = DeviceMesh.upload(device, mesh);
-    return ModelAsset(
-      name: name,
-      parts: <ModelPart>[
-        ModelPart(mesh: uploaded, material: material ?? Material()),
-      ],
-      localBounds: uploaded.bounds,
-    );
-  }
-
   /// Uploads any decoded [ModelDocument].
   ///
   /// One implementation for every format: glTF and OBJ both produce a document
@@ -167,12 +193,17 @@ final class ModelAsset {
   /// albedo all the way to the draw, where the *renderer* substitutes its own
   /// fallback, which is the only place that can know what white this frame is
   /// being lit against.
+  ///
+  /// [codecs] is the image formats the engine's plugins brought
+  /// (`ModelDecoders.textureCodecs`): an image of the model's in one of them
+  /// is read by its codec before the engine's own decoders.
   static Future<ModelAsset> fromDocument(
     ModelDocument document, {
     required GraphicsDevice device,
     LightingModel lighting = LightingModel.pbr,
     String? name,
     ImageDecoder decodeImage = defaultImageDecoder,
+    TextureCodecs? codecs,
   }) async {
     final warnings = <String>[...document.warnings];
 
@@ -192,7 +223,7 @@ final class ModelAsset {
     // of the sampler. Keying on the index alone would hand the second caller
     // whichever answer the first happened to ask for.
     final textureCache = <(int, bool), TextureHandle?>{};
-    final materialCache = <int, Material>{};
+    final materialCache = <int, RenderMaterial>{};
     // Deltas belong to the geometry and are keyed with it: two surfaces sharing
     // a MeshData share one upload, and a model whose face is drawn twice pays
     // for its expressions once.
@@ -210,17 +241,21 @@ final class ModelAsset {
       final key = (imageIndex, sampling.useMipmaps);
       if (textureCache.containsKey(key)) return textureCache[key];
 
-      final uploaded = await uploadEncodedImage(
-        device,
-        document.images[imageIndex].bytes,
-        decodeImage: decodeImage,
-        sampling: sampling,
-        report: (message) => warnings.add('images[$imageIndex]: $message'),
-      );
-      if (uploaded == null) {
+      TextureHandle? uploaded;
+      try {
+        uploaded = await uploadEncodedImage(
+          device,
+          document.images[imageIndex].bytes,
+          decodeImage: decodeImage,
+          codecs: codecs,
+          sampling: sampling,
+          report: (message) => warnings.add('images[$imageIndex]: $message'),
+        );
+      } on Flutter3dException catch (refused) {
+        // One texture costs a texture, not the model.
         warnings.add(
-          'images[$imageIndex] could not be decoded; the material falls back to '
-          'its base colour factor.',
+          'images[$imageIndex] could not be uploaded (${refused.message}); '
+          'the material falls back to its base colour factor.',
         );
       }
       textureCache[key] = uploaded;
@@ -269,13 +304,15 @@ final class ModelAsset {
         );
       }
 
-      final uploaded = device.createTextureFromPixels(
-        width: packed.width,
-        height: packed.height,
-        format: TextureFormat.r32g32b32a32Float,
-        pixels: packed.bytes,
-      );
-      if (uploaded == null) {
+      final TextureHandle uploaded;
+      try {
+        uploaded = device.createTextureFromPixels(
+          width: packed.width,
+          height: packed.height,
+          format: TextureFormat.r32g32b32a32Float,
+          pixels: packed.bytes,
+        );
+      } on DeviceResourceException {
         warnings.add(
           '$where: the morph deltas could not be uploaded; the mesh draws '
           'its base shape.',
@@ -304,7 +341,7 @@ final class ModelAsset {
         animatedOffsets.contains(index) ||
         hasConflictingTextureTransforms(document.materials[index]);
 
-    Future<Material> materialAt(int index) async =>
+    Future<RenderMaterial> materialAt(int index) async =>
         materialCache[index] ??= await bindSurfaceMaterial(
           document.materials[index],
           lighting: lighting,
@@ -321,7 +358,7 @@ final class ModelAsset {
     /// The transform baked into the coordinates of a surface drawn with
     /// material [index], bound as [material]: the one its maps share, unless
     /// the material reads its own at the sampler — `C8`.
-    TextureTransform? bakedFor(int index, Material material) =>
+    TextureTransform? bakedFor(int index, RenderMaterial material) =>
         atSampler(index) &&
             identical(material.lighting, LightingModel.pbrLayered)
         ? null
@@ -349,7 +386,7 @@ final class ModelAsset {
           index != null && index >= 0 && index < document.materials.length;
       final material = hasMaterial
           ? await materialAt(index)
-          : materialCache[-1] ??= Material(lighting: lighting);
+          : materialCache[-1] ??= RenderMaterial(lighting: lighting);
       // `KHR_texture_transform`, honoured in the coordinates: see
       // `texture_transform_bake.dart` for why here and not in the decoder, and
       // `bakedFor` for the materials that take theirs at the sampler instead.
@@ -370,7 +407,7 @@ final class ModelAsset {
       // is not re-uploaded per variant: the texture transform baked into it
       // is the default material's, and a variant whose own transform differs
       // is said so rather than drawn quietly with the wrong one.
-      final variantMaterials = <int, Material>{};
+      final variantMaterials = <int, RenderMaterial>{};
       for (final MapEntry(key: variant, value: other)
           in surface.variantMaterials.entries) {
         if (other < 0 || other >= document.materials.length) continue;
@@ -412,8 +449,8 @@ final class ModelAsset {
     // coarsest mesh instead.
     const atlasSampling = TextureSampling(
       useMipmaps: false,
-      wrapS: TextureWrap.clampToEdge,
-      wrapT: TextureWrap.clampToEdge,
+      wrapS: SamplerAddressMode.clampToEdge,
+      wrapT: SamplerAddressMode.clampToEdge,
     );
     final impostors = <ModelImpostor, ImpostorPart>{};
     for (final node in document.nodes) {
@@ -432,10 +469,10 @@ final class ModelAsset {
           );
           continue;
         }
-        impostors[impostor] = (
+        impostors[impostor] = ImpostorPart(
           card: DeviceMesh.upload(
             device,
-            impostorCard(centre: impostor.centre, radius: impostor.radius),
+            impostorCard(center: impostor.center, radius: impostor.radius),
           ),
           albedo: albedo,
           normalDepth: normalDepth,
@@ -445,7 +482,7 @@ final class ModelAsset {
 
     return ModelAsset(
       variants: document.variants,
-      materials: <int, Material>{
+      materials: <int, RenderMaterial>{
         for (final MapEntry(:key, :value) in materialCache.entries)
           if (key >= 0) key: value,
       },
@@ -458,10 +495,12 @@ final class ModelAsset {
       clips: document.animations,
       localBounds: document.computeBounds(),
       warnings: warnings,
+      device: device,
     );
   }
 
-  /// Gives every uploaded mesh and texture back to [device].
+  /// Gives every uploaded mesh and texture back to the device they were
+  /// uploaded to; a second call does nothing.
   ///
   /// The counterpart to [fromDocument], and the same contract as
   /// `SharedMeshes.dispose`: call it when whoever owns this asset — normally
@@ -474,7 +513,12 @@ final class ModelAsset {
   /// Meshes and textures are deduplicated on the way in — surfaces share
   /// meshes, materials share maps, and one image can sit in two slots of the
   /// same material — so each distinct resource is released once, by identity.
-  void release(GraphicsDevice device) {
+  ///
+  /// **`dispose`, since 1.0**, the one verb for ending what holds GPU memory
+  /// (it was `release(device)`): the asset remembers its device.
+  void dispose() {
+    if (_disposed) return;
+    _disposed = true;
     final meshes = Set<DeviceMesh>.identity();
     final textures = Set<TextureHandle>.identity();
     for (final impostor in impostors.values) {
@@ -486,7 +530,7 @@ final class ModelAsset {
     for (final part in parts) {
       meshes.add(part.mesh);
       // A variant's material holds textures the default one may not.
-      for (final material in <Material>[
+      for (final material in <RenderMaterial>[
         part.material,
         ...part.variantMaterials.values,
       ]) {
@@ -502,11 +546,18 @@ final class ModelAsset {
       }
     }
     for (final mesh in meshes) {
-      device.releaseGeometry(mesh.vertices);
-      device.releaseGeometry(mesh.indices);
+      mesh.dispose();
     }
+    final device = _device;
     for (final texture in textures) {
-      device.releaseTexture(texture);
+      if (device != null) {
+        device.releaseTexture(texture);
+      } else {
+        texture.dispose();
+      }
     }
   }
+
+  /// Whether [dispose] has run.
+  bool get isDisposed => _disposed;
 }

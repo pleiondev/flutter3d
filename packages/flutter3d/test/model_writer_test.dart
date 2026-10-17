@@ -4,7 +4,7 @@ import 'package:flutter3d_core/src/engine/assets/model_writer.dart';
 import 'package:flutter3d_samples/flutter3d_samples.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-const String kSamples = kSamplesPath;
+const String kSamples = samplesPath;
 
 Future<ModelDocument> box() => decodeModel(
   const ModelLoadRequest(source: FileAssetSource('$kSamples/Box.glb')),

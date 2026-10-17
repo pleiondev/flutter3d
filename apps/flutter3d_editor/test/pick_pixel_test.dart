@@ -16,13 +16,12 @@ library;
 
 import 'dart:convert';
 
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_editor/src/scene_dressing.dart';
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 128;
 const int _height = 96;
@@ -100,21 +99,17 @@ void main() {
       );
 
     final camera = CameraNode(
-      projection: const PerspectiveProjection(
-        fovYRadians: 1.0,
-        near: 0.1,
-        far: 100.0,
-      ),
+      projection: const PerspectiveProjection(fovY: 1.0, near: 0.1, far: 100.0),
     )..setPosition(0.0, 1.0, -6.0);
     camera.lookAt(Vector3(0.0, 0.5, -12.0));
     scene.add(camera);
-    final view = RenderView(camera: camera);
+    final view = CameraView(camera: camera);
     final eye = Vector3(0.0, 1.0, -6.0);
 
     final monster = handlesOf(
       editing.level,
     ).firstWhere((Handle h) => h.kind == Piece.entity);
-    final onMark = _project(camera, monster.centre);
+    final onMark = _project(camera, monster.center);
     // Well to the side of the mark, on the wall behind it.
     final onWall = _project(camera, Vector3(3.0, 2.0, -12.0));
 
@@ -124,7 +119,7 @@ void main() {
       width: _width,
       height: _height,
       scene: scene,
-      views: <RenderView>[view],
+      views: <CameraView>[view],
     );
 
     // The mark: the mesh drawn there was placed for the monster, and the

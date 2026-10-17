@@ -12,7 +12,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart' hide Ray;
+import 'package:vector_math/vector_math.dart';
 
 /// One triangle, skinned: vertex 0 rigid to joint 0, vertex 1 rigid to
 /// joint 1, vertex 2 split unevenly (and not normalized) between both.

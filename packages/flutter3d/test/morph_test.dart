@@ -23,7 +23,6 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 240;
 const int _height = 180;
@@ -79,9 +78,9 @@ MorphTarget _riseTarget(MeshData mesh) {
   );
 
   final scene = Scene();
-  final material = Material(
+  final material = RenderMaterial(
     name: 'stone',
-    baseColor: Vector4(0.7, 0.6, 0.5, 1.0),
+    baseColor: LinearColor.fromSrgb(0.7, 0.6, 0.5, 1.0),
     roughness: 0.8,
   );
 
@@ -108,9 +107,8 @@ MorphTarget _riseTarget(MeshData mesh) {
       format: TextureFormat.r32g32b32a32Float,
       pixels: packed.bytes,
     );
-    expect(texture, isNotNull, reason: 'the deltas would not upload');
     node = MeshNode(DeviceMesh.upload(device, source), material, name: 'cube')
-      ..morph = (MorphState(texture: texture!, targetCount: 1)
+      ..morph = (MorphState(texture: texture, targetCount: 1)
         ..setWeights(<double>[weight]));
   }
   scene.root.add(node);
@@ -120,11 +118,7 @@ MorphTarget _riseTarget(MeshData mesh) {
   scene.root.add(sun);
 
   final camera = CameraNode(
-    projection: const PerspectiveProjection(
-      fovYRadians: 1.0,
-      near: 0.1,
-      far: 100.0,
-    ),
+    projection: const PerspectiveProjection(fovY: 1.0, near: 0.1, far: 100.0),
   )..setPosition(2.4, 1.8, 3.2);
   camera.lookAt(Vector3(0.0, 0.2, 0.0));
   scene.root.add(camera);
@@ -144,12 +138,11 @@ Future<Uint8List> _draw(
     width: _width,
     height: _height,
     scene: it.scene,
-    views: <RenderView>[RenderView(camera: it.camera)],
+    views: <CameraView>[CameraView(camera: it.camera)],
     settings: const RenderSettings(),
   );
-  final pixels = await it.device.readPixels(result.frame);
-  expect(pixels, isNotNull, reason: 'the frame could not be read back');
-  return pixels!.buffer.asUint8List();
+  final pixels = await it.device.readback(result.frame);
+  return pixels.buffer.asUint8List();
 }
 
 int _differing(Uint8List a, Uint8List b, {int tolerance = 8}) {

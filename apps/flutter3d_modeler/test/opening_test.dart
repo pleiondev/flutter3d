@@ -217,7 +217,11 @@ void main() {
       ],
       roots: <int>[0, 1],
       materials: <SurfaceMaterial>[
-        SurfaceMaterial(name: 'brass', baseColor: brass, metallic: 1.0),
+        SurfaceMaterial(
+          name: 'brass',
+          baseColor: _fromSrgb(brass),
+          metallic: 1.0,
+        ),
       ],
     );
     final it = fakeTestDevice(width: 8, height: 8);
@@ -234,7 +238,9 @@ void main() {
     // Mutation: paint every node in clay, which is what this did before the
     // table existed. A model opens the colour of unfired pottery whatever the
     // file said, and nothing in the suite could tell the difference.
-    expect(sync.nodeOf(body.id)!.material.baseColor, brass);
+    // The renderer's material holds the linear colour the file named, so the
+    // node carries the same value the surface material does.
+    expect(sync.nodeOf(body.id)!.material.baseColor, _fromSrgb(brass));
     expect(sync.nodeOf(body.id)!.material.metallic, 1.0);
 
     // Mutation: fall back to material zero for an unpainted object. The spike
@@ -289,7 +295,7 @@ void main() {
         materials: <SurfaceMaterial>[
           SurfaceMaterial(
             name: 'painted',
-            baseColor: teal,
+            baseColor: _fromSrgb(teal),
             baseColorTexture: const TextureBinding(imageIndex: 0),
           ),
         ],
@@ -310,7 +316,7 @@ void main() {
       // A model with one unreadable texture is a model that opens, not a model
       // that refuses to. Mutation: let the failure through as an exception and
       // the whole file fails to open because one image in it is truncated.
-      expect(sync.nodeOf(body.id)!.material.baseColor, teal);
+      expect(sync.nodeOf(body.id)!.material.baseColor, _fromSrgb(teal));
       expect(opened.stage.materials!.warnings, isNotEmpty);
     },
   );
@@ -512,7 +518,7 @@ void main() {
       final opened = await openDocument(
         document,
         device: it.device,
-        options: const ImportOptions(scale: 0.001),
+        options: const ImportSettings(scale: 0.001),
       );
 
       final rig = opened.project.objects.firstWhere(
@@ -580,3 +586,6 @@ void main() {
     });
   });
 }
+
+/// A `Vector4` holding a colour sRGB-encoded, as the linear colour it names.
+LinearColor _fromSrgb(Vector4 c) => LinearColor.fromSrgb(c.x, c.y, c.z, c.w);

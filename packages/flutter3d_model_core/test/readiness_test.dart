@@ -14,6 +14,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_core/geometry.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 // By path rather than through the barrel, and both of these for one reason:
 // readiness is not exported yet, and a test that reached for the barrel to get
@@ -213,7 +214,7 @@ void main() {
       // issues`, and every quad in the project goes into a glTF as whatever
       // the writer felt like cutting it into.
       expect(ready.issues, hasLength(1));
-      expect(ready.issues.single.severity, ExportSeverity.warning);
+      expect(ready.issues.single.severity, Severity.warning);
       expect(ready.issues.single.message, contains('6 faces'));
       expect(ready.issues.single.message, contains('"a"'));
       expect(ready.issues.single.object?.name, 'a');
@@ -306,7 +307,7 @@ void main() {
       // panel writes a file with a primitive some loaders reject outright and
       // the rest draw as nothing.
       expect(ready.issues, hasLength(1));
-      expect(ready.issues.single.severity, ExportSeverity.error);
+      expect(ready.issues.single.severity, Severity.error);
       expect(ready.issues.single.object?.name, 'a');
       expect(ready.canExport, isFalse);
       expect(ready.says, startsWith('will not export'));
@@ -380,7 +381,7 @@ void main() {
         // Mutation: make this an error. `canExport` would come back false for a
         // shape whose triangles are perfectly fine geometry.
         expect(ready.issues, hasLength(1));
-        expect(ready.issues.single.severity, ExportSeverity.warning);
+        expect(ready.issues.single.severity, Severity.warning);
         expect(ready.issues.single.object?.name, 'a');
         expect(ready.canExport, isTrue);
       },
@@ -450,7 +451,7 @@ void main() {
       // Mutation: call it an error. A model over budget loads on every engine
       // there is, and blocking the export over it is refusing to write a file
       // that works.
-      expect(ready.issues.single.severity, ExportSeverity.warning);
+      expect(ready.issues.single.severity, Severity.warning);
       expect(ready.canExport, isTrue);
     });
 
@@ -501,7 +502,7 @@ void main() {
           SurfaceMaterial(
             name: 'glass',
             alphaMode: SurfaceAlphaMode.blend,
-            baseColor: Vector4(1, 1, 1, 1),
+            baseColor: LinearColor.fromSrgb(1, 1, 1, 1),
           ),
         ),
       );
@@ -510,7 +511,7 @@ void main() {
       // read straight back from `Vector4(1,1,1,1)` is exactly 1.0, and a
       // strict `>` misses precisely the case a person would actually author.
       expect(ready.issues, hasLength(1));
-      expect(ready.issues.single.severity, ExportSeverity.warning);
+      expect(ready.issues.single.severity, Severity.warning);
       expect(ready.issues.single.message, contains('blend'));
       expect(ready.issues.single.message, contains('glass'));
       // No object to blame — same reasoning as the budget.
@@ -522,7 +523,7 @@ void main() {
         withMaterial(
           SurfaceMaterial(
             alphaMode: SurfaceAlphaMode.blend,
-            baseColor: Vector4(1, 1, 1, 1),
+            baseColor: LinearColor.fromSrgb(1, 1, 1, 1),
             baseColorTexture: const TextureBinding(imageIndex: 0),
           ),
         ),
@@ -540,7 +541,7 @@ void main() {
         withMaterial(
           SurfaceMaterial(
             alphaMode: SurfaceAlphaMode.blend,
-            baseColor: Vector4(1, 1, 1, 0.4),
+            baseColor: LinearColor.fromSrgb(1, 1, 1, 0.4),
           ),
         ),
       );
@@ -549,7 +550,9 @@ void main() {
 
     test('opaque is never flagged, however its own alpha reads', () {
       final ready = ExportReadiness.check(
-        withMaterial(SurfaceMaterial(baseColor: Vector4(1, 1, 1, 1))),
+        withMaterial(
+          SurfaceMaterial(baseColor: LinearColor.fromSrgb(1, 1, 1, 1)),
+        ),
       );
       expect(ready.issues, isEmpty);
     });
@@ -573,7 +576,7 @@ void main() {
       // (`TextureBinding.texCoordSet`) says plainly that only set 0
       // decodes, whichever slot it is on.
       expect(ready.issues, hasLength(1));
-      expect(ready.issues.single.severity, ExportSeverity.warning);
+      expect(ready.issues.single.severity, Severity.warning);
       expect(ready.issues.single.message, contains('texture coordinate'));
       expect(ready.issues.single.message, contains('floor'));
     });
@@ -611,7 +614,7 @@ void main() {
         final project = withMaterial(
           SurfaceMaterial(
             alphaMode: SurfaceAlphaMode.blend,
-            baseColor: Vector4(1, 1, 1, 1),
+            baseColor: LinearColor.fromSrgb(1, 1, 1, 1),
           ),
         );
         expect(
@@ -639,7 +642,7 @@ void main() {
       // defines beyond base PBR with nothing to say so.
       final ready = ExportReadiness.check(project);
       expect(ready.issues, hasLength(1));
-      expect(ready.issues.single.severity, ExportSeverity.warning);
+      expect(ready.issues.single.severity, Severity.warning);
       expect(ready.issues.single.message, contains('hull.fmat'));
     });
 
@@ -807,7 +810,7 @@ void main() {
       // the threshold and fire on any difference) — either would fire on
       // every textured object at all, including ones already on target.
       expect(ready.issues, hasLength(1));
-      expect(ready.issues.single.severity, ExportSeverity.warning);
+      expect(ready.issues.single.severity, Severity.warning);
       expect(ready.issues.single.object?.name, 'panel');
       expect(ready.issues.single.message, contains('1024'));
       expect(ready.issues.single.message, contains('512'));
@@ -926,7 +929,7 @@ void main() {
       // model that cannot be thickened, subdivided or printed exports without
       // a word.
       expect(ready.issues, hasLength(1));
-      expect(ready.issues.single.severity, ExportSeverity.warning);
+      expect(ready.issues.single.severity, Severity.warning);
       expect(ready.issues.single.message, contains('1 vertex where'));
       expect(ready.issues.single.message, contains('"a"'));
 
@@ -943,7 +946,7 @@ void main() {
 
     test('a profile that requires a manifold turns the same pinch into an '
         'error', () {
-      // Mutation: keep `ExportSeverity.warning` regardless of
+      // Mutation: keep `Severity.warning` regardless of
       // `requireManifold`. A profile built for a target that must be
       // watertight — 3D printing, physics baked from the mesh — would then
       // let a model with a pinched vertex through as a warning nobody has to
@@ -956,7 +959,7 @@ void main() {
       );
 
       expect(ready.issues, hasLength(1));
-      expect(ready.issues.single.severity, ExportSeverity.error);
+      expect(ready.issues.single.severity, Severity.error);
       expect(ready.canExport, isFalse);
     });
 
@@ -975,7 +978,7 @@ void main() {
       // through into the far wall of goes out with nothing said — 0 issues
       // here.
       expect(ready.issues, hasLength(1));
-      expect(ready.issues.single.severity, ExportSeverity.warning);
+      expect(ready.issues.single.severity, Severity.warning);
       expect(ready.issues.single.message, contains('6 faces'));
       expect(ready.issues.single.message, contains('inside out'));
       expect(ready.issues.single.object?.name, 'a');
@@ -1009,7 +1012,7 @@ void main() {
       // being tested as well: `contains('1 face')` is satisfied by "1 faces",
       // so a `_count` that had lost its singular branch would read as covered
       // here while the panel said "1 faces".
-      expect(ready.issues.first.severity, ExportSeverity.error);
+      expect(ready.issues.first.severity, Severity.error);
       expect(ready.issues.first.message, contains('1 face with no area'));
       expect(ready.issues.first.object?.name, 'a');
       expect(ready.canExport, isFalse);
@@ -1032,7 +1035,7 @@ void main() {
       // for a mesh that cannot be thickened, subdivided or printed, exactly
       // the false "ready" `tut-01`'s own gap-journal row named.
       expect(ready.issues, hasLength(1));
-      expect(ready.issues.single.severity, ExportSeverity.warning);
+      expect(ready.issues.single.severity, Severity.warning);
       expect(ready.issues.single.message, contains('1 vertex where'));
       expect(ready.issues.single.object?.name, 'a');
       expect(ready.canExport, isTrue);
@@ -1047,7 +1050,7 @@ void main() {
       );
 
       expect(ready.issues, hasLength(1));
-      expect(ready.issues.single.severity, ExportSeverity.error);
+      expect(ready.issues.single.severity, Severity.error);
       expect(ready.canExport, isFalse);
     });
 
@@ -1122,7 +1125,7 @@ void main() {
       // warnings between runs. Catching that wants a project large enough for
       // the sort to reorder, which is a test about Dart rather than about
       // this.
-      expect(ready.issues.first.severity, ExportSeverity.error);
+      expect(ready.issues.first.severity, Severity.error);
       expect(ready.says, startsWith('will not export: "b" has no faces'));
 
       // Mutation: leave the count of the rest off the line, which is the line

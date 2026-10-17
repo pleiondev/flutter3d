@@ -22,10 +22,15 @@ the next step reads the fog colour from it.
 
 ## Step 3: Turn the fog on
 
-`FogSettings` has two values. `density` is how quickly things disappear, per
-metre of distance. It is exponential, so there is no line where fog begins: it
-is thin near you and thickens smoothly. Zero means no fog. `color` is what
-everything turns into.
+`FogSettings` has two values this page sets. `density` is how quickly things
+disappear, per metre of distance. It is exponential, so there is no line where
+fog begins: it is thin near you and thickens smoothly. Zero means no fog.
+`color` is what everything turns into.
+
+A third, `heightFalloff`, is left at its default of 0.05 per metre, so the fog
+lies on the ground: it halves every fourteen metres of height, and the tops of
+the pillars are a little clearer than their feet. `heightFalloff: 0.0` gives
+fog of one thickness at every height.
 
 Here the colour is asked of the sky, looking straight toward the horizon, so the
 far end of the view and the sky meet without a seam. Drag **Density** up and the

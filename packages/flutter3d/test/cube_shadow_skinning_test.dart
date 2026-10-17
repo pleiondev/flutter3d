@@ -26,6 +26,7 @@ import 'package:flutter3d_core/src/engine/scene/mesh_node.dart';
 import 'package:flutter3d_core/src/engine/scene/scene.dart';
 import 'package:flutter3d_core/src/engine/scene/scene_node.dart';
 import 'package:flutter3d_core/src/engine/scene/skeleton.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show LightType;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -89,7 +90,7 @@ final class _CountingJoint extends SceneNode {
         device,
         const PlaneShape(width: 10.0, depth: 10.0).build(),
       ),
-      Material(name: 'floor'),
+      RenderMaterial(name: 'floor'),
       name: 'floor',
     )..setPosition(0.0, -1.5, 0.0),
   );
@@ -101,7 +102,7 @@ final class _CountingJoint extends SceneNode {
         size: Vector3.all(2.0),
       ).build(layout: skinned ? VertexLayout.skinned : VertexLayout.standard),
     ),
-    Material(name: 'box'),
+    RenderMaterial(name: 'box'),
     name: 'box',
   )..skinReach = 1.8;
   scene.add(box);
@@ -118,7 +119,7 @@ final class _CountingJoint extends SceneNode {
 
   scene.add(
     LightNode(name: 'lamp', type: LightType.point)
-      ..intensity = 12.0
+      ..intensity = 12.0 * LightNode.defaultIntensity
       ..range = 14.0
       ..castsShadow = true
       ..setPosition(0.0, 2.0, 0.0),
@@ -133,7 +134,7 @@ final class _CountingJoint extends SceneNode {
 }
 
 TextureHandle _texel(FakeBackend device) => device.createTexture(
-  const RenderTargetSpec(
+  const RenderTargetDescriptor(
     width: 1,
     height: 1,
     format: TextureFormat.r8g8b8a8UNormInt,
@@ -170,7 +171,7 @@ void main() {
         width: 256,
         height: 192,
         scene: built.scene,
-        views: <RenderView>[RenderView(camera: built.camera)],
+        views: <CameraView>[CameraView(camera: built.camera)],
       );
     }
 
@@ -271,7 +272,7 @@ void main() {
           width: 256,
           height: 192,
           scene: scene,
-          views: <RenderView>[RenderView(camera: camera)],
+          views: <CameraView>[CameraView(camera: camera)],
         );
         counts.add(
           device.passes
@@ -359,7 +360,7 @@ void main() {
         width: 256,
         height: 192,
         scene: built.scene,
-        views: <RenderView>[RenderView(camera: built.camera)],
+        views: <CameraView>[CameraView(camera: built.camera)],
       );
       final skinnedDraws = _atlasPasses(device)
           .expand((pass) => pass.recordedOf<RecordedPipeline>())
@@ -403,7 +404,7 @@ void main() {
         width: 64,
         height: 64,
         scene: built.scene,
-        views: <RenderView>[RenderView(camera: built.camera)],
+        views: <CameraView>[CameraView(camera: built.camera)],
         settings: const RenderSettings(),
       );
 

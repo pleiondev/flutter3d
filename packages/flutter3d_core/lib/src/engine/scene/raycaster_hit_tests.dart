@@ -1,5 +1,5 @@
 /// The per-node and per-triangle intersection tests, and the code that fills
-/// [HitResult] from them.
+/// the scratch a [HitResult] is copied from.
 ///
 /// **A part of `raycaster.dart`, not a file of its own.** These are
 /// [Raycaster]'s methods, reading and writing its private scratch fields
@@ -30,7 +30,7 @@ extension _RaycasterHitTests on Raycaster {
       // union of the instances, so the batch is picked as the box its own doc
       // comment promises instead of as a copy of the mesh nobody drew.
       final t = rayAabb(_localRay, node.localBounds);
-      if (t == kNoHit || t >= best) return false;
+      if (t == noHit || t >= best) return false;
       _writeApproximateHit(node, t);
       return true;
     }
@@ -54,7 +54,7 @@ extension _RaycasterHitTests on Raycaster {
         ? _posed.positionsOf(source, skeleton)
         : null;
     final box = skinned != null ? _posed.bounds : node.mesh.bounds;
-    if (rayAabb(_localRay, box) == kNoHit) return false;
+    if (rayAabb(_localRay, box) == noHit) return false;
 
     return _intersectTriangles(node, source, best, skinned);
   }
@@ -96,7 +96,7 @@ extension _RaycasterHitTests on Raycaster {
         outUv: _bary,
         cullBackFace: cullBackFaces,
       );
-      if (t == kNoHit || t >= nearest) continue;
+      if (t == noHit || t >= nearest) continue;
 
       nearest = t;
       nearestTriangle = i ~/ 3;

@@ -17,6 +17,7 @@ import 'dart:typed_data';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 
 import 'project.dart';
+import 'project_format.dart' show ProjectFormatException;
 
 /// One object's modifier stack, folded over a mesh captured at the moment
 /// this was built — a value, not a live reference to the project or the
@@ -75,17 +76,21 @@ final class JobRequest {
     'modifiers': <Object?>[for (final m in modifiers) m.toJson()],
   };
 
-  /// A [JobRequest] from its own [toJson], or null when a field is missing,
-  /// of the wrong type, or names a modifier this build does not have.
-  static JobRequest? fromJson(Map<String, Object?> json) {
+  /// A [JobRequest] from its own [toJson]. Throws a [ProjectFormatException]
+  /// when a field is missing, of the wrong type, or names a modifier this
+  /// build does not have.
+  static JobRequest fromJson(Map<String, Object?> json) {
     if (json case {
       'objectId': final int objectId,
       'baseVersion': final int baseVersion,
       'meshBytes': final String encoded,
       'modifiers': final List<Object?> modifiersJson,
     }) {
-      final modifiers = _modifiersFrom(modifiersJson);
-      if (modifiers == null) return null;
+      final modifiers =
+          _modifiersFrom(modifiersJson) ??
+          (throw const ProjectFormatException(
+            'a job names a modifier this build cannot read',
+          ));
       return JobRequest(
         objectId: objectId,
         baseVersion: baseVersion,
@@ -93,7 +98,10 @@ final class JobRequest {
         modifiers: modifiers,
       );
     }
-    return null;
+    throw const ProjectFormatException(
+      'a job names its whole "objectId" and "baseVersion", its "meshBytes" '
+      'and its "modifiers"',
+    );
   }
 }
 
@@ -125,7 +133,9 @@ final class JobResult {
     'meshBytes': base64Encode(meshBytes),
   };
 
-  static JobResult? fromJson(Map<String, Object?> json) => switch (json) {
+  /// A [JobResult] from its own [toJson]. Throws a [ProjectFormatException]
+  /// when a field is missing or of the wrong type.
+  static JobResult fromJson(Map<String, Object?> json) => switch (json) {
     {
       'objectId': final int objectId,
       'baseVersion': final int baseVersion,
@@ -136,7 +146,10 @@ final class JobResult {
         baseVersion: baseVersion,
         meshBytes: base64Decode(encoded),
       ),
-    _ => null,
+    _ => throw const ProjectFormatException(
+      'a job result names its whole "objectId" and "baseVersion" and its '
+      '"meshBytes"',
+    ),
   };
 }
 

@@ -45,14 +45,14 @@ final sun = scene.firstLightOfType(LightType.directional);
 
 ```dart
 final camera = CameraNode(
-  projection: const PerspectiveProjection(fovYRadians: 1.05, near: 0.1, far: 220.0),
+  projection: const PerspectiveProjection(fovY: 1.05, near: 0.1, far: 220.0),
   name: 'player',
 )
   ..setPositionFrom(eye)
   ..lookAt(target);
 ```
 
-`Projection` is sealed: `PerspectiveProjection` and `OrthographicProjection`, both with `copyWith`. A `RenderView` reads `camera.viewProjection(aspect)`.
+`Projection` is sealed: `PerspectiveProjection` and `OrthographicProjection`, both with `copyWith`. A `CameraView` reads `camera.viewProjection(aspect)`.
 
 <div class="warn">
 <p>Two conventions bite here, and both produce a picture rather than an error.</p>
@@ -62,7 +62,7 @@ final camera = CameraNode(
 ### Orbit camera
 
 ```dart
-final orbit = OrbitController(node: camera, distance: 6.0)
+final orbit = OrbitController(camera, distance: 6.0)
   ..rotate(dx * 0.005, dy * 0.005)
   ..zoom(1.1)
   ..pan(dx, dy, viewportHeight: size.height)
@@ -78,8 +78,8 @@ Up to **eight** lights of any type, packed into `vec4[8]` uniform arrays with th
 ```dart
 scene.add(LightNode(
   type: LightType.spot,
-  color: Vector3(1.0, 0.86, 0.7),
-  intensity: 12.0,
+  color: const LinearColor(1.0, 0.86, 0.7),
+  intensity: 69500.0,          // candela, for a camera exposed for daylight
   range: 14.0,                 // glTF's range window
   innerConeAngle: 0.25,
   outerConeAngle: 0.5,
@@ -109,7 +109,7 @@ One BVH over world bounds, shared by frustum culling and by picking, rebuilt onl
 flowchart TB
   nodes["MeshNode world bounds"] --> spheres["scene_spheres<br>packed Float32List"]
   spheres --> bvh["SceneBvh.refresh(spheres, count, stamp)"]
-  bvh --> cull["frustum culling<br>per RenderView"]
+  bvh --> cull["frustum culling<br>per CameraView"]
   bvh --> pick["Raycaster.intersectScene"]
   cull --> list["RenderList"]
   pick --> hit["HitResult: node, point, normal, distance"]

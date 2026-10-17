@@ -5,26 +5,26 @@ import 'dart:typed_data';
 /// The render list packs the draw's slot index here, which has two effects: one
 /// sort orders the draws directly, and because the sort is stable and the payload
 /// is the least significant field, equal keys keep submission order.
-const int kPayloadBits = 20;
+const int payloadBits = 20;
 
 /// Mask for the payload half of a packed entry.
-const int kPayloadMask = (1 << kPayloadBits) - 1;
+const int payloadMask = (1 << payloadBits) - 1;
 
 /// Largest payload the packing can represent.
-const int kMaxPayload = kPayloadMask;
+const int maxPayload = payloadMask;
 
 /// Bits available to the sort key itself.
 ///
 /// 63 usable bits minus the payload: the sign bit is left alone so entries stay
 /// non-negative and byte-wise ordering matches numeric ordering.
-const int kSortKeyBits = 63 - kPayloadBits;
+const int sortKeyBits = 63 - payloadBits;
 
 /// Below this many entries a comparison sort wins.
 ///
 /// Radix makes eight passes, each clearing a 256-entry histogram; that fixed cost
 /// dwarfs the work when there are only a handful of draws, which is the common
 /// case for a simple scene.
-const int kRadixThreshold = 96;
+const int radixThreshold = 96;
 
 /// Sorts the first [count] packed entries of [buffer] ascending.
 ///
@@ -57,7 +57,7 @@ void sortPackedKeys(
 }) {
   if (count < 2) return;
 
-  if (count < kRadixThreshold) {
+  if (count < radixThreshold) {
     // Sorts in place inside buffer, since a sublist view shares its storage.
     Int64List.sublistView(buffer, 0, count).sort();
     return;

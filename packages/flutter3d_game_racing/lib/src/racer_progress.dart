@@ -35,9 +35,11 @@ final class RacerProgress {
   double lapTime = 0.0;
 
   /// The quickest completed lap, or null before there is one.
+  /// In simulated seconds.
   double? bestLap;
 
   /// How long the car has been racing.
+  /// In simulated seconds.
   double totalTime = 0.0;
 
   /// How long each sector of the current lap took, for the sectors finished.
@@ -66,6 +68,8 @@ final class RacerProgress {
   /// Grows faster the further sideways and the faster the car is going, which
   /// is the shape every game that scores this uses: a slow slide at a small
   /// angle should be worth almost nothing, or a driver scores by wobbling.
+  /// In radian-metres: the slip angle in radians times the metres covered while
+  /// sliding.
   double driftScore = 0.0;
 
   /// The best single slide, and everything scored this session.
@@ -73,7 +77,10 @@ final class RacerProgress {
   /// Two numbers because they answer different questions: the best is what a
   /// driver is chasing and the total is what a session was worth. A game that
   /// wants neither reads neither.
+  /// Both in radian-metres, as [driftScore] is.
   double bestDrift = 0.0;
+
+  /// Everything scored this session, in radian-metres.
   double totalDrift = 0.0;
 
   /// The quickest each sector has been driven in, or null before it has been.
@@ -89,9 +96,10 @@ final class RacerProgress {
   final List<double?> bestSectors = <double?>[];
 
   /// The time this car finished at, or null while it is still going.
+  /// In simulated seconds since the start.
   double? finishedAt;
 
-  bool get finished => finishedAt != null;
+  bool get isFinished => finishedAt != null;
 
   /// Laps and metres together: the number cars are ranked by.
   double progressAlong(double lapLength) => lap * lapLength + s;
@@ -99,6 +107,7 @@ final class RacerProgress {
   // --- what happened on this step, for a sound or a caption ------------------
 
   /// How long the lap just completed took.
+  /// In simulated seconds.
   double lastLap = 0.0;
 
   /// What this car has done so far.

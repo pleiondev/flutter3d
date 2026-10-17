@@ -1,10 +1,16 @@
 import 'dart:typed_data';
+import '../format_exceptions.dart';
 
 /// glTF `componentType` values.
 ///
 /// Reading lives on the enum rather than in static helpers on the reader: the
 /// rules — element size, and the asymmetric normalization of signed types — are
 /// properties of the component type itself, so this is where they belong.
+///
+/// **Closed for good**: glTF 2.0's own component types: the specification is
+/// versioned, and a file naming another is not glTF 2.0. No member can be added
+/// without changing what the type means, so it stays an enum and a `switch`
+/// over it may name every case.
 enum GltfComponentType {
   byte(5120, 1),
   unsignedByte(5121, 1),
@@ -22,7 +28,7 @@ enum GltfComponentType {
     for (final value in values) {
       if (value.code == code) return value;
     }
-    throw FormatException('Unknown glTF componentType $code.');
+    throw GltfFormatException('Unknown glTF componentType $code.');
   }
 
   /// Reads one component as a double, applying the normalization rule when asked.
@@ -71,6 +77,11 @@ enum GltfComponentType {
 }
 
 /// glTF accessor `type` values.
+///
+/// **Closed for good**: glTF 2.0's own accessor types: the specification is
+/// versioned, and a file naming another is not glTF 2.0. No member can be added
+/// without changing what the type means, so it stays an enum and a `switch`
+/// over it may name every case.
 enum GltfAccessorType {
   scalar('SCALAR', 1),
   vec2('VEC2', 2),
@@ -89,6 +100,6 @@ enum GltfAccessorType {
     for (final value in values) {
       if (value.name == name) return value;
     }
-    throw FormatException('Unknown glTF accessor type "$name".');
+    throw GltfFormatException('Unknown glTF accessor type "$name".');
   }
 }

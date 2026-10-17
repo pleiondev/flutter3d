@@ -52,7 +52,7 @@ void main() {
         const ModelProject(),
       );
 
-      expect(replay.ok, isTrue);
+      expect(replay.isOk, isTrue);
       // Mutation: run the replayed commands against selection state or in the
       // wrong order and this still has 10 objects with the right names — the
       // byte comparison is what catches a transform applied to the wrong id
@@ -95,7 +95,7 @@ void main() {
         journal.toBytes(),
         const ModelProject(),
       );
-      expect(replay.ok, isTrue);
+      expect(replay.isOk, isTrue);
       final ModelHistory replayed = replay.history!;
       expect(
         replayed.project.objects.single.transform.getTranslation(),
@@ -130,7 +130,7 @@ void main() {
         const ModelProject(),
       );
 
-      expect(replay.ok, isTrue);
+      expect(replay.isOk, isTrue);
       expect(replay.history!.project.objects, hasLength(1));
     });
   });
@@ -238,7 +238,7 @@ void main() {
         const ModelProject(),
       );
 
-      expect(replay.ok, isTrue);
+      expect(replay.isOk, isTrue);
       expect(replay.history!.project.objects, hasLength(1));
     });
   });
@@ -255,7 +255,7 @@ void main() {
         journal.toBytes(),
         const ModelProject(),
       );
-      expect(replay.ok, isTrue, reason: replay.refused);
+      expect(replay.isOk, isTrue, reason: replay.refused);
       // Mutation: append instead of overwriting, and this project would
       // hold two boxes — a 1.0 m one nothing amended away, and a second,
       // 2.0 m one beside it — rather than one box at the adjusted size,
@@ -289,7 +289,7 @@ void main() {
         journal.toBytes(),
         const ModelProject(),
       );
-      expect(replay.ok, isTrue, reason: replay.refused);
+      expect(replay.isOk, isTrue, reason: replay.refused);
       expect(replay.history!.project.objects.single.name, 'amended');
       // One undo step for the add, one for the amended rename — not the
       // three the original transaction would have collapsed to on its
@@ -317,7 +317,7 @@ void main() {
         journal.toBytes(),
         const ModelProject(),
       );
-      expect(replay.ok, isTrue, reason: replay.refused);
+      expect(replay.isOk, isTrue, reason: replay.refused);
       expect(replay.history!.topStepAuthor, StepAuthor.agent);
     });
   });
@@ -334,7 +334,7 @@ void main() {
         journal.toBytes(),
         const ModelProject(),
       );
-      expect(replay.ok, isTrue);
+      expect(replay.isOk, isTrue);
       // Mutation: `replay` ignoring the line's own `author` key and always
       // calling `history.run(command)` with no author — every step would
       // read back `StepAuthor.person`, and an agent's own `undo`
@@ -349,7 +349,7 @@ void main() {
         journal.toBytes(),
         const ModelProject(),
       );
-      expect(replay.ok, isTrue);
+      expect(replay.isOk, isTrue);
       expect(replay.history!.topStepAuthor, StepAuthor.person);
     });
 
@@ -377,7 +377,7 @@ void main() {
         journal.toBytes(),
         const ModelProject(),
       );
-      expect(replay.ok, isTrue);
+      expect(replay.isOk, isTrue);
       expect(replay.history!.steps, hasLength(2)); // the add, then the drag
       expect(replay.history!.topStepAuthor, StepAuthor.agent);
     });
@@ -403,7 +403,7 @@ void main() {
         journal.toBytes(),
         const ModelProject(),
       );
-      expect(replay.ok, isTrue);
+      expect(replay.isOk, isTrue);
 
       // Mutation: read the author back but never pass it into
       // `ModelHistory.run`, or record it but forget to thread it through
@@ -432,7 +432,7 @@ void main() {
         const ModelProject(),
       );
 
-      expect(replay.ok, isFalse);
+      expect(replay.isOk, isFalse);
       expect(replay.refused, contains('line 3'));
     });
 
@@ -446,7 +446,7 @@ void main() {
         const ModelProject(),
       );
 
-      expect(replay.ok, isFalse);
+      expect(replay.isOk, isFalse);
       expect(replay.refused, contains('line 2'));
     });
 
@@ -462,7 +462,7 @@ void main() {
         const ModelProject(),
       );
 
-      expect(replay.ok, isFalse);
+      expect(replay.isOk, isFalse);
       expect(replay.refused, contains('line 2'));
       expect(replay.refused, contains('there is no object 99'));
     });
@@ -477,7 +477,7 @@ void main() {
         const ModelProject(),
       );
 
-      expect(replay.ok, isTrue);
+      expect(replay.isOk, isTrue);
       expect(replay.history!.project.objects, hasLength(1));
     });
   });

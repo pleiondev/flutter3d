@@ -48,10 +48,11 @@ abstract base class Brain {
 
   /// Something hurt this actor and it lived.
   ///
-  /// Who did it is [Mind.hurtBy], which is only meaningful inside this call.
-  void onHurt(Mind it, double amount) {}
+  /// Who did it is [Mind.hurtBy], which is only meaningful inside this call;
+  /// how much is [BrainHurt.amount].
+  void onHurt(BrainHurt hurt) {}
 
-  /// Something loud happened at [at], within earshot.
+  /// Something loud happened at [BrainNoise.at], within earshot.
   ///
   /// **Hearing, which is the sense these actors did not have.** A brain that
   /// only reacts to being seen or being shot is one that stands still while a
@@ -62,7 +63,7 @@ abstract base class Brain {
   /// The caller decides what counts as loud and how far it carries; this is
   /// told only that it happened and where. Distance is already applied: a
   /// brain is not called for a noise it could not have heard.
-  void onNoise(Mind it, Vector3 at) {}
+  void onNoise(BrainNoise noise) {}
 
   /// Something hurt this actor and it did not.
   void onDeath(Mind it) {}
@@ -71,6 +72,39 @@ abstract base class Brain {
   Map<String, Object?> save() => const <String, Object?>{};
 
   void restore(Map<String, Object?> from) {}
+}
+
+/// What [Brain.onHurt] is handed: the actor's mind and how much it was
+/// hurt by.
+///
+/// **One object, so a minor can hand a brain more** — what kind of harm,
+/// where it landed — without breaking a brain written against 1.0. A brain
+/// reads it during the call and does not keep it: its mind is the system's
+/// and moves on to the next actor.
+final class BrainHurt {
+  const BrainHurt({required this.mind, required this.amount});
+
+  /// The actor's mind; who did it is its [Mind.hurtBy].
+  final Mind mind;
+
+  /// How much health it lost, in the units its health counts in.
+  final double amount;
+}
+
+/// What [Brain.onNoise] is handed: the actor's mind and where the noise was.
+///
+/// One object, for the reason [BrainHurt] gives. **Reused**: `ActorSystem`
+/// owns one and sets it before telling each actor within earshot; a brain
+/// reads it during the call and does not keep it, nor its vector — a brain
+/// that keeps the place clones it.
+final class BrainNoise {
+  BrainNoise({required this.mind, required this.at});
+
+  /// The actor's mind.
+  Mind mind;
+
+  /// Where the noise was, in the world.
+  Vector3 at;
 }
 
 /// Everything a brain is allowed to know, and the few things it may do.
@@ -121,10 +155,10 @@ final class Mind {
   bool hurtFocus(Collider? body, double amount) =>
       system.hurtFocus(body, amount);
 
-  /// From the actor to the focus. Live, and not to be kept.
+  /// From the actor to the focus, as a copy.
   Vector3 get toFocus => system.toFocus;
 
-  /// How far away the focus is.
+  /// How far away the focus is, in metres.
   double get distance => system.distanceToFocus;
 
   /// Randomness that a snapshot can carry. See `GameRandom`.
@@ -154,12 +188,14 @@ final class Mind {
   /// know what a flow field is.
   void steerTowardsFocus() => system.steerTowardsFocus(actor);
 
-  /// Walk towards a point that is not the focus. Straight, sliding off walls.
+  /// Walk towards a point that is not the focus: along a route over the
+  /// system's `navMesh` when it has one, straight and sliding off walls when
+  /// it has not.
   ///
   /// [steerTowardsFocus] is kept separate rather than being this with the focus
-  /// passed in, and the difference matters: that one follows the level's flow
-  /// field round corners and this one cannot, because the field is baked
-  /// towards the focus. A patrol wants this; a chase wants the other.
+  /// passed in: that one follows the level's flow field, swept once towards
+  /// the focus for every actor, and this one searches a route of its own. A
+  /// patrol wants this; a horde's chase wants the other.
   void steerTowards(Vector3 point) => system.steerTowards(actor, point);
 
   /// Ask to jump. Refused in mid-air, as it is for the player.
@@ -175,4 +211,7 @@ final class Mind {
 
   /// Stop.
   void halt() => system.steer(actor, Vector3.zero());
+
+  /// Asks for the gesture [name] — see [ActorSystem.gesture].
+  void gesture(String name) => system.gesture(actor, name);
 }

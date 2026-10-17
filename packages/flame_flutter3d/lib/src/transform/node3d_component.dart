@@ -1,6 +1,7 @@
 import 'package:flame/components.dart';
 import 'package:flame/effects.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 
 import 'bridged3d.dart';
 import 'object3d_component.dart' show shownInFlame;
@@ -27,9 +28,9 @@ import 'object3d_component.dart' show shownInFlame;
 /// [Scale3dEffect] take any `EffectController`: eased, repeated,
 /// alternating, in sequence. [TintEffect] and `OpacityEffect` colour and
 /// fade it, and `Tap3dCallbacks` hear a tap on it.
-class Node3dComponent extends Component
-    with HasVisibility
-    implements OpacityProvider, Drawn3d {
+base class Node3dComponent extends Component
+    with HasVisibility, Drawn3d
+    implements OpacityProvider {
   Node3dComponent({
     required this.node,
     required this.scene,
@@ -59,11 +60,13 @@ class Node3dComponent extends Component
   /// How it is scaled, along each of its own axes.
   final Vector3 scale3;
 
+  /// How opaque it is, a 0..1 fraction multiplied into its tint's alpha:
+  /// what Flame's `OpacityEffect` moves.
   @override
   double opacity = 1.0;
 
   @override
-  final Vector4 tint = Vector4.all(1.0);
+  LinearColor tint = LinearColor.white;
 
   final Vector3 _writtenPosition = Vector3.all(double.nan);
   final Quaternion _writtenRotation = Quaternion(
@@ -77,7 +80,10 @@ class Node3dComponent extends Component
   bool _tintWritten = false;
 
   @override
-  Aabb3? get drawnBounds3d => node.subtreeBounds;
+  Aabb3? get drawnBounds3d => switch (node.subtreeBounds) {
+    final Aabb3 bounds => Aabb3.copy(bounds),
+    null => null,
+  };
 
   @override
   void onMount() {
@@ -129,12 +135,12 @@ class Node3dComponent extends Component
     }
     final shown = shownInFlame(this);
     if (_visibleWritten != shown) {
-      node.visible = shown;
+      node.isVisible = shown;
       _visibleWritten = shown;
     }
-    final alpha = tint.w * opacity;
+    final alpha = tint.a * opacity;
     final plain =
-        tint.x == 1.0 && tint.y == 1.0 && tint.z == 1.0 && alpha == 1.0;
+        tint.r == 1.0 && tint.g == 1.0 && tint.b == 1.0 && alpha == 1.0;
     if (plain && !_tintWritten) return;
     _tintWritten = !plain;
     _paint(node, alpha);
@@ -142,7 +148,7 @@ class Node3dComponent extends Component
 
   /// Its own meshes; a [Node3dComponent] under it paints its own.
   void _paint(SceneNode at, double alpha) {
-    if (at is MeshNode) at.tint.setValues(tint.x, tint.y, tint.z, alpha);
+    if (at is MeshNode) at.tint = tint.withAlpha(alpha);
     for (final child in at.children) {
       if (_isOwnNode(child)) continue;
       _paint(child, alpha);
@@ -157,7 +163,7 @@ class Node3dComponent extends Component
 /// Moves a [Node3dComponent] by an offset in its parent's space, or to a
 /// place, on any `EffectController`: Flame's `MoveEffect`, in three
 /// dimensions.
-class Move3dEffect extends ComponentEffect<Node3dComponent> {
+base class Move3dEffect extends ComponentEffect<Node3dComponent> {
   /// Moves it by [offset].
   Move3dEffect.by(
     Vector3 offset,
@@ -196,7 +202,7 @@ class Move3dEffect extends ComponentEffect<Node3dComponent> {
 /// Turns a [Node3dComponent] by [angle] radians about [axis], in its own
 /// frame, on any `EffectController`: Flame's `RotateEffect`, about any
 /// axis.
-class Rotate3dEffect extends ComponentEffect<Node3dComponent> {
+base class Rotate3dEffect extends ComponentEffect<Node3dComponent> {
   Rotate3dEffect.by(
     Vector3 axis,
     this.angle,
@@ -216,7 +222,11 @@ class Rotate3dEffect extends ComponentEffect<Node3dComponent> {
   @override
   void apply(double progress) {
     final dProgress = progress - previousProgress;
-    _step.setAxisAngle(axis, angle * dProgress);
+    // `setAxisAngle` would ask `dart:math` for the half angle's sine and
+    // cosine, and the turn it adds up is the component's own, which a game
+    // may step on; `axis` is already unit.
+    final SinCos(:sin, :cos) = Portable.sinCos(angle * dProgress * 0.5);
+    _step.setValues(axis.x * sin, axis.y * sin, axis.z * sin, cos);
     target.rotation3.setFrom(target.rotation3 * _step);
   }
 }
@@ -224,7 +234,7 @@ class Rotate3dEffect extends ComponentEffect<Node3dComponent> {
 /// Scales a [Node3dComponent] to a scale, from wherever it is when the
 /// effect starts, on any `EffectController`: Flame's `ScaleEffect`, on
 /// each axis.
-class Scale3dEffect extends ComponentEffect<Node3dComponent> {
+base class Scale3dEffect extends ComponentEffect<Node3dComponent> {
   Scale3dEffect.to(
     Vector3 scale,
     super.controller, {

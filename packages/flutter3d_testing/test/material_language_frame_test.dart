@@ -19,11 +19,10 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_app/software.dart' show MaterialProgramStage;
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_cpu/testing.dart';
-import 'package:flutter3d_testing/flutter3d_testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 96;
 const int _height = 72;
@@ -55,7 +54,11 @@ material Rim {
 ''';
 
 /// The cube every case below draws, with its material pointed at [model].
-Future<Uint8List> _render(LightingModel model, CpuStage? stage) async {
+Future<Uint8List> _render(
+  LightingModel model,
+  CpuStage? stage, {
+  bool sun = false,
+}) async {
   final kit = cpuTestDevice(width: _width, height: _height);
   final device = kit.device;
 
@@ -69,7 +72,7 @@ Future<Uint8List> _render(LightingModel model, CpuStage? stage) async {
       for (final material in loaded.materials)
         SurfaceMaterial(
           name: material.name,
-          baseColor: Vector4(0.8, 0.4, 0.2, 1.0),
+          baseColor: LinearColor.fromSrgb(0.8, 0.4, 0.2, 1.0),
           lightingModel: model,
         ),
     ],
@@ -86,6 +89,29 @@ Future<Uint8List> _render(LightingModel model, CpuStage? stage) async {
   final asset = await ModelAsset.fromDocument(document, device: device);
   final scene = Scene();
   asset.instantiate(scene);
+  if (sun) {
+    // A sun with a shadow, and a slab under the box in the same material to
+    // catch it, so the shadow is drawn through the stage under test too.
+    scene
+      ..add(
+        LightNode(
+          intensity: 2.0 * LightNode.defaultIntensity,
+          castsShadow: true,
+        )..setLocalForward(Vector3(0.5, -1.0, 0.6).normalized()),
+      )
+      ..add(
+        MeshNode(
+          DeviceMesh.upload(
+            device,
+            CuboidShape(size: Vector3(4.0, 0.1, 4.0)).build(),
+          ),
+          RenderMaterial(
+            baseColor: LinearColor.fromSrgb(0.8, 0.4, 0.2, 1.0),
+            lighting: model,
+          ),
+        )..setPosition(0.0, -0.55, 0.0),
+      );
+  }
 
   final renderer = Renderer.create(
     device: device,
@@ -102,22 +128,26 @@ Future<Uint8List> _render(LightingModel model, CpuStage? stage) async {
     width: _width,
     height: _height,
     scene: scene,
-    views: <RenderView>[
-      RenderView(
-        camera: CameraNode(
-          projection: const PerspectiveProjection(fovYRadians: 0.9),
-        )..setPosition(1.6, 1.2, 2.4),
-        clearColor: Vector4(0, 0, 0, 1),
+    views: <CameraView>[
+      CameraView(
+        camera: sun
+            // Aimed, so the box and the shadow it throws on the slab are
+            // both in the frame.
+            ? (CameraNode(projection: const PerspectiveProjection(fovY: 0.9))
+                ..setPosition(2.4, 2.0, 3.2)
+                ..lookAt(Vector3(0.0, -0.3, 0.0)))
+            : (CameraNode(projection: const PerspectiveProjection(fovY: 0.9))
+                ..setPosition(1.6, 1.2, 2.4)),
+        clearColor: LinearColor.fromSrgb(0, 0, 0, 1),
       ),
     ],
   );
-  final pixels = await device.readPixels(result.frame);
-  if (pixels == null) throw StateError('the frame did not read back');
+  final pixels = await device.readback(result.frame);
   return pixels.buffer.asUint8List();
 }
 
 MaterialProgram _program(String source, MaterialVariant variant) =>
-    specialiseMaterial(parseMaterial(source), variant);
+    specializeMaterial(parseMaterial(source), variant);
 
 int _differing(Uint8List a, Uint8List b) {
   var count = 0;
@@ -164,9 +194,12 @@ void main() {
         MaterialProgramStage(
           _program(
             _rimSource,
-            const MaterialVariant('Rim', <String, List<double>>{
-              'rimColor': <double>[0, 0.2, 0.9],
-            }),
+            const MaterialVariant(
+              'Rim',
+              values: <String, List<double>>{
+                'rimColor': <double>[0, 0.2, 0.9],
+              },
+            ),
           ),
         ),
       ),
@@ -209,13 +242,116 @@ void main() {
         MaterialProgramStage(
           _program(
             _rimSource,
-            const MaterialVariant('Rim', <String, List<double>>{
-              'rimColor': <double>[0, 0, 0],
-            }),
+            const MaterialVariant(
+              'Rim',
+              values: <String, List<double>>{
+                'rimColor': <double>[0, 0, 0],
+              },
+            ),
           ),
         ),
       ),
     );
     expect(_differing(plain, dark), 0);
+  });
+
+  test(
+    'Lambert written as a lighting hook is the hand-written Lambert — P8',
+    () async {
+      // A `light` block returning the albedo is Lambert's ShadeLight, and a
+      // fragment body returning `lit` is Lambert's main: the lights through the
+      // block by radiance, n·l and shadow, the ambient under the occlusion, the
+      // emissive. Under a sun with a shadow, every pixel must agree.
+      //
+      // Mutation: gather without the shadow in `MaterialProgramStage`
+      // (`shadowed: false`), or leave the ambient out of `lit`. The occlusion
+      // is not held here: the box carries no occlusion map, so it is one.
+      const source = '''
+material LangLambert {
+  light {
+    return albedo;
+  }
+  fragment {
+    return vec4(lit, alpha);
+  }
+}
+''';
+      final program = _program(source, const MaterialVariant('LangLambert'));
+      final builtIn = await _render(LightingModel.lambert, null, sun: true);
+      final written = await _render(
+        describeMaterial(
+          program,
+        ).lightingModel(label: 'Written Lambert', shaderName: 'LangLambert'),
+        CpuStage.fragment(MaterialProgramStage(program)),
+        sun: true,
+      );
+      expect(
+        _differing(builtIn, written),
+        0,
+        reason: 'the lighting hook and the transcribed Lambert disagree',
+      );
+    },
+  );
+
+  group('the standard model\'s injection points — version 3', () {
+    LightingModel modelOf(MaterialProgram program) => describeMaterial(
+      program,
+    ).lightingModel(label: program.name, shaderName: program.name);
+
+    test('a material lit by it that injects nothing is the hand-written '
+        'PBR', () async {
+      // A surface block that writes what it read and a light block that
+      // returns the model's own answer change no pixel: the injection
+      // points are where they say, and the stage around them is
+      // `PbrShader`'s, under a sun with a shadow.
+      //
+      // Mutation: apply the surface hook before the maps in `PbrShader`, or
+      // hand the light hook the answer before the pi.
+      const source = '''
+f3dmat 3
+material LangStandard {
+  lighting standard;
+  surface { out albedo = albedo; }
+  light { return standard; }
+}
+''';
+      final program = _program(source, const MaterialVariant('LangStandard'));
+      final builtIn = await _render(LightingModel.pbr, null, sun: true);
+      final written = await _render(
+        modelOf(program),
+        CpuStage.fragment(MaterialProgramStage(program)),
+        sun: true,
+      );
+      expect(
+        _differing(builtIn, written),
+        0,
+        reason: 'the standard model with nothing injected is not the PBR',
+      );
+    });
+
+    test('what each point injects reaches the picture', () async {
+      // Mutation: skip the surface hook or the light hook in `PbrShader`.
+      final builtIn = await _render(LightingModel.pbr, null, sun: true);
+      const rough =
+          'f3dmat 3\nmaterial LangRough { lighting standard; '
+          'surface { out roughness = 1.0; out albedo = vec3(0.1, 0.7, 0.1); } }';
+      const half =
+          'f3dmat 3\nmaterial LangHalf { lighting standard; '
+          'light { return standard * 0.5; } }';
+      for (final source in <String>[rough, half]) {
+        final parsed = parseMaterial(source);
+        final program = _program(source, MaterialVariant(parsed.name));
+        final written = await _render(
+          modelOf(program),
+          CpuStage.fragment(MaterialProgramStage(program)),
+          sun: true,
+        );
+        expect(
+          _differing(builtIn, written),
+          greaterThan(0),
+          reason: '${parsed.name} drew the plain PBR',
+        );
+      }
+    });
   });
 }

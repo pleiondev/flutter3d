@@ -19,7 +19,7 @@
 /// "Back" is the far side of the puff from the viewer. The responses are
 /// unpremultiplied, light as it reads at full coverage. This is the layout
 /// the six-way exports of EmberGen and Houdini write, and the one
-/// `flutter3d_build`'s baker writes; [importSixWay] repacks any other.
+/// [bakeSixWay] writes; [importSixWay] repacks any other.
 ///
 /// **A cell's rows run bottom to top.** The quad's texture coordinate rises
 /// along the camera's up (`ParticleSystem.writeQuads`), and a texture's first
@@ -30,9 +30,10 @@
 library;
 
 import 'dart:typed_data';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// A six-way sheet on the device, and what it emits and receives from every
 /// side.
@@ -45,10 +46,9 @@ final class SixWayMaterial {
   SixWayMaterial({
     required this.positive,
     required this.negative,
-    Vector3? emission,
-    Vector3? ambient,
-  }) : emission = emission ?? Vector3.zero(),
-       ambient = ambient ?? Vector3.zero();
+    this.emission = LinearColor.black,
+    this.ambient = LinearColor.black,
+  });
 
   /// Right, top, back and coverage. See the library's own comment.
   final TextureHandle positive;
@@ -58,8 +58,8 @@ final class SixWayMaterial {
 
   /// What the emission channel's full value emits: linear, and not tinted by
   /// the particle's colour, since the heat in a plume of smoke is not grey
-  /// because the smoke is.
-  final Vector3 emission;
+  /// because the smoke is. Read each frame, so it can be changed in place.
+  LinearColor emission;
 
   /// Light arriving evenly from every side, read through the mean of the six
   /// pictures.
@@ -67,8 +67,8 @@ final class SixWayMaterial {
   /// Here rather than taken from the scene. A contributor is handed the lights
   /// but not the scene they came from, and smoke that is the wrong shade in a
   /// dark room is easier to fix with a number beside the effect than by
-  /// changing the room.
-  final Vector3 ambient;
+  /// changing the room. Read each frame, so it can be changed in place.
+  LinearColor ambient;
 }
 
 /// One channel of one source image: [image] counts from nought, [channel] is
@@ -120,7 +120,7 @@ final class SixWayLayout {
 /// cell over needs: a flip of the whole image would reverse the order of the
 /// frames with them. [flipCells] false leaves the rows as they are, for a
 /// sheet already written bottom to top — the baker's.
-({Uint8List positive, Uint8List negative}) importSixWay({
+SixWayTextures importSixWay({
   required List<Uint8List> images,
   required int width,
   required int height,
@@ -168,5 +168,41 @@ final class SixWayLayout {
         ..[to + 3] = read(layout.emission, from);
     }
   }
-  return (positive: positive, negative: negative);
+  return SixWayTextures(positive: positive, negative: negative);
+}
+
+/// A six-way sheet as the engine's two RGBA8 textures — what [importSixWay]
+/// answers.
+final class SixWayTextures {
+  const SixWayTextures({required this.positive, required this.negative});
+
+  /// The positive texture: light from the right, the top and the back, and
+  /// the coverage, in R, G, B and A.
+  final Uint8List positive;
+
+  /// The negative texture: light from the left, the bottom and the front,
+  /// and the emission, in R, G, B and A.
+  final Uint8List negative;
+
+  @override
+  bool operator ==(Object other) =>
+      other is SixWayTextures &&
+      _sameBytes(other.positive, positive) &&
+      _sameBytes(other.negative, negative);
+
+  @override
+  int get hashCode =>
+      Object.hash(Object.hashAll(positive), Object.hashAll(negative));
+
+  @override
+  String toString() => 'SixWayTextures(${positive.length} bytes a texture)';
+}
+
+bool _sameBytes(Uint8List a, Uint8List b) {
+  if (identical(a, b)) return true;
+  if (a.length != b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    if (a[i] != b[i]) return false;
+  }
+  return true;
 }

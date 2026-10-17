@@ -110,16 +110,12 @@ List<double>? _doubleListFrom(Object? json) {
 /// is a file this build cannot honestly guess at rather than an ordinary
 /// omission.
 AnimationInterpolation? _interpolationFrom(Object? json) =>
-    AnimationInterpolation.values
-        .where((AnimationInterpolation each) => each.name == json)
-        .firstOrNull;
+    interpolationOf(json);
 
 /// The [AnimationPath] [json] names, or null when it does not match one —
 /// the same "no default" reasoning as [_interpolationFrom], for the same
 /// reason: every writer of [PoseJoint] names one explicitly.
-AnimationPath? _pathFrom(Object? json) => AnimationPath.values
-    .where((AnimationPath each) => each.name == json)
-    .firstOrNull;
+AnimationPath? _pathFrom(Object? json) => animationPathOf(json);
 
 /// [transform]'s own [path] component, decomposed from the local matrix —
 /// or null for [AnimationPath.weights], which [PoseJoint] does not key; see
@@ -146,6 +142,7 @@ List<double>? _poseComponent(Matrix4 transform, AnimationPath path) {
     ],
     AnimationPath.scale => <double>[scale.x, scale.y, scale.z],
     AnimationPath.weights || AnimationPath.pointer => null,
+    _ => throw UnsupportedError('a transform has no $path channel'),
   };
 }
 
@@ -187,7 +184,7 @@ final class PoseJoint extends ModelCommand {
   @override
   Map<String, Object?> get arguments => <String, Object?>{
     'joint': joint,
-    'path': path.name,
+    'path': animationPathWord(path),
     'clipIndex': clipIndex,
     'frame': frame,
   };
@@ -275,6 +272,8 @@ final class SetKey extends ModelCommand {
 
   final int clipIndex;
   final int trackIndex;
+
+  /// In seconds.
   final double time;
   final List<double> values;
   final List<double>? inTangent;
@@ -344,6 +343,8 @@ final class MoveKeys extends ModelCommand {
   final int clipIndex;
   final int trackIndex;
   final List<int> indices;
+
+  /// In seconds.
   final double deltaTime;
 
   @override
@@ -469,7 +470,7 @@ final class SetInterpolation extends ModelCommand {
   Map<String, Object?> get arguments => <String, Object?>{
     'clipIndex': clipIndex,
     'trackIndex': trackIndex,
-    'interpolation': interpolation.name,
+    'interpolation': interpolationWord(interpolation),
   };
 
   @override

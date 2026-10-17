@@ -14,7 +14,7 @@
 /// project having no honest replay form — this one always *could* be; it
 /// only stayed out while wiring an MCP tool for it was later,
 /// app-integration work. That work is the `applyClipResult` tool in
-/// `flutter3d_model_mcp`'s own `model_tools.dart` now, so a cold
+/// `flutter3d_mcp/model.dart`'s own `model_tools.dart` now, so a cold
 /// `CommandJournal` replay past a retarget/IK-bake/shape-driver-bake step
 /// no longer refuses for want of a name this build did not know.
 part of 'command.dart';
@@ -59,8 +59,8 @@ final class ApplyClipResult extends ModelCommand {
 
 Map<String, Object?> _trackToJson(AnimationTrack track) => <String, Object?>{
   'nodeIndex': track.nodeIndex,
-  'path': track.path.name,
-  'interpolation': track.interpolation.name,
+  'path': animationPathWord(track.path),
+  'interpolation': interpolationWord(track.interpolation),
   'times': track.times.toList(),
   'values': track.values.toList(),
   'componentCount': track.componentCount,

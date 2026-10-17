@@ -12,6 +12,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/formats.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show LightType;
 import 'package:test/test.dart';
 
 /// A one-triangle glTF with two lights (a point and a spot), a perspective
@@ -130,20 +131,20 @@ Uint8List _handwrittenGltf() {
 
 void _expectPointLight(ModelLight light) {
   expect(light.name, 'Point');
-  expect(light.type, ModelLightType.point);
-  expect(light.color.x, closeTo(1.0, 1e-6));
-  expect(light.color.y, closeTo(0.5, 1e-6));
-  expect(light.color.z, closeTo(0.25, 1e-6));
+  expect(light.type, LightType.point);
+  expect(light.color.r, closeTo(1.0, 1e-6));
+  expect(light.color.g, closeTo(0.5, 1e-6));
+  expect(light.color.b, closeTo(0.25, 1e-6));
   expect(light.intensity, closeTo(800.0, 1e-6));
   expect(light.range, closeTo(10.0, 1e-6));
 }
 
 void _expectSpotLight(ModelLight light) {
   expect(light.name, 'Spot');
-  expect(light.type, ModelLightType.spot);
-  expect(light.color.x, closeTo(0.2, 1e-6));
-  expect(light.color.y, closeTo(0.4, 1e-6));
-  expect(light.color.z, closeTo(0.6, 1e-6));
+  expect(light.type, LightType.spot);
+  expect(light.color.r, closeTo(0.2, 1e-6));
+  expect(light.color.g, closeTo(0.4, 1e-6));
+  expect(light.color.b, closeTo(0.6, 1e-6));
   expect(light.intensity, closeTo(400.0, 1e-6));
   expect(light.range, isNull);
   expect(light.innerConeAngle, closeTo(0.1, 1e-6));
@@ -319,7 +320,7 @@ void main() {
 
     test('a spot light with default cone angles round-trips without writing '
         'them', () async {
-      final light = ModelLight(type: ModelLightType.spot);
+      final light = ModelLight(type: LightType.spot);
       expect(light.innerConeAngle, 0.0);
       expect(light.outerConeAngle, closeTo(math.pi / 4, 1e-9));
 

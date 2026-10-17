@@ -25,6 +25,8 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/formats.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart'
+    show SamplerAddressMode;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
 /// A slot's own texcoord set, per `mat-05`'s acceptance: always 0, whatever a
@@ -106,6 +108,7 @@ String? formatBadgeFor(TextureFileFormat format) => switch (format) {
   TextureFileFormat.etc2Rgba8 => 'ETC2',
   TextureFileFormat.astc4x4 => 'ASTC 4×4',
   TextureFileFormat.other => 'KTX2',
+  _ => format.name.toUpperCase(),
 };
 
 /// The four numbers a `TextureSampling` actually varies, as the words a
@@ -146,8 +149,9 @@ String _minFilterLabel(TextureSampling sampling) {
   return '$base, ${sampling.mipLinear ? 'mipmapped' : 'mipmapped (nearest mip)'}';
 }
 
-String _wrapLabel(TextureWrap wrap) => switch (wrap) {
-  TextureWrap.repeat => 'Repeat',
-  TextureWrap.clampToEdge => 'Clamp to edge',
-  TextureWrap.mirroredRepeat => 'Mirrored repeat',
+String _wrapLabel(SamplerAddressMode wrap) => switch (wrap) {
+  SamplerAddressMode.repeat => 'Repeat',
+  SamplerAddressMode.clampToEdge => 'Clamp to edge',
+  SamplerAddressMode.mirror => 'Mirrored repeat',
+  _ => wrap.name,
 };

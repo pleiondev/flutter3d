@@ -2,7 +2,7 @@
 /// editing in this window, reached over a local HTTP socket beside it — the
 /// same conditional-export split `close_beforeunload.dart` and
 /// `project_files.dart` already use, and for the same reason:
-/// `flutter3d_model_mcp` reaches `dart:io`'s `HttpServer`, which has no web
+/// `flutter3d_mcp/model.dart` reaches `dart:io`'s `HttpServer`, which has no web
 /// counterpart to compile against.
 library;
 

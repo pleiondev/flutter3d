@@ -15,9 +15,11 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+// ignore: implementation_imports
+import 'package:flutter3d_cpu/src/cpu_shaders_builtin.dart';
 import 'package:vector_math/vector_math.dart';
 
-final class ExampleStripesShader implements CpuFragmentShader {
+final class ExampleStripesShader extends CpuFragmentShader {
   const ExampleStripesShader();
 
   @override
@@ -30,14 +32,14 @@ final class ExampleStripesShader implements CpuFragmentShader {
     final warm = Vector3(0.90, 0.45, 0.08);
     final cool = Vector3(0.10, 0.30, 0.85);
     final lit = 0.55 + 0.45 * n.y.clamp(0.0, 1.0);
-    final colour = (warm + (cool - warm).scaled(band)).scaled(lit);
-    // `WriteSurface(colour, 1.0)`: fogged, and the surface geometry written
+    final color = (warm + (cool - warm).scaled(band)).scaled(lit);
+    // `WriteSurface(color, 1.0)`: fogged, and the surface geometry written
     // beside it, fully rough.
     return writeLit(
       c,
       v,
       b,
-      colour: colour,
+      color: color,
       alpha: 1.0,
       normal: n,
       roughness: 1.0,

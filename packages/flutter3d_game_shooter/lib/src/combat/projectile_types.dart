@@ -1,3 +1,4 @@
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -41,22 +42,31 @@ final class InFlight {
     },
   };
 
-  /// Reads one rocket back, or nothing if the row cannot be read.
+  /// Reads one rocket back. Throws a [SnapshotFormatException] when the row
+  /// has no blast or no position; the component's codec skips such a row.
   ///
-  /// **This used to throw**, alone in the repository: `row['life']! as num` on
-  /// a save written before the field existed is a `TypeError` out of a restore,
-  /// which is a game that will not load rather than a game that loads without
-  /// one rocket. `Snapshot`'s own rule says the opposite — a missing field
-  /// takes its default — and `SnapshotFields` is now where that rule lives.
-  static InFlight? fromJson(Object? data) {
-    if (data is! Map) return null;
+  /// **A missing field takes its default**, as `Snapshot`'s own rule says
+  /// and `SnapshotFields` keeps: `row['life']! as num` on a save written
+  /// before the field existed was a `TypeError` out of a restore, a game
+  /// that would not load rather than one that loads without one rocket.
+  /// What has no default — where the rocket is, what it does on landing —
+  /// is a typed refusal, and the codec leaves that rocket out.
+  static InFlight fromJson(Object? data) {
+    if (data is! Map) {
+      throw const SnapshotFormatException('a rocket in flight is an object');
+    }
     final row = data.cast<String, Object?>();
-    final blast = row.object('blast');
-    if (blast == null) return null;
+    final blast =
+        row.object('blast') ??
+        (throw const SnapshotFormatException(
+          'a rocket in flight has a "blast"',
+        ));
 
     final at = Vector3.zero();
     final velocity = Vector3.zero();
-    if (!row.vectorInto('at', at)) return null;
+    if (!row.vectorInto('at', at)) {
+      throw const SnapshotFormatException('a rocket in flight has an "at"');
+    }
     row.vectorInto('velocity', velocity);
 
     return InFlight(

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter3d_game/flutter3d_game.dart'; // SettingsOverlay
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
+import 'package:flutter3d_game_ui/hud.dart' show HudBanner, HudTally;
+import 'package:flutter3d_game_ui/screens.dart' show EndingSheet, EndingTally;
 
 import 'credits.dart';
 
@@ -99,12 +101,12 @@ class Hud extends StatelessWidget {
               spacing: 24,
               runSpacing: 8,
               children: <Widget>[
-                _Tally(label: 'coins', value: '$coins'),
-                _Tally(label: 'falls', value: '$deaths'),
-                if (lives >= 0) _Tally(label: 'lives', value: '$lives'),
-                _Tally(label: 'time', value: clock(elapsed)),
+                HudTally(label: 'coins', value: '$coins'),
+                HudTally(label: 'falls', value: '$deaths'),
+                if (lives >= 0) HudTally(label: 'lives', value: '$lives'),
+                HudTally(label: 'time', value: clock(elapsed)),
                 if (keys.isNotEmpty)
-                  _Tally(
+                  HudTally(
                     label: keys.length == 1 ? 'key' : 'keys',
                     // Named rather than counted: a door wants a colour, so a
                     // number here would be the wrong answer to the question the
@@ -136,7 +138,7 @@ class Hud extends StatelessWidget {
               left: 0,
               right: 0,
               bottom: 96,
-              child: Center(child: _Banner(message!)),
+              child: Center(child: HudBanner(message!)),
             ),
           if (state == RunState.finished && finale)
             Ending(
@@ -171,7 +173,7 @@ class Hud extends StatelessWidget {
               ),
             )
           else if (!captured)
-            const Center(child: _Banner('Click to play')),
+            const Center(child: HudBanner('Click to play')),
         ],
       ),
     );
@@ -182,11 +184,11 @@ class Hud extends StatelessWidget {
 ///
 /// **The credits are here because the licence puts them here.** Two of the
 /// models are CC BY 4.0, and a credits screen is where a game discharges that
-/// — see [Credits], which is also read by the settings panel, so a player who
+/// — see `credits`, which is also read by the settings panel, so a player who
 /// never finishes still sees it.
 ///
-/// Full-screen rather than a panel over the level, because the level is behind
-/// it and this is the moment to stop looking at the level.
+/// Laid out by `EndingSheet`, which the crypt and the season end on too; what
+/// is here is this game's sentence and its three numbers.
 class Ending extends StatelessWidget {
   const Ending({
     super.key,
@@ -206,134 +208,26 @@ class Ending extends StatelessWidget {
   final bool touch;
 
   @override
-  Widget build(BuildContext context) {
-    return ColoredBox(
-      color: Colors.black.withValues(alpha: 0.82),
-      child: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(32),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 520),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                const Text(
-                  'You reached the summit.',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 30,
-                    fontWeight: FontWeight.w300,
-                    letterSpacing: 2,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    _Tally(label: 'time', value: clock(elapsed)),
-                    const SizedBox(width: 28),
-                    _Tally(label: 'coins', value: '$coins'),
-                    const SizedBox(width: 28),
-                    _Tally(label: 'falls', value: '$deaths'),
-                  ],
-                ),
-                if (lost >= 1.0) ...<Widget>[
-                  const SizedBox(height: 12),
-                  Text(
-                    'This machine lost ${lost.round()}s the game never ran.',
-                    style: TextStyle(
-                      color: Colors.amber.withValues(alpha: 0.85),
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 26),
-                const CreditsSection(
-                  credits: Credits.models,
-                  heading: 'Art in this game',
-                ),
-                const SizedBox(height: 22),
-                Text(
-                  touch
-                      ? 'Tap to climb it again.'
-                      : 'Press R to climb it again.',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.75),
-                    fontSize: 14,
-                    letterSpacing: 1,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _Tally extends StatelessWidget {
-  const _Tally({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    // Read as one thing — "coins 12" — rather than as two unrelated numbers in
-    // a row of numbers. The HUD is not how a blind player plays this game, and
-    // that is not who this is for: it is for the reader that is already on.
-    return Semantics(
-      label: '$label $value',
-      excludeSemantics: true,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(
-            value,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 30,
-              fontWeight: FontWeight.w600,
-              shadows: <Shadow>[Shadow(blurRadius: 8, color: Colors.black87)],
-            ),
-          ),
-          Text(
-            label,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.7),
-              fontSize: 12,
-              letterSpacing: 2,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Banner extends StatelessWidget {
-  const _Banner(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.55),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
-        child: Text(
-          text,
-          style: const TextStyle(color: Colors.white, fontSize: 18),
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => EndingSheet(
+    title: 'You reached the summit.',
+    backdrop: 0.82,
+    tallies: <EndingTally>[
+      EndingTally('time', clock(elapsed)),
+      EndingTally('coins', '$coins'),
+      EndingTally('falls', '$deaths'),
+    ],
+    valueStyle: const TextStyle(
+      color: Colors.white,
+      fontSize: 30,
+      fontWeight: FontWeight.w600,
+      shadows: <Shadow>[Shadow(blurRadius: 8, color: Colors.black87)],
+    ),
+    aside: lost >= 1.0
+        ? 'This machine lost ${lost.round()}s the game never ran.'
+        : null,
+    credits: credits.models,
+    again: touch ? 'Tap to climb it again.' : 'Press R to climb it again.',
+  );
 }
 
 /// Minutes and seconds, which is how a run is read rather than how it is
@@ -395,11 +289,11 @@ class _Results extends StatelessWidget {
             Row(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                _Tally(label: 'time', value: clock(elapsed)),
+                HudTally(label: 'time', value: clock(elapsed)),
                 const SizedBox(width: 28),
-                _Tally(label: 'coins', value: '$coins'),
+                HudTally(label: 'coins', value: '$coins'),
                 const SizedBox(width: 28),
-                _Tally(label: 'falls', value: '$deaths'),
+                HudTally(label: 'falls', value: '$deaths'),
               ],
             ),
             if (lost >= 1.0) ...<Widget>[

@@ -19,6 +19,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_core/geometry.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -304,7 +305,7 @@ void main() {
     SurfaceMaterial material(String? name, {double roughness = 0.25}) =>
         SurfaceMaterial(
           name: name,
-          baseColor: Vector4(0.25, 0.5, 0.75, 1.0),
+          baseColor: LinearColor.fromSrgb(0.25, 0.5, 0.75, 1.0),
           roughness: roughness,
         );
 
@@ -330,9 +331,9 @@ void main() {
       final reread = await _roundTrip(ObjWriter(document));
 
       // Mutation: dropping the uniquing loop from `_buildMaterialNames` writes
-      // `newmtl Material` twice; the library keeps whichever came last, and the
+      // `newmtl RenderMaterial` twice; the library keeps whichever came last, and the
       // length below failed as `an object with length of <2>` against a single
-      // `SurfaceMaterial(Material, metallic: 0.0, roughness: 0.75)` — the first
+      // `RenderMaterial(RenderMaterial, metallic: 0.0, roughness: 0.75)` — the first
       // material's 0.25 gone and both surfaces pointing at the second.
       expect(reread.materials, hasLength(2));
       final byIndex = reread.surfaces
@@ -340,8 +341,10 @@ void main() {
           .toList();
       expect(byIndex[0].roughness, closeTo(0.25, 1e-3));
       expect(byIndex[1].roughness, closeTo(0.75, 1e-3));
-      expect(byIndex[0].baseColor.r, closeTo(0.25, 1e-5));
-      expect(byIndex[1].baseColor.b, closeTo(0.75, 1e-5));
+      // `Kd` is the sRGB triple the material was authored with; it reads back
+      // linear, so the comparison is made where it was authored.
+      expect(byIndex[0].baseColor.toSrgb().r, closeTo(0.25, 1e-5));
+      expect(byIndex[1].baseColor.toSrgb().b, closeTo(0.75, 1e-5));
     });
 
     test('a surface with no material does not inherit the previous one', () async {

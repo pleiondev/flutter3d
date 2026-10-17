@@ -12,7 +12,7 @@
 /// they pick it rather than at export time.
 library;
 
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart' show RecipeCategory;
 
 import '../../../l10n/app_localizations.dart';
@@ -256,7 +256,7 @@ class _Card extends StatelessWidget {
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      item.licence.name,
+                      item.license.name,
                       style: theme.textTheme.labelSmall,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,

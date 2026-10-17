@@ -2,7 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flame/collisions.dart';
 import 'package:flame/components.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 
 import '../transform/bridged3d.dart';
 import '../transform/object3d_component.dart' show shownInFlame;
@@ -34,7 +34,7 @@ void addHitboxes3d(DebugDraw lines, Component root, {int circleSegments = 24}) {
     final space = owner.space;
     final lift = owner.elevation;
     final at = plane.constant + lift;
-    final colour = hitbox.isColliding ? _colliding : _clear;
+    final color = hitbox.isColliding ? _colliding : _clear;
     void place(Vector2 p, Vector3 out) => space == null
         ? plane.to3dInto(p.x, p.y, out, at: at)
         : space.place(p.x, p.y, lift, out);
@@ -55,10 +55,10 @@ void addHitboxes3d(DebugDraw lines, Component root, {int circleSegments = 24}) {
     for (var i = 0; i < outline.length; i++) {
       place(outline[i], from);
       place(outline[(i + 1) % outline.length], to);
-      lines.addLine(from.clone(), to.clone(), colour);
+      lines.addLine(from.clone(), to.clone(), color);
     }
   }
 }
 
-Vector4 get _clear => Vector4(0.3, 1.0, 0.4, 1.0);
-Vector4 get _colliding => Vector4(1.0, 0.3, 0.25, 1.0);
+final LinearColor _clear = LinearColor.fromSrgb(0.3, 1.0, 0.4);
+final LinearColor _colliding = LinearColor.fromSrgb(1.0, 0.3, 0.25);

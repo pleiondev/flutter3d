@@ -13,7 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 InstancedMeshNode _batch() => InstancedMeshNode(
   CpuMesh(CuboidShape(size: Vector3.all(1.0)).build()),
-  Material(),
+  RenderMaterial(),
   capacity: 4,
 );
 
@@ -148,19 +148,19 @@ void main() {
       await game.addAll(<Component>[a, b]);
       await game.ready();
 
-      a.tint.setValues(1.0, 0.2, 0.2, 1.0);
+      a.tint = const LinearColor(1.0, 0.2, 0.2);
       b.add(OpacityEffect.to(0.5, EffectController(duration: 0.1)));
       game.update(0.2);
 
-      Vector4 colourOf(InstancedObject3dComponent c) {
+      Vector4 colorOf(InstancedObject3dComponent c) {
         final at = c.slot!.index * InstancedMeshNode.floatsPerInstance + 12;
         final d = batch.instanceData;
         return Vector4(d[at], d[at + 1], d[at + 2], d[at + 3]);
       }
 
-      expect(colourOf(a), Vector4(1.0, 0.2, 0.2, 1.0));
-      expect(colourOf(b).w, closeTo(0.5, 1e-6));
-      expect(colourOf(b).x, 1.0, reason: 'only faded, not tinted');
+      expect(colorOf(a), Vector4(1.0, 0.2, 0.2, 1.0));
+      expect(colorOf(b).w, closeTo(0.5, 1e-6));
+      expect(colorOf(b).x, 1.0, reason: 'only faded, not tinted');
     },
   );
 }

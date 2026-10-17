@@ -106,6 +106,11 @@ String _fnv1a64(String value) {
 }
 
 /// What opening a project should do when a newer autosave exists for it.
+///
+/// **Closed for good**: open the saved file or offer the autosave: the two
+/// answers to whether the autosave is newer. No member can be added without
+/// changing what the type means, so it stays an enum and a `switch` over it may
+/// name every case.
 enum RecoveryDecision {
   /// Nothing to offer: there is no autosave, or the file on disk is at least
   /// as new. Open the file as normal, without asking.

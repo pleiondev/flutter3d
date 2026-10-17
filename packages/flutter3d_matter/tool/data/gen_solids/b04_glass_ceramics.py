@@ -1,0 +1,141 @@
+from core import P, NUL, E, law, table
+from b01_pure_metals import TH, CP, mrgb
+
+R = 'recalled'
+XS = [100, 200, 300, 400, 600, 800, 1000]
+
+
+def nm(k, cp, xs=XS, note=None):
+    out = [table(TH, 'INC_NM', xs, k), table(CP, 'INC_NM', xs, cp)]
+    if note:
+        for o in out:
+            o['note'] = note
+    return out
+
+
+ENTRIES = [
+    E('glass', 'glass (soda-lime)', 'solid', 'Soda-lime silica plate glass: a window.', catalogId='f3d.glass',
+      ext={'CAS': '65997-17-3 (glass, oxide)', 'IFC4.Category': 'glass', 'MaterialX': 'standard_surface_glass',
+           'physicallybased.info': 'Glass'},
+      mech={'density': P(2500.0, 'EXISTING', note='Incropera table A.3 plate glass (f3d.glass); ASHRAE architectural glass 2530'),
+            'youngsModulus': P(7.2e10, 'EXISTING', note='Shelby (2005), as f3d.glass; Cremer & Heckl glass 60 GPa'),
+            'poissonRatio': P(0.22, 'EXISTING', note='Shelby (2005)'),
+            'staticFriction': P(0.95, 'ETB_FR', conf='estimate', rng=[0.9, 1.0], note='clean and dry, midpoint; f3d.glass has 0.94 (Serway)'),
+            'kineticFriction': P(0.4, 'ETB_FR', note='as f3d.glass')},
+      therm={'specificHeat': P(750.0, 'EXISTING', note='Incropera A.3 plate glass; ASHRAE architectural glass 840'),
+             'conductivity': P(1.4, 'EXISTING', note='Incropera A.3 plate glass; ASHRAE architectural glass 1.0'),
+             'linearExpansion': P(9.0e-6, 'ETB_CTE', note='glass, plate'),
+             'emissivity': P(0.92, 'EMI', conf='estimate', rng=[0.90, 0.95], note='window glass, 300 K')},
+      acou={'rodWaveSpeed': P(4900.0, 'CH', note='longitudinal wavespeed of the building-materials table, sqrt(E/rho) with E = 60 GPa'),
+            'speedOfSound': NUL('bulk longitudinal speed of soda-lime glass not read; light borate crown 5100'),
+            'absorption': P([0.35, 0.25, 0.18, 0.12, 0.07, 0.04], 'EXISTING', note='ordinary window (Everest & Pohlmann) as f3d.glass; akustik.ua 4 mm glass 0.30 0.20 0.10 0.07 0.05 0.02, 6 mm glass 0.10 0.06 0.04 0.03 0.02 0.02')},
+      opt={'refractiveIndex': P(1.52, 'PBI', note='as f3d.glass (Shelby)')},
+      elec={'resistivity': P(1e13, 'WIKI_RES', conf='estimate', rng=[1e11, 1e15], note='glass, 1e11-1e15; geometric middle')},
+      inel={'damping': {'lossFactor': P(1.3e-3, 'CH', conf='estimate', rng=[6e-4, 2e-3], note='glass 0.6-2e-3; midpoint'),
+                        }}),
+
+    E('borosilicateGlass', 'borosilicate glass', 'solid', 'Borosilicate glass: Pyrex 7740 / BOROFLOAT 33 class.',
+      ext={'CAS': '65997-17-3 (glass, oxide)', 'IFC4.Category': 'glass'},
+      mech={'density': P(2225.0, 'MISC', note='Pyrex; BOROFLOAT 33 datasheet 2230'),
+            'youngsModulus': P(6.4e10, 'BORO33', ver=R), 'poissonRatio': P(0.20, 'BORO33', ver=R),
+            'staticFriction': P(0.95, 'ETB_FR', conf='estimate', rng=[0.9, 1.0], note='glass on glass, any silicate glass'),
+            'kineticFriction': P(0.4, 'ETB_FR', note='glass on glass')},
+      therm={'specificHeat': P(835.0, 'MISC', note='Pyrex'),
+             'conductivity': P(1.2, 'MISC', conf='estimate', rng=[1.0, 1.4], note='Pyrex 1-1.4; BOROFLOAT 33 datasheet 1.2'),
+             'linearExpansion': P(3.25e-6, 'BORO33', ver=R, note='20-300 C; Engineering ToolBox "Pyrex" 4.0e-6'),
+             'emissivity': P(0.82, 'EMI', note='Pyrex at 300 K; falls to 0.62 at 1200 K; Engineering ToolBox 0.85-0.95')},
+      acou={'speedOfSound': P(5640.0, 'ETB_SND', note='pyrex'), 'shearWaveSpeed': P(3280.0, 'ETB_SND'),
+            'rodWaveSpeed': P(5140.0, 'ETB_SND')},
+      opt={'refractiveIndex': P(1.4714, 'BORO33', ver=R, note='BOROFLOAT 33 n_d; Pyrex 7740 1.474')},
+      laws=[table('thermal.emissivity', 'EMI', [300, 1200], [0.82, 0.62], conf='estimate', note='Pyrex, ends of the tabulated range')]),
+
+    E('fusedSilica', 'fused silica', 'solid', 'Fused silica / fused quartz, amorphous SiO2.',
+      ext={'CAS': '60676-86-0'},
+      mech={'density': P(2220.0, 'INC_NM'), 'youngsModulus': P(7.3e10, 'CALL', ver=R), 'poissonRatio': P(0.17, 'HERAEUS', ver=R)},
+      therm={'specificHeat': P(745.0, 'INC_NM'), 'conductivity': P(1.38, 'INC_NM'), 'meltingPoint': P(1883.0, 'INC_NM', note='softening; no sharp melt'),
+             'linearExpansion': P(0.55e-6, 'ETB_CTE', note='quartz, fused'),
+             'emissivity': P(0.93, 'EMI', note='quartz, rough, fused, 300 K')},
+      acou={'speedOfSound': P(5968.0, 'ETB_SND'), 'shearWaveSpeed': P(3764.0, 'ETB_SND'), 'rodWaveSpeed': P(5760.0, 'ETB_SND')},
+      opt={'refractiveIndex': P(1.4585, 'HERAEUS', ver=R), 'abbeNumber': P(67.8, 'HERAEUS', ver=R)},
+      elec={'resistivity': P(7.5e17, 'WIKI_RES', note='fused quartz')},
+      laws=nm([0.69, 1.14, 1.38, 1.51, 1.75, 2.17, 2.87], [None, None, 745, 905, 1040, 1105, 1155])),
+
+    E('crownGlassBK7', 'borosilicate crown glass N-BK7', 'solid', 'SCHOTT N-BK7 optical crown glass.',
+      ext={'SCHOTT': 'N-BK7 517642.251'},
+      mech={'density': P(2510.0, 'SCHOTT', ver=R), 'youngsModulus': P(8.2e10, 'SCHOTT', ver=R),
+            'poissonRatio': P(0.206, 'SCHOTT', ver=R),
+            'staticFriction': P(0.95, 'ETB_FR', conf='estimate', rng=[0.9, 1.0], note='glass on glass'),
+            'kineticFriction': P(0.4, 'ETB_FR', note='glass on glass')},
+      therm={'specificHeat': P(858.0, 'SCHOTT', ver=R), 'conductivity': P(1.114, 'SCHOTT', ver=R),
+             'linearExpansion': P(7.1e-6, 'SCHOTT', ver=R, note='-30..+70 C')},
+      acou={'speedOfSound': P(5100.0, 'ETB_SND', conf='estimate', note='light borate crown, a related glass'),
+            'shearWaveSpeed': P(2840.0, 'ETB_SND', conf='estimate'), 'rodWaveSpeed': P(4540.0, 'ETB_SND', conf='estimate')},
+      opt={'refractiveIndex': P(1.5168, 'SCHOTT', ver=R), 'abbeNumber': P(64.17, 'SCHOTT', ver=R)}),
+
+    E('flintGlassF2', 'flint glass F2', 'solid', 'SCHOTT F2 lead flint optical glass.',
+      ext={'SCHOTT': 'F2 620364.360'},
+      mech={'density': P(3600.0, 'SCHOTT', ver=R), 'youngsModulus': P(5.7e10, 'SCHOTT', ver=R),
+            'poissonRatio': P(0.220, 'SCHOTT', ver=R),
+            'staticFriction': P(0.95, 'ETB_FR', conf='estimate', rng=[0.9, 1.0], note='glass on glass'),
+            'kineticFriction': P(0.4, 'ETB_FR', note='glass on glass')},
+      therm={'specificHeat': P(557.0, 'SCHOTT', ver=R), 'conductivity': P(0.780, 'SCHOTT', ver=R),
+             'linearExpansion': P(8.2e-6, 'SCHOTT', ver=R, note='-30..+70 C')},
+      acou={'speedOfSound': P(3980.0, 'ETB_SND', conf='estimate', note='heavy silicate flint, a denser related glass'),
+            'shearWaveSpeed': P(2380.0, 'ETB_SND', conf='estimate'), 'rodWaveSpeed': P(3720.0, 'ETB_SND', conf='estimate')},
+      opt={'refractiveIndex': P(1.62004, 'SCHOTT', ver=R), 'abbeNumber': P(36.37, 'SCHOTT', ver=R)},
+      notes=['lead crystal tableware is close to this glass (n 1.55-1.62, density 2900-3600); no separate entry']),
+
+    E('alumina', 'alumina (polycrystalline Al2O3)', 'solid', 'Dense polycrystalline aluminium oxide ceramic.',
+      ext={'CAS': '1344-28-1'},
+      mech={'density': P(3970.0, 'INC_NM', note='99.9 %; 96 % grade 3720 (Callister)'),
+            'youngsModulus': P(3.80e11, 'CALL', ver=R, note='99.9 %; 96 % 303 GPa'), 'poissonRatio': P(0.22, 'CALL', ver=R)},
+      therm={'specificHeat': P(765.0, 'INC_NM'), 'conductivity': P(36.0, 'INC_NM'), 'meltingPoint': P(2323.0, 'INC_NM'),
+             'linearExpansion': P(8.1e-6, 'ETB_CTE'),
+             'emissivity': NUL('at 300 K not read; 0.65 at 800 K falling to 0.45 at 1400 K (law)')},
+      laws=nm([133, 55, 36.0, 26.4, 15.8, 10.4, 7.85], [None, None, 765, 940, 1110, 1180, 1225]) +
+           [table('thermal.emissivity', 'EMI', [800, 1400], [0.65, 0.45], conf='estimate', note='alumina, ends of the tabulated range')]),
+
+    E('sapphire', 'sapphire (single-crystal Al2O3)', 'solid', 'Single-crystal aluminium oxide.',
+      ext={'CAS': '1344-28-1', 'physicallybased.info': 'Sapphire'},
+      mech={'density': P(3970.0, 'INC_NM', note='physicallybased.info 3980'),
+            'youngsModulus': P(4.35e11, 'ETB_E', note='anisotropic; the c-axis value is higher'),
+            'poissonRatio': NUL('anisotropic; not read'),
+            'staticFriction': P(0.2, 'ETB_FR', note='clean and dry; greased 0.2'),
+            'kineticFriction': NUL('not in the table read')},
+      therm={'specificHeat': P(765.0, 'INC_NM'), 'conductivity': P(46.0, 'INC_NM'), 'meltingPoint': P(2323.0, 'INC_NM'),
+             'linearExpansion': P(5.3e-6, 'ETB_CTE')},
+      opt={'refractiveIndex': P(1.7682, 'PBI', note='ordinary ray; extraordinary about 1.760'),
+           'abbeNumber': P(72.2, 'RII', ver=R)},
+      laws=nm([450, 82, 46, 32.4, 18.9, 13.0, 10.5], [None, None, 765, 940, 1110, 1180, 1225])),
+
+    E('porcelain', 'porcelain', 'solid', 'Vitrified porcelain (tableware, insulators, sanitary ware).',
+      ext={'physicallybased.info': 'Porcelain'},
+      mech={'density': P(2300.0, 'MISC', note='physicallybased.info 2400')},
+      therm={'conductivity': P(1.5, 'MISC'), 'linearExpansion': P(4.0e-6, 'ETB_CTE', note='porcelain, industrial'),
+             'emissivity': P(0.92, 'EMI', note='glazed, 300 K')},
+      acou={'absorption': P([0.01, 0.01, 0.01, 0.02, 0.02, 0.02], 'AKU', note='ceramic tiles with smooth surface')},
+      opt={'refractiveIndex': P(1.5, 'PBI', conf='estimate', note='the database default 1.5 for porcelain; glaze about 1.5')}),
+
+    E('siliconCarbide', 'silicon carbide', 'solid', 'Silicon carbide ceramic.',
+      ext={'CAS': '409-21-2'},
+      mech={'density': P(3160.0, 'INC_NM', note='Callister: hot pressed 3300, sintered 3200'),
+            'youngsModulus': P(4.5e11, 'ETB_E', note='Callister 207-483 GPa by process'),
+            'poissonRatio': P(0.19, 'CALL', ver=R)},
+      therm={'specificHeat': P(675.0, 'INC_NM'),
+             'conductivity': P(490.0, 'INC_NM', note='Incropera\'s 490 is a high-purity, near single-crystal value; sintered ceramic 80-150'),
+             'meltingPoint': P(3100.0, 'INC_NM', note='decomposes'), 'linearExpansion': P(2.77e-6, 'ETB_CTE'),
+             'emissivity': P(0.87, 'EMI', note='600 K; 0.85 at 1500 K')},
+      laws=[table(CP, 'INC_NM', [300, 400, 600, 800, 1000], [675, 880, 1050, 1135, 1195])]),
+
+    E('diamond', 'diamond', 'solid', 'Natural diamond, type IIa (insulating).',
+      ext={'CAS': '7782-40-3', 'physicallybased.info': 'Diamond'},
+      mech={'density': P(3500.0, 'INC_NM', note='3510-3520 by other tables'), 'youngsModulus': P(1.22e12, 'ETB_E'),
+            'poissonRatio': NUL('not read'),
+            'staticFriction': P(0.1, 'ETB_FR', note='clean and dry; greased 0.05-0.1'),
+            'kineticFriction': NUL('not in the table read')},
+      therm={'specificHeat': P(509.0, 'INC_NM'), 'conductivity': P(2300.0, 'INC_NM')},
+      acou={'speedOfSound': P(18000.0, 'OLY', note='Engineering ToolBox gives 12000 (unlabelled column)')},
+      opt={'refractiveIndex': P(2.4168, 'PBI')},
+      elec={'resistivity': P(1e12, 'WIKI_RES')},
+      laws=nm([10000, 4000, 2300, 1540], [21, 194, 509, 853], xs=[100, 200, 300, 400])),
+]

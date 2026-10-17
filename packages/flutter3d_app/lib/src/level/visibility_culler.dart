@@ -3,7 +3,18 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
 /// One batch of level geometry and the box it fills.
-typedef VisibilityBatch = ({MeshNode node, Aabb3 bounds});
+///
+/// A class rather than a record, so a batch can later say more (the cell it
+/// belongs to) without breaking a caller.
+final class VisibilityBatch {
+  const VisibilityBatch({required this.node, required this.bounds});
+
+  /// The node to show or hide.
+  final MeshNode node;
+
+  /// The box it fills, in world space.
+  final Aabb3 bounds;
+}
 
 /// Hides the level's batches a camera cannot see, once a frame.
 ///
@@ -41,7 +52,7 @@ final class VisibilityCuller {
     for (var i = 0; i < batches.length; i++) {
       final batch = batches[i];
       final show = visibility.canSeeFrom(eye, batch.bounds);
-      batch.node.visible = show;
+      batch.node.isVisible = show;
       if (!show) hidden++;
     }
     return _hidden = hidden;
@@ -50,7 +61,7 @@ final class VisibilityCuller {
   /// Shows every batch again, for a camera that is no longer the player's.
   void showAll() {
     for (final batch in batches) {
-      batch.node.visible = true;
+      batch.node.isVisible = true;
     }
     _hidden = 0;
     _cell = -1;

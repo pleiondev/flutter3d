@@ -58,7 +58,7 @@ final class ShaderWatch {
 
   /// Called with what the device said when it refused the new bytes — or,
   /// with the same shape, that the bytes could not be read at all.
-  final void Function(ShaderBundleRefused refused) onRefused;
+  final void Function(ShaderBundleException refused) onRefused;
 
   /// How often to look.
   final Duration every;
@@ -102,7 +102,7 @@ final class ShaderWatch {
         // be an error out of `Timer.periodic` with nothing to catch it.
         _seen = now;
         onRefused(
-          ShaderBundleRefused(
+          ShaderBundleException(
             name: library.name,
             reason: 'the file could not be read: ${error.message}',
           ),
@@ -113,7 +113,7 @@ final class ShaderWatch {
       _seen = now;
       try {
         library.refresh(bytes);
-      } on ShaderBundleRefused catch (refused) {
+      } on ShaderBundleException catch (refused) {
         onRefused(refused);
         return false;
       }

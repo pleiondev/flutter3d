@@ -1,0 +1,43 @@
+{
+  "about": "How verification.json is applied where its records leave a choice (decided 2026-10-11). Each value here is the research's own number or a number its note gives, with the record's citation.",
+  "alongTheGrain": {
+    "f3d.oak": {"value": 12.5e9, "conditions": "northern red oak, 12 % MC, along the grain, E_L (table 5-3a)"},
+    "f3d.pine": {"value": 12.3e9, "conditions": "loblolly pine, 12 % MC, along the grain, E_L (table 5-3a)"},
+    "f3d.wood": {"value": 13.4e9, "conditions": "coast Douglas-fir, 12 % MC, along the grain, E_L (table 5-3a)"}
+  },
+  "atTheReferenceState": {
+    "f3d.water fluid.bulkModulus": "the adiabatic modulus the schema names, K_s = rho c^2, rather than the isothermal 2.18e9",
+    "f3d.ethanol thermal.specificHeat": "the value at 20 °C, the entry's reference temperature, rather than 2440 at 25 °C"
+  },
+  "spreads": {
+    "f3d.basaltMelt fluid.viscosity": [37.0, 91.0],
+    "f3d.steel thermal.emissivity": [0.08, 0.9],
+    "f3d.ice mechanical.kineticFriction": [0.02, 0.09],
+    "f3d.oak thermal.specificHeat": [1200.0, 1800.0],
+    "f3d.pine thermal.specificHeat": [1200.0, 1800.0],
+    "f3d.pine mechanical.density": [571.0, 661.0],
+    "f3d.paper thermal.conductivity": [0.039, 0.18],
+    "f3d.cardboard mechanical.youngsModulus": [2.2e9, 6.8e9],
+    "f3d.cardboard thermal.radiantFraction": [0.2, 0.28],
+    "f3d.charcoal thermal.ignitionTemperature": [546.0, 697.0],
+    "f3d.charcoal thermal.heatOfCombustion": [26.76e6, 33.5e6],
+    "f3d.rubber thermal.conductivity": [0.13, 0.16],
+    "f3d.rubber thermal.emissivity": [0.86, 0.93],
+    "f3d.rubber thermal.heatOfCombustion": [35.75e6, 38.0e6],
+    "f3d.polyethylene mechanical.yieldStrength": [23.0e6, 30.0e6],
+    "f3d.polyethylene thermal.conductivity": [0.26, 0.4],
+    "f3d.castIron mechanical.youngsModulus": [78.0e9, 143.0e9],
+    "f3d.castIron mechanical.tensileStrength": [150.0e6, 450.0e6],
+    "f3d.castIron thermal.conductivity": [45.5, 52.5],
+    "f3d.steel4340 mechanical.yieldStrength": [470.0e6, 1165.0e6],
+    "f3d.steel4340 mechanical.tensileStrength": [745.0e6, 1255.0e6],
+    "f3d.snowFresh mechanical.density": [50.0, 200.0],
+    "f3d.polyethyleneLD mechanical.yieldStrength": [8.0e6, 11.0e6],
+    "f3d.carbonFiberComposite mechanical.youngsModulus": [10.0e9, 141.0e9],
+    "f3d.fiberglassComposite mechanical.youngsModulus": [17.0e9, 44.6e9]
+  },
+  "restitution": {
+    "referenceSpeed": 1.0,
+    "estimateWhenNoteSays": "LOW RELIABILITY"
+  }
+}

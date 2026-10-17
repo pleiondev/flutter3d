@@ -59,7 +59,7 @@ void main() {
 
   group('zooming', () {
     test('is bounded at both ends', () {
-      const tuning = MapCameraTuning(minDistance: 10.0, maxDistance: 50.0);
+      const tuning = MapCameraSettings(minDistance: 10.0, maxDistance: 50.0);
       final camera = MapCamera(ground: _ground(), tuning: tuning);
 
       camera.zoom(1000.0);

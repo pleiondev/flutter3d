@@ -8,7 +8,7 @@ import 'package:flutter3d_core/src/engine/assets/gltf_resolvers.dart';
 import 'package:flutter3d_samples/flutter3d_samples.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-const String kSamples = kSamplesPath;
+const String kSamples = samplesPath;
 
 Uint8List readSample(String name) => File('$kSamples/$name').readAsBytesSync();
 

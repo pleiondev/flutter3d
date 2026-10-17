@@ -14,7 +14,6 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _size = 64;
 
@@ -36,17 +35,26 @@ Future<List<int>> _frame({
     ..add(
       MeshNode(
         DeviceMesh.upload(device, CuboidShape(size: Vector3(8, 8, 1)).build()),
-        Material(name: 'floor', baseColor: Vector4(0.7, 0.7, 0.7, 1.0)),
+        RenderMaterial(
+          name: 'floor',
+          baseColor: LinearColor.fromSrgb(0.7, 0.7, 0.7, 1.0),
+        ),
       )..setPosition(0.0, 0.0, -3.0),
     )
     ..add(
       MeshNode(
         DeviceMesh.upload(device, CuboidShape(size: Vector3(1, 3, 1)).build()),
-        Material(name: 'blocker', baseColor: Vector4(0.2, 0.2, 0.2, 1.0)),
+        RenderMaterial(
+          name: 'blocker',
+          baseColor: LinearColor.fromSrgb(0.2, 0.2, 0.2, 1.0),
+        ),
       )..setPosition(-0.6, 0.0, 0.0),
     )
     ..add(
-      LightNode(intensity: 8.0, castsShadow: shadows)
+      LightNode(
+          intensity: 8.0 * LightNode.defaultIntensity,
+          castsShadow: shadows,
+        )
         ..setPosition(3.0, 3.0, 3.0)
         ..lookAt(Vector3.zero()),
     )
@@ -56,7 +64,7 @@ Future<List<int>> _frame({
     width: _size,
     height: _size,
     scene: scene,
-    views: <RenderView>[RenderView(camera: scene.cameras.single)],
+    views: <CameraView>[CameraView(camera: scene.cameras.single)],
     settings: RenderSettings(
       shadows: ShadowSettings(enabled: shadows),
       lightShafts: LightShaftSettings(
@@ -68,8 +76,8 @@ Future<List<int>> _frame({
     ),
   );
 
-  final bytes = await device.readPixels(frame.frame);
-  return <int>[for (var i = 0; i < _size * _size; i++) bytes!.getUint8(i * 4)];
+  final bytes = await device.readback(frame.frame);
+  return <int>[for (var i = 0; i < _size * _size; i++) bytes.getUint8(i * 4)];
 }
 
 void main() {

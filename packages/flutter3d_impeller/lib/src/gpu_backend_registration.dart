@@ -1,35 +1,34 @@
-/// Registers this backend with `flutter3d_hardware`'s device registry, so an
-/// assembly layer can open and present it without naming it.
-///
-/// **Idempotent and called from [ensureGpuBackendRegistered], not run at
-/// library load.** Dart only runs a top-level initializer when something
-/// reads it, so registering *this* backend still needs one line at the call
-/// site that wants it available — the difference from naming the backend
-/// directly is that the line says "make sure Impeller can be chosen" rather
-/// than "here is how Impeller opens and here is its widget", which stays
-/// exactly here.
+/// Impeller as a backend an engine can open.
 library;
 
 import 'package:flutter/widgets.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:flutter3d_shaders/backend.dart' show MaterialCompilerRegistry;
 
 import 'gpu_device.dart';
+import 'impeller_section_compiler.dart';
 
-bool _registered = false;
-
-/// Registers [GpuRenderBackend] as an opener and a frame presenter, once.
+/// Adds Impeller to [registry] — preferred over anything added before it —
+/// with the presenter that shows its frames. The registration takes both
+/// out again. Since 1.0 it is added to the engine's own registry rather than
+/// to a global one (it was `ensureGpuBackendRegistered`).
 ///
-/// Not a fallback: Impeller is the backend a native build prefers, and
-/// whatever calls this registers the software rasteriser as the fallback
-/// separately.
-void ensureGpuBackendRegistered() {
-  if (_registered) return;
-  _registered = true;
-  registerBackendOpener(
+/// Given [compilers] (D26), the registry `RuntimeShaders` and a build find a
+/// backend's material compiler in, the [ImpellerSectionCompiler] is
+/// registered there as well — which is how a data plugin's material on this
+/// backend is refused by name rather than tried — and taken out with the
+/// rest.
+Registration registerGpuBackend(
+  DeviceRegistry registry, {
+  MaterialCompilerRegistry? compilers,
+}) {
+  final opener = registry.addBackend(
     'Impeller',
-    ({required int width, required int height}) => GpuRenderBackend.create(),
+    (DeviceRequest request) =>
+        GpuRenderBackend.open(width: request.width, height: request.height),
   );
-  registerDevicePresenter<GpuRenderBackend>(
+  final presenter = registry.addPresenter<GpuRenderBackend>(
     (
       GraphicsDevice device,
       TextureHandle frame, {
@@ -37,4 +36,10 @@ void ensureGpuBackendRegistered() {
       FilterQuality quality = FilterQuality.none,
     }) => GpuFrameImage(frame: frame, fit: fit, quality: quality),
   );
+  final compiler = compilers?.register(const ImpellerSectionCompiler());
+  return Registration(() {
+    compiler?.cancel();
+    opener.cancel();
+    presenter.cancel();
+  });
 }

@@ -16,7 +16,7 @@ import 'webgpu_device.dart';
 /// Copies [frame] into [device]'s canvas and shows it, styled by [fit] and
 /// [quality] through CSS on the element rather than through Flutter, since
 /// Flutter does not composite these pixels.
-class WebGpuFramePresenter extends StatelessWidget {
+final class WebGpuFramePresenter extends StatelessWidget {
   const WebGpuFramePresenter({
     super.key,
     required this.device,

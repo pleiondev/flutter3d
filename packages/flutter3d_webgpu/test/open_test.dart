@@ -1,4 +1,4 @@
-/// `openWebGpu` against the engine's own stages, in a browser with a GPU.
+/// `WebGpuDevice.open` against the engine's own stages, in a browser with a GPU.
 ///
 ///     flutter test --platform chrome test/open_test.dart
 ///
@@ -18,10 +18,14 @@
 @TestOn('browser')
 library;
 
+import 'dart:js_interop';
+
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_webgpu/engine_shaders.dart';
-import 'package:flutter3d_webgpu/flutter3d_webgpu.dart';
-import 'package:flutter3d_webgpu/flutter3d_webgpu_web.dart';
+import 'package:flutter3d_webgpu/src/webgpu_device.dart';
+import 'package:flutter3d_webgpu/src/webgpu_interop.dart';
+import 'package:flutter3d_webgpu/src/webgpu_layout_limits.dart';
+import 'package:flutter3d_webgpu/src/webgpu_shaders.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Pairs the renderer builds, one per kind of thing this engine draws: a lit
@@ -39,6 +43,7 @@ const List<(String, String)> _pairs = <(String, String)>[
   ('FullscreenVertex', 'Ssao'),
   ('SkyVertex', 'Sky'),
   ('SkyCubeVertex', 'SkyCube'),
+  ('SkyPhysicalVertex', 'SkyPhysical'),
   ('ParticleVertex', 'ParticleTextured'),
   ('DebugLineVertex', 'DebugLine'),
 ];
@@ -47,8 +52,8 @@ void main() {
   test('opens with the engine\'s stages, and none of them is refused', () async {
     final GraphicsDevice device;
     try {
-      device = await openWebGpu(width: 64, height: 64);
-    } on StateError {
+      device = await WebGpuDevice.open(width: 64, height: 64);
+    } on DeviceUnavailableException {
       markTestSkipped('no WebGPU in this browser');
       return;
     }
@@ -59,9 +64,10 @@ void main() {
     // projections need no correction here, and there is no wireframe.
     expect(device.framebufferOrigin, FramebufferOrigin.topLeft);
     expect(device.depthRange, DepthRange.zeroToOne);
-    expect(device.supportsWireframe, isFalse);
-    expect(device.supportsBlendColor, isFalse);
-    expect(device.supportsCubeTextures, isTrue);
+    expect(device.features.has(DeviceFeature.wireframe), isFalse);
+    expect(device.features.has(DeviceFeature.blendConstant), isTrue);
+    expect(device.features.has(DeviceFeature.blendConstantAlpha), isFalse);
+    expect(device.features.has(DeviceFeature.cubeTextures), isTrue);
 
     for (final (String vertex, String fragment) in _pairs) {
       expect(
@@ -81,8 +87,8 @@ void main() {
     // — and the question this test exists to ask is what the browser makes of
     // all thirty-nine.
     for (final name in <String>[
-      ...engineShaders.vertex.keys,
-      ...engineShaders.fragment.keys,
+      ...webGpuEngineShaders.vertex.keys,
+      ...webGpuEngineShaders.fragment.keys,
     ]) {
       expect(
         device.shaders[name],
@@ -113,7 +119,7 @@ void main() {
     // module compiles whether or not the code was valid, and the failure
     // otherwise arrives at the first pipeline as "invalid due to a previous
     // error", naming no line. Any stage that reacquires the fault fails here.
-    final said = await webgpu.debugDrainErrors('compiling the engine');
+    final said = await webgpu.debugDrainErrors(where: 'compiling the engine');
     expect(
       said,
       isNull,
@@ -125,17 +131,21 @@ void main() {
   test('builds a pipeline for every pair the renderer asks for', () async {
     final GraphicsDevice device;
     try {
-      device = await openWebGpu(width: 64, height: 64);
-    } on StateError {
+      device = await WebGpuDevice.open(width: 64, height: 64);
+    } on DeviceUnavailableException {
       markTestSkipped('no WebGPU in this browser');
       return;
     }
     final webgpu = device as WebGpuDevice;
-    final colour = device.createTexture(
-      RenderTargetSpec(width: 8, height: 8, format: device.hdrColorFormat),
+    final color = device.createTexture(
+      RenderTargetDescriptor(
+        width: 8,
+        height: 8,
+        format: device.hdrColorFormat,
+      ),
     );
     final depth = device.createTexture(
-      RenderTargetSpec(
+      RenderTargetDescriptor(
         width: 8,
         height: 8,
         format: device.defaultDepthStencilFormat,
@@ -150,7 +160,9 @@ void main() {
       expect(device.shaders[vertex], isNotNull);
       expect(device.shaders[fragment], isNotNull);
     }
-    await webgpu.debugDrainErrors('targets and the stages drawn with them');
+    await webgpu.debugDrainErrors(
+      where: 'targets and the stages drawn with them',
+    );
 
     for (final (String vertex, String fragment) in _pairs) {
       final pipeline = device.createPipeline(
@@ -159,7 +171,7 @@ void main() {
       );
       final pass = device.beginRenderPass(
         RenderPassDescriptor(
-          colors: <ColorTarget>[ColorTarget(texture: colour)],
+          colors: <ColorTarget>[ColorTarget(texture: color)],
           depth: DepthTarget(texture: depth),
         ),
       )..bindPipeline(pipeline);
@@ -171,9 +183,18 @@ void main() {
       // exactly that — the procedural sky takes its parameters through no
       // uniform block — so what is asserted is that the browser accepted the
       // layouts, not that there were any.
-      webgpu.bindingsFor(pipeline.backend as WebGpuPipeline);
+      final backend = pipeline.backend as WebGpuPipeline;
       expect(
-        await webgpu.debugDrainErrors('$vertex+$fragment'),
+        webgpu.bindingsFor(backend),
+        isNotNull,
+        reason: '$vertex+$fragment is within the limits the device was given',
+      );
+      expect(await webgpu.debugDrainErrors(where: '$vertex+$fragment'), isNull);
+      // The browser's verdict on the layouts goes to the pair's refusal
+      // rather than the ledger, so it is asked for there, once the drain
+      // above has waited for it.
+      expect(
+        webgpu.layoutRefusalOf(backend),
         isNull,
         reason:
             'the bind group layouts come out of the bundle\'s reflection '
@@ -182,5 +203,49 @@ void main() {
       );
     }
     webgpu.dispose();
+  });
+
+  // M3. Mutation: open without `requiredLimits`, and a device on an adapter
+  // with more than WebGPU's minimum keeps 16 textures a stage.
+  test('asks the adapter for what one stage may bind', () async {
+    final GraphicsDevice device;
+    try {
+      device = await WebGpuDevice.open(width: 8, height: 8);
+    } on DeviceUnavailableException {
+      markTestSkipped('no WebGPU in this browser');
+      return;
+    }
+    // The adapter `open` asks for, asked again.
+    final adapter = await gpuNavigator.gpu!
+        .requestAdapter(
+          GPURequestAdapterOptions(powerPreference: 'high-performance'),
+        )
+        .toDart;
+    final limits = webgpuRequiredLimits(adapter!.limits);
+    expect(
+      device.limits.maxSampledTexturesPerShaderStage,
+      limits['maxSampledTexturesPerShaderStage'],
+    );
+    expect(
+      device.limits.maxSamplersPerShaderStage,
+      limits['maxSamplersPerShaderStage'],
+    );
+    expect(
+      device.limits.maxUniformBuffersPerShaderStage,
+      limits['maxUniformBuffersPerShaderStage'],
+    );
+    // Every limit asked for is the adapter's own on the device granted —
+    // the dynamic uniform blocks of one layout among them, which a device
+    // asked for none of kept at 8 where an M3's adapter had 10, and refused
+    // a pair of 9.
+    final granted = (device as WebGpuDevice).gpuDevice.limits;
+    for (final name in webgpuRequestedLimits) {
+      expect(granted.named(name), adapter.limits.named(name), reason: name);
+    }
+    expect(
+      granted.maxDynamicUniformBuffersPerPipelineLayout,
+      adapter.limits.maxDynamicUniformBuffersPerPipelineLayout,
+    );
+    device.dispose();
   });
 }

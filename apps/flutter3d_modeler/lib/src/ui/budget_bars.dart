@@ -11,7 +11,7 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Key;
+import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
 import '../../../l10n/app_localizations.dart';
 import 'status_line.dart' show grouped;
@@ -94,10 +94,10 @@ class _BudgetRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final ModelerColors colours = theme.extension<ModelerColors>()!;
-    final Color fill = usage.over
+    final ModelerColors colors = theme.extension<ModelerColors>()!;
+    final Color fill = usage.isOver
         ? theme.colorScheme.tertiary
-        : colours.success;
+        : colors.success;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[

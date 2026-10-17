@@ -1,0 +1,1271 @@
+# The units contract
+
+Every number the engine takes or gives has a unit, and in 1.0 it is the same
+unit everywhere. This page is that promise. A public member whose unit is
+not the one below says so in its name (`fovYDegrees` would, `fovY` does not
+need to) and in its doc comment, and a format that stores numbers refers to
+this page rather than restating it.
+
+It was item 29 of `tasks/1.0-scope-additions.md`, and §D.4 and §E.4 of
+`tasks/1.0-api-review.md` apply it; `migrate` carries user code along. Where
+the 1.0 API still falls short of a rule below, the rule says so rather than
+pretending otherwise.
+
+## Space
+
+- **Lengths are metres.** A unit cube is one metre on a side, gravity is
+  9.81 m/s², and a character is about 1.8 tall.
+- **Y is up.** Gravity points down negative Y.
+- **The frame is right-handed.** With X to the right and Y up, positive Z
+  points towards the viewer, and a camera with no rotation looks down
+  negative Z. glTF uses the same frame, so an imported model needs no
+  conversion.
+- **Angles are radians.** A field of view is `fovY`, the vertical angle, in
+  radians. A rotation is a quaternion or radians about an axis; there are no
+  degrees in a signature. A widget that shows an angle to a person converts
+  at the widget.
+- **World positions are `WorldPosition`.** Three doubles, from
+  `flutter3d_foundation`, because a position is the one quantity that grows
+  with the level and float32 runs out of millimetres about ten kilometres
+  from the origin. Local positions, directions, velocities, mesh vertices
+  and anything in a GPU buffer stay `vector_math`'s float32 `Vector3`. The
+  crossing is always relative to an origin someone names (the camera, a
+  chunk): `WorldPosition.relativeTo` subtracts in doubles, and
+  `toVector3Relative` beside it narrows the small difference.
+  **Not every signature carries it yet.** A scene node's position and many
+  physics and gameplay calls still take a float32 `Vector3`, read in the
+  frame of the current floating origin; those count as the local positions
+  above, and they stay exact only as far as the origin follows the camera.
+  **It does by default:** `Flutter3dView` moves the loop's origin to the
+  camera, rounded to whole metres, whenever the camera is more than
+  `LoopSettings.originShift` from it (1000 m unless set; `null` turns it
+  off). Within
+  that kilometre float32 places a point to about a tenth of a millimetre.
+  The shift happens between steps, so a recording replays it only when
+  the run makes the same move itself.
+  **The precision a twin gets: ± 0.02 mm at 5 km from the site origin,
+  physics in float32 relative to the shifted origin.** A crate dropped
+  until it rests, beside a bob on a hinge in the C core or a crate sliding
+  to a stop in the Dart one (which has no joints), stepped for ten seconds
+  at 60 Hz 5 km out along each axis and along all three, stays within
+  0.02 mm of the same scene stepped at the origin in both physics cores,
+  the Dart one under both profiles (measured: 0.006 mm in the C core,
+  0.0004 mm in the Dart one). `far_origin_test.dart` in
+  `flutter3d_physics_native` and `far_origin_physics_test.dart` in
+  `flutter3d_sim` hold that bound. It assumes the scene is placed relative
+  to the shifted origin, through `toVector3Relative`. A body placed in
+  float32 at 5 km before the origin moved keeps the rounding it was placed
+  with, up to a quarter of a millimetre, and a hinge's swing drifts by it:
+  within 4 mm after ten seconds. A scene a kilometre from the shifted
+  origin, as when the camera watches it from that far, stays within 2 mm
+  over five seconds.
+  Without the shift the same scene at 5 km is out by up to 41 mm.
+
+### Who owns a vector
+
+`Vector3`, `Quaternion`, `Matrix4` and the rest of `vector_math` are
+mutable, so every signature that hands one over also says who may write
+into it. There are four cases, and the shape of the member says which
+one applies:
+
+- **A public `final` field is the owner's live state.** `RigidBody.velocity`,
+  `Collider.position`, `CharacterController.position`: writing into one
+  changes the object, and that is what the field is for.
+- **A getter and an `…Of` query answer a copy the caller owns.**
+  `RigidBody.position`, `RigidBody.orientation`, `PhotoCamera.eye`,
+  `Actor.position`, `NativeWorld.velocityOf(body)`: writing into the answer
+  changes nothing but the answer, and keeping it keeps a snapshot, not a
+  view. A getter that reads per body on the engine's own inner loops has
+  the live field beside it to read instead (`body.collider.position`).
+- **A method's or a setter's vector parameter is read, never kept.** The
+  callee copies what it wants to keep, into a field it owns (`setFrom`) or
+  as a `clone()`, so a caller can pass the same scratch vector to every
+  call.
+- **A value type takes ownership of the vectors its constructor is
+  given.** `RayQuery(this.origin)`, `ContactEvent(point: …)`,
+  `const NativeHit(…)` keep the vectors they were built with rather than
+  copies, so they stay `const` and read as declared; the caller hands the
+  vector over and does not mutate it afterwards. A caller that means to
+  keep writing into one passes a `clone()`.
+
+The structure rule `a getter hands out a copy of a vector, and a parameter
+is not kept` holds the first three, and holds this section to naming all
+four. A vector the object keeps current itself is a field
+(`CollisionBox.boundsHalfExtents`, `AudioListener.right`, `Runner.shove`,
+`PosedMesh.bounds`). A cache refreshed when it is read cannot be one,
+because reading a field runs no code: `SceneNode.worldMatrix`, the other
+scene-graph matrices and bounds, and `MorphState.growth` stay getters whose
+docs say "live: the object's own cache, read-only by contract", and the
+rule's exemption table names each with what the read refreshes. The table
+also names the one `const` constructor that keeps its vector through its
+initializer list.
+
+### Three spaces
+
+A position is in one of three spaces, and a signature that takes or gives
+one says which, in its parameter's name or its doc.
+
+- **World space** is the level's own frame, in `WorldPosition`'s doubles. It
+  does not move when the camera does, and it is what a save, a level file, a
+  network message and a gameplay rule hold a place in.
+- **Scene space** is float32, relative to `Scene.origin`: the space every
+  node's `worldMatrix` is in, the camera's view is built in, and the GPU
+  draws in. `Scene.toScene(position)` takes a world position there,
+  subtracting in doubles first, and `Scene.toWorld` brings a point back;
+  `Scene.shiftOrigin` moves the origin and everything in scene space with
+  it. The renderer's extension API is in scene space throughout:
+  `PassContributor.boundsFor`, `SceneEncodeRequest`'s
+  `cameraPosition` and `viewProjection`, `ContributorFrame.viewProjection`
+  (whose `origin` names the scene's), `ContributorLights.bind`, `DebugDraw`'s
+  lines, `MeshOverlay`, and the particles' bursts and emissions
+  (`ParticleSystem.burst`, `ParticleEffects.burst`, `PlacedEvent.at`).
+- **Local space** is a node's own frame, relative to its parent's
+  transform: a node's position, a mesh's vertices, an `InstancedMeshNode`'s
+  instance transforms. A node at the root with no transform of its own has
+  local space equal to scene space.
+
+**Where a person places something in the world, there is a world entry
+point** beside the scene-space one, and it converts through
+`Scene.toScene`, never by narrowing the doubles first:
+`DebugDraw.addWorldLine` (measured from `DebugDraw.origin`, which the
+renderer sets to the drawn scene's origin each frame),
+`ParticleSystem.burstInWorld`, `emitInWorld` and `emitTimedInWorld`, and
+`ParticleEffects.burstInWorld` and `emitInWorld`. The renderer's own
+internals (its passes, its buffers, the frame graph) stay in scene space
+and do not take a `WorldPosition`.
+
+## Time
+
+- **Seconds, as a `double`, in the simulation.** A step's `dt`, a cooldown,
+  an animation's length and a replay's timestamps are seconds.
+- **`Duration` only where a clock the platform owns comes in**: a widget
+  parameter, an animation controller, a vsync timestamp, a frame-time budget
+  the renderer measures against the wall clock. The engine converts once,
+  where the value comes in, and nothing a step runs reads one.
+- **A measurement may be integral microseconds; a budget is a `Duration`.**
+  What the engine reports having measured (a pass's GPU time, a frame's CPU
+  time) may be an `int` of microseconds named `…Micros`, while a budget or a
+  threshold a caller sets (`AdaptiveQualitySettings.budget`,
+  `RenderSettings.frameWorkBudget`) is a `Duration`.
+- **A step is counted, not timed.** Code that has to be repeatable reads the
+  step number and the fixed `dt`, never a clock.
+- **How many steps a frame brings is the loop's `TimeSource`'s answer**:
+  real time, real time scaled by a factor, a log's timestamps, or a manual
+  clock moved by hand. It changes how often the world steps, never `dt`.
+- **State from outside enters as input, on a live step.**
+  `InputState.feedExternal` puts an `ExternalStateInput` (a sensor's
+  reading, a log's line, a headset's pose) on the next step's input and its
+  tape. While the input is muted, which it is while a timeline replays,
+  scrubs or bisects a tape, a reading fed is dropped, not held: one that
+  landed then would be written into the past. A source whose readings
+  arrive on their own clock queues them and drains the queue into
+  `feedExternal` from `EngineLoop.onStepInput`, which runs at the start of
+  every live step and never during a replay, so each reading reaches the
+  first live step after it arrived.
+
+## Mass and force
+
+SI throughout: kilograms, newtons, newton-seconds for an impulse, pascals
+for pressure, kilograms per cubic metre for density. A world's gravity, air
+and sea are read from the world, not written as literals (the structure rule
+`a world's gravity, air and sea are read from the world` holds that).
+
+**Friction is one coefficient.** A body has a single μ, not a static and a
+kinetic one: the solver limits a sliding contact's tangential impulse to μ
+times its normal impulse, and a body at rest is held by the same μ. Two
+bodies meeting take the geometric mean of their two μ and the larger of
+their two restitutions, in the reference `Dynamics` and in the C core alike,
+unless the material catalogue holds a measured pair for their materials
+(`MaterialCatalog.contact`). A material's static and kinetic coefficients
+are both kept in its entry, and the kinetic one is the μ (`MechanicalProperties.friction`).
+
+### World properties
+
+What a world is made of is one value, `WorldProperties` in
+`flutter3d_matter`, held by the world (`CollisionWorld.properties`) and
+read there by everything in it. The engine's defaults are written once, in
+`standard_world.dart`; **a game sets its own world where it stages it** (the
+platformer's gravity is 24 m/s², the racing game's 20), and a level's
+`world` block overrides any of it on top, field by field.
+
+| Property | Unit | Default | Who reads it | How a level overrides it |
+| --- | --- | --- | --- | --- |
+| `gravity` | m/s², a vector | 9.81 down y (`standardGravity`) | rigid dynamics (both backends), characters (`MovementSettings.gravity` when null), navigation's jump arcs, particles (`ParticleGravity()`), cloth, liquids, debris, ragdolls, a car's tyre grip (μ·g), a swimmer's buoyancy, weirs and depths | `"world": {"gravity": [x, y, z]}`; a single number is m/s² down y, as the scalar `"gravity"` of level format 3 was |
+| `airTemperature` | K | 293.15 (`standardAirTemperature`) | the air's density, the speed of sound, heat (what a pool fills at, what cools a body) | `"airTemperature": 253.15` |
+| `airPressure` | Pa | 101 325 (`standardAtmosphere`) | the air's density, a depth gauge, a lung | `"airPressure": 70000` |
+| `airDensity` | kg/m³ | derived: ρ = p M / R T, 1.204 at the defaults (`airDensityAt`) | drag and lift on bodies, cloth, embers, a car's air drag | `"airDensity": 0.02`, only to override the derivation |
+| `wind` | m/s, a vector | none | bodies' drag, cloth, particles, smoke and fire | `"wind": [3, 0, 0]` |
+| `medium` | a material's id | `f3d.air` | what a body moving through the world is dragged and lifted by (`mediumDensity`) | `"medium": "f3d.seawater"`; a medium no installed plugin declares refuses the level, naming the plugin |
+| speed of sound | m/s | derived: 343 at 293.15 K, as √T (`speedOfSoundAt`) | a listener's Doppler shift | through `airTemperature` |
+
+A world's properties are part of the simulation: the dynamics' saved state
+carries them, so a rewind puts back the world a snapshot was taken under,
+and a change mid-run replays the same.
+
+**How often a world is stepped is not one of its properties.** The step
+rate is the loop's: `WorldTiming` (60 steps a second, `standardStepRate`,
+unless a game says otherwise) in `flutter3d_sim`, journalled like any
+change to the simulation. A world carried a `stepRate` until 1.0.0-rc.1
+that nothing read; a document that still has the key reads, the key passed
+over.
+
+### Physical materials
+
+A substance's properties are one entry, `PhysicalMaterial`, in the engine's
+`MaterialCatalog` (`flutter3d_matter`), by an id namespaced as a format's
+is: `f3d.<name>` for the engine's own (`Materials`), `<namespace>.<name>` for
+a plugin's, added through `host.registry<MaterialCatalog>()` or a data
+plugin's `physicalMaterials` list (and `materialPairs`; its `materials`
+is the material language's shaders). Everything that needs a substance — a liquid's
+preset, the core's heat presets, a world's medium, a collider's material —
+is a view of an entry, and the C core reads the built-ins from a header
+generated from the catalogue. Numbers are quoted at 20 °C and one standard
+atmosphere unless an entry's `temperature` and `pressure` say otherwise, and
+each group names its `source`.
+
+| Group | Property | Unit |
+| --- | --- | --- |
+| `mechanical` | `density` (bulk, for a granular material) | kg/m³ |
+| | `youngsModulus`, `yieldStrength`, `tensileStrength`, `hardness` | Pa |
+| | `poissonRatio` | none |
+| | `staticFriction`, `kineticFriction` (against itself; the kinetic is the μ), `restitution`, `rollingResistance` | none |
+| `fluid` | `viscosity` (dynamic) | Pa·s |
+| | `surfaceTension` | N/m |
+| | `bulkModulus` | Pa |
+| `thermal` | `specificHeat` | J/(kg·K) |
+| | `conductivity` | W/(m·K) |
+| | `volumetricExpansion` | 1/K |
+| | `meltingPoint`, `boilingPoint`, `ignitionTemperature`, `autoignitionTemperature` | K |
+| | `latentHeatOfFusion`, `latentHeatOfVaporization`, `heatOfCombustion` | J/kg |
+| | `emissivity`, `radiantFraction` | none, 0–1 |
+| `acoustic` | `absorption`, per octave band 125–4000 Hz | none, 0–1 |
+| | `speedOfSound` | m/s |
+| | `impedance` | Pa·s/m (rayl) |
+| `optical` | `refractiveIndex` (n_D), `abbeNumber` | none |
+| | `absorption`, linear red, green, blue | 1/m |
+| | `metalReflectance` (F0), linear red, green, blue; `roughnessMin`, `roughnessMax` | none, 0–1 |
+| `electrical` | `resistivity` | Ω·m |
+
+A pair of materials may be measured as a pair (`MaterialPair`: friction,
+restitution, rolling resistance, and a liquid's contact angle on a solid in
+radians), which wins over the rule above. A material is written to a file in
+the envelope as `f3d.physicalMaterial`, version 1, its unknown keys kept, so
+a level or a `.f3d` section can hold one; a data plugin's `physicalMaterials`
+list holds the same body without the envelope.
+
+## Colour
+
+- **Linear unless the name says sRGB.** The engine's colour type is
+  `LinearColor` from `flutter3d_foundation`: red, green, blue and alpha in
+  linear light, unclamped above 1 for emissive and HDR values, with straight
+  (not premultiplied) alpha.
+- **sRGB is an encoding, applied at the edges.** A colour a person picked,
+  a hex code or a texture marked sRGB is decoded with the exact sRGB transfer
+  function (`LinearColor.fromSrgb`); the frame is encoded once, at the end.
+  A parameter that takes sRGB values says `srgb` in its name.
+- **Flutter's `Color` appears only in widgets.** `flutter3d` converts it with
+  `color.toLinear()` and back with `linearColor.toColor()`.
+- **A colour in a signature is a `LinearColor`, not a vector.** A level's
+  fog and light colours, an effect's colours, a gradient's keys, a black
+  body's colour, a sky preset's colours, a ring's outline and the blend
+  constant all take or answer one. A colour shown to a person is an
+  `SrgbColor` (`LinearColor.toSrgb`), with value equality and `toLinear`.
+  A live particle still writes its `Vector4` in place, and the software
+  backend's and the modeller core's colours are still vectors until they
+  move.
+
+## Light
+
+Photometric units, so a scene lit from a datasheet or a physically based
+renderer looks the same here.
+
+- **A directional light is in lux** (lumens per square metre at the surface
+  it falls on): about 100 000 for direct sun, 1 000 to 10 000 for an overcast
+  day.
+- **A point, spot or area light is in candela** (lumens per steradian): about
+  100 for a 1 200 lm bulb. An area light's is its intensity along its normal.
+- **Lumens are allowed as a constructor**, converted to candela once: a point
+  light's candela is its lumens over 4π, a spot light's over the solid angle
+  of its cone, and an area light's over π, because a flat Lambertian emitter
+  of normal intensity I sends πI lumens into its hemisphere.
+- **A literal below 50 passed to a light's `intensity` is flagged** (the
+  structure rule `a light's intensity is lux or candela, not the pre-1.0
+  unit`): it is almost always a pre-1.0 number. A light meant to be that dim
+  says its unit in a comment on the line.
+- **Ambient light is in lux**, the illuminance it puts on a surface from every
+  side: `Scene.ambientIntensity`, `Atmosphere.ambientIntensity`.
+- **A sky's sun disc is in lux** (`SkySettings.sunIntensity`), as
+  `Atmosphere.sunIntensity` and a directional light are: the disc shows the
+  luminance a white surface in that light would, `E/π` nits.
+- **A physical sky's sunlight is in lux** (`PhysicalSky.sunIlluminance`), and
+  the sky it draws is luminance: lux times a scattering coefficient per metre
+  times a phase function per steradian is nits. (Before 1.0-rc.1 it was
+  drawn π too dark; `PhysicalSky.illuminanceLux`, its meter, read the same
+  before and after.) The disc is the sun's angular radius, 0.2666°, the one
+  the soft shadows use (`ShadowSettings.sunAngularRadius`).
+- **Emissive is in nits** (cd/m²): `RenderMaterial.emissiveStrength` is the
+  luminance an emissive of white shines at, and a colour at its share. A file's
+  strength (glTF's `KHR_materials_emissive_strength`, a `.fmat`, a level) is a
+  plain multiple and is converted where the material is made.
+- **A reflection probe's `intensity` is a ratio**, the light it measured times
+  it, and so has no unit.
+- **Exposure is a linear factor; EV100 is the camera's.** What turns those
+  absolute values into an image is a photographic exposure, and that is
+  `PhysicalCamera`: an aperture, a shutter and a sensitivity, whose `ev100`
+  is the exposure value in stops at ISO 100 and whose `exposure` is the
+  linear factor it makes. `RenderSettings.exposure` (default
+  `RenderSettings.defaultExposure`, 1.6, the reference camera's: f/4, 1/60 s,
+  ISO 100, about EV 9.9), `CameraViewSettings.exposure`, and the
+  `exposure` that `FrameResult` and `PhotoCaptureReport` report, are that
+  factor, never an EV100. A number written as one (`exposure: 12` for an
+  overcast EV 12) is a factor of twelve and a white frame. To expose for a
+  camera, hand its factor over:
+  `settings.copyWith(exposure: PhysicalCamera.atEv100(12).exposure)`, or
+  `PhysicalCamera.ev100ForExposure(x)` for the EV100 a factor stands for.
+  `FrameResult.ev100` reports in EV100. The renderer's own scale, in which
+  shaders work, is not an API value anywhere but one: a stage that adds
+  light to `hdr_color` reads it as `FrameContext.nitsPerHdrUnit` ("Frame
+  resources a stage reads" below).
+
+Before 1.0, light intensity was in an engine unit where 1.0 was
+1843.2 cd/m² of luminance and π times that in lux. (The reference camera
+draws 1843.2 cd/m² at 1.6, past white; its white is 1152 cd/m².) A pre-1.0 light, ambient or
+sun-disc number times `LightNode.defaultIntensity` (about 5 790.6), and a pre-1.0
+emissive strength times `RenderMaterial.defaultEmissiveStrength` (1 843.2), is the same light
+now, so a picture does not change when a project moves. A level of format 5
+writes its lights in candela, and its sun in lux; the lift from format 4
+multiplies by that unit, and a light that never named its strength keeps
+meaning the same one. `Light3D`'s defaults are photometric too: the
+directional default and `Light3D.sun()` are 15 000 lux, and a point light
+and `Light3D.lamp()` an 800-lumen bulb, about 63.7 cd.
+
+## Files
+
+A format that stores numbers stores them in these units and says so: an
+imported asset carries a `units` header, and the format envelope (§D.1 of
+the review) names the version of this contract it was written against. A
+reader that meets another unit converts at the reader, never in the engine.
+
+### The envelope
+
+Every JSON document the engine writes as a file of its own, one a person, a
+tool or a later build may open, starts with the same four keys:
+
+```json
+{"format": "f3d.level", "version": 3, "requires": [], "generator": "flutter3d"}
+```
+
+That covers the levels, saves, runs and tapes, materials, effects, plugins,
+settings and action maps, the save-slot index, the cloud-save state and the
+telemetry answer, a voxel world, a best run, `convert --report` and
+`--json`, and the build's own caches. Three kinds of JSON are not files of
+their own and do not carry it:
+
+- **A document inside another**, which the outer one versions: a save's
+  `run`, a level's entities, a project's manifest inside `.f3dproj`. A
+  nested document that can also stand alone (a voxel world, an input tape)
+  carries the envelope in both places.
+- **Wire messages**: MCP tool answers and VM service extension answers are
+  versioned by their server's schema version and snapshotted (below), not
+  by an envelope. Network messages are versioned by the protocol a
+  `PeerRoom` hello names (3.x), not by an envelope; see "The network wire"
+  below.
+- **A binary or non-JSON file**, whose envelope is its own magic and version
+  word: `.f3d`, `.f3dproj`, `.f3dsplat`, `.f3dtrace`, the F3SB shader bundle,
+  a lightmap, and the material language's optional `f3dmat <N>` line.
+  `FormatSpec.enveloped` is false for these.
+
+A build's cache (`f3d.assetCache`, `f3d.materialCache`) carries the envelope
+too, but a cache from any other layout reads as empty and is rebuilt: for a
+cache that is the safe answer, and the one place a version is matched
+exactly.
+
+`format` is what the document is (`f3d.<kind>` for the engine's formats,
+`<namespace>.<kind>` for a plugin's). `version` is that format's own number,
+not the engine's. `requires` names what a reader has to understand to open
+the document at all, a plugin's component namespace for example, so an older
+reader refuses instead of dropping it. A save (`f3d.save`) requires the
+namespace of every plugin whose snapshot part or component it holds, and
+the engine restoring it answers that from the plugins it has installed,
+refusing with their names where one is missing (`Snapshot.requires`).
+Every path that builds a save from another keeps its `requires`; a run's
+state taken out of one part (`GenrePlugin.runStateOf`) requires nothing,
+since the loop's capture names the plugins of every part. A save written
+without `requires`, by an rc build, restores as it is. A recorded run is
+replayed only on the simulation it names, plugins and subsystems included:
+`InputTapePlayback` checks the full `simulationVersion` itself and refuses
+another with a `ReplayException`.
+A material naming a plugin's lighting model requires that plugin: a
+`.fmat` lists its namespace in `requires`, a `.f3d` names the model in the
+plugin's namespace (`acme_ink.Ink`) in its `materialLighting` record, and a
+reader whose lighting models hold none of the plugin's refuses either,
+naming it, rather than drawing the material with another model.
+`generator` is who wrote it. YAML
+configuration says the same with `format: 1`.
+
+The rules a reader keeps:
+
+- **A 1.x engine reads every 1.x file.** Older versions are lifted through a
+  chain of migrations, one step per version, and each version has a fixture
+  the structure check counts.
+- **A newer file is refused with a sentence** naming both versions. It is
+  never read halfway, and a reader never answers null for it.
+- **A number a reader takes from a document is a finite whole number**
+  where it counts something (`FormatSpec.wholeNumber`): `{"version": 1e999}`
+  is refused with the format's own exception, never an `UnsupportedError`.
+- **Unknown keys are kept.** A document opened and saved by an earlier minor
+  keeps what a later one added: every top-level key, and every key inside
+  the nested objects an editor rewrites, a level's (its brushes, lights,
+  entities, materials and prefabs), a pipeline's nodes and a plugin's
+  phases, events and systems (`FormatDocument.nestedUnknownIn`). A nested
+  object anywhere else is the reader's to rebuild, and a key a later minor
+  puts there is lost on save; a minor that needs one kept adds it to this
+  list. A component row read at its codec's version keeps the keys the codec
+did not read, written back on the next save. A section of
+  a binary container is kept the same way: `.f3d` and `.f3dproj` write back
+  every section of a kind they do not know.
+- **The shapes from before the envelope read as version 1:** `{"version": N}`,
+  a format's own key (`{"f3dfx": 1}`, `{"f3dplugin": 1}`), an id the format
+  lists as an alias, or no version at all.
+- **Words written to a file come from explicit wire tables**, never from a
+  Dart identifier's `.name`, so renaming a type in a major does not change a
+  file.
+
+`FormatSpec` (`flutter3d_foundation`) and `FormatRegistry`
+(`flutter3d_plugin_api`) are the code side of this: each format declares
+its id, suffixes, version, migrations and fixtures once, and a plugin's
+formats go through the same registry. Ids are
+`f3d.<kind>` in lowerCamelCase (`f3d.inputTape`, `f3d.frameCapture`,
+`f3d.materialLanguage`); an id a file was written under before keeps
+reading through `FormatSpec.aliases`. `Flutter3dView` builds the registry
+from `coreFormats` and `simFormats` and the formats it is handed
+(`gameFormats` from `flutter3d_game`), and a plugin asks the loop for it.
+
+### Binary containers
+
+`.f3d` and `.f3dproj` are a header and a directory of sections, each entry
+a kind, an offset, a length, a count and, from `.f3d` version 2 and
+`.f3dproj` version 3, a flags word whose size the header names. A reader
+steps over a kind it does not know and a writer keeps it, so a section a
+later minor adds survives a save by an earlier one. All 32 flag bits mean
+the same in every 1.x reader (`F3dSectionFlags`):
+
+- **bit 0, must-understand**: a reader that does not know the kind refuses
+  the file, naming it;
+- **bit 1, safe-to-copy**: a writer whose tables changed under the section
+  (an edited model) keeps it; one without the bit is dropped there, since
+  it may name records by an index the edit moved;
+- **bits 2–15, ignorable**: a reader that does not know one reads on;
+- **bits 16–31, must-understand-if-set**: a flag that changes how a
+  section's bytes read; a reader refuses a section it knows carrying one it
+  does not.
+
+A writer moves to the flagged version only for a file holding a flagged
+section, so a file without one is the bytes an earlier reader opens. A
+directory entry is at most 256 bytes. Every section kind either format
+writes is in the directory of a committed fixture, which the structure
+check reads.
+
+The F3SB shader bundle is a build artifact, never a file a plugin ships: a
+plugin package ships `.f3dmat` sources, the application's build compiles
+them for the backends it targets, and a bundle compiled by another Dart
+SDK is refused as stale.
+
+The physics core's world snapshot (`F3DS`, major 1) is a file a 1.x core
+keeps reading: the 1.0 bytes, in floats and in doubles, are committed and
+restored and stepped to a recorded digest, and a snapshot from the doubles
+build restores in the floats one, rounded.
+
+### The network wire
+
+Every message the engine puts on a peer wire and every message its relay
+sends is in `packages/flutter3d_net/api/flutter3d_net.wire`: the keys that
+tell it apart (`"f3d": "rollback"`, `"tag": "hello"`) and the keys it
+carries, with the addresses the relay answers at, and a golden JSON for each
+under `test/fixtures/wire/v<major>/`. The file is written by hand and a test
+holds the code's messages to it. Within a protocol major the wire only
+grows: a message may gain a key, never lose or change one, which the
+structure check holds against the base the major was recorded with. A game's
+own messages are its own, in the channel it opens on a `PeerRoom`.
+
+WebRTC carries reliable messages on the ordered, retransmitting channel
+`f3d.reliable` and unreliable ones on the unordered `f3d.unreliable`, which
+never retransmits (in a browser it may, until `flutter_webrtc` passes the
+setting). Its signalling is `{"f3d": "signal", "v": 1, …}`, and a peer
+signalling another `v` is refused.
+
+### Platform channels
+
+A platform channel the engine opens is named `dev.flutter3d/<name>`
+(`dev.flutter3d/cloud_saves`, `dev.flutter3d/gamepad/events`) and keeps its
+name and its messages within a major. `pad_input` and
+`flutter3d_pointer_lock` carry the engine's number and its pin, and catch
+`MissingPluginException` on every call, so a native side that lacks a method
+answers instead of throwing.
+
+### Reserved names
+
+One contract of 1.0 has a name in rc.1 and no implementation; the release
+that implements it adds it, and nothing written against rc.1 changes:
+
+- **`f3d.rule`** is the id of the rule document: a condition over probe
+  readings in the expression language, with a severity, a message and an
+  acknowledgement. No other format may take the id.
+
+### Wasm render modules
+
+**Wasm render nodes arrived in ABI 3** (`wasmRenderAbi`), and the host
+runs ABI 1 to 3; the minimum stays 1 through 1.x. What they are is fixed
+for 1.x:
+
+- **A render module is told apart by the `.f3dplugin` section that
+  declares it**, never by its exports: a module under `wasmRender`
+  (`WasmRenderSpec`) is decoded as a render module, under `wasm` as a step
+  module, and checked at decode. A step module is `i32` only and exports
+  `f3d_step`; a render module may compute in `f32` (no `i64`, `f64` or
+  `v128`), exports `f3d_render_node(i32 frame, i32 view)` and needs no
+  `f3d_step`. Each kind is refused the other's imports, by name. A step
+  module that exports a function named `f3d_render_node` is not read for
+  it, and every `f3d_` export is the host's from the ABI it arrived in
+  (`wasmExportSince`).
+- **A render module runs in an instance of its own**, never a step
+  system's, and nothing it keeps is part of a save or the run's digest: a
+  client that draws and a server that never does stay one run. Its fuel is
+  counted per frame (`WasmLimits.fuelPerFrame`, in instructions); a trap
+  switches its step's node off with the plugin named, and it is not called
+  again.
+- **Render commands are imports with scalar arguments** (`param`,
+  `param_floats`, `draw`, `time`, `view_size`, `light_code`, each since 3).
+  **Bulk data is `(ptr, len)` in the module's memory**, copied by the host
+  during the call and never kept. **Resources are named by their index in
+  the declaration** (`parameters`, `lights`), as a step module's fields
+  are. A render module drives one render step of its own document, written
+  in the material language, through the plugin API's `RenderProgram`.
+- A render node has no I/O and needs no permission of its own; a module
+  fetched from a URL, of either kind, runs only with the `sha256` of the
+  bytes its declaration pins, and is refused without one or with bytes
+  that hash to something else. A module of the plugin's own directory is
+  not checked.
+
+### Tools and the command line
+
+MCP tools and VM service extensions are snapshotted (`api/*.mcp`,
+`api/*.vm`) with their input and output schemas. A rename keeps the old name
+as an alias until the next major: a call to it is answered, `tools/list`
+does not offer it, and the snapshot holds it as an `alias` line. Each server
+announces its schema version. **What a refusal says is not a contract**: a
+tool that declines answers with `isError` and a sentence, and the sentence
+may be reworded in any release. A client that has to tell refusals apart
+waits for the `refusal` code `structuredContent` gains in 1.1 (`badArgument`,
+`paused`, `notFound`, `permission`, `refused`) rather than matching words.
+
+The `flutter3d` command's subcommands, flags and exit codes (0 ok,
+1 failed, 2 usage, 3 refused or out of date, 4 would overwrite) are
+snapshotted in `packages/flutter3d_build/api/flutter3d_build.cli`, and its
+`--json` output starts with the envelope, `"format": "f3d.cli"` and a
+`version` of its own, with each subcommand's keys snapshotted beside the
+help text. The release rule reads the snapshot for every subcommand, flag,
+exit code and `--json` key, nested ones included: one gone since the last
+release tag needs a `**Breaking:**` entry, so within 1.x the JSON only
+grows. Tests hold the snapshot to the code: every option a parser reads is
+in its usage and the reverse, and each `--json` command's printed keys are
+the ones committed.
+
+Every command answers the same situation the same way. `-h`, `--help` and
+`flutter3d help <command>` print the usage to stdout and exit 0. An option
+the command does not take exits 2, with the usage on stderr, `create` and
+`migrate` included. A file, directory or pubspec that is not there exits 1.
+`init --check` exits 3 when changes are pending and 1 when `hook/build.dart`
+was edited by hand, which no run of `init` would make current.
+`flutter3d --version` prints the package's version.
+
+**The command line 1.0 promises** is these and nothing else:
+
+- `flutter3d` and each subcommand under `dart run flutter3d_build:<command>`
+  (`decode_worker` for `decode-worker`). `flutter3d visibility` and
+  `flutter3d decode-worker` are the level visibility bake and the web decode
+  worker; `dart run flutter3d_sim:bake_visibility` and
+  `dart run flutter3d_core:decode_worker` keep working with the same
+  options and exit codes, for a project without `flutter3d_build`.
+- The four MCP servers' entry points: `dart run flutter3d_mcp:editor_mcp`,
+  `:model_mcp`, `:project_mcp` and `dart run flutter3d_build:plugin_mcp`.
+- `dart run flutter3d_lints:migrate --json [--automatic] <project>`, the
+  part of the lints' command `flutter3d migrate` calls.
+
+**Outside the contract**, published and usable but free to change in a
+minor: `flutter3d:skills`, `flutter3d_sim:headless_run` and
+`:f3drun_info`, `flutter3d_model_core:export`, `flutter3d_net:relay`, and
+`flutter3d_impeller:build_shaders` and `:build_shader_bundle`, this
+repository's own shader builders.
+
+**What a project generated from 1.0 relies on.** The files `create` and
+`init` write belong to the project once written; the template's text
+(`main.dart`, the README, the tests) is not a contract. Four things are:
+
+- `hook/build.dart`: every text a release of `init` wrote stays init's own,
+  so `init --check` and `doctor` never call a project's untouched hook
+  edited. `init_test` keeps the list, and a release only adds to it.
+- The `flutter3d_plugins:` pubspec block discovery reads (`plugin`,
+  `shaders`, and an application's `with`, `without` and `set`), and the
+  older `flutter3d:` key, read until 2.0.
+- `lib/plugins.g.dart` and the `installedPlugins` it declares.
+- The layout: sources in `assets_src/`, what the build writes in
+  `flutter3d_generated/`, a material at `assets_src/<path>.f3dmat` compiled
+  to `flutter3d_generated/<path>.f3dshaders`. `flutter3d_generated/shaders/`
+  is the engine's bundle and the plugins' materials, and a project material
+  under `assets_src/shaders/` is refused.
+
+The version constraints a template writes come from each package's own
+version at that release, held to the pubspecs by a test.
+
+**Build configuration.** `flutter3d_assets.yaml` (`f3d.assets`) refuses a
+key it does not read, so a key added in 1.x arrives with a new `format`
+version, held by a structure rule: an older build then says "update
+flutter3d_build" rather than "unknown key". The hook's `user_defines`, under
+the project's own package name, are `textures`, `deviceClasses` and
+`fullShaders`; a
+`textures` or `deviceClasses` value that is not one of the choices fails the
+build naming them, and a key the hook does not read is a warning in the
+build's log.
+
+**Goldens.** `flutter3d_testing`'s references are what the software
+rasteriser draws. A minor release may change that picture, saying so under
+a `**Picture:**` label in its CHANGELOG with the cause; a patch never does.
+The default `channel: 8` of `expectMatchesGolden` is frozen for 1.x. A
+missing reference is recorded locally and fails where `CI` is set in the
+environment.
+
+**The conformance badge** is judged once: `runPluginConformance` writes
+`<package>.conformance.json` (`f3d.conformance`) with the badge
+`earnsBadge` gave, and `plugin.report` and the plugin catalogue read it. A
+plugin's pubspec says `conformance: conformant@1.0`, naming the suite.
+
+## The shader ABI
+
+What a backend's shaders, and a plugin's stages, agree on with the engine
+(D21, D22, D26, D27 and amendment 5 of the field review). A backend
+written outside this repository reads it beside
+`package:flutter3d_shaders/backend.dart`, which holds the same contract as
+code.
+
+### Entry points
+
+A backend's bundle answers to every name in `requiredShaders`
+(`package:flutter3d_shaders/flutter3d_shaders.dart`), generated from
+`shaders/flutter3d.shaderbundle.json` and checked against it by a test:
+19 vertex stages and 86 fragment stages at the time of writing. A backend
+that computes answers to `computeShaders` too (`PrefixSum` and the three
+`SplatSort*` stages, which it may leave out). The names are stable within a
+major; a minor may add one, never rename or drop one.
+
+- Vertex: `MeshVertex`, `MeshSkinnedVertex`, `MeshInstancedVertex`,
+  `MeshLightmappedVertex`, `FullscreenVertex`, the three `Velocity*Vertex`,
+  `PolylineVertex`, `ParticleVertex`, `ParticleMeshVertex`, `ImpostorVertex`,
+  the three `Sky*Vertex`, `DebugLineVertex`, `CausticPhotonVertex`,
+  `ShadowTileResetVertex` and `VertexTextureProbeVertex`.
+- Fragment: the lighting models and their `*Opaque` variants (`Unlit`,
+  `Lambert`, `BlinnPhong`, `Pbr`, `PbrLayered`, `Toon`), the engine's own
+  surfaces (`Xray`, `PlanarReflection`, `Normals`, `Impostor`, `Splat`,
+  `SplatHashed`, the six `Particle*`), the shadow stages (`ShadowDepth`,
+  `ShadowDistance` and their `*Masked`, `ShadowTransmittance`, `ShadowCopy`,
+  `EvsmFilter`, `ShadowTileReset`, `CausticSurface`, `CausticPhoton`), and
+  the frame's full-screen stages (`Composite`, the bloom chain, `Decal`, the
+  velocity, temporal, depth-of-field and motion-blur chains, `Reflections`,
+  `Ssao`, `ContactShadow`, `VolumetricFog`, `LightShafts`, the anti-aliasing
+  and upscale stages, `Luminance`, `DepthPyramid`, `ObjectId` and the rest);
+  the manifest is the list.
+
+`stageBindings` says which uniform blocks and samplers each compiled stage
+keeps, and a draw binds by it; `uniformBlocks` gives every block's members,
+offsets and sizes as std140 laid them out. Both are generated after every
+shader change and both only grow in a minor.
+
+**Checked, not only promised.** `packages/flutter3d_shaders/api/flutter3d_shaders.abi`
+holds the whole ABI one fact a line: each entry point and its kind, each
+stage's blocks, and its samplers with the GLSL type each is declared as
+(`sampler2D`, `samplerCube`), each member with its offset, byte length,
+element count and type, each engine vertex stage's inputs in order with
+the `VertexFormat` the engine's buffer carries each in, and the varyings
+both ways: a vertex stage's `out`s and a fragment stage's `in`s in
+declaration order, which is their location where the source states none,
+and a fragment stage's colour outputs. The ABI is the one every target
+shares: an attribute only Impeller's OpenGL ES target declares
+(`f3d_vertex_index`, `f3d_instance_index`) is that backend's own. The
+package's test keeps the file current (`dart run tool/abi_snapshot.dart`
+writes it), and the structure rule *the shader ABI only grows* fails on any
+line of the base that is gone: a dropped stage, a removed or reordered
+member, a moved offset, a renumbered vertex input, a varying inserted
+before another, a sampler turned from a 2D texture into a cube. It also
+fails on a file that lacks one of those kinds of fact, since a fact the
+file never had cannot be lost. Adding lines is a minor; a base is recorded
+again only at a major.
+
+**The base is the tag's.** Tagging a release records the base from the
+tagged commit, as one step of the tag beside the API baseline
+(`dart run api_snapshot:abi_base v1.0.0-rc.1` in `tool/api`, committed after
+the tag); its first line names the tag and commit, and the rule *the ABI
+and vocabulary bases are the tag's* holds it to that tag's files, so a base
+edited by hand afterwards is caught. Until rc.1 is tagged the base is
+recorded from the working tree (`--working-tree`), and a change of the
+release candidate's own that drops or changes a line records it again, in
+the commit that makes the change.
+
+**Array lengths are part of it.** A member's line holds its element
+count, so growing an array moves that line and every later offset:
+**8 forward lights a draw** (`FragInfo.light_*`) **and 16 decals a draw**
+(`DecalInfo.*`) are fixed through 1.x. More lights come through the light
+list, more decals through more draws (`DecalSettings.decalsPerDraw`), and a
+larger array is a new block in a minor, never a longer one.
+
+### The defines
+
+The engine's GLSL is compiled with these, each set by the stage that
+includes the shared headers, never by the backend:
+
+| Define | What it does |
+|---|---|
+| `F3D_OPAQUE` | the opaque variant of a lighting model: no reachable `discard` |
+| `F3D_LAYERED` | `pbr.glsl` with the glTF layers (`PbrLayered`) |
+| `F3D_MEDIUMP` | colour arithmetic in `mediump` where a stage allows it |
+| `F3D_LTC` | the area-light lookup of `ltc.glsl` |
+| `F3D_TEXTURE_TRANSFORM` | a map's transform read at the sampler |
+| `F3D_SOFT_PARTICLE` | a particle stage that fades into the scene's depth |
+| `F3D_NO_LIGHT_LIST` | a stage that gathers no lights declares no light list |
+| `F3D_NO_POINT_SHADOW` | a stage that samples no cube shadow declares none |
+| `F3D_NO_METALLIC_ROUGHNESS_MAP` | a stage that reads no metal-rough map declares none |
+| `F3D_NO_SURFACE_BUFFER` | a stage drawn into one attachment writes no surface buffer |
+| `F3D_NO_FOG` | a stage that applies no fog declares no `FogInfo` |
+
+A material written in the material language sets two of them and no
+other: a material without a `light` block gathers no lights, so its stage
+is emitted with `F3D_NO_LIGHT_LIST` and `F3D_NO_POINT_SHADOW`, as
+`unlit.frag` is; one with a `light` block is emitted for the engine's lit
+headers as they are.
+
+### A material's own blocks and textures
+
+A plugin's lit model may bind more than the engine's five textures and its
+blocks (D21). Its source declares them, `uniform(Hair) vec3 tint = …;` for
+a member of a block of its own and `texture fur;` for a texture of its own,
+and its `MaterialSlotTable` lists them in a fixed order: `MaterialParams`
+first when the material has a uniform of its own, then its blocks in the
+order they are first named, then its textures in declaration order. The
+emitted GLSL declares each block as `uniform <Name> { … } f3d_block_<Name>;`
+(`MaterialParams` as `material_params`) and each texture as `uniform
+sampler2D material_<name>;`. A backend binds them:
+
+- **by name** where its bindings are named: Impeller, WebGL2, the software
+  backend;
+- **by number** on WebGPU: the material's own blocks and textures take the
+  bindings after the engine's in the material's group, in the table's order.
+  WebGPU numbers them when the build packs the stage; at run time a material
+  with blocks or textures of its own is refused and built from
+  `assets_src/` instead.
+
+The renderer binds each block from `RenderMaterial.parameters`, the members
+that belong to it, and each texture from `RenderMaterial.extraTextures`
+under its binding name. **Every slot is bound on every draw**: a member the
+material leaves unset is bound at the default its source declares
+(`MaterialBlockMember.defaultValue`) — in the fragment stage, the material's
+own vertex stage and its instanced and lightmapped variants alike — and a
+texture it names none for at a white texel, so a material written before a
+model grew a member draws the same on every backend. The render check
+`render.litModelDefaults` holds each backend to it. **A full-screen stage
+too**: `FullscreenEffect.material` binds its `MaterialParams` at the
+source's defaults (`FullscreenEffect.parameters`), the surface buffer when
+it reads `sceneDepth`, and refuses a texture of its own that nothing names;
+a render step from data that samples a texture of its own is refused until
+the format can name one.
+
+**The budget.** One stage binds at most 16 textures, 16 samplers and 12
+uniform blocks, the engine's bindings and the material's own together
+(`MaterialStageBudget`): WebGPU's guaranteed minimums, where a texture is a
+texture and a sampler, and the tightest of the four backends. A lit model's
+stage carries the engine's lighting bindings (the shadow maps, the
+irradiance, the light list, the material maps it reads), so its own
+textures and blocks get what those leave: **3 textures and 4 uniform blocks
+of its own (`MaterialParams` included), in every 1.x**
+(`MaterialStageBudget.materialTextures` and `materialUniformBlocks`). The
+engine's bindings in a material-language lit stage with every feature on
+stay within the budget less that share, which a test holds; a later lit
+feature packs into a texture the stage already reads rather than taking a
+material's room. Every build and every `RuntimeShaders` call that has the
+engine's headers counts each stage from the GLSL it emitted, on every
+backend, and refuses one over the budget, naming the stage and the count
+(`MaterialStageBudget.problemOfGlsl`); the WebGPU section writer counts its
+packed stages too. The material fails on its author's machine and not at
+its first draw on a phone's browser. A WebGPU device is opened with the adapter's
+own stage limits, which may be higher; a bundle counts only on the
+minimums.
+
+### How the material language grows
+
+A new input, builtin or reserved name arrives with a new `f3dmat <N>`, and
+a source of an older `N` keeps every name it had: each input carries the
+version it arrived in (`MaterialInput.since`) and each builtin too
+(`materialBuiltinVersions`), and a name is taken from a declaration or a
+`let` only where the source's version has it. The block names a material
+cannot use are frozen at 1.0.0 (`materialReservedBlockNames`) together with
+a shape the engine keeps for later blocks, `F3d…` and `…Info`, which a
+material's own block was never allowed; a block the engine adds in a minor
+is named in that shape, so `uniform(Hair)` stays a material's to use.
+
+**GLSL's words are taken in every version.** A `let`, a `uniform` and a
+full-screen stage's texture are written into the stage under their own
+names, so none may be a keyword or a word reserved for future use of GLSL
+4.60 (with its Vulkan words) or GLSL ES 3.00 (`filter`, `input`, `shared`,
+`sampler3D` …): a material binding one never compiled on a GPU, so the
+parser refuses it in every version, with the sentence it gives any name
+the generated stage already uses.
+
+**Checked, like the ABI.** Each language's vocabulary is a file of one
+word a line, each ending in the version it arrived in:
+`packages/flutter3d_core/api/material_language.vocabulary` (keywords,
+inputs, outputs, builtins, types, the engine's texture bindings and block
+names, the names and prefixes a source cannot bind),
+`packages/flutter3d_shaders/api/kernel_language.vocabulary` and
+`packages/flutter3d_plugin_runtime/api/wasm_abi.vocabulary` (the imports
+and exports, the newest ABI and the oldest a host runs, which stays 1
+through 1.x). Each package's test keeps its file current, and the
+structure rule *a language's vocabulary grows only with its version* holds
+it to the base recorded at the tag (`tool/api/abi_base/`, recorded as the
+ABI's is): every line of the base stays, and a line new since carries a
+version above the base's newest. So a minor that adds an input or an
+import under a version 1.0 read is caught before a 1.0 build refuses the
+source using it by an unknown name instead of by its version.
+
+**Decided before the tag.** The injection points a material sets in the
+engine's PBR model arrive as `f3dmat 3` if they land before rc.1 is
+tagged, with the version 3 fixture extended and the vocabulary's base
+recorded again; anything after the tag is `f3dmat 4`.
+
+The kernel language grows the same way, under its own `kernel <N>`. Every
+word its parser reads as its own (a declaration, a statement, a type, a
+builtin, a binding's kind, access or format) carries the version it
+arrived in, and a source of an older version keeps that word as a name for
+a binding or a local; calling it there is refused with the version it
+needs. Version 2's `atomic…` words are the one exception: version 1 never
+had them as names, so they stay taken in a version 1 source, and freeing
+them would gain nothing. A word of version 3 or later is taken only in a
+source of its own version, so the version that brings workgroup memory and
+barriers reads every kernel written before it.
+
+### Two languages, two readers
+
+A `.f3dmat` file is read by the material parser (`parseMaterial` in
+`flutter3d_core`), whose version is the file's first line, `f3dmat <N>`.
+Its `compute` kind is not a second compute language: it is sugar for a
+texture computed texel by texel, which `lowerMaterialCompute` writes in the
+kernel language, so it runs wherever a kernel runs and is computed one way.
+A kernel source, a `ComputeStep`'s or a skinning hook's, is read by the
+kernel parser (`ComputeKernel.parse` in `flutter3d_shaders`), whose version
+is the line `kernel <N>`, after the `f3dmat <N>` line where a file has
+both. Each language moves its own number; neither one's version says
+anything about the other's.
+
+**What a `.f3dmat` holds.** At most one block of the material language,
+first (`material`, `fullscreen` or `compute`), and after it only `compute`
+blocks of the kernel language. `parseMaterial` reads the first block and
+refuses anything else after it with a sentence and the line and column
+where it starts: a second `material`, a `fullscreen`, a word nobody reads.
+The kernel parser reads the kernels and skips a `material` or `fullscreen`
+block beside them, and refuses every other top-level word. Both grammars
+open a `compute` block the same way; the kernel parser names the material
+language's form when the block declares a `uniform` or a `param`, which
+only that form has, and refuses any other word it does not read with what
+it expected.
+
+### What a refusal says
+
+The material language, the kernel language and the Wasm plugin ABI refuse
+what they cannot read with a sentence: the material language's with the
+line and column in the source, the kernel language's with its own, a
+module's naming the import or the export. **The wording is not part of the
+contract.** A minor may say it better, and an editor, an MCP tool or a test
+that needs to tell one refusal from another matches the exception's type
+and its line and column, not its text. Stable codes beside the sentence
+(`f3dmat.E012`) arrive in a 1.x minor, as an addition.
+
+### Light codes
+
+The light row the lit stages read (four `vec4`s a light: position and type
+code, colour and intensity, direction and range, cone or half-height) codes
+its type in the first `vec4`'s `w`: directional 0, point 1, spot 2, area 3;
+the engine's later types take codes below 16. A light type of a plugin's own
+(`LightTypeHook`, registered with `LightTypes`) takes a code from 16 up,
+handed out once per renderer in registration order, and its hook fills the
+row. **The engine's lit stages skip a light whose code is 16 or more**; a
+lighting model of the plugin's own written in the material language reads
+the code and the row in its `light` block, from version 3: `lightKind` (the
+code) and `lightParams` (the row's last `vec4`). Such a block gathers its
+lights through the material's own loop, which hands it a plugin's light
+with the direction to it, n·l and its colour times its intensity, and no
+falloff or shadow of the engine's: the block computes its own from
+`lightParams`. Because codes are handed out per renderer, a material names
+its types instead, `lighttype tube = acme.tube;`, and its block reads `tube`
+as one for a light of that type; the renderer fills the code
+(`LightTypes.codeNamed`, `LightingModel.lightTypeMembers`), minus one where
+no hook packs the type.
+
+### Vertex layouts
+
+A material called `<name>` has its own vertex stage, `<name>Vertex`, which
+reads the standard vertex (`VertexLayout.standard`). Its skinned half,
+`<name>VertexSkinned`, reads joints and weights beside it; its instanced
+half, `<name>VertexInstanced`, the instance's rows, colour and four numbers
+in a second buffer stepped per instance (`MeshVertexLayouts.instanced`);
+its lightmapped half, `<name>VertexLightmapped`, the level's baked
+coordinate. A material lists the halves it ships
+(`LightingModel.vertexVariants`); the others are drawn through the
+engine's. A `vertex` block written in the material language ships all four
+from version 3, each with the engine's inputs in the engine's order, and
+the depth and shadow passes draw an instanced caster through its instanced
+half; an older source's instanced and lightmapped draws keep the engine's
+stages, as they always had. These layouts are frozen within 1.x: a stage
+built against 1.0 reads the same attributes at the same places, **every
+attribute 32-bit floats of its input's width** (`float32x3` for a `vec3`),
+packed in declaration order. The `.abi` writes each attribute's format
+(`vertex MeshVertex format 4 color float32x4`), and a test holds the
+engine's layouts to those lines, so a colour packed into four bytes in a
+minor would fail there rather than under every `SkinningHook` written
+against 1.0.
+
+### Decal stages
+
+A decal of a plugin's own (`DecalNode.lighting`) is painted through a
+full-screen stage with `Decal`'s interface: the `DecalInfo` block (sixteen
+decals a draw), `decal_texture_0` to `decal_texture_3`, `surface_texture`
+and `albedo_texture`, and two terms by `DecalInfo.params.w`: nought for the
+factor multiplied in, one for the light added. `DecalSettings.decalsPerDraw`
+and `picturesPerDraw` cut the draws within those limits, and the sixteen a
+draw are fixed through 1.x, as the eight forward lights are ("Array lengths
+are part of it" above).
+
+### Skinning hooks
+
+A `SkinningHook` (D22b) skins the meshes it claims into a buffer the
+scene draws. It is placed with `RendererSteps.placeSkinningHook` as a
+`ComputeStep` is, by the hardware layer: on the device drawing the frame
+and then the CPU, and never on the sidecar, whose vertices would reach the
+drawing device only through the host. A hook asks for no placement, and
+one nothing can place is reported by the frame as `PassSkip.unsupported`.
+
+- **What it writes.** For each claimed mesh, `SkinningContext.output`: the
+  mesh's vertex count in `VertexLayout.standard` (position, normal,
+  texture coordinate, tangent, colour; the skinned layout without joints
+  and weights). The step writes `FrameResourceIds.skinnedVertices` before
+  the shadows, and the scene reads it, drawing each claimed mesh from its
+  buffer through the unskinned vertex stage.
+- **Where it lives.** Placed on the drawing device, the hook's kernels
+  write the drawing device's buffer and the vertices never leave the GPU.
+  Placed on the CPU, they write a buffer of the CPU device, which is
+  copied into the drawing device's buffer from host memory: an upload,
+  never a readback of the drawing device.
+- **The host shape.** A `HostSkinningHook` answers `skin` with the
+  vertices in the mesh's own layout, as `SkinBlend.vertices` holds them,
+  and its `record` uploads their standard part. `LinearBlendSkinning` is
+  the engine's own CPU skinning in that shape.
+- **What it does not change.** The shadow passes, the pick pass and
+  instanced draws skin with the engine's stage; a device that makes no
+  buffers draws every mesh as the engine skins it.
+
+### A backend's material compiler
+
+A backend compiles the material language into its section of a material's
+`ShaderBundle` with a `MaterialCompiler` (D26): it names its backend and its
+section, says whether it compiles while a game runs, and takes one
+`MaterialCompileRequest` (the source, the stages the engine's emitter
+wrote as GLSL, the engine's headers, and backend options by name) to a
+`MaterialCompileResult`, or refuses with a `MaterialCompileException` saying
+why. A `MaterialCompilerRegistry` finds it by backend id, exactly: the
+compiler's `backend` is its device's `GraphicsDevice.backendId` (`cpu`,
+`webgl`, `webgpu`, `impeller` for the engine's four; a backend from outside
+gives its own, which it should say as a constant), and
+`RuntimeBackends.normalize` maps only the engine's own names to theirs.
+`RuntimeShaders` asks the compiler of the backend the game runs on, before
+the engine's own three run-time paths. The project's shader build
+(`runShaderBuild`, handed the registry) asks every compiler it holds for a
+backend from outside the engine for its section of the engine's bundle,
+handed the engine's stages as GLSL with the engine's headers and an empty
+source, and of every plugin material's bundle; a project whose only GPU
+backend is from outside gets its bundle with that section alone. The
+engine's three GPU sections and the `flutter3d.stamp` section are written
+by the build's own tools, and a compiler naming one of them is not asked.
+Two backends never write one section. **In 1.0.0-rc.1 no shipped path hands
+`runShaderBuild` a registry**: the build hook, `flutter3d shaders` and
+`material_build.dart` call it without one, because the build cannot load a
+package's compiler without importing it. So a backend from outside reaches
+its engine stages by shipping its section in a bundle of its own, or by
+compiling at run time (`compilesAtRunTime`), or through a tool of its own
+that calls `runShaderBuild(registry:)`. Discovering compilers from a
+marker in the backend's pubspec, which the `--kind backend` template
+writes, is planned for rc.2.
+
+`compileStage` (`package:flutter3d_shaders/compile.dart`, with glslang and
+naga on the machine) hands a backend a stage's SPIR-V and its text in a
+`ShaderTarget`: WGSL, MSL, HLSL or GLSL, or the SPIR-V alone.
+
+**What a GPU backend's compiler accepts.** Every construct of the language
+versions it claims, or it refuses the whole material by name with a
+`MaterialCompileException`; it never compiles part of a material, or a
+construct its device cannot draw into something else. The engine counts
+the budget before it asks: a material past it is refused naming the stage
+and the count, and no compiler is handed it. The corpus the language holds
+a compiler to runs on the null backend
+(`flutter3d_core/test/data_plugin/material_compiler_corpus_test.dart`):
+the version 1 to 3 fixtures, a light row read by type, blocks and textures
+of a material's own, a full-screen stage, every texture of its own a lit
+model may have, and the budget refusal; each reaches the compiler with
+every stage it becomes, and the section it answers is what a device loads.
+
+### Stages agree before a device sees them
+
+The bundle writer reads every pipeline's stages as `StageInterface`s
+(`StageInterface.fromGlsl`, after includes are resolved, or a backend's
+reflection) and holds them to each other with `checkStageAgreement`
+(amendment 5): every varying the fragment stage reads is written by the
+vertex stage with the same type, and the same location where both state
+one; every attribute the vertex stage reads is in the vertex layout the
+pipeline is drawn with, with the same type; and a uniform block both stages
+declare has the same members in the same order. Each mismatch is a
+`StageMismatch` naming both stages and what each declares, and the writer
+refuses the bundle with them: a build error with names, not a crash on one
+backend at the first draw.
+
+### Frame resources a stage reads
+
+A render node or a full-screen stage of a plugin's reads the frame's
+resources by name (`FrameResourceIds`, every one `f3d.<name>`). Every
+resource below is readable; five say what their channels hold, and those
+encodings are part of the contract and frozen within 1.x: a minor may add
+a resource, and may freeze one marked *not frozen*, never change what the
+channels of a frozen one hold. A resource marked *readable, encoding not
+frozen* may be read and ordered against, and what its texels hold may
+change in a minor. The structure rule *every frame resource says what it
+holds* keeps this table to `FrameResourceIds`.
+
+| Resource | What it holds |
+|---|---|
+| `f3d.hdr_color` | The scene's light, linear, unbounded and **before exposure**, in the renderer's light scale: one unit is `FrameContext.nitsPerHdrUnit` nits (1 843.2), so a stage adding light of `L` nits adds `L / nitsPerHdrUnit`. Alpha is not read. |
+| `f3d.surface_buffer` | `rg` the world normal of the nearest opaque surface, octahedral-encoded (`EncodeOctahedral` in `lib/color.glsl`: the normal over its L1 norm, the lower hemisphere folded over the diagonals, then `* 0.5 + 0.5`), `b` its perceptual roughness, `a` its depth along the view axis in metres. All four are **zero where nothing was drawn**. A debug view (`RenderSettings.debugView`) may take `rgb` over; `a` stays the depth. Read it nearest: a filter averages two encoded normals into a third that is none of them. |
+| `f3d.velocity` | `rg` how far the pixel moved on screen since the last frame, **now minus then, in UV units** (nought to one from the top left); zero where nothing was drawn and on a view with no past. Produced while `RenderStep.velocity` is on and something reads it, a placed node's read included. |
+| `f3d.frame` | The finished picture, display-referred sRGB after tone mapping: what an effect at `afterTonemap` and after it reads and writes. |
+| `f3d.skinned_vertices` | A buffer for each mesh a `SkinningHook` claims: its vertices in `VertexLayout.standard` without joints and weights, as "Skinning hooks" says. Produced only while a hook is placed. |
+| `f3d.albedo_buffer` | Readable, encoding not frozen: each surface's own colour, the scene pass's third attachment, present only when a pass reads it. |
+| `f3d.ao` | Readable, encoding not frozen: ambient occlusion, at half the scene's resolution. |
+| `f3d.bloom` | Readable, encoding not frozen: the bloom pyramid. |
+| `f3d.computed_vertices` | Readable, encoding not frozen: what the frame's compute workloads wrote for the scene to draw, a water's surface or particles to instance. |
+| `f3d.contact_shadow` | Readable, encoding not frozen: the short march toward the sun, at the scene's resolution. |
+| `f3d.cube_shadow` | Readable, encoding not frozen: the point lights' cube atlas, drawn this frame. |
+| `f3d.cube_shadow_static` | Readable, encoding not frozen: the point lights' cube atlas, baked. |
+| `f3d.depth_pyramid` | Readable, encoding not frozen: the surface buffer's farthest depth over blocks of it, while `RenderSettings.occlusion` is `OcclusionMode.hiZ`. |
+| `f3d.irradiance_atlas` | Readable, encoding not frozen: the irradiance field's atlas as the GPU keeps it. |
+| `f3d.local_exposure` | Readable, encoding not frozen: the local exposure, at an eighth of the frame, while `RenderSettings.localExposure` is on. |
+| `f3d.luminance` | Readable, encoding not frozen: the scene's log luminance at a fixed small size, while auto exposure is on. |
+| `f3d.object_ids` | Readable, encoding not frozen: which node drew each pixel, on a frame something asked to pick from. |
+| `f3d.outline_mask` | Readable, encoding not frozen: the colour each marked node is ringed in, while the high-contrast look is on. |
+| `f3d.planar_reflections` | Readable, encoding not frozen: the mirrored pictures of the scene's planar reflectors. Read for its order: what reads it draws after them. |
+| `f3d.reflection_probe_<n>` | Readable, encoding not frozen: the filtered cube of the scene's `n`th reflection probe (`FrameResourceIds.reflectionProbe`). |
+| `f3d.render_textures` | Readable, encoding not frozen: what the scene's `RenderTexture`s were drawn into. Read for its order: each picture is its texture's own. |
+| `f3d.scene_color` | Readable, encoding not frozen: the scene as the opaque half left it, at its own size and five halvings side by side, on a frame with a transmissive draw. |
+| `f3d.shadow_map` | Readable, encoding not frozen: the directional light's shadow map. |
+| `f3d.shadow_moments` | Readable, encoding not frozen: the directional map as blurred exponential moments, for the `evsm` filter. |
+| `f3d.temporal_history` | Readable, encoding not frozen: the temporal resolve's history at the output's size, kept across frames. |
+
+The full-screen inputs of the material language read the same encodings
+(`sceneDepth` is the surface buffer's `a`, a million where it is zero).
+
+## Names
+
+The units above are half of what a name promises; the other half is how it
+is spelled and what its verb means. Item 28 of
+`tasks/1.0-scope-additions.md` settled these for 1.0, and the structure
+rules hold them over every published API snapshot (`tool/structure/naming.dart`).
+`dart fix` carries each rename made for them, from the migration table.
+
+- **American spelling in identifiers**, as Flutter and Dart spell theirs:
+  `color`, `center`, `meter`, `behavior`, `gray`, `normalize`, `isCanceled`.
+  The docs may stay British. A word written into a file keeps its spelling
+  until the format's version moves it — a tool's `boundsCentre` — because a
+  file is read by the reader's wire table, never by a Dart name. Level
+  format 5 moved its keys (`behaviors`, `behavior`, `texelsPerMeter`), and
+  its lift reads the British ones of format 4. The shader ABI's entry
+  points, block members and samplers are identifiers too, bound by name on
+  three backends (`SceneColorCopy`, `LayerInfo.scene_color`), and a rule
+  reads `api/flutter3d_shaders.abi` for British words as it reads the Dart
+  snapshots.
+- **No public type takes a name Flutter exports.** A widget file imports
+  `widgets.dart` or `material.dart` beside the facade, and those are built
+  from `foundation`, `rendering` and `services`, so a type of ours named
+  like one of theirs needs a `hide` there: the engine's camera onto a
+  viewport is `CameraView` (Flutter's `RenderView` is a render tree's
+  root), a credits table's section is `LicenseSection`. A collision kept
+  with a reason is one with `dart:ui` or `dart:io` only (`Scene`, `Link`),
+  which a game imports under a prefix to reach beneath Flutter.
+- **A result is a class, never a record.** What a caller reads (a return
+  type, a field, a getter) is a `final` class with named fields and `==`,
+  so it can gain a field in a minor; a record never can. Only a named
+  record typedef whose shape is fixed by its mathematics stays, each with
+  its reason. What an outside author implements is a base class, or a
+  base mixin class to mix in beside a superclass of its own, so a member a
+  minor adds arrives with a body.
+- **A creation callback is `onCreated`** on every widget of the engine's,
+  handed what that widget made (`Flutter3dView`'s engine, `Scene3D`'s
+  controller).
+- **One teardown verb per type.** `dispose()` ends an object's life, and
+  `close()` is for a connection or a stream. A handle a graphics device
+  made has one owner, who disposes it once: a second `dispose` asserts in a
+  debug build, a disposed handle used again is named by `debugCheckLive` in
+  a debug build, and the device's own `dispose` ends every handle it made
+  (the whole contract is on `GraphicsDevice`). A `stop()` beside `dispose()`
+  is a state transition (`start()` may follow it) and its doc says so, as
+  `PointerLock.release()` is the other half of `capture()`. A synchronous
+  `release()` that ends its object counts as a teardown verb and is
+  `dispose()`; a frame-graph node's is called by the registration that put
+  it in the frame, when that is cancelled.
+- **Creation verbs.** `create` is synchronous (the GPU's `create…Async` is the
+  asynchronous variant of a synchronous one); a device or a session is
+  opened (`open`, asynchronous); an asset is loaded, bytes are decoded, text
+  is parsed. A read that empties what it reads is `drain`. `make`, `take`
+  and `get` are not verbs here, except the ECS's own `get`/`set`.
+- **Units are not in names** unless the unit is not the contract's: no
+  `Degrees`, `Deg`, `Millis` or `Ms`. A field of view is `fovY`, in radians.
+  A file that stores degrees or milliseconds keeps them, and its reader and
+  writer convert.
+- **A boolean reads as a question**: a getter starts with `is`, `has`,
+  `can`, `uses`, `supports`, `did` or `was`, or is a third-person verb
+  (`castsShadow`). A settings field stays bare (`enabled`). No `bool`
+  parameter is positional: `setDepthWrite(enabled: false)` says what `false`
+  means.
+- **Constants are lowerCamelCase**, as Effective Dart asks: `f3dVersion`,
+  not `kF3dVersion`.
+- **Settings.** A settings type is `…Settings` (a HAL type is
+  `…Descriptor`; a declaration made to a registry, such as `FormatSpec` or
+  `ToolSpec`, is `…Spec`). It is `final`, its constructor is `const`, and
+  its `copyWith` takes every field the constructor sets. **A nullable field
+  is reset with a `clear…` flag**: `settings.copyWith(clearLabel: true)`,
+  because `copyWith(label: null)` cannot tell "keep it" from "remove it".
+  The flag beats a sentinel `Object?` parameter because the field keeps its
+  type, and it beats a `T? Function()` wrapper because setting a field stays
+  `copyWith(label: 'x')`.
+- **Every public number says its unit in its doc**, or that it has none (a
+  fraction, a ratio, a count). The rule counts the numbers that do not yet,
+  per package, and the count only comes down.
+
+## Plugins
+
+What an outside author's plugin may name, take and rely on, beside the
+units and the files above.
+
+### Namespaces (D23)
+
+- **Every name a plugin registers is `<namespace>.<name>`**, its namespace
+  being its id up to the first dot: a component, an event, a phase, a
+  snapshot part, a field, a subsystem, a quantity, an MCP tool, a render
+  step, a lighting model. Bare names and `f3d.` names are the engine's.
+- **The engine's own anchors, frame resources and render steps are
+  `f3d.<name>`** (`f3d.after_bloom`, `f3d.scene_color`, `f3d.color_grade`),
+  lower case with underscores, since `f3d.pipeline` version 2. A file
+  written before names them without the prefix and with spaces
+  (`after bloom`); a version 1 pipeline is lifted to the new words, and
+  `RenderAnchor.named`, `RendererSteps.named` and `anchorNamed` find an old
+  word too. A word without a dot was always the engine's, which is what
+  makes the renaming mechanical. A frame's pass names are reports, not
+  registrations, and keep their spelling. The structure rule `a render name
+  carries its namespace, f3d. for the engine` holds both halves.
+- **A lighting model is `<namespace>.<Name>`, its shader `<namespace>__<Name>`.**
+  A shader's entry point cannot carry a dot, so the stage is the same word
+  with the dot made `__` (`LightingModel.shaderNameOf`), and its vertex
+  stages follow (`acme_ink__InkVertex`). `__` is refused in a plugin id and
+  in a model's own name, which keeps the two spellings one to one. A
+  `.f3dmat` source names its material bare (`material Ink`); the namespace
+  is the plugin's that ships it. A file names the model by
+  `LightingModel.name`; the `<namespace>_<Name>` a file wrote before reads
+  as the registered model it meant, and the built-in models keep their bare
+  names (`Pbr`).
+- **The engine's rights go by list, never by prefix.**
+  `PluginManifest.engineNamespaces` is the packages this repository
+  publishes, and published at 0.8.5; a package that is never published
+  (`flutter3d_demo_content`) is not on it. Every engine plugin is named
+  after the package that ships it, as every other plugin is
+  (`flutter3d_post.bloom`). The ids of 0.8's never-published
+  `flutter3d_addon_*` plugins are read as the ids of today
+  (`flutter3d_addon_light.bloom` as `flutter3d_post.bloom`), and no plugin
+  from outside may take one of those namespaces. A data or Wasm plugin is
+  never the engine's, whatever its document says.
+- **The engine's areas are frozen at 1.0.0.** `PluginManifest.reservedAreas`
+  (`light`, `level`, `physics` and the rest) cannot be a plugin's
+  namespace, and the set does not grow in a 1.x minor: an area added later
+  would refuse a plugin already installed under that name. An area a minor
+  brings goes under `f3d.`: an MCP tool `f3d.<area>.<tool>`, an event
+  `f3d.<area>.<name>`, a VM extension `ext.flutter3d.f3d.<area>.…`, or a
+  name with an upper-case letter, which no plugin id can have. The
+  application's own MCP tools are refused an area as their namespace too.
+- **A simulation profile's name is its identity** on every tape and hello,
+  so a plugin's profile is `<namespace>.<name>` and bare names are the
+  engine's: a subsystem a plugin registers under a bare profile the engine
+  does not define, or another namespace's, is refused.
+- **An asset scheme is a plugin's namespace with `-` for `_`**, or that and
+  `-<name>` (`acme-frost-pak`), and never one of
+  `AssetSources.reservedSchemes` (`http`, `https`, `file`, `asset`, `data`,
+  `blob`, `package`, `hub`, `f3d`), a set frozen at 1.0.0.
+
+### The plugin API's number
+
+`PluginApiVersion.current` is what a plugin is refused against when it
+needs a newer minor than the engine provides. Its minor moves in the
+release that adds anything a plugin can call: a member of
+`flutter3d_plugin_api`, `flutter3d_fields` or `flutter3d_plugin_runtime`,
+or of a registry another package hands a plugin (`RendererSteps`,
+`ModelDecoders`); `McpTools` and the tool values are the plugin API's own,
+in `tools.dart`, beside no server. A structure rule compares those
+snapshots with the last 1.x release and fails while the number has not
+moved. A plugin writes the number it was written against as a literal,
+`PluginApiVersion(1, 0)`, never `current`.
+
+### What a plugin may touch
+
+- A plugin's view of the fields writes only a field that plugin declared,
+  and only while it touches the simulation; anything else comes back read
+  only.
+- A hook an outside author implements, and a callback one writes, takes
+  one context object that can gain members; the exceptions, and the hooks
+  handed one value, are named with their reasons in
+  `tool/structure/repository.dart` (`hookParametersAllowed`,
+  `hookValueParameters`).
+- A Wasm module's saved state has one shape whichever runtime wrote it:
+  memory and the exported mutable globals by name, with what only the
+  interpreter reaches kept apart and out of the digest. A runtime that
+  counts no fuel is refused a simulating module under a bit-exact profile.
+
+## A bridge to a package at 0.x
+
+A 1.x package names a type of another package in its API only where that
+type is the point: a Flame component, a `SoLoud` a game already holds. A
+type of a package at 0.x is one whose next minor may change it, so a 1.x
+signature that names it would break with it and no major of ours would
+say so. One 1.x package does it on purpose, a bridge whose own minor
+follows its counterpart's:
+
+- `flame_flutter3d` takes `tiled`'s `TiledMap`, `TiledObject` and
+  `TileLayer`, the map a Flame game loaded through `flame_tiled`.
+
+Four packages whose signatures cannot leave such types out are outside
+the 1.0 promise: `flame_multiplayer_dashwire` (`dashwire`'s
+`WireConnection`), `flutter3d_lints` (a `Plugin` of
+`analysis_server_plugin`, and the analyzer's `CompilationUnit`),
+`flutter3d_editor_play` (`vm_service`) and `flutter3d_education_lti`
+(pointycastle's and dart_jsonwebtoken's keys). They carry the engine's
+number like every package that names a sibling, so the number says which
+engine release each goes with; SUPPORT.md names them, and each type that
+puts one outside is a reasoned entry of `thirdPartyTypeAllowed`
+(`tool/structure/repository.dart`).
+
+Each constrains its counterpart to one 0.x minor, and when the counterpart
+moves to its next minor the bridge releases a minor of its own that
+follows it; a user upgrading one upgrades the other. Everything else wraps
+a 0.x type in one of its own (`PadDevice` over `pad_input`, `ToolSpec`
+over `dart_mcp`). A structure rule reads which package declares each
+third-party type a 1.x snapshot names, and a type of a 0.x package needs
+the bridge's entry in `zeroThirdPartyFollows`
+(`tool/structure/repository.dart`) saying so.

@@ -8,8 +8,8 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:test/test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 96;
 const int _height = 64;
@@ -28,9 +28,9 @@ Float32List _render({required bool fxaa, int factor = 1}) {
   final card =
       MeshNode(
           DeviceMesh.upload(device, CuboidShape().build()),
-          Material(
+          RenderMaterial(
             lighting: LightingModel.unlit,
-            baseColor: Vector4(1.0, 1.0, 1.0, 1.0),
+            baseColor: LinearColor.fromSrgb(1.0, 1.0, 1.0, 1.0),
           ),
         )
         ..setPosition(0.0, -0.5, -3.0)
@@ -43,8 +43,11 @@ Float32List _render({required bool fxaa, int factor = 1}) {
     scene: Scene()
       ..add(card)
       ..add(camera),
-    views: <RenderView>[
-      RenderView(camera: camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+    views: <CameraView>[
+      CameraView(
+        camera: camera,
+        clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
+      ),
     ],
     settings: RenderSettings(
       bloom: const BloomSettings(enabled: false),

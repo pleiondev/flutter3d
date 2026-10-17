@@ -83,7 +83,7 @@ class _PadScreenState extends State<PadScreen>
 
   @override
   Widget build(BuildContext context) {
-    final connected = _snapshot.connected;
+    final connected = _snapshot.isConnected;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Gamepad'),
@@ -233,29 +233,29 @@ class _StickPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final centre = size.center(Offset.zero);
+    final center = size.center(Offset.zero);
     final radius = size.shortestSide / 2 - 4;
     canvas.drawCircle(
-      centre,
+      center,
       radius,
       Paint()
         ..style = PaintingStyle.stroke
         ..color = Colors.white24,
     );
     canvas.drawLine(
-      Offset(centre.dx - radius, centre.dy),
-      Offset(centre.dx + radius, centre.dy),
+      Offset(center.dx - radius, center.dy),
+      Offset(center.dx + radius, center.dy),
       Paint()..color = Colors.white12,
     );
     canvas.drawLine(
-      Offset(centre.dx, centre.dy - radius),
-      Offset(centre.dx, centre.dy + radius),
+      Offset(center.dx, center.dy - radius),
+      Offset(center.dx, center.dy + radius),
       Paint()..color = Colors.white12,
     );
     // Y is not flipped: a pad reports positive downwards and so does a screen,
     // so the dot goes where the thumb is.
     canvas.drawCircle(
-      centre + Offset(x * radius, y * radius),
+      center + Offset(x * radius, y * radius),
       7,
       Paint()..color = Colors.lightBlueAccent,
     );

@@ -8,35 +8,35 @@ import 'package:flutter_test/flutter_test.dart';
 Int64List pack(List<(int, int)> entries) {
   final buffer = Int64List(entries.length);
   for (var i = 0; i < entries.length; i++) {
-    buffer[i] = (entries[i].$1 << kPayloadBits) | entries[i].$2;
+    buffer[i] = (entries[i].$1 << payloadBits) | entries[i].$2;
   }
   return buffer;
 }
 
 List<int> payloads(Int64List buffer, int count) => <int>[
-  for (var i = 0; i < count; i++) buffer[i] & kPayloadMask,
+  for (var i = 0; i < count; i++) buffer[i] & payloadMask,
 ];
 
 List<int> keys(Int64List buffer, int count) => <int>[
-  for (var i = 0; i < count; i++) buffer[i] >> kPayloadBits,
+  for (var i = 0; i < count; i++) buffer[i] >> payloadBits,
 ];
 
 void main() {
   group('packing', () {
     test('key and payload survive a round trip', () {
-      final buffer = pack(<(int, int)>[(0x7FFFFFFFFF, kMaxPayload)]);
-      expect(buffer[0] >> kPayloadBits, 0x7FFFFFFFFF);
-      expect(buffer[0] & kPayloadMask, kMaxPayload);
+      final buffer = pack(<(int, int)>[(0x7FFFFFFFFF, maxPayload)]);
+      expect(buffer[0] >> payloadBits, 0x7FFFFFFFFF);
+      expect(buffer[0] & payloadMask, maxPayload);
       // The sign bit must stay clear, otherwise byte-wise ordering would not
       // match numeric ordering.
       expect(buffer[0], greaterThan(0));
     });
 
     test('the largest key still fits alongside the largest payload', () {
-      final maxKey = (1 << kSortKeyBits) - 1;
-      final packed = (maxKey << kPayloadBits) | kMaxPayload;
+      final maxKey = (1 << sortKeyBits) - 1;
+      final packed = (maxKey << payloadBits) | maxPayload;
       expect(packed, greaterThan(0), reason: 'no overflow into the sign bit');
-      expect(packed >> kPayloadBits, maxKey);
+      expect(packed >> payloadBits, maxKey);
     });
   });
 
@@ -107,7 +107,7 @@ void main() {
         // optimization would otherwise hide a bug.
         final buffer = pack(<(int, int)>[
           (0, 0),
-          ((1 << kSortKeyBits) - 1, 1),
+          ((1 << sortKeyBits) - 1, 1),
           (1 << 34, 2),
           (255, 3),
           (1 << 20, 4),
@@ -152,7 +152,7 @@ void main() {
       final scratch = Int64List(1);
       sortPackedKeys(buffer, scratch, 0);
       sortPackedKeys(buffer, scratch, 1);
-      expect(buffer[0] & kPayloadMask, 0);
+      expect(buffer[0] & payloadMask, 0);
     });
   });
 
@@ -160,9 +160,9 @@ void main() {
     test('both sides of the threshold produce identical orderings', () {
       final random = math.Random(5);
       for (final count in <int>[
-        kRadixThreshold - 1,
-        kRadixThreshold,
-        kRadixThreshold + 1,
+        radixThreshold - 1,
+        radixThreshold,
+        radixThreshold + 1,
       ]) {
         final entries = <(int, int)>[
           for (var i = 0; i < count; i++) (random.nextInt(1 << 28), i),

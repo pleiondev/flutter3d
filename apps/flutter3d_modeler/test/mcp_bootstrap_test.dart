@@ -24,8 +24,8 @@ library;
 
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
+import 'package:flutter3d_mcp/kit.dart' show Answer;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_modeler/src/mcp_bootstrap_io.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -67,9 +67,10 @@ void main() {
 
       Future<Map<String, Object?>> call(Object? body) async {
         final request = await httpClient.postUrl(
-          Uri.parse('http://127.0.0.1:$port/mcp?token=$token'),
+          Uri.parse('http://127.0.0.1:$port/mcp'),
         );
         request.headers.contentType = ContentType.json;
+        request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
         request.write(json.encode(body));
         final response = await request.close();
         // A notification (no `id`) gets `202 Accepted` and no body; a
@@ -83,7 +84,7 @@ void main() {
 
       // The protocol's own handshake — a raw JSON-RPC exchange rather than
       // `dart_mcp`'s own `MCPClient` (which `http_transport_test.dart`,
-      // in `flutter3d_model_mcp` itself, already runs against this same
+      // in `flutter3d_mcp/model.dart` itself, already runs against this same
       // server): this row's own acceptance is that *this* wiring — the port
       // and token this session actually wrote — reaches a live server
       // answering for the GUI's own document, not a second, disconnected
@@ -189,7 +190,7 @@ void main() {
             (
               String tool,
               Map<String, Object?> arguments,
-              ({bool did, String says, Uint8List? png}) answer,
+              Answer answer,
               Duration elapsed,
             ) => seen.add((tool: tool, arguments: arguments, did: answer.did)),
       );
@@ -206,9 +207,10 @@ void main() {
       addTearDown(() => httpClient.close(force: true));
       Future<Map<String, Object?>> call(Object? body) async {
         final request = await httpClient.postUrl(
-          Uri.parse('http://127.0.0.1:$port/mcp?token=$token'),
+          Uri.parse('http://127.0.0.1:$port/mcp'),
         );
         request.headers.contentType = ContentType.json;
+        request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
         request.write(json.encode(body));
         final response = await request.close();
         final text = await response.transform(utf8.decoder).join();
@@ -244,13 +246,13 @@ void main() {
         'id': 2,
         'method': 'tools/call',
         'params': <String, Object?>{
-          'name': 'list',
+          'name': 'project.list',
           'arguments': <String, Object?>{},
         },
       });
 
       expect(seen, hasLength(1));
-      expect(seen.single.tool, 'list');
+      expect(seen.single.tool, 'project.list');
       expect(seen.single.did, isTrue);
     },
   );

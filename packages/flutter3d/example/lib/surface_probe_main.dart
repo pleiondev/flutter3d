@@ -11,7 +11,7 @@ library;
 
 import 'dart:io';
 
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 
 import 'surface_probe.dart';
 import 'surface_probe_report.dart';

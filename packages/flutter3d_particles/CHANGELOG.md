@@ -1,3 +1,187 @@
+## 1.0.0-rc.1+1
+
+- **A particle above or below the eye fogs as the air there does.** Both
+  contributors bind the height fog's falloff, and the stages integrate it
+  along the ray, where a spark high over the camera fogged at the camera's
+  density.
+- **Breaking: results that were records are final classes.** `EffectRender`,
+  `ParticleEffects` and `importSixWay` answered or held a record, which can
+  never gain a field. Each answers a final class now, with the record's
+  field names (a positional `$1` has a name of its own), `==` and
+  `hashCode`. A field read compiles as before; a destructuring pattern names
+  the class, and `flutter3d_build:migrate` rewrites the `$1` reads.
+- **Breaking: what a component mixes in is a base mixin class.**
+  `LightEmitter` changed: a type an outside author writes against is mixed
+  in (`with`) rather than implemented, so a member a minor adds arrives with
+  a body and breaks nobody. Write `with` where a class wrote `implements`; a
+  class that mixes one in is `base` or `final`.
+- **Breaking: `RenderView` is `CameraView`.** `MeshParticleContributor` and
+  `ParticleContributor` changed with it. `package:flutter/rendering.dart`
+  exports a `RenderView` too, the root of a render tree, so a file importing
+  both had to hide one. `RenderViewSettings` is `CameraViewSettings` and
+  `FrameView.ofRenderView` is `FrameView.ofCameraView`; `dart fix` renames
+  them.
+
+## 1.0.0-rc.1
+
+- **Breaking: `ParticleGlow` is made by its emitter.** A `LightEmitter`
+  keeps its own as `glow`; one made by hand belonged to no emitter.
+- **Breaking: `Particle.color` is `Particle.linearRgba`.** The same
+  `Vector4`, written in place by every affector, under a name that says it
+  is a linear RGBA buffer rather than a colour value.
+- **Breaking: an affector and an emitter take one context.**
+  `ParticleAffector.apply` takes a `ParticleStep` (new: the particle and
+  `dt`) and `ParticleEmitter.emit` a `ParticleBirth` (new: the particle,
+  the origin, the direction and the random stream). A system owns one of
+  each and sets it before every call, so a step allocates none; an
+  affector or an emitter reads it during the call and does not keep it. A
+  parameter added later would have broken every affector and emitter a
+  game wrote; a field added to a context breaks none.
+- **Breaking: `SixWayMaterial.emission` and `ambient` are `LinearColor`s**,
+  black by default, set in place as the vectors were.
+- **Breaking: `ParticleGravity` takes `acceleration:` by name.** An
+  optional positional argument could never have had a named one beside
+  it.
+- **Breaking: an effect's colours are `LinearColor`s**, the engine's one
+  colour type: `ParticleEffect.color`, `GradientKey.color`,
+  `ParticleGradient.constant`/`.linear` and `ParticleColorOverLife`. The
+  numbers mean what they did (linear, alpha as brightness), so
+  `Vector4(1.0, 0.5, 0.2, 1.0)` becomes `LinearColor(1.0, 0.5, 0.2, 1.0)`
+  and an effect can be `const`. A live `Particle.color` stays the `Vector4`
+  the step writes in place.
+- **Breaking: `Emission` takes named arguments** (`effect:`, `origin:`,
+  `perSecond:`, `direction:`, `remaining:`).
+
+- **Particles say where they draw** (`boundsFor` on `ParticleContributor`
+  and `MeshParticleContributor`), so a near plane fitted under reversed
+  depth fits a scene with particles in it and stops in front of the
+  nearest one, rather than falling back to the camera's plane.
+  `ParticleSystem.boundsOf(footprint)` is the box both answer with.
+
+- **`ParticleSystem.followOrigin(scene)`, one handler per scene.** A system
+  drawn by `Particles3D` and also followed through
+  `Flutter3dEngine.followOrigin` moved twice on a shift; both now hold the
+  system's one handler, which goes when the last of them is cancelled.
+
+- **`effectsSection` reads a data plugin's `effects`.** Registered in the
+  engine's `DataSectionRegistry`, it reads the `.f3dfx` documents a
+  `.f3dplugin` names or carries and installs them into `ParticleEffects`;
+  the plugin runtime no longer depends on this package to do it. The file
+  format is unchanged.
+- **Reads gravity and wind from `flutter3d_matter`** rather than through
+  the physics: `WorldProperties` and `standardGravity` are what a world is
+  made of, and a particle system needs no collision world.
+- **`PlacedEvent` is declared in `flutter3d_foundation`**, which this
+  package does not re-export: an event of the simulation
+  (`ElementExploded` in `flutter3d_elements`) says where it happened
+  without depending on the particles. Import it from the foundation. New
+  in 1.0, so no 0.8 code names it.
+
+- **Breaking: a particle system lives in a world.** `ParticleSystem.world`
+  (a `WorldProperties`) gives `ParticleGravity()` its gravity and the
+  particles their wind; `ParticleSystem.gravity` is a getter and setter over
+  it rather than a field. `ParticleGravity.world(scale:)` falls by a multiple
+  of the world's, and `ParticleDrag` slows a particle relative to the wind.
+- **Breaking: a burst's place is named `at`, in scene space.**
+  `ParticleSystem.burst`, `emit` and `emitTimed` call their positional
+  place `at` where it was `origin` (no call names it) and say it is
+  relative to `Scene.origin`. `burstInWorld`, `emitInWorld` and
+  `emitTimedInWorld`, and `ParticleEffects.burstInWorld` and `emitInWorld`,
+  take a `WorldPosition` and narrow it with `Scene.toScene`.
+* **Breaking: `ParticleSystem.emitFor` is gone**, deprecated earlier in
+  1.0. It emitted a whole frame's worth at once, so what it made depended on
+  the frame rate: call `emit` with the rate and `advance(dt)`, which spends
+  it across fixed sub-steps.
+* **Breaking: a boolean reads as a question, and no `bool` is positional.**
+  `Emission.spent` is `isSpent`; `ParticleGlow.located` is `isLocated`;
+  `Particle.alive` is `isAlive`. `dart fix` carries the renames.
+* **Breaking: `ConeEmitter.halfAngleDegrees` is `halfAngle`, in radians**
+  (docs/CONTRACTS.md): `25.0 * math.pi / 180.0` for what was `25.0`. An
+  `.f3dfx` file keeps its `halfAngleDegrees` key; the reader converts.
+* **Breaking: American spelling in identifiers, as Flutter and Dart
+  use.** `centre` is `center`, `colour` is `color`, `randomiseStart` is
+  `randomizeStart`. Only the Dart names changed: a file keeps the keys it
+  was written with, and `dart fix` carries the renames.
+* **`ParticleSystem.shiftOrigin`**: the particles' hook for a moving origin,
+  every live particle moved the other way.
+* **Breaking: `.f3dfx` is version 2, in the format envelope.** A document
+  starts `{"format": "f3d.effect", "version": 2, ...}` (`EffectDocument.format`)
+  instead of `{"f3dfx": 1}`. No effect key changed; a build from before looks
+  for its version under `f3dfx` and refuses a version-2 file rather than
+  misreading it. Version 1 documents still read, `f3dfx` and all, and are
+  written back as version 2.
+* **Breaking:** `EffectDocument` extends `FormatDocument`; its unknown keys
+  are `unknown` (`extra` still answers the same map), and its constructor is
+  no longer `const`. Every reader in the effect format throws
+  `EffectFormatException` where it threw `dart:core`'s `FormatException`.
+* **`EffectFormatException` is a `Flutter3dFormatException`**, under
+  `Flutter3dException` from `flutter3d_plugin_api` with every other exception
+  the engine throws.
+* **1.0.0 is a promise: strict semver from there.** This release candidate
+  already keeps it. A patch fixes bugs and
+  breaks nothing, a minor adds, and a break waits for a major. The whole
+  public API is stable, with no experimental exceptions, and is held to the
+  snapshot in `api/`. A deprecated name stays until the next major and for
+  at least six months, and says what replaces it.
+  [CONTRIBUTING.md](https://github.com/pleiondev/flutter3d/blob/main/CONTRIBUTING.md#the-api-is-a-snapshot)
+  has the rules, and
+  [SUPPORT.md](https://github.com/pleiondev/flutter3d/blob/main/SUPPORT.md)
+  says which releases get fixes and on which platforms.
+
+* **Breaking: sparks fall by their world's gravity.** `ParticleGravity()`
+  with no acceleration pulled particles down at a 9.8 of its own; it now
+  reads `ParticleSystem.gravity`, the world's, which a game sets from its
+  world (`NativeWorld.gravityMagnitude`, a level's gravity) and which is
+  `standardGravity` for a system nobody gave one. Each step hands it to the
+  live particles as `Particle.gravity`. `ParticleGravity.acceleration` is a
+  `double?` now, null for the world's; an effect that names an acceleration
+  keeps it, as a look. The dungeon's splinters and splashes and the racing
+  circuit's tyre drops and bow spray, which wrote the 9.8 out, fall by their
+  worlds' 9.81 now, **which moves their frames: the dungeon's and the
+  racing demo's goldens with those particles in them are re-recorded before
+  the release.**
+
+* **Effects can be written as data.** A `.f3dfx` document (`EffectDocument`,
+  `f3dfx` 1, with a fixture) describes effects in this package's own terms:
+  the emitter, the count, the lifetime, size and colour, the affectors in
+  order (gravity, the world's or a number of its own; drag, wind,
+  turbulence, colour and size over life, gradients and curves with their
+  eases, spin, and a floor to land on), how it is drawn (billboard, mesh or
+  six-way sheet, its blend, texture, flipbook and softness), a standing
+  rate, and the bus events it goes off on. An effect read from a document
+  is the same simulation as the one written in Dart, particle for particle;
+  the dungeon's blast, torch, splash, splinters and sparks are written in
+  both and tested against each other. `ParticleEffects` is the registry a
+  game or a `.f3dplugin` installs documents into, and an event that
+  implements `PlacedEvent` places the effects it starts. Collision against
+  the scene's depth is read and reported as unsupported: a simulation on
+  the CPU has no depth to read, and `ParticlePlaneCollision` is the floor it
+  can do.
+
+* **The six-way smoke baker lives beside the sheet it bakes.**
+  `bakeSixWay`, `smokePuff`, `SixWaySheet` and `SixWayField` moved here from
+  `flutter3d_build`, so a game bakes its smoke as it starts, on any
+  platform, with no build tool among its dependencies.
+
+* **Particles through an orthographic camera fog by depth.** Every particle
+  stage measured its fog from the eye's position and a mesh particle lit
+  its faces by how squarely they faced it; through an orthographic lens the
+  eye is only where the camera was put along its axis, so a particle off
+  the axis came out foggier and a shard dimmer than the same one on it. The
+  contributors now bind the view axis and the lens, and the stages measure
+  from the eye's plane and against the axis.
+
+* **Height fog, as thick as it is at the camera.** Both contributors hand
+  their stages `FogSettings.densityAt` the camera's height rather than the
+  density at the fog's base, so a height fog does not leave particles fogged
+  as though they stood on the ground.
+
+* **Particles follow a shader reload.** `ParticleContributor` and
+  `MeshParticleContributor` drop their pipelines when the renderer relinks,
+  through `flutter3d_core`'s `PassContributor.relinkShaders`.
+
+Its `flutter3d_*` dependencies ask for `^1.0.0`.
+
 ## 0.8.1+1
 
 **Resolves on Flutter 3.44 and Dart 3.12.0.** The constraints asked for Dart

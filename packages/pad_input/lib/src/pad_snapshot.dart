@@ -12,13 +12,15 @@ import 'pad_button.dart';
 /// a stream would push edge detection into every caller. It is also the only
 /// shape the browser can serve honestly, because `navigator.getGamepads()` is
 /// itself a poll.
+///
+/// A platform or a test makes one with `PadSnapshot()` and sets it.
 final class PadSnapshot {
   /// Whether a pad was attached when this was filled in.
   ///
   /// A snapshot of a missing pad is all zeroes rather than stale values, which
   /// is what stops a controller whose battery died mid-corner from leaving the
   /// throttle where it was.
-  bool connected = false;
+  bool isConnected = false;
 
   final Map<PadAxis, double> _axes = <PadAxis, double>{
     for (final axis in PadAxis.values) axis: 0.0,
@@ -70,11 +72,11 @@ final class PadSnapshot {
   /// Back to no pad at all.
   void disconnect() {
     clear();
-    connected = false;
+    isConnected = false;
   }
 
   void copyFrom(PadSnapshot other) {
-    connected = other.connected;
+    isConnected = other.isConnected;
     for (final axis in PadAxis.values) {
       _axes[axis] = other._axes[axis] ?? 0.0;
     }

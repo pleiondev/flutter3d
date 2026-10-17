@@ -6,8 +6,11 @@
 /// `gpu_formats.dart`.
 library;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show UnsupportedCapabilityException;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter_gpu/gpu.dart' as gpu;
+import 'gpu_refusal.dart' show impellerRefusal;
 
 /// Maps the engine's [LoadAction] to its `package:flutter_gpu` equivalent.
 extension LoadActionToGpu on LoadAction {
@@ -15,6 +18,10 @@ extension LoadActionToGpu on LoadAction {
     LoadAction.dontCare => gpu.LoadAction.dontCare,
     LoadAction.load => gpu.LoadAction.load,
     LoadAction.clear => gpu.LoadAction.clear,
+    _ => throw impellerRefusal(
+      'toGpu',
+      'flutter_gpu has no load action for $this',
+    ),
   };
 }
 
@@ -26,6 +33,10 @@ extension StoreActionToGpu on StoreAction {
     StoreAction.multisampleResolve => gpu.StoreAction.multisampleResolve,
     StoreAction.storeAndMultisampleResolve =>
       gpu.StoreAction.storeAndMultisampleResolve,
+    _ => throw impellerRefusal(
+      'toGpu',
+      'flutter_gpu has no store action for $this',
+    ),
   };
 }
 
@@ -37,6 +48,10 @@ extension PrimitiveTypeToGpu on PrimitiveType {
     PrimitiveType.line => gpu.PrimitiveType.line,
     PrimitiveType.lineStrip => gpu.PrimitiveType.lineStrip,
     PrimitiveType.point => gpu.PrimitiveType.point,
+    _ => throw impellerRefusal(
+      'toGpu',
+      'flutter_gpu has no primitive type for $this',
+    ),
   };
 }
 
@@ -46,6 +61,10 @@ extension CullModeToGpu on CullMode {
     CullMode.none => gpu.CullMode.none,
     CullMode.frontFace => gpu.CullMode.frontFace,
     CullMode.backFace => gpu.CullMode.backFace,
+    _ => throw impellerRefusal(
+      'toGpu',
+      'flutter_gpu has no cull mode for $this',
+    ),
   };
 }
 
@@ -62,6 +81,10 @@ extension PolygonModeToGpu on PolygonMode {
   gpu.PolygonMode toGpu() => switch (this) {
     PolygonMode.fill => gpu.PolygonMode.fill,
     PolygonMode.line => gpu.PolygonMode.line,
+    _ => throw impellerRefusal(
+      'toGpu',
+      'flutter_gpu has no polygon mode for $this',
+    ),
   };
 }
 
@@ -93,15 +116,10 @@ extension StencilOperationToGpu on StencilOperation {
     StencilOperation.invert => gpu.StencilOperation.invert,
     StencilOperation.incrementWrap => gpu.StencilOperation.incrementWrap,
     StencilOperation.decrementWrap => gpu.StencilOperation.decrementWrap,
-  };
-}
-
-/// Maps the engine's [StencilFace] to its `package:flutter_gpu` equivalent.
-extension StencilFaceToGpu on StencilFace {
-  gpu.StencilFace toGpu() => switch (this) {
-    StencilFace.both => gpu.StencilFace.both,
-    StencilFace.front => gpu.StencilFace.front,
-    StencilFace.back => gpu.StencilFace.back,
+    _ => throw impellerRefusal(
+      'toGpu',
+      'flutter_gpu has no stencil operation for $this',
+    ),
   };
 }
 
@@ -143,6 +161,23 @@ extension BlendFactorToGpu on BlendFactor {
     BlendFactor.oneMinusBlendColor => gpu.BlendFactor.oneMinusBlendColor,
     BlendFactor.blendAlpha => gpu.BlendFactor.blendAlpha,
     BlendFactor.oneMinusBlendAlpha => gpu.BlendFactor.oneMinusBlendAlpha,
+    // TODO(impeller): flutter_gpu's BlendFactor has no second-source factors
+    // and its pipelines no second fragment output — unblocked by an upstream
+    // flutter_gpu BlendFactor.source1* (dual-source blending) API.
+    BlendFactor.source1Color ||
+    BlendFactor.oneMinusSource1Color ||
+    BlendFactor.source1Alpha ||
+    BlendFactor.oneMinusSource1Alpha => throw UnsupportedCapabilityException(
+      DeviceFeature.dualSourceBlending,
+      backend: 'Impeller',
+      reason:
+          'flutter_gpu has no BlendFactor.$name and no second fragment '
+          'output to read it from',
+    ),
+    _ => throw impellerRefusal(
+      'toGpu',
+      'flutter_gpu has no blend factor for $this',
+    ),
   };
 }
 
@@ -152,5 +187,18 @@ extension BlendOperationToGpu on BlendOperation {
     BlendOperation.add => gpu.BlendOperation.add,
     BlendOperation.subtract => gpu.BlendOperation.subtract,
     BlendOperation.reverseSubtract => gpu.BlendOperation.reverseSubtract,
+    // TODO(impeller): flutter_gpu's BlendOperation stops at reverseSubtract —
+    // unblocked by upstream flutter_gpu gaining min and max, which Impeller's
+    // own blend descriptor and both its APIs already have.
+    BlendOperation.min ||
+    BlendOperation.max => throw UnsupportedCapabilityException(
+      DeviceFeature.minMaxBlend,
+      backend: 'Impeller',
+      reason: 'flutter_gpu has no BlendOperation.$name',
+    ),
+    _ => throw impellerRefusal(
+      'toGpu',
+      'flutter_gpu has no blend operation for $this',
+    ),
   };
 }

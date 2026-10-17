@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -48,7 +49,7 @@ base class Patrol extends Brain {
   /// Which post it is walking towards. For a test, and for a save.
   int get target => _target;
 
-  Vector3 get destination => _route[_target];
+  Vector3 get destination => _route[_target].clone();
 
   @override
   void act(Mind it) {
@@ -114,7 +115,7 @@ base class Patrol extends Brain {
       ..setFrom(body.position)
       ..x += dx / length * ledgeProbe
       ..z += dz / length * ledgeProbe;
-    _down.setValues(0.0, -(body.halfExtents.y + 0.6), 0.0);
+    _down.setValues(0.0, -(body.shape.boundsHalfExtents.y + 0.6), 0.0);
     return !body.world.sweep(
       body.shape,
       _ahead,
@@ -168,6 +169,7 @@ final class Leaper extends Patrol {
   });
 
   /// How wide a gap it will try. Beyond this it turns round like any patrol.
+  /// In metres.
   final double reach;
 
   @override
@@ -190,7 +192,7 @@ final class Leaper extends Patrol {
         ..setFrom(body.position)
         ..x += dx / length * reach
         ..z += dz / length * reach;
-      _probe.setValues(0.0, -(body.halfExtents.y + 1.2), 0.0);
+      _probe.setValues(0.0, -(body.shape.boundsHalfExtents.y + 1.2), 0.0);
       final ground = body.world.sweep(
         body.shape,
         _landing,
@@ -247,7 +249,7 @@ final class Hunter extends Brain {
   double _memory = 0.0;
 
   /// Whether it is currently after the player. For a test and a save.
-  bool get hunting => _memory > 0.0;
+  bool get isHunting => _memory > 0.0;
 
   @override
   void think(Mind it) {

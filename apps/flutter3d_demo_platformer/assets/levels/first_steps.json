@@ -1,5 +1,8 @@
 {
-  "version": 1,
+  "format": "f3d.level",
+  "version": 5,
+  "requires": [],
+  "generator": "flutter3d",
   "name": "First Steps",
   "generatedBy": "tool/make_first_steps.py",
   "fogColor": [0.05, 0.07, 0.12],
@@ -10,21 +13,21 @@
       "albedo": "assets/textures/moss_albedo.png",
       "normal": "assets/textures/moss_normal.png",
       "orm": "assets/textures/moss_orm.png",
-      "texelsPerMetre": 0.5
+      "texelsPerMeter": 0.5
     },
     "stone": {
       "roughness": 1.0,
       "albedo": "assets/textures/stone_albedo.png",
       "normal": "assets/textures/stone_normal.png",
       "orm": "assets/textures/stone_orm.png",
-      "texelsPerMetre": 0.5
+      "texelsPerMeter": 0.5
     },
     "brass": {
       "roughness": 1.0,
       "albedo": "assets/textures/brass_albedo.png",
       "normal": "assets/textures/brass_normal.png",
       "orm": "assets/textures/brass_orm.png",
-      "texelsPerMetre": 1.0,
+      "texelsPerMeter": 1.0,
       "metallic": 1.0
     },
     "wood": {
@@ -32,548 +35,586 @@
       "albedo": "assets/textures/wood_albedo.png",
       "normal": "assets/textures/wood_normal.png",
       "orm": "assets/textures/wood_orm.png",
-      "texelsPerMetre": 0.7
+      "texelsPerMeter": 0.7
     },
     "ice": {
       "roughness": 1.0,
       "albedo": "assets/textures/ice_albedo.png",
       "normal": "assets/textures/ice_normal.png",
       "orm": "assets/textures/ice_orm.png",
-      "texelsPerMetre": 0.4
+      "texelsPerMeter": 0.4
     }
   },
   "brushes": [
-    {"at": [-11.5, 7.0, 49.0], "size": [1.0, 16.0, 118.0], "material": "stone", "castsShadow": false},
-    {"at": [11.5, 7.0, 49.0], "size": [1.0, 16.0, 118.0], "material": "stone", "castsShadow": false},
-    {"at": [0.0, 7.0, -10.5], "size": [24.0, 16.0, 1.0], "material": "stone", "castsShadow": false},
-    {"at": [0.0, 7.0, 108.5], "size": [24.0, 16.0, 1.0], "material": "stone", "castsShadow": false},
-    {"at": [0.0, -0.5, -1.0], "size": [22.0, 1.0, 18.0], "material": "moss"},
-    {"at": [-9.5, 1.0, -1.0], "size": [3.0, 2.0, 6.0], "material": "stone", "ramp": "+z"},
-    {"at": [-9.5, 1.0, 3.0], "size": [3.0, 2.0, 2.0], "material": "stone"},
-    {"at": [0.0, -2.5, 11.0], "size": [22.0, 1.0, 6.0], "material": "stone"},
-    {"at": [0.0, -1.5, 11.6], "size": [22.0, 1.0, 1.6], "material": "stone"},
-    {"at": [0.0, -0.5, 13.2], "size": [22.0, 1.0, 1.6], "material": "stone"},
-    {"at": [0.0, -0.5, 19.0], "size": [22.0, 1.0, 10.0], "material": "moss"},
-    {"at": [0.0, 1.3, 26.0], "size": [22.0, 2.6, 4.0], "material": "stone"},
-    {"at": [9.0, 0.65, 23.0], "size": [4.0, 1.3, 2.0], "material": "moss"},
-    {"at": [0.0, -2.5, 32.0], "size": [22.0, 1.0, 8.0], "material": "stone"},
-    {"at": [0.0, -1.5, 33.6], "size": [22.0, 1.0, 1.6], "material": "stone"},
-    {"at": [0.0, -0.5, 35.2], "size": [22.0, 1.0, 1.6], "material": "stone"},
-    {"at": [0.0, -0.5, 41.0], "size": [22.0, 1.0, 10.0], "material": "moss"},
-    {"at": [0.0, -0.5, 52.0], "size": [22.0, 1.0, 12.0], "material": "moss"},
-    {"at": [-6.0, 3.0, 52.0], "size": [10.0, 6.0, 10.0], "material": "stone"},
-    {"at": [6.0, 3.0, 52.0], "size": [10.0, 6.0, 10.0], "material": "stone"},
-    {"at": [0.0, 3.0, 57.5], "size": [2.0, 6.0, 1.0], "material": "stone"},
-    {"at": [0.0, 0.8, 48.0], "size": [2.0, 1.6, 2.0], "material": "stone"},
-    {"at": [0.0, 5.5, 64.0], "size": [22.0, 1.0, 12.0], "material": "stone"},
-    {"at": [0.0, 5.5, 84.0], "size": [22.0, 1.0, 10.0], "material": "stone"},
-    {"at": [0.0, 4.0, 74.5], "size": [22.0, 1.0, 9.0], "material": "stone"},
-    {"at": [0.0, 4.875, 77.0], "size": [22.0, 0.75, 2.0], "material": "stone"},
-    {"at": [0.0, 5.625, 78.5], "size": [22.0, 0.75, 1.0], "material": "stone"},
-    {"at": [0.0, 9.5, 94.0], "size": [22.0, 5.0, 8.0], "material": "stone"},
-    {"at": [0.0, 5.5, 96.0], "size": [22.0, 1.0, 14.0], "material": "stone"}
+    {
+      "at": [-11.5, 7.0, 49.0],
+      "size": [1.0, 16.0, 118.0],
+      "material": "stone",
+      "castsShadow": false,
+      "id": "83243c90"
+    },
+    {
+      "at": [11.5, 7.0, 49.0],
+      "size": [1.0, 16.0, 118.0],
+      "material": "stone",
+      "castsShadow": false,
+      "id": "cc35d310"
+    },
+    {
+      "at": [0.0, 7.0, -10.5],
+      "size": [24.0, 16.0, 1.0],
+      "material": "stone",
+      "castsShadow": false,
+      "id": "f3663a89"
+    },
+    {
+      "at": [0.0, 7.0, 108.5],
+      "size": [24.0, 16.0, 1.0],
+      "material": "stone",
+      "castsShadow": false,
+      "id": "4c3267cb"
+    },
+    {"at": [0.0, -0.5, -1.0], "size": [22.0, 1.0, 18.0], "material": "moss", "id": "afb07696"},
+    {"at": [-9.5, 1.0, -1.0], "size": [3.0, 2.0, 6.0], "material": "stone", "ramp": "+z", "id": "2238a782"},
+    {"at": [-9.5, 1.0, 3.0], "size": [3.0, 2.0, 2.0], "material": "stone", "id": "a0443463"},
+    {"at": [0.0, -2.5, 11.0], "size": [22.0, 1.0, 6.0], "material": "stone", "id": "a98d4fa6"},
+    {"at": [0.0, -1.5, 11.6], "size": [22.0, 1.0, 1.6], "material": "stone", "id": "051ece20"},
+    {"at": [0.0, -0.5, 13.2], "size": [22.0, 1.0, 1.6], "material": "stone", "id": "0bcea0ff"},
+    {"at": [0.0, -0.5, 19.0], "size": [22.0, 1.0, 10.0], "material": "moss", "id": "719dcc6a"},
+    {"at": [0.0, 1.3, 26.0], "size": [22.0, 2.6, 4.0], "material": "stone", "id": "565e3bf8"},
+    {"at": [9.0, 0.65, 23.0], "size": [4.0, 1.3, 2.0], "material": "moss", "id": "62ea5a66"},
+    {"at": [0.0, -2.5, 32.0], "size": [22.0, 1.0, 8.0], "material": "stone", "id": "ea465e48"},
+    {"at": [0.0, -1.5, 33.6], "size": [22.0, 1.0, 1.6], "material": "stone", "id": "0348e765"},
+    {"at": [0.0, -0.5, 35.2], "size": [22.0, 1.0, 1.6], "material": "stone", "id": "ac070782"},
+    {"at": [0.0, -0.5, 41.0], "size": [22.0, 1.0, 10.0], "material": "moss", "id": "6ad6aae7"},
+    {"at": [0.0, -0.5, 52.0], "size": [22.0, 1.0, 12.0], "material": "moss", "id": "8f3b9be9"},
+    {"at": [-6.0, 3.0, 52.0], "size": [10.0, 6.0, 10.0], "material": "stone", "id": "151b8cf5"},
+    {"at": [6.0, 3.0, 52.0], "size": [10.0, 6.0, 10.0], "material": "stone", "id": "2f075a75"},
+    {"at": [0.0, 3.0, 57.5], "size": [2.0, 6.0, 1.0], "material": "stone", "id": "5baf8d48"},
+    {"at": [0.0, 0.8, 48.0], "size": [2.0, 1.6, 2.0], "material": "stone", "id": "a988e94b"},
+    {"at": [0.0, 5.5, 64.0], "size": [22.0, 1.0, 12.0], "material": "stone", "id": "4730176a"},
+    {"at": [0.0, 5.5, 84.0], "size": [22.0, 1.0, 10.0], "material": "stone", "id": "f56a6c2b"},
+    {"at": [0.0, 4.0, 74.5], "size": [22.0, 1.0, 9.0], "material": "stone", "id": "fa5b1f6c"},
+    {"at": [0.0, 4.875, 77.0], "size": [22.0, 0.75, 2.0], "material": "stone", "id": "b4bc1cb2"},
+    {"at": [0.0, 5.625, 78.5], "size": [22.0, 0.75, 1.0], "material": "stone", "id": "069e7d3e"},
+    {"at": [0.0, 9.5, 94.0], "size": [22.0, 5.0, 8.0], "material": "stone", "id": "db307007"},
+    {"at": [0.0, 5.5, 96.0], "size": [22.0, 1.0, 14.0], "material": "stone", "id": "e3d869ae"}
   ],
   "lights": [
     {
       "type": "directional",
       "direction": [-0.35, -0.85, 0.4],
       "color": [1.0, 0.96, 0.88],
-      "intensity": 2.6,
-      "castsShadow": true
+      "intensity": 15055.517302799999,
+      "castsShadow": true,
+      "id": "f32061bf"
     },
-    {"at": [0.0, 6.0, 0.0], "color": [1.0, 0.94, 0.8], "intensity": 24.0, "range": 30.0},
-    {"at": [0.0, 6.0, 30.0], "color": [1.0, 0.94, 0.8], "intensity": 24.0, "range": 32.0},
-    {"at": [0.0, 9.0, 56.0], "color": [0.85, 0.92, 1.0], "intensity": 26.0, "range": 34.0},
-    {"at": [0.0, 11.0, 76.0], "color": [1.0, 0.9, 0.7], "intensity": 26.0, "range": 36.0},
-    {"at": [0.0, 11.0, 100.0], "color": [0.9, 1.0, 0.9], "intensity": 26.0, "range": 34.0}
+    {
+      "at": [0.0, 6.0, 0.0],
+      "color": [1.0, 0.94, 0.8],
+      "intensity": 138974.005872,
+      "range": 30.0,
+      "id": "06277d6f"
+    },
+    {
+      "at": [0.0, 6.0, 30.0],
+      "color": [1.0, 0.94, 0.8],
+      "intensity": 138974.005872,
+      "range": 32.0,
+      "id": "987f7391"
+    },
+    {
+      "at": [0.0, 9.0, 56.0],
+      "color": [0.85, 0.92, 1.0],
+      "intensity": 150555.173028,
+      "range": 34.0,
+      "id": "6166cd75"
+    },
+    {
+      "at": [0.0, 11.0, 76.0],
+      "color": [1.0, 0.9, 0.7],
+      "intensity": 150555.173028,
+      "range": 36.0,
+      "id": "3c7bb5f4"
+    },
+    {
+      "at": [0.0, 11.0, 100.0],
+      "color": [0.9, 1.0, 0.9],
+      "intensity": 150555.173028,
+      "range": 34.0,
+      "id": "027b8812"
+    }
   ],
   "entities": [
-    {"type": "player_spawn", "at": [0.0, 0.0, -8.0]},
+    {"type": "player_spawn", "at": [0.0, 0.0, -8.0], "id": "050e16e9"},
     {
       "type": "collectible",
       "name": "first coin 1",
       "at": [0.0, 0.8, -4.0],
-      "what": "coin",
-      "model": "assets_src/models/coin.glb"
+      "props": {"what": "coin", "model": "assets_src/models/coin.glb"},
+      "id": "a311c40b"
     },
     {
       "type": "collectible",
       "name": "first coin 2",
       "at": [0.0, 0.8, 0.0],
-      "what": "coin",
-      "model": "assets_src/models/coin.glb"
+      "props": {"what": "coin", "model": "assets_src/models/coin.glb"},
+      "id": "e162753a"
     },
     {
       "type": "collectible",
       "name": "first coin 3",
       "at": [0.0, 0.8, 4.0],
-      "what": "coin",
-      "model": "assets_src/models/coin.glb"
+      "props": {"what": "coin", "model": "assets_src/models/coin.glb"},
+      "id": "6c6a5a41"
     },
     {
       "type": "collectible",
       "name": "first stray coin 1",
       "at": [-5.0, 0.8, -6.0],
-      "what": "coin",
-      "model": "assets_src/models/coin.glb"
+      "props": {"what": "coin", "model": "assets_src/models/coin.glb"},
+      "id": "6ba1389e"
     },
     {
       "type": "collectible",
       "name": "first stray coin 2",
       "at": [5.0, 0.8, -6.0],
-      "what": "coin",
-      "model": "assets_src/models/coin.glb"
+      "props": {"what": "coin", "model": "assets_src/models/coin.glb"},
+      "id": "efb658ff"
     },
     {
       "type": "collectible",
       "name": "first stray coin 3",
       "at": [-7.0, 0.8, 1.0],
-      "what": "coin",
-      "model": "assets_src/models/coin.glb"
+      "props": {"what": "coin", "model": "assets_src/models/coin.glb"},
+      "id": "802aab3d"
     },
     {
       "type": "collectible",
       "name": "first stray coin 4",
       "at": [7.0, 0.8, 1.0],
-      "what": "coin",
-      "model": "assets_src/models/coin.glb"
+      "props": {"what": "coin", "model": "assets_src/models/coin.glb"},
+      "id": "d439e7dc"
     },
     {
       "type": "collectible",
       "name": "first stray coin 5",
       "at": [-4.0, 0.8, 6.0],
-      "what": "coin",
-      "model": "assets_src/models/coin.glb"
+      "props": {"what": "coin", "model": "assets_src/models/coin.glb"},
+      "id": "406bf2d6"
     },
     {
       "type": "collectible",
       "name": "first stray coin 6",
       "at": [4.0, 0.8, 6.0],
-      "what": "coin",
-      "model": "assets_src/models/coin.glb"
+      "props": {"what": "coin", "model": "assets_src/models/coin.glb"},
+      "id": "678b8e57"
     },
     {
       "type": "collectible",
       "name": "the coin at the top of the slope",
       "at": [-9.5, 2.8, 3.0],
-      "what": "coin",
-      "model": "assets_src/models/coin.glb"
+      "props": {"what": "coin", "model": "assets_src/models/coin.glb"},
+      "id": "f3f06ab2"
     },
     {
       "type": "crate",
       "name": "the first crate",
       "at": [-2.0, 0.7, 2.0],
-      "size": [1.4, 1.4, 1.4],
-      "mass": 30.0,
-      "material": "wood"
+      "props": {"size": [1.4, 1.4, 1.4], "mass": 30.0, "material": "wood"},
+      "id": "dd3c6448"
     },
     {
       "type": "crate",
       "name": "the second crate",
       "at": [2.0, 0.7, 2.0],
-      "size": [1.4, 1.4, 1.4],
-      "mass": 30.0,
-      "material": "wood"
+      "props": {"size": [1.4, 1.4, 1.4], "mass": 30.0, "material": "wood"},
+      "id": "6609bdb7"
     },
     {
       "type": "lamp",
       "name": "the first lamp",
       "at": [-6.0, 1.0, -2.0],
-      "size": [0.4, 1.6, 0.4],
-      "material": "brass"
+      "props": {"size": [0.4, 1.6, 0.4], "material": "brass"},
+      "id": "af5eda48"
     },
     {
       "type": "lamp",
       "name": "the second lamp",
       "at": [6.0, 1.0, -2.0],
-      "size": [0.4, 1.6, 0.4],
-      "material": "brass"
+      "props": {"size": [0.4, 1.6, 0.4], "material": "brass"},
+      "id": "08828669"
     },
     {
       "type": "checkpoint",
       "name": "the first post",
       "at": [0.0, 1.0, 8.0],
-      "order": 1,
-      "respawn": [0.0, 0.0, 6.0],
-      "size": [24.0, 3.0, 1.0]
+      "props": {"order": 1, "respawn": [0.0, 0.0, 6.0], "size": [24.0, 3.0, 1.0]},
+      "id": "73d47b16"
     },
     {
       "type": "collectible",
       "name": "the jump coin",
       "at": [0.0, 2.2, 11.0],
-      "what": "coin",
-      "model": "assets_src/models/coin.glb"
+      "props": {"what": "coin", "model": "assets_src/models/coin.glb"},
+      "id": "49c58087"
     },
     {
       "type": "collectible",
       "name": "the jump coin to the left",
       "at": [-3.5, 2.2, 11.0],
-      "what": "coin",
-      "model": "assets_src/models/coin.glb"
+      "props": {"what": "coin", "model": "assets_src/models/coin.glb"},
+      "id": "cc992e60"
     },
     {
       "type": "collectible",
       "name": "the jump coin to the right",
       "at": [3.5, 2.2, 11.0],
-      "what": "coin",
-      "model": "assets_src/models/coin.glb"
+      "props": {"what": "coin", "model": "assets_src/models/coin.glb"},
+      "id": "fb8367e2"
     },
     {
       "type": "crate",
       "name": "the crate to stand on",
       "at": [-6.0, 0.7, 17.0],
-      "size": [1.4, 1.4, 1.4],
-      "mass": 30.0,
-      "material": "wood"
+      "props": {"size": [1.4, 1.4, 1.4], "mass": 30.0, "material": "wood"},
+      "id": "e3d15703"
     },
     {
       "type": "collectible",
       "name": "the coin you need the crate for",
       "at": [-6.0, 3.4, 19.0],
-      "what": "coin",
-      "model": "assets_src/models/coin.glb"
+      "props": {"what": "coin", "model": "assets_src/models/coin.glb"},
+      "id": "d51e0d92"
     },
     {
       "type": "collectible",
       "name": "landing coin 1",
       "at": [-8.0, 0.8, 15.5],
-      "what": "coin",
-      "model": "assets_src/models/coin.glb"
+      "props": {"what": "coin", "model": "assets_src/models/coin.glb"},
+      "id": "36e7ec59"
     },
     {
       "type": "collectible",
       "name": "landing coin 2",
       "at": [-4.0, 0.8, 15.5],
-      "what": "coin",
-      "model": "assets_src/models/coin.glb"
+      "props": {"what": "coin", "model": "assets_src/models/coin.glb"},
+      "id": "62307590"
     },
     {
       "type": "collectible",
       "name": "landing coin 3",
       "at": [4.0, 0.8, 15.5],
-      "what": "coin",
-      "model": "assets_src/models/coin.glb"
+      "props": {"what": "coin", "model": "assets_src/models/coin.glb"},
+      "id": "9407ad57"
     },
     {
       "type": "collectible",
       "name": "landing coin 4",
       "at": [8.0, 0.8, 15.5],
-      "what": "coin",
-      "model": "assets_src/models/coin.glb"
+      "props": {"what": "coin", "model": "assets_src/models/coin.glb"},
+      "id": "0cc2cd4e"
     },
     {
       "type": "checkpoint",
       "name": "the second post",
       "at": [0.0, 1.0, 22.0],
-      "order": 2,
-      "respawn": [0.0, 0.0, 21.0],
-      "size": [24.0, 3.0, 1.0]
+      "props": {"order": 2, "respawn": [0.0, 0.0, 21.0], "size": [24.0, 3.0, 1.0]},
+      "id": "69114671"
     },
     {
       "type": "collectible",
       "name": "the coin you cannot reach once",
       "at": [0.0, 2.6, 19.0],
-      "what": "coin",
-      "model": "assets_src/models/coin.glb"
+      "props": {"what": "coin", "model": "assets_src/models/coin.glb"},
+      "id": "cf74e33a"
     },
     {
       "type": "collectible",
       "name": "the coin you cannot reach twice",
       "at": [-4.5, 2.6, 21.0],
-      "what": "coin",
-      "model": "assets_src/models/coin.glb"
+      "props": {"what": "coin", "model": "assets_src/models/coin.glb"},
+      "id": "b840fff6"
     },
     {
       "type": "collectible",
       "name": "the coin you cannot reach three times",
       "at": [4.5, 2.6, 21.0],
-      "what": "coin",
-      "model": "assets_src/models/coin.glb"
+      "props": {"what": "coin", "model": "assets_src/models/coin.glb"},
+      "id": "8a14edde"
     },
     {
       "type": "collectible",
       "name": "the high coin",
       "at": [0.0, 3.6, 26.0],
-      "what": "coin",
-      "model": "assets_src/models/coin.glb"
+      "props": {"what": "coin", "model": "assets_src/models/coin.glb"},
+      "id": "bda4bb5a"
     },
     {
       "type": "collectible",
       "name": "the coin on the step",
       "at": [9.0, 2.0, 23.0],
-      "what": "coin",
-      "model": "assets_src/models/coin.glb"
+      "props": {"what": "coin", "model": "assets_src/models/coin.glb"},
+      "id": "5a7248dc"
     },
     {
       "type": "collectible",
       "name": "the second jump coin",
       "at": [0.0, 3.0, 32.0],
-      "what": "coin",
-      "model": "assets_src/models/coin.glb"
+      "props": {"what": "coin", "model": "assets_src/models/coin.glb"},
+      "id": "fda417ad"
     },
     {
       "type": "collectible",
       "name": "the coin left of the gap",
       "at": [-3.5, 3.0, 31.0],
-      "what": "coin",
-      "model": "assets_src/models/coin.glb"
+      "props": {"what": "coin", "model": "assets_src/models/coin.glb"},
+      "id": "ccd36947"
     },
     {
       "type": "collectible",
       "name": "the coin right of the gap",
       "at": [3.5, 3.0, 33.0],
-      "what": "coin",
-      "model": "assets_src/models/coin.glb"
+      "props": {"what": "coin", "model": "assets_src/models/coin.glb"},
+      "id": "2f901a9a"
     },
     {
       "type": "checkpoint",
       "name": "the third post",
       "at": [0.0, 1.0, 44.0],
-      "order": 3,
-      "respawn": [0.0, 0.0, 43.0],
-      "size": [24.0, 3.0, 1.0]
+      "props": {"order": 3, "respawn": [0.0, 0.0, 43.0], "size": [24.0, 3.0, 1.0]},
+      "id": "6e19165d"
     },
     {
       "type": "collectible",
       "name": "the shaft coin one",
       "at": [0.0, 1.4, 52.0],
-      "what": "coin",
-      "model": "assets_src/models/coin.glb"
+      "props": {"what": "coin", "model": "assets_src/models/coin.glb"},
+      "id": "59b5fc74"
     },
     {
       "type": "collectible",
       "name": "the shaft coin two",
       "at": [0.0, 3.0, 52.0],
-      "what": "coin",
-      "model": "assets_src/models/coin.glb"
+      "props": {"what": "coin", "model": "assets_src/models/coin.glb"},
+      "id": "8ee6aa4b"
     },
     {
       "type": "collectible",
       "name": "the shaft coin three",
       "at": [0.0, 4.4, 52.0],
-      "what": "coin",
-      "model": "assets_src/models/coin.glb"
+      "props": {"what": "coin", "model": "assets_src/models/coin.glb"},
+      "id": "f7d540ca"
     },
     {
       "type": "collectible",
       "name": "the shaft coin four",
       "at": [0.0, 5.8, 52.0],
-      "what": "coin",
-      "model": "assets_src/models/coin.glb"
+      "props": {"what": "coin", "model": "assets_src/models/coin.glb"},
+      "id": "a6bd9de1"
     },
     {
       "type": "crate",
       "name": "the crate before the shaft",
       "at": [-6.0, 0.7, 42.0],
-      "size": [1.4, 1.4, 1.4],
-      "mass": 30.0,
-      "material": "wood"
+      "props": {"size": [1.4, 1.4, 1.4], "mass": 30.0, "material": "wood"},
+      "id": "000bb5a6"
     },
     {
       "type": "collectible",
       "name": "shaft floor coin 1",
       "at": [-9.0, 0.8, 46.4],
-      "what": "coin",
-      "model": "assets_src/models/coin.glb"
+      "props": {"what": "coin", "model": "assets_src/models/coin.glb"},
+      "id": "fa6b76e2"
     },
     {
       "type": "collectible",
       "name": "shaft floor coin 2",
       "at": [-4.0, 0.8, 46.4],
-      "what": "coin",
-      "model": "assets_src/models/coin.glb"
+      "props": {"what": "coin", "model": "assets_src/models/coin.glb"},
+      "id": "9d92b1e1"
     },
     {
       "type": "collectible",
       "name": "shaft floor coin 3",
       "at": [4.0, 0.8, 46.4],
-      "what": "coin",
-      "model": "assets_src/models/coin.glb"
+      "props": {"what": "coin", "model": "assets_src/models/coin.glb"},
+      "id": "3e3c222a"
     },
     {
       "type": "collectible",
       "name": "shaft floor coin 4",
       "at": [9.0, 0.8, 46.4],
-      "what": "coin",
-      "model": "assets_src/models/coin.glb"
+      "props": {"what": "coin", "model": "assets_src/models/coin.glb"},
+      "id": "a13bf271"
     },
     {
       "type": "collectible",
       "name": "the ledge coin",
       "at": [0.0, 7.0, 62.0],
-      "what": "coin",
-      "model": "assets_src/models/coin.glb"
+      "props": {"what": "coin", "model": "assets_src/models/coin.glb"},
+      "id": "0723d9ef"
     },
     {
       "type": "checkpoint",
       "name": "the fourth post",
       "at": [0.0, 1.0, 66.0],
-      "order": 4,
-      "respawn": [0.0, 0.0, 66.0],
-      "size": [24.0, 3.0, 1.0]
+      "props": {"order": 4, "respawn": [0.0, 0.0, 66.0], "size": [24.0, 3.0, 1.0]},
+      "id": "7c023a7b"
     },
     {
       "type": "collectible",
       "name": "the dash coin",
       "at": [0.0, 7.0, 68.0],
-      "what": "coin",
-      "model": "assets_src/models/coin.glb"
+      "props": {"what": "coin", "model": "assets_src/models/coin.glb"},
+      "id": "a275ca45"
     },
     {
       "type": "collectible",
       "name": "the dash trail 1",
       "at": [0.0, 7.0, 69.5],
-      "what": "coin",
-      "model": "assets_src/models/coin.glb"
+      "props": {"what": "coin", "model": "assets_src/models/coin.glb"},
+      "id": "4532e992"
     },
     {
       "type": "collectible",
       "name": "the dash trail 2",
       "at": [0.0, 7.0, 70.5],
-      "what": "coin",
-      "model": "assets_src/models/coin.glb"
+      "props": {"what": "coin", "model": "assets_src/models/coin.glb"},
+      "id": "6e3031a7"
     },
     {
       "type": "collectible",
       "name": "the dash trail 3",
       "at": [0.0, 7.0, 71.5],
-      "what": "coin",
-      "model": "assets_src/models/coin.glb"
+      "props": {"what": "coin", "model": "assets_src/models/coin.glb"},
+      "id": "fd270538"
     },
     {
       "type": "collectible",
       "name": "the gap coin",
       "at": [0.0, 8.0, 74.0],
-      "what": "coin",
-      "model": "assets_src/models/coin.glb"
+      "props": {"what": "coin", "model": "assets_src/models/coin.glb"},
+      "id": "72b27117"
     },
     {
       "type": "collectible",
       "name": "the gap coin to the left",
       "at": [-4.0, 8.0, 74.0],
-      "what": "coin",
-      "model": "assets_src/models/coin.glb"
+      "props": {"what": "coin", "model": "assets_src/models/coin.glb"},
+      "id": "a8f78fc8"
     },
     {
       "type": "collectible",
       "name": "the gap coin to the right",
       "at": [4.0, 8.0, 74.0],
-      "what": "coin",
-      "model": "assets_src/models/coin.glb"
+      "props": {"what": "coin", "model": "assets_src/models/coin.glb"},
+      "id": "78f3ca4c"
     },
     {
       "type": "crate",
       "name": "the crate on the far side",
       "at": [7.0, 6.2, 82.0],
-      "size": [1.4, 1.4, 1.4],
-      "mass": 30.0,
-      "material": "wood"
+      "props": {"size": [1.4, 1.4, 1.4], "mass": 30.0, "material": "wood"},
+      "id": "47e7868f"
     },
     {
       "type": "collectible",
       "name": "the coin above the far crate",
       "at": [7.0, 8.9, 84.0],
-      "what": "coin",
-      "model": "assets_src/models/coin.glb"
+      "props": {"what": "coin", "model": "assets_src/models/coin.glb"},
+      "id": "4c24a24f"
     },
     {
       "type": "checkpoint",
       "name": "the fifth post",
       "at": [0.0, 1.0, 88.0],
-      "order": 5,
-      "respawn": [0.0, 0.0, 88.0],
-      "size": [24.0, 3.0, 1.0]
+      "props": {"order": 5, "respawn": [0.0, 0.0, 88.0], "size": [24.0, 3.0, 1.0]},
+      "id": "ec1b6dc5"
     },
     {
       "type": "collectible",
       "name": "the crawl coin 1",
       "at": [0.0, 6.5, 91.5],
-      "what": "coin",
-      "model": "assets_src/models/coin.glb"
+      "props": {"what": "coin", "model": "assets_src/models/coin.glb"},
+      "id": "31f24b3b"
     },
     {
       "type": "collectible",
       "name": "the crawl coin 2",
       "at": [0.0, 6.5, 94.0],
-      "what": "coin",
-      "model": "assets_src/models/coin.glb"
+      "props": {"what": "coin", "model": "assets_src/models/coin.glb"},
+      "id": "0590873b"
     },
     {
       "type": "collectible",
       "name": "the crawl coin 3",
       "at": [0.0, 6.5, 96.5],
-      "what": "coin",
-      "model": "assets_src/models/coin.glb"
+      "props": {"what": "coin", "model": "assets_src/models/coin.glb"},
+      "id": "a81ba35b"
     },
     {
       "type": "collectible",
       "name": "the crawl coin to the left",
       "at": [-5.0, 6.5, 94.0],
-      "what": "coin",
-      "model": "assets_src/models/coin.glb"
+      "props": {"what": "coin", "model": "assets_src/models/coin.glb"},
+      "id": "f40afc8c"
     },
     {
       "type": "collectible",
       "name": "the crawl coin to the right",
       "at": [5.0, 6.5, 94.0],
-      "what": "coin",
-      "model": "assets_src/models/coin.glb"
+      "props": {"what": "coin", "model": "assets_src/models/coin.glb"},
+      "id": "89eb9e2a"
     },
     {
       "type": "enemy",
       "name": "the guard",
       "at": [-6.0, 6.0, 101.0],
-      "size": [0.7, 0.7, 0.7],
-      "kind": "patrol",
-      "speed": 0.3,
-      "material": "brass",
-      "route": [
-        [6.0, 6.0, 101.0]
-      ]
+      "props": {"size": [0.7, 0.7, 0.7], "kind": "patrol", "speed": 0.3, "material": "brass", "route": [[6.0, 6.0, 101.0]]},
+      "id": "e1a7aa71"
     },
     {
       "type": "collectible",
       "name": "the guard's coin",
       "at": [0.0, 6.8, 101.0],
-      "what": "coin",
-      "model": "assets_src/models/coin.glb"
+      "props": {"what": "coin", "model": "assets_src/models/coin.glb"},
+      "id": "e4cbea42"
     },
     {
       "type": "collectible",
       "name": "the coin the guard walks past",
       "at": [-8.0, 6.8, 100.0],
-      "what": "coin",
-      "model": "assets_src/models/coin.glb"
+      "props": {"what": "coin", "model": "assets_src/models/coin.glb"},
+      "id": "9a3b96c4"
     },
     {
       "type": "collectible",
       "name": "the other coin the guard walks past",
       "at": [8.0, 6.8, 102.0],
-      "what": "coin",
-      "model": "assets_src/models/coin.glb"
+      "props": {"what": "coin", "model": "assets_src/models/coin.glb"},
+      "id": "858d386c"
     },
     {
       "type": "crate",
       "name": "the last crate",
       "at": [-8.0, 6.2, 103.0],
-      "size": [1.4, 1.4, 1.4],
-      "mass": 30.0,
-      "material": "wood"
+      "props": {"size": [1.4, 1.4, 1.4], "mass": 30.0, "material": "wood"},
+      "id": "67b207d9"
     },
     {
       "type": "crate",
       "name": "the other last crate",
       "at": [8.0, 6.2, 103.0],
-      "size": [1.4, 1.4, 1.4],
-      "mass": 30.0,
-      "material": "wood"
+      "props": {"size": [1.4, 1.4, 1.4], "mass": 30.0, "material": "wood"},
+      "id": "71c0a275"
     },
     {
       "type": "exit",
       "name": "the way on",
       "at": [0.0, 7.5, 104.0],
-      "size": [5.0, 3.0, 3.0],
-      "text": "First steps."
+      "props": {"size": [5.0, 3.0, 3.0], "text": "First steps."},
+      "id": "837fb529"
     }
   ],
   "next": "assets/levels/ascent.json"

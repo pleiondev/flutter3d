@@ -3,7 +3,7 @@
 ///
 /// `ShooterActions` exists so that the engine's input layer need not know that
 /// games shoot — its own doc says so — and the price of that is exactly this:
-/// `fire` and `crouch` are not in `DesktopInput.defaultBindings`, and the game
+/// `fire` and `crouch` are not in `DesktopInput.addDefaultsTo`, and the game
 /// has to put them in. `fire` was put in, at the pad, by hand, in two places
 /// that had to agree. `crouch` was put in nowhere at all, on any device, so
 /// `player.crouch(held: input.held(ShooterActions.crouch))` — which the
@@ -17,7 +17,6 @@ library;
 import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
-import 'package:pad_input/pad_input.dart'; // PadButton, from pad_input
 
 /// Adds this genre's own bindings to [bindings], and returns it.
 ///
@@ -25,7 +24,20 @@ import 'package:pad_input/pad_input.dart'; // PadButton, from pad_input
 /// for it; the right trigger and the right shoulder for firing, which is where
 /// this game already had it.
 Bindings addShooterKeysTo(Bindings bindings) => bindings
-  ..bind(InputSource.pad(PadButton.triggerRight.id), ShooterActions.fire)
-  ..bind(InputSource.pad(PadButton.shoulderRight.id), ShooterActions.fire)
+  ..bind(InputSource.pad(GamePadButton.triggerRight.id), ShooterActions.fire)
+  ..bind(InputSource.pad(GamePadButton.shoulderRight.id), ShooterActions.fire)
   ..bind(InputSource.key(LogicalKeyboardKey.keyC.keyId), ShooterActions.crouch)
-  ..bind(InputSource.pad(PadButton.stickRightClick.id), ShooterActions.crouch);
+  ..bind(
+    InputSource.pad(GamePadButton.stickRightClick.id),
+    ShooterActions.crouch,
+  );
+
+/// The crypt's controls as an action map over [ShooterActions.set]: the
+/// engine's walking defaults, the pad's, this genre's own above, and the
+/// mouse's motion bound to looking so the settings screen has its
+/// sensitivity and its inverted look on the binding they belong to.
+ActionMap shooterActionMap() {
+  final map = DesktopInput.defaultActionMap(set: ShooterActions.set);
+  addShooterKeysTo(map.buttons);
+  return map;
+}

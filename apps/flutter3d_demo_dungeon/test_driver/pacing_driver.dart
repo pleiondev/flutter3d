@@ -9,6 +9,7 @@ import 'dart:io';
 
 import 'package:integration_test/integration_test_driver.dart';
 
+// ignore: prefer-correct-test-file-name, a driver is named as flutter drive asks
 Future<void> main() => integrationDriver(
   responseDataCallback: (Map<String, dynamic>? data) async {
     final out =

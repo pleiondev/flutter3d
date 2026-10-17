@@ -133,6 +133,8 @@ MeshData ribbon(
   required double from,
   required double to,
   required double width,
+
+  /// In metres along the path.
   double step = 2.0,
 }) {
   if (!(to > from)) throw ArgumentError('A ribbon from $from to $to.');

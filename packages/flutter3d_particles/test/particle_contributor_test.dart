@@ -10,6 +10,14 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
+// ignore: implementation_imports
+import 'package:flutter3d_core/src/engine/render/pass_contributor.dart';
+// ignore: implementation_imports
+import 'package:flutter3d_core/src/engine/render/render_node.dart'
+    show FrameContextInternals;
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:test/test.dart';
@@ -29,13 +37,12 @@ void main() {
         encoder: pass,
         device: used,
         services: _RecordingServices(),
-        state: FramePassState(),
         settings: const RenderSettings(),
         width: 320,
         height: 200,
-        view: RenderView(camera: CameraNode()),
+        view: CameraView(camera: CameraNode()),
         viewProjection: vm.Matrix4.identity(),
-      );
+      )..state = FramePassState();
     }
 
     setUp(() {
@@ -48,7 +55,7 @@ void main() {
             emitter: const SphereEmitter(),
             lifetime: const Range.exact(5.0),
             size: const Range.exact(0.2),
-            color: vm.Vector4(1.0, 0.5, 0.2, 1.0),
+            color: LinearColor(1.0, 0.5, 0.2, 1.0),
           ),
           vm.Vector3.zero(),
         );
@@ -152,21 +159,19 @@ void main() {
 ///
 /// Copied with the group it serves, for the same reason `fake_backend.dart`
 /// is: it is a test fixture, and the alternative is a public fake.
-final class _RecordingServices implements RenderServices {
+final class _RecordingServices with RenderServices {
   final List<SceneShadows> shadows = <SceneShadows>[];
   final List<vm.Matrix4> viewProjections = <vm.Matrix4>[];
   PassEncoder? encoder;
   Scene? scene;
 
   @override
-  void encodeScene({
-    required NodeFrame frame,
-    required PassEncoder encoder,
-    required Scene scene,
-    required vm.Matrix4 viewProjection,
-    required vm.Vector3 cameraPosition,
-    int casterIndex = -1,
-  }) {
+  void encodeScene(SceneEncodeRequest request) {
+    final frame = request.frame;
+    final encoder = request.encoder;
+    final scene = request.scene;
+    final viewProjection = request.viewProjection;
+    final casterIndex = request.casterIndex;
     this.encoder = encoder;
     this.scene = scene;
     // Derived the way the real one does, so a test still sees what the node
@@ -188,7 +193,7 @@ final class _RecordingServices implements RenderServices {
 /// The fake backend hands out opaque handles, so a mesh here is a description
 /// and nothing more — which is the whole of what an instanced draw needs from
 /// one: two buffers, two counts and an index type.
-final class _FakeMesh implements DrawableGeometry {
+final class _FakeMesh extends DrawableGeometry {
   _FakeMesh(this.vertices, this.indices);
 
   @override
@@ -208,7 +213,7 @@ final class _FakeMesh implements DrawableGeometry {
   @override
   MeshData? get source => null;
   @override
-  ({MeshClusters table, Uint32List indices})? get clusters => null;
+  ClusteredIndices? get clusters => null;
 }
 
 /// The mesh path, which is a different set of calls from the billboard one.
@@ -233,7 +238,7 @@ void _meshParticleTests() {
             emitter: const SphereEmitter(speed: Range.exact(1.0)),
             lifetime: const Range.exact(1.0),
             size: const Range.exact(0.5),
-            color: vm.Vector4(1.0, 0.5, 0.2, 1.0),
+            color: LinearColor(1.0, 0.5, 0.2, 1.0),
           ),
           vm.Vector3.zero(),
         );
@@ -243,13 +248,12 @@ void _meshParticleTests() {
       encoder: pass,
       device: device,
       services: _RecordingServices(),
-      state: FramePassState(),
       settings: const RenderSettings(),
       width: 320,
       height: 200,
-      view: RenderView(camera: CameraNode()),
+      view: CameraView(camera: CameraNode()),
       viewProjection: vm.Matrix4.identity(),
-    );
+    )..state = FramePassState();
 
     test('binds the mesh in slot zero and the placements in slot one', () {
       MeshParticleContributor(particles, mesh: mesh).encode(frame());

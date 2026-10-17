@@ -1,7 +1,7 @@
 /// The picture, and the pointer that turns it.
 ///
 /// **Not `SceneSurface`, and the difference is one word.** That widget takes a
-/// single `RenderView`; a modeller draws a list of them — the viewport now, a
+/// single `CameraView`; a modeller draws a list of them — the viewport now, a
 /// material preview beside it later, three of them side by side when LODs are
 /// being compared. Widening the session's surface is a change to a published
 /// package for a feature that does not exist yet, so this draws the list
@@ -21,15 +21,15 @@
 library;
 
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart' show SchedulerBinding;
 import 'package:flutter/services.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart'
     show SceneAnnouncement, SceneSemantics, presentFrame, semanticObjectsFor;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
-import 'package:vector_math/vector_math.dart' show Vector3, Vector4;
 
+import 'backend.dart' show modelerDevices;
 import 'element_picking.dart';
 import 'gizmo_handles.dart';
 import 'ground_grid.dart';
@@ -37,6 +37,7 @@ import 'input_policy.dart';
 import 'mesh_overlay_builder.dart';
 import 'object_picking.dart';
 import 'orbit_gestures.dart';
+import 'overlay_ink.dart';
 import 'selection_box.dart';
 import 'selection_rules.dart' show ElementPickIntent;
 import 'settings.dart' show NavigationScheme;
@@ -653,12 +654,13 @@ class _ModelerViewportState extends State<ModelerViewport> {
   /// that lights one arm and drags another.
   List<GizmoHandle> _handles = const <GizmoHandle>[];
 
-  MeshOverlay _newOverlay(Renderer renderer) => renderer.addContributor(
-    MeshOverlay(
-      vertexShader: renderer.debugLineVertexShader,
-      fragmentShader: renderer.debugLineFragmentShader,
-    ),
-  );
+  MeshOverlay _newOverlay(Renderer renderer) =>
+      renderer.renderSteps.addContributor(
+        MeshOverlay(
+          vertexShader: renderer.shaders['DebugLineVertex']!,
+          fragmentShader: renderer.shaders['DebugLine']!,
+        ),
+      );
 
   /// The wireframe, rebuilt only when it has to be.
   final MeshOverlayBuilder _builder = MeshOverlayBuilder();
@@ -696,7 +698,9 @@ class _ModelerViewportState extends State<ModelerViewport> {
       _shapePoints,
       _uvSeams,
     ]) {
-      if (overlay != null) widget.renderer.removeContributor(overlay);
+      if (overlay != null) {
+        widget.renderer.renderSteps.removeContributor(overlay);
+      }
     }
     _lookFocus.dispose();
     super.dispose();
@@ -782,7 +786,7 @@ class _ModelerViewportState extends State<ModelerViewport> {
     emitUvSeamOverlay(
       overlay,
       edit,
-      colour: widget.uvSeamColour,
+      color: widget.uvSeamColour,
       edges: seams,
       width: kUvSeamRibbonWidth,
     );
@@ -865,21 +869,21 @@ class _ModelerViewportState extends State<ModelerViewport> {
     Vector3 pivot,
     MeshOverlayView look,
   ) {
-    final Vector3? along = switch (widget.transformAxis) {
-      TransformAxis.x => Vector3(1, 0, 0),
-      TransformAxis.y => Vector3(0, 1, 0),
-      TransformAxis.z => Vector3(0, 0, 1),
+    final (Vector3, int)? line = switch (widget.transformAxis) {
+      TransformAxis.x => (Vector3(1, 0, 0), kGizmoTintX),
+      TransformAxis.y => (Vector3(0, 1, 0), kGizmoTintY),
+      TransformAxis.z => (Vector3(0, 0, 1), kGizmoTintZ),
       // A plane constraint has two axes and no line worth drawing, and `free`
-      // has none at all.
-      _ => null,
+      // or no transform at all has none.
+      null ||
+      TransformAxis.free ||
+      TransformAxis.yz ||
+      TransformAxis.xz ||
+      TransformAxis.xy => null,
     };
-    if (along == null) return;
-    final int tint = switch (widget.transformAxis) {
-      TransformAxis.x => kGizmoTintX,
-      TransformAxis.y => kGizmoTintY,
-      _ => kGizmoTintZ,
-    };
-    final Vector4 colour = Vector4(
+    if (line == null) return;
+    final (Vector3 along, int tint) = line;
+    final Vector4 color = Vector4(
       ((tint >> 16) & 0xFF) / 255.0,
       ((tint >> 8) & 0xFF) / 255.0,
       (tint & 0xFF) / 255.0,
@@ -892,8 +896,10 @@ class _ModelerViewportState extends State<ModelerViewport> {
         ? (look.eye - pivot).length * 40.0
         : 1000.0;
     final Vector3 far = along.scaled(reach);
-    gizmo.throughGeometry(() => gizmo.edge(pivot - far, pivot + far, colour));
-    gizmo.edge(pivot - far, pivot + far, colour);
+    gizmo.throughGeometry(
+      () => gizmo.edge(pivot - far, pivot + far, color.ink),
+    );
+    gizmo.edge(pivot - far, pivot + far, color.ink);
   }
 
   /// [MeshOverlayColours]'s own ordinary/selected vertex tones — what
@@ -1029,6 +1035,7 @@ class _ModelerViewportState extends State<ModelerViewport> {
               final Widget picture = presentFrame(
                 widget.renderer.device,
                 frame.frame,
+                registry: modelerDevices,
               );
               final SelectionBox? box = _box;
               final bool showBox = box != null && box.isBox;
@@ -1282,10 +1289,11 @@ class _ModelerViewportState extends State<ModelerViewport> {
         pointer: event.kind,
         lasso: widget.lassoSelect,
       );
-      box
-        ..dragTo(event.localPosition)
-        ..mode = _boxMode();
-      setState(() {});
+      setState(() {
+        box
+          ..dragTo(event.localPosition)
+          ..mode = _boxMode();
+      });
       return;
     }
 
@@ -1377,7 +1385,7 @@ class _ModelerViewportState extends State<ModelerViewport> {
   /// drawing did not use is a gizmo that lights one arm and drags another.
   GizmoAxis? _gizmoUnder(Offset at) {
     if (_handles.isEmpty) return null;
-    final Ray ray = PickingView(
+    final LocalRay ray = PickingView(
       camera: widget.stage.camera,
       size: _viewport,
     ).rayThrough(at);
@@ -1413,8 +1421,7 @@ class _ModelerViewportState extends State<ModelerViewport> {
     final bool travelled = _travelled.remove(event.pointer);
     final SelectionBox? box = _box;
     if (box != null) {
-      _box = null;
-      setState(() {});
+      setState(() => _box = null);
       // Only when it grew into one. A drag of three pixels is a click that
       // wobbled, and answering it with a box that caught nothing would clear
       // the selection somebody was aiming at.
@@ -1690,12 +1697,11 @@ class _ModelerViewportState extends State<ModelerViewport> {
   /// left button to the tools — so it is the safe default for something whose
   /// origin nobody knows.
   static PointerKind _kindOf(PointerDeviceKind kind) => switch (kind) {
-    PointerDeviceKind.mouse => PointerKind.mouse,
+    PointerDeviceKind.mouse || PointerDeviceKind.unknown => PointerKind.mouse,
     PointerDeviceKind.touch => PointerKind.touch,
     PointerDeviceKind.trackpad => PointerKind.trackpad,
     PointerDeviceKind.stylus ||
     PointerDeviceKind.invertedStylus => PointerKind.stylus,
-    PointerDeviceKind.unknown => PointerKind.mouse,
   };
 
   /// Which button began this press.
@@ -1723,13 +1729,14 @@ class _BoxPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final Color colour = switch (box.mode) {
+    final Color color = switch (box.mode) {
       SelectionBoxMode.subtract => const Color(0xFFFF9926),
-      _ => const Color(0xFF62D4E3),
+      SelectionBoxMode.replace ||
+      SelectionBoxMode.add => const Color(0xFF62D4E3),
     };
-    final Paint wash = Paint()..color = colour.withValues(alpha: 0.12);
+    final Paint wash = Paint()..color = color.withValues(alpha: 0.12);
     final Paint line = Paint()
-      ..color = colour
+      ..color = color
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1;
     // `ux-28`: the loop as it was drawn, closed back to where it started —
@@ -1778,7 +1785,7 @@ class _BrushPainter extends CustomPainter {
     // Warm for adding weight, cool for taking it away — the same two
     // directions `SelectionBoxMode` already colours, so a hand that has
     // learned one has learned the other.
-    final Color colour = inverting
+    final Color color = inverting
         ? const Color(0xFF62D4E3)
         : const Color(0xFFFF9926);
     canvas
@@ -1786,7 +1793,7 @@ class _BrushPainter extends CustomPainter {
         at,
         radius,
         Paint()
-          ..color = colour
+          ..color = color
           ..style = PaintingStyle.stroke
           ..strokeWidth = 1.5,
       )
@@ -1821,7 +1828,7 @@ class _SnapPainter extends CustomPainter {
 
   final Offset at;
 
-  static const Color _colour = Color(0xFFFF9926);
+  static const Color _color = Color(0xFFFF9926);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1830,11 +1837,11 @@ class _SnapPainter extends CustomPainter {
         at,
         9.0,
         Paint()
-          ..color = _colour
+          ..color = _color
           ..style = PaintingStyle.stroke
           ..strokeWidth = 2,
       )
-      ..drawCircle(at, 2.0, Paint()..color = _colour);
+      ..drawCircle(at, 2.0, Paint()..color = _color);
   }
 
   @override

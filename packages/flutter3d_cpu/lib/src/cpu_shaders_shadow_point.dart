@@ -196,6 +196,7 @@ double pointShadowFactor(
   // channel was added to end.
   final debug = params2.w > 0.5;
 
+  /// The filter's radius, as a fraction of the face tile's width.
   double radius;
   if (lightRadius <= 0.0) {
     radius = minRadius;

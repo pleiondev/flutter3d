@@ -1,3 +1,332 @@
+## 1.0.0-rc.1+2
+
+- **The light shafts and the volumetric fog pick a cascade as a surface
+  does**, by the way along the ray from the eye's plane: the distance from
+  the eye through a perspective lens, as before, and the depth along the
+  axis through an orthographic one, where a step at the edge of the frame
+  read a later cascade than the ground under it.
+- **Particles and splats integrate the height fog** (`fogTransmittance`),
+  as `ApplyFog` does for the lit stages.
+- **The standard model's injection points on the software backend.**
+  `PbrShader.hooked` takes `PbrHooks`, a material's surface, light and
+  light-type hooks, and `sampleLight` and `accumulateLights` take the
+  light-type hook a plugin's light is let into the loop by.
+- **Breaking: standing in for a GPU is a test's knob, in `testing.dart`.**
+  `CpuDevice(standInForGpu:)`, `CpuDevice.standInForGpu` and
+  `cpuComputeDevice(standInForGpu:)` are gone from the main library;
+  `cpuComputeDeviceStandingInForGpu()` (new, in
+  `package:flutter3d_cpu/testing.dart`) makes the device a test places a
+  workload on as on a GPU, so the knob does not freeze into the API.
+- **Queue semantics in a compute pass.** A dispatch is checked when it is
+  recorded and run, with what was bound for it, when the pass is
+  submitted, so a `writeBuffer` made while the pass is open lands before
+  its dispatches as WebGPU's queue puts it; an indirect dispatch reads its
+  arguments when it runs.
+- **The encoder checks ranges and dispatches.** A storage offset off
+  `minStorageBufferOffsetAlignment` or a dispatch past
+  `maxComputeWorkgroupsPerDimension` is a `RangeError` at the call, as on
+  every backend.
+
+## 1.0.0-rc.1+1
+
+- **An sRGB texture is stored decoded.** The rasteriser kept an sRGB
+  upload's bytes as they came and sampled them raw, so the byte 188 read
+  as 0.74 where every GPU reads 0.5, while a draw into the same format
+  kept linear values: two meanings in one store. Uploads, writes and
+  copies from a buffer now decode the sRGB twins, a copy out of one
+  encodes again, and a texture copy between an sRGB texture and its plain
+  twin crosses over, as the bytes it is promised to copy say. The engine
+  draws no sRGB texture, so no golden moves; the conformance check `an sRGB
+  texture is decoded when sampled and encoded when drawn` is what found
+  it.
+- **Strips and points are drawn.** The software rasteriser drew triangle and
+  line lists and threw an untyped `UnsupportedError` from the draw for the
+  other three topologies. It assembles all five now and lists
+  `primitiveStrips` and `pointPrimitives`: a triangle strip faces one way
+  all along, an all-ones index restarts a strip, and a point is the one
+  pixel its vertex lands in. It lists `indexUint32`, `blendConstantAlpha`
+  and `fractionalViewport` too.
+- **The viewport's depth range and fraction.** `setViewport` takes a
+  `PassViewport`: window positions are measured from its corner in
+  doubles, and clip depth lands in its `minDepth`..`maxDepth`. A viewport on
+  whole pixels over the whole range draws the bits it always drew.
+- **Every refusal is typed.** A compressed format is refused by its
+  family's feature, an `overwriteTexture` outside `readbackFormats` or above
+  level zero, a stage not written in Dart, a stride the vertex fetch cannot
+  read and a value a later version names by a `DeviceResourceException`
+  (`cpuRefusal`), where each was an `UnsupportedError`. The opener takes the
+  HAL's `DeviceRequest`.
+
+- **The scene's colour copy is `SceneColorCopyShader`** in `builtin.dart`,
+  after the stage it draws, which the shader ABI spells the American way
+  now. `builtin.dart` is outside semver.
+- **`WorkgroupSize` is the shader package's, imported from there.** A
+  compute stage's `workgroupSize` answers `flutter3d_shaders`'
+  `WorkgroupSize`, which this package does not re-export.
+
+- **Breaking: results that were records are final classes.**
+  `CpuComputeShader` and `cpuTestDevice` answered or held a record, which
+  can never gain a field. Each answers a final class now, with the record's
+  field names (a positional `$1` has a name of its own), `==` and
+  `hashCode`. A field read compiles as before; a destructuring pattern names
+  the class, and `flutter3d_build:migrate` rewrites the `$1` reads.
+
+- **The software rasteriser says it is software.** `CpuDevice.isSoftware`
+  answers true, so a compute workload with host code of its own — a physics
+  core's water — is not placed on it to be interpreted in Dart while the
+  core's own step sits idle. Additive.
+- **A test can make it stand in for a GPU.** `CpuDevice(standInForGpu:)`
+  and `cpuComputeDevice(standInForGpu:)` (new, false by default) make it
+  answer `isSoftware` false, so the hardware layer places a simulation's
+  kernels on it as on a GPU: how those kernels are held against the
+  simulation's own CPU step without one. Configured on the device, never
+  asked for by the work. Additive.
+
+## 1.0.0-rc.1
+
+- **`depthBiasClamp` is listed.** The rasteriser always capped the offset
+  at the clamp, and the list left it out, so a clamp was refused.
+- **A border is read on `clampToBorder` axes only**, with transparent black
+  when the sampler names no colour; an axis clamped to the edge reads the
+  edge texel whatever `borderColor` says.
+- **`texture1D` and `depthBiasClamp` are listed**, and a depth bias is
+  checked through `DepthBias.checkFeatures`.
+- **A draw rasterises in lists the device keeps.** Every draw made its
+  varyings, its attributes and its clip positions, and every triangle its
+  window coordinates, a list to interpolate into and, with a mipped texture
+  bound, two for the derivatives: as many lists a frame as triangles, each
+  garbage when its triangle was done. They are the device's now, zeroed
+  where a fresh list was read before it was written, so every picture is
+  the one it was.
+- **A storage buffer is refused by the feature its shape asks for.** On a
+  device with neither compute nor render-stage storage, `createBuffer`
+  names `compute` for the copy usages of `BufferUsage.standardStorage` and
+  `renderStageStorage` for a bare storage usage, as WebGL2 and Impeller do;
+  it named `compute` for both, which the capability check's probe for
+  render-stage storage refuses.
+- **The dielectric's F0 is the shaders' constant.** The lit stages and the
+  reflections read `dielectricF0` from `flutter3d_shaders` where they wrote
+  0.04 and 0.96; `1 − dielectricF0` is 0.96 to the bit, so every picture is
+  the one it was.
+- **Registers its material compiler beside the device.**
+  `registerCpuBackend(compilers:)` adds `CpuSectionCompiler` to a
+  `MaterialCompilerRegistry` and takes it out with the device: the section
+  `RuntimeShaders` writes for this backend, the material's source under each
+  of its stages, now found by backend name.
+- **The light loops skip a plugin's light type.** `sampleLight` and
+  `contributorLight` give a row coded 16 or more nothing, as the GLSL does:
+  its own hook packed it and its own lighting model reads it.
+- **A viewport moved by whole pixels draws the same fragments, moved.**
+  Window positions are measured from the viewport's corner and the corner is
+  added to the pixel's index, where it was added to each position and
+  rounded a different way for each corner. A viewport past the target is
+  clipped as before; the device lists `DeviceFeature.viewportBeyondTarget`.
+- **A bilinear read within half a 1/256 step of a texel's centre takes that
+  texel alone**, as a GPU's eight-bit filter weights do. A full-screen pass
+  read each centre a few hundred-thousandths of a texel off, by an amount
+  that depended on the target's size, and the composite of a photo's tile
+  differed from the frame's by a step at bright edges.
+- **A layout with an integer attribute is a refused pipeline, not a
+  throw.** `createPipeline` reports a `PipelineRefusedException` with
+  `PipelineRefusalReason.unsupportedFormat` to
+  `GraphicsDevice.pipelineRefusals`, left refused at once, and the draws
+  with it draw nothing. It threw an `UnsupportedError`, which failed every
+  frame that drew the mesh.
+- **The CPU placement of compute.** A bundle's kernel section loads as
+  compute stages: each `.f3dmat compute` kernel translated to Dart by
+  `flutter3d_shaders`, its buffers and images declared so a bind of any
+  other name answers false, and a reload running the new kernel under the
+  handle already handed out. `registerCpuBackend` also adds a one-texel
+  device as `ComputePlacement.cpu` (one registration takes both out
+  again), and `cpuComputeDevice` makes one directly.
+- **Breaking: `CpuDevice.createStorageBuffer` is gone**, folded into
+  `createBuffer` as in `flutter3d_hardware`: a storage buffer is
+  `createBuffer` with `BufferUsage.standardStorage`, plus `hostReadable` or
+  `index` where it was asked for. `readBufferSync` is still the device's,
+  mixed in from `backend.dart`.
+- **Breaking: `setBlendColor` takes a `LinearColor`**, as
+  `PassEncoder.setBlendColor` does since 1.0; the blend reads the same four
+  channels.
+- **`CpuDevice.dispose` is reported as a device loss.** The first call sets
+  `isLost` and sends one `DeviceLossReason.destroyed` on `lost`, then
+  closes the stream; it used to do nothing, and `lost` never fired.
+- **Hashed alpha follows the GPU stages' new noise**, operation for
+  operation: a `sin`-free hash on the world, with the scene's origin taken
+  out of the cutoff, in the surface read and the depth pre-draw alike.
+
+- **`builtin.dart`'s `encodeOctahedral` and `decodeOctahedral` are
+  `encodeSurfaceNormal` and `decodeSurfaceNormal`**, the port of the
+  surface buffer's packing; the engine's functions of the old names are
+  `flutter3d_core`'s.
+- **The physical sky's port draws what the shader does**: ozone in its
+  transmittance, and the brighter sky the renderer now hands it. Spot
+  falloff is squared here too.
+- **`ShaderHandle.dispose`** makes the library forget the handle, so the
+  next lookup of the name answers a new one. Samplers are values here, so
+  `releaseSampler` does nothing.
+- **Breaking: the device follows the HAL** — `readPixels` is `readback`,
+  `createTextureWithDescriptor` is `createTexture`, the creators throw a
+  `DeviceResourceException` where they answered null, and `readBufferSync`
+  comes from `SynchronousBufferReadback`.
+- **`builtin.dart`**: the rasteriser's own shading helpers as a library, for
+  an engine package that compiles onto them (`flutter3d_app`'s material
+  language) instead of importing `src/`. Not covered by semver for
+  applications.
+- **Breaking: one suffix for settings, Settings, and Descriptor in the
+  HAL.** `RenderTargetSpec` is `RenderTargetDescriptor`, `SamplerOptions`
+  is `SamplerDescriptor`, `VertexLayoutSpec` is `VertexLayoutDescriptor`.
+  Every settings class is `final` with a `const` constructor and a
+  `copyWith` over every field; a nullable field is reset with
+  `copyWith(clearX: true)`. `dart fix` carries the renames.
+- **Breaking: the engine's stages are not API.** The eighty-odd shader
+  classes, the helpers they share, the encoders and the vertex fetch are
+  not exported; the kit a stage is written with is (`CpuStage`, the shader
+  base classes, `ShaderBindings`, `FragmentContext`, the texture types).
+  `cpuUnlitStage` in `testing.dart` is the unlit stand-in a test hands the
+  rasteriser. `CpuFragmentShader`, `CpuVertexShader`,
+  `CpuVertexShaderByIndex` and `CpuComputeShader` are base classes and
+  `CpuStorageReader` a mixin; `CpuMaterialCompiler` returns a `CpuStage`.
+  `registerCpuBackend(registry)` replaces `ensureCpuBackendRegistered()`.
+
+- **A material compiler may hand back a vertex stage.** A compiled stage
+  that is also a `CpuVertexShader` is handed out as a vertex stage, which is
+  how a bundle's material-language `vertex` block runs here. The
+  `CpuMaterialCompiler` signature is unchanged.
+- **1.0.0 is a promise: strict semver from there.** This release candidate
+  already keeps it. A patch fixes bugs and
+  breaks nothing, a minor adds, and a break waits for a major. The whole
+  public API is stable, with no experimental exceptions, and is held to the
+  snapshot in `api/`. A deprecated name stays until the next major and for
+  at least six months, and says what replaces it.
+  [CONTRIBUTING.md](https://github.com/pleiondev/flutter3d/blob/main/CONTRIBUTING.md#the-api-is-a-snapshot)
+  has the rules, and
+  [SUPPORT.md](https://github.com/pleiondev/flutter3d/blob/main/SUPPORT.md)
+  says which releases get fixes and on which platforms.
+
+- **The software backend draws the new debug views and the two-channel
+  wipe** exactly as the GLSL does (`debugIdentityColour` is the identity
+  views' palette), so the CPU goldens can hold them.
+
+- **The software rasteriser reports `DeviceFeature.reversedDepth`** — its
+  depth is a float and its clip space `[0, 1]` — so the reversed depth path
+  is drawn and tested here as on a GPU, comparisons and clears included.
+
+- **`DepthPredrawShader`** is `depth_predraw.frag`'s transcription — `A1.2`,
+  `A1.3` — and the lit models' opaque variants are registered under their
+  names. The sky's vertex stages take their depth from the third component
+  of the corner, and the shadow stages turn a reversed map's depth back.
+
+- **Breaking: `VertexFetch` is an `abstract final class`.** Both fetches are
+  this package's. The Dart stages (`CpuVertexShader`, `CpuFragmentShader`,
+  `CpuComputeShader`, `CpuVertexShaderByIndex`, `CpuStorageReader`) stay
+  implementable — an application writes them — and say so.
+
+- **The software rasteriser answers the capability set, and implements
+  most of it.** `CpuDevice` mixes in `DeviceCapabilityForwarders`; its old
+  getters are gone and every pre-1.0 answer is what `features`, `limits`
+  and `textureFormatSupport` now say — the same answers as before, `unknown`
+  and the compressed formats included. Listed and built: array, 3D and
+  cube-array textures with rendering into a layer; `createTextureWithDescriptor`
+  and `writeTexture` for every format the float store can hold; general
+  buffers, mapping, synchronous readback and the three kinds of copy;
+  storage textures and storage buffers in compute and render stages
+  (`CpuStorageTexture`, and `CpuStorageReader` for a render stage to declare
+  what it reads); indirect, multi, multi-indirect, non-indexed and
+  base-vertex draws and indirect dispatch; depth bias at the depth format's
+  own step, depth clamp, colour write masks, min/max and dual-source blending
+  (`FragmentContext.source1`); comparison, level-clamped and bordered
+  samplers; occlusion, timestamp and pipeline-statistics queries; and render
+  bundles, recorded and replayed. Refused by name, each with what would
+  unblock it: multisampling, wireframe, the compressed families, the 32-bit
+  integer formats, uniform blocks from bytes and the shader-language
+  features. `CpuDevice(withhold:)` builds a device without any of them, so a
+  refusal can be drawn here too.
+
+- **Transfer passes run at submit, not when recorded.** A render pass here
+  draws as it is recorded, so a copy recorded before one but submitted after
+  it waits for its own submit, as a queue would order them; every refusal is
+  still thrown by the call that asked.
+
+- **A storage buffer bindable as indices is the same bytes as the index
+  buffer** (`H11`), so a dispatch's writes are what the next draw reads.
+  The `SplatSort` stages are not carried: the CPU sort is this backend's,
+  and the reference the GPU's is held to.
+
+- **`OutlineMaskShader` and `HighContrastShader`**, the software twins of
+  the high-contrast look's two stages, and the first set to record its
+  golden, `high-contrast`.
+
+- **`kVInstance`**: a mesh stage's varyings carry an instance's own four
+  numbers, from slot 1 in `MeshInstancedVertexShader` and nought from every
+  other; `kMeshVaryings` is twenty-two.
+
+- The software caustic stages: a refracting caster's faces, the photon
+  vertex stage with its ray differentials, and the photon quad.
+- The software `ShadowTransmittance` reads the base colour map and lets the
+  transmittance pass one, as the GLSL stage does.
+
+- **`ShadowTransmittance`** and the coloured shadow it feeds, the software
+  twin of the stage and of the light loop's new term
+  (`ShadowSettings.translucentCasters`).
+
+- **A bundle built from a `.f3dmat` loads with nothing registered by
+  hand.** `CpuDevice(materialCompiler:)` compiles each stage the bundle
+  carries the source of; a reload points the stage already handed out at the
+  new source, and a source that does not compile leaves the library as it
+  was. `ensureCpuBackendRegistered` takes the compiler too.
+
+- **A mask's surviving fragment is opaque**, as the GLSL now writes it.
+
+- **The orthographic camera in software**: `towardsEye`, `eyeDistance` and
+  the light shafts' start follow the GLSL.
+
+- **Debug views in software.** `writeDebugView` mirrors `WriteDebugView`
+  for every lit model and the impostor, and the composite passes the debug
+  side of the split through its encode alone, as the GLSL does.
+
+- **The lens in software.** The composite bends its coordinate as
+  `composite.frag` does, and `LensFlareShader` mirrors `lens_flare.frag`;
+  `lens-flare` and `lens-distortion` match Impeller's references to the
+  pixel.
+
+- **SMAA 1x in software.** `SmaaEdgesShader`, `SmaaWeightsShader` and
+  `SmaaBlendShader` mirror `smaa_edges.frag`, `smaa_weights.frag` and
+  `smaa_blend.frag` line for line, so the software backend smooths the same
+  edges by the same amounts; its `smaa-teapot` reference matches Impeller's
+  to the pixel.
+
+**The decal stage, as the GLSL has it.** `DecalShader` mirrors
+`post/decal.frag` line for line, the mip level of each picture chosen from
+the same footprint the GLSL computes by hand from neighbouring texels of the
+surface buffer.
+
+**`P4`'s two stages.** `PlanarReflectionShader` mirrors
+`planar_reflection.frag` and `RenderTextureEncodeShader` mirrors
+`render_texture_encode.frag`; `planar_reflection_test.dart` holds ten
+claims about both, and the `planar-mirror` and `render-texture` goldens are
+in this set.
+
+**A triangle is clipped to the depth range, as a GPU clips it.** The
+rasteriser cut triangles at `w` and nowhere else, so a fragment in front of
+the near plane or past the far one was drawn wherever its `w` was positive.
+Nothing showed it while every near plane was parallel to the screen and a
+little way off the eye; the mirrored camera stands its near plane on the
+mirror, and what was below the mirror came up through it here and on no
+other backend. A fragment with a window depth outside `[0, 1]` is dropped
+now, which is the same cut as clipping the triangle, because that depth is
+linear across the screen. No golden of this set moved.
+
+**`SkyPhysicalShader`**, the software `SkyPhysical`, with the stars' hash
+rounded to single precision as the GPU computes it, and **height fog in
+`applyFog`**, as `color.glsl` has it.
+
+- **`PngStripWriter` writes a PNG a strip at a time**, one IDAT chunk per
+  strip and an empty final deflate block at `close`, keeping only the running
+  Adler-32 between strips. It refuses rows past the bottom and a `close` with
+  rows missing. `encodePng` is unchanged, byte for byte.
+
+Its `flutter3d_*` dependencies ask for `^1.0.0`.
+
 ## 0.8.2+1
 
 **Resolves on Flutter 3.44 and Dart 3.12.0.** The constraints asked for Dart

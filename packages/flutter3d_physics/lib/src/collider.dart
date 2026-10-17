@@ -1,3 +1,4 @@
+import 'package:flutter3d_matter/flutter3d_matter.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'collision_shape.dart';
@@ -8,13 +9,24 @@ import 'collision_world.dart';
 /// The same three roles Flame's `CollisionType` names, with the meanings a 3D
 /// game needs: what blocks movement, what moves under its own control, and what
 /// only reports that something passed through it.
-enum ColliderKind {
+///
+/// **An open class with constants, not an enum** (§A.2 of
+/// `tasks/1.0-api-review.md`): a later minor may add a role — a one-way
+/// platform, a sensor that blocks some layers — and a `switch` written
+/// against three values would stop compiling. A `switch` over this needs a
+/// default; [name] is its word in a file.
+final class ColliderKind {
+  const ColliderKind._(this.name, {required this.blocks});
+
   /// Never moves, blocks movement. Level geometry.
-  static,
+  static const ColliderKind static = ColliderKind._('static', blocks: true);
 
   /// Moved by game logic rather than by physics, blocks movement, and carries
   /// anything standing on it. Doors, lifts, platforms.
-  kinematic,
+  static const ColliderKind kinematic = ColliderKind._(
+    'kinematic',
+    blocks: true,
+  );
 
   /// Blocks nothing and reports overlap. Pickups, damage volumes, the button at
   /// the end of a corridor, the line that finishes the level.
@@ -24,7 +36,31 @@ enum ColliderKind {
   /// what is a second system that can disagree with the first one, and the
   /// disagreements show up as a pickup you cannot collect while standing
   /// visibly inside it.
-  trigger,
+  static const ColliderKind trigger = ColliderKind._('trigger', blocks: false);
+
+  /// Every kind this build knows, in the order the enum declared them.
+  static const List<ColliderKind> values = <ColliderKind>[
+    static,
+    kinematic,
+    trigger,
+  ];
+
+  /// The kind written as [name]; null for a word this build does not know.
+  static ColliderKind? byName(String name) {
+    for (final kind in values) {
+      if (kind.name == name) return kind;
+    }
+    return null;
+  }
+
+  /// The kind's word in a file and a message.
+  final String name;
+
+  /// Whether a collider of this kind blocks movement.
+  final bool blocks;
+
+  @override
+  String toString() => 'ColliderKind.$name';
 }
 
 /// The one layer constant that means the same thing in every game.
@@ -51,19 +87,38 @@ abstract final class Layers {
 /// Told when colliders begin, continue and stop overlapping.
 ///
 /// Attached to a [Collider], the way Flame attaches `CollisionCallbacks` to a
-/// component. `self` is always the collider the listener belongs to, so an
-/// implementation never has to work out which of the two it is.
+/// component. [CollisionContext.self] is always the collider the listener
+/// belongs to, so an implementation never has to work out which of the two
+/// it is.
 ///
 /// A mixin class rather than an interface so a monster or a pickup can take the
 /// three defaults and override only the one it cares about — which is almost
 /// always [onCollisionStart].
-abstract mixin class CollisionListener {
-  void onCollisionStart(Collider self, Collider other) {}
+abstract base mixin class CollisionListener {
+  void onCollisionStart(CollisionContext context) {}
 
   /// Called for every step the pair stays overlapping, the first one excepted.
-  void onCollision(Collider self, Collider other) {}
+  void onCollision(CollisionContext context) {}
 
-  void onCollisionEnd(Collider self, Collider other) {}
+  void onCollisionEnd(CollisionContext context) {}
+}
+
+/// What a [CollisionListener] is told: its own collider and the one it met.
+///
+/// **One object, so a minor can hand a listener more** — where they touch,
+/// how hard — without breaking a listener written against 1.0. **Reused**:
+/// the world owns one and sets it before every call of every pair of every
+/// step, so a step's contacts allocate nothing for it; a listener reads it
+/// during the call and does not keep it (keeping [self] or [other] is
+/// fine).
+final class CollisionContext {
+  CollisionContext({required this.self, required this.other});
+
+  /// The collider the listener belongs to.
+  Collider self;
+
+  /// The collider it met.
+  Collider other;
 }
 
 /// A shape, somewhere, that takes part in collision.
@@ -79,6 +134,7 @@ final class Collider {
     this.mask = Layers.all,
     CollisionListener? listener,
     this.userData,
+    this.material,
   }) : position = position?.clone() ?? Vector3.zero() {
     // Through the field rather than the setter: there is no world to notify
     // yet, and the setter would be a call into nothing.
@@ -101,9 +157,11 @@ final class Collider {
 
   /// The world this collider is in, once it has been added to one.
   ///
-  /// Assigned by [CollisionWorld.add] and cleared by its remove. Public only
-  /// because the two are in different files.
-  CollisionWorld? world;
+  /// Set by [CollisionWorld.add] and cleared by [CollisionWorld.remove], and
+  /// by nothing else: a collider that said it was in a world the world had
+  /// never filed it in would be asked for by a listener and never found.
+  CollisionWorld? get world => _world;
+  CollisionWorld? _world;
 
   CollisionListener? _listener;
 
@@ -123,6 +181,20 @@ final class Collider {
     _listener = value;
     world?.refreshReporter(this);
   }
+
+  /// What this collider is made of, from the world's `MaterialCatalog`
+  /// (`CollisionWorld.materials`), or null for nothing in particular.
+  ///
+  /// **The numbers a body's own fields leave unsaid.** A `RigidBody` made
+  /// with a material and no friction or restitution of its own takes the
+  /// material's; two colliders that both have one meet as
+  /// `MaterialCatalog.contact` says — a measured pair, or the engine's rule
+  /// over their own — in the reference `Dynamics`. A file names it by its
+  /// id (`PhysicalMaterial.id`).
+  ///
+  /// Given when the collider is made: what a body is made of does not change
+  /// under the solver's contacts.
+  final PhysicalMaterial? material;
 
   /// Whatever the game wants to find its way back to: a monster, a pickup, the
   /// definition of the door this collider belongs to.
@@ -155,7 +227,7 @@ final class Collider {
   final Vector3 surfaceVelocity = Vector3.zero();
 
   /// True when this collider blocks movement.
-  bool get isSolid => kind != ColliderKind.trigger;
+  bool get isSolid => kind.blocks;
 
   /// Whether [other] and this one should be tested at all.
   bool interactsWith(Collider other) =>
@@ -190,3 +262,8 @@ final class Collider {
     indexedAt.setFrom(position);
   }
 }
+
+/// Files [collider] as in [world], or in none: [CollisionWorld]'s own door to
+/// [Collider.world], not exported.
+void fileColliderInWorld(Collider collider, CollisionWorld? world) =>
+    collider._world = world;

@@ -1,3 +1,6 @@
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LightType, Severity;
+
 import 'entity_kind.dart';
 import 'level.dart';
 import 'level_issue.dart';
@@ -52,9 +55,11 @@ final class LevelValidator {
     try {
       level = expandRecipes(authored);
     } on LevelFormatException catch (e) {
-      return <LevelIssue>[LevelIssue(LevelIssueSeverity.error, e.message)];
+      return <LevelIssue>[LevelIssue(Severity.error, e.message)];
     }
-    final issues = <LevelIssue>[];
+    // Said about the document as written: an override addressed to an
+    // entity its template no longer has is invisible once expanded.
+    final issues = <LevelIssue>[...prefabIssues(authored)];
     final scope = LevelScope(level);
 
     _checkBrushes(level, issues);
@@ -91,14 +96,14 @@ final class LevelValidator {
       if (kind == null) {
         issues.add(
           LevelIssue(
-            LevelIssueSeverity.error,
+            Severity.error,
             'unknown type "${entity.type}", so nothing will spawn here',
             where: scope.describe(entity),
           ),
         );
         continue;
       }
-      kind.validate(entity, scope, issues);
+      kind.validate(EntityCheck(entity: entity, scope: scope, out: issues));
     }
   }
 
@@ -106,7 +111,7 @@ final class LevelValidator {
 
   void _checkTheSetOfEntities(Level level, List<LevelIssue> issues) {
     for (final rule in rules) {
-      rule.check(level, issues);
+      rule.check(LevelCheck(level: level, out: issues));
     }
 
     final names = <String, int>{};
@@ -117,7 +122,7 @@ final class LevelValidator {
       if (previous != null) {
         issues.add(
           LevelIssue(
-            LevelIssueSeverity.error,
+            Severity.error,
             'name "$name" is already used by entities[$previous], so a '
             'reference to it is ambiguous',
             where: 'entities[$i] ${level.entities[i].type}',
@@ -132,7 +137,7 @@ final class LevelValidator {
     if (level.brushes.isEmpty) {
       issues.add(
         const LevelIssue(
-          LevelIssueSeverity.error,
+          Severity.error,
           'the level has no geometry, so there is nothing to stand on',
         ),
       );
@@ -145,7 +150,7 @@ final class LevelValidator {
       if (brush.size.x <= 0.0 || brush.size.y <= 0.0 || brush.size.z <= 0.0) {
         issues.add(
           LevelIssue(
-            LevelIssueSeverity.error,
+            Severity.error,
             'size ${brush.size} has a zero or negative side',
             where: where,
           ),
@@ -157,7 +162,7 @@ final class LevelValidator {
           brush.material != 'default') {
         issues.add(
           LevelIssue(
-            LevelIssueSeverity.warning,
+            Severity.warning,
             'material "${brush.material}" is not defined, so this will render '
             'as plain grey',
             where: where,
@@ -198,7 +203,7 @@ final class LevelValidator {
     if (gradient > walkable) {
       issues.add(
         LevelIssue(
-          LevelIssueSeverity.warning,
+          Severity.warning,
           'ramp rises ${brush.size.y} over $run, which is steeper than sixty '
           'degrees — a body slides down this rather than walking up it',
           where: where,
@@ -210,7 +215,7 @@ final class LevelValidator {
       // the mesh builder pays for and nobody sees.
       issues.add(
         LevelIssue(
-          LevelIssueSeverity.warning,
+          Severity.warning,
           'ramp rises ${brush.size.y} over $run, which is flat enough that a '
           'block would look the same and cost less',
           where: where,
@@ -266,7 +271,7 @@ final class LevelValidator {
 
         issues.add(
           LevelIssue(
-            LevelIssueSeverity.error,
+            Severity.error,
             'is inside solid geometry, so nothing can reach it',
             where: 'entities[$i]',
           ),
@@ -313,7 +318,7 @@ final class LevelValidator {
 
           issues.add(
             LevelIssue(
-              LevelIssueSeverity.warning,
+              Severity.warning,
               'overlaps brushes[$ib] by ${volume.toStringAsFixed(2)} m³, which '
               'will z-fight where their faces meet',
               where: 'brushes[$ia]',
@@ -328,7 +333,7 @@ final class LevelValidator {
     if (level.lights.isEmpty) {
       issues.add(
         const LevelIssue(
-          LevelIssueSeverity.warning,
+          Severity.warning,
           'no lights: the level will be black',
         ),
       );
@@ -342,16 +347,16 @@ final class LevelValidator {
       if (light.intensity <= 0.0) {
         issues.add(
           LevelIssue(
-            LevelIssueSeverity.warning,
+            Severity.warning,
             'has no intensity and contributes nothing',
             where: 'lights[$i]',
           ),
         );
       }
-      if (light.type == LevelLightType.point && light.range <= 0.0) {
+      if (light.type == LightType.point && light.range <= 0.0) {
         issues.add(
           LevelIssue(
-            LevelIssueSeverity.warning,
+            Severity.warning,
             // **A message from an engine package, so it says nothing about
             // anybody's fiction.** It used to end "the falloff a dungeon relies
             // on", which reads oddly to somebody writing a racing game and is
@@ -367,10 +372,7 @@ final class LevelValidator {
 
     if (!lit) {
       issues.add(
-        const LevelIssue(
-          LevelIssueSeverity.warning,
-          'every light has zero intensity',
-        ),
+        const LevelIssue(Severity.warning, 'every light has zero intensity'),
       );
     }
   }

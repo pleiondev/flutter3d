@@ -45,7 +45,73 @@ import 'selection.dart';
 /// Who made a [HistoryStep] — `mcp-10n`'s own reason [HistoryStep] names one
 /// at all: an agent's own [ModelHistory.undo] should not reach past a
 /// person's own step and take back work nobody asked it to.
-enum StepAuthor { person, agent }
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class StepAuthor {
+  const StepAuthor._(this.name);
+
+  static const StepAuthor person = StepAuthor._('person');
+
+  static const StepAuthor agent = StepAuthor._('agent');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<StepAuthor> values = <StepAuthor>[person, agent];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static StepAuthor? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'StepAuthor.$name';
+}
+
+/// One step on the undo stack as a panel shows it: what it did and who did
+/// it. [ModelHistory.authorship] is a list of these.
+final class StepAuthorship {
+  /// The step that [says] what it did, made by [author] through [client].
+  const StepAuthorship({
+    required this.says,
+    required this.author,
+    required this.client,
+  });
+
+  /// The step's own one-line description, from its command.
+  final String says;
+
+  /// Whether a person or an agent made the step.
+  final StepAuthor author;
+
+  /// The name the agent's client said hello with, or null for a person's own
+  /// step and for a client that gave no name.
+  final String? client;
+
+  @override
+  bool operator ==(Object other) =>
+      other is StepAuthorship &&
+      other.says == says &&
+      other.author == author &&
+      other.client == client;
+
+  @override
+  int get hashCode => Object.hash(says, author, client);
+
+  @override
+  String toString() =>
+      'StepAuthorship($says by ${author.name}'
+      '${client == null ? '' : ' via $client'})';
+}
 
 /// One entry: what was done, and what the document was before it.
 final class HistoryStep {
@@ -83,7 +149,7 @@ final class HistoryStep {
 
   /// Who made this step — a person at the app, or an agent over MCP.
   /// Defaults to [StepAuthor.person] because that is every call site this
-  /// class has ever had until `ModelSession` (`flutter3d_model_mcp`) started
+  /// class has ever had until `ModelSession` (`flutter3d_mcp/model.dart`) started
   /// naming its own steps [StepAuthor.agent] explicitly; a step nobody names
   /// an author for is one a human made, not an agent whose own undo needs
   /// watching.
@@ -106,7 +172,7 @@ final class ModelHistory {
   ModelHistory(
     this._project, {
     this.depth = 64,
-    this.historyBudgetBytes = kHistoryBudgetBytes,
+    this.historyBudgetBytes = defaultHistoryBudgetBytes,
     ProjectSelection? selection,
     this.recoveryJournal,
   }) : _selection = selection ?? ProjectSelection.none,
@@ -129,7 +195,7 @@ final class ModelHistory {
     this._project,
     List<HistoryStep> steps, {
     this.depth = 64,
-    this.historyBudgetBytes = kHistoryBudgetBytes,
+    this.historyBudgetBytes = defaultHistoryBudgetBytes,
     ProjectSelection? selection,
     this.recoveryJournal,
   }) : _selection = selection ?? ProjectSelection.none,
@@ -147,7 +213,7 @@ final class ModelHistory {
   final int depth;
 
   /// How many bytes of mesh journal the kept steps may hold together before
-  /// the oldest of them are dropped — [kHistoryBudgetBytes] by default.
+  /// the oldest of them are dropped — [defaultHistoryBudgetBytes] by default.
   ///
   /// **[depth] alone is the wrong cap for a mesh, and `pro-sc-06` is where
   /// that stops being theoretical.** A step is a pointer to a kept document
@@ -225,7 +291,7 @@ final class ModelHistory {
   /// done anything to take back.
   ///
   /// [author] is [StepAuthor.person] unless a caller says otherwise —
-  /// `ModelSession` (`flutter3d_model_mcp`) is the one caller that ever
+  /// `ModelSession` (`flutter3d_mcp/model.dart`) is the one caller that ever
   /// passes [StepAuthor.agent], since every command an MCP tool call runs is
   /// one by definition.
   ///
@@ -241,7 +307,7 @@ final class ModelHistory {
     String? client,
   }) {
     final Outcome outcome = command.apply(_project, selection);
-    if (!outcome.ok) return outcome.refused;
+    if (!outcome.isOk) return outcome.refused;
     final List<EditMesh> touched = outcome.meshesTouched;
     if (_inTransaction) {
       _firstOfTransaction ??= command;
@@ -296,7 +362,7 @@ final class ModelHistory {
   /// Resolves once no transaction is open — immediately, when none is.
   ///
   /// **The whole of `mcp-14n`'s own fix lives in this one `await`,** called
-  /// from `flutter3d_model_mcp`'s generic command tool before it runs an
+  /// from `flutter3d_mcp/model.dart`'s generic command tool before it runs an
   /// agent's command. [ModelHistory.run] folds a command into whichever
   /// transaction happens to be open when it is called — right, for the
   /// gesture that opened it, wrong for a command that arrives from
@@ -483,7 +549,7 @@ final class ModelHistory {
       step.before,
       step.selectionBefore,
     );
-    if (!outcome.ok) {
+    if (!outcome.isOk) {
       _rollMeshes(step.meshSteps, forward: true);
       return outcome.refused;
     }
@@ -574,11 +640,14 @@ final class ModelHistory {
 
   /// Every step still on the stack, newest last, with who made each — what a
   /// panel showing "three steps by Claude, then one of yours" reads.
-  List<({String says, StepAuthor author, String? client})> get authorship =>
-      <({String says, StepAuthor author, String? client})>[
-        for (final HistoryStep step in _done)
-          (says: step.command.says, author: step.author, client: step.client),
-      ];
+  List<StepAuthorship> get authorship => <StepAuthorship>[
+    for (final HistoryStep step in _done)
+      StepAuthorship(
+        says: step.command.says,
+        author: step.author,
+        client: step.client,
+      ),
+  ];
 
   /// One step forward.
   bool redo() {

@@ -30,7 +30,6 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _size = 64;
 
@@ -46,7 +45,7 @@ const int _size = 64;
   final block = DeviceMesh.upload(device, CuboidShape().build());
 
   final mode = casting ? ShadowCastingMode.on : ShadowCastingMode.off;
-  final mover = MeshNode(block, Material(name: 'mover'), name: 'mover')
+  final mover = MeshNode(block, RenderMaterial(name: 'mover'), name: 'mover')
     ..setPosition(0.0, 0.7, 0.0)
     ..shadowCasting = mode;
 
@@ -54,17 +53,20 @@ const int _size = 64;
     ..add(
       MeshNode(
         floor,
-        Material(name: 'floor', baseColor: Vector4(0.9, 0.9, 0.9, 1.0)),
+        RenderMaterial(
+          name: 'floor',
+          baseColor: LinearColor.fromSrgb(0.9, 0.9, 0.9, 1.0),
+        ),
       )..setPosition(0.0, -1.0, 0.0),
     )
     ..add(mover)
     ..add(
-      MeshNode(block, Material(name: 'still'), name: 'still')
+      MeshNode(block, RenderMaterial(name: 'still'), name: 'still')
         ..setPosition(3.0, 0.7, 1.0)
         ..shadowCasting = mode,
     )
     ..add(
-      LightNode(intensity: 6.0, castsShadow: true)
+      LightNode(intensity: 6.0 * LightNode.defaultIntensity, castsShadow: true)
         ..setPosition(4.0, 5.0, 0.01)
         ..lookAt(Vector3.zero()),
     );
@@ -97,7 +99,7 @@ void main() {
       width: _size,
       height: _size,
       scene: built.scene,
-      views: <RenderView>[RenderView(camera: built.camera)],
+      views: <CameraView>[CameraView(camera: built.camera)],
       settings: const RenderSettings(
         shadows: ShadowSettings(enabled: true, cascades: 3),
       ),
@@ -129,16 +131,19 @@ void main() {
         width: _size,
         height: _size,
         scene: scene,
-        views: <RenderView>[
-          RenderView(camera: camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+        views: <CameraView>[
+          CameraView(
+            camera: camera,
+            clearColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
+          ),
         ],
         settings: const RenderSettings(
           shadows: ShadowSettings(enabled: true, cascades: 3),
         ),
       );
-      final bytes = await device.readPixels(result.frame);
+      final bytes = await device.readback(result.frame);
       return <int>[
-        for (var i = 0; i < _size * _size * 4; i++) bytes!.getUint8(i),
+        for (var i = 0; i < _size * _size * 4; i++) bytes.getUint8(i),
       ];
     }
 
@@ -169,7 +174,7 @@ void main() {
   });
 
   test('a moved caster redraws the cascades it is in', () async {
-    // The other half. `SceneNode.changeEpoch` is what carries it, so this also
+    // The other half. `sceneChangeEpoch` is what carries it, so this also
     // catches a key that forgot to ask.
     final device = CpuDevice(
       width: _size,
@@ -183,7 +188,7 @@ void main() {
       width: _size,
       height: _size,
       scene: built.scene,
-      views: <RenderView>[RenderView(camera: built.camera)],
+      views: <CameraView>[CameraView(camera: built.camera)],
       settings: const RenderSettings(
         shadows: ShadowSettings(enabled: true, cascades: 3),
       ),
@@ -213,7 +218,7 @@ void main() {
       width: _size,
       height: _size,
       scene: built.scene,
-      views: <RenderView>[RenderView(camera: built.camera)],
+      views: <CameraView>[CameraView(camera: built.camera)],
       settings: const RenderSettings(
         shadows: ShadowSettings(enabled: true, cascades: 3),
       ),
@@ -245,7 +250,7 @@ void main() {
       width: _size,
       height: _size,
       scene: built.scene,
-      views: <RenderView>[RenderView(camera: built.camera)],
+      views: <CameraView>[CameraView(camera: built.camera)],
       settings: const RenderSettings(
         shadows: ShadowSettings(enabled: true, cascades: 3),
       ),
@@ -257,4 +262,58 @@ void main() {
     built.mover.material.alphaCutoff = 0.9;
     expect(cascadeDraws(frame()), greaterThan(0));
   });
+
+  test('a frame reads a caster for its keys once, not once a cascade', () {
+    // The keys used to walk every caster once per cascade, reading its
+    // material, its mesh and its faces each time, so a frame with three
+    // cascades did three times the reading of a frame with one. What a
+    // caster contributes is the same in every cascade; only whether it is in
+    // one differs.
+    int readsPerHeldFrame(int cascades) {
+      final device = CpuDevice(
+        width: _size,
+        height: _size,
+        shaders: CpuShaderLibrary(builtinCpuShaders()),
+      );
+      final renderer = Renderer.create(device: device);
+      final built = _scene(device);
+      final counted = built.scene.add(
+        _CountingNode(
+          DeviceMesh.upload(device, CuboidShape().build()),
+          RenderMaterial(name: 'counted'),
+        )..setPosition(-1.5, 0.7, 0.5),
+      );
+      FrameResult frame() => renderer.render(
+        width: _size,
+        height: _size,
+        scene: built.scene,
+        views: <CameraView>[CameraView(camera: built.camera)],
+        settings: RenderSettings(
+          shadows: ShadowSettings(enabled: true, cascades: cascades),
+        ),
+      );
+      frame();
+      frame();
+      counted.reads = 0;
+      expect(cascadeDraws(frame()), 0, reason: 'a held frame draws nothing');
+      return counted.reads;
+    }
+
+    expect(readsPerHeldFrame(3), readsPerHeldFrame(1));
+  });
+}
+
+/// A caster that counts how often the faces it records are asked for: a
+/// held frame asks only to key it. (Its version would not do: each cascade's
+/// volume test reads its bounds, which check the version.)
+final class _CountingNode extends MeshNode {
+  _CountingNode(super.mesh, super.material);
+
+  int reads = 0;
+
+  @override
+  bool get castsShadowFromEveryFace {
+    reads++;
+    return super.castsShadowFromEveryFace;
+  }
 }

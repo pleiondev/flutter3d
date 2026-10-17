@@ -1,15 +1,15 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:flutter3d_mcp_kit/flutter3d_mcp_kit.dart' show PictureAnswer;
+import 'package:flutter3d_mcp/kit.dart' show Answer, ProjectRoot;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'diagnostic_renderer.dart';
 
-PictureAnswer _ok(String says, [Uint8List? png]) =>
-    (did: true, says: says, png: png);
-PictureAnswer _refuse(String says) => (did: false, says: says, png: null);
+Answer _ok(String says, [Uint8List? png]) =>
+    Answer(did: true, says: says, png: png);
+Answer _refuse(String says) => Answer(did: false, says: says, png: null);
 
 /// Which pass a channel not finite, or a pixel darker than it should be, is
 /// actually attributable to — stated once per [DiagnosticView] rather than
@@ -28,6 +28,7 @@ String describePass(DiagnosticView view) => switch (view) {
         'lit view',
   DiagnosticView.shadowMap => 'the point-shadow pass, movers atlas',
   DiagnosticView.staticShadowMap => 'the point-shadow pass, static atlas',
+  _ => throw UnsupportedError('no pass is known to draw $view'),
 };
 
 /// One level open for diagnosis, and the last frame drawn of it — `par-02`.
@@ -37,10 +38,17 @@ String describePass(DiagnosticView view) => switch (view) {
 /// redrawing one of their own, so three calls describing "the same picture"
 /// are guaranteed to mean it.
 final class DiagnosticSession {
+  DiagnosticSession({ProjectRoot? root})
+    : root = root ?? ProjectRoot.around(null);
+
+  /// The directory the level [open] reads, and every file it names, must
+  /// lie inside; the working directory when not given.
+  final ProjectRoot root;
+
   DiagnosticRenderer? _renderer;
   DiagnosticFrame? _last;
 
-  Future<PictureAnswer> open(String path) async {
+  Future<Answer> open(String path) async {
     try {
       // No genre vocabulary: a frame's own normals, depth and NaNs are not a
       // property of any entity a level might spawn. A level whose entities
@@ -48,18 +56,27 @@ final class DiagnosticSession {
       // check for it — the same trade a purely genre-agnostic tool makes
       // everywhere else in this session.
       final renderer = await DiagnosticRenderer.open(
-        path,
+        root.resolve(path),
         registry: EntityRegistry(const <EntityKind>[]),
+        root: root,
       );
       _renderer = renderer;
       _last = null;
-      return _ok('opened "$path" for diagnosis.');
+      // What the loader let go of is said: a texture refused or missing
+      // draws a flat wall, which looks the same as one meant to be flat.
+      final said = <String>[for (final issue in renderer.issues) '$issue'];
+      return _ok(
+        said.isEmpty
+            ? 'opened "$path" for diagnosis.'
+            : 'opened "$path" for diagnosis, with ${said.length} '
+                  '${said.length == 1 ? 'issue' : 'issues'}:\n${said.join('\n')}',
+      );
     } catch (error) {
       return _refuse('could not open "$path": $error');
     }
   }
 
-  Future<PictureAnswer> frame({
+  Future<Answer> frame({
     required double atX,
     required double atY,
     required double atZ,
@@ -90,7 +107,7 @@ final class DiagnosticSession {
 
   /// The raw RGBA this view actually holds at ([x], [y]) — unclamped, so a
   /// depth past one metre or a NaN survives, unlike the picture.
-  PictureAnswer pixel(int x, int y) {
+  Answer pixel(int x, int y) {
     final frame = _last;
     if (frame == null) return _refuse('no frame drawn yet — call frame first');
     if (x < 0 || x >= frame.width || y < 0 || y >= frame.height) {
@@ -117,7 +134,7 @@ final class DiagnosticSession {
 
   /// Every pass the frame graph kept for the last frame drawn, in the order
   /// it ran — `FrameResult.passes`, read back rather than recomputed.
-  PictureAnswer passes() {
+  Answer passes() {
     final frame = _last;
     if (frame == null) return _refuse('no frame drawn yet — call frame first');
     return _ok(
@@ -141,7 +158,7 @@ final class DiagnosticSession {
   /// The first pixel in the last frame drawn whose value is not finite, and
   /// which pass is answerable for a channel like that ever reaching the
   /// frame at all.
-  PictureAnswer scanNaN() {
+  Answer scanNaN() {
     final frame = _last;
     if (frame == null) return _refuse('no frame drawn yet — call frame first');
     final hit = frame.firstNonFinite();

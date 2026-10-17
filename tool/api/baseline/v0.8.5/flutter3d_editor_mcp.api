@@ -1,0 +1,57 @@
+# The public API of flutter3d_editor_mcp.
+# Generated from v0.8.5 by `dart run api_snapshot:api_baseline` in tool/api. Do not edit.
+# A change here is a semver decision: see "The API is a snapshot" in CONTRIBUTING.md.
+
+library package:flutter3d_editor_mcp/flutter3d_editor_mcp.dart
+
+base class EditorMcpServer extends ToolTableServer<EditorSession, PictureAnswer>
+  EditorMcpServer(super.channel, {required super.session})
+
+final class EditorSession
+  Answer generate(LevelRecipe recipe)
+  Answer redo()
+  Answer run(EditorCommand command)
+  Answer save(String? path)
+  Answer select(Piece? kind, int? index)
+  Answer undo()
+  EditorSession(this.editing)
+  Future<Answer> report(Vector3? from, Vector3? at)
+  Future<PictureAnswer> screenshot(Vector3? from, Vector3? at)
+  PictureAnswer optimizeLights({List<LightView>? views, bool apply = true})
+  String get selection
+  String listing()
+  String validate()
+  factory EditorSession.open(String path)
+  final Editing editing
+  static const String author = 'packages/flutter3d_editor_mcp'
+
+typedef EditorTool = OfferedTool<EditorSession, PictureAnswer>;
+
+typedef LevelCamera = ({Vector3 from, Vector3 at});
+
+final class LevelView
+  Future<List<PieceReport>> report(LevelCamera camera)
+  Future<Uint8List> picture(LevelCamera camera)
+  factory LevelView.of(Level level)
+  static LevelCamera? defaultCamera(Level level)
+  static const double markerSize = 0.3
+  static const int height = 200
+  static const int width = 320
+
+final class PieceReport
+  String get says
+  const PieceReport({required this.label, required this.pixels, required this.screenBox, required this.depth, required this.inView, required this.covering})
+  final ({double near, double far})? depth
+  final ({int left, int top, int right, int bottom})? screenBox
+  final List<({String who, double share})> covering
+  final String label
+  final bool inView
+  final int pixels
+
+const String editorMcpVersion = '0.8.0'
+
+List<EditorTool> get editorTools
+
+export package:flutter3d_mcp_kit/flutter3d_mcp_kit.dart show Answer, PictureAnswer
+  Answer
+  PictureAnswer

@@ -15,7 +15,8 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart' show TextureFormat;
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:test/test.dart';
 
-import '../../tool/make_tables.dart' show aces2DisplayTable, ltcTable, toHalf;
+import '../../tool/make_tables.dart'
+    show aces2DisplayTable, ltcTable, smaaAreaTable, toHalf;
 
 int _fnv1a(Uint8List bytes) => bytes.fold(
   0x811c9dc5,
@@ -35,6 +36,7 @@ void main() {
     for (final table in EngineTables.all) {
       final texel = switch (table.format) {
         TextureFormat.r8UNormInt => 1,
+        TextureFormat.r8g8b8a8UNormInt => 4,
         TextureFormat.r16g16b16a16Float => 8,
         _ => throw StateError('no size known for ${table.format}'),
       };
@@ -59,7 +61,34 @@ void main() {
       // `M2` wrote the sheen's albedo into the second table's z lane,
       // which the published fit leaves empty and nothing read before.
       'ltc': 1806585161,
+      // `P1`: SMAA 1x's orthogonal areas, without the diagonal half.
+      'smaaArea': 2858171383,
     });
+  });
+
+  test('the SMAA area table moves nothing on a run crossed nowhere, and '
+      'one side at a time elsewhere — P1', () {
+    // Mutation: swap red and green in `smaaAreaTable`, and the step below
+    // gives its share to the far pixel: the second expectation fails.
+    final bytes = EngineTables.all
+        .firstWhere((table) => table.name == 'smaaArea')
+        .bytes;
+    int red(int x, int y) => bytes[(y * 80 + x) * 4];
+    int green(int x, int y) => bytes[(y * 80 + x) * 4 + 1];
+    // Codes (0, 0): a straight edge, whatever its length.
+    for (var j = 0; j < 16; j++) {
+      for (var i = 0; i < 16; i++) {
+        expect(red(i, j) + green(i, j), 0);
+      }
+    }
+    // Codes (3, 0): a step on the near side at the first end. One pixel in
+    // from it, on a run of ten, the near pixel takes the far colour and the
+    // far one keeps its own.
+    expect(red(3 * 16 + 1, 3), greaterThan(0));
+    expect(green(3 * 16 + 1, 3), 0);
+    // Codes (1, 0): the same step on the far side moves the far pixel.
+    expect(red(16 + 1, 3), 0);
+    expect(green(16 + 1, 3), greaterThan(0));
   });
 
   test('the LTC table carries the sheen albedo in its spare lane', () {
@@ -149,6 +178,7 @@ void main() {
           EngineTables.all.firstWhere((table) => table.name == name).bytes;
       expect(aces2DisplayTable(), shipped('aces2Display'));
       expect(ltcTable(), shipped('ltc'));
+      expect(smaaAreaTable(), shipped('smaaArea'));
     });
   });
 

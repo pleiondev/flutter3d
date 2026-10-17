@@ -3,6 +3,8 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
+  flutter3d_pointer_lock
+  pad_input
 )
 
 list(APPEND FLUTTER_FFI_PLUGIN_LIST

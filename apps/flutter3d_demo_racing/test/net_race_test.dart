@@ -16,16 +16,21 @@ library;
 /// place.
 ///
 /// `@TestOn('vm')`: spawns a real relay process and opens real sockets.
-import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter3d_demo_racing/src/net_race.dart';
+import 'package:flutter3d_demo_racing/src/net_race_session.dart';
 import 'package:flutter3d_demo_racing/src/staging.dart';
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
 import 'package:flutter3d_net/flutter3d_net.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
+    show usePhysics;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import 'support/relay.dart';
 
 const GameAction _throttle = GameAction('throttle');
 const GameAction _brake = GameAction('brake');
@@ -61,42 +66,12 @@ void _drive(InputState input, int step, {int offset = 0}) {
   if (s == 305) input.release(_handbrake);
 }
 
-Future<({Process process, int port})> _startRelay() async {
-  final process = await Process.start(
-    'dart',
-    <String>['run', 'bin/relay.dart', '0'],
-    workingDirectory: '${Directory.current.path}/../../packages/flutter3d_net',
-  );
-  final portFound = Completer<int>();
-  final subscription = process.stdout
-      .transform(utf8.decoder)
-      .transform(const LineSplitter())
-      .listen((line) {
-        final match = RegExp(
-          r'flutter3d_net relay listening on (\d+)',
-        ).firstMatch(line);
-        if (match != null && !portFound.isCompleted) {
-          portFound.complete(int.parse(match.group(1)!));
-        }
-      });
-  final port = await portFound.future.timeout(
-    const Duration(seconds: 15),
-    onTimeout: () {
-      process.kill();
-      throw StateError('the relay never printed the port it bound to');
-    },
-  );
-  await subscription.cancel();
-  return (process: process, port: port);
-}
-
 void main() {
   test('two devices racing each other over a real relay end the race agreeing '
       'on every settled checkpoint', () async {
-    final relay = await _startRelay();
-    addTearDown(() => relay.process.kill());
+    final relayPort = await startRelay();
     final room = 'race-${DateTime.now().microsecondsSinceEpoch}';
-    final roomUri = Uri.parse('ws://127.0.0.1:${relay.port}/room/$room');
+    final roomUri = Uri.parse('ws://127.0.0.1:$relayPort/room/$room');
 
     final transportA = await WebSocketTransport.connect(roomUri);
     final transportB = await WebSocketTransport.connect(roomUri);
@@ -163,7 +138,8 @@ void main() {
     expect(digestsA.steps, isNotEmpty);
     expect(raceA.session.droppedCorrections, 0);
     expect(raceB.session.droppedCorrections, 0);
-  }, timeout: const Timeout(Duration(seconds: 30)));
+    // The file's minute rather than 30 s: the relay's start is inside it.
+  });
 
   test('the very first inputDelay steps — before either side has sent a '
       'message the other could possibly receive — are symmetric', () {
@@ -175,10 +151,11 @@ void main() {
     // and neither side's timeline was ever addressed by a message that
     // could correct it: the very first frame either side sends is
     // tagged for step `inputDelay`, so steps before it are never
-    // confirmed by anyone. `LoopbackTransport` with zero delay makes
+    // confirmed by anyone. `LoopbackWire` with zero delay makes
     // this reproduce in a few milliseconds rather than needing the real
     // relay above to catch it again.
-    final (transportA, transportB) = LoopbackTransport.pair(stepsPerSecond: 60);
+    final LoopbackPair(first: transportA, second: transportB) =
+        LoopbackWire.pair();
     final deviceA = _stageTwoCars();
     final deviceB = _stageTwoCars();
     final digestsA = DigestTrace(every: 1);
@@ -214,5 +191,38 @@ void main() {
     }
 
     expect(digestsA.divergenceFromHex(digestsB.hexDigests), isNull);
+  });
+
+  test('a room made on the other physics turns this machine away and says '
+      'why', () async {
+    final relayPort = await startRelay();
+    final base = Uri.parse('ws://127.0.0.1:$relayPort/');
+    final room = 'apart-${DateTime.now().microsecondsSinceEpoch}';
+    final mine = usePhysics().name;
+    final other = mine == 'native' ? 'dart' : 'native';
+    final maker = await WebSocketTransport.connect(
+      base.resolve('room/$room?terms=physics=$other'),
+    );
+    addTearDown(maker.close);
+
+    final document = _shipped();
+    final world = CollisionWorld();
+    document.level?.addTo(world);
+    final session = await NetRaceSession.join(
+      relayBase: base,
+      document: document,
+      world: world,
+      input: InputState(),
+      trackAsset: 'assets/tracks/ring.json',
+      roomCode: room,
+    );
+    addTearDown(session.dispose);
+    // Mutation: no terms in the room's address — still turned away, but
+    // the reason names empty terms, not this machine's physics.
+    for (var i = 0; i < 250 && session.closedBecause == null; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    }
+    expect(session.closedBecause, contains('"physics=$other"'));
+    expect(session.closedBecause, contains('"physics=$mine"'));
   });
 }

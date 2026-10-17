@@ -1,10 +1,4 @@
-enum LevelIssueSeverity {
-  /// The level will not play correctly. Loading should stop.
-  error,
-
-  /// The level will play, and somebody probably did not mean this.
-  warning,
-}
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Severity;
 
 /// Something wrong with a level, and where to look for it.
 ///
@@ -14,13 +8,13 @@ enum LevelIssueSeverity {
 final class LevelIssue {
   const LevelIssue(this.severity, this.message, {this.where});
 
-  final LevelIssueSeverity severity;
+  final Severity severity;
   final String message;
 
   /// Where to look: `entities[4] door "north"`, `brushes[17]`.
   final String? where;
 
-  bool get isError => severity == LevelIssueSeverity.error;
+  bool get isError => severity == Severity.error;
 
   @override
   String toString() =>

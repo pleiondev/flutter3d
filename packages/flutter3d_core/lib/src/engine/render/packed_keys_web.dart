@@ -8,7 +8,7 @@ import 'dart:typed_data';
 /// A growable buffer of (key, payload) pairs, sorted ascending by key.
 ///
 /// Key and payload are kept apart rather than packed, which is the whole trick:
-/// a key is at most `kSortKeyBits` wide, so a double holds it exactly, and the
+/// a key is at most `sortKeyBits` wide, so a double holds it exactly, and the
 /// ordering that comes out is identical to the native one rather than a coarser
 /// approximation of it.
 ///

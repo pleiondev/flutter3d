@@ -24,7 +24,10 @@ void main() {
     final err = _BufferSink();
     final code = await runConvert(<String>['--help'], out: out, err: err);
     expect(code, 2);
-    expect(err.text, contains('Usage: dart run flutter3d_build:convert'));
+    // The text names the function, not `dart run flutter3d_build:convert`,
+    // which is `flutter3d convert` under its old name since 1.0.
+    expect(err.text, contains(modelConvertUsage));
+    expect(err.text, contains('Usage: runConvert'));
     expect(err.text, contains('--textures'));
     expect(err.text, contains('--no-mips'));
   });

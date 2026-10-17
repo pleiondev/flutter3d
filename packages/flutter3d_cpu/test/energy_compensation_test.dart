@@ -7,8 +7,8 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:test/test.dart';
-import 'package:vector_math/vector_math.dart' show Vector4;
 
 const int _size = 48;
 
@@ -23,13 +23,13 @@ double _brightness({required double roughness, required bool compensate}) {
   final camera = CameraNode()..setPosition(0.0, 0.0, 2.0);
   final sphere = MeshNode(
     DeviceMesh.upload(device, const SphereShape().build()),
-    Material(
-      baseColor: Vector4(1.0, 0.78, 0.34, 1.0),
+    RenderMaterial(
+      baseColor: LinearColor.fromSrgb(1.0, 0.78, 0.34, 1.0),
       metallic: 1.0,
       roughness: roughness,
     ),
   );
-  final light = LightNode(intensity: 3.0)
+  final light = LightNode(intensity: 3.0 * LightNode.defaultIntensity)
     ..setRotationYawPitchRoll(0.3, -0.4, 0.0);
   final scene = Scene()
     ..add(sphere)
@@ -39,7 +39,7 @@ double _brightness({required double roughness, required bool compensate}) {
     width: _size,
     height: _size,
     scene: scene,
-    views: <RenderView>[RenderView(camera: camera)],
+    views: <CameraView>[CameraView(camera: camera)],
     settings: RenderSettings(
       tonemap: false,
       bloom: const BloomSettings(enabled: false),

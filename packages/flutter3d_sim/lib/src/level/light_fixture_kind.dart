@@ -1,10 +1,10 @@
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Severity;
 import 'package:vector_math/vector_math.dart';
 
 import '../world/light_fixture.dart';
 import 'entity_def.dart';
 import 'entity_kind.dart';
 import 'level_issue.dart';
-import 'spawn_context.dart';
 
 /// Anything that gives off light and can be seen doing it.
 ///
@@ -22,23 +22,26 @@ import 'spawn_context.dart';
 ///
 /// ```dart
 /// LightFixtureKind('torch',
-///     defaultBehaviour: const FlameFlicker(),
+///     defaultBehavior: const FlameFlicker(),
 ///     defaultSize: Vector3(0.22, 0.5, 0.22));
 /// ```
 final class LightFixtureKind extends EntityKind {
   LightFixtureKind(
     super.type, {
-    required this.defaultBehaviour,
+    required this.defaultBehavior,
     required Vector3 defaultSize,
   }) : defaultSize = defaultSize.clone();
 
   /// How this kind behaves when the document does not say.
-  final LightBehaviour defaultBehaviour;
+  final LightBehavior defaultBehavior;
 
   final Vector3 defaultSize;
 
   @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+  void validate(EntityCheck check) {
+    final entity = check.entity;
+    final scope = check.scope;
+    final out = check.out;
     final light = entity.string('light');
     if (light == null) return;
     for (final candidate in scope.level.lights) {
@@ -46,7 +49,7 @@ final class LightFixtureKind extends EntityKind {
     }
     out.add(
       LevelIssue(
-        LevelIssueSeverity.error,
+        Severity.error,
         'drives the light "$light", which this level does not define',
         where: scope.describe(entity),
       ),
@@ -54,12 +57,14 @@ final class LightFixtureKind extends EntityKind {
   }
 
   @override
-  void spawn(EntityDef entity, SpawnContext context) {
+  void spawn(EntitySpawn spawn) {
+    final entity = spawn.entity;
+    final context = spawn.context;
     final fixture = context.mechanisms.add(
       LightFixture(
         name: entity.name,
         light: entity.string('light'),
-        behaviour: _behaviourFor(entity),
+        behavior: _behaviourFor(entity),
         // From the position, so a row of torches never pulses in unison and
         // an author never has to remember to stagger them by hand.
         seed:
@@ -76,7 +81,7 @@ final class LightFixtureKind extends EntityKind {
     );
   }
 
-  LightBehaviour _behaviourFor(EntityDef entity) {
+  LightBehavior _behaviourFor(EntityDef entity) {
     // A swell rather than a flicker: something magical rather than burning.
     // `PulseLight` was written with the other two and then had no way into a
     // level at all — no property reached it, so nothing in any game could ever
@@ -90,7 +95,7 @@ final class LightFixtureKind extends EntityKind {
     }
 
     final depth = entity.number('flicker');
-    if (depth == null) return defaultBehaviour;
+    if (depth == null) return defaultBehavior;
     if (depth <= 0.0) return const SteadyLight();
     return FlameFlicker(depth: depth, rate: entity.number('rate') ?? 7.0);
   }

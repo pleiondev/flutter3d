@@ -147,7 +147,7 @@ void main() {
           preserveVolume: true,
         ),
       );
-      expect(result.ok, isTrue);
+      expect(result.isOk, isTrue);
       expect(mesh.positionOf(0), Vector3(1, 2, 3));
     });
   });

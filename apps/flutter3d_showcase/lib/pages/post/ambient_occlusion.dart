@@ -20,7 +20,7 @@ final class AmbientOcclusionDemo extends ShowcaseDemo {
   Scene build(DemoContext context) {
     // #region ambient
     final Scene scene = PostStage.build(context).scene;
-    scene.ambientIntensity = 0.6;
+    scene.ambientIntensity = 0.6 * LightNode.defaultIntensity;
     // #endregion ambient
     return scene;
   }

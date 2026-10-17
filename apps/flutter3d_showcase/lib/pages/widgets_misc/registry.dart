@@ -4,6 +4,12 @@
 /// opened, so a demo's own state never survives a visit.
 library;
 
+import 'package:flutter3d_showcase/pages/widgets_misc/hot_swap.dart';
+import 'package:flutter3d_showcase/pages/widgets_misc/parties.dart';
+import 'package:flutter3d_showcase/pages/widgets_misc/render_inspection.dart';
+import 'package:flutter3d_showcase/pages/widgets_misc/saves.dart';
+import 'package:flutter3d_showcase/pages/widgets_misc/scene_widgets.dart';
+import 'package:flutter3d_showcase/pages/widgets_misc/time_travel.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
 import 'accommodations.dart';
@@ -28,4 +34,10 @@ final Map<String, DemoBuilder> widgetsMiscDemos = <String, DemoBuilder>{
   'game-settings': GameSettingsDemo.new,
   'run-timeline': RunTimelineDemo.new,
   'rollback-netcode': RollbackNetcodeDemo.new,
+  'time-travel': TimeTravelDemo.new,
+  'saves': SavesDemo.new,
+  'parties': PartiesDemo.new,
+  'scene-widgets': SceneWidgetsDemo.new,
+  'render-inspection': RenderInspectionDemo.new,
+  'hot-swap': HotSwapDemo.new,
 };

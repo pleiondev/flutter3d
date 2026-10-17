@@ -27,8 +27,8 @@ void main() {
     // five metres over it. The only two candidate surfaces in any column are
     // the floor and the top of the roof.
     final grid = NavGrid.bake(<Brush>[
-      Brush(centre: Vector3(0.0, -1.7, 0.0), size: Vector3(20.0, 1.0, 20.0)),
-      Brush(centre: Vector3(0.0, 5.5, 0.0), size: Vector3(20.0, 1.0, 20.0)),
+      Brush(center: Vector3(0.0, -1.7, 0.0), size: Vector3(20.0, 1.0, 20.0)),
+      Brush(center: Vector3(0.0, 5.5, 0.0), size: Vector3(20.0, 1.0, 20.0)),
     ]);
     final cell = grid.cellAt(Vector3(0.0, 0.0, 0.0));
 

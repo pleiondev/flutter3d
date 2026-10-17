@@ -6,11 +6,10 @@
 ///
 /// **Eleven kinds and no others.** `Image`, `Color`, `Blend`, `Channels`,
 /// `Levels`, `Invert`, `UvTransform`, `Checker`, `Noise`, `NormalFromHeight`
-/// and `Output` — the plan's own list — each a sealed [TextureNode]
+/// and `Output` — the plan's own list — each a `final` [TextureNode]
 /// subclass. A shader-graph feature request has a wall to hit here: adding
-/// a twelfth kind means a new `final class` and a compiler-checked switch
-/// arm everywhere one exists, not a string a node's own JSON happens to
-/// carry.
+/// a twelfth kind means a new `final class` and a method on
+/// [TextureNodeVisitor], not a string a node's own JSON happens to carry.
 ///
 /// **Two socket types, not one per node kind.** [TextureValueType.color] is
 /// four channels — what a texture slot samples — and
@@ -33,16 +32,61 @@
 library;
 
 import 'package:flutter3d_core/formats.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show Flutter3dFormatException, LinearColor;
 import 'package:vector_math/vector_math.dart';
 
+import 'project_wire.dart';
+
+/// A texture node or graph that is not one: a missing or mistyped field, a
+/// kind or a word this build does not know.
+final class TextureGraphFormatException extends Flutter3dFormatException {
+  const TextureGraphFormatException(this.message);
+
+  @override
+  final String message;
+
+  @override
+  String toString() => 'TextureGraphFormatException: $message';
+}
+
 /// What one socket on a [TextureNode] carries.
-enum TextureValueType {
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class TextureValueType {
+  const TextureValueType._(this.name);
+
   /// Four channels, 0..1 each — what a texture slot samples, and what
   /// [TextureGraph]'s own [OutputTextureNode] always takes.
-  color,
+  static const TextureValueType color = TextureValueType._('color');
 
   /// One channel, 0..1 — a mask or a height, never sampled on its own.
-  scalar,
+  static const TextureValueType scalar = TextureValueType._('scalar');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<TextureValueType> values = <TextureValueType>[
+    color,
+    scalar,
+  ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static TextureValueType? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'TextureValueType.$name';
 }
 
 /// One thing [TextureGraph.validate] found wrong, named by the node it is
@@ -63,11 +107,40 @@ final class TextureGraphIssue {
 
 /// One input socket's own declared type and, if [from] is not null, which
 /// node is wired into it.
-typedef TextureInputSocket = ({TextureValueType type, int? from});
+///
+/// **A class, because a node an outside author writes declares its
+/// sockets** ([TextureNode.inputs]): a record could never carry the default
+/// or the label a later inspector wants beside the type.
+final class TextureInputSocket {
+  const TextureInputSocket({required this.type, this.from});
 
-/// One node in a [TextureGraph]. Sealed — see the library comment for why
-/// eleven kinds and no others.
-sealed class TextureNode {
+  /// The type the socket takes.
+  final TextureValueType type;
+
+  /// The id of the node wired into it, or null for none.
+  final int? from;
+
+  /// Equal to another with the same fields, as the record it was compared.
+  @override
+  bool operator ==(Object other) =>
+      other is TextureInputSocket && other.type == type && other.from == from;
+
+  @override
+  int get hashCode => Object.hash(type, from);
+
+  @override
+  String toString() => 'TextureInputSocket(type: $type, from: $from)';
+}
+
+/// One node in a [TextureGraph].
+///
+/// **An `abstract base class` with a visitor, not a sealed one.** The kinds
+/// are this package's (see the library comment), but a kind added in a minor
+/// release must not break a pass written against this one, so code outside
+/// that reads every kind goes through [accept] and a [TextureNodeVisitor],
+/// whose [TextureNodeVisitor.visitUnknown] answers for a kind it has no
+/// method for. A `switch` over nodes ends with a wildcard.
+abstract base class TextureNode {
   const TextureNode({required this.id});
 
   /// Stable within one [TextureGraph], the way `ModelObject.id` is stable
@@ -101,33 +174,37 @@ sealed class TextureNode {
   /// The node [json] describes — `json['kind']` and `json['id']` read here,
   /// every other field read by the matching subclass's own reader.
   ///
-  /// Throws a [FormatException] naming the id and the bad field, rather than
+  /// Throws a [TextureGraphFormatException] naming the id and the bad field, rather than
   /// answering a node the graph would misbehave on: a `Blend` with no `mode`
   /// is not "a `Blend` with a default mode," it is a file this build cannot
   /// honestly say it read.
   static TextureNode fromJson(Map<String, Object?> json) {
     final id = switch (json['id']) {
       final int value => value,
-      _ => throw const FormatException('a texture node with no integer id'),
+      _ => throw const TextureGraphFormatException(
+        'a texture node with no integer id',
+      ),
     };
     final kind = switch (json['kind']) {
       final String value => value,
-      _ => throw FormatException('texture node $id has no string kind'),
+      _ => throw TextureGraphFormatException(
+        'texture node $id has no string kind',
+      ),
     };
     return switch (kind) {
       'image' => ImageTextureNode(id: id, imageId: _int(json, id, 'imageId')),
-      'color' => ColorTextureNode(id: id, value: _vec4(json, id, 'value')),
+      'color' => ColorTextureNode(id: id, value: _color(json, id, 'value')),
       'blend' => BlendTextureNode(
         id: id,
         base: _optionalInt(json, 'base'),
         overlay: _optionalInt(json, 'overlay'),
-        mode: _enum(TextureBlendMode.values, json, id, 'mode'),
+        mode: _word(textureBlendModeOf, json, id, 'mode'),
         factor: _double(json, id, 'factor'),
       ),
       'channels' => ChannelsTextureNode(
         id: id,
         source: _optionalInt(json, 'source'),
-        channel: _enum(TextureChannel.values, json, id, 'channel'),
+        channel: _word(textureChannelOf, json, id, 'channel'),
       ),
       'levels' => LevelsTextureNode(
         id: id,
@@ -149,8 +226,8 @@ sealed class TextureNode {
       ),
       'checker' => CheckerTextureNode(
         id: id,
-        colorA: _vec4(json, id, 'colorA'),
-        colorB: _vec4(json, id, 'colorB'),
+        colorA: _color(json, id, 'colorA'),
+        colorB: _color(json, id, 'colorB'),
         scale: _double(json, id, 'scale'),
       ),
       'noise' => NoiseTextureNode(
@@ -168,18 +245,63 @@ sealed class TextureNode {
         result: _optionalInt(json, 'result'),
         slot: json['slot'] as String?,
       ),
-      _ => throw FormatException(
+      _ => throw TextureGraphFormatException(
         'texture node $id has an unknown kind '
         '"$kind"',
       ),
     };
   }
+
+  /// Calls the [visitor]'s method for this node's kind. A kind the visitor
+  /// predates reaches [TextureNodeVisitor.visitUnknown].
+  R accept<R>(TextureNodeVisitor<R> visitor) => visitor.visitUnknown(this);
+}
+
+/// What a pass over a [TextureGraph] does with each kind of node, a method a
+/// kind.
+///
+/// **How to read every kind without a `switch` a later kind would break.**
+/// Each `visit…` method answers [visitUnknown] unless overridden, so a node a
+/// later release adds lands there in a visitor written against this one,
+/// which keeps compiling and decides in one place what an unknown kind means
+/// to it: skip it, draw it blank, or refuse.
+abstract base class TextureNodeVisitor<R> {
+  const TextureNodeVisitor();
+
+  R visitImage(ImageTextureNode node) => visitUnknown(node);
+
+  R visitColor(ColorTextureNode node) => visitUnknown(node);
+
+  R visitBlend(BlendTextureNode node) => visitUnknown(node);
+
+  R visitChannels(ChannelsTextureNode node) => visitUnknown(node);
+
+  R visitLevels(LevelsTextureNode node) => visitUnknown(node);
+
+  R visitInvert(InvertTextureNode node) => visitUnknown(node);
+
+  R visitUvTransform(UvTransformTextureNode node) => visitUnknown(node);
+
+  R visitChecker(CheckerTextureNode node) => visitUnknown(node);
+
+  R visitNoise(NoiseTextureNode node) => visitUnknown(node);
+
+  R visitNormalFromHeight(NormalFromHeightTextureNode node) =>
+      visitUnknown(node);
+
+  R visitOutput(OutputTextureNode node) => visitUnknown(node);
+
+  /// A node this visitor has no method of its own for: a kind a later release
+  /// adds, or one a method above leaves to it.
+  R visitUnknown(TextureNode node);
 }
 
 int _int(Map<String, Object?> json, int id, String field) =>
     switch (json[field]) {
       final int value => value,
-      _ => throw FormatException('texture node $id has no integer "$field"'),
+      _ => throw TextureGraphFormatException(
+        'texture node $id has no integer "$field"',
+      ),
     };
 
 int? _optionalInt(Map<String, Object?> json, String field) =>
@@ -191,18 +313,20 @@ int? _optionalInt(Map<String, Object?> json, String field) =>
 double _double(Map<String, Object?> json, int id, String field) =>
     switch (json[field]) {
       final num value => value.toDouble(),
-      _ => throw FormatException('texture node $id has no number "$field"'),
+      _ => throw TextureGraphFormatException(
+        'texture node $id has no number "$field"',
+      ),
     };
 
-Vector4 _vec4(Map<String, Object?> json, int id, String field) =>
+LinearColor _color(Map<String, Object?> json, int id, String field) =>
     switch (json[field]) {
-      final List<Object?> value when value.length == 4 => Vector4(
+      final List<Object?> value when value.length == 4 => LinearColor(
         (value[0]! as num).toDouble(),
         (value[1]! as num).toDouble(),
         (value[2]! as num).toDouble(),
         (value[3]! as num).toDouble(),
       ),
-      _ => throw FormatException(
+      _ => throw TextureGraphFormatException(
         'texture node $id has no four-number "$field"',
       ),
     };
@@ -213,23 +337,27 @@ Vector2 _vec2(Map<String, Object?> json, int id, String field) =>
         (value[0]! as num).toDouble(),
         (value[1]! as num).toDouble(),
       ),
-      _ => throw FormatException('texture node $id has no two-number "$field"'),
+      _ => throw TextureGraphFormatException(
+        'texture node $id has no two-number "$field"',
+      ),
     };
 
-T _enum<T extends Enum>(
-  List<T> values,
+/// The value [read] finds for [field]'s word, through its wire table
+/// (`project_wire.dart`).
+T _word<T extends Object>(
+  T? Function(Object? word) read,
   Map<String, Object?> json,
   int id,
   String field,
 ) {
   final word = json[field];
-  for (final value in values) {
-    if (value.name == word) return value;
-  }
-  throw FormatException('texture node $id has no "$field" named "$word"');
+  return read(word) ??
+      (throw TextureGraphFormatException(
+        'texture node $id has no "$field" named "$word"',
+      ));
 }
 
-List<double> _vec4Json(Vector4 v) => <double>[v.x, v.y, v.z, v.w];
+List<double> _colorJson(LinearColor c) => <double>[c.r, c.g, c.b, c.a];
 List<double> _vec2Json(Vector2 v) => <double>[v.x, v.y];
 
 /// A texture, or a solid colour, sampled as-is. No inputs.
@@ -256,13 +384,17 @@ final class ImageTextureNode extends TextureNode {
 
   @override
   Map<String, Object?> toJson() => {'imageId': imageId};
+
+  @override
+  R accept<R>(TextureNodeVisitor<R> visitor) => visitor.visitImage(this);
 }
 
 /// A flat colour, painted everywhere. No inputs.
 final class ColorTextureNode extends TextureNode {
   const ColorTextureNode({required super.id, required this.value});
 
-  final Vector4 value;
+  /// Linear RGBA, as a shader uniform reads it.
+  final LinearColor value;
 
   @override
   TextureValueType get outputType => TextureValueType.color;
@@ -279,11 +411,53 @@ final class ColorTextureNode extends TextureNode {
   String get kind => 'color';
 
   @override
-  Map<String, Object?> toJson() => {'value': _vec4Json(value)};
+  Map<String, Object?> toJson() => {'value': _colorJson(value)};
+
+  @override
+  R accept<R>(TextureNodeVisitor<R> visitor) => visitor.visitColor(this);
 }
 
 /// How [BlendTextureNode] combines its two colour inputs.
-enum TextureBlendMode { normal, multiply, add, screen }
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class TextureBlendMode {
+  const TextureBlendMode._(this.name);
+
+  static const TextureBlendMode normal = TextureBlendMode._('normal');
+
+  static const TextureBlendMode multiply = TextureBlendMode._('multiply');
+
+  static const TextureBlendMode add = TextureBlendMode._('add');
+
+  static const TextureBlendMode screen = TextureBlendMode._('screen');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<TextureBlendMode> values = <TextureBlendMode>[
+    normal,
+    multiply,
+    add,
+    screen,
+  ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static TextureBlendMode? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'TextureBlendMode.$name';
+}
 
 /// Two colours combined by [mode], mixed by [factor].
 final class BlendTextureNode extends TextureNode {
@@ -300,6 +474,7 @@ final class BlendTextureNode extends TextureNode {
   final TextureBlendMode mode;
 
   /// 0 keeps [base] unchanged; 1 is [mode] at full strength.
+  /// A 0..1 fraction.
   final double factor;
 
   @override
@@ -307,15 +482,16 @@ final class BlendTextureNode extends TextureNode {
 
   @override
   Map<String, TextureInputSocket> get inputs => {
-    'base': (type: TextureValueType.color, from: base),
-    'overlay': (type: TextureValueType.color, from: overlay),
+    'base': TextureInputSocket(type: TextureValueType.color, from: base),
+    'overlay': TextureInputSocket(type: TextureValueType.color, from: overlay),
   };
 
   @override
   Map<String, MaterialHint> get hints => <String, MaterialHint>{
     'mode': MaterialHint(
       EnumHint(<EnumHintValue>[
-        for (final m in TextureBlendMode.values) EnumHintValue(m.name),
+        for (final m in TextureBlendMode.values)
+          EnumHintValue(textureBlendModeWord(m)),
       ]),
     ),
     'factor': const MaterialHint(RangeHint(0, 1)),
@@ -328,12 +504,19 @@ final class BlendTextureNode extends TextureNode {
   Map<String, Object?> toJson() => {
     'base': base,
     'overlay': overlay,
-    'mode': mode.name,
+    'mode': textureBlendModeWord(mode),
     'factor': factor,
   };
+
+  @override
+  R accept<R>(TextureNodeVisitor<R> visitor) => visitor.visitBlend(this);
 }
 
 /// One RGBA channel to read out of a colour input.
+///
+/// **Closed for good**: r, g, b and a: the four channels of an RGBA colour. No
+/// member can be added without changing what the type means, so it stays an
+/// enum and a `switch` over it may name every case.
 enum TextureChannel { r, g, b, a }
 
 /// One channel of a colour input, alone, as a mask.
@@ -352,14 +535,15 @@ final class ChannelsTextureNode extends TextureNode {
 
   @override
   Map<String, TextureInputSocket> get inputs => {
-    'source': (type: TextureValueType.color, from: source),
+    'source': TextureInputSocket(type: TextureValueType.color, from: source),
   };
 
   @override
   Map<String, MaterialHint> get hints => {
     'channel': MaterialHint(
       EnumHint(<EnumHintValue>[
-        for (final c in TextureChannel.values) EnumHintValue(c.name),
+        for (final c in TextureChannel.values)
+          EnumHintValue(textureChannelWord(c)),
       ]),
     ),
   };
@@ -368,7 +552,13 @@ final class ChannelsTextureNode extends TextureNode {
   String get kind => 'channels';
 
   @override
-  Map<String, Object?> toJson() => {'source': source, 'channel': channel.name};
+  Map<String, Object?> toJson() => {
+    'source': source,
+    'channel': textureChannelWord(channel),
+  };
+
+  @override
+  R accept<R>(TextureNodeVisitor<R> visitor) => visitor.visitChannels(this);
 }
 
 /// A mask remapped between [blackPoint] and [whitePoint], then [gamma].
@@ -382,8 +572,14 @@ final class LevelsTextureNode extends TextureNode {
   });
 
   final int? source;
+
+  /// On the 0..1 mask scale.
   final double blackPoint;
+
+  /// On the 0..1 mask scale.
   final double whitePoint;
+
+  /// A unitless exponent: the remapped value is raised to 1 / gamma.
   final double gamma;
 
   @override
@@ -391,7 +587,7 @@ final class LevelsTextureNode extends TextureNode {
 
   @override
   Map<String, TextureInputSocket> get inputs => {
-    'source': (type: TextureValueType.scalar, from: source),
+    'source': TextureInputSocket(type: TextureValueType.scalar, from: source),
   };
 
   @override
@@ -411,6 +607,9 @@ final class LevelsTextureNode extends TextureNode {
     'whitePoint': whitePoint,
     'gamma': gamma,
   };
+
+  @override
+  R accept<R>(TextureNodeVisitor<R> visitor) => visitor.visitLevels(this);
 }
 
 /// A mask flipped: 1 minus its input.
@@ -424,7 +623,7 @@ final class InvertTextureNode extends TextureNode {
 
   @override
   Map<String, TextureInputSocket> get inputs => {
-    'source': (type: TextureValueType.scalar, from: source),
+    'source': TextureInputSocket(type: TextureValueType.scalar, from: source),
   };
 
   @override
@@ -435,6 +634,9 @@ final class InvertTextureNode extends TextureNode {
 
   @override
   Map<String, Object?> toJson() => {'source': source};
+
+  @override
+  R accept<R>(TextureNodeVisitor<R> visitor) => visitor.visitInvert(this);
 }
 
 /// A colour input resampled at a moved, scaled and turned UV.
@@ -460,7 +662,7 @@ final class UvTransformTextureNode extends TextureNode {
 
   @override
   Map<String, TextureInputSocket> get inputs => {
-    'source': (type: TextureValueType.color, from: source),
+    'source': TextureInputSocket(type: TextureValueType.color, from: source),
   };
 
   @override
@@ -478,20 +680,27 @@ final class UvTransformTextureNode extends TextureNode {
     'scale': _vec2Json(scale),
     'rotation': rotation,
   };
+
+  @override
+  R accept<R>(TextureNodeVisitor<R> visitor) => visitor.visitUvTransform(this);
 }
 
 /// A flat two-colour grid, [scale] squares across. No inputs.
 final class CheckerTextureNode extends TextureNode {
-  CheckerTextureNode({
+  const CheckerTextureNode({
     required super.id,
-    Vector4? colorA,
-    Vector4? colorB,
+    this.colorA = LinearColor.black,
+    this.colorB = LinearColor.white,
     this.scale = 8.0,
-  }) : colorA = colorA ?? Vector4(0, 0, 0, 1),
-       colorB = colorB ?? Vector4(1, 1, 1, 1);
+  });
 
-  final Vector4 colorA;
-  final Vector4 colorB;
+  /// The even squares' colour, linear RGBA.
+  final LinearColor colorA;
+
+  /// The odd squares' colour, linear RGBA.
+  final LinearColor colorB;
+
+  /// A count of squares across the texture.
   final double scale;
 
   @override
@@ -512,10 +721,13 @@ final class CheckerTextureNode extends TextureNode {
 
   @override
   Map<String, Object?> toJson() => {
-    'colorA': _vec4Json(colorA),
-    'colorB': _vec4Json(colorB),
+    'colorA': _colorJson(colorA),
+    'colorB': _colorJson(colorB),
     'scale': scale,
   };
+
+  @override
+  R accept<R>(TextureNodeVisitor<R> visitor) => visitor.visitChecker(this);
 }
 
 /// Deterministic noise, by [seed] — never `Random`, the same reason
@@ -524,6 +736,8 @@ final class NoiseTextureNode extends TextureNode {
   const NoiseTextureNode({required super.id, this.seed = 0, this.scale = 1.0});
 
   final int seed;
+
+  /// Noise lattice cells across the texture.
   final double scale;
 
   @override
@@ -542,6 +756,9 @@ final class NoiseTextureNode extends TextureNode {
 
   @override
   Map<String, Object?> toJson() => {'seed': seed, 'scale': scale};
+
+  @override
+  R accept<R>(TextureNodeVisitor<R> visitor) => visitor.visitNoise(this);
 }
 
 /// A height mask read as a slope and written back as a tangent-space normal.
@@ -553,6 +770,8 @@ final class NormalFromHeightTextureNode extends TextureNode {
   });
 
   final int? height;
+
+  /// A unitless multiplier on the height's slope.
   final double strength;
 
   @override
@@ -560,7 +779,7 @@ final class NormalFromHeightTextureNode extends TextureNode {
 
   @override
   Map<String, TextureInputSocket> get inputs => {
-    'height': (type: TextureValueType.scalar, from: height),
+    'height': TextureInputSocket(type: TextureValueType.scalar, from: height),
   };
 
   @override
@@ -573,6 +792,10 @@ final class NormalFromHeightTextureNode extends TextureNode {
 
   @override
   Map<String, Object?> toJson() => {'height': height, 'strength': strength};
+
+  @override
+  R accept<R>(TextureNodeVisitor<R> visitor) =>
+      visitor.visitNormalFromHeight(this);
 }
 
 /// The graph's own result — what `mat-11`'s bake reads. A graph may hold more
@@ -596,7 +819,7 @@ final class OutputTextureNode extends TextureNode {
 
   @override
   Map<String, TextureInputSocket> get inputs => {
-    'result': (type: TextureValueType.color, from: result),
+    'result': TextureInputSocket(type: TextureValueType.color, from: result),
   };
 
   @override
@@ -607,19 +830,48 @@ final class OutputTextureNode extends TextureNode {
 
   @override
   Map<String, Object?> toJson() => {'result': result, 'slot': slot};
+
+  @override
+  R accept<R>(TextureNodeVisitor<R> visitor) => visitor.visitOutput(this);
+}
+
+/// Where a node of a [TextureGraph] is drawn, in the graph panel's own
+/// canvas space: see [TextureGraph.positions].
+final class NodePosition {
+  /// The point ([x], [y]) on the panel's canvas.
+  const NodePosition({required this.x, required this.y});
+
+  /// The canvas origin, where a node with no position of its own goes.
+  static const NodePosition origin = NodePosition(x: 0, y: 0);
+
+  /// The horizontal coordinate, in logical pixels of the panel's canvas.
+  final double x;
+
+  /// The vertical coordinate, in logical pixels of the panel's canvas.
+  final double y;
+
+  @override
+  bool operator ==(Object other) =>
+      other is NodePosition && other.x == x && other.y == y;
+
+  @override
+  int get hashCode => Object.hash(x, y);
+
+  @override
+  String toString() => 'NodePosition($x, $y)';
 }
 
 /// An immutable network of [TextureNode]s.
 final class TextureGraph {
   const TextureGraph({
     this.nodes = const <TextureNode>[],
-    this.positions = const <int, (double, double)>{},
+    this.positions = const <int, NodePosition>{},
   });
 
   final List<TextureNode> nodes;
 
-  /// Where `TextureGraphPanel` (`mat-13`) draws each node, by id — an (x, y)
-  /// pair in the panel's own canvas space.
+  /// Where `TextureGraphPanel` (`mat-13`) draws each node, by id — a
+  /// [NodePosition] in the panel's own canvas space.
   ///
   /// **Presentation only.** Neither [validate] nor `bakeTextureGraph` reads
   /// this: two graphs that differ only in where their nodes are drawn bake to
@@ -628,7 +880,7 @@ final class TextureGraph {
   /// node with no entry here is one `TextureGraphPanel` has never been told
   /// where to put — laid out however the panel's own default placement does,
   /// not treated as a graph a decoder failed to read.
-  final Map<int, (double x, double y)> positions;
+  final Map<int, NodePosition> positions;
 
   /// The node with this id, or null when nothing in [nodes] has it.
   TextureNode? nodeById(int id) {
@@ -715,14 +967,16 @@ final class TextureGraph {
     if (positions.isNotEmpty)
       'positions': <String, Object?>{
         for (final entry in positions.entries)
-          '${entry.key}': <double>[entry.value.$1, entry.value.$2],
+          '${entry.key}': <double>[entry.value.x, entry.value.y],
       },
   };
 
   static TextureGraph fromJson(Map<String, Object?> json) {
     final entries = switch (json['nodes']) {
       final List<Object?> value => value,
-      _ => throw const FormatException('a texture graph with no "nodes" list'),
+      _ => throw const TextureGraphFormatException(
+        'a texture graph with no "nodes" list',
+      ),
     };
     final positionsJson = json['positions'];
     return TextureGraph(
@@ -730,12 +984,15 @@ final class TextureGraph {
         for (final entry in entries)
           TextureNode.fromJson(entry! as Map<String, Object?>),
       ],
-      positions: <int, (double, double)>{
+      positions: <int, NodePosition>{
         if (positionsJson is Map<String, Object?>)
           for (final entry in positionsJson.entries)
             if (int.tryParse(entry.key) case final int id)
               if (entry.value case final List<Object?> xy when xy.length == 2)
-                id: ((xy[0]! as num).toDouble(), (xy[1]! as num).toDouble()),
+                id: NodePosition(
+                  x: (xy[0]! as num).toDouble(),
+                  y: (xy[1]! as num).toDouble(),
+                ),
       },
     );
   }

@@ -17,41 +17,120 @@
 /// neutral value.** A cube from a primitive has no vertex colours, and
 /// allocating four floats per corner to say "white" on every mesh in every
 /// document is a megabyte per 60 000 corners for information nobody entered.
-/// So layers are created on the first write; `colourOf` answers white until
+/// So layers are created on the first write; `colorOf` answers white until
 /// then, `weightsOf` answers "all of the first joint", and a conversion asks
 /// whether the layer is there before spending a byte on it.
 library;
 
 import 'package:flutter3d_core/geometry.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:vector_math/vector_math.dart';
 
 /// Where an attribute lives.
 ///
-/// Machinery rather than content: these are the four things a half-edge mesh is
-/// made of, and a fifth is not a value somebody adds — it would be a different
-/// data structure. Named in `boundaryEnumExempt` for that reason.
-enum MeshDomain {
+/// The four things a half-edge mesh is made of. A domain over the whole mesh,
+/// which other tools keep attributes on, would be a fifth, so the set is open.
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class MeshDomain {
+  const MeshDomain._(this.name);
+
   /// One value per vertex. Positions, skin weights.
-  vertex,
+  static const MeshDomain vertex = MeshDomain._('vertex');
 
   /// One value per half-edge, so the faces meeting at a vertex may disagree.
   /// Texture coordinates, vertex colours.
-  corner,
+  static const MeshDomain corner = MeshDomain._('corner');
 
   /// One value per edge, mirrored onto both half-edges of the pair. Sharpness,
   /// seams, crease weight.
-  edge,
+  static const MeshDomain edge = MeshDomain._('edge');
 
-  /// One value per face. Material slot, shading flag.
-  face,
+  /// One value per face. RenderMaterial slot, shading flag.
+  static const MeshDomain face = MeshDomain._('face');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<MeshDomain> values = <MeshDomain>[
+    vertex,
+    corner,
+    edge,
+    face,
+  ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static MeshDomain? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'MeshDomain.$name';
 }
 
 /// Which attribute, within a domain.
 ///
-/// Machinery for the same reason [MeshDomain] is: the set is what this mesh
-/// stores, and a caller adding to it would be adding a layer to `EditMesh`
-/// rather than passing a new value.
-enum MeshAttribute { uv0, colour, weights, joints, crease, flags, materialSlot }
+/// The set is what this mesh stores, and a caller cannot add to it: a new
+/// attribute is a layer in `EditMesh`, which a later release can add, so the
+/// set is open.
+///
+/// A class with constants rather than an enum, so a value added in a minor
+/// release does not break a `switch` written against it: [name] is what a
+/// file or a snapshot writes, and [byName] reads it back.
+final class MeshAttribute {
+  const MeshAttribute._(this.name);
+
+  static const MeshAttribute uv0 = MeshAttribute._('uv0');
+
+  static const MeshAttribute color = MeshAttribute._('color');
+
+  static const MeshAttribute weights = MeshAttribute._('weights');
+
+  static const MeshAttribute joints = MeshAttribute._('joints');
+
+  static const MeshAttribute crease = MeshAttribute._('crease');
+
+  static const MeshAttribute flags = MeshAttribute._('flags');
+
+  static const MeshAttribute materialSlot = MeshAttribute._('materialSlot');
+
+  /// Every value this version names, in declaration order. A later version
+  /// appends; nothing is removed or renamed within a major.
+  static const List<MeshAttribute> values = <MeshAttribute>[
+    uv0,
+    color,
+    weights,
+    joints,
+    crease,
+    flags,
+    materialSlot,
+  ];
+
+  /// The value called [name], or null for a name this version does not know,
+  /// which is what a file written by a later version can carry.
+  static MeshAttribute? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name: what a file, a report or a snapshot
+  /// writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'MeshAttribute.$name';
+}
 
 /// Bits packed into the per-half-edge flag layer.
 ///
@@ -86,12 +165,14 @@ abstract final class FaceFlags {
 /// somewhere between. Three named fields is what that reads like; six out
 /// parameters is what it read like before.
 final class CornerAttributes {
-  CornerAttributes({Vector2? uv, Vector4? colour})
+  CornerAttributes({Vector2? uv, LinearColor? color})
     : uv = uv ?? Vector2.zero(),
-      colour = colour ?? Vector4.copy(kNeutralColor);
+      color = color ?? neutralColor;
 
   final Vector2 uv;
-  final Vector4 colour;
+
+  /// The corner's vertex colour, in linear light as every vertex colour is.
+  final LinearColor color;
 
   /// The corner half way between [a] and [b] at [t].
   ///
@@ -106,18 +187,18 @@ final class CornerAttributes {
     double t,
   ) => CornerAttributes(
     uv: a.uv + (b.uv - a.uv) * t,
-    colour: a.colour + (b.colour - a.colour) * t,
+    color: LinearColor.lerp(a.color, b.color, t),
   );
 
   @override
-  String toString() => 'CornerAttributes(uv: $uv, colour: $colour)';
+  String toString() => 'CornerAttributes(uv: $uv, colour: $color)';
 }
 
 /// What a vertex carries besides its position.
 final class VertexAttributes {
   VertexAttributes({Vector4? joints, Vector4? weights})
-    : joints = joints ?? Vector4.copy(kNeutralJoints),
-      weights = weights ?? Vector4.copy(kNeutralWeights);
+    : joints = joints ?? Vector4.copy(neutralJoints),
+      weights = weights ?? Vector4.copy(neutralWeights);
 
   /// Which four joints deform this vertex, as indices held in floats — the way
   /// `VertexLayout` carries them, so nothing converts on the way to a GPU.

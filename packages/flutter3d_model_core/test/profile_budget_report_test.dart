@@ -77,13 +77,13 @@ void main() {
     expect(report.joints.used, 0);
     expect(report.influences.used, 0);
     expect(report.textureBytes.used, 0);
-    expect(report.anyOver, isFalse);
+    expect(report.hasAnyOver, isFalse);
   });
 
   test('a cube reads 12 triangles under the default 500000 budget', () {
     final report = ProfileBudgetReport.of(_rig(jointCount: 1));
     expect(report.triangles.used, 12);
-    expect(report.triangles.over, isFalse);
+    expect(report.triangles.isOver, isFalse);
   });
 
   test('19 joints on a 16-joint cap is an over bar, not a thrown error', () {
@@ -93,8 +93,8 @@ void main() {
     );
     expect(report.joints.used, 19);
     expect(report.joints.limit, 16);
-    expect(report.joints.over, isTrue);
-    expect(report.anyOver, isTrue);
+    expect(report.joints.isOver, isTrue);
+    expect(report.hasAnyOver, isTrue);
   });
 
   test('the widest influence count used is read, not the profile limit', () {
@@ -109,7 +109,7 @@ void main() {
       project.copyWith(profile: const ProjectProfile(maxInfluences: 2)),
     );
     expect(report.influences.used, 4);
-    expect(report.influences.over, isTrue);
+    expect(report.influences.isOver, isTrue);
   });
 
   test('wireframe is always reported declined, honestly', () {

@@ -36,7 +36,7 @@ import 'package:vector_math/vector_math.dart';
 
   final bar = MeshNode(
     DeviceMesh.upload(device, skinned),
-    Material(name: 'bar'),
+    RenderMaterial(name: 'bar'),
     name: 'bar',
   )..skinReach = 3.0;
   // The bar's own geometry is centred on the origin, so it reaches from -1 to

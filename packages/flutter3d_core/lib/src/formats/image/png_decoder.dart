@@ -24,6 +24,7 @@ library;
 
 import 'dart:typed_data';
 
+import '../format_exceptions.dart';
 import 'inflate.dart';
 
 /// A PNG decoded down to plain RGBA8 — top row first, four bytes a pixel,
@@ -51,11 +52,33 @@ const List<int> _signature = <int>[
   0x0A,
 ];
 
-/// [bytes] decoded, or null on anything this reader cannot make sense of:
-/// a signature that does not match, a chunk running past the end of the
-/// file, a colour type or bit depth combination the PNG specification does
-/// not allow, interlacing, or an `IDAT` stream [zlibInflate] itself refuses.
-DecodedImage? decodePng(Uint8List bytes) {
+/// [bytes] decoded.
+///
+/// Throws an [ImageFormatException] on anything this reader cannot make
+/// sense of: a signature that does not match, a chunk running past the end
+/// of the file, a colour type or bit depth combination the PNG specification
+/// does not allow, interlacing, or an `IDAT` stream [zlibInflate] itself
+/// refuses. [isPng] answers the first of those without decoding.
+DecodedImage decodePng(Uint8List bytes) =>
+    _decodePng(bytes) ??
+    (throw ImageFormatException(
+      isPng(bytes)
+          ? 'a PNG this decoder does not read: truncated, interlaced, or a '
+                'colour type and bit depth the specification does not allow '
+                '(${bytes.length} bytes)'
+          : 'not a PNG: the file does not start with the PNG signature',
+    ));
+
+/// Whether [bytes] start with the PNG signature.
+bool isPng(Uint8List bytes) {
+  if (bytes.length < 8) return false;
+  for (var i = 0; i < _signature.length; i++) {
+    if (bytes[i] != _signature[i]) return false;
+  }
+  return true;
+}
+
+DecodedImage? _decodePng(Uint8List bytes) {
   if (bytes.length < 8) return null;
   for (var i = 0; i < _signature.length; i++) {
     if (bytes[i] != _signature[i]) return null;

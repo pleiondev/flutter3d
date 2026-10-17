@@ -2,6 +2,11 @@
 /// built from the exact staging and route `test/demo_test.dart` already
 /// proves round-trips — this script only adds the write.
 ///
+/// `N5`: the same bytes go to `test/tapes/ascent.f3drun`, which
+/// `test/replay_test.dart` replays. One recording in two places rather than
+/// the test reading the site's, so the game's tests do not reach outside the
+/// game; and one script, so the two cannot be recorded from different runs.
+///
 /// A `flutter test`-shaped generator rather than `dart run`, for the reason
 /// `rp-05`'s own row now documents at length: `flutter3d_game_platformer`
 /// names `flutter: sdk: flutter`, and plain `dart run` fails compiling the
@@ -15,6 +20,9 @@ import 'dart:io';
 
 import 'package:flutter3d_demo_platformer/src/staging.dart';
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
+    show usePhysics;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -26,7 +34,8 @@ Level _shipped() => Level.fromJson(
       as Map<String, Object?>,
 );
 
-({PlatformerSimulation sim, InputState input}) _stage() {
+({PlatformerSimulation sim, void Function(double dt) step, InputState input})
+_stage() {
   final level = _shipped();
   final world = CollisionWorld();
   level.addTo(world);
@@ -38,7 +47,7 @@ Level _shipped() => Level.fromJson(
     registry: platformerRegistry(),
   );
   world.update();
-  return (sim: staged.sim, input: input);
+  return (sim: staged.sim, step: staged.step, input: input);
 }
 
 /// The same route `demo_test.dart` plays — every kind of input the tape
@@ -56,7 +65,8 @@ void _play(InputState input, int step) {
 }
 
 void main() {
-  test('records site/assets/samples/platformer.f3drun', () {
+  test('records site/assets/samples/platformer.f3drun and the replay '
+      "test's tape", () {
     final levelHash = _shipped().digestHex;
     final live = _stage();
     final start = live.sim.save();
@@ -65,8 +75,13 @@ void main() {
     for (var i = 0; i < _steps; i++) {
       _play(live.input, i);
       recorder.record(live.input);
-      live.sim.step(_dt);
-      checkpoints.observe(recorder.tape.steps, live.sim.save().toJson());
+      live.step(_dt);
+      // Saved only on a checkpoint's step: a save carries the water's
+      // world, and six hundred of them is most of the script's time.
+      final step = recorder.tape.steps;
+      if (step % checkpoints.every == 0) {
+        checkpoints.observe(step, live.sim.save().toJson());
+      }
       live.input.endStep();
     }
 
@@ -77,11 +92,18 @@ void main() {
       tape: recorder.tape,
       buildStamp: 'tpl-02-sample',
       checkpoints: checkpoints,
+      // What it replays on: see `Demo.physics`.
+      physics: usePhysics().name,
     );
 
-    final outFile = File('../../site/assets/samples/platformer.f3drun');
-    outFile.writeAsStringSync(jsonEncode(demo.toJson()));
-    // ignore: avoid_print
-    print('wrote ${outFile.path} (${outFile.lengthSync()} bytes)');
+    final json = jsonEncode(demo.toJson());
+    for (final path in <String>[
+      '../../site/assets/samples/platformer.f3drun',
+      'test/tapes/ascent.f3drun',
+    ]) {
+      final outFile = File(path)..writeAsStringSync(json);
+      // ignore: avoid_print
+      print('wrote ${outFile.path} (${outFile.lengthSync()} bytes)');
+    }
   });
 }

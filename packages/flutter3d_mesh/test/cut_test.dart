@@ -195,7 +195,7 @@ void main() {
         );
       });
 
-      expect(result.ok, isTrue);
+      expect(result.isOk, isTrue);
       expect(mesh.vertexCount, 48);
       expect(mesh.edgeCount, 80);
       expect(mesh.faceCount, 32);
@@ -373,7 +373,7 @@ void main() {
         );
       });
 
-      expect(result.ok, isFalse);
+      expect(result.isOk, isFalse);
       expect(result.reason, contains('four-sided'));
       expect(mesh.faceCount, 1);
     });
@@ -386,7 +386,7 @@ void main() {
         result = loopCut(mesh, Selection.empty(ElementLevel.edge));
       });
 
-      expect(result.ok, isFalse);
+      expect(result.isOk, isFalse);
       expect(result.reason, contains('selected'));
     });
   });

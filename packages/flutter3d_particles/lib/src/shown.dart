@@ -19,6 +19,7 @@ final class Shown {
 
   final ParticleEffect effect;
 
+  /// Where it goes off, in scene space (relative to `Scene.origin`).
   final Vector3 at;
 
   /// A surface normal, a barrel's line, the up somebody was thrown along —

@@ -27,7 +27,6 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/trace.dart';
-import 'package:vector_math/vector_math.dart' show Vector4;
 
 import '../../flutter3d_conformance.dart' show DeviceFactory;
 
@@ -85,13 +84,25 @@ final class FuzzDraw {
 
   int get triangleCount => triangles.length ~/ 3;
 
-  FuzzDraw copyWith({List<FuzzVertex>? triangles, int? exponent}) => FuzzDraw(
-    viewport: viewport,
-    scissor: scissor,
-    blend: blend,
-    depthWrite: depthWrite,
-    depthCompare: depthCompare,
+  /// A copy with the given fields replaced. A `clear…` flag resets that
+  /// nullable field to null, which passing null cannot say.
+  FuzzDraw copyWith({
+    ScreenRect? viewport,
+    List<FuzzVertex>? triangles,
+    ScreenRect? scissor,
+    BlendState? blend,
+    bool? depthWrite,
+    CompareFunction? depthCompare,
+    int? exponent,
+    bool clearScissor = false,
+    bool clearBlend = false,
+  }) => FuzzDraw(
+    viewport: viewport ?? this.viewport,
     triangles: triangles ?? this.triangles,
+    scissor: clearScissor ? null : (scissor ?? this.scissor),
+    blend: clearBlend ? null : (blend ?? this.blend),
+    depthWrite: depthWrite ?? this.depthWrite,
+    depthCompare: depthCompare ?? this.depthCompare,
     exponent: exponent ?? this.exponent,
   );
 }
@@ -126,7 +137,7 @@ final class FuzzProgram {
     final events = <TraceEvent>[
       TraceCreateTexture(
         id: 0,
-        spec: RenderTargetSpec(
+        spec: RenderTargetDescriptor(
           width: width,
           height: height,
           format: TextureFormat.r8g8b8a8UNormInt,
@@ -135,7 +146,7 @@ final class FuzzProgram {
       if (depth)
         TraceCreateTexture(
           id: 1,
-          spec: RenderTargetSpec(
+          spec: RenderTargetDescriptor(
             width: width,
             height: height,
             format: depthFormat,
@@ -150,27 +161,12 @@ final class FuzzProgram {
         pass: 0,
         label: 'fuzz',
         colors: <TraceColorTarget>[
-          (
+          TraceColorTarget(
             texture: 0,
-            resolveTexture: null,
-            loadAction: LoadAction.clear,
-            storeAction: StoreAction.store,
-            clearValue: Vector4(clear[0], clear[1], clear[2], clear[3]),
-            face: 0,
-            mipLevel: 0,
+            clearValue: ClearColor(clear[0], clear[1], clear[2], clear[3]),
           ),
         ],
-        depth: depth
-            ? (
-                texture: 1,
-                clearValue: 1.0,
-                loadAction: LoadAction.clear,
-                storeAction: StoreAction.dontCare,
-                stencilLoadAction: LoadAction.clear,
-                stencilStoreAction: StoreAction.dontCare,
-                stencilClearValue: 0,
-              )
-            : null,
+        depth: depth ? const TraceDepthTarget(texture: 1) : null,
       ),
       const TraceSetPrimitiveType(0, PrimitiveType.triangle),
       const TraceSetCullMode(0, CullMode.none),
@@ -179,7 +175,7 @@ final class FuzzProgram {
       final scale = _powerOfTwo(draw.exponent);
       final inverse = _powerOfTwo(-draw.exponent);
       events
-        ..add(TraceSetViewport(0, draw.viewport))
+        ..add(TraceSetViewport(0, PassViewport.ofRect(draw.viewport)))
         ..add(
           TraceSetScissor(
             0,
@@ -331,7 +327,7 @@ FuzzProgram generateFuzzProgram(int seed) {
 // ------------------------------------------------------------- transforms
 
 /// A rewrite of a program into one that must draw the same bytes.
-sealed class FuzzTransform {
+abstract final class FuzzTransform {
   const FuzzTransform();
 
   /// The draws this transform reads, which the shrinker has to keep.

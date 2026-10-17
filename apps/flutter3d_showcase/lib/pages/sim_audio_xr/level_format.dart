@@ -8,7 +8,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/scene_kit.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class LevelFormatDemo extends ShowcaseDemo {
   late final String _report;
@@ -79,8 +78,8 @@ final class LevelFormatDemo extends ShowcaseDemo {
     final Level level = Level(
       name: 'sample',
       brushes: <Brush>[
-        Brush(centre: Vector3(0, 0, 0), size: Vector3(4, 2, 4)),
-        Brush(centre: Vector3(4.0 + gap, 0, 0), size: Vector3(4, 2, 4)),
+        Brush(center: Vector3(0, 0, 0), size: Vector3(4, 2, 4)),
+        Brush(center: Vector3(4.0 + gap, 0, 0), size: Vector3(4, 2, 4)),
       ],
       entities: <EntityDef>[
         if (withSpawn) EntityDef(type: 'spawn', name: 'start'),
@@ -93,10 +92,10 @@ final class LevelFormatDemo extends ShowcaseDemo {
     // #endregion live
     _first.setPosition(0.0, 1.0, 0.0);
     _second.setPosition(4.0 + gap, 0.95, 0.0);
-    _spawn.visible = withSpawn;
+    _spawn.isVisible = withSpawn;
     _spawn.setPosition(0.0, 2.35, 0.0);
     for (var i = 0; i < _lamps; i++) {
-      _issues[i].visible = i < issues.length;
+      _issues[i].isVisible = i < issues.length;
     }
   }
 
@@ -132,8 +131,8 @@ final class LevelFormatDemo extends ShowcaseDemo {
     final level = Level(
       name: 'sample',
       brushes: <Brush>[
-        Brush(centre: Vector3(0, 0, 0), size: Vector3(4, 2, 4)),
-        Brush(centre: Vector3(3, 0, 0), size: Vector3(4, 2, 4)),
+        Brush(center: Vector3(0, 0, 0), size: Vector3(4, 2, 4)),
+        Brush(center: Vector3(3, 0, 0), size: Vector3(4, 2, 4)),
       ],
       entities: <EntityDef>[EntityDef(type: 'spawn', name: 'start')],
     );

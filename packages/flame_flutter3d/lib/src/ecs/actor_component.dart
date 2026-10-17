@@ -49,8 +49,7 @@ import 'actor_system_component.dart';
 /// actor is whoever built it's to remove, which is right when the simulation
 /// owns its actors and the component only draws one.
 final class ActorComponent extends Object3dComponent
-    with CollisionCallbacks
-    implements StepFollower {
+    with CollisionCallbacks, StepFollower {
   ActorComponent({
     required this.actor,
     required super.node,

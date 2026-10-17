@@ -12,6 +12,7 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -121,7 +122,7 @@ void main() {
       null,
       brushes: <Brush>[
         Brush(
-          centre: Vector3(0.0, -0.5, 0.0),
+          center: Vector3(0.0, -0.5, 0.0),
           size: Vector3(10.0, 1.0, 10.0),
           material: 'stone',
         ),

@@ -14,7 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// The four passes an ordinary frame runs, with the sort of numbers
 /// `frame_baseline_test.dart` records for them.
 const List<FramePass> _fourPasses = <FramePass>[
-  (
+  FramePass(
     name: 'directional shadows',
     active: true,
     micros: 410,
@@ -23,7 +23,7 @@ const List<FramePass> _fourPasses = <FramePass>[
     triangles: 0,
     pipelineSwitches: 0,
   ),
-  (
+  FramePass(
     name: 'scene',
     active: true,
     micros: 2300,
@@ -32,7 +32,7 @@ const List<FramePass> _fourPasses = <FramePass>[
     triangles: 1186,
     pipelineSwitches: 1,
   ),
-  (
+  FramePass(
     name: 'bloom',
     active: true,
     micros: 890,
@@ -41,7 +41,7 @@ const List<FramePass> _fourPasses = <FramePass>[
     triangles: 0,
     pipelineSwitches: 0,
   ),
-  (
+  FramePass(
     name: 'composite',
     active: true,
     micros: 150,

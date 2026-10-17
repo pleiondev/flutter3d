@@ -25,8 +25,9 @@ import 'tutorial_screenshots_support.dart';
 
 const ValueKey<String> _unwrap = ValueKey<String>('uvUnwrap');
 
+/// No picture is taken here, so no frame is drawn at full size.
 Future<void> _openUvMode(WidgetTester tester) =>
-    openUvModeOnTheCube(tester, fonts: true);
+    openUvModeOnTheCube(tester, fonts: true, pictures: false);
 
 Future<void> _cutEveryEdge(WidgetTester tester) => cutEveryEdge(tester);
 

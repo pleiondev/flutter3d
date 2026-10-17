@@ -75,7 +75,7 @@ ModelHistory opened({
 PaintStroke stroke({
   Vector3? at,
   double radius = 0.2,
-  List<double>? colour,
+  List<double>? color,
   int layer = 0,
   int? maskImage,
   bool maskInverted = false,
@@ -83,9 +83,9 @@ PaintStroke stroke({
 }) => PaintStroke(
   objectId: 1,
   samples: <PaintSample>[
-    PaintSample(centre: at ?? Vector3(0.5, 0.5, 0), radius: radius),
+    PaintSample(center: at ?? Vector3(0.5, 0.5, 0), radius: radius),
   ],
-  colour: colour ?? const <double>[1, 0, 0, 1],
+  color: color ?? const <double>[1, 0, 0, 1],
   layer: layer,
   size: size,
   maskImage: maskImage,
@@ -198,7 +198,7 @@ void main() {
           const PaintStroke(
             objectId: 1,
             samples: <PaintSample>[],
-            colour: <double>[1, 1, 1, 1],
+            color: <double>[1, 1, 1, 1],
           ),
         ),
         contains('at least one sample'),
@@ -208,7 +208,7 @@ void main() {
     test('a colour that is not four numbers', () {
       final ModelHistory history = opened();
       expect(
-        history.run(stroke(colour: const <double>[1, 0])),
+        history.run(stroke(color: const <double>[1, 0])),
         contains('four numbers'),
       );
     });
@@ -323,13 +323,13 @@ void main() {
       );
       final PaintStack second = history.project.materials.single.paint!;
 
-      final List<(int, int)> dirty = dirtyTilesBetween(first, second);
+      final List<TileCoord> dirty = dirtyTilesBetween(first, second);
       // **What copy-on-write is for, read back.** Mutation: compare the
       // pixels instead. Sixteen kilobytes a tile, every tile, every stroke —
       // and the answer is the same one `identical` gives for nothing.
       expect(dirty, isNotEmpty);
       expect(dirty.length, lessThan(first.layers.single.tilesX * 4));
-      for (final (int tx, int ty) in dirty) {
+      for (final TileCoord(x: tx, y: ty) in dirty) {
         expect(tx, lessThan(2));
         expect(ty, lessThan(2));
       }
@@ -353,7 +353,7 @@ void main() {
       final ModelHistory history = opened();
       expect(history.run(stroke(size: 256)), isNull);
       final PaintStack stack = history.project.materials.single.paint!;
-      final (int x, int y, int width, int height) = dirtyRectOf(
+      final TexelRect(:x, :y, :width, :height) = dirtyRectOf(
         dirtyTilesBetween(null, stack),
         256,
       )!;
@@ -366,7 +366,7 @@ void main() {
     });
 
     test('and no tiles is no rectangle', () {
-      expect(dirtyRectOf(const <(int, int)>[], 256), isNull);
+      expect(dirtyRectOf(const <TileCoord>[], 256), isNull);
     });
   });
 
@@ -421,7 +421,7 @@ void main() {
       expect(back.objectId, 1);
       expect(back.samples, hasLength(1));
       expect(back.samples.single.radius, 0.2);
-      expect(back.colour, <double>[1, 0, 0, 1]);
+      expect(back.color, <double>[1, 0, 0, 1]);
       expect(back.size, 128);
     });
   });

@@ -1,3 +1,157 @@
+## 1.0.0-rc.1+1
+
+- **Breaking: results that were records are final classes.**
+  `BridgeProjector`, `CellGridComponent`, `ColliderRegistry`,
+  `Flutter3dFlameWidget` and `GridMover` answered or held a record, which
+  can never gain a field. Each answers a final class now, with the record's
+  field names (a positional `$1` has a name of its own), `==` and
+  `hashCode`. A field read compiles as before; a destructuring pattern names
+  the class, and `flutter3d_build:migrate` rewrites the `$1` reads.
+- **Breaking: what a component mixes in is a base mixin class.**
+  `ActorComponent`, `Bridged3d`, `CharacterBodyComponent`, `Drawn3d`,
+  `InstancedActorComponent`, `InstancedObject3dComponent`,
+  `Node3dComponent`, `Object3dComponent`, `RigidBodyComponent`,
+  `StepFollower` and `Tap3dCallbacks` changed: a type an outside author
+  writes against is mixed in (`with`) rather than implemented, so a member a
+  minor adds arrives with a body and breaks nobody. Write `with` where a
+  class wrote `implements`; a class that mixes one in is `base` or `final`.
+- **Breaking: `RenderView` is `CameraView`.** `HasFlutter3d` and
+  `Model3dComponent` changed with it. `package:flutter/rendering.dart`
+  exports a `RenderView` too, the root of a render tree, so a file importing
+  both had to hide one. `RenderViewSettings` is `CameraViewSettings` and
+  `FrameView.ofRenderView` is `FrameView.ofCameraView`; `dart fix` renames
+  them.
+
+- **`SpriteBillboardComponent` takes `castsShadow:`.** True by default, as
+  before. Each card is a draw of its own into every shadow cascade it
+  reaches, where the colour pass draws the cards of a kind as one, so a
+  bank of reeds whose shadows are a few pixels across can leave them out.
+  Additive: nothing that worked against 1.0.0-rc.1 changes.
+
+## 1.0.0-rc.1
+
+- **Breaking: `Model3dComponent.openSharedDevice` is gone from the main
+  library.** A game had a global it could change; a test opens the shared
+  device another way with `overrideSharedDeviceOpener` from the new
+  `package:flame_flutter3d/testing.dart`, which returns the function that
+  puts the opener back.
+- **Breaking: the world helpers' callbacks take one object each.**
+  `ChunkStreamer.drop` takes a `ChunkDrop` (the index and the piece),
+  `GridMover.onArrive` a `GridArrival` (the column and the row) and
+  `TiledWorld3d.spawn` a `TiledSpawn` (the object and its middle), all
+  new. `migrate` wraps an old function.
+- **Breaking: every component and effect is a `base class`, and
+  `Flutter3dFlameWidget` a `final` one.** A game still extends
+  `Object3dComponent`, `RigidBodyComponent`, `TransparentFlameGame` and the
+  rest, and its subclass says `base`, `final` or `sealed`; nothing outside
+  can `implements` one, so a member they gain in a minor breaks nobody.
+  `migrate` writes the modifier.
+- **Breaking: `Tap3dCallbacks.hitAt3d` takes a `Tap3dProbe`** (new), the
+  tap's screen point and the projector, one per tap for every candidate. An
+  override for a tighter shape keeps compiling when a minor hands it more.
+- **Breaking: `PlaneAxis` is an open set**, a class with constants rather
+  than an enum: a plane holding X constant is a value it can still gain.
+  `y`, `z`, `values` and `name` are as they were. `GridHeading` and
+  `SyncDirection` stay enums, closed for good.
+- **`StepClock` is an `abstract mixin class`**, mixed in beside the Flame
+  type a clock extends (`extends Component with FixedStepUpdate,
+  StepClock`), so a member a minor adds can arrive with a body. Code that
+  `implements StepClock` still compiles; `HasFixedStep`, a mixin, keeps
+  doing so.
+- **The Flame host lights in lux.** `Model3dComponent`'s ambient is 1 737.2
+  lux, the light it had, written as such.
+
+- **Flame components turn through the portable maths.** `Rotate3dEffect`,
+  `CurvilinearSpace` and `BridgePlane.rotationFor` build their quaternions
+  from `Portable.sinCos` rather than `setAxisAngle` and `Quaternion.axisAngle`,
+  which asked `dart:math`, so a turn a game steps on comes out the same on
+  every platform.
+
+- **Breaking: the bridge's colours are `LinearColor`s.**
+  `HasFlutter3d.clearColor` is a linear colour assigned whole, encoded to
+  sRGB for the view once a frame, where it was a `Vector4` of sRGB numbers
+  changed in place: `clearColor = LinearColor.fromSrgb(0.55, 0.75, 0.95)`
+  keeps the old sky. `Flutter3dFlameWidget(clearColor:)` takes one too.
+  `tint` on `Node3dComponent`, `Object3dComponent`,
+  `InstancedObject3dComponent`, `Drawn3d` and `Bridged3d` is a settable
+  `LinearColor`, which `TintEffect(LinearColor, ...)` assigns; the colours
+  of `TrailComponent`, `CellGridComponent` and `InstancedObject3dComponent`
+  are linear `LinearColor`s with the same numbers. An `AtmosphereComponent`
+  assigns the day's sky to the game's `clearColor`.
+- **Breaking: `FlameInputBridge` takes an `ActionMap`** (`actions:`) where
+  it took a `Bindings` table, the same map a native game's `DesktopInput`
+  reads: a key reaches the map's buttons, its composites and its slot
+  actions. Wrap an old table as `ActionMap(actions: ActionSet.common,
+  buttons: table)`.
+- **`FlameChaseCamera` and `ViewCamera` are `VirtualCamera`s.** Each holds
+  a framing (`FlameChaseFraming`, `ViewFraming`) on a `VirtualCamera` from
+  `flutter3d_camera`, so the easing, the shake and the pull out of walls
+  are the one camera rig's, and a `CameraDirector` can take
+  `virtualCamera` like any other camera. The constructors and `rig` are as
+  they were.
+- **`Flutter3dFlameWidget`'s documentation states the API** rather than
+  pointing into the repository's demos.
+- **Breaking: `CameraSyncController.takeRest` is `captureRest`.** `dart fix`
+  carries it.
+- **Breaking: American spelling in identifiers, as Flutter and Dart
+  use.** `centreOf` is `centerOf`, `colour` is `color`. Only the Dart
+  names changed: a file keeps the keys it was written with, and `dart fix`
+  carries the renames.
+- **Breaking: `HasFixedStep.fixedStep` is gone, and `PhysicsStepComponent`
+  and `ActorSystemComponent` take `timing:` and `catchUp:` for when the game
+  does not step them**, in place of a `FixedStep`. Override
+  `createEngineLoop` for another step rate.
+- **1.0.0 is a promise: strict semver from there.** This release candidate
+  already keeps it. A patch fixes bugs and
+  breaks nothing, a minor adds, and a break waits for a major. The whole
+  public API is stable, with no experimental exceptions, and is held to the
+  snapshot in `api/`. A deprecated name stays until the next major and for
+  at least six months, and says what replaces it.
+  [CONTRIBUTING.md](https://github.com/pleiondev/flutter3d/blob/main/CONTRIBUTING.md#the-api-is-a-snapshot)
+  has the rules, and
+  [SUPPORT.md](https://github.com/pleiondev/flutter3d/blob/main/SUPPORT.md)
+  says which releases get fixes and on which platforms.
+
+- **A fixed-step game runs on the engine's loop.** `HasFixedStep` steps
+  through an `EngineLoop` (`engineLoop`, made by `createEngineLoop`, which
+  a game overrides to hand it plugins, registries, a world's step rate or a
+  catch-up policy). Its steps are systems in the loop's phases:
+  `flame.followers` and `flame.stepStarts` in `input`, `flame.fixedUpdate`
+  and `flame.components` (every `FixedStepUpdate`, in tree order) in
+  `rules`, `flame.stepEnds` in `publish`. That is the order it always
+  stepped in, so a game steps as it did, and a game or a plugin adds its
+  own systems around them by name. `installStepSystems` is the hook a mixin
+  adds to. Time the loop cannot run is announced as `TimeLost` instead of
+  dropped unheard. `fixedStep` is deprecated: it is read once, for the
+  loop's step and catch-up, and `createEngineLoop` replaces it.
+
+- **Flame's collisions can run in the steps.** A game that mixes in
+  `HasFixedStepCollisions` after `HasCollisionDetection` runs the standard
+  detection as `flame.collisions`, in `rules` after every component has
+  moved, and not in the frame at all. A collision is then decided by the
+  step's positions, and a hit between two steps of one frame is not missed.
+
+- **Breaking: `BridgeSpace` can no longer be implemented outside their own
+  library: it is an `abstract base mixin class` now, so a game or a test mixes
+  it in (`with`) and its class is `final` or `base`. A member added to it in a
+  1.x release arrives with a body, which an `implements` could not have taken
+  without breaking somebody. `StepClock`, `StepFollower`, `Bridged3d` and
+  `Drawn3d` stay implementable: games subclass the components that implement
+  them, and closing them would make every such subclass `base`.
+
+- **Breaking: `ChaseCamera` is `FlameChaseCamera`, and
+  `ChaseCameraComponent` is `FlameChaseCameraComponent`.** The racing genre
+  has a `ChaseCamera` of its own, and a game on Flame with a race met two.
+  `dart fix` renames them.
+
+**Moves with the stack to 1.0.0, and steps whichever physics the run
+chose.** `PhysicsStepComponent.dynamics` and `RigidBodyComponent.removeFrom`
+are `flutter3d_physics`' `RigidDynamics`, the seam both its `Dynamics` and
+`flutter3d_physics_native`'s `NativeDynamics` fill. A `Dynamics` passes as
+before.
+
+Its `flutter3d_*` dependencies ask for `^1.0.0`, and it asks for `pad_input` `^0.5.0`.
+
 ## 0.8.5
 
 **One 3D model in a plain Flame game.** `Model3dComponent` is a

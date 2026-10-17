@@ -17,9 +17,9 @@
 /// in step and nothing to invalidate.
 library;
 
-import 'package:flutter/material.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' as engine show Material;
+import 'package:flutter/material.dart';
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d/flutter3d.dart' as engine show RenderMaterial;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 
 import '../modeler_viewport.dart';
@@ -64,7 +64,7 @@ class MaterialPreviewPanel extends StatefulWidget {
 
   /// The live material — `MaterialPool`'s own instance for the object being
   /// painted, or clay where the pool has not built one yet.
-  final engine.Material material;
+  final engine.RenderMaterial material;
 
   final double height;
 

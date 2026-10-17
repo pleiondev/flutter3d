@@ -9,7 +9,7 @@
 ///
 /// **Those three, stated once.** `opacity` is a logit and needs a logistic;
 /// `scale_*` are logarithms and need an exponential; `f_dc_*` are the zeroth
-/// spherical-harmonic band and need the constant in [kSplatShC0] plus a half,
+/// spherical-harmonic band and need the constant in [splatShC0] plus a half,
 /// which gives an sRGB-encoded colour rather than a linear one.
 /// A reader that skips any of them produces a cloud that loads, draws, and is
 /// wrong in a way that reads as a bad capture rather than a bad reader — which
@@ -26,11 +26,15 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show Flutter3dFormatException;
+
 import 'splat_cloud.dart';
 
 /// Thrown when a file is not a PLY this can read, with the reason in it.
-final class SplatPlyException implements Exception {
+final class SplatPlyException extends Flutter3dFormatException {
   const SplatPlyException(this.message);
+  @override
   final String message;
   @override
   String toString() => 'SplatPlyException: $message';
@@ -54,14 +58,14 @@ typedef _Property = ({String name, String type, int offset});
 /// then every blue — and the cloud keeps each coefficient's `rgb` together,
 /// so they are transposed on the way in.
 ///
-/// [colourSpace] is what the band-0 colours were fitted in. The file cannot
+/// [colorSpace] is what the band-0 colours were fitted in. The file cannot
 /// say, and a trainer fits them to sRGB photographs, so sRGB is the default:
 /// they are clamped and decoded to the linear light the engine blends in —
-/// see [splatColour].
+/// see [splatColor].
 SplatCloud parseSplatPly(
   Uint8List bytes, {
   bool keepHigherBands = false,
-  SplatColourSpace colourSpace = SplatColourSpace.srgb,
+  SplatColorSpace colorSpace = SplatColorSpace.srgb,
 }) {
   final header = _readHeader(bytes);
   final stride = header.stride;
@@ -113,20 +117,20 @@ SplatCloud parseSplatPly(
     );
   }
 
-  final centres = Float32List(count * 3);
-  final colours = Float32List(count * 4);
+  final centers = Float32List(count * 3);
+  final colors = Float32List(count * 4);
   final scales = Float32List(count * 3);
   final rotations = Float32List(count * 4);
 
   for (var i = 0; i < count; i++) {
-    centres[i * 3] = read(x, i);
-    centres[i * 3 + 1] = read(y, i);
-    centres[i * 3 + 2] = read(z, i);
+    centers[i * 3] = read(x, i);
+    centers[i * 3 + 1] = read(y, i);
+    centers[i * 3 + 2] = read(z, i);
 
-    colours[i * 4] = splatColour(read(dc0, i), colourSpace);
-    colours[i * 4 + 1] = splatColour(read(dc1, i), colourSpace);
-    colours[i * 4 + 2] = splatColour(read(dc2, i), colourSpace);
-    colours[i * 4 + 3] = splatOpacity(read(opacity, i));
+    colors[i * 4] = splatColor(read(dc0, i), colorSpace);
+    colors[i * 4 + 1] = splatColor(read(dc1, i), colorSpace);
+    colors[i * 4 + 2] = splatColor(read(dc2, i), colorSpace);
+    colors[i * 4 + 3] = splatOpacity(read(opacity, i));
 
     scales[i * 3] = math.exp(read(s0, i));
     scales[i * 3 + 1] = math.exp(read(s1, i));
@@ -182,8 +186,8 @@ SplatCloud parseSplatPly(
   }
 
   return SplatCloud(
-    centres: centres,
-    colours: colours,
+    centers: centers,
+    colors: colors,
     scales: scales,
     rotations: rotations,
     shDegree: degree,

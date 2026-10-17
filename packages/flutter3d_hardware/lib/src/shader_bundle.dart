@@ -29,18 +29,94 @@ library;
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show FormatSpec, ResourceException;
+
+/// What a stage runs as: a vertex, a fragment or a compute program.
+///
+/// **Open, so a stage kind can be added in a minor** (mesh, task and the ray
+/// stages are the ones in sight). A kind is a name and the byte a bundle
+/// writes for it; a reader meeting a code it does not know refuses the
+/// bundle as stale rather than taking it for another kind. Compare kinds by
+/// identity or `==`; a `switch` over them needs a wildcard.
+final class ShaderStageKind {
+  const ShaderStageKind._(this.name, this.code);
+
+  /// A program run once per vertex.
+  static const ShaderStageKind vertex = ShaderStageKind._('vertex', 0);
+
+  /// A program run once per fragment.
+  static const ShaderStageKind fragment = ShaderStageKind._('fragment', 1);
+
+  /// A compute kernel, dispatched rather than drawn.
+  static const ShaderStageKind compute = ShaderStageKind._('compute', 2);
+
+  /// Every kind this version names, in the order of their codes.
+  static const List<ShaderStageKind> values = <ShaderStageKind>[
+    vertex,
+    fragment,
+    compute,
+  ];
+
+  /// The kind called [name], or null when this version names none.
+  static ShaderStageKind? byName(String name) {
+    for (final kind in values) {
+      if (kind.name == name) return kind;
+    }
+    return null;
+  }
+
+  /// The kind a bundle writes as [code], or null when this version names
+  /// none: a bundle from a newer packer.
+  static ShaderStageKind? byCode(int code) {
+    for (final kind in values) {
+      if (kind.code == code) return kind;
+    }
+    return null;
+  }
+
+  /// The kind's stable name, as manifests and messages spell it.
+  final String name;
+
+  /// The byte [ShaderBundle.encode] writes for this kind. Fixed for good
+  /// once a kind ships: a bundle already built carries it.
+  final int code;
+
+  @override
+  String toString() => 'ShaderStageKind.$name';
+}
+
 /// One entry point a bundle claims to hold.
 final class ShaderBundleStage {
-  const ShaderBundleStage(this.name, {required this.fragment});
+  /// A stage of [kind]; without one, a fragment stage when [fragment] is
+  /// true and a vertex stage otherwise, as before kinds existed.
+  const ShaderBundleStage(
+    this.name, {
+    bool fragment = false,
+    ShaderStageKind? kind,
+  }) : assert(
+         kind == null || !fragment || identical(kind, ShaderStageKind.fragment),
+         'a stage named fragment and given another kind',
+       ),
+       kind =
+           kind ??
+           (fragment ? ShaderStageKind.fragment : ShaderStageKind.vertex),
+       fragment = kind == null
+           ? fragment
+           : identical(kind, ShaderStageKind.fragment);
 
   /// The name the engine asks a [ShaderLibrary] for.
   final String name;
 
-  /// Whether this is a fragment stage; a vertex stage otherwise.
+  /// What the stage runs as.
+  final ShaderStageKind kind;
+
+  /// Whether this is a fragment stage: [kind] is
+  /// [ShaderStageKind.fragment].
   final bool fragment;
 
   @override
-  String toString() => '$name (${fragment ? 'fragment' : 'vertex'})';
+  String toString() => '$name (${kind.name})';
 }
 
 /// A loadable shader bundle: a name, the SDK it was compiled on, the stages it
@@ -61,8 +137,36 @@ final class ShaderBundle {
   /// The four bytes every bundle starts with.
   static const String magic = 'F3SB';
 
-  /// The layout version [encode] writes and [decode] accepts.
-  static const int formatVersion = 1;
+  /// The layout version [encode] writes, and the newest [decode] reads.
+  ///
+  /// **A bundle is a build artifact, so a version it does not match is a
+  /// rebuild, not a lost file** (decision 8 of `tasks/1.0-stability.md`).
+  /// `flutter3d_build` puts this number, with every section's own version, in
+  /// the stamp it keys its material cache on, so a flutter3d update that moves
+  /// any of them rebuilds every bundle on the next build. [decode] still reads
+  /// every container version up to this one, and refuses a newer bundle with
+  /// [ShaderBundleException.stale] set, which tells the caller that rebuilding
+  /// cures it.
+  ///
+  /// Version 2 writes a stage's kind as its [ShaderStageKind.code], so a
+  /// compute stage (and a kind a minor adds) is said rather than read as a
+  /// vertex stage; version 1 wrote 1 for a fragment stage and 0 for any other.
+  static const int formatVersion = 2;
+
+  /// F3SB for a `FormatRegistry`.
+  ///
+  /// A binary format: its envelope is the `F3SB` magic and the version word
+  /// after it, and each section carries a version of its own. The strings in
+  /// it are stage and section names the packer chose, never a Dart
+  /// identifier's `.name`.
+  static const FormatSpec format = FormatSpec(
+    id: 'f3d.shaderBundle',
+    version: formatVersion,
+    suffixes: <String>['.f3dshaders'],
+    fixture: 'test/fixtures/v<N>/effects.f3shaders',
+    enveloped: false,
+    magic: <int>[0x46, 0x33, 0x53, 0x42],
+  );
 
   /// The section the Impeller backend reads: `impellerc` output, as it is.
   static const String impellerSection = 'impeller';
@@ -108,6 +212,44 @@ final class ShaderBundle {
   /// would be inventing a version to compare.
   static const String webgpuSection = 'webgpu';
 
+  /// The section a backend that compiles nothing reads — `P8`: the source of
+  /// every stage written in the engine's material language, by stage name,
+  /// as JSON. See [encodeMaterialSection].
+  ///
+  /// **The source rather than anything made from it.** The software
+  /// rasteriser runs Dart and evaluates the language itself, so the text is
+  /// all it needs; and a runtime that has to know how to bind a material —
+  /// which maps it samples, which lighting model stands for it — reads the
+  /// answer out of the same text instead of a second description that could
+  /// disagree with the stage beside it.
+  static const String materialSection = 'material';
+
+  /// The section every device with compute reads — 1.0: the source of each
+  /// compute kernel in the kernel language (a material's `compute` block
+  /// as it was lowered to it), by stage name, as JSON.
+  /// See [encodeKernelSection].
+  ///
+  /// **One source for every placement.** A kernel runs on the device that
+  /// draws, on a compute-only sidecar or on the CPU, and which it is is
+  /// decided per frame, after the bundle was built. So the bundle carries
+  /// the kernel once, as written, and each device translates it as it loads
+  /// it: to WGSL on WebGPU and on the wgpu sidecar, to a Dart kernel on the
+  /// software rasteriser, both from `flutter3d_shaders`' one parse of it. A
+  /// device without compute refuses a bundle that claims a kernel, by name.
+  static const String kernelSection = 'kernel';
+
+  /// The section a Direct3D 12 backend will read: each stage as DXIL (or
+  /// the HLSL it is compiled from) with the register and space every name
+  /// was given, by stage name. **Reserved since 1.0.0-rc.1+2: nothing
+  /// writes it and nothing reads it yet.** Named before the freeze so that
+  /// no other backend's `MaterialCompiler` takes the name; a bundle that
+  /// carries it today is read by every device as a section it does not
+  /// know, which is to say ignored. The engine's stages already go through
+  /// SPIR-V, naga's HLSL and DXC in CI (`flutter3d_shaders`'
+  /// `tool/hlsl_lint.dart`), so the writer, when it comes, starts from
+  /// text the strictest HLSL compiler accepts.
+  static const String d3d12Section = 'd3d12';
+
   /// What the bundle is called, and what a refusal names.
   final String name;
 
@@ -145,8 +287,8 @@ final class ShaderBundle {
   /// The bytes, in the layout [decode] reads.
   ///
   /// Little-endian throughout. Strings are a `uint32` byte length and UTF-8;
-  /// a stage is a string and one byte, 1 for fragment; a section is a string
-  /// id, a `uint32` length and the bytes.
+  /// a stage is a string and one byte, its kind's [ShaderStageKind.code]; a
+  /// section is a string id, a `uint32` length and the bytes.
   ByteData encode() {
     final out = BytesBuilder(copy: false);
     void u8(int value) => out.addByte(value);
@@ -169,7 +311,7 @@ final class ShaderBundle {
     u32(stages.length);
     for (final stage in stages) {
       string(stage.name);
-      u8(stage.fragment ? 1 : 0);
+      u8(stage.kind.code);
     }
     u32(sections.length);
     for (final entry in sections.entries) {
@@ -185,36 +327,67 @@ final class ShaderBundle {
 
   /// Reads what [encode] wrote.
   ///
-  /// Throws [ShaderBundleRefused] for anything that is not a bundle: the wrong
+  /// Throws [ShaderBundleException] for anything that is not a bundle: the wrong
   /// magic, a version this reader does not know, a length that runs off the
-  /// end, or a string field that is not UTF-8. Refused rather than returning
+  /// end, or a string field that is not UTF-8. A stage kind this reader does
+  /// not know is refused as [ShaderBundleException.stale]: a newer packer
+  /// wrote it, and taking it for another kind would hand a device a program
+  /// of the wrong sort. Refused rather than returning
   /// null because the caller is a device being handed bytes it was told were
   /// shaders, and the two ways that can be wrong — not a bundle, and a bundle
   /// it cannot run — deserve the same exception with different words.
   static ShaderBundle decode(ByteData bytes) {
     final reader = _Reader(bytes);
     if (bytes.lengthInBytes < 8 || reader.ascii(4) != magic) {
-      throw const ShaderBundleRefused(
+      throw const ShaderBundleException(
         name: '',
         reason: 'the bytes are not a flutter3d shader bundle (no F3SB header)',
       );
     }
+    // Every container version up to this one: a later layout reads the older
+    // header the older way here, before the sections are taken. Version 1
+    // wrote 1 for a fragment stage and 0 for the rest; version 2 writes the
+    // kind's code. Mutation: put back `!=` and bump the constant, and the v1
+    // fixture under `test/fixtures/` is refused.
     final version = reader.u32();
-    if (version != formatVersion) {
-      throw ShaderBundleRefused(
+    if (version < 1 || version > formatVersion) {
+      throw ShaderBundleException(
         name: '',
         reason:
-            'the bundle is format version $version and this reader knows '
-            'only $formatVersion',
+            'the bundle is format version $version and this reader knows up '
+            'to $formatVersion. It was packed by another flutter3d; rebuild '
+            'it with this one (flutter3d_build does so on the next build)',
+        stale: true,
       );
     }
     final name = reader.string();
     try {
       final sdk = reader.string();
       final stageCount = reader.u32();
+      ShaderBundleStage stage() {
+        final stageName = reader.string();
+        final code = reader.u8();
+        if (version == 1) {
+          return ShaderBundleStage(stageName, fragment: code == 1);
+        }
+        // Mutation: fall back to a vertex stage here, and a bundle with a
+        // kind this reader does not know links a program of the wrong sort.
+        final kind = ShaderStageKind.byCode(code);
+        if (kind == null) {
+          throw ShaderBundleException(
+            name: '',
+            reason:
+                'its stage "$stageName" is of kind $code, which this reader '
+                'does not know. It was packed by a newer flutter3d; rebuild '
+                'it with this one',
+            stale: true,
+          );
+        }
+        return ShaderBundleStage(stageName, kind: kind);
+      }
+
       final stages = <ShaderBundleStage>[
-        for (var i = 0; i < stageCount; i++)
-          ShaderBundleStage(reader.string(), fragment: reader.u8() == 1),
+        for (var i = 0; i < stageCount; i++) stage(),
       ];
       final sectionCount = reader.u32();
       final sections = <String, ByteData>{
@@ -227,10 +400,17 @@ final class ShaderBundle {
         stages: stages,
         sections: sections,
       );
-    } on ShaderBundleRefused catch (refused) {
+    } on ShaderBundleException catch (refused, stack) {
       // The reader cannot know the name when it runs off the end; the name is
       // known here, and a refusal that names the bundle is the point.
-      throw ShaderBundleRefused(name: name, reason: refused.reason);
+      Error.throwWithStackTrace(
+        ShaderBundleException(
+          name: name,
+          reason: refused.reason,
+          stale: refused.stale,
+        ),
+        stack,
+      );
     }
   }
 }
@@ -239,22 +419,71 @@ final class ShaderBundle {
 ///
 /// One exception for every reason — bytes that are not a bundle, a section the
 /// backend has none of, an SDK it was not compiled on, a stage the backend
-/// cannot run — because the caller does one thing with all of them: report the
-/// bundle by name and keep the shaders it had. A device never answers a bundle
-/// it refuses with an empty library, because an empty library looks exactly
-/// like a bundle whose stages nobody asked for.
-final class ShaderBundleRefused implements Exception {
-  const ShaderBundleRefused({required this.name, required this.reason});
+/// cannot run, a bundle built by another flutter3d than the code reading it —
+/// because the caller does one thing with all of them: report the bundle by
+/// name and keep the shaders it had. A device never answers a bundle it
+/// refuses with an empty library, because an empty library looks exactly like
+/// a bundle whose stages nobody asked for.
+///
+/// **The stale case is this type too**, with [stale] set. It used to be a
+/// second exception in `flutter3d` that wrapped this one to add the asset and
+/// what the page was doing about it; now the engine throws this with [asset],
+/// [refreshing] and [advice] filled in, and a caller catches one type.
+final class ShaderBundleException extends ResourceException {
+  const ShaderBundleException({
+    required this.name,
+    required this.reason,
+    this.stale = false,
+    this.asset,
+    this.refreshing = false,
+    this.advice,
+  });
 
   /// The bundle's own name, or empty when the bytes never got that far.
   final String name;
 
+  /// What the device said about it: which version it is and which this code
+  /// reads, which section is missing.
   final String reason;
 
+  /// Whether the bundle is sound but was built by another toolchain — a
+  /// container or section version this build does not read, or an SDK the
+  /// compiled section was not made with — so rebuilding it from its sources
+  /// cures the refusal. False for bytes that are not a bundle at all, or a
+  /// bundle missing what this backend needs.
+  ///
+  /// Bundles are build artifacts: `flutter3d_build` rebuilds a material's
+  /// bundle whenever any of these versions moves, and an application that
+  /// meets a stale one at run time has a bundle the build did not make.
+  final bool stale;
+
+  /// The asset key the bundle was loaded from, when the engine loaded it from
+  /// one; null for bytes a caller handed the device directly.
+  final String? asset;
+
+  /// Whether the page is reloading to fetch a matching bundle and code. Only
+  /// ever true for a [stale] bundle on the web, the first time this tab meets
+  /// it: the server is serving files from two builds, and a reload fetches
+  /// one. A caller showing the refusal can say "refreshing" instead of
+  /// "rebuild".
+  final bool refreshing;
+
+  /// What a person does about it — rebuild, redeploy, wait for the reload —
+  /// when the code that threw knows; null otherwise.
+  final String? advice;
+
   @override
-  String toString() => name.isEmpty
-      ? 'a shader bundle was refused: $reason'
-      : 'the shader bundle "$name" was refused: $reason';
+  String get message {
+    final what = asset != null
+        ? '$asset was refused'
+        : name.isEmpty
+        ? 'a shader bundle was refused'
+        : 'the shader bundle "$name" was refused';
+    return advice == null ? '$what: $reason' : '$what: $reason. $advice';
+  }
+
+  @override
+  String toString() => message;
 }
 
 /// A cursor over [ShaderBundle.decode]'s input that refuses to read past the
@@ -267,7 +496,7 @@ final class _Reader {
 
   void _need(int count) {
     if (_at + count > _bytes.lengthInBytes) {
-      throw const ShaderBundleRefused(
+      throw const ShaderBundleException(
         name: '',
         reason: 'the bundle ends before its header says it does',
       );
@@ -303,13 +532,16 @@ final class _Reader {
       text = utf8.decode(
         _bytes.buffer.asUint8List(_bytes.offsetInBytes + _at, length),
       );
-    } on FormatException catch (error) {
+    } on FormatException catch (error, stack) {
       // The decoder's own exception would be the one thing `decode` lets out
       // that is not a refusal; a string that is not UTF-8 is bytes that are
       // not a bundle, and says so the same way.
-      throw ShaderBundleRefused(
-        name: '',
-        reason: 'a string field in the header is not UTF-8: ${error.message}',
+      Error.throwWithStackTrace(
+        ShaderBundleException(
+          name: '',
+          reason: 'a string field in the header is not UTF-8: ${error.message}',
+        ),
+        stack,
       );
     }
     _at += length;
@@ -326,4 +558,110 @@ final class _Reader {
     _at += length;
     return copy.buffer.asByteData();
   }
+}
+
+/// The version of [ShaderBundle.materialSection]'s payload that
+/// [encodeMaterialSection] writes and the newest [decodeMaterialSection]
+/// reads.
+///
+/// A payload from a newer packer is refused as stale rather than read: the
+/// bundle is a build artifact, and the build that made it is the one to make
+/// it again.
+const int materialSectionVersion = 1;
+
+/// The payload of [ShaderBundle.materialSection]: each stage's
+/// material-language source, by stage name — `P8`.
+///
+/// Versioned inside the document, as the WebGPU section is, so the payload
+/// can grow without the container's version moving.
+ByteData encodeMaterialSection(Map<String, String> sources) =>
+    _encodeSources(materialSectionVersion, sources);
+
+/// The sources [encodeMaterialSection] wrote, or empty when [bundle] has no
+/// material section. Throws a [ShaderBundleException] naming the bundle for
+/// one that is not that payload, and a stale one for a payload newer than
+/// [materialSectionVersion].
+Map<String, String> decodeMaterialSection(ShaderBundle bundle) =>
+    _decodeSources(
+      bundle,
+      ShaderBundle.materialSection,
+      materialSectionVersion,
+    );
+
+/// The version of [ShaderBundle.kernelSection]'s payload that
+/// [encodeKernelSection] writes and the newest [decodeKernelSection] reads.
+const int kernelSectionVersion = 1;
+
+/// The payload of [ShaderBundle.kernelSection]: each compute kernel's
+/// kernel-language source, by stage name — 1.0. The same document as
+/// [encodeMaterialSection]'s, under a version of its own.
+ByteData encodeKernelSection(Map<String, String> sources) =>
+    _encodeSources(kernelSectionVersion, sources);
+
+/// The kernel sources [encodeKernelSection] wrote, or empty when [bundle]
+/// has no kernel section; refuses as [decodeMaterialSection] does.
+Map<String, String> decodeKernelSection(ShaderBundle bundle) =>
+    _decodeSources(bundle, ShaderBundle.kernelSection, kernelSectionVersion);
+
+ByteData _encodeSources(int version, Map<String, String> sources) {
+  final text = jsonEncode(<String, Object?>{
+    'version': version,
+    'stages': <String, String>{
+      for (final name in sources.keys.toList()..sort()) name: sources[name]!,
+    },
+  });
+  return ByteData.sublistView(Uint8List.fromList(utf8.encode(text)));
+}
+
+Map<String, String> _decodeSources(
+  ShaderBundle bundle,
+  String sectionId,
+  int newest,
+) {
+  final section = bundle.sections[sectionId];
+  if (section == null) return const <String, String>{};
+  ShaderBundleException notThePayload(String why) => ShaderBundleException(
+    name: bundle.name,
+    reason: 'its "$sectionId" section $why',
+  );
+  final Object? json;
+  try {
+    json = jsonDecode(
+      utf8.decode(
+        section.buffer.asUint8List(
+          section.offsetInBytes,
+          section.lengthInBytes,
+        ),
+      ),
+    );
+  } on FormatException catch (error, stack) {
+    Error.throwWithStackTrace(
+      notThePayload('is not JSON: ${error.message}'),
+      stack,
+    );
+  }
+  if (json is! Map<String, Object?> ||
+      json['stages'] is! Map<String, Object?>) {
+    throw notThePayload('is not its payload');
+  }
+  // Every payload version up to this build's; a newer one is the bundle
+  // being stale, which a rebuild cures. Mutation: compare with `!=` and a
+  // bumped constant refuses every bundle already built.
+  final version = json['version'];
+  if (version is! int || version < 1 || version > newest) {
+    throw ShaderBundleException(
+      name: bundle.name,
+      reason:
+          'its "$sectionId" section is version $version and this build '
+          'reads up to $newest; rebuild the bundle with this flutter3d',
+      stale: true,
+    );
+  }
+  return <String, String>{
+    for (final MapEntry(:key, :value)
+        in (json['stages']! as Map<String, Object?>).entries)
+      key: value is String
+          ? value
+          : throw notThePayload('holds a source of "$key" that is not text'),
+  };
 }

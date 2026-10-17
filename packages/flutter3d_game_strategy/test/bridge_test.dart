@@ -46,7 +46,7 @@ void main() {
     // scene then holds a thousand children and this fails on the first.
     final sim = StrategySimulation(random: GameRandom(1), ground: _ground());
     for (var i = 0; i < 300; i++) {
-      sim.add(Unit(position: Vector3(4.0 + i % 20 * 1.5, 0.0, 4.0)));
+      sim.add(StrategyUnit(position: Vector3(4.0 + i % 20 * 1.5, 0.0, 4.0)));
     }
 
     final visuals = StrategyVisuals(simulation: sim, device: device);
@@ -64,7 +64,7 @@ void main() {
     // Mutation: drop the half-height lift. Every unit is then drawn with its
     // middle at ground level, which reads as a field of half-sunk boxes.
     final sim = StrategySimulation(random: GameRandom(1), ground: _ground());
-    final unit = sim.add(Unit(position: Vector3(10.0, 0.0, 10.0)));
+    final unit = sim.add(StrategyUnit(position: Vector3(10.0, 0.0, 10.0)));
 
     final visuals = StrategyVisuals(simulation: sim, device: device);
     visuals
@@ -85,7 +85,7 @@ void main() {
     // model whose own feet are already at its local origin is then drawn
     // floating half its height above where a unit actually stands.
     final sim = StrategySimulation(random: GameRandom(1), ground: _ground());
-    final unit = sim.add(Unit(position: Vector3(10.0, 0.0, 10.0)));
+    final unit = sim.add(StrategyUnit(position: Vector3(10.0, 0.0, 10.0)));
 
     final mesh = DeviceMesh.upload(
       device,
@@ -123,7 +123,7 @@ void main() {
     );
     visuals.addTo(Scene(name: 'map'));
     sim.build(
-      Building(centre: Vector3(20.0, 0.0, 20.0), width: 8.0, depth: 4.0),
+      Building(center: Vector3(20.0, 0.0, 20.0), width: 8.0, depth: 4.0),
     );
     visuals.sync();
 
@@ -159,8 +159,8 @@ void main() {
     // collapse is drawn exactly like a fresh one, which is the one thing about
     // a fight that a player has to be able to read at a glance.
     final sim = StrategySimulation(random: GameRandom(1), ground: _ground());
-    final whole = sim.add(Unit(position: Vector3(6.0, 0.0, 6.0)));
-    final hurt = sim.add(Unit(position: Vector3(10.0, 0.0, 6.0)))
+    final whole = sim.add(StrategyUnit(position: Vector3(6.0, 0.0, 6.0)));
+    final hurt = sim.add(StrategyUnit(position: Vector3(10.0, 0.0, 6.0)))
       ..hurt(UnitType.worker.health * 0.75);
 
     final visuals = StrategyVisuals(simulation: sim, device: device);
@@ -196,7 +196,7 @@ void main() {
     // the end of it.
     final sim = StrategySimulation(random: GameRandom(1), ground: _ground());
     for (var i = 0; i < 40; i++) {
-      sim.add(Unit(position: Vector3(4.0 + i * 1.2, 0.0, 4.0)));
+      sim.add(StrategyUnit(position: Vector3(4.0 + i * 1.2, 0.0, 4.0)));
     }
 
     final visuals = StrategyVisuals(
@@ -225,7 +225,7 @@ void main() {
     final before = scene.meshes.length;
     sim.build(
       Building(
-        centre: Vector3(20.0, 0.0, 20.0),
+        center: Vector3(20.0, 0.0, 20.0),
         width: 12.0,
         depth: 4.0,
         name: 'hall',
@@ -246,9 +246,9 @@ void main() {
     final visuals = StrategyVisuals(simulation: sim, device: device);
     visuals.addTo(Scene(name: 'map'));
     sim
-      ..build(Building(centre: Vector3(8.0, 0.0, 8.0), width: 4.0, depth: 4.0))
+      ..build(Building(center: Vector3(8.0, 0.0, 8.0), width: 4.0, depth: 4.0))
       ..build(
-        Building(centre: Vector3(30.0, 0.0, 30.0), width: 4.0, depth: 4.0),
+        Building(center: Vector3(30.0, 0.0, 30.0), width: 4.0, depth: 4.0),
       );
     visuals.sync();
 
@@ -277,8 +277,8 @@ void main() {
       // crowd nobody is allowed to look at.
       final sim = StrategySimulation(random: GameRandom(1), ground: _ground());
       sim
-        ..add(Unit(position: Vector3(6.0, 0.0, 6.0)))
-        ..add(Unit(position: Vector3(34.0, 0.0, 34.0), side: 1));
+        ..add(StrategyUnit(position: Vector3(6.0, 0.0, 6.0)))
+        ..add(StrategyUnit(position: Vector3(34.0, 0.0, 34.0), side: 1));
       sim.step(1.0 / 60.0);
 
       final visuals = StrategyVisuals(
@@ -296,7 +296,7 @@ void main() {
     test('covers what nobody went to and thins behind a crowd that did', () {
       final sim = StrategySimulation(random: GameRandom(1), ground: _ground());
       final scout = sim.add(
-        Unit(
+        StrategyUnit(
           position: Vector3(6.0, 0.0, 6.0),
           type: UnitType.worker.copyWith(sight: 8.0),
         ),
@@ -350,7 +350,7 @@ void main() {
 
       sim.build(
         Building(
-          centre: Vector3(34.0, 0.0, 34.0),
+          center: Vector3(34.0, 0.0, 34.0),
           width: 6.0,
           depth: 6.0,
           name: 'their hall',

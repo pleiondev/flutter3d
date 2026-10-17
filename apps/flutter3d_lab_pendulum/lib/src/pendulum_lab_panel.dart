@@ -1,5 +1,11 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+// Flutter's `FittedBox`, under a prefix: `flutter3d_mesh` declares a type
+// of the same name (a collision box fitted to a mesh), and the repository's
+// scan of the type names a file uses would read the bare name as that one.
+import 'package:flutter/widgets.dart' as widgets;
+
+import 'lab_theme.dart';
 
 /// `edu-04`'s panel of parameters: the one number a student's own tap
 /// changes — the pendulum's length. Buttons rather than a slider or a text
@@ -26,47 +32,71 @@ final class PendulumLabPanel extends StatelessWidget {
     onChangeLength(next);
   }
 
+  /// **Scaled down to fit, never overflowing.** The panel is drawn into a
+  /// texture of a fixed size, so a larger text size has nowhere to grow
+  /// into; where a host passes one (a test, or a panel hosted flat), the
+  /// whole panel shrinks to fit instead of cutting the readout off. The
+  /// student's own text size reaches the slider `PendulumLabControls` puts
+  /// on the scene.
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: const Color(0xFF15181C),
+      color: LabTheme.panel,
       child: Padding(
         padding: const EdgeInsets.all(14.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text(
-              'STRING LENGTH',
-              style: TextStyle(
-                color: Color(0xFF8FA0B3),
-                fontFamily: 'monospace',
-                fontSize: 20.0,
-                letterSpacing: 2.0,
-              ),
-            ),
-            const SizedBox(height: 10.0),
-            ValueListenableBuilder<double>(
-              valueListenable: lengthMeters,
-              builder: (context, length, _) => Text(
-                '${length.toStringAsFixed(2)} m',
-                style: const TextStyle(
-                  color: Color(0xFFE7C46E),
-                  fontFamily: 'monospace',
-                  fontSize: 44.0,
-                  fontWeight: FontWeight.bold,
+        child: widgets.FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              ValueListenableBuilder<double>(
+                valueListenable: lengthMeters,
+                builder: (context, length, _) => MergeSemantics(
+                  child: Column(
+                    children: <Widget>[
+                      const Text(
+                        'STRING LENGTH',
+                        semanticsLabel: 'String length',
+                        style: TextStyle(
+                          color: LabTheme.panelLabel,
+                          fontFamily: 'monospace',
+                          fontSize: 20.0,
+                          letterSpacing: 2.0,
+                        ),
+                      ),
+                      const SizedBox(height: 10.0),
+                      Text(
+                        '${length.toStringAsFixed(2)} m',
+                        style: const TextStyle(
+                          color: LabTheme.panelReadout,
+                          fontFamily: 'monospace',
+                          fontSize: 44.0,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 16.0),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: <Widget>[
-                _PanelButton(label: '-', onTap: () => _nudge(-step)),
-                const SizedBox(width: 28.0),
-                _PanelButton(label: '+', onTap: () => _nudge(step)),
-              ],
-            ),
-          ],
+              const SizedBox(height: 16.0),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  _PanelButton(
+                    label: '-',
+                    semanticsLabel: 'Shorten the string',
+                    onTap: () => _nudge(-step),
+                  ),
+                  const SizedBox(width: 28.0),
+                  _PanelButton(
+                    label: '+',
+                    semanticsLabel: 'Lengthen the string',
+                    onTap: () => _nudge(step),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -74,30 +104,44 @@ final class PendulumLabPanel extends StatelessWidget {
 }
 
 final class _PanelButton extends StatelessWidget {
-  const _PanelButton({required this.label, required this.onTap});
+  const _PanelButton({
+    required this.label,
+    required this.semanticsLabel,
+    required this.onTap,
+  });
 
   final String label;
+
+  /// What a screen reader says for [label], a glyph it would read as
+  /// "hyphen" or "plus".
+  final String semanticsLabel;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
+    return Semantics(
+      button: true,
+      label: semanticsLabel,
       onTap: onTap,
-      child: Container(
-        width: 68.0,
-        height: 68.0,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: const Color(0xFF283040),
-          borderRadius: BorderRadius.circular(12.0),
-        ),
-        child: Text(
-          label,
-          style: const TextStyle(
-            color: Color(0xFFE6EAF0),
-            fontSize: 34.0,
-            fontWeight: FontWeight.bold,
+      excludeSemantics: true,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Container(
+          width: 68.0,
+          height: 68.0,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: LabTheme.panelButton,
+            borderRadius: BorderRadius.circular(12.0),
+          ),
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: LabTheme.panelButtonText,
+              fontSize: 34.0,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
       ),

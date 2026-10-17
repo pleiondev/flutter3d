@@ -41,7 +41,7 @@ TextureHandle _checkerWithChain(CpuDevice device, int size) {
     format: TextureFormat.r8g8b8a8UNormInt,
     pixels: bytes,
     mipLevels: MipChain.build(bytes, size, size),
-  )!;
+  );
 }
 
 void main() {
@@ -56,7 +56,7 @@ void main() {
   });
 
   test('the backend says it can hold a chain, and holds one', () {
-    expect(device.supportsMipmaps, isTrue);
+    expect(device.features.has(DeviceFeature.manualMipmaps), isTrue);
     final handle = _checkerWithChain(device, 16);
     final texture = handle.backend as CpuTexture;
     expect(texture.levels, hasLength(MipChain.levelsFor(16, 16)));
@@ -67,7 +67,7 @@ void main() {
   test('a coordinate that barely moves reads the base level', () {
     final bound = BoundTexture(
       _checkerWithChain(device, 16).backend as CpuTexture,
-      SamplerOptions.trilinearRepeat,
+      SamplerDescriptor.trilinearRepeat,
     );
     // One pixel covers a sixteenth of a texel: a magnifying view, where the
     // base is the only right answer.
@@ -82,7 +82,7 @@ void main() {
   test('a coordinate racing across the texture reads a small level', () {
     final bound = BoundTexture(
       _checkerWithChain(device, 16).backend as CpuTexture,
-      SamplerOptions.trilinearRepeat,
+      SamplerDescriptor.trilinearRepeat,
     );
     // One pixel covers the whole texture, which is past the end of the chain.
     // The last level is one texel, and a checkerboard averaged down to one
@@ -100,7 +100,7 @@ void main() {
     () {
       final bound = BoundTexture(
         _checkerWithChain(device, 16).backend as CpuTexture,
-        SamplerOptions.trilinearRepeat,
+        SamplerDescriptor.trilinearRepeat,
       );
       // Zero is the default, and it is what the twenty-odd scenes with no chain
       // pass without knowing this parameter exists.
@@ -111,7 +111,7 @@ void main() {
 
   test('a nearest mip filter picks one level rather than blending two', () {
     final chain = _checkerWithChain(device, 16).backend as CpuTexture;
-    const nearest = SamplerOptions(
+    const nearest = SamplerDescriptor(
       minFilter: MinMagFilter.linear,
       magFilter: MinMagFilter.linear,
       widthAddressMode: SamplerAddressMode.repeat,
@@ -128,7 +128,7 @@ void main() {
     const at = 0.03125;
     final blended = BoundTexture(
       chain,
-      SamplerOptions.trilinearRepeat,
+      SamplerDescriptor.trilinearRepeat,
     ).sample(at, at, du: 1.5 / 16, dv: 1.5 / 16);
     final picked = BoundTexture(
       chain,
@@ -152,10 +152,10 @@ void main() {
       height: 4,
       format: TextureFormat.r8g8b8a8UNormInt,
       pixels: ByteData.sublistView(Uint8List(4 * 4 * 4)..fillRange(0, 64, 255)),
-    )!;
+    );
     final bound = BoundTexture(
       plain.backend as CpuTexture,
-      SamplerOptions.trilinearRepeat,
+      SamplerDescriptor.trilinearRepeat,
     );
     // A huge footprint on a texture with one level must not walk off the end
     // of a chain that is not there.

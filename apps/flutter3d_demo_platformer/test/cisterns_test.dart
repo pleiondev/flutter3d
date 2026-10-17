@@ -74,11 +74,11 @@ void main() {
     final level = shippedLevel(_cisterns);
     final stones = <Brush>[
       for (final brush in level.brushes)
-        if ((brush.centre.x - 15.0).abs() < 1.0 &&
-            brush.centre.z > 80.0 &&
-            brush.centre.z < 112.0)
+        if ((brush.center.x - 15.0).abs() < 1.0 &&
+            brush.center.z > 80.0 &&
+            brush.center.z < 112.0)
           brush,
-    ]..sort((Brush a, Brush b) => a.centre.z.compareTo(b.centre.z));
+    ]..sort((Brush a, Brush b) => a.center.z.compareTo(b.center.z));
 
     expect(
       stones.length,
@@ -90,15 +90,15 @@ void main() {
     // weir nobody gets onto.
     var near = 80.0;
     for (final stone in stones) {
-      final edge = stone.centre.z - stone.size.z / 2.0;
+      final edge = stone.center.z - stone.size.z / 2.0;
       expect(
         edge - near,
         lessThan(_gap),
         reason:
-            'the hop onto the stone at ${stone.centre.z} is '
+            'the hop onto the stone at ${stone.center.z} is '
             '${(edge - near).toStringAsFixed(2)} m, against $_gap',
       );
-      near = stone.centre.z + stone.size.z / 2.0;
+      near = stone.center.z + stone.size.z / 2.0;
     }
     expect(
       112.0 - near,
@@ -171,10 +171,10 @@ void main() {
     // And the gallery is the last step off them, not a wall above them.
     final gallery = <double>[
       for (final brush in level.brushes)
-        if (brush.centre.x.abs() < 1.0 &&
-            brush.centre.z > 142.0 &&
-            brush.centre.z < 170.0)
-          brush.centre.y + brush.size.y / 2.0,
+        if (brush.center.x.abs() < 1.0 &&
+            brush.center.z > 142.0 &&
+            brush.center.z < 170.0)
+          brush.center.y + brush.size.y / 2.0,
     ].reduce(math.max);
     expect(gallery - standing, lessThan(_jump));
   });

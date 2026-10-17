@@ -164,7 +164,7 @@ GalleryItem remoteItem({
   required String name,
   required String about,
   required RecipeCategory category,
-  required GalleryLicence licence,
+  required GalleryLicence license,
   required String downloadUrl,
   String? author,
 }) => GalleryItem(
@@ -172,7 +172,7 @@ GalleryItem remoteItem({
   name: name,
   about: about,
   category: category,
-  licence: licence,
+  license: license,
   sourceId: source.id,
   author: author,
   open: () async => FetchedModel(

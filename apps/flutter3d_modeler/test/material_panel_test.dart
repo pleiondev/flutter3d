@@ -8,13 +8,13 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter3d_core/formats.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/src/texture_slot.dart';
 import 'package:flutter3d_modeler/src/ui/material_panel.dart';
 import 'package:flutter3d_modeler/src/ui/theme.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 ProjectMaterial _material({String? name, double metallic = 0.0}) =>
     ProjectMaterial(
@@ -329,7 +329,9 @@ void main() {
         tester,
         materials: <ProjectMaterial>[
           ProjectMaterial(
-            surface: SurfaceMaterial(baseColor: Vector4(1, 1, 1, 1)),
+            surface: SurfaceMaterial(
+              baseColor: LinearColor.fromSrgb(1, 1, 1, 1),
+            ),
           ),
         ],
         activeIndex: 0,
@@ -503,7 +505,7 @@ void main() {
           ProjectMaterial(
             surface: SurfaceMaterial(
               name: 'Rust',
-              baseColor: Vector4(0.33, 0.66, 0.11, 1),
+              baseColor: LinearColor.fromSrgb(0.33, 0.66, 0.11, 1),
             ),
           ),
         ],

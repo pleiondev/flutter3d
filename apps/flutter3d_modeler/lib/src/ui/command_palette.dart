@@ -322,7 +322,7 @@ class _CommandPaletteState extends State<CommandPalette> {
                       // is scanned, and a list that gives three lines to
                       // every row shows four things at a time.
                       subtitle: switch ((entry.disabledBecause, entry.about)) {
-                        (final String why?, _) => Text(
+                        (final String why, _) => Text(
                           why,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,

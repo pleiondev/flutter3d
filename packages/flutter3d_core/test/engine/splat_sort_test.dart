@@ -19,12 +19,12 @@ import 'package:vector_math/vector_math.dart';
 /// across, some of them sharing a centre so that ties happen.
 SplatCloud _randomCloud(int count, int seed) {
   final random = math.Random(seed);
-  final centres = Float32List(count * 3);
+  final centers = Float32List(count * 3);
   for (var i = 0; i < count; i++) {
     final twin = i > 0 && random.nextInt(10) == 0;
     for (var c = 0; c < 3; c++) {
-      centres[i * 3 + c] = twin
-          ? centres[(i - 1) * 3 + c]
+      centers[i * 3 + c] = twin
+          ? centers[(i - 1) * 3 + c]
           : random.nextDouble() * 6.0 - 3.0;
     }
   }
@@ -33,8 +33,8 @@ SplatCloud _randomCloud(int count, int seed) {
     rotations[i * 4 + 3] = 1.0;
   }
   return SplatCloud(
-    centres: centres,
-    colours: Float32List(count * 4),
+    centers: centers,
+    colors: Float32List(count * 4),
     scales: Float32List(count * 3),
     rotations: rotations,
   );
@@ -51,7 +51,7 @@ void main() {
         for (var i = 0; i < count; i++)
           // Narrow ranges some of the time, so ties are common.
           seed.isEven
-              ? random.nextInt(kSplatKeyMax + 1)
+              ? random.nextInt(splatKeyMax + 1)
               : random.nextInt(64) * 1000,
       ]);
       final reference = List<int>.generate(count, (i) => i)
@@ -84,9 +84,9 @@ void main() {
       final distances = <double>[
         for (var i = 0; i < cloud.count; i++)
           Vector3(
-            cloud.centres[i * 3],
-            cloud.centres[i * 3 + 1],
-            cloud.centres[i * 3 + 2],
+            cloud.centers[i * 3],
+            cloud.centers[i * 3 + 1],
+            cloud.centers[i * 3 + 2],
           ).distanceTo(eye),
       ];
       final near = distances.reduce(math.min);
@@ -94,9 +94,9 @@ void main() {
       final keyOf = <int>[
         for (final d in distances)
           ((far - Float32List.fromList(<double>[d])[0]) *
-                  (kSplatKeyMax / (far - near)))
+                  (splatKeyMax / (far - near)))
               .floor()
-              .clamp(0, kSplatKeyMax),
+              .clamp(0, splatKeyMax),
       ];
       final reference = List<int>.generate(cloud.count, (i) => i)
         ..sort((a, b) {
@@ -118,12 +118,12 @@ void main() {
     final eye = Vector3(-2.0, 0.5, 5.0);
     final sorter = SplatSorter()..sort(cloud, eye);
     double distanceOf(int i) => Vector3(
-      cloud.centres[i * 3],
-      cloud.centres[i * 3 + 1],
-      cloud.centres[i * 3 + 2],
+      cloud.centers[i * 3],
+      cloud.centers[i * 3 + 1],
+      cloud.centers[i * 3 + 2],
     ).distanceTo(eye);
 
-    final step = sorter.lastRange / kSplatKeyMax;
+    final step = sorter.lastRange / splatKeyMax;
     for (var n = 1; n < cloud.count; n++) {
       final before = distanceOf(sorter.order[n - 1]);
       final after = distanceOf(sorter.order[n]);
@@ -150,8 +150,8 @@ void main() {
     // Two splats, the first nearer the eye as stored; a node that moves the
     // cloud past the eye makes the first the far one.
     final cloud = SplatCloud(
-      centres: Float32List.fromList(<double>[0, 0, 1, 0, 0, -1]),
-      colours: Float32List(8),
+      centers: Float32List.fromList(<double>[0, 0, 1, 0, 0, -1]),
+      colors: Float32List(8),
       scales: Float32List(6),
       rotations: Float32List.fromList(<double>[0, 0, 0, 1, 0, 0, 0, 1]),
     );
@@ -169,6 +169,31 @@ void main() {
       ),
     );
     expect(sorter.order.sublist(0, 2), orderedEquals(<int>[0, 1]));
+  });
+
+  test('along an axis, depth decides and distance does not — P7', () {
+    // An orthographic camera's order. The first splat is on the axis five
+    // metres deep; the second four deep and ten to the side, so it is the
+    // further by distance and the nearer by depth, and through parallel
+    // rays it covers the first.
+    //
+    // Mutation: ignore [axis] in `SplatSorter.sort` — the second is drawn
+    // first and the first paints over what should cover it.
+    final cloud = SplatCloud(
+      centers: Float32List.fromList(<double>[0, 0, -5, 10, 0, -4]),
+      colors: Float32List(8),
+      scales: Float32List(6),
+      rotations: Float32List.fromList(<double>[0, 0, 0, 1, 0, 0, 0, 1]),
+    );
+    final sorter = SplatSorter()
+      ..sort(cloud, Vector3.zero(), axis: Vector3(0.0, 0.0, -1.0));
+    expect(sorter.order.sublist(0, 2), orderedEquals(<int>[0, 1]));
+    sorter.sort(cloud, Vector3.zero());
+    expect(
+      sorter.order.sublist(0, 2),
+      orderedEquals(<int>[1, 0]),
+      reason: 'by distance the order is the other way round',
+    );
   });
 
   test('an empty cloud and a one-splat cloud sort without complaint', () {

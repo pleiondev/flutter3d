@@ -33,7 +33,7 @@ import 'occlusion_test.dart';
 ///
 /// Tiles of 8 × 8 keep the farthest depth under them, so a box behind a
 /// whole tile is rejected in one comparison rather than sixty-four.
-final class OcclusionBuffer implements OcclusionTest {
+final class OcclusionBuffer with OcclusionTest {
   OcclusionBuffer({this.width = defaultWidth, this.height = defaultHeight})
     : assert(
         width % tileSize == 0 && height % tileSize == 0,
@@ -56,7 +56,8 @@ final class OcclusionBuffer implements OcclusionTest {
   /// How far behind an occluder a box has to be before it counts as hidden,
   /// in window depth. The slack is for a surface lying *on* its own box —
   /// a wall's face is its box's face — whose depth and whose box's nearest
-  /// corner are the same number reached by two different sums.
+  /// corner are the same number reached by two different sums. Unitless, as
+  /// window depth is: a fraction of the 0..1 range between the clip planes.
   static const double depthTolerance = 1e-6;
 
   /// The smallest `w` a vertex may have and still be divided by: the same
@@ -74,7 +75,6 @@ final class OcclusionBuffer implements OcclusionTest {
   /// the rectangle it touched.
   final Float64List _corners;
 
-  final Matrix4 _viewProjection = Matrix4.identity();
   final Matrix4 _clipFromLocal = Matrix4.zero();
   Float64List _clip = Float64List(0);
 
@@ -91,13 +91,13 @@ final class OcclusionBuffer implements OcclusionTest {
   /// Triangles drawn since [begin], counting each before its clip.
   int get triangles => _triangles;
 
-  /// The matrix [begin] was given.
-  Matrix4 get viewProjection => _viewProjection;
+  /// The matrix [begin] was given, live: [begin] copies into it.
+  final Matrix4 viewProjection = Matrix4.identity();
 
   /// Empties the grid for a frame seen through [viewProjection], in the
   /// engine's `[0, 1]` depth convention.
   void begin(Matrix4 viewProjection) {
-    _viewProjection.setFrom(viewProjection);
+    this.viewProjection.setFrom(viewProjection);
     _depth.fillRange(0, _depth.length, double.infinity);
     _tileMax.fillRange(0, _tileMax.length, double.infinity);
     _tilesStale = false;
@@ -132,7 +132,7 @@ final class OcclusionBuffer implements OcclusionTest {
     final vertices = mesh.vertices;
 
     _clipFromLocal
-      ..setFrom(_viewProjection)
+      ..setFrom(viewProjection)
       ..multiply(world);
     if (_clip.length < count * 4) _clip = Float64List(count * 4);
     final m = _clipFromLocal.storage;
@@ -329,7 +329,7 @@ final class OcclusionBuffer implements OcclusionTest {
   /// makes the rectangle meaningless and the answer is yes.
   @override
   bool mayBeVisible(Aabb3 box) {
-    final m = _viewProjection.storage;
+    final m = viewProjection.storage;
     var minX = double.infinity, minY = double.infinity;
     var maxX = -double.infinity, maxY = -double.infinity;
     var nearest = double.infinity;

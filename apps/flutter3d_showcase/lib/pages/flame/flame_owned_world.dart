@@ -24,7 +24,10 @@ final class FlameOwnedWorldDemo extends ShowcaseDemo {
     _context,
     Flutter3dFlameWidget(
       game: _game,
-      existing: (device: _context.device, renderer: _context.renderer),
+      existing: BorrowedRenderer(
+        device: _context.device,
+        renderer: _context.renderer,
+      ),
     ),
   );
 
@@ -50,20 +53,23 @@ final class FlameOwnedWorldDemo extends ShowcaseDemo {
     _flameMissed = missed;
 
     _scene = Scene()
-      ..ambientColor = Vector3(0.5, 0.55, 0.65)
-      ..ambientIntensity = 0.3
+      ..ambientColor = LinearColor(0.5, 0.55, 0.65)
+      ..ambientIntensity = 0.3 * LightNode.defaultIntensity
       ..add(
         MeshNode(
           DeviceMesh.upload(
             context.device,
             CuboidShape(size: Vector3(9.0, 0.1, 9.0)).build(),
           ),
-          Material(name: 'floor', baseColor: Vector4(0.36, 0.4, 0.38, 1.0)),
+          RenderMaterial(
+            name: 'floor',
+            baseColor: LinearColor.fromSrgb(0.36, 0.4, 0.38, 1.0),
+          ),
           name: 'floor',
         )..setPosition(0.0, -0.05, 0.0),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 2.5)
+        LightNode(name: 'sun', intensity: 2.5 * LightNode.defaultIntensity)
           ..setLocalForward(Vector3(-0.3, -0.6, -0.4)),
       );
 
@@ -101,7 +107,10 @@ final class FlameOwnedWorldDemo extends ShowcaseDemo {
     );
     final crate = _Crate(device, Scene(), Vector2(1.0, -3.0))..update(0.0);
     final screen = projector.toScreen(crate.scenePosition)!;
-    return (crate.hitAt3d(screen, projector), !crate.containsPoint(screen));
+    return (
+      crate.hitAt3d(Tap3dProbe(screen: screen, projector: projector)),
+      !crate.containsPoint(screen),
+    );
   }
 
   /// The Flame game the page runs, for a test that steps it without a window.
@@ -169,7 +178,10 @@ final class _Crate extends Object3dComponent with Tap3dCallbacks {
             device,
             CuboidShape(size: Vector3.all(1.0)).build(),
           ),
-          Material(name: 'crate', baseColor: Vector4(0.8, 0.65, 0.4, 1.0)),
+          RenderMaterial(
+            name: 'crate',
+            baseColor: LinearColor.fromSrgb(0.8, 0.65, 0.4, 1.0),
+          ),
         ),
         scene: scene,
         plane: BridgePlane.ground(),
@@ -185,12 +197,12 @@ final class _Crate extends Object3dComponent with Tap3dCallbacks {
   void onTap3d(Vector2 screen) {
     // A red flash over the material the other crates share: the tint is
     // this crate's alone.
-    tint.setValues(1.0, 0.3, 0.25, 1.0);
+    tint = const LinearColor(1.0, 0.3, 0.25);
     add(
       TimerComponent(
         period: 0.25,
         removeOnFinish: true,
-        onTick: () => tint.setValues(1.0, 1.0, 1.0, 1.0),
+        onTick: () => tint = LinearColor.white,
       ),
     );
     // "+1" over the crate, placed through the projector, in Flame's layer.

@@ -21,12 +21,15 @@ dependencies:
     path: ../../packages/flutter3d_sim
 
   # `orderedSteps` — resolving an `edu_sequence.steps` name list to the
-  # `edu_step` entities themselves. Headless, plain Dart, already off the
-  # Flutter SDK for the same reason `flutter3d_editor` needs it there.
-  flutter3d_editor_core:
-    path: ../../packages/flutter3d_editor_core
+  # `edu_step` entities themselves: the lesson half of the education
+  # package, not the editor, which a viewer has no use for.
+  flutter3d_education:
+    path: ../../packages/flutter3d_education
 
-  vector_math: ^2.2.0
+  # `LessonPlayer` and `applyLessonStepTo`: the one player of a lesson, for
+  # a flat camera here as for a rig's stage in a holder.
+  flutter3d_stereo:
+    path: ../../packages/flutter3d_stereo
 
   flutter_bloc: ^9.1.1
 
@@ -41,7 +44,17 @@ dev_dependencies:
 
   flutter_lints: ^6.0.0
 
+  # `Wcag` and `ContrastPair`, which `test/theme_contrast_test.dart` holds
+  # `LessonTheme`'s pairs to over any frame: the arithmetic the game's own
+  # screens are held by, not a second copy of it.
+  flutter3d_game_ui:
+    path: ../../packages/flutter3d_game_ui
+
   flutter3d_samples: any
+
+  # The foundation's value types and their crossings into `vector_math`.
+  flutter3d_foundation:
+    path: ../../packages/flutter3d_foundation
 flutter:
   uses-material-design: true
 

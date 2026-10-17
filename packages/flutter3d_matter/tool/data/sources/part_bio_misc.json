@@ -1,0 +1,1474 @@
+{
+ "entries": [
+  {
+   "id": "air",
+   "catalogId": "f3d.air",
+   "name": "dry air",
+   "phase": "gas",
+   "cas": "132259-10-0",
+   "molarMass": 0.0289647,
+   "referenceState": {
+    "temperature": 293.15,
+    "pressure": 101325.0,
+    "note": "dry air, Lemmon et al. composition (N2 0.7812, Ar 0.0092, O2 0.2096 mole fractions)"
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 1.2046,
+      "unit": "kg/m3",
+      "confidence": "handbook",
+      "source": "Lemmon, Jacobsen, Penoncello and Friend, J. Phys. Chem. Ref. Data 29, 331 (2000), air EOS, evaluated with CoolProp 8.0.0",
+      "note": "ideal gas p*M/(R*T) with M = 28.9647 g/mol gives 1.2041; compressibility Z = 0.9996 at this state. The catalog's standardAirDensity is the ideal-gas value.",
+      "law": {
+       "kind": "table",
+       "variable": "T",
+       "unit": "K",
+       "conditions": "p = 101325 Pa",
+       "points": [
+        [
+         200,
+         1.7692
+        ],
+        [
+         250,
+         1.4133
+        ],
+        [
+         273.15,
+         1.2931
+        ],
+        [
+         293.15,
+         1.2046
+        ],
+        [
+         300,
+         1.177
+        ],
+        [
+         350,
+         1.0085
+        ],
+        [
+         400,
+         0.88231
+        ],
+        [
+         500,
+         0.70574
+        ],
+        [
+         600,
+         0.5881
+        ],
+        [
+         800,
+         0.44108
+        ],
+        [
+         1000,
+         0.35288
+        ]
+       ],
+       "source": "Lemmon et al. (2000) EOS via CoolProp 8.0.0; pressure dependence: rho = p*M/(Z*R*T), Z within 0.1 % of 1 below 1 MPa near ambient"
+      }
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 1.8206e-05,
+      "unit": "Pa*s",
+      "confidence": "handbook",
+      "source": "Lemmon and Jacobsen, Int. J. Thermophys. 25, 21 (2004), air viscosity correlation, evaluated with CoolProp 8.0.0",
+      "note": "catalog has 1.81e-5 (Kadoya 1985). Sutherland form mu = 1.716e-5*(T/273.15)^1.5*(273.15+110.4)/(T+110.4) (White, Viscous Fluid Flow, 3rd ed., table 1-2) gives 1.813e-5 at 20 °C, 0.4 % low.",
+      "law": {
+       "kind": "table",
+       "variable": "T",
+       "unit": "K",
+       "conditions": "p = 101325 Pa (dilute gas, nearly pressure independent)",
+       "points": [
+        [
+         200,
+         1.3334e-05
+        ],
+        [
+         250,
+         1.6038e-05
+        ],
+        [
+         273.15,
+         1.7218e-05
+        ],
+        [
+         293.15,
+         1.8206e-05
+        ],
+        [
+         300,
+         1.8537e-05
+        ],
+        [
+         350,
+         2.0867e-05
+        ],
+        [
+         400,
+         2.3055e-05
+        ],
+        [
+         500,
+         2.709e-05
+        ],
+        [
+         600,
+         3.0769e-05
+        ],
+        [
+         800,
+         3.737e-05
+        ],
+        [
+         1000,
+         4.328e-05
+        ]
+       ],
+       "source": "Lemmon and Jacobsen (2004) via CoolProp 8.0.0"
+      }
+     },
+     "surfaceTension": {
+      "value": null,
+      "note": "not applicable to a gas"
+     },
+     "bulkModulus": {
+      "value": 142000.0,
+      "unit": "Pa",
+      "confidence": "handbook",
+      "source": "derived: rho*c^2 with rho and c from Lemmon et al. (2000) EOS",
+      "note": "adiabatic; equals gamma*p = 1.402*101325 for an ideal gas. Isothermal value is p = 1.013e5 Pa."
+     }
+    },
+    "thermal": {
+     "specificHeat": {
+      "value": 1006.1,
+      "unit": "J/(kg*K)",
+      "confidence": "handbook",
+      "source": "Lemmon et al. (2000) EOS via CoolProp 8.0.0",
+      "note": "catalog has 1005",
+      "law": {
+       "kind": "table",
+       "variable": "T",
+       "unit": "K",
+       "points": [
+        [
+         200,
+         1006.8
+        ],
+        [
+         250,
+         1005.5
+        ],
+        [
+         273.15,
+         1005.7
+        ],
+        [
+         293.15,
+         1006.1
+        ],
+        [
+         300,
+         1006.4
+        ],
+        [
+         350,
+         1009.2
+        ],
+        [
+         400,
+         1014.1
+        ],
+        [
+         500,
+         1029.9
+        ],
+        [
+         600,
+         1051.2
+        ],
+        [
+         800,
+         1098.7
+        ],
+        [
+         1000,
+         1141.0
+        ]
+       ],
+       "source": "Lemmon et al. (2000) via CoolProp 8.0.0, p = 101325 Pa"
+      }
+     },
+     "conductivity": {
+      "value": 0.025874,
+      "unit": "W/(m*K)",
+      "confidence": "handbook",
+      "source": "Lemmon and Jacobsen (2004) via CoolProp 8.0.0; cross-check Engineering ToolBox 'Air - thermal conductivity' 25.87 mW/(m*K) at 20 °C (https://www.engineeringtoolbox.com/air-properties-viscosity-conductivity-heat-capacity-d_1509.html)",
+      "law": {
+       "kind": "table",
+       "variable": "T",
+       "unit": "K",
+       "points": [
+        [
+         200,
+         0.018503
+        ],
+        [
+         250,
+         0.022564
+        ],
+        [
+         273.15,
+         0.02436
+        ],
+        [
+         293.15,
+         0.025874
+        ],
+        [
+         300,
+         0.026384
+        ],
+        [
+         350,
+         0.030003
+        ],
+        [
+         400,
+         0.033453
+        ],
+        [
+         500,
+         0.039945
+        ],
+        [
+         600,
+         0.046011
+        ],
+        [
+         800,
+         0.057249
+        ],
+        [
+         1000,
+         0.067677
+        ]
+       ],
+       "source": "Lemmon and Jacobsen (2004) via CoolProp 8.0.0, p = 101325 Pa"
+      }
+     },
+     "volumetricExpansion": {
+      "value": 0.003421,
+      "unit": "1/K",
+      "confidence": "handbook",
+      "source": "Lemmon et al. (2000) EOS via CoolProp 8.0.0 (isobaric expansion coefficient)",
+      "note": "ideal gas 1/T = 3.411e-3"
+     },
+     "meltingPoint": {
+      "value": null,
+      "note": "a mixture; no single melting point"
+     },
+     "boilingPoint": {
+      "value": null,
+      "note": "a mixture: bubble point about 78.9 K and dew point about 81.7 K at 1 atm (Lemmon et al. 2000 report the pseudo-pure saturation boundaries); not given as one number"
+     },
+     "emissivity": {
+      "value": null,
+      "note": "not applicable (transparent gas)"
+     },
+     "heatOfCombustion": {
+      "value": null,
+      "note": "not a fuel"
+     }
+    },
+    "acoustic": {
+     "speedOfSound": {
+      "value": 343.34,
+      "unit": "m/s",
+      "confidence": "handbook",
+      "source": "Lemmon et al. (2000) EOS via CoolProp 8.0.0",
+      "note": "Cramer, JASA 93, 2510 (1993) gives 343.2 m/s for CO2-containing air at 20 °C, 0 % RH; the catalog's standardSpeedOfSound is the ideal diatomic value",
+      "law": {
+       "kind": "table",
+       "variable": "T",
+       "unit": "K",
+       "points": [
+        [
+         200,
+         283.41
+        ],
+        [
+         250,
+         317.07
+        ],
+        [
+         273.15,
+         331.44
+        ],
+        [
+         293.15,
+         343.34
+        ],
+        [
+         300,
+         347.32
+        ],
+        [
+         350,
+         374.95
+        ],
+        [
+         400,
+         400.45
+        ],
+        [
+         500,
+         446.35
+        ],
+        [
+         600,
+         487.01
+        ],
+        [
+         800,
+         557.78
+        ],
+        [
+         1000,
+         619.52
+        ]
+       ],
+       "source": "Lemmon et al. (2000) via CoolProp 8.0.0"
+      }
+     },
+     "impedance": {
+      "value": 413.6,
+      "unit": "Pa*s/m",
+      "confidence": "handbook",
+      "source": "derived: rho*c = 1.2046 * 343.34"
+     }
+    },
+    "optical": {
+     "refractiveIndex": {
+      "value": 1.000272,
+      "unit": "1",
+      "confidence": "handbook",
+      "source": "Ciddor, Appl. Opt. 35, 1566 (1996), standard-air dispersion formula as tabulated by refractiveindex.info (https://refractiveindex.info/?shelf=other&book=air&page=Ciddor): n-1 = 0.05792105/(238.0185 - 1/lambda^2) + 0.00167917/(57.362 - 1/lambda^2), lambda in um",
+      "conditions": "589.3 nm, 20 °C, 101325 Pa, 450 ppm CO2",
+      "note": "formula gives n-1 = 2.7715e-4 at 15 °C; scaled to 20 °C by the density ratio 288.15/293.15 -> 2.7242e-4. The catalog's 1.000293 is at 0 °C."
+     },
+     "abbeNumber": {
+      "value": 89.3,
+      "unit": "1",
+      "confidence": "handbook",
+      "source": "derived from the Ciddor (1996) standard-air formula at 587.56, 486.13, 656.27 nm"
+     }
+    },
+    "electrical": {
+     "resistivity": {
+      "value": null,
+      "note": "an insulator; resistivity depends on ionisation, not a material constant (order 1e13-1e16 Ohm*m quoted); not given"
+     }
+    }
+   }
+  },
+  {
+   "id": "seawater",
+   "catalogId": "f3d.seawater",
+   "name": "seawater (S_A = 35.165 g/kg)",
+   "phase": "liquid",
+   "cas": null,
+   "casNote": "a solution; no CAS",
+   "molarMass": null,
+   "referenceState": {
+    "temperature": 293.15,
+    "pressure": 101325.0,
+    "note": "Reference-Composition seawater, absolute salinity 35.165 g/kg (practical salinity 35)"
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 1024.77,
+      "unit": "kg/m3",
+      "confidence": "handbook",
+      "source": "TEOS-10 (IOC, SCOR and IAPSO 2010) Gibbs function, gsw 3.6.23 rho_t_exact(SA=35.16504, t=20, p=0)",
+      "note": "Sharqawy et al. (2010) correlation at S = 35 g/kg gives 1024.93",
+      "law": {
+       "kind": "polynomial",
+       "variable": "t (°C) and s (kg/kg)",
+       "form": "rho = a0 + a1 t + a2 t^2 + a3 t^3 + a4 t^4 + s (b0 + b1 t + b2 t^2 + b3 t^3) + b4 s^2 t^2",
+       "coefficients": {
+        "a": [
+         999.92293295,
+         0.020341179217,
+         -0.0061624591598,
+         2.2614664708e-05,
+         -4.6570659168e-08
+        ],
+        "b": [
+         802.00240891,
+         -2.0005183488,
+         0.016771024982,
+         -3.0600536746e-05,
+         -1.6132224742e-05
+        ]
+       },
+       "validRange": [
+        273.15,
+        453.15
+       ],
+       "salinityRange": "0-150 g/kg",
+       "source": "Sharqawy, Lienhard and Zubair, Desalination and Water Treatment 16, 354 (2010), eq. 8; coefficients as in MIT SEAWATER library v3.1.5 SW_Density.m (https://web.mit.edu/seawater/), accuracy 0.1 %"
+      }
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 0.0010766,
+      "unit": "Pa*s",
+      "confidence": "handbook",
+      "source": "Sharqawy et al. (2010) eq. 22-23 (Isdale et al. 1972 data, IAPWS 2008 pure water), evaluated from MIT SEAWATER v3.1.5 SW_Viscosity.m",
+      "note": "catalog has 1.08e-3. Accuracy quoted 1.5 %.",
+      "law": {
+       "kind": "polynomial",
+       "variable": "t (°C), s (kg/kg)",
+       "form": "mu = mu_w (1 + A s + B s^2); mu_w = 4.2844324477e-5 + 1/(0.15700386464 (t + 64.99262005)^2 - 91.296496657); A = 1.540913604 + 1.9981117208e-2 t - 9.5203865864e-5 t^2; B = 7.9739318223 - 7.5614568881e-2 t + 4.7237011074e-4 t^2",
+       "validRange": [
+        273.15,
+        453.15
+       ],
+       "salinityRange": "0-150 g/kg",
+       "source": "Sharqawy et al. (2010), MIT SEAWATER v3.1.5"
+      },
+      "lawAlt": {
+       "kind": "andrade",
+       "form": "ln(mu/Pa*s) = A + B/T",
+       "A": -14.00998,
+       "B": 2108.658,
+       "validRange": [
+        273.15,
+        313.15
+       ],
+       "source": "fit by this agent to the Sharqawy correlation at S = 35 g/kg, 0-40 °C every 5 K",
+       "fit": "max deviation 2.7 %"
+      }
+     },
+     "surfaceTension": {
+      "value": 0.07381,
+      "unit": "N/m",
+      "confidence": "handbook",
+      "source": "Sharqawy et al. (2010) eq. 28 (IAPWS pure water times 1 + 3.766e-4 S + 2.347e-6 S t, S in g/kg), MIT SEAWATER v3.1.5 SW_SurfaceTension.m",
+      "note": "catalog has 0.073; accuracy 0.2 mN/m"
+     },
+     "bulkModulus": {
+      "value": 2372000000.0,
+      "unit": "Pa",
+      "confidence": "handbook",
+      "source": "TEOS-10, gsw 3.6.23: 1/kappa_t_exact (isentropic compressibility 4.2154e-10 1/Pa), equal to rho*c^2",
+      "note": "isothermal value from Sharqawy et al. (2010) eq. 36: kT = 4.240e-4 1/MPa -> K_T = 2.358e9 Pa"
+     }
+    },
+    "thermal": {
+     "specificHeat": {
+      "value": 3996.1,
+      "unit": "J/(kg*K)",
+      "confidence": "handbook",
+      "source": "TEOS-10, gsw 3.6.23 cp_t_exact(35.16504, 20, 0)",
+      "note": "catalog has 3993 (attributed to Sharqawy 2010). Sharqawy/Jamieson (1969) correlation at S = 35 g/kg gives 3998.9; the two differ by 0.07 %"
+     },
+     "conductivity": {
+      "value": 0.6016,
+      "unit": "W/(m*K)",
+      "confidence": "handbook",
+      "source": "Sharqawy et al. (2010) eq. 13 (Jamieson and Tudhope 1970), MIT SEAWATER v3.1.5 SW_Conductivity.m, accuracy 3 %",
+      "note": "catalog has 0.596"
+     },
+     "volumetricExpansion": {
+      "value": 0.0002575,
+      "unit": "1/K",
+      "confidence": "handbook",
+      "source": "TEOS-10, gsw 3.6.23 alpha_wrt_t_exact(35.16504, 20, 0)"
+     },
+     "meltingPoint": {
+      "value": 271.23,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "TEOS-10, gsw 3.6.23 t_freezing(SA=35.16504, p=0, air-free) = -1.919 °C",
+      "note": "freezing point, not a melting point of a pure substance; catalog has 271.24"
+     },
+     "boilingPoint": {
+      "value": null,
+      "note": "boiling-point elevation about 0.5 K at 35 g/kg (Sharqawy 2010 eq. 33) above 373.12 K; not computed here"
+     },
+     "latentHeatOfVaporization": {
+      "value": 2368000.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "conditions": "at 20 °C (not at the boiling point), per kg of seawater",
+      "source": "Sharqawy et al. (2010) eq. 37: hfg_w(t) (1 - 0.001 S), MIT SEAWATER v3.1.5 SW_LatentHeat.m"
+     }
+    },
+    "acoustic": {
+     "speedOfSound": {
+      "value": 1521.48,
+      "unit": "m/s",
+      "confidence": "handbook",
+      "source": "TEOS-10, gsw 3.6.23 sound_speed_t_exact(35.16504, 20, 0)",
+      "note": "catalog has 1521.5 (Mackenzie 1981)"
+     },
+     "impedance": {
+      "value": 1559200.0,
+      "unit": "Pa*s/m",
+      "confidence": "handbook",
+      "source": "derived: rho*c (TEOS-10)"
+     }
+    },
+    "optical": {
+     "refractiveIndex": {
+      "value": 1.3394,
+      "unit": "1",
+      "confidence": "handbook",
+      "source": "Quan and Fry, Applied Optics 34, 3477 (1995), empirical fit to Austin and Halikas (1976) data",
+      "note": "evaluated at 589.3 nm, S = 35, t = 20 °C; at S = 0 the same formula gives 1.3330 (pure water), a check",
+      "law": {
+       "kind": "polynomial",
+       "variable": "S (‰), t (°C), lambda (nm)",
+       "form": "n = n0 + (n1 + n2 t + n3 t^2) S + n4 t^2 + (n5 + n6 S + n7 t)/lambda + n8/lambda^2 + n9/lambda^3",
+       "coefficients": {
+        "n0": 1.31405,
+        "n1": 0.0001779,
+        "n2": -1.05e-06,
+        "n3": 1.6e-08,
+        "n4": -2.02e-06,
+        "n5": 15.868,
+        "n6": 0.01155,
+        "n7": -0.00423,
+        "n8": -4382,
+        "n9": 1145500.0
+       },
+       "validRange": [
+        273.15,
+        303.15
+       ],
+       "otherRanges": "S 0-35 ‰, lambda 400-700 nm",
+       "source": "Quan and Fry (1995)"
+      }
+     }
+    },
+    "electrical": {
+     "resistivity": {
+      "value": 0.2087,
+      "unit": "Ohm*m",
+      "confidence": "handbook",
+      "source": "UNESCO PSS-78 (Lewis 1980) conductivity–salinity relation, gsw 3.6.23 C_from_SP(SP=35, t=20, p=0) = 47.918 mS/cm",
+      "note": "at 15 °C C = 42.914 mS/cm by definition of SP = 35 (0.2330 Ohm*m)"
+     }
+    }
+   }
+  },
+  {
+   "id": "brine",
+   "catalogId": null,
+   "name": "sodium chloride brine, 23 wt %",
+   "phase": "liquid",
+   "cas": null,
+   "casNote": "aqueous NaCl solution (NaCl 7647-14-5, water 7732-18-5)",
+   "molarMass": null,
+   "referenceState": {
+    "temperature": 293.15,
+    "pressure": 101325.0,
+    "note": "23.0 wt % NaCl, near the eutectic; saturation at 20 °C is 26.4 wt % (CRC), which the correlation used here does not reach, so a saturated brine is not given"
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 1172.0,
+      "unit": "kg/m3",
+      "confidence": "handbook",
+      "source": "Melinder, 'Properties of secondary working fluids (secondary refrigerants or coolants, heat transfer fluids) for indirect systems', IIR 2010, NaCl-water fit, evaluated with CoolProp 8.0.0 INCOMP::MNA[0.23]",
+      "note": "check against CRC Handbook 86th ed. 'Concentrative properties of aqueous solutions' (via Wikipedia 'Sodium chloride (data page)'): 22 wt % 1.1640 g/cm3 at 20 °C vs. Melinder 1163.9 kg/m3; 20 wt % 1.1478 vs. 1147.8",
+      "law": {
+       "kind": "table",
+       "variable": "T",
+       "unit": "K",
+       "points": [
+        [
+         255.0,
+         1189.0
+        ],
+        [
+         263.15,
+         1185.7
+        ],
+        [
+         273.15,
+         1181.4
+        ],
+        [
+         283.15,
+         1176.8
+        ],
+        [
+         293.15,
+         1172.0
+        ],
+        [
+         303.15,
+         1166.9
+        ],
+        [
+         313.15,
+         1161.6
+        ]
+       ],
+       "source": "Melinder (2010) via CoolProp 8.0.0, 23 wt %"
+      }
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 0.001692,
+      "unit": "Pa*s",
+      "confidence": "handbook",
+      "source": "Melinder (2010) via CoolProp 8.0.0 INCOMP::MNA[0.23]",
+      "note": "Melinder runs 1.6-2.5 % below CRC at 20-22 wt % (CRC 20 %: 1.557 mPa*s, 22 %: 1.676 mPa*s at 20 °C)",
+      "law": {
+       "kind": "table",
+       "variable": "T",
+       "unit": "K",
+       "points": [
+        [
+         255.0,
+         0.005938
+        ],
+        [
+         263.15,
+         0.004274
+        ],
+        [
+         273.15,
+         0.002986
+        ],
+        [
+         283.15,
+         0.002193
+        ],
+        [
+         293.15,
+         0.001692
+        ],
+        [
+         303.15,
+         0.001372
+        ],
+        [
+         313.15,
+         0.001169
+        ]
+       ],
+       "source": "Melinder (2010) via CoolProp 8.0.0"
+      },
+      "lawAlt": {
+       "kind": "andrade",
+       "form": "ln(mu/Pa*s) = A + B/T",
+       "A": -14.0228,
+       "B": 2253.08,
+       "validRange": [
+        255.0,
+        313.15
+       ],
+       "source": "fit by this agent to the Melinder table above",
+       "fit": "max deviation 7.3 % (use the table near the ends)"
+      }
+     },
+     "surfaceTension": {
+      "value": null,
+      "note": "not found in a source read; brine surface tension rises roughly 1.6 mN/m per mol/kg NaCl above water's, but no table was read"
+     },
+     "bulkModulus": {
+      "value": null,
+      "note": "no speed of sound for this concentration read"
+     }
+    },
+    "thermal": {
+     "specificHeat": {
+      "value": 3336.2,
+      "unit": "J/(kg*K)",
+      "confidence": "handbook",
+      "source": "Melinder (2010) via CoolProp 8.0.0"
+     },
+     "conductivity": {
+      "value": 0.5743,
+      "unit": "W/(m*K)",
+      "confidence": "handbook",
+      "source": "Melinder (2010) via CoolProp 8.0.0"
+     },
+     "volumetricExpansion": {
+      "value": 0.000421,
+      "unit": "1/K",
+      "confidence": "handbook",
+      "source": "derived by this agent: central difference of the Melinder density at 292.65 and 293.65 K"
+     },
+     "meltingPoint": {
+      "value": 252.64,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "Melinder (2010) freezing-point curve via CoolProp 8.0.0 (T_freeze for 23 wt %)",
+      "note": "freezing point of the solution (ice separates); the NaCl-water eutectic is -21.1 °C at 23.3 wt % (CRC via Wikipedia data page)"
+     }
+    },
+    "optical": {
+     "refractiveIndex": {
+      "value": null,
+      "note": "CRC gives 1.3721 at 22 wt % and 20 °C (n_D); 23 wt % not tabulated in the source read"
+     }
+    }
+   }
+  },
+  {
+   "id": "sucroseSolution",
+   "catalogId": null,
+   "name": "sucrose solution, 50 wt % (50 °Bx)",
+   "phase": "liquid",
+   "cas": null,
+   "casNote": "aqueous solution of sucrose (57-50-1)",
+   "molarMass": null,
+   "referenceState": {
+    "temperature": 293.15,
+    "pressure": 101325.0,
+    "note": "50 g sucrose per 100 g solution"
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 1229.5,
+      "unit": "kg/m3",
+      "confidence": "handbook",
+      "source": "USDA AMS, 'Appendix XV – Sucrose Conversion Table' (ICUMSA-based), 50.0 °Bx: apparent specific gravity 20/20 °C in air 1.23202 (https://www.ams.usda.gov/sites/default/files/media/SucroseConversionTableXV.pdf)",
+      "note": "converted by this agent to true density: rho = rho_air + SG*(rho_water(20 °C) - rho_air) = 0.0012 + 1.23202*(0.998203 - 0.0012) g/cm3. Choi-Okos model gives 1225.4."
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 0.0154,
+      "unit": "Pa*s",
+      "confidence": "handbook",
+      "source": "secondary: 15.4 mPa*s at 20 °C, 50 wt %, as quoted in a sucrose table (Manhattan Review practice item, https://www.manhattanreview.com/act-practice-questions/814/); primary NBS value at 25 °C below",
+      "note": "weak provenance at 20 °C; the 25 °C point is Swindells, NBS (1958) 'Viscosities of sucrose solutions at various temperatures: tables of recalculated values', as tabulated in arXiv:2103.15640 SI: 12.40 mPa*s at 50 wt %, 25 °C (40 %: 5.164, 60 %: 43.03)",
+      "law": {
+       "kind": "table",
+       "variable": "T",
+       "unit": "K",
+       "points": [
+        [
+         293.15,
+         0.0154
+        ],
+        [
+         298.15,
+         0.0124
+        ]
+       ],
+       "source": "20 °C: secondary as above; 25 °C: Swindells (NBS 1958)"
+      }
+     },
+     "surfaceTension": {
+      "value": null,
+      "note": "not found in a source read"
+     }
+    },
+    "thermal": {
+     "specificHeat": {
+      "value": 2881.0,
+      "unit": "J/(kg*K)",
+      "confidence": "estimate",
+      "source": "Choi and Okos (1986) component model as in ASHRAE Handbook—Fundamentals, ch. 19 'Thermal properties of foods', table 1: water and carbohydrate polynomials, mass-weighted",
+      "note": "model estimate, not a measurement"
+     },
+     "conductivity": {
+      "value": 0.459,
+      "unit": "W/(m*K)",
+      "confidence": "estimate",
+      "source": "Choi and Okos (1986) parallel model, ASHRAE Fundamentals ch. 19, volume fractions from component densities",
+      "note": "model estimate"
+     }
+    },
+    "optical": {
+     "refractiveIndex": {
+      "value": 1.4201,
+      "unit": "1",
+      "confidence": "handbook",
+      "source": "USDA AMS Appendix XV Sucrose Conversion Table (ICUMSA), 50.0 °Bx at 20 °C",
+      "note": "n_D (589 nm); refractometer.pl ICUMSA datasheet gives the same 1.4201"
+     }
+    }
+   }
+  },
+  {
+   "id": "blood",
+   "catalogId": null,
+   "name": "whole human blood",
+   "phase": "liquid",
+   "cas": null,
+   "casNote": "biological suspension; no CAS",
+   "molarMass": null,
+   "referenceState": {
+    "temperature": 310.15,
+    "pressure": 101325.0,
+    "note": "body temperature; normal hematocrit (about 40-45 %); values are averages across studies compiled by IT'IS"
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 1049.75,
+      "unit": "kg/m3",
+      "confidence": "handbook",
+      "source": "IT'IS Foundation Tissue Properties Database V5.0 (Hasgall et al., 2022, doi:10.13099/VIP21000-05-0), 'Blood': average 1049.75, SD 19.2, range 1025-1060 (https://itis.swiss/virtual-population/tissue-properties/database/density/)"
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 0.003649,
+      "unit": "Pa*s",
+      "confidence": "handbook",
+      "source": "IT'IS Tissue Properties Database V5.0, dynamic viscosity of 'Blood': average of 8 studies 3.649 mPa*s, SD 0.77, range 2.1-4.53",
+      "note": "NON-NEWTONIAN (shear-thinning): this is the high-shear (Newtonian-limit) viscosity used for large vessels; at low shear rates (< 1 1/s) blood is far more viscous. IT'IS also lists 33.5 mPa*s at 4 °C, 11.75 at 22 °C, 6.9 at 27 °C, 5.4 at 32 °C from single studies of unstated shear; not used as a law"
+     },
+     "surfaceTension": {
+      "value": 0.0526,
+      "unit": "N/m",
+      "confidence": "measured",
+      "source": "Rosina, Kvašňák, Šuba, Kolářová and Rosina, 'Temperature dependence of blood surface tension', Physiol. Res. 56 (Suppl. 1), S93 (2007) (https://www.biomed.cas.cz/physiolres/pdf/56/56_S93.pdf): sigma(t) = (-0.473 t + 70.105) mN/m, 20-40 °C, ring method",
+      "note": "evaluated at 37 °C. Hrnčíř and Rosina, Physiol. Res. 46, 319 (1997) give 55.89 ± 3.57 mN/m at 22 °C (drop method)",
+      "law": {
+       "kind": "polynomial",
+       "variable": "t (°C)",
+       "form": "sigma = c0 + c1 t (N/m)",
+       "coefficients": [
+        0.070105,
+        -0.000473
+       ],
+       "validRange": [
+        293.15,
+        313.15
+       ],
+       "source": "Rosina et al. (2007)"
+      }
+     },
+     "bulkModulus": {
+      "value": 2614600000.0,
+      "unit": "Pa",
+      "confidence": "handbook",
+      "source": "derived by this agent: rho*c^2 from IT'IS density and speed of sound"
+     }
+    },
+    "thermal": {
+     "specificHeat": {
+      "value": 3617.0,
+      "unit": "J/(kg*K)",
+      "confidence": "handbook",
+      "source": "IT'IS Tissue Properties Database V5.0, 'Blood': average of 3 studies, SD 301, range 3300-3900"
+     },
+     "conductivity": {
+      "value": 0.517,
+      "unit": "W/(m*K)",
+      "confidence": "handbook",
+      "source": "IT'IS Tissue Properties Database V5.0, 'Blood': average of 7 studies 0.5169, SD 0.025, range 0.488-0.561"
+     }
+    },
+    "acoustic": {
+     "speedOfSound": {
+      "value": 1578.2,
+      "unit": "m/s",
+      "confidence": "handbook",
+      "source": "IT'IS Tissue Properties Database V5.0, 'Blood': average of 9 studies, SD 11.3, range 1559-1590"
+     },
+     "impedance": {
+      "value": 1656700.0,
+      "unit": "Pa*s/m",
+      "confidence": "handbook",
+      "source": "derived: rho*c from IT'IS values"
+     }
+    },
+    "electrical": {
+     "resistivity": {
+      "value": 1.51,
+      "unit": "Ohm*m",
+      "confidence": "handbook",
+      "source": "IT'IS Tissue Properties Database V5.0, low-frequency conductivity of 'Blood': average 0.6625 S/m (33 studies, SD 0.107, range 0.433-0.946); resistivity is its reciprocal",
+      "note": "low-frequency (below about 1 kHz); depends strongly on hematocrit"
+     }
+    },
+    "extra": {
+     "acousticAttenuation": {
+      "value": {
+       "alpha0": 2.3676,
+       "b": 1.0498
+      },
+      "unit": "alpha = alpha0 * f^b, alpha in Np/m, f in MHz",
+      "confidence": "handbook",
+      "source": "IT'IS Tissue Properties Database V5.0"
+     },
+     "nonlinearityBoverA": {
+      "value": 6.11,
+      "unit": "1",
+      "confidence": "handbook",
+      "source": "IT'IS Tissue Properties Database V5.0 (4 studies)"
+     }
+    }
+   }
+  },
+  {
+   "id": "bloodPlasma",
+   "catalogId": null,
+   "name": "human blood plasma",
+   "phase": "liquid",
+   "cas": null,
+   "casNote": "biological fluid; no CAS",
+   "molarMass": null,
+   "referenceState": {
+    "temperature": 310.15,
+    "pressure": 101325.0,
+    "note": "body temperature; IT'IS compilation (several properties rest on a single study)"
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 1020.05,
+      "unit": "kg/m3",
+      "confidence": "handbook",
+      "source": "IT'IS Foundation Tissue Properties Database V5.0 (Hasgall et al. 2022), 'Blood Plasma': 1020.05 (sample size 6)"
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 0.0013175,
+      "unit": "Pa*s",
+      "confidence": "handbook",
+      "source": "IT'IS Tissue Properties Database V5.0, viscosity of 'Blood Plasma': average of 4 studies 1.3175 mPa*s, SD 0.026, range 1.28-1.34",
+      "note": "Newtonian"
+     },
+     "surfaceTension": {
+      "value": 0.05247,
+      "unit": "N/m",
+      "confidence": "measured",
+      "source": "Rosina et al., Physiol. Res. 56 (Suppl. 1), S93 (2007): blood SERUM sigma(t) = (-0.3676 t + 66.072) mN/m, 20-40 °C",
+      "note": "measured on serum (plasma without the clotting proteins), evaluated at 37 °C; used here for plasma, which differs by its fibrinogen",
+      "law": {
+       "kind": "polynomial",
+       "variable": "t (°C)",
+       "form": "sigma = c0 + c1 t (N/m)",
+       "coefficients": [
+        0.066072,
+        -0.0003676
+       ],
+       "validRange": [
+        293.15,
+        313.15
+       ],
+       "source": "Rosina et al. (2007), serum"
+      }
+     },
+     "bulkModulus": {
+      "value": 2448600000.0,
+      "unit": "Pa",
+      "confidence": "handbook",
+      "source": "derived by this agent: rho*c^2 from IT'IS values"
+     }
+    },
+    "thermal": {
+     "specificHeat": {
+      "value": 3930.0,
+      "unit": "J/(kg*K)",
+      "confidence": "handbook",
+      "source": "IT'IS Tissue Properties Database V5.0, 'Blood Plasma' (1 study)"
+     },
+     "conductivity": {
+      "value": 0.582,
+      "unit": "W/(m*K)",
+      "confidence": "handbook",
+      "source": "IT'IS Tissue Properties Database V5.0, 'Blood Plasma' (1 study)"
+     }
+    },
+    "acoustic": {
+     "speedOfSound": {
+      "value": 1549.35,
+      "unit": "m/s",
+      "confidence": "handbook",
+      "source": "IT'IS Tissue Properties Database V5.0, 'Blood Plasma': 2 studies, 1548.4-1550.3"
+     },
+     "impedance": {
+      "value": 1580400.0,
+      "unit": "Pa*s/m",
+      "confidence": "handbook",
+      "source": "derived: rho*c"
+     }
+    },
+    "electrical": {
+     "resistivity": {
+      "value": 0.708,
+      "unit": "Ohm*m",
+      "confidence": "handbook",
+      "source": "IT'IS Tissue Properties Database V5.0, low-frequency conductivity of 'Blood Plasma' 1.412 S/m (range 1.11-1.59); reciprocal"
+     }
+    },
+    "extra": {
+     "acousticAttenuation": {
+      "value": {
+       "alpha0": 1.075,
+       "b": 1.1596
+      },
+      "unit": "alpha = alpha0 * f^b, Np/m, f in MHz",
+      "confidence": "handbook",
+      "source": "IT'IS Tissue Properties Database V5.0"
+     },
+     "nonlinearityBoverA": {
+      "value": 5.74,
+      "unit": "1",
+      "confidence": "handbook",
+      "source": "IT'IS Tissue Properties Database V5.0 (1 study)"
+     }
+    }
+   }
+  },
+  {
+   "id": "milk",
+   "catalogId": null,
+   "name": "whole cow's milk, homogenised (3.25-3.6 % fat)",
+   "phase": "liquid",
+   "cas": null,
+   "casNote": "food emulsion; no CAS",
+   "molarMass": null,
+   "referenceState": {
+    "temperature": 293.15,
+    "pressure": 101325.0,
+    "note": "composition (USDA FoodData Central SR Legacy 171265): water 88.1, protein 3.15, fat 3.25, carbohydrate 4.80, ash 0.67 g/100 g"
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 1029.0,
+      "unit": "kg/m3",
+      "confidence": "handbook",
+      "source": "Goff, Hill and Ferrer, Dairy Science and Technology eBook, Univ. of Guelph, 'Physical properties of milk', density table: homogenised milk (3.6 % fat, 8.6 % SNF) 1.029 kg/L at 20 °C (https://books.lib.uoguelph.ca/dairyscienceandtechnologyebook/chapter/physical-properties-of-milk/)",
+      "note": "milk in general 1027-1033 kg/m3 at 20 °C (same source); Choi-Okos model from the USDA composition gives 1023",
+      "law": {
+       "kind": "table",
+       "variable": "T",
+       "unit": "K",
+       "points": [
+        [
+         277.55,
+         1033.0
+        ],
+        [
+         283.15,
+         1032.0
+        ],
+        [
+         293.15,
+         1029.0
+        ],
+        [
+         312.05,
+         1022.0
+        ]
+       ],
+       "source": "Goff et al., Guelph table, homogenised milk at 4.4, 10, 20, 38.9 °C"
+      }
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": null,
+      "note": "no open source with a number was read. Measured values exist in Fernández-Martín, J. Dairy Res. 39, 75 (1972), doi:10.1017/S0022029900013868 (paywalled). Normal milk is Newtonian except cooled raw milk (Goff et al.)."
+     },
+     "surfaceTension": {
+      "value": 0.05,
+      "unit": "N/m",
+      "confidence": "handbook",
+      "source": "CEC (Consortium for Educational Communication, India) dairy technology module FDTECH Paper 09, unit 3/4 script: 'Milk: 50 dynes/cm at 20 °C' (skim 52-52.5, cream 46-47) (https://cec.nic.in/webpath/curriculum/Module/FDTECH/Paper09/4/downloads/script.pdf)",
+      "note": "secondary teaching source; range 40-60 mN/m quoted elsewhere"
+     }
+    },
+    "thermal": {
+     "specificHeat": {
+      "value": 3894.0,
+      "unit": "J/(kg*K)",
+      "confidence": "estimate",
+      "source": "Choi and Okos (1986) model as in ASHRAE Handbook—Fundamentals ch. 19 table 1, with the USDA composition",
+      "note": "model estimate"
+     },
+     "conductivity": {
+      "value": 0.566,
+      "unit": "W/(m*K)",
+      "confidence": "estimate",
+      "source": "Choi and Okos (1986) parallel model, ASHRAE Fundamentals ch. 19, with the USDA composition",
+      "note": "model estimate"
+     },
+     "meltingPoint": {
+      "value": 272.628,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "Goff et al., Guelph eBook: freezing point of milk -0.512 to -0.550 °C, average about -0.522 °C",
+      "note": "freezing point"
+     }
+    },
+    "optical": {
+     "refractiveIndex": {
+      "value": 1.346,
+      "unit": "1",
+      "confidence": "handbook",
+      "source": "Goff et al., Guelph eBook: refractive index of milk 1.3440-1.3485 at 20 °C, sodium D line",
+      "note": "middle of the range; milk is turbid (scattering), so absorption per metre is not meaningful as Beer-Lambert"
+     }
+    }
+   }
+  },
+  {
+   "id": "honey",
+   "catalogId": "f3d.honey",
+   "name": "honey (liquid, about 17 % water)",
+   "phase": "liquid",
+   "cas": "8028-66-8",
+   "casNote": "CAS for honey as a substance of variable composition",
+   "molarMass": null,
+   "referenceState": {
+    "temperature": 293.15,
+    "pressure": 101325.0,
+    "note": "composition USDA FoodData Central SR Legacy 169640: water 17.1, carbohydrate 82.4, protein 0.3, ash 0.2 g/100 g. Honey properties vary strongly with floral source and water content; every value here is for a 'typical' honey"
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 1420.0,
+      "unit": "kg/m3",
+      "confidence": "estimate",
+      "source": "no primary density-vs-water table was reached; Choi and Okos (1986) model (ASHRAE Fundamentals ch. 19 table 1) with the USDA composition gives 1445; secondary sources quote 1380-1450 kg/m3 at 20 °C",
+      "note": "the catalog's 1420 is kept as an estimate within that range; its cited Codex standard does not give a density"
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 10.0,
+      "unit": "Pa*s",
+      "confidence": "estimate",
+      "source": "range of measured values at 20 °C collected in 'Analytical rheology of honey: a state-of-the-art review' (open access, https://pmc.ncbi.nlm.nih.gov/articles/PMC8391245/): Romanian honeys 2.7 (linden) to 17.2 Pa*s (honeydew); Polish liquefied honeys 3.18-6.66 Pa*s; Greek pine honeydew 9.9 Pa*s (fir honeydew up to 200 Pa*s)",
+      "note": "a representative value inside the measured spread, not a measurement of one honey; spreads over a decade with floral source and about a factor 2-3 per 1 % water",
+      "law": {
+       "kind": "arrhenius",
+       "form": "ln(mu/Pa*s) = A + B/T, B = Ea/R",
+       "A": -32.5728,
+       "B": 10223.7,
+       "validRange": [
+        278.15,
+        323.15
+       ],
+       "source": "estimate by this agent: Ea = 85 kJ/mol, typical of the Arrhenius activation energies tabulated in the review above (most between 70 and 106 kJ/mol for liquid honeys), anchored at 10 Pa*s at 20 °C",
+       "fit": "estimate; gives 34 Pa*s at 10 °C, 3.2 at 30 °C, 1.1 at 40 °C"
+      }
+     },
+     "surfaceTension": {
+      "value": null,
+      "note": "no reliable measurement was read. Rakhimov and Samigullin, J. Appl. Mech. Tech. Phys. 66(2), 110 (2025) measured white honey by drop weight, capillary rise and bubble detachment, but the number was not reachable; other reported values (0.22 N/m; 79-92 mN/m) are physically implausible for an aqueous sugar solution. The catalog's 0.05 remains unverified"
+     }
+    },
+    "thermal": {
+     "specificHeat": {
+      "value": 2029.0,
+      "unit": "J/(kg*K)",
+      "confidence": "estimate",
+      "source": "Choi and Okos (1986) model, ASHRAE Fundamentals ch. 19 table 1, with the USDA composition"
+     },
+     "conductivity": {
+      "value": 0.321,
+      "unit": "W/(m*K)",
+      "confidence": "estimate",
+      "source": "Choi and Okos (1986) parallel model, ASHRAE Fundamentals ch. 19, USDA composition"
+     }
+    },
+    "optical": {
+     "refractiveIndex": {
+      "value": 1.4938,
+      "unit": "1",
+      "confidence": "handbook",
+      "source": "International Honey Commission, Harmonised methods (Bogdanov, 2009), §6 'Relationship of water content of honey to refractive index' (Chataway table), 20 °C: 17.0 g/100 g -> 1.4940, 17.2 -> 1.4935 (https://www.ihc-platform.net/ihcmethods2009.pdf)",
+      "note": "interpolated to 17.1 % water",
+      "law": {
+       "kind": "table",
+       "variable": "water content (g/100 g)",
+       "unit": "%",
+       "points": [
+        [
+         13.0,
+         1.5044
+        ],
+        [
+         15.0,
+         1.4992
+        ],
+        [
+         17.0,
+         1.494
+        ],
+        [
+         19.0,
+         1.489
+        ],
+        [
+         21.0,
+         1.484
+        ],
+        [
+         23.0,
+         1.479
+        ],
+        [
+         24.6,
+         1.475
+        ]
+       ],
+       "source": "IHC (2009) table, at 20 °C"
+      }
+     }
+    }
+   }
+  },
+  {
+   "id": "mapleSyrup",
+   "catalogId": null,
+   "name": "maple syrup (66 °Bx, Canada No. 1 Clear/Medium, No. 2 Amber)",
+   "phase": "liquid",
+   "cas": null,
+   "casNote": "food product; no CAS",
+   "molarMass": null,
+   "referenceState": {
+    "temperature": 293.15,
+    "pressure": 101325.0,
+    "note": "66 °Brix (the regulatory minimum); composition USDA SR Legacy 169661: water 32.4, carbohydrate 67.0, ash 0.47 g/100 g"
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 1322.4,
+      "unit": "kg/m3",
+      "confidence": "estimate",
+      "source": "taken as a 66 °Bx sucrose solution: USDA AMS Appendix XV Sucrose Conversion Table, 66.0 °Bx apparent SG 20/20 in air 1.32516, converted to true density by this agent",
+      "note": "maple syrup solids are about 98 % sucrose (Ngadi and Yu 2004), so the sucrose-solution density is a close estimate, not a measurement of syrup"
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 0.215,
+      "unit": "Pa*s",
+      "confidence": "measured",
+      "source": "Ngadi and Yu, 'Rheological properties of Canadian maple syrup', Canadian Biosystems Engineering 46, 3.15 (2004) (https://library.csbe-scgab.ca/docs/journal/46/c0235.pdf), eq. 2 for Clear, Medium and Amber grades evaluated at 20 °C",
+      "note": "Newtonian (power-law index 0.98-1.015). Measured power-law K at 15/25 °C: 0.335/0.157 (Clear), 0.299/0.149 (Medium), 0.313/0.154 (Amber) Pa*s; Very Clear eq. 1 gives 0.202 and Dark eq. 3 0.227 Pa*s at 20 °C",
+      "law": {
+       "kind": "arrhenius",
+       "form": "mu = mu0 exp(Ea/(R T)); ln(mu/Pa*s) = A + B/T",
+       "mu0": 2.18e-09,
+       "Ea": 44860.0,
+       "A": -19.94394,
+       "B": 5395.72,
+       "validRange": [
+        278.15,
+        328.15
+       ],
+       "source": "Ngadi and Yu (2004) eq. 2, R^2 > 0.99"
+      }
+     },
+     "surfaceTension": {
+      "value": null,
+      "note": "not found"
+     }
+    },
+    "thermal": {
+     "specificHeat": {
+      "value": 2424.0,
+      "unit": "J/(kg*K)",
+      "confidence": "estimate",
+      "source": "Choi and Okos (1986) model, ASHRAE Fundamentals ch. 19 table 1, with the USDA composition"
+     },
+     "conductivity": {
+      "value": 0.391,
+      "unit": "W/(m*K)",
+      "confidence": "estimate",
+      "source": "Choi and Okos (1986) parallel model, ASHRAE Fundamentals ch. 19, USDA composition"
+     }
+    },
+    "optical": {
+     "refractiveIndex": {
+      "value": 1.4558,
+      "unit": "1",
+      "confidence": "handbook",
+      "source": "USDA AMS Appendix XV Sucrose Conversion Table, 66.0 °Bx at 20 °C (°Bx is defined by this refractometer reading, so a 66 °Bx syrup has this n_D by construction)"
+     }
+    }
+   }
+  },
+  {
+   "id": "glucoseSyrup",
+   "catalogId": null,
+   "name": "glucose (corn) syrup, 42 DE, about 80 % dry substance",
+   "phase": "liquid",
+   "cas": "8029-43-4",
+   "casNote": "CAS for glucose syrup (corn syrup) as a substance of variable composition",
+   "molarMass": null,
+   "referenceState": {
+    "temperature": 299.82,
+    "pressure": 101325.0,
+    "note": "80 °F (26.7 °C), the lowest temperature the source tabulates; DE 41-46, dry substance 79.7-81.5 %. Not extrapolated to 20 °C"
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 1423.0,
+      "unit": "kg/m3",
+      "confidence": "handbook",
+      "source": "Ingredion, 'GLOBE 42 DE Glucose Syrup NON GMO IP 01440090' technical specification, temperature table (https://ingredion.com/content/dam/ingredion/technical-documents/na/GLOBE%2042%20DE%20Glucose%20Syrup%20NON%20GMO%20IP%20-%2001440090%20-%20Technical%20Specification.pdf)",
+      "note": "manufacturer datasheet (typical values)",
+      "law": {
+       "kind": "table",
+       "variable": "T",
+       "unit": "K",
+       "points": [
+        [
+         299.82,
+         1423.0
+        ],
+        [
+         310.93,
+         1417.0
+        ],
+        [
+         322.04,
+         1411.0
+        ]
+       ],
+       "source": "Ingredion datasheet, 80/100/120 °F"
+      }
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 80.0,
+      "unit": "Pa*s",
+      "confidence": "handbook",
+      "source": "Ingredion GLOBE 42 DE technical specification: 80,000 cP at 80 °F",
+      "note": "manufacturer datasheet; NOT Arrhenius over this range (apparent B falls from 11600 K to 9500 K), so use the table; at 20 °C it is higher still (an Andrade extrapolation gives about 190 Pa*s, an estimate not entered)",
+      "law": {
+       "kind": "table",
+       "variable": "T",
+       "unit": "K",
+       "points": [
+        [
+         299.82,
+         80.0
+        ],
+        [
+         310.93,
+         20.0
+        ],
+        [
+         322.04,
+         7.0
+        ]
+       ],
+       "source": "Ingredion datasheet, 80/100/120 °F: 80,000 / 20,000 / 7,000 cP"
+      }
+     },
+     "surfaceTension": {
+      "value": null,
+      "note": "not found"
+     }
+    },
+    "thermal": {
+     "specificHeat": {
+      "value": null,
+      "note": "Choi-Okos with USDA 'Syrups, corn, light' (SR Legacy 168837: water 22.8, carbohydrate 76.8 g/100 g) gives 2176 J/(kg*K) at 20 °C, an estimate for a different grade; not entered for this one"
+     },
+     "conductivity": {
+      "value": null,
+      "note": "see specificHeat; Choi-Okos for light corn syrup 0.348 W/(m*K) at 20 °C (estimate, different grade)"
+     }
+    },
+    "optical": {
+     "refractiveIndex": {
+      "value": null,
+      "note": "not found for this grade"
+     }
+    }
+   }
+  },
+  {
+   "id": "ketchup",
+   "catalogId": null,
+   "name": "tomato ketchup (commercial)",
+   "phase": "liquid",
+   "cas": null,
+   "casNote": "food product; no CAS",
+   "molarMass": null,
+   "referenceState": {
+    "temperature": 295.15,
+    "pressure": 101325.0,
+    "note": "22 °C, as measured. A yield-stress, shear-thinning, thixotropic fluid: no single viscosity exists; the rheology is given in 'extra'. Included mainly as a note for a non-Newtonian food"
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": null,
+      "note": "not found in a source read"
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": null,
+      "note": "non-Newtonian; see extra.powerLaw. A single 'viscosity' depends on shear rate: with K = 29.10 Pa*s^n and n = 0.136, the apparent viscosity K*gamma^(n-1) is 29 Pa*s at 1 1/s and 0.55 Pa*s at 100 1/s (derived)"
+     }
+    },
+    "extra": {
+     "powerLaw": {
+      "value": {
+       "K": 29.1,
+       "n": 0.136
+      },
+      "unit": "tau = K * gamma_dot^n; K in Pa*s^n",
+      "confidence": "measured",
+      "source": "Severa, Simeonovová, Křivánek and Buchar, 'On the selected rheological properties of commercial ketchups', Acta Univ. Agric. Silvic. Mendel. Brun. 53(2), 7-18 (2005), doi:10.11118/actaun200553020007 (https://actavia.mendelu.cz/pdfs/acu/2005/02/01.pdf), four commercial ketchups at 22 °C",
+      "note": "the authors find Herschel-Bulkley the best fit (R^2 > 0.945) but quote only the power-law K and n in the text"
+     },
+     "yieldStress": {
+      "value": [
+       15.0,
+       30.0
+      ],
+      "unit": "Pa",
+      "confidence": "measured",
+      "source": "literature range collected in Severa et al. (2005) table I: 15 Pa (stress to initiate flow, De Kee et al. 1980), 22.8 (extrapolation, Ofoli et al. 1987), 18-30 (squeezing flow, Campanella et al. 1987), 26-30 (vane, Missaire et al. 1990)",
+      "note": "depends on the measuring method"
+     },
+     "thixotropy": {
+      "value": {
+       "eta_inf": 2.18,
+       "eta_0": 2.5423,
+       "k": 0.0009813
+      },
+      "unit": "eta = eta_inf + (eta_0 - eta_inf)/(1 + k t); Pa*s, k in 1/s",
+      "confidence": "measured",
+      "source": "Severa et al. (2005) eq. 1, viscosity vs shear time at constant shear rate (R^2 = 0.846)"
+     }
+    }
+   }
+  }
+ ]
+}

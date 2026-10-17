@@ -12,7 +12,7 @@
 /// `CollisionShape`.** That type is `sealed`, and a sealed class in Dart can
 /// only be extended from inside its own library — so a compound shape (this
 /// file's own decomposition can produce more than one convex piece) is not a
-/// case this package is allowed to add to it. [FittedBox], [FittedSphere]
+/// case this package is allowed to add to it. [FittedCuboid], [FittedSphere]
 /// and [FittedCapsule] carry exactly the numbers `CollisionBox`,
 /// `CollisionSphere` and `CollisionCapsule` need to be constructed from —
 /// position, orientation, dimensions — so a caller one layer up, that
@@ -38,6 +38,8 @@ final class MeshInertia {
     required this.tensor,
   });
 
+  /// Numerically the volume in cubic metres: mass in kilograms at a density of
+  /// one kilogram per cubic metre.
   final double mass;
   final Vector3 centroid;
 
@@ -65,6 +67,8 @@ final class PrincipalInertia {
   /// rotation from world axes to the body's own principal frame.
   final Matrix3 axes;
 
+  /// As [MeshInertia.mass]: the volume in cubic metres, mass in kilograms at
+  /// unit density.
   final double mass;
   final Vector3 centroid;
 }
@@ -232,8 +236,8 @@ PrincipalInertia principalAxesOf(MeshInertia inertia) {
 // -------------------------------------------------------------- box / sphere
 
 /// A box, positioned and oriented — the numbers `CollisionBox` needs.
-final class FittedBox {
-  const FittedBox({
+final class FittedCuboid {
+  const FittedCuboid({
     required this.center,
     required this.orientation,
     required this.halfExtents,
@@ -251,6 +255,8 @@ final class FittedSphere {
   const FittedSphere({required this.center, required this.radius});
 
   final Vector3 center;
+
+  /// In metres.
   final double radius;
 }
 
@@ -268,11 +274,14 @@ final class FittedCapsule {
 
   /// Unit vector along the capsule's own long axis.
   final Vector3 axis;
+
+  /// In metres.
   final double radius;
 
   /// The cylindrical section's own length — the hemispherical caps add
   /// [radius] beyond each end, so the capsule's total length is
   /// `height + 2 * radius`.
+  /// In metres.
   final double height;
 }
 
@@ -284,7 +293,7 @@ final class FittedCapsule {
 /// `a² = 3(Iy+Iz-Ix)/(2m)` and its two rotations. The box's own axes are the
 /// mesh's principal axes; a mesh whose mass is concentrated off an axis
 /// rotates the fitted box to match, which a plain bounding box never does.
-FittedBox fitBoxByInertia(EditMesh mesh) {
+FittedCuboid fitBoxByInertia(EditMesh mesh) {
   final principal = principalAxesOf(computeMeshInertia(mesh));
   final m = principal.mass.abs();
   final ix = principal.moments.x, iy = principal.moments.y;
@@ -295,7 +304,7 @@ FittedBox fitBoxByInertia(EditMesh mesh) {
   final b = halfExtent(ix + iz - iy);
   final c = halfExtent(ix + iy - iz);
 
-  return FittedBox(
+  return FittedCuboid(
     center: principal.centroid,
     orientation: principal.axes,
     halfExtents: Vector3(a, b, c),
@@ -381,6 +390,33 @@ FittedCapsule fitCapsuleByInertia(EditMesh mesh) {
 
 // ---------------------------------------------------------------- static
 
+/// One triangle as three vertex indices into a point list, in winding
+/// order: [StaticMeshShape.triangles] and [ConvexHull.faces] are lists of
+/// these.
+final class TriangleIndices {
+  /// The triangle with corners [a], [b] and [c], in that winding order.
+  const TriangleIndices({required this.a, required this.b, required this.c});
+
+  /// The index of the first corner.
+  final int a;
+
+  /// The index of the second corner.
+  final int b;
+
+  /// The index of the third corner.
+  final int c;
+
+  @override
+  bool operator ==(Object other) =>
+      other is TriangleIndices && other.a == a && other.b == b && other.c == c;
+
+  @override
+  int get hashCode => Object.hash(a, b, c);
+
+  @override
+  String toString() => 'TriangleIndices($a, $b, $c)';
+}
+
 /// The exact triangle soup of [mesh], for a static (non-moving) body: no
 /// approximation is needed when nothing ever has to sweep this shape
 /// through space, only test a moving body against it — the row's own "сам
@@ -396,7 +432,7 @@ final class StaticMeshShape {
 
   /// Vertex index triples — [mesh]'s own faces, already fan-triangulated,
   /// so a caller never has to handle an n-gon.
-  final List<(int, int, int)> triangles;
+  final List<TriangleIndices> triangles;
 }
 
 /// Triangulates every face of [mesh] by the same origin-vertex fan every
@@ -413,14 +449,16 @@ StaticMeshShape staticMeshShape(EditMesh mesh) {
     if (mesh.isVertexAlive(v)) remap[v] = next++;
   }
 
-  final triangles = <(int, int, int)>[];
-  for (final loop in mesh.faces()) {
-    if (loop.length < 3) continue;
-    final anchor = remap[loop[0]]!;
-    for (var i = 1; i + 1 < loop.length; i++) {
-      triangles.add((anchor, remap[loop[i]]!, remap[loop[i + 1]]!));
-    }
-  }
+  final triangles = <TriangleIndices>[
+    for (final loop in mesh.faces())
+      if (loop.length >= 3)
+        for (var i = 1; i + 1 < loop.length; i++)
+          TriangleIndices(
+            a: remap[loop[0]]!,
+            b: remap[loop[i]]!,
+            c: remap[loop[i + 1]]!,
+          ),
+  ];
   return StaticMeshShape(vertices: vertices, triangles: triangles);
 }
 
@@ -439,7 +477,9 @@ final class ConvexHull {
   });
 
   final List<Vector3> points;
-  final List<(int, int, int)> faces;
+  final List<TriangleIndices> faces;
+
+  /// In cubic metres (m³).
   final double volume;
   final Vector3 centroid;
 }
@@ -598,7 +638,7 @@ ConvexHull? computeConvexHull(List<Vector3> points) {
 
   return ConvexHull(
     points: points,
-    faces: [for (final f in faces) (f[0], f[1], f[2])],
+    faces: [for (final f in faces) TriangleIndices(a: f[0], b: f[1], c: f[2])],
     volume: volume.abs(),
     centroid: centroid,
   );
@@ -611,8 +651,10 @@ final class ConvexPiece {
   const ConvexPiece({required this.hull});
 
   final ConvexHull hull;
+
+  /// The hull's volume, in cubic metres (m³).
   double get volume => hull.volume;
-  Vector3 get centroid => hull.centroid;
+  Vector3 get centroid => hull.centroid.clone();
 }
 
 /// Approximate convex decomposition of [mesh]: a related algorithm to
@@ -650,6 +692,8 @@ List<ConvexPiece> decomposeConvex(
   EditMesh mesh, {
   int maxPieces = 12,
   int seed = 0,
+
+  /// The volume overshoot a hull may have, as a fraction of the true volume.
   double toleranceFraction = 0.15,
 }) {
   final faceLoops = mesh.faces();
@@ -839,13 +883,13 @@ List<int> _kMeansClusters(List<Vector3> points, int k, int seed) {
     return List.filled(points.length, 0);
   }
   final random = math.Random(seed);
-  final centres = <Vector3>[points[random.nextInt(points.length)]];
-  while (centres.length < k) {
+  final centers = <Vector3>[points[random.nextInt(points.length)]];
+  while (centers.length < k) {
     var farthest = points[0];
     var farthestDist = -1.0;
     for (final p in points) {
       var nearest = double.infinity;
-      for (final c in centres) {
+      for (final c in centers) {
         final d = p.distanceToSquared(c);
         if (d < nearest) nearest = d;
       }
@@ -854,7 +898,7 @@ List<int> _kMeansClusters(List<Vector3> points, int k, int seed) {
         farthest = p;
       }
     }
-    centres.add(farthest);
+    centers.add(farthest);
   }
 
   final assignment = List.filled(points.length, 0);
@@ -862,9 +906,9 @@ List<int> _kMeansClusters(List<Vector3> points, int k, int seed) {
     var changed = false;
     for (var i = 0; i < points.length; i++) {
       var best = 0;
-      var bestDist = points[i].distanceToSquared(centres[0]);
-      for (var c = 1; c < centres.length; c++) {
-        final d = points[i].distanceToSquared(centres[c]);
+      var bestDist = points[i].distanceToSquared(centers[0]);
+      for (var c = 1; c < centers.length; c++) {
+        final d = points[i].distanceToSquared(centers[c]);
         if (d < bestDist) {
           bestDist = d;
           best = c;
@@ -884,7 +928,7 @@ List<int> _kMeansClusters(List<Vector3> points, int k, int seed) {
       counts[assignment[i]]++;
     }
     for (var c = 0; c < k; c++) {
-      if (counts[c] > 0) centres[c] = sums[c] / counts[c].toDouble();
+      if (counts[c] > 0) centers[c] = sums[c] / counts[c].toDouble();
     }
   }
   return assignment;

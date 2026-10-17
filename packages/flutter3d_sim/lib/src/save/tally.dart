@@ -31,7 +31,7 @@ base class Tally {
   /// stay where it is, the same rule a medkit at full health depends on.
   /// Nothing is refused here, and the answer is still reported rather than
   /// assumed, so the day a cap arrives the callers already do the right thing.
-  bool add(String what, [int howMany = 1]) {
+  bool add(String what, {int howMany = 1}) {
     if (howMany <= 0) return false;
     _counts[what] = this[what] + howMany;
     return true;

@@ -1,3 +1,7 @@
+import 'package:flutter3d_matter/flutter3d_matter.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show SimulationProfile;
+
 /// How a [ClothMesh] moves, as values rather than as solver internals.
 ///
 /// XPBD's own compliance is the inverse of stiffness — zero is a rigid,
@@ -8,7 +12,7 @@
 /// does — the whole reason the "X" is in XPBD.
 final class ClothSettings {
   const ClothSettings({
-    this.gravity = 9.81,
+    this.gravity = standardGravity,
     this.substeps = 8,
     this.iterations = 2,
     this.distanceCompliance = 0.0,
@@ -21,9 +25,101 @@ final class ClothSettings {
     this.selfCollision = true,
     this.selfCollisionThickness,
     this.selfCollisionFriction = 0.1,
+    this.profile = SimulationProfile.deterministic,
   });
 
-  /// Downward acceleration, metres per second squared.
+  /// A copy with the given fields replaced. A `clear…` flag resets that
+  /// nullable field to null, which passing null cannot say.
+  ClothSettings copyWith({
+    SimulationProfile? profile,
+    double? gravity,
+    int? substeps,
+    int? iterations,
+    double? distanceCompliance,
+    double? bendCompliance,
+    double? shearCompliance,
+    double? damping,
+    WindSettings? wind,
+    double? collisionThickness,
+    double? friction,
+    bool? selfCollision,
+    double? selfCollisionThickness,
+    double? selfCollisionFriction,
+    bool clearSelfCollisionThickness = false,
+  }) => ClothSettings(
+    gravity: gravity ?? this.gravity,
+    substeps: substeps ?? this.substeps,
+    iterations: iterations ?? this.iterations,
+    distanceCompliance: distanceCompliance ?? this.distanceCompliance,
+    bendCompliance: bendCompliance ?? this.bendCompliance,
+    shearCompliance: shearCompliance ?? this.shearCompliance,
+    damping: damping ?? this.damping,
+    wind: wind ?? this.wind,
+    collisionThickness: collisionThickness ?? this.collisionThickness,
+    friction: friction ?? this.friction,
+    selfCollision: selfCollision ?? this.selfCollision,
+    selfCollisionThickness: clearSelfCollisionThickness
+        ? null
+        : (selfCollisionThickness ?? this.selfCollisionThickness),
+    selfCollisionFriction: selfCollisionFriction ?? this.selfCollisionFriction,
+    profile: profile ?? this.profile,
+  );
+
+  /// These settings in [world], for a sheet of [material] when one is
+  /// given: the world's gravity, its wind blowing through the sheet in its
+  /// air ([WindSettings.airDensity]), and the material's friction against
+  /// what the sheet lies on, at [state] — what a cloth hung in that world
+  /// falls, flaps and slides by, and the world's simulation profile.
+  /// Everything else is kept, and calling it
+  /// again with another world gives that world's, not both.
+  ///
+  /// **How a game gives a sheet its world**: `settings.inWorld(
+  /// collision.properties)`, made again when the world changes, so a level
+  /// on the Moon drapes its banners at the Moon's gravity and a sheet in
+  /// thin air flaps less in the same wind.
+  ///
+  /// **The material's mechanical group.** Its coefficient of friction
+  /// (`MechanicalProperties.friction`) at [state], the reference state by
+  /// default, becomes [friction]; a material that says none leaves the
+  /// friction as it was. Its density is a sheet's mass, which the mesh
+  /// holds: `ClothMesh.grid(mass: ClothMesh.particleMassOf(…))`.
+  ClothSettings inWorld(
+    WorldProperties world, {
+    PhysicalMaterial? material,
+    MatterState state = MatterState.standard,
+  }) {
+    final air = world.wind;
+    final mu = material?.mechanical?.friction?.at(state);
+    return copyWith(
+      gravity: world.gravityMagnitude,
+      wind: wind.copyWith(
+        velocityX: air.x,
+        velocityY: air.y,
+        velocityZ: air.z,
+        airDensity: world.airDensity,
+      ),
+      friction: mu,
+      profile: world.profile,
+    );
+  }
+
+  /// What the steps promise about their numbers.
+  ///
+  /// Under a profile that `allowsAdaptiveSteps` the sheet is not stepped by
+  /// XPBD but integrated: an adaptive Runge–Kutta integrator held to a
+  /// relative error of 1e-10 carries every particle through the step, the
+  /// zero-compliance constraints held exactly by their Lagrange multipliers
+  /// and every other one a spring of stiffness one over its compliance, and
+  /// [damping] a drag at the rate it has at [substeps]. Obstacles and the
+  /// sheet's own layers are pushed apart between the integrator's steps, as
+  /// the fixed path does, and are not held to analytic tests. [substeps]
+  /// and [iterations] say nothing there. The deterministic profile, the
+  /// default, is the XPBD step.
+  final SimulationProfile profile;
+
+  /// Downward acceleration, metres per second squared: the world's the
+  /// cloth hangs in ([inWorld]); [standardGravity] when a game gives it
+  /// none.
   final double gravity;
 
   /// How many substeps one call to `stepCloth` divides its `dt` into.
@@ -91,7 +187,7 @@ final class ClothSettings {
   /// substep's iterations, so the answer does not depend on [iterations].
   /// Zero, the default, lets a sheet slide off a ball as it always has; 0.3
   /// slows the slide, and around 1 holds a sheet dropped off-centre where it
-  /// landed.
+  /// landed. A unitless coefficient.
   final double friction;
 
   /// Whether the sheet keeps its own layers apart.
@@ -145,15 +241,49 @@ final class WindSettings {
     this.velocityY = 0,
     this.velocityZ = 0,
     this.drag = 0.3,
+    this.airDensity = standardAirDensity,
   });
 
+  /// A copy with the given fields replaced.
+  WindSettings copyWith({
+    double? velocityX,
+    double? velocityY,
+    double? velocityZ,
+    double? drag,
+    double? airDensity,
+  }) => WindSettings(
+    velocityX: velocityX ?? this.velocityX,
+    velocityY: velocityY ?? this.velocityY,
+    velocityZ: velocityZ ?? this.velocityZ,
+    drag: drag ?? this.drag,
+    airDensity: airDensity ?? this.airDensity,
+  );
+
+  /// The density of the air the wind is, kg/m³: [standardAirDensity]
+  /// unless the world says otherwise (`ClothSettings.inWorld`).
+  final double airDensity;
+
+  /// The drag the solver applies, newtons per square metre per metre per
+  /// second: [drag], which is quoted in standard air,
+  /// scaled by how dense this air is against it. A flat plate's drag is
+  /// proportional to the air's density, so the same wind on a mountain top
+  /// pushes a sheet less, and on the Moon not at all. Exactly [drag] in
+  /// standard air.
+  double get effectiveDrag => drag * (airDensity / standardAirDensity);
+
+  /// The air's velocity along X, in metres per second.
   final double velocityX;
+
+  /// The air's velocity along Y, in metres per second.
   final double velocityY;
+
+  /// The air's velocity along Z, in metres per second.
   final double velocityZ;
 
   /// Newtons per square metre per metre-per-second of air moving through the
   /// cloth along its normal: how much of the wind-relative normal velocity
-  /// becomes force. Zero turns wind off regardless of
+  /// becomes force, in standard air ([effectiveDrag] is it in this
+  /// [airDensity]). Zero turns wind off regardless of
   /// [velocityX]/[velocityY]/[velocityZ].
   ///
   /// A force since 0.7.4. It was applied as a velocity before, which made it

@@ -45,13 +45,13 @@ const double _gap = 7.5;
 /// least four metres deep; a wall is one.
 List<Brush> _flights(Level level) => <Brush>[
   for (final brush in level.brushes)
-    if (brush.centre.x.abs() < 4.0 &&
+    if (brush.center.x.abs() < 4.0 &&
         brush.size.x > 12.0 &&
         brush.size.z >= 4.0 &&
-        brush.centre.z > 16.0 &&
-        brush.centre.y + brush.size.y / 2.0 > 1.0)
+        brush.center.z > 16.0 &&
+        brush.center.y + brush.size.y / 2.0 > 1.0)
       brush,
-]..sort((Brush a, Brush b) => a.centre.z.compareTo(b.centre.z));
+]..sort((Brush a, Brush b) => a.center.z.compareTo(b.center.z));
 
 /// Where the shaft stops, which is where the climb stops and the summit begins.
 double _shaftEnds(Level level) {
@@ -105,25 +105,25 @@ void main() {
     var standing = 0.0;
     var edge = 18.0;
     for (final flight in flights) {
-      final top = flight.centre.y + flight.size.y / 2.0;
+      final top = flight.center.y + flight.size.y / 2.0;
       expect(
         top - standing,
         lessThan(_doubleJump),
         reason:
-            'the flight at ${flight.centre.z} is '
+            'the flight at ${flight.center.z} is '
             '${(top - standing).toStringAsFixed(2)} m up, against a double '
             'jump of $_doubleJump',
       );
       expect(
-        flight.centre.z - flight.size.z / 2.0 - edge,
+        flight.center.z - flight.size.z / 2.0 - edge,
         lessThan(_gap),
         reason:
-            'the flight at ${flight.centre.z} is '
-            '${(flight.centre.z - flight.size.z / 2.0 - edge).toStringAsFixed(2)}'
+            'the flight at ${flight.center.z} is '
+            '${(flight.center.z - flight.size.z / 2.0 - edge).toStringAsFixed(2)}'
             ' m across, against $_gap',
       );
       standing = top;
-      edge = flight.centre.z + flight.size.z / 2.0;
+      edge = flight.center.z + flight.size.z / 2.0;
     }
   });
 
@@ -148,30 +148,30 @@ void main() {
     final over = _shaftEnds(level);
     final flights = <Brush>[
       for (final flight in _flights(level))
-        if (flight.centre.z < over) flight,
+        if (flight.center.z < over) flight,
     ];
     expect(flights.length, greaterThanOrEqualTo(10));
     expect(
       shaft.position.z - size.z / 2.0,
-      lessThanOrEqualTo(flights.first.centre.z - flights.first.size.z / 2.0),
+      lessThanOrEqualTo(flights.first.center.z - flights.first.size.z / 2.0),
     );
     expect(
       over,
-      greaterThanOrEqualTo(flights.last.centre.z + flights.last.size.z / 2.0),
+      greaterThanOrEqualTo(flights.last.center.z + flights.last.size.z / 2.0),
     );
 
     // Nothing standable between the flights: every brush over the shaft either
     // reaches a flight's own height or is one of the ledges hung off their
     // sides, and none of them sits in a gap on the walked line.
     for (var i = 1; i < flights.length; i++) {
-      final from = flights[i - 1].centre.z + flights[i - 1].size.z / 2.0;
-      final to = flights[i].centre.z - flights[i].size.z / 2.0;
+      final from = flights[i - 1].center.z + flights[i - 1].size.z / 2.0;
+      final to = flights[i].center.z - flights[i].size.z / 2.0;
       final between = <Brush>[
         for (final brush in level.brushes)
-          if (brush.centre.x.abs() < 4.0 &&
-              brush.centre.z > from &&
-              brush.centre.z < to &&
-              brush.centre.y + brush.size.y / 2.0 > 0.0)
+          if (brush.center.x.abs() < 4.0 &&
+              brush.center.z > from &&
+              brush.center.z < to &&
+              brush.center.y + brush.size.y / 2.0 > 0.0)
             brush,
       ];
       expect(
@@ -270,16 +270,16 @@ void main() {
     final over = _shaftEnds(climb.level);
     final flights = <Brush>[
       for (final flight in _flights(climb.level))
-        if (flight.centre.z < over) flight,
+        if (flight.center.z < over) flight,
     ];
     final at = <(String, Vector3)>[
       for (var i = 0; i < flights.length; i++)
         (
           'flight ${i + 1}',
           Vector3(
-            flights[i].centre.x,
-            flights[i].centre.y + flights[i].size.y / 2.0 + 1.0,
-            flights[i].centre.z,
+            flights[i].center.x,
+            flights[i].center.y + flights[i].size.y / 2.0 + 1.0,
+            flights[i].center.z,
           ),
         ),
     ];
@@ -340,13 +340,13 @@ void main() {
     final ledges = <Brush>[
       for (final brush in level.brushes)
         if (brush.size.y < 1.5 &&
-            brush.centre.y > 0.0 &&
-            brush.centre.x.abs() > 4.0)
+            brush.center.y > 0.0 &&
+            brush.center.x.abs() > 4.0)
           brush,
     ];
     expect(ledges.length, greaterThanOrEqualTo(8));
     expect(
-      ledges.map((Brush b) => b.centre.z).reduce(math.max),
+      ledges.map((Brush b) => b.center.z).reduce(math.max),
       greaterThan(120.0),
       reason: 'the top half of the tower has nothing beside the stair',
     );
