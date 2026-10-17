@@ -14,6 +14,7 @@ import 'package:vector_math/vector_math.dart';
 import 'editing.dart' show Picked;
 import 'editor_command.dart';
 import 'editor_hints.dart';
+import 'editor_menus.dart';
 import 'gizmos.dart';
 import 'inspector_sections.dart';
 import 'plugin_assets.dart';
@@ -739,6 +740,191 @@ final class EditorPieces extends EditorRegistry {
     return null;
   }
 
+  // ------------------------------------------- menus, toolbar, tool modes
+
+  /// The command [written] names, as a menu entry or a button runs it: one
+  /// of the editor's own as it is, any other as this view publishes it.
+  String _commandNamed(String written, String what) {
+    final command = editorCommandNames.contains(written)
+        ? written
+        : published(written, what: 'command');
+    if (!commandNames.contains(command)) {
+      throw PluginException(
+        '$what runs the command "$command", which nobody has added: add it '
+        'with addCommand first, or name one of the editor\'s own',
+      );
+    }
+    return command;
+  }
+
+  /// Refuses [name] as [what] where another owner already has it, with a
+  /// [NameTakenException] naming the owner.
+  void _refuseTakenName(List<_Named> taken, String name, String what) {
+    for (final existing in taken) {
+      if (existing.name != name) continue;
+      throw NameTakenException(name, what: what, owner: existing.owner);
+    }
+  }
+
+  /// Adds [item] to its menu, its name published as `<namespace>.<name>`
+  /// through a plugin's view, and the command it runs as well when it is a
+  /// bare name of the plugin's own.
+  ///
+  /// Throws a [NameTakenException] for a name another owner already added,
+  /// and for a [EditorMenuItem.shortcut] another entry has; a
+  /// [PluginException] for a command nobody has added.
+  Registration addMenuItem(EditorMenuItem item) {
+    final name = published(item.name, what: 'menu entry');
+    _refuseTakenName(_store.menus, name, 'the menu entry');
+    final command = _commandNamed(item.command, 'menu entry "$name"');
+    if (item.shortcut case final shortcut?) {
+      for (final existing in _store.menus) {
+        if (existing.item.shortcut != shortcut) continue;
+        throw NameTakenException(
+          '$shortcut',
+          what: 'the shortcut',
+          owner: existing.owner,
+          detail: 'it runs the menu entry "${existing.name}"',
+        );
+      }
+    }
+    return _store.add(
+      _store.menus,
+      _Menu(
+        name,
+        EditorMenuItem(
+          name: name,
+          label: item.label,
+          command: command,
+          menu: item.menu,
+          arguments: Map<String, Object?>.unmodifiable(item.arguments),
+          shortcut: item.shortcut,
+        ),
+        _owner,
+        _scope,
+        _store.sequence++,
+      ),
+      _scope,
+    );
+  }
+
+  /// Every menu entry added, in order, each with its name and its command
+  /// as published.
+  List<EditorMenuItem> get menuItems => <EditorMenuItem>[
+    for (final added in _store.ordered(_store.menus)) added.item,
+  ];
+
+  /// The entry [shortcut] runs, or null.
+  EditorMenuItem? menuItemFor(EditorShortcut shortcut) => menuItems
+      .where((EditorMenuItem item) => item.shortcut == shortcut)
+      .firstOrNull;
+
+  /// The command [item] runs, read back as the editor reads any call
+  /// ([readCommand]); null for a command no longer added, or arguments its
+  /// reader refuses.
+  DocumentCommand? commandOf(EditorMenuItem item) => readCommand(
+    <String, Object?>{...item.arguments, 'command': item.command},
+  );
+
+  /// Adds [item] to the toolbar, its name published as
+  /// `<namespace>.<name>` through a plugin's view, and the command or the
+  /// tool mode it names as well when it is a bare name of the plugin's own.
+  ///
+  /// Throws a [NameTakenException] for a name another owner already added;
+  /// a [PluginException] for a command nobody has added, or a tool mode
+  /// nobody has.
+  Registration addToolbarItem(EditorToolbarItem item) {
+    final name = published(item.name, what: 'toolbar button');
+    _refuseTakenName(_store.toolbar, name, 'the toolbar button');
+    final written = item.command;
+    final EditorToolbarItem filed;
+    if (written != null) {
+      filed = EditorToolbarItem.command(
+        name: name,
+        label: item.label,
+        icon: item.icon,
+        command: _commandNamed(written, 'toolbar button "$name"'),
+        arguments: Map<String, Object?>.unmodifiable(item.arguments),
+      );
+    } else {
+      final mode = published(item.toolMode!, what: 'tool mode');
+      if (toolModeNamed(mode) == null) {
+        throw PluginException(
+          'toolbar button "$name" switches the tool mode "$mode", which '
+          'nobody has added: add it with addToolMode first',
+        );
+      }
+      filed = EditorToolbarItem.toolMode(
+        name: name,
+        label: item.label,
+        icon: item.icon,
+        toolMode: mode,
+      );
+    }
+    return _store.add(
+      _store.toolbar,
+      _Button(name, filed, _owner, _scope, _store.sequence++),
+      _scope,
+    );
+  }
+
+  /// Every toolbar button added, in order.
+  List<EditorToolbarItem> get toolbarItems => <EditorToolbarItem>[
+    for (final added in _store.ordered(_store.toolbar)) added.item,
+  ];
+
+  /// Makes [mode] one of the editor's tool modes, its name published as
+  /// `<namespace>.<name>` through a plugin's view.
+  ///
+  /// Throws an [ArgumentError] for an empty or dotted name, and a
+  /// [NameTakenException] for a name another owner already added.
+  Registration addToolMode(String written, EditorToolMode mode) {
+    final name = published(written, what: 'tool mode');
+    _refuseTakenName(_store.toolModes, name, 'the tool mode');
+    return _store.add(
+      _store.toolModes,
+      _Mode(name, mode, _owner, _scope, _store.sequence++),
+      _scope,
+    );
+  }
+
+  /// Every tool mode added, in order, by published name.
+  List<String> get toolModeNames => <String>[
+    for (final added in _store.ordered(_store.toolModes)) added.name,
+  ];
+
+  /// The tool mode published as [name], or null.
+  EditorToolMode? toolModeNamed(String name) =>
+      _store.toolModes.where((_Mode m) => m.name == name).firstOrNull?.mode;
+
+  /// What [mode] answers to [event] — `pressed`, `dragged` or `released`
+  /// — at [input]: the command the editor runs, or null for none and for a
+  /// mode that threw, which costs its own answer and not the editor.
+  static DocumentCommand? askToolMode(
+    EditorToolMode mode,
+    ToolModeEvent event,
+    ToolModeInput input,
+  ) {
+    try {
+      return switch (event) {
+        ToolModeEvent.press => mode.pressed(input),
+        ToolModeEvent.drag => mode.dragged(input),
+        _ => mode.released(input),
+      };
+    } on Object {
+      return null;
+    }
+  }
+
+  /// What [mode] previews at [input]; nothing for a mode that threw.
+  static List<GizmoMark> previewOf(EditorToolMode mode, ToolModeInput input) {
+    try {
+      return mode.preview(input);
+    } on Object {
+      return const <GizmoMark>[];
+    }
+  }
+
   void _refuseTaken(List<_Named> taken, String name, String what) {
     for (final existing in taken) {
       if (existing.name != name) continue;
@@ -822,6 +1008,9 @@ final class _PieceStore {
   final List<_Gizmo> gizmos = <_Gizmo>[];
   final List<_Importer> importers = <_Importer>[];
   final List<_Asset> assets = <_Asset>[];
+  final List<_Menu> menus = <_Menu>[];
+  final List<_Button> toolbar = <_Button>[];
+  final List<_Mode> toolModes = <_Mode>[];
   final List<_Listener> listeners = <_Listener>[];
   final EditorHints hints = EditorHints();
   int sequence = 0;
@@ -915,6 +1104,24 @@ final class _Asset extends _Named {
   _Asset(super.name, this.entry, super.owner, super.scope, super.sequence);
 
   final AssetBrowserEntry entry;
+}
+
+final class _Menu extends _Named {
+  _Menu(super.name, this.item, super.owner, super.scope, super.sequence);
+
+  final EditorMenuItem item;
+}
+
+final class _Button extends _Named {
+  _Button(super.name, this.item, super.owner, super.scope, super.sequence);
+
+  final EditorToolbarItem item;
+}
+
+final class _Mode extends _Named {
+  _Mode(super.name, this.mode, super.owner, super.scope, super.sequence);
+
+  final EditorToolMode mode;
 }
 
 final class _Component extends _Added {

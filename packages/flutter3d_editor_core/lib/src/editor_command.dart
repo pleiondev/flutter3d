@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
     show LinearColor;
+import 'package:flutter3d_plugin_api/editor.dart' show EditorCommandValue;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -44,32 +45,21 @@ import 'palette_items.dart';
 ///
 /// Everything else — [EditorHistory.run], a step of undo named by [says] — takes
 /// either family alike.
-abstract final class DocumentCommand {
+///
+/// **Its [name] is what it is called on the wire**, and in a list of tools:
+/// one word in lower camel case for the editor's own, matching the method it
+/// stands for, so a person reading a log of what an agent did reads verbs
+/// rather than numbers.
+abstract final class DocumentCommand extends EditorCommandValue {
   const DocumentCommand();
-
-  /// What this is called on the wire, and in a list of tools.
-  ///
-  /// One word in lower camel case, matching the method it stands for, so a
-  /// person reading a log of what an agent did reads verbs rather than numbers.
-  String get name;
 
   /// What it does, read as a sentence, with the numbers in it: what a status
   /// bar prints and what a step of undo is called.
   String get says;
 
-  /// Everything this carries except its [name].
-  Map<String, Object?> get arguments;
-
   /// Does it, to [editing]. False, having changed nothing, when it cannot —
   /// see [EditorCommand.apply].
   bool apply(Editing editing);
-
-  /// This command as a map, ready for `jsonEncode`: [name] under `command`,
-  /// then [arguments].
-  Map<String, Object?> toJson() => <String, Object?>{
-    'command': name,
-    ...arguments,
-  };
 }
 
 /// A command a plugin brings: one thing somebody can do to a document that the

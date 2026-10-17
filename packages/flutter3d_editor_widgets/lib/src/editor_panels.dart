@@ -3,6 +3,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter3d_plugin_api/editor.dart' show EditorCommandValue;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 
 import 'dock_layout.dart';
@@ -69,6 +70,17 @@ final class EditorPanelContext {
   /// step of undo. False, having changed nothing, for a command the editor
   /// does not know, cannot read, or that does not apply.
   bool run(Map<String, Object?> command) => _run(command);
+
+  /// Runs [command], typed: an editor's own command, a plugin's
+  /// `PluginCommand`, or an [EditorCommandValue] a panel made itself, as
+  /// one step of undo by the route a key and an agent take. False as [run]
+  /// answers.
+  ///
+  /// **The typed way in**: a panel that holds its plugin's command class
+  /// hands it over, and the editor reads it back by its name, so a
+  /// misspelled key is a compile error in the panel and not a command that
+  /// silently does nothing.
+  bool runCommand(EditorCommandValue command) => _run(command.toJson());
 
   /// Says [says] on the editor's bar and in its console.
   void say(String says) => _say?.call(says);

@@ -751,3 +751,34 @@ abstract base class EditorHintRegistry extends PluginRegistry {
   @override
   EditorHintRegistry forPlugin(PluginScope scope);
 }
+
+/// A change to an editor's document as a typed value: a command's name and
+/// what it carries.
+///
+/// **The one shape every route into the document takes**: a key, a menu,
+/// an agent over MCP and a plugin's panel all run a command, and an editor
+/// reads it back from [toJson] by its [name]. An editor's own command
+/// hierarchy (`DocumentCommand` in `flutter3d_editor_core`) is one of
+/// these, and so is a plugin's (`PluginCommand`); a panel written against
+/// the widgets alone, which cannot see that package, extends this
+/// directly. A panel hands one to its context (`EditorPanelContext.runCommand`)
+/// rather than spelling the map by hand.
+///
+/// `base`, so a member added here in a 1.x release arrives with a body.
+abstract base class EditorCommandValue {
+  const EditorCommandValue();
+
+  /// What the command is called: `<namespace>.<name>` for a plugin's, one
+  /// word for one of the editor's own.
+  String get name;
+
+  /// Everything it carries but its [name], as JSON writes it.
+  Map<String, Object?> get arguments;
+
+  /// The command as a map, ready for `jsonEncode`: [name] under `command`,
+  /// then [arguments].
+  Map<String, Object?> toJson() => <String, Object?>{
+    'command': name,
+    ...arguments,
+  };
+}

@@ -52,6 +52,7 @@ export 'src/editing.dart';
 export 'src/editor_command.dart';
 export 'src/editor_hints.dart';
 export 'src/editor_history.dart';
+export 'src/editor_menus.dart';
 export 'src/editor_pieces.dart';
 export 'src/editor_section.dart';
 export 'src/experiment_editing.dart';

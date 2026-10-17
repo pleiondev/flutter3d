@@ -8,6 +8,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
+import 'package:flutter3d_plugin_api/editor.dart' show EditorCommandValue;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -28,6 +29,19 @@ final class _Scope extends PluginScope {
 
   @override
   void track(Registration registration) => registrations.add(registration);
+}
+
+/// A plugin's command as a panel holds it.
+final class _Sink extends EditorCommandValue {
+  const _Sink(this.depth);
+
+  final int depth;
+
+  @override
+  String get name => 'boats.sink';
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{'depth': depth};
 }
 
 EditorPanel _tide({DockSide? dock = DockSide.right}) => EditorPanel(
@@ -137,6 +151,43 @@ void main() {
     expect(find.text('1 selected in levels/one.json'), findsOneWidget);
     await tester.tap(find.byType(TextButton));
     expect(ran.single['command'], 'boats.sink');
+  });
+
+  testWidgets('a panel hands over a typed command, read back by its name', (
+    WidgetTester tester,
+  ) async {
+    final ran = <Map<String, Object?>>[];
+    final panels = EditorPanels()
+      ..addPanel(
+        EditorPanel(
+          id: 'depth',
+          title: 'Depth',
+          dock: DockSide.left,
+          builder: (EditorPanelContext panel) => TextButton(
+            onPressed: () => panel.runCommand(const _Sink(2)),
+            child: const Text('sink'),
+          ),
+        ),
+      );
+    final docked = panels.dockPanels(
+      (BuildContext context) => EditorPanelContext(
+        context: context,
+        document: const <String, Object?>{},
+        run: (Map<String, Object?> command) {
+          ran.add(command);
+          return true;
+        },
+      ),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: Builder(builder: docked.single.builder)),
+      ),
+    );
+    await tester.tap(find.byType(TextButton));
+    // Mutation: hand the editor the arguments without the name, or the name
+    // under a key of its own. The editor reads the command by `command`.
+    expect(ran.single, <String, Object?>{'command': 'boats.sink', 'depth': 2});
   });
 
   testWidgets('a panel that throws shows why, not a red screen', (
