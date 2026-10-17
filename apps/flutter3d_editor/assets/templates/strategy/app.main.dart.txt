@@ -341,7 +341,6 @@ class _LevelScreenState extends State<LevelScreen> {
             builder:
                 (BuildContext context, RunStatus<WalkableLevel> status, _) =>
                     switch (status) {
-                      RunLoading() => const SizedBox.shrink(),
                       RunFailed(:final error) => DidNotStart(
                         error,
                         background: const Color(0xFF14161A),
