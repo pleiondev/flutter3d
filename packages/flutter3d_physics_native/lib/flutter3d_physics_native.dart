@@ -8,6 +8,7 @@
 /// the fallback where it cannot run.
 library;
 
+export 'src/background/background_shapes.dart';
 export 'src/core/load.dart';
 export 'src/fire_exposure.dart';
 // The core's own ClothMesh and ClothSettings by the names CoreClothMesh and

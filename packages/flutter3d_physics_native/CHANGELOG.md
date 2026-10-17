@@ -1,3 +1,13 @@
+## 1.0.0-rc.1+1
+
+- **A liquid's shapes worked out off the frame.** `BackgroundShapeSolver`,
+  handed to a `FluidWorld` as its `shapes`, works out a cross-section's
+  modes and a meniscus not met before on a long-lived isolate, the same
+  numbers the frame would have worked out, while the vessels carry on
+  without them. When an answer arrives is the machine's, so a world under a
+  bit-exact profile refuses it; in the browser, which has no isolate here,
+  it answers at once.
+
 ## 1.0.0-rc.1
 
 - **A 1.0 snapshot is committed bytes, not a round trip.** A world of

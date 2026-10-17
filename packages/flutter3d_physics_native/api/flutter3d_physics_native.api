@@ -4,6 +4,16 @@
 
 library package:flutter3d_physics_native/flutter3d_physics_native.dart
 
+final class BackgroundShapeSolver extends LiquidShapeSolver
+  BackgroundShapeSolver()
+  Future<void> settled()
+  SurfaceModes? surfaceModes(SurfaceModesRequest request)
+  TubeMeniscus? meniscus(MeniscusRequest request)
+  bool get answersAtOnce
+  int get pending
+  static bool get isAvailable
+  void dispose()
+
 final class ClothBall
   String toString()
   bool operator ==(Object other)
