@@ -1024,6 +1024,7 @@ export 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
         ReadingKind,
         ReadingQuality,
         RenderAnchor,
+        RenderParameterWrite,
         RenderProgram,
         RenderProgramFrame,
         RenderStepRegistry,

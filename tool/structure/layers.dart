@@ -322,7 +322,11 @@ const Set<String> pluginContractRoots = <String>{
 /// drives a render step frame by frame, and `RenderProgramFrame`, the frame
 /// it is handed, so that a data section hands a step its module without
 /// the runtime naming the renderer's types.
-const int pluginApiTypeBudget = 81;
+/// One more with one object per hook parameter: `RenderParameterWrite`,
+/// what a render program sets a parameter with, where the frame took a
+/// parameter's index, a component and a value one by one; a write can gain
+/// members, three scalars cannot.
+const int pluginApiTypeBudget = 82;
 
 /// The packages of the simulation stack: what steps a run, which a server
 /// replays with no window and no GPU.

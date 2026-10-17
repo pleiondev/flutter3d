@@ -47,12 +47,16 @@ final class _Program extends RenderProgram {
   void run(RenderProgramFrame frame) {
     frames.add(frame.frame);
     if (parameters.contains('strength')) {
-      frame.setParameter(parameters.indexOf('strength'), 0, 0.5);
+      frame.setParameter(
+        RenderParameterWrite.component(parameters.indexOf('strength'), 0, 0.5),
+      );
     }
     if (parameters.contains('tint')) {
-      frame.setParameterFloats(
-        parameters.indexOf('tint'),
-        Float32List.fromList(<double>[1.0, 0.5, 0.25]),
+      frame.setParameter(
+        RenderParameterWrite(
+          parameters.indexOf('tint'),
+          Float32List.fromList(<double>[1.0, 0.5, 0.25]),
+        ),
       );
     }
     if (drawOn.contains(runs++)) frame.draw();

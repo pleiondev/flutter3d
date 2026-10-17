@@ -12,6 +12,12 @@
   WebAssembly runs it as the interpreter does. `wasmPluginAbiMax` and
   `wasmRenderAbi` are 3, and `DataSections.runtimeKeys` gains
   `wasmRender`.
+- **Breaking: a render module's imports are a final class the runtime
+  makes.** `WasmRenderImports` is made over a declaration's parameter
+  count and light names, runs each frame's call `during` the frame it is
+  handed, and turns what the frame refuses into a trap; a runtime calls its
+  members, one per import, and nobody extends it. It hands the frame each
+  `param` and `param_floats` as one `RenderParameterWrite`.
 - **Breaking: a module from a URL is pinned by its hash.** `WasmSystemSpec`
   and `WasmRenderSpec` take a `sha256`, whose key `WasmSystemSpec.keys`
   gains; a module fetched from an `https:` URL without one, or whose bytes

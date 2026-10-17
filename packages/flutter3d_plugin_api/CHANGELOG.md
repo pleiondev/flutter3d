@@ -5,6 +5,13 @@
   index through a `RenderProgramFrame`, draws, and asks a light type's
   code; a data section reaches the one for its step with
   `DataSectionContext.renderProgram`.
+- **Breaking: a render program sets a parameter with one object.**
+  `RenderProgramFrame.setParameter` takes a `RenderParameterWrite` (new):
+  the parameter, the first component and the values, made with
+  `RenderParameterWrite.component(parameter, component, value)` for one
+  component or `RenderParameterWrite(parameter, values)` for several.
+  `setParameterFloats` is gone into it. A write can gain members in a
+  minor; three scalars could not.
 - **New: `EditorCommandValue`.** A command as its name and arguments, in
   `editor.dart`: what the editor's own commands and a plugin's are, and
   what a panel hands the editor typed.

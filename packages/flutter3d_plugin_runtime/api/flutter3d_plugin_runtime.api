@@ -238,14 +238,17 @@ final class WasmRenderCall
   int frame
   int view
 
-abstract base class WasmRenderImports
-  abstract double get time
-  abstract int viewSize(int axis)
-  abstract void draw()
-  abstract void param(int parameter, int component, double value)
-  abstract void paramFloats(int parameter, Float32List values)
-  const WasmRenderImports()
+final class WasmRenderImports
+  T during<T>(RenderProgramFrame frame, T Function() call)
+  WasmRenderImports({required this.parameters, this.lights = const <String>[]})
+  double get time
+  final List<String> lights
+  final int parameters
   int lightCode(int light)
+  int viewSize(int axis)
+  void draw()
+  void param(int parameter, int component, double value)
+  void paramFloats(int parameter, Float32List values)
 
 final class WasmRenderNode extends RenderProgram
   List<String> get parameters

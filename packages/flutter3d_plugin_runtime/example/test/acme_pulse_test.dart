@@ -43,13 +43,17 @@ final class _Frame extends RenderProgramFrame {
   @override
   int get height => 32;
 
+  /// A write of one component reads as `param`, a write of several as
+  /// `floats`: the two imports, as the module made them.
   @override
-  void setParameter(int parameter, int component, double value) =>
-      said.add('param $parameter $component $value');
-
-  @override
-  void setParameterFloats(int parameter, Float32List values) =>
-      said.add('floats $parameter ${values.map((v) => v.toStringAsFixed(2))}');
+  void setParameter(RenderParameterWrite write) {
+    final RenderParameterWrite(:parameter, :component, :values) = write;
+    said.add(
+      values.length == 1
+          ? 'param $parameter $component ${values.single}'
+          : 'floats $parameter ${values.map((v) => v.toStringAsFixed(2))}',
+    );
+  }
 
   @override
   void draw() => said.add('draw');

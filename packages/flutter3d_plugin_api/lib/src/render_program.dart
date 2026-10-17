@@ -57,17 +57,19 @@ abstract base class RenderProgramFrame {
   /// The view's height, in pixels.
   int get height;
 
-  /// Component [component] of parameter [parameter] (by its index in
-  /// [RenderProgram.parameters]) is [value] from this frame's draw on, until
-  /// it is set again; a parameter never set is the default its stage
-  /// declares. Throws a `PluginException` for a parameter or a component
-  /// the step's stage does not have.
-  void setParameter(int parameter, int component, double value);
-
-  /// Parameter [parameter]'s components are [values], copied before this
-  /// returns: the caller may reuse [values] at once. Throws as
-  /// [setParameter] does, and for more values than the parameter has.
-  void setParameterFloats(int parameter, Float32List values);
+  /// The components [write] names of one of the program's parameters are
+  /// its values from this frame's draw on, until they are set again; a
+  /// parameter never set is the default its stage declares. The values are
+  /// copied before this returns: the caller may reuse them at once.
+  ///
+  /// Throws a `PluginException` for a parameter the step's stage does not
+  /// have, and for components past the ones it has.
+  ///
+  /// **Breaking in 1.0.0-rc.1:** one write object, where it took
+  /// `(parameter, component, value)` and `setParameterFloats` took
+  /// `(parameter, values)`; a write can gain members, a list of parameters
+  /// cannot.
+  void setParameter(RenderParameterWrite write);
 
   /// The step draws this frame, with its parameters as set.
   void draw();
@@ -75,4 +77,34 @@ abstract base class RenderProgramFrame {
   /// The code the light type called [name] (`acme.tube`) is packed with
   /// this frame, or null where no hook packs it.
   int? lightCode(String name) => null;
+}
+
+/// What a [RenderProgram] sets one of its parameters with
+/// ([RenderProgramFrame.setParameter]): which parameter, from which
+/// component, to which values.
+///
+/// **One object, so a command can grow** — a write that blends, say —
+/// without a program written against 1.0 breaking.
+final class RenderParameterWrite {
+  /// Parameter [parameter]'s components from [component] on are [values]:
+  /// the first [values].length of them when [component] is nought.
+  RenderParameterWrite(this.parameter, this.values, {this.component = 0});
+
+  /// Component [component] of parameter [parameter] is [value].
+  RenderParameterWrite.component(this.parameter, this.component, double value)
+    : values = Float32List(1)..[0] = value;
+
+  /// The parameter, by its index in [RenderProgram.parameters].
+  final int parameter;
+
+  /// The first component written: nought for `x` or a scalar.
+  final int component;
+
+  /// The values written, from [component] on, in the stage's 32-bit
+  /// floats. Read during the call it is handed to, never kept.
+  final Float32List values;
+
+  @override
+  String toString() =>
+      'RenderParameterWrite($parameter, from $component: $values)';
 }

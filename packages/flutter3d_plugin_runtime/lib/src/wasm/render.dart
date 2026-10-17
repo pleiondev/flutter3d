@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 
 import 'abi.dart';
@@ -143,7 +141,13 @@ final class WasmRenderNode extends RenderProgram {
         'a render node runs a module decoded as a render module',
       );
     }
-    _imports = _RenderImports(this);
+    _imports = WasmRenderImports(
+      parameters: spec.parameters.length,
+      lights: <String>[
+        for (final name in spec.lights)
+          name.contains('.') ? name : '$plugin.$name',
+      ],
+    );
     _instance = runtime.instantiate(
       WasmInstantiation.render(module, render: _imports, limits: spec.limits),
     );
@@ -155,7 +159,7 @@ final class WasmRenderNode extends RenderProgram {
   /// The id of the plugin it belongs to.
   final String plugin;
 
-  late final _RenderImports _imports;
+  late final WasmRenderImports _imports;
   late final WasmInstance _instance;
   final WasmRenderCall _call = WasmRenderCall();
   String? _trapped;
@@ -173,12 +177,14 @@ final class WasmRenderNode extends RenderProgram {
   void run(RenderProgramFrame frame) {
     final trapped = _trapped;
     if (trapped != null) throw WasmTrapException(trapped);
-    _imports.frame = frame;
     try {
-      _instance.render(
-        _call
-          ..frame = frame.frame
-          ..view = frame.view,
+      _imports.during(
+        frame,
+        () => _instance.render(
+          _call
+            ..frame = frame.frame
+            ..view = frame.view,
+        ),
       );
     } on WasmTrapException catch (trap, stackTrace) {
       _trapped = trap.message;
@@ -189,81 +195,6 @@ final class WasmRenderNode extends RenderProgram {
         ),
         stackTrace,
       );
-    } finally {
-      _imports.frame = null;
     }
   }
-
-  /// The [lights] entry [index], as the light type's whole name.
-  String _light(int index) {
-    final lights = spec.lights;
-    if (index < 0 || index >= lights.length) {
-      throw WasmTrapException(
-        'the module asked for light type $index and declares '
-        '${lights.length}',
-      );
-    }
-    final name = lights[index];
-    return name.contains('.') ? name : '$plugin.$name';
-  }
-}
-
-/// A render module's imports, over the frame its node is running.
-final class _RenderImports extends WasmRenderImports {
-  _RenderImports(this._node);
-
-  final WasmRenderNode _node;
-  RenderProgramFrame? frame;
-
-  RenderProgramFrame get _frame =>
-      frame ??
-      (throw const WasmTrapException(
-        'the module called a render import outside a frame',
-      ));
-
-  int _parameter(int index) {
-    final count = _node.spec.parameters.length;
-    if (index < 0 || index >= count) {
-      throw WasmTrapException(
-        'the module set parameter $index and declares $count',
-      );
-    }
-    return index;
-  }
-
-  /// [command], with a refusal of the renderer's turned into a trap: the
-  /// module asked for something its step does not have.
-  void _guarded(void Function() command) {
-    try {
-      command();
-    } on PluginException catch (refused, stackTrace) {
-      Error.throwWithStackTrace(WasmTrapException(refused.message), stackTrace);
-    }
-  }
-
-  @override
-  void param(int parameter, int component, double value) => _guarded(
-    () => _frame.setParameter(_parameter(parameter), component, value),
-  );
-
-  @override
-  void paramFloats(int parameter, Float32List values) =>
-      _guarded(() => _frame.setParameterFloats(_parameter(parameter), values));
-
-  @override
-  void draw() => _frame.draw();
-
-  /// The frame's time, in seconds.
-  @override
-  double get time => _frame.time;
-
-  @override
-  int viewSize(int axis) => switch (axis) {
-    0 => _frame.width,
-    1 => _frame.height,
-    _ => 0,
-  };
-
-  @override
-  int lightCode(int light) => _frame.lightCode(_node._light(light)) ?? -1;
 }

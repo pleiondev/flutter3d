@@ -1,7 +1,11 @@
 import 'dart:typed_data';
 
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
-    show Flutter3dFormatException, PluginException;
+    show
+        Flutter3dFormatException,
+        PluginException,
+        RenderParameterWrite,
+        RenderProgramFrame;
 
 import 'interpreter.dart';
 import 'module.dart';
@@ -334,40 +338,118 @@ final class _NoStepImports extends WasmImports {
 /// module's memory, which the runtime copies during the call and never
 /// keeps ([paramFloats]); a resource is named by its index in the
 /// declaration, never by a name or a pointer the host would have to keep.
+/// Each member is one import, mirrored one to one.
 ///
-/// Implemented by the data plugin over its render step; a test implements
-/// it to watch what a module asks. A method throws [WasmTrapException] to
-/// stop the module.
-abstract base class WasmRenderImports {
-  const WasmRenderImports();
+/// **Made by the runtime, called by a [WasmRuntime].** A render node makes
+/// one over its declaration and runs each frame's call [during] the
+/// [RenderProgramFrame] it is handed, where every command lands. A runtime
+/// calls these members from the module's imports; nobody implements them,
+/// so they are a final class's, and an import a later ABI adds is a member
+/// added here.
+///
+/// **Breaking in 1.0.0-rc.1:** a final class the runtime makes, where it
+/// was an abstract class the data plugin implemented.
+///
+/// A member throws [WasmTrapException] to stop the module: for a parameter
+/// or a light type the declaration does not have, for a command outside a
+/// frame, and for whatever the frame refuses (a `PluginException`), with
+/// its message.
+final class WasmRenderImports {
+  /// The imports of a module whose declaration names [parameters]
+  /// parameters and the light types [lights], by their whole names
+  /// (`acme.tube`), in the declaration's order.
+  WasmRenderImports({required this.parameters, this.lights = const <String>[]});
+
+  /// How many parameters the declaration names: the indices `param` and
+  /// `param_floats` take are below it.
+  final int parameters;
+
+  /// The light types the declaration names, by their whole names, at the
+  /// index `light_code` takes.
+  final List<String> lights;
+
+  RenderProgramFrame? _frame;
+
+  RenderProgramFrame get _running =>
+      _frame ??
+      (throw const WasmTrapException(
+        'the module called a render import outside a frame',
+      ));
+
+  /// Runs [call] with every import landing on [frame], which is let go
+  /// when it returns or throws: what a render node does around each
+  /// frame's call into the module.
+  T during<T>(RenderProgramFrame frame, T Function() call) {
+    _frame = frame;
+    try {
+      return call();
+    } finally {
+      _frame = null;
+    }
+  }
+
+  int _parameter(int index) {
+    if (index < 0 || index >= parameters) {
+      throw WasmTrapException(
+        'the module set parameter $index and declares $parameters',
+      );
+    }
+    return index;
+  }
+
+  /// [write] handed to the frame, a refusal of the frame's turned into a
+  /// trap: the module asked for something its step does not have.
+  void _write(RenderParameterWrite write) {
+    final frame = _running;
+    try {
+      frame.setParameter(write);
+    } on PluginException catch (refused, stackTrace) {
+      Error.throwWithStackTrace(WasmTrapException(refused.message), stackTrace);
+    }
+  }
 
   /// `param(parameter, component, value)`: component [component] of the
   /// declaration's parameter [parameter] is [value] from this frame's draw
   /// on, until the module sets it again.
-  void param(int parameter, int component, double value);
+  void param(int parameter, int component, double value) => _write(
+    RenderParameterWrite.component(_parameter(parameter), component, value),
+  );
 
   /// `param_floats(parameter, ptr, len)`: parameter [parameter]'s
   /// components are [values], `len` bytes of 32-bit floats the module
   /// wrote at `ptr`. [values] is the runtime's copy, made for this call:
-  /// read it during the call and do not keep it.
-  void paramFloats(int parameter, Float32List values);
+  /// read during the call and not kept.
+  void paramFloats(int parameter, Float32List values) =>
+      _write(RenderParameterWrite(_parameter(parameter), values));
 
   /// `draw()`: the step draws this frame, with its parameters as set. A
   /// frame whose call never draws leaves the picture as it found it.
-  void draw();
+  void draw() => _running.draw();
 
   /// `time() -> f32`: the frame's time, in seconds since the renderer
   /// began.
-  double get time;
+  double get time => _running.time;
 
   /// `view_size(axis) -> i32`: the view's width in pixels for axis 0, its
   /// height for 1, nought for any other.
-  int viewSize(int axis);
+  int viewSize(int axis) => switch (axis) {
+    0 => _running.width,
+    1 => _running.height,
+    _ => 0,
+  };
 
   /// `light_code(light) -> i32`: the code the declaration's light type
   /// [light] is packed with this frame — what a lit stage tells it apart
-  /// by — or -1 when no hook packs it. -1 unless overridden.
-  int lightCode(int light) => -1;
+  /// by — or -1 when no hook packs it.
+  int lightCode(int light) {
+    if (light < 0 || light >= lights.length) {
+      throw WasmTrapException(
+        'the module asked for light type $light and declares '
+        '${lights.length}',
+      );
+    }
+    return _running.lightCode(lights[light]) ?? -1;
+  }
 }
 
 /// Something that runs an ABI 1 module.

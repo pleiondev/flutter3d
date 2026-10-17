@@ -13,7 +13,7 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
-    show PluginException, RenderProgramFrame;
+    show PluginException, RenderParameterWrite, RenderProgramFrame;
 import 'package:flutter3d_plugin_runtime/src/wasm/wasm.dart';
 import 'package:test/test.dart';
 
@@ -41,18 +41,20 @@ final class _Frame extends RenderProgramFrame {
   @override
   int get height => 48;
 
+  /// A write of one component reads as `param`, a write of several as
+  /// `floats`: the two imports, as the module made them.
   @override
-  void setParameter(int parameter, int component, double value) {
-    if (component > 3) {
+  void setParameter(RenderParameterWrite write) {
+    final RenderParameterWrite(:parameter, :component, :values) = write;
+    if (component + values.length > 4) {
       throw const PluginException('the stage has no fifth component');
     }
-    said.add('param $parameter $component $value');
-  }
-
-  @override
-  void setParameterFloats(int parameter, Float32List values) {
-    floats.add(values);
-    said.add('floats $parameter ${values.length}');
+    if (values.length == 1) {
+      said.add('param $parameter $component ${values.single}');
+    } else {
+      floats.add(values);
+      said.add('floats $parameter ${values.length}');
+    }
   }
 
   @override

@@ -10,7 +10,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
-    show RenderProgramFrame;
+    show RenderParameterWrite, RenderProgramFrame;
 import 'package:flutter3d_plugin_runtime/src/wasm/wasm.dart';
 import 'package:test/test.dart';
 
@@ -210,15 +210,18 @@ final class _Frame extends RenderProgramFrame {
   @override
   int get height => 48;
 
+  /// A write of one component reads as `param`, a write of several as
+  /// `floats`: the two imports, as the module made them.
   @override
-  void setParameter(int parameter, int component, double value) =>
-      said.add('param $parameter $component ${value.toStringAsFixed(3)}');
-
-  @override
-  void setParameterFloats(int parameter, Float32List values) => said.add(
-    'floats $parameter '
-    '${values.map((v) => v.toStringAsFixed(3)).join(' ')}',
-  );
+  void setParameter(RenderParameterWrite write) {
+    final RenderParameterWrite(:parameter, :component, :values) = write;
+    said.add(
+      values.length == 1
+          ? 'param $parameter $component ${values.single.toStringAsFixed(3)}'
+          : 'floats $parameter '
+                '${values.map((v) => v.toStringAsFixed(3)).join(' ')}',
+    );
+  }
 
   @override
   void draw() => said.add('draw');

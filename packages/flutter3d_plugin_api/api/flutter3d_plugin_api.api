@@ -744,6 +744,14 @@ final class RenderAnchor
   static const RenderAnchor beforeViewportShading = RenderAnchor._('f3d.before_viewport_shading')
   static const RenderAnchor beforeVolumetricFog = RenderAnchor._('f3d.before_volumetric_fog')
 
+final class RenderParameterWrite
+  RenderParameterWrite(this.parameter, this.values, {this.component = 0})
+  RenderParameterWrite.component(this.parameter, this.component, double value)
+  String toString()
+  final Float32List values
+  final int component
+  final int parameter
+
 abstract base class RenderProgram
   abstract List<String> get parameters
   abstract void run(RenderProgramFrame frame)
@@ -756,8 +764,7 @@ abstract base class RenderProgramFrame
   abstract int get view
   abstract int get width
   abstract void draw()
-  abstract void setParameter(int parameter, int component, double value)
-  abstract void setParameterFloats(int parameter, Float32List values)
+  abstract void setParameter(RenderParameterWrite write)
   const RenderProgramFrame()
   int? lightCode(String name)
 

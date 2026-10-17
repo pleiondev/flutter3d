@@ -1098,29 +1098,22 @@ final class _ProgramFrame extends RenderProgramFrame {
   }
 
   @override
-  void setParameter(int parameter, int component, double value) {
-    final values = _parameter(parameter);
-    if (component < 0 || component >= values.length) {
-      throw PluginException(
-        'render step "${_node.name}": its program set component $component '
-        'of "${_node.program!.parameters[parameter]}", which has '
-        '${values.length}',
-      );
-    }
-    values[component] = value;
-  }
-
-  @override
-  void setParameterFloats(int parameter, Float32List values) {
+  void setParameter(RenderParameterWrite write) {
+    final RenderParameterWrite(:parameter, :component, :values) = write;
     final into = _parameter(parameter);
-    if (values.length > into.length) {
+    final end = component + values.length;
+    if (component < 0 || end > into.length) {
+      final name = _node.program!.parameters[parameter];
       throw PluginException(
-        'render step "${_node.name}": its program handed '
-        '${values.length} floats to "${_node.program!.parameters[parameter]}", '
-        'which has ${into.length}',
+        values.length == 1
+            ? 'render step "${_node.name}": its program set component '
+                  '$component of "$name", which has ${into.length}'
+            : 'render step "${_node.name}": its program handed '
+                  '${values.length} floats from component $component to '
+                  '"$name", which has ${into.length}',
       );
     }
-    into.setRange(0, values.length, values);
+    into.setRange(component, end, values);
   }
 
   @override
