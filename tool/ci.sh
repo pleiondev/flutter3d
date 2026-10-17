@@ -557,6 +557,12 @@ for example in examples/*/; do
   step "test $(basename "$example")" in_dir "$example" flutter test
 done
 
+# Every kind `flutter3d create plugin` writes, generated against this tree,
+# analysed, and its own unit and conformance tests run: a template is a
+# string nobody compiles until somebody creates a plugin from it.
+step "plugin templates compile" bash -c \
+  'packages/flutter3d_build/tool/compile_plugin_kinds.sh "$(mktemp -d)"'
+
 # **The `golden` tag runs in its own CI job, not here.**
 #
 # What the tag covers is in apps/flutter3d_modeler/dart_test.yaml: not only a

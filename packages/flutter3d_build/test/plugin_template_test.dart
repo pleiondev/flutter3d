@@ -51,7 +51,8 @@ PluginDiscovery _discover(Map<String, String> files) {
 void main() {
   group('every plugin kind', () {
     for (final kind in PluginKind.values.where((k) => k.isPlugin)) {
-      test('$kind writes the package\'s eight files', () {
+      test('$kind writes the package\'s eight files, and what its kind '
+          'brings', () {
         // Mutation: drop the conformance test from the map. A plugin made
         // from the template would have no way to earn the badge.
         expect(pluginTemplate(name: _name, kind: kind).keys.toSet(), <String>{
@@ -63,6 +64,15 @@ void main() {
           'README.md',
           'CHANGELOG.md',
           '.gitignore',
+          // Mutation: drop the material's source. The build compiles nothing
+          // for it, and the stage its library names is answered by nobody.
+          if (kind == PluginKind.material) 'assets_src/$_name.f3dmat',
+          // Mutation: drop the data plugin's document or its module's text.
+          // What an application loads while the game runs is not there.
+          if (kind == PluginKind.data) ...<String>[
+            'plugin/$_name.f3dplugin',
+            'wasm/$_name.wat',
+          ],
         });
       });
 
@@ -104,7 +114,8 @@ void main() {
           library,
           contains(switch (kind) {
             _ when kind.simulates => 'touches: PluginTouches.simulation',
-            PluginKind.tool => 'touches: PluginTouches.tooling',
+            PluginKind.tool ||
+            PluginKind.editor => 'touches: PluginTouches.tooling',
             _ => 'touches: PluginTouches.view',
           }),
         );
@@ -134,9 +145,11 @@ void main() {
           pubspec.indexOf('\ndependencies:'),
           pubspec.indexOf('\ndev_dependencies:'),
         );
+        // The editor kind is the one exception, and only for the editor's
+        // own library: it is a dependency of an editor, never of a game.
         for (final tool in <String>[
           'flutter3d_mcp',
-          'flutter3d_editor_core',
+          if (kind != PluginKind.editor) 'flutter3d_editor_core',
           'flutter3d_build',
           'dart_mcp',
         ]) {
@@ -162,8 +175,8 @@ void main() {
   });
 
   group('kinds', () {
-    test('are the five decision 20 names and a backend, simulation for genre '
-        'and element', () {
+    test('are the ten plugin kinds and a backend, simulation for genre, '
+        'element and data', () {
       // Mutation: mark the genre a view kind. Its template would install
       // a step phase from a plugin the host holds to the view.
       expect(PluginKind.values.map((PluginKind k) => k.name), <String>[
@@ -172,6 +185,11 @@ void main() {
         'genre',
         'element',
         'tool',
+        'material',
+        'compute',
+        'codec',
+        'editor',
+        'data',
         'backend',
       ]);
       expect(
@@ -186,8 +204,12 @@ void main() {
           for (final kind in PluginKind.values)
             if (kind.simulates) kind.name,
         ],
-        <String>['genre', 'element'],
+        <String>['genre', 'element', 'data'],
       );
+      // Mutation: drop an alias. `--kind lit-model` and `--kind wasm`, the
+      // words the material and data kinds are also asked for by, are refused.
+      expect(PluginKind.named('lit-model'), same(PluginKind.material));
+      expect(PluginKind.named('wasm'), same(PluginKind.data));
     });
 
     test('a kind that simulates keeps its state in the loop\'s snapshots '

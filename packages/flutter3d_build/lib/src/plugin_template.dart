@@ -19,6 +19,7 @@ library;
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart'
     show packageName;
 
+import 'plugin_template_kinds.dart';
 import 'template_versions.dart';
 
 /// What a plugin is for, which decides what its template installs.
@@ -33,6 +34,7 @@ final class PluginKind {
     this.about, {
     required this.simulates,
     this.isPlugin = true,
+    this.aliases = const <String>[],
   });
 
   /// A pass of its own at a render anchor, switched like the engine's steps.
@@ -73,6 +75,52 @@ final class PluginKind {
     simulates: false,
   );
 
+  /// A material in the material language, injecting into the engine's
+  /// standard model: its surface rewritten, a term added to each light's
+  /// answer. Also `lit-model`.
+  static const PluginKind material = PluginKind._(
+    'material',
+    'a material injecting into the engine\'s standard model, in the '
+        'material language, compiled by the build and at run time',
+    simulates: false,
+    aliases: <String>['lit-model'],
+  );
+
+  /// A compute step in the frame: one kernel, placed where the hardware
+  /// layer chooses.
+  static const PluginKind compute = PluginKind._(
+    'compute',
+    'a compute step in the frame, one kernel placed where the hardware '
+        'layer chooses and refused with a reason where nothing computes it',
+    simulates: false,
+  );
+
+  /// An image format of its own, read wherever the engine loads a texture.
+  static const PluginKind codec = PluginKind._(
+    'codec',
+    'an image format of its own, read wherever the engine loads a texture',
+    simulates: false,
+  );
+
+  /// An editor plugin: a command, a menu entry with a key, a toolbar
+  /// button and a tool mode. A dependency of an editor, never of a game.
+  static const PluginKind editor = PluginKind._(
+    'editor',
+    'an editor plugin: a command, a menu entry with a key, a toolbar button '
+        'and a tool mode',
+    simulates: false,
+  );
+
+  /// A data plugin: a `.f3dplugin` document and the Wasm step module it
+  /// names, loaded while the game runs. Also `wasm`.
+  static const PluginKind data = PluginKind._(
+    'data',
+    'a data plugin: a .f3dplugin document and the Wasm step module it '
+        'names, loaded while the game runs',
+    simulates: true,
+    aliases: <String>['wasm'],
+  );
+
   /// A graphics backend: a `GraphicsDevice` an application registers with
   /// its device registry, started from the null backend in
   /// `examples/flutter3d_backend_null` under the package's own name. Not a
@@ -85,22 +133,28 @@ final class PluginKind {
     isPlugin: false,
   );
 
-  /// The six, in the order `--list` prints them.
+  /// Every kind, in the order `--list` prints them.
   static const List<PluginKind> values = <PluginKind>[
     renderStep,
     effect,
     genre,
     element,
     tool,
+    material,
+    compute,
+    codec,
+    editor,
+    data,
     backend,
   ];
 
-  /// The kind called [name], as `--kind` and `plugin.create` spell it.
+  /// The kind called [name], or by one of its [aliases], as `--kind` and
+  /// `plugin.create` spell it.
   ///
-  /// Throws an [ArgumentError] naming all six for any other word.
+  /// Throws an [ArgumentError] naming every kind for any other word.
   static PluginKind named(String name) {
     for (final kind in values) {
-      if (kind.name == name) return kind;
+      if (kind.name == name || kind.aliases.contains(name)) return kind;
     }
     throw ArgumentError.value(
       name,
@@ -110,8 +164,13 @@ final class PluginKind {
   }
 
   /// The word on the command line: `render-step`, `effect`, `genre`,
-  /// `element`, `tool`, `backend`.
+  /// `element`, `tool`, `material`, `compute`, `codec`, `editor`, `data`,
+  /// `backend`.
   final String name;
+
+  /// Other words `--kind` takes for it: `lit-model` for [material], `wasm`
+  /// for [data].
+  final List<String> aliases;
 
   /// Whether the package is a `Flutter3dPlugin` that discovery finds by its
   /// pubspec marker and an engine installs; false for a [backend].
@@ -143,7 +202,7 @@ Map<String, String> pluginTemplate({
   final package = packageName(name);
   if (kind == PluginKind.backend) return _backendTemplate(package);
   final pascal = _pascal(package);
-  final words = <String, String>{
+  final names = <String, String>{
     'name': package,
     'pascal': pascal,
     'class': '${pascal}Plugin',
@@ -151,15 +210,30 @@ Map<String, String> pluginTemplate({
     'kind': kind.name,
     'about': kind.about,
   };
-  String fill(String text) => text.replaceAllMapped(
-    RegExp(r'\{\{(\w+)\}\}'),
-    (Match m) => words[m[1]] ?? m[0]!,
-  );
+  String fillWith(Map<String, String> words, String text) =>
+      text.replaceAllMapped(
+        RegExp(r'\{\{(\w+)\}\}'),
+        (Match m) => words[m[1]] ?? m[0]!,
+      );
+  // What a material carries in its library and in assets_src/, and a data
+  // plugin's module as the library writes its bytes: filled with the names
+  // first, since the one holds placeholders of its own.
+  final words = <String, String>{
+    ...names,
+    'source': fillWith(names, materialTemplateSource),
+    'wasm': _bytesLiteral(dataWasm),
+  };
+  String fill(String text) => fillWith(words, text);
   final (library, unitTest, conformanceTest) = switch (kind) {
     PluginKind.renderStep => (_renderLib, _renderTest, _renderConformance),
     PluginKind.effect => (_effectLib, _effectTest, _viewConformance),
     PluginKind.genre => (_genreLib, _genreTest, _stateConformance),
     PluginKind.element => (_elementLib, _elementTest, _stateConformance),
+    PluginKind.material => (materialLib, materialTest, materialConformance),
+    PluginKind.compute => (computeLib, computeTest, computeConformance),
+    PluginKind.codec => (codecLib, codecTest, codecConformance),
+    PluginKind.editor => (editorLib, editorTest, editorConformance),
+    PluginKind.data => (dataLib, dataTest, dataConformance),
     _ => (_toolLib, _toolTest, _toolConformance),
   };
   return <String, String>{
@@ -173,8 +247,21 @@ Map<String, String> pluginTemplate({
     'README.md': fill(_readme),
     'CHANGELOG.md': fill(_changelog),
     '.gitignore': _gitignore,
+    // The files a kind brings beyond the eight every plugin has.
+    if (kind == PluginKind.material)
+      'assets_src/$package.f3dmat': words['source']!,
+    if (kind == PluginKind.data) ...<String, String>{
+      'plugin/$package.f3dplugin': fill(dataPluginDocument),
+      'wasm/$package.wat': fill(dataWat),
+    },
   };
 }
+
+/// [bytes] as the lines of a Dart list literal, twelve to a line.
+String _bytesLiteral(List<int> bytes) => <String>[
+  for (var i = 0; i < bytes.length; i += 12)
+    '  ${[for (final b in bytes.skip(i).take(12)) '0x${b.toRadixString(16).padLeft(2, '0')}'].join(', ')},${i == 0 ? ' //' : ''}\n',
+].join();
 
 /// The files of a backend called [package]: the null backend of
 /// `examples/flutter3d_backend_null`, file for file, with its names in
@@ -238,19 +325,40 @@ String _pascal(String package) => package
     .join();
 
 String _pubspec(PluginKind kind) {
+  // The kinds that place a node in the frame, held to the render checks on
+  // the software backend beside the plugin suite.
+  final drawsNodes =
+      kind == PluginKind.renderStep || kind == PluginKind.compute;
   final dependencies = <String>[
     dependencyLine('flutter3d_plugin_api'),
-    if (kind == PluginKind.renderStep || kind == PluginKind.effect)
+    if (kind == PluginKind.renderStep ||
+        kind == PluginKind.effect ||
+        kind == PluginKind.material ||
+        kind == PluginKind.compute ||
+        kind == PluginKind.codec)
       dependencyLine('flutter3d_core'),
-    if (kind == PluginKind.renderStep) dependencyLine('flutter3d_hardware'),
+    if (kind == PluginKind.renderStep || kind == PluginKind.compute)
+      dependencyLine('flutter3d_hardware'),
+    if (kind == PluginKind.compute) dependencyLine('flutter3d_shaders'),
     if (kind == PluginKind.element) ...<String>[
       dependencyLine('flutter3d_fields'),
       dependencyLine('flutter3d_foundation'),
     ],
+    if (kind == PluginKind.editor) ...<String>[
+      dependencyLine('flutter3d_editor_core'),
+      '  vector_math: ^2.2.0',
+    ],
+    if (kind == PluginKind.data) dependencyLine('flutter3d_plugin_runtime'),
     if (kind.simulates) dependencyLine('flutter3d_sim'),
   ];
   final devDependencies = <String>[
     dependencyLine('flutter3d_conformance'),
+    if (drawsNodes || kind == PluginKind.codec) ...<String>[
+      dependencyLine('flutter3d_conformance_render'),
+      dependencyLine('flutter3d_cpu'),
+    ],
+    if (kind == PluginKind.material || kind == PluginKind.codec)
+      dependencyLine('flutter3d_hardware'),
     if (!kind.simulates) dependencyLine('flutter3d_sim'),
     '  test: ^1.25.0',
   ];
@@ -327,8 +435,11 @@ off at a step boundary, determinism (every step run twice from a snapshot),
 every backend the manifest declares, and the budget in the manifest's
 `extra`. A plugin earns the conformance badge when every check passes on every
 declared backend, with a world given to the determinism check and a budget
-declared and kept — `flutter3d_conformance`'s README says it in full. The
-run writes `{{name}}.conformance.json` beside this pubspec, with the badge
+declared and kept — `flutter3d_conformance`'s README says it in full. A
+plugin that places nodes in the frame runs the render checks on the
+software backend beside the suite (`runPluginRenderConformance`), and its
+badge needs them too. The run writes `{{name}}.conformance.json` beside this
+pubspec, with the badge
 the suite gave: publish it with the package, and once it says
 `conformant@1.0`, write `conformance: conformant@1.0` under
 `flutter3d_plugins:` in the pubspec.
@@ -470,11 +581,15 @@ void main() {
 const String _renderConformance = r'''
 /// flutter3d_conformance's plugin suite, over a renderer drawn with the
 /// hardware layer's fake device: the step and the pass need a renderer to be
-/// added to, and the fake needs no GPU.
+/// added to, and the fake needs no GPU. The plugin places a node in the
+/// frame, so the render checks on the software backend are part of its
+/// badge too.
 library;
 
 import 'package:flutter3d_conformance/plugins.dart';
+import 'package:flutter3d_conformance_render/flutter3d_conformance_render.dart';
 import 'package:flutter3d_core/flutter3d_core.dart';
+import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show PluginRegistry;
@@ -488,6 +603,16 @@ void main() {
         Renderer.create(device: FakeBackend()).renderSteps,
       ],
     ),
+  );
+  runPluginRenderConformance(
+    () => const {{class}}(),
+    backend: 'cpu',
+    device: () => CpuDevice(
+      width: 32,
+      height: 32,
+      shaders: CpuShaderLibrary(builtinCpuShaders()),
+    ),
+    points: const PluginRenderPoints(nodes: <String>['{{name}}.pass']),
   );
 }
 ''';
