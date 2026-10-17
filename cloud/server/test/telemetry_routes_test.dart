@@ -189,7 +189,7 @@ void main() {
     final key = receipt['eraseKey']! as String;
     final kept = server.store.rows[run]!;
     expect(kept.outcome, 'lost');
-    expect(kept.trail.last.$1, lessThan(-2.0));
+    expect(kept.trail.last.x, lessThan(-2.0));
     expect(kept.eraseKeySha256, isNot(key));
     expect(kept.policy, '2026-10');
 

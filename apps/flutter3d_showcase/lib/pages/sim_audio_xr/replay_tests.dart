@@ -171,7 +171,10 @@ _Verdict _replay(Demo demo, _Ball game, {Iterable<int>? digestAt}) {
   // is refused by the playback, before a step is played.
   final InputTapePlayback playback;
   try {
-    playback = InputTapePlayback(demo, simulation: SimulationVersion.engineOnly);
+    playback = InputTapePlayback(
+      demo,
+      simulation: SimulationVersion.engineOnly,
+    );
   } on ReplayException catch (refused) {
     return _Refused(refused.reason);
   }
@@ -272,8 +275,14 @@ final class ReplayTestsDemo extends ShowcaseDemo {
     _lower = _replay(_tape, _lowerBall);
     _upperBall.restore(_tape.start);
     _lowerBall.restore(_tape.start);
-    _upperPlay = InputTapePlayback(_tape, simulation: SimulationVersion.engineOnly);
-    _lowerPlay = InputTapePlayback(_tape, simulation: SimulationVersion.engineOnly);
+    _upperPlay = InputTapePlayback(
+      _tape,
+      simulation: SimulationVersion.engineOnly,
+    );
+    _lowerPlay = InputTapePlayback(
+      _tape,
+      simulation: SimulationVersion.engineOnly,
+    );
     // The lamps are the lower lane's checkpoints: green while they agree,
     // red where the replay failed, dark after it, since a failed replay stops.
     for (final (int k, int step) in _tape.checkpoints.steps.indexed) {

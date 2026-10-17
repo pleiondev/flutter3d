@@ -69,11 +69,7 @@ const LoopPhase _cooling = LoopPhase.step('outside.cooling');
 Matcher _refused(String what) => isA<PluginException>().having(
   (PluginException e) => e.message,
   'message',
-  allOf(
-    contains('"outside.editor"'),
-    contains('only tooling'),
-    contains(what),
-  ),
+  allOf(contains('"outside.editor"'), contains('only tooling'), contains(what)),
 );
 
 /// A loop with only [plugin] beside it, and what its install was refused.

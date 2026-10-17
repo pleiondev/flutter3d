@@ -239,42 +239,42 @@ packages:
       path: "../../packages/flutter3d_build"
       relative: true
     source: path
-    version: "1.0.0-rc.1"
+    version: "1.0.0-rc.1+1"
   flutter3d_build_hooks:
     dependency: "direct overridden"
     description:
       path: "../../packages/flutter3d_build_hooks"
       relative: true
     source: path
-    version: "1.0.0-rc.1"
+    version: "1.0.0-rc.1+1"
   flutter3d_core:
     dependency: "direct main"
     description:
       path: "../../packages/flutter3d_core"
       relative: true
     source: path
-    version: "1.0.0-rc.1"
+    version: "1.0.0-rc.1+2"
   flutter3d_cpu:
     dependency: "direct overridden"
     description:
       path: "../../packages/flutter3d_cpu"
       relative: true
     source: path
-    version: "1.0.0-rc.1"
+    version: "1.0.0-rc.1+2"
   flutter3d_editor_core:
     dependency: "direct overridden"
     description:
       path: "../../packages/flutter3d_editor_core"
       relative: true
     source: path
-    version: "1.0.0-rc.1"
+    version: "1.0.0-rc.1+1"
   flutter3d_editor_play:
     dependency: "direct overridden"
     description:
       path: "../../packages/flutter3d_editor_play"
       relative: true
     source: path
-    version: "1.0.0-rc.1"
+    version: "1.0.0-rc.1+1"
   flutter3d_education:
     dependency: "direct overridden"
     description:
@@ -295,14 +295,14 @@ packages:
       path: "../../packages/flutter3d_foundation"
       relative: true
     source: path
-    version: "1.0.0-rc.1"
+    version: "1.0.0-rc.1+1"
   flutter3d_hardware:
     dependency: "direct overridden"
     description:
       path: "../../packages/flutter3d_hardware"
       relative: true
     source: path
-    version: "1.0.0-rc.1"
+    version: "1.0.0-rc.1+2"
   flutter3d_hub:
     dependency: "direct overridden"
     description:
@@ -316,7 +316,7 @@ packages:
       path: "../../packages/flutter3d_level_scene"
       relative: true
     source: path
-    version: "1.0.0-rc.1"
+    version: "1.0.0-rc.1+1"
   flutter3d_matter:
     dependency: "direct overridden"
     description:
@@ -330,35 +330,35 @@ packages:
       path: "../../packages/flutter3d_mcp"
       relative: true
     source: path
-    version: "1.0.0-rc.1"
+    version: "1.0.0-rc.1+1"
   flutter3d_mesh:
     dependency: "direct overridden"
     description:
       path: "../../packages/flutter3d_mesh"
       relative: true
     source: path
-    version: "1.0.0-rc.1"
+    version: "1.0.0-rc.1+1"
   flutter3d_model_core:
     dependency: "direct main"
     description:
       path: "../../packages/flutter3d_model_core"
       relative: true
     source: path
-    version: "1.0.0-rc.1"
+    version: "1.0.0-rc.1+1"
   flutter3d_particles:
     dependency: "direct main"
     description:
       path: "../../packages/flutter3d_particles"
       relative: true
     source: path
-    version: "1.0.0-rc.1"
+    version: "1.0.0-rc.1+1"
   flutter3d_physics:
     dependency: "direct main"
     description:
       path: "../../packages/flutter3d_physics"
       relative: true
     source: path
-    version: "1.0.0-rc.1"
+    version: "1.0.0-rc.1+1"
   flutter3d_physics_native:
     dependency: "direct main"
     description:
@@ -372,42 +372,42 @@ packages:
       path: "../../packages/flutter3d_plugin_api"
       relative: true
     source: path
-    version: "1.0.0-rc.1"
+    version: "1.0.0-rc.1+1"
   flutter3d_plugin_runtime:
     dependency: "direct overridden"
     description:
       path: "../../packages/flutter3d_plugin_runtime"
       relative: true
     source: path
-    version: "1.0.0-rc.1"
+    version: "1.0.0-rc.1+1"
   flutter3d_shaders:
     dependency: "direct overridden"
     description:
       path: "../../packages/flutter3d_shaders"
       relative: true
     source: path
-    version: "1.0.0-rc.1"
+    version: "1.0.0-rc.1+1"
   flutter3d_sim:
     dependency: "direct main"
     description:
       path: "../../packages/flutter3d_sim"
       relative: true
     source: path
-    version: "1.0.0-rc.1"
+    version: "1.0.0-rc.1+1"
   flutter3d_voxel:
     dependency: "direct overridden"
     description:
       path: "../../packages/flutter3d_voxel"
       relative: true
     source: path
-    version: "1.0.0-rc.1"
+    version: "1.0.0-rc.1+1"
   flutter3d_wgpu:
     dependency: "direct overridden"
     description:
       path: "../../packages/flutter3d_wgpu"
       relative: true
     source: path
-    version: "1.0.0-rc.1"
+    version: "1.0.0-rc.1+2"
   frontend_server_client:
     dependency: transitive
     description:

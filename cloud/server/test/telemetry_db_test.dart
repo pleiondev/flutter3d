@@ -8,6 +8,7 @@ import 'dart:io';
 import 'package:flutter3d_models/src/db/database.dart';
 import 'package:flutter3d_models/src/db/telemetry_repository.dart';
 import 'package:flutter3d_models/src/telemetry/telemetry_store.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart' show TrailPoint;
 import 'package:test/test.dart';
 
 TelemetryRunRow _row({String level = 'abcd1234', String outcome = 'lost'}) =>
@@ -17,7 +18,10 @@ TelemetryRunRow _row({String level = 'abcd1234', String outcome = 'lost'}) =>
       level: 'levels/strip.json',
       outcome: outcome,
       steps: 120,
-      trail: const <(double, double)>[(0.5, 0.0), (-2.5, 1.25)],
+      trail: const <TrailPoint>[
+        TrailPoint(x: 0.5, z: 0.0),
+        TrailPoint(x: -2.5, z: 1.25),
+      ],
       eraseKeySha256: 'hash-of-key',
       policy: '2026-10',
       consentedAt: DateTime.utc(2026, 10, 1),
@@ -54,9 +58,9 @@ void main() {
     final trails = await runs.trails('abcd1234', limit: 10);
 
     expect(trails.map((t) => t.run), <int>[second, first]);
-    expect(trails.last.positions, const <(double, double)>[
-      (0.5, 0.0),
-      (-2.5, 1.25),
+    expect(trails.last.positions, const <TrailPoint>[
+      TrailPoint(x: 0.5, z: 0.0),
+      TrailPoint(x: -2.5, z: 1.25),
     ]);
     expect(trails.last.endedBadly, isTrue);
     expect(trails.first.endedBadly, isFalse);

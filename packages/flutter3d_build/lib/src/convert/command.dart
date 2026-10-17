@@ -189,10 +189,11 @@ final class ConvertCommandSettings {
 }
 
 /// The formats an input may be, with their readers.
-typedef _Reader = Future<void> Function(String, ConvertContext, ConvertReport);
+typedef FormatReader =
+    Future<void> Function(String, ConvertContext, ConvertReport);
 
 /// What [path] is: a format name and its reader, or null.
-(String, _Reader)? detectFormat(String path) {
+(String, FormatReader)? detectFormat(String path) {
   final extension = extensionOf(path);
   final byName = switch (extension) {
     '.prefab' => ('unity-prefab', convertUnityInput),
@@ -212,7 +213,7 @@ typedef _Reader = Future<void> Function(String, ConvertContext, ConvertReport);
   return _sniff(path);
 }
 
-(String, _Reader)? _sniff(String path) {
+(String, FormatReader)? _sniff(String path) {
   final file = File(path);
   if (!file.existsSync()) return null;
   final handle = file.openSync();

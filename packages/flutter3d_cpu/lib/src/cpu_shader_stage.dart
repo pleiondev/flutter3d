@@ -11,7 +11,6 @@ import 'cpu_shader_bindings.dart';
 import 'cpu_storage_texture.dart';
 import 'cpu_texture.dart';
 
-
 /// Turns one vertex into a clip position and some varyings.
 ///
 /// **Implementable outside this package, and stays so through 1.x**: a

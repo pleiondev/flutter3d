@@ -3,7 +3,7 @@ library;
 
 import 'dart:convert';
 
-import 'package:flutter3d_sim/flutter3d_sim.dart' show HeatmapTrail;
+import 'package:flutter3d_sim/flutter3d_sim.dart' show HeatmapTrail, TrailPoint;
 import 'package:postgres/postgres.dart';
 
 import '../telemetry/telemetry_store.dart';
@@ -33,7 +33,7 @@ class TelemetryRepository implements TelemetryStore {
         'outcome': row.outcome,
         'steps': row.steps,
         'trail': jsonEncode(<List<double>>[
-          for (final (x, z) in row.trail) <double>[x, z],
+          for (final TrailPoint(:x, :z) in row.trail) <double>[x, z],
         ]),
         'eraseKey': row.eraseKeySha256,
         'policy': row.policy,
@@ -56,31 +56,33 @@ class TelemetryRepository implements TelemetryStore {
   });
 
   @override
-  Future<List<HeatmapTrail>> trails(
-    String levelHash, {
-    required int limit,
-  }) => _db.run((session) async {
-    final rows = await session.execute(
-      Sql.named('''
+  Future<List<HeatmapTrail>> trails(String levelHash, {required int limit}) =>
+      _db.run((session) async {
+        final rows = await session.execute(
+          Sql.named('''
             select id, steps, outcome, trail from telemetry_runs
             where level_hash = @level
             order by id desc
             limit @limit
           '''),
-      parameters: {'level': levelHash, 'limit': limit},
-    );
-    return <HeatmapTrail>[
-      for (final row in rows)
-        HeatmapTrail(
-          run: row[0]! as int,
-          steps: row[1]! as int,
-          outcome: row[2]! as String,
-          positions: <(double, double)>[
-            for (final List<Object?> point in (row[3]! as List<Object?>).cast())
-              ((point[0]! as num).toDouble(), (point[1]! as num).toDouble()),
-          ],
-          endedBadly: row[2] == 'lost',
-        ),
-    ];
-  });
+          parameters: {'level': levelHash, 'limit': limit},
+        );
+        return <HeatmapTrail>[
+          for (final row in rows)
+            HeatmapTrail(
+              run: row[0]! as int,
+              steps: row[1]! as int,
+              outcome: row[2]! as String,
+              positions: <TrailPoint>[
+                for (final List<Object?> point
+                    in (row[3]! as List<Object?>).cast())
+                  TrailPoint(
+                    x: (point[0]! as num).toDouble(),
+                    z: (point[1]! as num).toDouble(),
+                  ),
+              ],
+              endedBadly: row[2] == 'lost',
+            ),
+        ];
+      });
 }

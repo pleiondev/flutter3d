@@ -29,7 +29,7 @@ typedef _Replayed = ({
   String? refused,
   String outcome,
   int steps,
-  List<(double, double)> trail,
+  List<TrailPoint> trail,
 });
 
 /// The levels this server can play runs in, by [Level.digestHex], read from
@@ -282,4 +282,4 @@ _Replayed _replayed(
 };
 
 _Replayed _refused(String why) =>
-    (refused: why, outcome: '', steps: 0, trail: const <(double, double)>[]);
+    (refused: why, outcome: '', steps: 0, trail: const <TrailPoint>[]);

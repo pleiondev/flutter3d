@@ -7,7 +7,7 @@
 /// run the player sends again, under consent that is still current.
 library;
 
-import 'package:flutter3d_sim/flutter3d_sim.dart' show HeatmapTrail;
+import 'package:flutter3d_sim/flutter3d_sim.dart' show HeatmapTrail, TrailPoint;
 
 /// One accepted run, as it is written.
 final class TelemetryRunRow {
@@ -33,7 +33,7 @@ final class TelemetryRunRow {
   /// `won`, `lost` or `unfinished`.
   final String outcome;
   final int steps;
-  final List<(double, double)> trail;
+  final List<TrailPoint> trail;
 
   /// The erase key's SHA-256, never the key: a leaked table erases nothing.
   final String eraseKeySha256;

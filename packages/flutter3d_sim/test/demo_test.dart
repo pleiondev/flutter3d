@@ -96,9 +96,9 @@ void main() {
       // agrees, and the run would diverge instead of being refused.
       final recorded = Demo.fromJson(
         _demo().toJson()
-          ..['simulation'] = SimulationVersion.engineOnly
-              .withPlugins(const <String, int>{'acme.wind': 1})
-              .toJson(),
+          ..['simulation'] = SimulationVersion.engineOnly.withPlugins(
+            const <String, int>{'acme.wind': 1},
+          ).toJson(),
       );
       expect(
         () => InputTapePlayback(

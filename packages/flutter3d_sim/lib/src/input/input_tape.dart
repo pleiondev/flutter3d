@@ -350,8 +350,7 @@ final class InputTape extends FormatDocument {
   factory InputTape.fromJson(Map<String, Object?> json) {
     final version = switch (json['version']) {
       null => 1,
-      final Object said
-          when (FormatSpec.wholeNumber(said) ?? 0) >= 1 =>
+      final Object said when (FormatSpec.wholeNumber(said) ?? 0) >= 1 =>
         FormatSpec.wholeNumber(said)!,
       final other => throw InputTapeFormatException(
         'the tape names version $other',

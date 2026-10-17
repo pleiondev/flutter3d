@@ -2117,9 +2117,9 @@ extension _ShadowPasses on Renderer {
     );
     // The technique's count, which is `settings.cascades` for every
     // built-in filter.
-    final count = _directionalTechnique(settings)
-        .cascadesFor(settings)
-        .clamp(1, 3);
+    final count = _directionalTechnique(
+      settings,
+    ).cascadesFor(settings).clamp(1, 3);
 
     // Where each cascade looks, and how much it covers.
     //

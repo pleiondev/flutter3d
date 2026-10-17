@@ -882,7 +882,9 @@ extension _MeshEncode on Renderer {
       _ambientGround[3] = !settings.shadows.enabled
           ? 0.0
           : _shadowKernelSlot(
-              _directionalTechnique(settings.shadows).kernelFor(settings.shadows),
+              _directionalTechnique(
+                settings.shadows,
+              ).kernelFor(settings.shadows),
               hasMoments: shadows.directionalMoments != null,
             );
 

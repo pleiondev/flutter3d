@@ -87,6 +87,7 @@ TextureHandle _depth(GraphicsDevice device) => device.createTexture(
 Float32List _vertices(
   List<List<double>> shape,
   List<double> colour, {
+
   /// Depth in clip space, NDC.
   double z = 0.5,
 }) => Float32List.fromList(<double>[
@@ -99,6 +100,7 @@ CommandEncoder _pass(
   GraphicsDevice device,
   TextureHandle target, {
   TextureHandle? depth,
+
   /// A fraction of the depth range.
   double depthClear = 1.0,
   ClearColor clear = ClearColor.transparentBlack,
@@ -151,6 +153,7 @@ void _draw(
   PassEncoder pass,
   List<List<double>> shape,
   List<double> colour, {
+
   /// Depth in clip space, NDC.
   double z = 0.5,
 }) {

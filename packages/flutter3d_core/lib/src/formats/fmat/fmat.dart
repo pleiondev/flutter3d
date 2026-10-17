@@ -123,18 +123,15 @@ MaterialDocument readFmat(
   // would otherwise open drawn with the scene's model.
   final provided = lightingPluginsIn(lightingModels);
   final declared = parsed['requires'];
-  fmatFormat.open(
-    <String, Object?>{
-      ...parsed,
-      if (declared == null || declared is List)
-        'requires': <Object?>{
-          ...?(declared as List<Object?>?),
-          ?lightingPluginOf(parsed['lighting']),
-          ?lightingPluginOf(parsed['lightingModel']),
-        }.where((Object? each) => !provided.contains(each)).toList(),
-    },
-    refuse: (String message) => FmatFormatException('$name: $message'),
-  );
+  fmatFormat.open(<String, Object?>{
+    ...parsed,
+    if (declared == null || declared is List)
+      'requires': <Object?>{
+        ...?(declared as List<Object?>?),
+        ?lightingPluginOf(parsed['lighting']),
+        ?lightingPluginOf(parsed['lightingModel']),
+      }.where((Object? each) => !provided.contains(each)).toList(),
+  }, refuse: (String message) => FmatFormatException('$name: $message'));
 
   // Exactly the keys `writeFmat` emits, so the two halves of the format
   // cannot drift: a key added to the writer and not to this set warns on the
