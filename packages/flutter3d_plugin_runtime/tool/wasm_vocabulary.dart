@@ -12,17 +12,17 @@
 import 'dart:io';
 
 import 'package:flutter3d_plugin_runtime/flutter3d_plugin_runtime.dart'
-    show wasmImportSince, wasmPluginAbiMax, wasmPluginAbiMin;
+    show
+        WasmLimits,
+        wasmExportSince,
+        wasmImportSince,
+        wasmPluginAbiMax,
+        wasmPluginAbiMin,
+        wasmRenderAbi,
+        wasmRenderImports;
 
 /// Where the file lives, from the package's directory.
 const String wasmVocabularyPath = 'api/wasm_abi.vocabulary';
-
-/// The exports a host calls, by the ABI each arrived in. `f3d_abi` says
-/// which ABI a module was written for, `f3d_step` steps it.
-const Map<String, int> wasmExportSince = <String, int>{
-  'f3d_abi': 1,
-  'f3d_step': 1,
-};
 
 /// The first lines of every language's vocabulary file.
 const String vocabularyHeader =
@@ -33,16 +33,28 @@ const String vocabularyHeader =
     '# vocabulary grows only with its version`).';
 
 /// The Wasm plugin ABI's vocabulary: the module every import comes from,
-/// each import and export with its ABI, and the oldest ABI a host runs,
-/// which stays 1 through 1.x.
+/// each import and export with its ABI — a render module's under `render`
+/// — the value type a render module adds and its per-frame limit, and the
+/// oldest ABI a host runs, which stays 1 through 1.x.
 String wasmVocabularySnapshot() {
+  // The limit a declaration names; read off the class so a renamed key is
+  // a stale file.
+  final frameLimit = const WasmLimits(
+    fuelPerFrame: 1,
+  ).toJson().keys.where((String key) => key.contains('Frame')).single;
   final lines = <String>[
     'wasm version $wasmPluginAbiMax',
     'wasm minimum $wasmPluginAbiMin',
     for (final MapEntry(key: name, value: since) in wasmImportSince.entries)
-      'wasm import f3d $name $since',
+      if (wasmRenderImports.contains(name))
+        'wasm render import f3d $name $since'
+      else
+        'wasm import f3d $name $since',
     for (final MapEntry(key: name, value: since) in wasmExportSince.entries)
       'wasm export $name $since',
+    'wasm render type f32 $wasmRenderAbi',
+    'wasm render limit $frameLimit $wasmRenderAbi',
+    'wasm render section wasmRender $wasmRenderAbi',
   ]..sort();
   return '$vocabularyHeader\n${lines.join('\n')}\n';
 }

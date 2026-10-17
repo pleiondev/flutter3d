@@ -75,6 +75,7 @@ export 'src/plugin_version.dart';
 export 'src/readings.dart';
 export 'src/registration.dart';
 export 'src/render.dart';
+export 'src/render_program.dart';
 export 'src/scene_binding.dart';
 export 'src/simulation.dart';
 export 'src/simulation_profile.dart';

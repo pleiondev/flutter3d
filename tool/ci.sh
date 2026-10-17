@@ -507,6 +507,12 @@ step "test flutter3d_sim (browser)" in_dir packages/flutter3d_sim dart test -p c
 # above skips them; the directory is named because the rest of the suite
 # reaches `dart:io`.
 step "test flutter3d_core (browser)" in_dir packages/flutter3d_core dart test -p chrome test/web/
+# The browser's own WebAssembly under a plugin's Wasm module, step and render
+# alike, held to what the interpreter answers. `@TestOn('browser')`, so the
+# VM run above skips it, and named because the rest of the suite reaches
+# `dart:io`.
+step "test flutter3d_plugin_runtime (browser)" in_dir packages/flutter3d_plugin_runtime \
+  dart test -p chrome test/wasm_browser_test.dart
 # The native physics core as WebAssembly, under both web compilers: the
 # shared scene to the native library's hash, on one thread and on four Web
 # Workers, and flutter3d_physics' bodies on it through NativeDynamics. The second needs SharedArrayBuffer, which tool/chrome_sab.sh asks

@@ -209,6 +209,9 @@ void main() {
         'phases',
         'events',
         'wasm',
+        // The render modules are the runtime's to decode and instantiate;
+        // the render step each drives stays a section a reader reads.
+        'wasmRender',
         'expressions',
       });
       // Written back as read, so a tool on a server loses nothing.

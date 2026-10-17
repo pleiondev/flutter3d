@@ -927,6 +927,22 @@ minus one where no hook packs the type. Such a block gathers the plugin's
 lights through the material's own loop with no falloff or shadow of the
 engine's.
 
+**Injecting into the standard model.** From version 3, `lighting
+standard;` makes a material the engine's own metal-rough model
+(`MaterialProgram.isStandard`) with three injection points of its own: a
+`surface` block that rewrites the surface before any light
+(`materialSurfaceOutputs`, written with `out`), a `light` block that reads
+the model's answer to each light as `standard`
+(`materialStandardLightInput`) and returns its own, and `lighttype`
+declarations that let a plugin's light type into the model's light loop as
+a point at its row, where the engine's stages skip it. It has no
+`fragment`, `ambient` or `composite` block. The stage is `lighting/pbr.frag`
+with `F3D_SURFACE_HOOK`, `F3D_LIGHT_HOOK` and `F3D_LIGHT_TYPE_HOOK`
+switched on and `ShadeSurfaceHook`, `ShadeLightHook` and `F3dLightTypeHook`
+defined by the material; it binds what `LightingModel.pbr` binds, and with
+no injection it draws as the built-in PBR does. A plugin that only wants a
+term added to PBR writes this, not a whole lit model.
+
 **Budgets.** One stage binds at most 16 textures, 16 samplers and 12
 uniform blocks, the engine's and the material's together
 (`MaterialStageBudget`); a lit model's own share is 3 textures and 4
@@ -1159,9 +1175,11 @@ A data plugin is a `.f3dplugin` JSON document (`f3d.plugin`,
 | `phases` | the runtime | `DataPhase`s (`name`, `kind`, `after`, `before`), filed under the plugin: `weather` is the loop's `gusts.weather`, and so is `weather` wherever the document orders against it |
 | `events` | the runtime | `DataEventDeclaration`s, declared as `<id>.<name>` and published as `PluginDataEvent` |
 | `wasm` | the runtime | `WasmSystemSpec`s (below) |
+| `wasmRender` | the runtime | `WasmRenderSpec`s: render modules of ABI 3, each driving one of the document's `renderSteps` (below) |
 | `expressions` | the runtime | `ExpressionSystemSpec`s in the expression language; read and kept, and a plugin that brings one is refused at install, naming the systems, until this build evaluates the language |
 | `entityKinds` | `flutter3d_sim`'s `entityKindsSection` | Entity kinds as `DataEntityKind` |
 | `materials`, `renderSteps`, `bindings`, `pipeline` | `flutter3d_core`'s `renderDataSections` | Materials in the material language, render steps (`DataRenderStep`, `"shaders": {"material": "fog.f3dmat"}`), scene bindings, pipeline nodes |
+| `lightTypes`, `vertexLayouts`, `lodTables` | `flutter3d_core`'s `renderDataSections` | Light types of the plugin's own (`DataLightType`: `name`, `base`, up to four `params` in the row's last `vec4`), vertex layouts held to the engine's attributes (`DataVertexLayout`), levels of detail by distance for the groups named `<id>.<table>` (`DataLodTable`) |
 | `effects` | `flutter3d_particles`' `effectsSection` | Particle effects |
 | `physicalMaterials`, `materialPairs` | `flutter3d_matter`'s sections | `PhysicalMaterial` bodies and pairs, held to SI and the namespace when read; the document `requires` `f3d.physicalMaterials` |
 
@@ -1195,9 +1213,10 @@ A Wasm system is a step system compiled by somebody else's toolchain,
 stepped the same way on every platform.
 
 **The ABI.** Numbered apart from the plugin API: a host runs
-`wasmPluginAbiMin` (1) to `wasmPluginAbiMax` (2), and `wasmPluginAbi` is
-what a module written today says. A module exports `f3d_abi()` returning
-its ABI and `f3d_step(i32 step, i32 dt)`, and imports from `f3d`:
+`wasmPluginAbiMin` (1, through 1.x) to `wasmPluginAbiMax` (3), and
+`wasmPluginAbi` is what a module written today says. A step module
+exports `f3d_abi()` returning its ABI and `f3d_step(i32 step, i32 dt)`,
+and imports from `f3d`:
 
 | Import | Since | What it does |
 |---|---|---|
@@ -1213,22 +1232,49 @@ The indices are the order of the spec's `fields` and `events`.
 the range, or imports something newer than the ABI it claims. 32-bit
 integers only; no I/O.
 
-**The render ABI is reserved.** Render nodes in Wasm are a capability
-detected by the export `f3d_render_node` (`wasmRenderNodeExport`), which
-will record encoder commands against the resources the `.f3dplugin`
-declares. `wasmRenderAbi` is the lowest ABI they can arrive in, one past
-the newest a host runs (3 today). No number is set aside: the release that
-implements them names the ABI they arrived in, as an import's, so a minor
-that only adds a simulation import takes the next number. A module of an
-older ABI that exports the name is not read for it.
+**Render modules (ABI 3).** A module the document declares under
+`wasmRender` is a render module (`WasmModuleKind.render`), decoded as
+one: it may compute in `f32`, exports `f3d_abi()` (3 or later) and
+`f3d_render_node(i32 frame, i32 view)`, needs no `f3d_step`, and imports
+the render commands only, each since 3:
+
+| Import | What it does |
+|---|---|
+| `param(parameter, component, f32 value)` | Sets one component of a declared parameter, from this frame on |
+| `param_floats(parameter, ptr, len)` | Sets a parameter from `len` bytes of floats at `ptr` in the module's memory, copied during the call |
+| `draw()` | The step draws this frame |
+| `time() -> f32` | The frame's time, in seconds |
+| `view_size(axis) -> i32` | The view's width (0) or height (1), in pixels |
+| `light_code(light) -> i32` | The code a declared light type is packed with, -1 for none |
+
+`WasmRenderSpec`: `module`, `step` (one of the document's `renderSteps`,
+written in the material language), `parameters` (the stage's uniforms, by
+ABI index), `lights` (light types by ABI index; a bare name is the
+plugin's own), `limits`, `sha256`. The module runs in an instance of its
+own (`WasmRenderNode`, a `RenderProgram`), outside the run's save and
+digest, and only on an engine that draws; its fuel is counted per frame
+(`WasmLimits.fuelPerFrame`), and a trap switches its step's node off with
+the plugin named. The renderer and the runtime meet in this package:
+`RenderProgram` and `RenderProgramFrame`, which a render step section asks
+for with `DataSectionContext.renderProgram`. A step module that exports a
+function named `f3d_render_node` is not read for it. The sample is
+`flutter3d_plugin_runtime`'s `example/plugin/acme_pulse.f3dplugin`, its
+module built from `pulse.wat` by `wat2wasm`.
 
 **The spec.** `WasmSystemSpec`: `module`, `system`, `phase`, `after`,
 `before`, `fields` (`WasmFieldSpec`: `name`, `write`, `unit`, `fraction`
 bits from 0 to 30, 16 by default; a field with other than 16 needs an ABI 2
-module), `events`, `limits`.
+module), `events`, `limits`, `sha256`.
+
+**A module from a URL is pinned.** A `module` that is an `https:` URL
+needs the `network` permission and a `sha256`, the SHA-256 of the bytes as
+64 lowercase hexadecimal digits; the loader refuses a module without one,
+and bytes that hash to anything else, with a `WasmException` naming both.
+A module of the plugin's own directory is not checked.
 
 **Metering.** `WasmLimits` (`memoryPages` 16, `fuelPerStep` 1 000 000,
-`callDepth` 64) is counted in instructions executed (fuel), never in time,
+`callDepth` 64, and for a render module `fuelPerFrame` 200 000) is counted
+in instructions executed (fuel), never in time,
 so a module runs out at the same instruction on every machine and in every
 replay. A module that traps (`unreachable`, a division by zero, a read
 past its memory, a budget spent) stops with a `WasmTrapException`, and the
@@ -1252,9 +1298,9 @@ module's fields resolve to; `Fixed16` and `FixedPoint` convert.
 `WasmPlugin` is a plugin of one module.
 
 **What grows in 1.x.** New sections (a reader registered by the package
-that owns it), new document versions, new Wasm imports with the ABI they
-arrived in, render nodes in a later ABI. A module written for ABI 1 runs on
-every engine whose minimum is still 1.
+that owns it), new document versions, new Wasm imports and exports with
+the ABI they arrived in, new render commands. A module written for ABI 1
+runs on every 1.x engine: the minimum stays 1.
 
 ## What an outside plugin may and may not do
 

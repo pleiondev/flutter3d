@@ -4,6 +4,7 @@ import 'package:flutter3d_foundation/flutter3d_foundation.dart'
 import 'events.dart';
 import 'host.dart';
 import 'registration.dart';
+import 'render_program.dart';
 
 /// One named top-level section of a `.f3dplugin` document, read and
 /// installed by the subsystem that owns what the section declares.
@@ -127,6 +128,7 @@ final class DataSectionContext {
     this._eventName,
     this._numbersOf,
     this._note,
+    this._renderProgram,
   });
 
   /// The plugin's id, which a name it brings is prefixed with:
@@ -137,6 +139,15 @@ final class DataSectionContext {
   final String Function(String event)? _eventName;
   final List<double>? Function(BusEvent event)? _numbersOf;
   final void Function(String note)? _note;
+  final RenderProgram? Function(String step)? _renderProgram;
+
+  /// The program that drives the plugin's render step [step] (its name
+  /// without the plugin's prefix) frame by frame — a `wasmRender` module of
+  /// the document, made by the runtime that read it — or null when nothing
+  /// drives it. Asked by the section that installs render steps, at
+  /// install; the runtime counts a program nobody asked for as one whose
+  /// step the document does not have.
+  RenderProgram? renderProgram(String step) => _renderProgram?.call(step);
 
   /// The text of [path], one of the files [DataSection.resources] named.
   /// Throws a [StateError] before the files are read.

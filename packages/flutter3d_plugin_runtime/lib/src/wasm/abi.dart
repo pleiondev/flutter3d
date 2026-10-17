@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show Flutter3dFormatException, PluginException;
 
@@ -14,11 +16,12 @@ import 'module.dart';
 ///
 /// **A host reads a range, [wasmPluginAbiMin] to [wasmPluginAbiMax]**, and
 /// this is the newest of it — what a module written today says. A module
-/// outside the range is refused with the range named, so a module written
-/// for ABI 1 keeps loading on every engine whose minimum is still 1.
+/// outside the range is refused with the range named, and the minimum stays
+/// 1 through 1.x, so a module written for ABI 1 loads on every 1.x engine.
 const int wasmPluginAbi = wasmPluginAbiMax;
 
-/// The oldest ABI this host runs a module for.
+/// The oldest ABI this host runs a module for, which stays 1 through 1.x:
+/// a module written for ABI 1 runs on every 1.x engine.
 const int wasmPluginAbiMin = 1;
 
 /// The newest ABI this host runs a module for.
@@ -27,40 +30,104 @@ const int wasmPluginAbiMin = 1;
 /// cross with fewer fraction bits than Q16.16 ([WasmFieldSpec.fractionBits]),
 /// so a world position kilometres from the origin fits. Nothing in ABI 1
 /// changed: an ABI-1 module runs under ABI 2 as it did.
-const int wasmPluginAbiMax = 2;
-
-/// **The lowest ABI render nodes can arrive in**, one past
-/// [wasmPluginAbiMax]: no ABI a host runs today has them.
 ///
-/// **A capability detected by its export, not a number set aside.** A
-/// render node is a module that exports [wasmRenderNodeExport], which
-/// records encoder commands against the resources its `.f3dplugin`
-/// declares. The release that implements it names the ABI it arrived in,
-/// as an import's ([wasmImportSince]), and from that ABI on a module that
-/// exports it is read as one. So the next number is free for whatever
-/// comes first: a minor that only adds a simulation import (a field bridge,
-/// a unit) takes it, and render nodes arrive in the ABI after, without the
-/// one waiting for the other. ABI 1 and 2 modules run as before either
-/// way.
-const int wasmRenderAbi = wasmPluginAbiMax + 1;
+/// 3 added render modules ([WasmModuleKind.render], [wasmRenderAbi]): a
+/// module a `.f3dplugin`'s `wasmRender` declares, which computes in `i32`
+/// and `f32`, exports [wasmRenderNodeExport] and drives a render step of
+/// its plugin's frame by frame through the render imports. Nothing a step
+/// module may do changed: ABI 1 and 2 modules run under ABI 3 as they did.
+const int wasmPluginAbiMax = 3;
 
-/// **Reserved: the export of a render node.** A module written for an ABI
-/// before the one render nodes arrive in that exports a function of this
-/// name is not read for it, and runs as any other module.
+/// **The ABI render modules arrived in**: 3.
+///
+/// A render module ([WasmModuleKind.render]) says it was written for this
+/// ABI or a later one; one that says less is refused at instantiation with
+/// both numbers. A step module of any ABI that exports a function named
+/// [wasmRenderNodeExport] is not read for it and runs as any other: what
+/// makes a module a render module is the `.f3dplugin` section that
+/// declares it, never a name it exports.
+const int wasmRenderAbi = 3;
+
+/// The export a render module is called through once a frame:
+/// `f3d_render_node(i32 frame, i32 view)`.
 const String wasmRenderNodeExport = 'f3d_render_node';
 
-/// Why a module that says it was written for [abi], and imports [imports],
-/// cannot run here; null when it can.
+/// What a module is, which the `.f3dplugin` section that declares it says
+/// and [WasmModule.decode] checks before anything runs.
+///
+/// **Two, told apart by where they are declared, never by what they
+/// export.** A step module (`wasm`) steps the simulation: `i32` only,
+/// `f3d_step` required, its memory part of the run's state, its fuel
+/// counted per step. A render module (`wasmRender`) drives a render step:
+/// `f32` allowed, `f3d_step` not required, [wasmRenderNodeExport] required,
+/// run in an instance of its own outside the run's state and its digest,
+/// its fuel counted per frame ([WasmLimits.fuelPerFrame]).
+///
+/// A final class with constants rather than an enum, as every open kind of
+/// the engine is: a kind a later minor adds breaks no `switch` outside.
+final class WasmModuleKind {
+  const WasmModuleKind._(this.name, this.section, this.entry);
+
+  /// A step system's module: `wasm` in a `.f3dplugin`.
+  static const WasmModuleKind step = WasmModuleKind._(
+    'step',
+    'wasm',
+    'f3d_step',
+  );
+
+  /// A render node's module: `wasmRender` in a `.f3dplugin`.
+  static const WasmModuleKind render = WasmModuleKind._(
+    'render',
+    'wasmRender',
+    wasmRenderNodeExport,
+  );
+
+  /// Both, in the order they arrived.
+  static const List<WasmModuleKind> values = <WasmModuleKind>[step, render];
+
+  /// The kind called [name], or null.
+  static WasmModuleKind? byName(String name) {
+    for (final kind in values) {
+      if (kind.name == name) return kind;
+    }
+    return null;
+  }
+
+  /// What a report calls it.
+  final String name;
+
+  /// The `.f3dplugin` section that declares a module of this kind.
+  final String section;
+
+  /// The export the host calls it through.
+  final String entry;
+
+  @override
+  String toString() => name;
+}
+
+/// Why a module of [kind] that says it was written for [abi], and imports
+/// [imports], cannot run here; null when it can.
 ///
 /// **The imports are feature-detected.** Each host function arrived in an
 /// ABI ([wasmImportSince]); a module that imports one newer than the ABI it
 /// claims is asking for something its own declaration says it does not
 /// know, and is refused naming the import. A module that leaves an optional
-/// import out is not refused for that: it simply never calls it.
-String? wasmAbiRefusal(int abi, Iterable<String> imports) {
+/// import out is not refused for that: it simply never calls it. A render
+/// module written for an ABI before [wasmRenderAbi] is refused naming it.
+String? wasmAbiRefusal(
+  int abi,
+  Iterable<String> imports, {
+  WasmModuleKind kind = WasmModuleKind.step,
+}) {
   if (abi < wasmPluginAbiMin || abi > wasmPluginAbiMax) {
     return 'the module was written for Wasm plugin ABI $abi and this engine '
         'runs ABI $wasmPluginAbiMin to $wasmPluginAbiMax';
+  }
+  if (kind == WasmModuleKind.render && abi < wasmRenderAbi) {
+    return 'the module is declared under "wasmRender" and says it was '
+        'written for ABI $abi; render modules arrived in ABI $wasmRenderAbi, '
+        'so it is a module of that ABI or a later one';
   }
   for (final name in imports) {
     final since = wasmImportSince[name] ?? wasmPluginAbiMin;
@@ -72,27 +139,62 @@ String? wasmAbiRefusal(int abi, Iterable<String> imports) {
   return null;
 }
 
-/// The ABI each host function arrived in, by its import name.
+/// The ABI each host function arrived in, by its import name: a step
+/// module's first, then a render module's.
 const Map<String, int> wasmImportSince = <String, int>{
   'field_len': 1,
   'field_get': 1,
   'field_set': 1,
   'publish': 1,
   'field_frac': 2,
+  'param': 3,
+  'param_floats': 3,
+  'draw': 3,
+  'time': 3,
+  'view_size': 3,
+  'light_code': 3,
 };
 
-/// How much a module may take of one step: memory, instructions, calls.
+/// The imports a render module may make, by name: what
+/// [WasmRenderImports] answers. Every other entry of [wasmImportSince] is a
+/// step module's.
+const Set<String> wasmRenderImports = <String>{
+  'param',
+  'param_floats',
+  'draw',
+  'time',
+  'view_size',
+  'light_code',
+};
+
+/// The ABI each export a host calls arrived in, by its name.
+///
+/// **Every `f3d_` export is the host's word**: a module written for an ABI
+/// before the one an export arrived in that exports a function of its name
+/// is not read for it, so a minor's `f3d_init` is never called on a module
+/// that happened to have one.
+const Map<String, int> wasmExportSince = <String, int>{
+  'f3d_abi': 1,
+  'f3d_step': 1,
+  wasmRenderNodeExport: 3,
+};
+
+/// How much a module may take of one step, or of one frame: memory,
+/// instructions, calls.
 ///
 /// **Counted, not timed.** A wall-clock budget would trap on a slow phone and
 /// not on a fast one, and a replay of the run would part from the recording
 /// at the trap. Fuel is a count of instructions executed, so a module that
 /// runs out does so at the same instruction on every machine and in every
-/// replay.
+/// replay. A render module's budget is counted the same way, per frame
+/// ([fuelPerFrame]), so a render node that runs away stops at the same
+/// instruction on every device rather than taking a slow one's frame.
 final class WasmLimits {
   const WasmLimits({
     this.memoryPages = 16,
     this.fuelPerStep = 1000000,
     this.callDepth = 64,
+    this.fuelPerFrame = defaultFuelPerFrame,
   });
 
   /// Reads the keys [toJson] writes; a key left out keeps its default.
@@ -109,23 +211,36 @@ final class WasmLimits {
       memoryPages: read('memoryPages', 16),
       fuelPerStep: read('fuelPerStep', 1000000),
       callDepth: read('callDepth', 64),
+      fuelPerFrame: read('fuelPerFrame', defaultFuelPerFrame),
     );
   }
+
+  /// What [fuelPerFrame] is when a declaration does not say.
+  static const int defaultFuelPerFrame = 200000;
 
   /// The most 64 KiB pages a module's memory may have, at the start and
   /// after every `memory.grow`.
   final int memoryPages;
 
-  /// Instructions a module may execute in one step.
+  /// Instructions a step module may execute in one step.
   final int fuelPerStep;
 
-  /// How deep calls may nest inside one step.
+  /// How deep calls may nest inside one step or one frame.
   final int callDepth;
 
+  /// Instructions a render module may execute in one frame's call of
+  /// [wasmRenderNodeExport] (ABI 3). A render node that spends it traps,
+  /// and its step is switched off with the trap as the reason.
+  final int fuelPerFrame;
+
+  /// The limits as a declaration writes them: [fuelPerFrame] only where it
+  /// is not [defaultFuelPerFrame], so a step system's declaration reads as
+  /// it did before render modules.
   Map<String, Object?> toJson() => <String, Object?>{
     'memoryPages': memoryPages,
     'fuelPerStep': fuelPerStep,
     'callDepth': callDepth,
+    if (fuelPerFrame != defaultFuelPerFrame) 'fuelPerFrame': fuelPerFrame,
   };
 }
 
@@ -187,6 +302,74 @@ abstract base class WasmImports {
   int fieldFractionBits(int field) => 16;
 }
 
+/// The imports of a step module that has none to make: what a render
+/// module's instantiation carries in [WasmInstantiation.imports].
+final class _NoStepImports extends WasmImports {
+  const _NoStepImports();
+
+  static Never _refuse() => throw const WasmTrapException(
+    'a render module reached a step module\'s import',
+  );
+
+  @override
+  int fieldLength(int field) => _refuse();
+
+  @override
+  int fieldGet(int field, int index) => _refuse();
+
+  @override
+  void fieldSet(int field, int index, int value) => _refuse();
+
+  @override
+  void publish(int event, int a, int b) => _refuse();
+}
+
+/// What a render module's imports call (ABI 3): its render step's
+/// parameters, by the index the module's declaration gave them, the draw,
+/// and what the frame is.
+///
+/// **Commands are imports with scalar arguments.** A render module calls
+/// `param(1, 0, 0.5)` for the first component of the second of its
+/// declaration's `parameters`; bulk data crosses as `(ptr, len)` in the
+/// module's memory, which the runtime copies during the call and never
+/// keeps ([paramFloats]); a resource is named by its index in the
+/// declaration, never by a name or a pointer the host would have to keep.
+///
+/// Implemented by the data plugin over its render step; a test implements
+/// it to watch what a module asks. A method throws [WasmTrapException] to
+/// stop the module.
+abstract base class WasmRenderImports {
+  const WasmRenderImports();
+
+  /// `param(parameter, component, value)`: component [component] of the
+  /// declaration's parameter [parameter] is [value] from this frame's draw
+  /// on, until the module sets it again.
+  void param(int parameter, int component, double value);
+
+  /// `param_floats(parameter, ptr, len)`: parameter [parameter]'s
+  /// components are [values], `len` bytes of 32-bit floats the module
+  /// wrote at `ptr`. [values] is the runtime's copy, made for this call:
+  /// read it during the call and do not keep it.
+  void paramFloats(int parameter, Float32List values);
+
+  /// `draw()`: the step draws this frame, with its parameters as set. A
+  /// frame whose call never draws leaves the picture as it found it.
+  void draw();
+
+  /// `time() -> f32`: the frame's time, in seconds since the renderer
+  /// began.
+  double get time;
+
+  /// `view_size(axis) -> i32`: the view's width in pixels for axis 0, its
+  /// height for 1, nought for any other.
+  int viewSize(int axis);
+
+  /// `light_code(light) -> i32`: the code the declaration's light type
+  /// [light] is packed with this frame — what a lit stage tells it apart
+  /// by — or -1 when no hook packs it. -1 unless overridden.
+  int lightCode(int light) => -1;
+}
+
 /// Something that runs an ABI 1 module.
 ///
 /// Two ship: [interpreter], plain Dart on every platform and metered, and
@@ -220,13 +403,24 @@ final class WasmInstantiation {
     this.module, {
     required this.imports,
     required this.limits,
-  });
+  }) : render = null;
+
+  /// A render module ([WasmModuleKind.render], ABI 3), its imports behind
+  /// [render]: an instance of its own, which no step system shares.
+  const WasmInstantiation.render(
+    this.module, {
+    required WasmRenderImports this.render,
+    required this.limits,
+  }) : imports = const _NoStepImports();
 
   /// The decoded module.
   final WasmModule module;
 
-  /// What the module's imports call.
+  /// What a step module's imports call.
   final WasmImports imports;
+
+  /// What a render module's imports call; null for a step module.
+  final WasmRenderImports? render;
 
   /// The fuel, depth and memory the module is held to.
   final WasmLimits limits;
@@ -240,6 +434,15 @@ abstract base class WasmInstance {
   /// [WasmStep.step] and [WasmStep.dtFixed]. Throws [WasmTrapException]
   /// when the module traps.
   void step(WasmStep step);
+
+  /// Calls a render module's `f3d_render_node(frame, view)` with the
+  /// call's [WasmRenderCall.frame] and [WasmRenderCall.view], its imports
+  /// answered by [WasmInstantiation.render] and its fuel counted against
+  /// [WasmLimits.fuelPerFrame]. Throws [WasmTrapException] when the module
+  /// traps, and a [WasmException] on a runtime that runs no render module,
+  /// which a runtime written before ABI 3 is.
+  void render(WasmRenderCall call) =>
+      throw const WasmException('this Wasm runtime runs no render module');
 
   /// The module's state — its memory and its globals — as a document a
   /// snapshot can hold and `StateDigest` can fold: numbers, strings, lists
@@ -280,4 +483,19 @@ final class WasmStep {
 
   /// The step's length in seconds, in Q16.16.
   int dtFixed;
+}
+
+/// What [WasmInstance.render] is handed: the frame and the view.
+///
+/// **One object, so a minor can hand a render call more**, for the reason
+/// [WasmInstantiation] gives. **Reused**, as [WasmStep] is: the render
+/// node that calls a module owns one and sets it before every frame.
+final class WasmRenderCall {
+  WasmRenderCall({this.frame = 0, this.view = 0});
+
+  /// The frame being drawn, counted by the renderer from nought.
+  int frame;
+
+  /// The view being drawn, by its index in the frame.
+  int view;
 }

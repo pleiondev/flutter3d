@@ -22,6 +22,25 @@ and `package:flutter3d_plugin_runtime`, no `src/` import. Its namespace is
 `plugin/acme_sample.f3dplugin` is the data half: the same binding and the
 same pipeline as a document, read by `DataPluginLoader`.
 
+`plugin/acme_pulse.f3dplugin` is the Wasm render sample: a render step
+written in the material language (`plugin/pulse.f3dmat`), driven frame by
+frame by `plugin/pulse.wasm`, a render module of Wasm plugin ABI 3 declared
+under `wasmRender`, with a light type, a vertex layout and a
+level-of-detail table of its own as data. The module is built from
+`plugin/pulse.wat` by an outside toolchain, wabt's `wat2wasm`:
+
+```bash
+wat2wasm plugin/pulse.wat -o plugin/pulse.wasm
+```
+
+A render module may compute in `i32` and `f32`, exports `f3d_abi`
+(returning 3) and `f3d_render_node(i32 frame, i32 view)`, and imports only
+the render commands: `param`, `param_floats`, `draw`, `time`, `view_size`
+and `light_code`, each naming a parameter or a light type by its index in
+the declaration. It runs in an instance of its own, outside the run's save
+and digest, on a fuel budget per frame. `test/acme_pulse_test.dart` reads
+the committed bytes, draws the step and switches the plugin off.
+
 `lib/acme_editor.dart` is the editor half. Its hints, written against
 `package:flutter3d_plugin_api/editor.dart` alone, give the `acme_sample.heat`
 component, the `ember` entity kind and the `acme_sample.Hair` lit model

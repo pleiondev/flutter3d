@@ -5,6 +5,7 @@
 # carries a version above the base's newest (the rule `a language's
 # vocabulary grows only with its version`).
 wasm export f3d_abi 1
+wasm export f3d_render_node 3
 wasm export f3d_step 1
 wasm import f3d field_frac 2
 wasm import f3d field_get 1
@@ -12,4 +13,13 @@ wasm import f3d field_len 1
 wasm import f3d field_set 1
 wasm import f3d publish 1
 wasm minimum 1
-wasm version 2
+wasm render import f3d draw 3
+wasm render import f3d light_code 3
+wasm render import f3d param 3
+wasm render import f3d param_floats 3
+wasm render import f3d time 3
+wasm render import f3d view_size 3
+wasm render limit fuelPerFrame 3
+wasm render section wasmRender 3
+wasm render type f32 3
+wasm version 3

@@ -6,7 +6,9 @@ import 'abi.dart';
 // The instructions a compiled body is made of. Most keep the opcode Wasm
 // gives them; `block`, `loop` and `end` are gone, resolved into the jumps of
 // `br`, `br_if`, `br_table`, `if` and `else`, and a function's last `end` is
-// a `return`.
+// a `return`. An `f32` is held as its bit pattern in an `i32` slot, so
+// `f32.load`, `f32.store` and `f32.const` are the `i32` ones, and the two
+// reinterpretations are nothing at all.
 const int opUnreachable = 0x00;
 const int opIf = 0x04;
 const int opElse = 0x05;
@@ -34,41 +36,106 @@ const int opMemorySize = 0x3F;
 const int opMemoryGrow = 0x40;
 const int opConst = 0x41;
 
+// The value types a module may name: `i32` in every module, `f32` in a
+// render module (ABI 3).
+const int typeI32 = 0x7F;
+const int typeF32 = 0x7D;
+
 // The host functions an import may name, by what the interpreter calls.
 const int hostFieldLen = 0;
 const int hostFieldGet = 1;
 const int hostFieldSet = 2;
 const int hostPublish = 3;
 const int hostFieldFrac = 4;
+const int hostParam = 5;
+const int hostParamFloats = 6;
+const int hostDraw = 7;
+const int hostTime = 8;
+const int hostViewSize = 9;
+const int hostLightCode = 10;
 
-/// The host functions a module may import: name, then the host function,
-/// parameter and result counts. Which ABI each arrived in is
-/// `wasmImportSince`; whether a module may use it is checked against the
+/// One host function: what the interpreter calls, and its signature.
+final class _HostImport {
+  const _HostImport(this.host, this.type);
+
+  final int host;
+  final FunctionType type;
+}
+
+/// The host functions a step module may import. Which ABI each arrived in
+/// is `wasmImportSince`; whether a module may use it is checked against the
 /// ABI it says, at instantiation.
-const Map<String, (int, int, int)> _abiImports = <String, (int, int, int)>{
-  'field_len': (hostFieldLen, 1, 1),
-  'field_get': (hostFieldGet, 2, 1),
-  'field_set': (hostFieldSet, 3, 0),
-  'publish': (hostPublish, 3, 0),
-  'field_frac': (hostFieldFrac, 1, 1),
+const Map<String, _HostImport> _stepImports = <String, _HostImport>{
+  'field_len': _HostImport(hostFieldLen, FunctionType.i32(1, 1)),
+  'field_get': _HostImport(hostFieldGet, FunctionType.i32(2, 1)),
+  'field_set': _HostImport(hostFieldSet, FunctionType.i32(3, 0)),
+  'publish': _HostImport(hostPublish, FunctionType.i32(3, 0)),
+  'field_frac': _HostImport(hostFieldFrac, FunctionType.i32(1, 1)),
 };
 
-/// A function's signature. Every value is an `i32`, so a count says it all.
-final class FunctionType {
-  const FunctionType(this.params, this.results);
+/// The host functions a render module may import (ABI 3): its commands, and
+/// what the frame is.
+const Map<String, _HostImport> _renderImports = <String, _HostImport>{
+  'param': _HostImport(
+    hostParam,
+    FunctionType(<int>[typeI32, typeI32, typeF32], <int>[]),
+  ),
+  'param_floats': _HostImport(hostParamFloats, FunctionType.i32(3, 0)),
+  'draw': _HostImport(hostDraw, FunctionType.i32(0, 0)),
+  'time': _HostImport(hostTime, FunctionType(<int>[], <int>[typeF32])),
+  'view_size': _HostImport(hostViewSize, FunctionType.i32(1, 1)),
+  'light_code': _HostImport(hostLightCode, FunctionType.i32(1, 1)),
+};
 
-  final int params;
-  final int results;
+/// A function's signature: the type of each parameter and of its result.
+final class FunctionType {
+  const FunctionType(this.paramTypes, this.resultTypes);
+
+  /// A signature of [params] `i32`s returning [results] of them.
+  const FunctionType.i32(int params, int results)
+    : paramTypes = params == 0
+          ? const <int>[]
+          : params == 1
+          ? const <int>[typeI32]
+          : params == 2
+          ? const <int>[typeI32, typeI32]
+          : const <int>[typeI32, typeI32, typeI32],
+      resultTypes = results == 0 ? const <int>[] : const <int>[typeI32];
+
+  final List<int> paramTypes;
+  final List<int> resultTypes;
+
+  /// How many values it takes.
+  int get params => paramTypes.length;
+
+  /// How many it returns: nought or one.
+  int get results => resultTypes.length;
 
   @override
   bool operator ==(Object other) =>
       other is FunctionType &&
-      other.params == params &&
-      other.results == results;
+      _same(other.paramTypes, paramTypes) &&
+      _same(other.resultTypes, resultTypes);
 
   @override
-  int get hashCode => Object.hash(params, results);
+  int get hashCode =>
+      Object.hash(Object.hashAll(paramTypes), Object.hashAll(resultTypes));
+
+  @override
+  String toString() =>
+      '(${paramTypes.map(_typeName).join(', ')}) -> '
+      '(${resultTypes.map(_typeName).join(', ')})';
+
+  static bool _same(List<int> a, List<int> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
 }
+
+String _typeName(int type) => type == typeF32 ? 'f32' : 'i32';
 
 /// One function body, validated and flattened into jumps.
 ///
@@ -102,12 +169,20 @@ final class CompiledFunction {
   final List<int> targets;
 }
 
-/// A global's starting value and whether it may change.
+/// A global's starting value — an `f32`'s as its bits — and whether it may
+/// change.
 final class ModuleGlobal {
-  const ModuleGlobal({required this.mutable, required this.init});
+  const ModuleGlobal({
+    required this.mutable,
+    required this.init,
+    this.type = typeI32,
+  });
 
   final bool mutable;
   final int init;
+
+  /// `i32`, or `f32` in a render module.
+  final int type;
 }
 
 /// Bytes copied into memory at instantiation.
@@ -127,18 +202,24 @@ Map<String, int> savedGlobalsOf(WasmModule module) => <String, int>{
     if (module.globals[index].mutable) name: index,
 };
 
-/// A Wasm module that is ABI 1: decoded, validated and compiled, ready for
-/// any [WasmRuntime].
+/// A Wasm module of the plugin ABI: decoded, validated and compiled, ready
+/// for any [WasmRuntime].
 ///
 /// **Refused at load, not at the first step.** [decode] reads every section
 /// and every instruction before it answers, so a module that uses a 64-bit
-/// value, imports something ABI 1 does not offer or branches out of its own
-/// body never gets as far as an engine. Each refusal names what it found and
-/// where. The browser runtime runs this check too, so the same bytes are
+/// value, imports something its ABI does not offer or branches out of its
+/// own body never gets as far as an engine. Each refusal names what it found
+/// and where. The browser runtime runs this check too, so the same bytes are
 /// refused everywhere.
+///
+/// **Of one [kind], said by whoever decodes it**: a step module is `i32`
+/// only and exports `f3d_step`; a render module may compute in `f32` and
+/// exports `f3d_render_node`. The `.f3dplugin` section that declares a
+/// module says which, so the same bytes are never read as both.
 final class WasmModule {
   WasmModule._({
     required this.bytes,
+    required this.kind,
     required this._functionTypes,
     required this.imports,
     required this.importNames,
@@ -155,6 +236,9 @@ final class WasmModule {
 
   /// The bytes it was decoded from, for a runtime that compiles them itself.
   final Uint8List bytes;
+
+  /// Whether it steps the simulation or drives a render node.
+  final WasmModuleKind kind;
 
   // What the interpreter runs, read through [WasmModuleInternals]: the
   // compiled code is this package's own shape, not part of its API.
@@ -194,12 +278,19 @@ final class WasmModule {
   /// `f3d_abi`'s function index.
   int get abiFunction => functionExports['f3d_abi']!;
 
-  /// `f3d_step`'s function index.
+  /// `f3d_step`'s function index; a step module has one.
   int get stepFunction => functionExports['f3d_step']!;
 
-  /// Reads and checks [bytes]. Throws [WasmException] with a sentence naming
-  /// the section, the instruction or the import that is not ABI 1.
-  static WasmModule decode(Uint8List bytes) => _Decoder(bytes).decode();
+  /// `f3d_render_node`'s function index; a render module has one.
+  int get renderFunction => functionExports[wasmRenderNodeExport]!;
+
+  /// Reads and checks [bytes] as a module of [kind]. Throws [WasmException]
+  /// with a sentence naming the section, the instruction or the import that
+  /// a module of that kind may not have.
+  static WasmModule decode(
+    Uint8List bytes, {
+    WasmModuleKind kind = WasmModuleKind.step,
+  }) => _Decoder(bytes, kind).decode();
 }
 
 /// The compiled parts of a [WasmModule] the runtimes in this package read.
@@ -228,6 +319,10 @@ String _hex(int value) => '0x${value.toRadixString(16).padLeft(2, '0')}';
 String _abiOnlyI32(String what) =>
     '$what: ABI $wasmPluginAbi is 32-bit integers only, so one module gives '
     'one answer on the VM, in a browser and on a server';
+
+String _renderOnlyI32F32(String what) =>
+    '$what: a render module computes in i32 and f32 only, the values a '
+    'shader\'s parameters are made of';
 
 /// Reads bytes, LEB128 numbers and names, refusing anything that runs past
 /// its end.
@@ -286,6 +381,13 @@ final class _Reader {
     _refuse('a constant is encoded in more than five bytes');
   }
 
+  /// Four bytes, little-endian, as a signed 32-bit number: an `f32.const`'s
+  /// bits.
+  int bits32() {
+    final raw = take(4);
+    return ByteData.sublistView(raw).getInt32(0, Endian.little);
+  }
+
   Uint8List take(int count) {
     if (position + count > end) _refuse('a section runs past its end');
     final out = Uint8List.sublistView(bytes, position, position + count);
@@ -310,33 +412,14 @@ final class _Reader {
   }
 }
 
-/// Reads one value type, refusing every one but `i32` with the reason.
-void _valueType(int type, String where) {
-  switch (type) {
-    case 0x7F:
-      return;
-    case 0x7E:
-      _refuse(_abiOnlyI32('$where uses an i64'));
-    case 0x7D:
-      _refuse(_abiOnlyI32('$where uses an f32'));
-    case 0x7C:
-      _refuse(_abiOnlyI32('$where uses an f64'));
-    case 0x7B:
-      _refuse(_abiOnlyI32('$where uses a v128'));
-    case 0x70 || 0x6F:
-      _refuse(
-        '$where uses a reference type; references and tables are not '
-        'in ABI $wasmPluginAbi',
-      );
-    default:
-      _refuse('$where names value type ${_hex(type)}, which is not Wasm');
-  }
-}
-
 final class _Decoder {
-  _Decoder(this.bytes);
+  _Decoder(this.bytes, this.kind);
 
   final Uint8List bytes;
+  final WasmModuleKind kind;
+
+  /// Whether `f32` may appear: in a render module.
+  bool get floats => kind == WasmModuleKind.render;
 
   final List<FunctionType> _types = <FunctionType>[];
   final List<FunctionType> _functionTypes = <FunctionType>[];
@@ -352,6 +435,36 @@ final class _Decoder {
   int? _start;
   final List<DataSegment> _data = <DataSegment>[];
   _Reader? _code;
+
+  /// Reads one value type, refusing every one this module's kind does not
+  /// compute in, with the reason.
+  int valueType(int type, String where) {
+    switch (type) {
+      case typeI32:
+        return typeI32;
+      case typeF32 when floats:
+        return typeF32;
+      case 0x7E:
+        _refuse(_onlyOurs('$where uses an i64'));
+      case typeF32:
+        _refuse(_abiOnlyI32('$where uses an f32'));
+      case 0x7C:
+        _refuse(_onlyOurs('$where uses an f64'));
+      case 0x7B:
+        _refuse(_onlyOurs('$where uses a v128'));
+      case 0x70 || 0x6F:
+        _refuse(
+          '$where uses a reference type; references and tables are not '
+          'in ABI $wasmPluginAbi',
+        );
+      default:
+        _refuse('$where names value type ${_hex(type)}, which is not Wasm');
+    }
+  }
+
+  /// The refusal of a value this module's kind does not compute in.
+  String _onlyOurs(String what) =>
+      floats ? _renderOnlyI32F32(what) : _abiOnlyI32(what);
 
   WasmModule decode() {
     final r = _Reader(bytes, 0, bytes.length);
@@ -412,7 +525,8 @@ final class _Decoder {
     final functions = _codeSection();
     _checkExports();
     final start = _start;
-    if (start != null && _functionTypes[start] != const FunctionType(0, 0)) {
+    if (start != null &&
+        _functionTypes[start] != const FunctionType.i32(0, 0)) {
       _refuse(
         'the start function takes or returns values; it must take '
         'none and return none',
@@ -420,6 +534,7 @@ final class _Decoder {
     }
     return WasmModule._(
       bytes: bytes,
+      kind: kind,
       functionTypes: List<FunctionType>.unmodifiable(_functionTypes),
       imports: List<int>.unmodifiable(_imports),
       importNames: List<String>.unmodifiable(_importNames),
@@ -448,21 +563,26 @@ final class _Decoder {
   void _typeSection(_Reader r) {
     for (var i = r.u32(); i > 0; i--) {
       if (r.byte() != 0x60) _refuse('type ${_types.length} is not a function');
-      final params = r.u32();
-      for (var p = 0; p < params; p++) {
-        _valueType(r.byte(), 'type ${_types.length}');
-      }
-      final results = r.u32();
-      for (var p = 0; p < results; p++) {
-        _valueType(r.byte(), 'type ${_types.length}');
-      }
-      if (results > 1) {
+      final params = <int>[
+        for (var p = r.u32(); p > 0; p--)
+          valueType(r.byte(), 'type ${_types.length}'),
+      ];
+      final results = <int>[
+        for (var p = r.u32(); p > 0; p--)
+          valueType(r.byte(), 'type ${_types.length}'),
+      ];
+      if (results.length > 1) {
         _refuse(
-          'type ${_types.length} returns $results values; a function '
-          'returns at most one in ABI $wasmPluginAbi',
+          'type ${_types.length} returns ${results.length} values; a '
+          'function returns at most one in ABI $wasmPluginAbi',
         );
       }
-      _types.add(FunctionType(params, results));
+      _types.add(
+        FunctionType(
+          List<int>.unmodifiable(params),
+          List<int>.unmodifiable(results),
+        ),
+      );
     }
   }
 
@@ -495,23 +615,44 @@ final class _Decoder {
         );
       }
       final type = _type(r.u32(), what);
-      final abi = _abiImports[name];
-      if (module != 'f3d' || abi == null) {
+      final offered = floats ? _renderImports : _stepImports;
+      final host = offered[name];
+      if (module != 'f3d' || host == null) {
+        final other = (floats ? _stepImports : _renderImports)[name];
+        if (module == 'f3d' && other != null) {
+          _refuse(
+            floats
+                ? '$what is a step module\'s: a render module runs outside '
+                      'the simulation and imports f3d.param, '
+                      'f3d.param_floats, f3d.draw, f3d.time, f3d.view_size '
+                      'and f3d.light_code'
+                : '$what is a render module\'s (ABI 3): a module the '
+                      '"wasm" section declares steps the simulation, and a '
+                      'render module is declared under "wasmRender"',
+          );
+        }
         _refuse(
-          '$what is not one ABI $wasmPluginAbi offers. A module '
-          'imports f3d.field_len, f3d.field_get, f3d.field_set, '
-          'f3d.publish and f3d.field_frac, and nothing else: there is no '
-          'file, clock or network to reach',
+          floats
+              ? '$what is not one ABI $wasmPluginAbi offers a render module. '
+                    'A render module imports f3d.param, f3d.param_floats, '
+                    'f3d.draw, f3d.time, f3d.view_size and f3d.light_code, '
+                    'and nothing else: there is no file, clock or network '
+                    'to reach'
+              : '$what is not one ABI $wasmPluginAbi offers. A module '
+                    'imports f3d.field_len, f3d.field_get, f3d.field_set, '
+                    'f3d.publish and f3d.field_frac, and nothing else: there '
+                    'is no file, clock or network to reach',
         );
       }
-      final (host, params, results) = abi;
-      if (type != FunctionType(params, results)) {
+      if (type != host.type) {
         _refuse(
-          '$what takes ${type.params} and returns ${type.results}; '
-          'ABI $wasmPluginAbi has it take $params and return $results',
+          '$what takes ${type.params} and returns ${type.results}'
+          '${type.params == host.type.params && type.results == host.type.results ? ' as $type' : ''}; '
+          'ABI $wasmPluginAbi has it take ${host.type.params} and return '
+          '${host.type.results}${floats ? ' as ${host.type}' : ''}',
         );
       }
-      _imports.add(host);
+      _imports.add(host.host);
       _importNames.add(name);
       _functionTypes.add(type);
     }
@@ -550,18 +691,28 @@ final class _Decoder {
     }
   }
 
-  int _constant(_Reader r, String where) {
-    if (r.byte() != opConst) {
+  /// One constant expression of [type]: an `i32.const`, or in a render
+  /// module an `f32.const` for an `f32`, as its bits.
+  int _constant(_Reader r, String where, {int type = typeI32}) {
+    final op = r.byte();
+    final int value;
+    if (type == typeF32 && op == 0x43) {
+      value = r.bits32();
+    } else if (type == typeI32 && op == opConst) {
+      value = r.s32();
+    } else {
       _refuse(
-        '$where does not start from i32.const; in ABI $wasmPluginAbi '
-        'it must',
+        type == typeF32
+            ? '$where does not start from f32.const; a global of a render '
+                  'module starts from one constant of its type'
+            : '$where does not start from i32.const; in ABI '
+                  '$wasmPluginAbi it must',
       );
     }
-    final value = r.s32();
     if (r.byte() != 0x0B) {
       _refuse(
-        '$where is more than one i32.const; in ABI $wasmPluginAbi it '
-        'is one',
+        '$where is more than one ${_typeName(type)}.const; in ABI '
+        '$wasmPluginAbi it is one',
       );
     }
     return value;
@@ -570,13 +721,19 @@ final class _Decoder {
   void _globalSection(_Reader r) {
     for (var i = r.u32(); i > 0; i--) {
       final where = 'global ${_globals.length}';
-      _valueType(r.byte(), where);
+      final type = valueType(r.byte(), where);
       final mutable = switch (r.byte()) {
         0 => false,
         1 => true,
         _ => _refuse('$where is neither mutable nor immutable'),
       };
-      _globals.add(ModuleGlobal(mutable: mutable, init: _constant(r, where)));
+      _globals.add(
+        ModuleGlobal(
+          mutable: mutable,
+          init: _constant(r, where, type: type),
+          type: type,
+        ),
+      );
     }
   }
 
@@ -646,8 +803,25 @@ final class _Decoder {
         '$wasmPluginAbi',
       );
     }
-    if (_functionTypes[abi] != const FunctionType(0, 1)) {
+    if (_functionTypes[abi] != const FunctionType.i32(0, 1)) {
       _refuse('f3d_abi must take nothing and return an i32');
+    }
+    if (floats) {
+      final node = _functionExports[wasmRenderNodeExport];
+      if (node == null) {
+        _refuse(
+          'the module is declared under "wasmRender" and exports no '
+          '$wasmRenderNodeExport(i32 frame, i32 view), so there is nothing '
+          'to call each frame',
+        );
+      }
+      if (_functionTypes[node] != const FunctionType.i32(2, 0)) {
+        _refuse(
+          '$wasmRenderNodeExport must take two i32 — the frame and the '
+          'view — and return nothing',
+        );
+      }
+      return;
     }
     final step = _functionExports['f3d_step'];
     if (step == null) {
@@ -656,7 +830,7 @@ final class _Decoder {
         'is nothing to run each step',
       );
     }
-    if (_functionTypes[step] != const FunctionType(2, 0)) {
+    if (_functionTypes[step] != const FunctionType.i32(2, 0)) {
       _refuse(
         'f3d_step must take two i32 — the step and dt in Q16.16 — and '
         'return nothing',
@@ -697,17 +871,21 @@ const int _kindLoop = 1;
 const int _kindIf = 2;
 const int _kindFunction = 3;
 
+/// A value whose type nothing can tell, past an `unreachable`: it matches
+/// whatever pops it.
+const int _anyType = 0;
+
 /// One open block while a body is compiled.
 final class _Frame {
-  _Frame(this.kind, this.height, this.arity, this.start);
+  _Frame(this.kind, this.height, this.resultType, this.start);
 
   final int kind;
 
   /// The operand stack's height when the block was entered.
   final int height;
 
-  /// How many values the block leaves: nought or one.
-  final int arity;
+  /// The type of the value the block leaves, or null for none.
+  final int? resultType;
 
   /// Where a branch to a loop goes: its first instruction.
   final int start;
@@ -720,18 +898,26 @@ final class _Frame {
   int ifAt = -1;
   int elseAt = -1;
 
+  /// How many values the block leaves: nought or one.
+  int get arity => resultType == null ? 0 : 1;
+
   /// What a branch to this block carries: a loop's branch goes back to its
   /// start and carries nothing.
   int get branchArity => kind == _kindLoop ? 0 : arity;
+
+  /// The type a branch to this block carries, or null.
+  int? get branchType => kind == _kindLoop ? null : resultType;
 }
 
 /// Validates one body and flattens it into jumps.
 ///
-/// **Typing is counting.** Every value in ABI 1 is an `i32`, so checking a
-/// body is following the operand stack's height through it: an instruction
-/// that pops more than its block holds, a block that ends with the wrong
-/// number of values, a branch to a block that is not there — each is a
-/// refusal, at load.
+/// **Typing is following the operand stack.** A step module holds nothing
+/// but `i32`, so checking its body is counting; a render module holds `f32`
+/// beside it, so each slot of the stack carries its type and every
+/// instruction checks the types it pops. An instruction that pops more than
+/// its block holds or a value of the wrong type, a block that ends with the
+/// wrong values, a branch to a block that is not there — each is a refusal,
+/// at load.
 final class _Compiler {
   _Compiler(this._module, this._index, this._type, this._r);
 
@@ -745,28 +931,36 @@ final class _Compiler {
   final List<int> _b = <int>[];
   final List<int> _targets = <int>[];
   final List<_Frame> _frames = <_Frame>[];
-  int _height = 0;
+
+  /// The type of each value on the operand stack.
+  final List<int> _stack = <int>[];
   int _maxHeight = 0;
-  int _localCount = 0;
+  final List<int> _locals = <int>[];
 
   String get _where => 'function $_index';
 
+  bool get _floats => _module.floats;
+
   CompiledFunction compile() {
-    _localCount = _type.params;
+    _locals.addAll(_type.paramTypes);
     for (var i = _r.u32(); i > 0; i--) {
       final count = _r.u32();
-      _valueType(_r.byte(), '$_where\'s locals');
-      _localCount += count;
-      if (_localCount > 50000) _refuse('$_where declares over 50000 locals');
+      final type = _module.valueType(_r.byte(), '$_where\'s locals');
+      if (_locals.length + count > 50000) {
+        _refuse('$_where declares over 50000 locals');
+      }
+      for (var l = 0; l < count; l++) {
+        _locals.add(type);
+      }
     }
-    _frames.add(_Frame(_kindFunction, 0, _type.results, 0));
+    _frames.add(_Frame(_kindFunction, 0, _type.resultTypes.firstOrNull, 0));
     while (_frames.isNotEmpty) {
       _instruction(_r.byte());
     }
     if (!_r.atEnd) _refuse('$_where has instructions after its end');
     return CompiledFunction(
       type: _type,
-      localCount: _localCount,
+      localCount: _locals.length,
       maxHeight: _maxHeight,
       ops: List<int>.unmodifiable(_ops),
       a: List<int>.unmodifiable(_a),
@@ -782,25 +976,38 @@ final class _Compiler {
     return _ops.length - 1;
   }
 
-  void _push([int count = 1]) {
-    _height += count;
-    if (_height > _maxHeight) _maxHeight = _height;
+  void _push(int type) {
+    _stack.add(type);
+    if (_stack.length > _maxHeight) _maxHeight = _stack.length;
   }
 
-  void _pop(String what, [int count = 1]) {
+  /// Pops one value for [what], of [type] (any when null), and answers the
+  /// type it had.
+  int _pop(String what, [int? type = typeI32]) {
     final frame = _frames.last;
-    for (var i = 0; i < count; i++) {
-      if (_height == frame.height) {
-        if (frame.unreachable) return;
-        _refuse('$_where: $what needs a value and its block has none left');
-      }
-      _height--;
+    if (_stack.length == frame.height) {
+      if (frame.unreachable) return type ?? _anyType;
+      _refuse('$_where: $what needs a value and its block has none left');
+    }
+    final found = _stack.removeLast();
+    if (type != null && found != _anyType && found != type) {
+      _refuse(
+        '$_where: $what takes an ${_typeName(type)} and is handed an '
+        '${_typeName(found)}',
+      );
+    }
+    return found;
+  }
+
+  void _popAll(String what, List<int> types) {
+    for (final type in types.reversed) {
+      _pop(what, type);
     }
   }
 
   void _unreachable() {
     final frame = _frames.last..unreachable = true;
-    _height = frame.height;
+    _stack.length = frame.height;
   }
 
   _Frame _label(int depth) {
@@ -825,11 +1032,12 @@ final class _Compiler {
     return index;
   }
 
-  int _blockType() {
+  /// The type a block yields, or null for none.
+  int? _blockType() {
     final type = _r.peek();
     if (type == 0x40) {
       _r.byte();
-      return 0;
+      return null;
     }
     if (type == 0x7F ||
         type == 0x7E ||
@@ -839,12 +1047,11 @@ final class _Compiler {
         type == 0x70 ||
         type == 0x6F) {
       _r.byte();
-      _valueType(type, '$_where\'s block');
-      return 1;
+      return _module.valueType(type, '$_where\'s block');
     }
     _refuse(
       '$_where has a block typed by index; ABI $wasmPluginAbi blocks '
-      'yield nothing or one i32',
+      'yield nothing or one value',
     );
   }
 
@@ -865,9 +1072,11 @@ final class _Compiler {
 
   void _end() {
     final frame = _frames.last;
-    if (!frame.unreachable && _height != frame.height + frame.arity) {
+    if (frame.resultType case final type?) _pop('the block\'s end', type);
+    if (!frame.unreachable && _stack.length != frame.height) {
       _refuse(
-        '$_where ends a block with ${_height - frame.height} values '
+        '$_where ends a block with '
+        '${_stack.length - frame.height + frame.arity} values '
         'where it yields ${frame.arity}',
       );
     }
@@ -886,7 +1095,15 @@ final class _Compiler {
       }
     }
     _frames.removeLast();
-    _height = frame.height + frame.arity;
+    _stack.length = frame.height;
+    if (frame.resultType case final type?) _push(type);
+  }
+
+  /// One instruction of [types] in and [result] out, emitted as [op].
+  void _typed(int op, List<int> types, int? result, {bool emit = true}) {
+    _popAll(_hex(op), types);
+    if (result != null) _push(result);
+    if (emit) _emit(op);
   }
 
   void _instruction(int op) {
@@ -897,42 +1114,51 @@ final class _Compiler {
       case 0x01:
         break;
       case 0x02:
-        _frames.add(_Frame(_kindBlock, _height, _blockType(), 0));
+        _frames.add(_Frame(_kindBlock, _stack.length, _blockType(), 0));
       case 0x03:
-        _frames.add(_Frame(_kindLoop, _height, _blockType(), _ops.length));
+        _frames.add(
+          _Frame(_kindLoop, _stack.length, _blockType(), _ops.length),
+        );
       case 0x04:
-        final arity = _blockType();
+        final type = _blockType();
         _pop('if');
-        _frames.add(_Frame(_kindIf, _height, arity, 0)..ifAt = _emit(opIf));
+        _frames.add(
+          _Frame(_kindIf, _stack.length, type, 0)..ifAt = _emit(opIf),
+        );
       case 0x05:
         final frame = _frames.last;
         if (frame.kind != _kindIf || frame.elseAt >= 0) {
           _refuse('$_where has an else that follows no if');
         }
-        if (!frame.unreachable && _height != frame.height + frame.arity) {
+        if (frame.resultType case final type?) {
+          _pop('the if\'s first branch', type);
+        }
+        if (!frame.unreachable && _stack.length != frame.height) {
           _refuse(
             '$_where ends an if\'s first branch with '
-            '${_height - frame.height} values where it yields '
-            '${frame.arity}',
+            '${_stack.length - frame.height + frame.arity} values where it '
+            'yields ${frame.arity}',
           );
         }
         frame
           ..elseAt = _emit(opElse)
           ..unreachable = false;
         _a[frame.ifAt] = _ops.length;
-        _height = frame.height;
+        _stack.length = frame.height;
       case 0x0B:
         _end();
       case 0x0C:
         final frame = _label(_r.u32());
-        _pop('br', frame.branchArity);
+        if (frame.branchType case final type?) _pop('br', type);
         _emit(opBr, _target(frame));
         _unreachable();
       case 0x0D:
         final frame = _label(_r.u32());
         _pop('br_if');
-        _pop('br_if', frame.branchArity);
-        _push(frame.branchArity);
+        if (frame.branchType case final type?) {
+          _pop('br_if', type);
+          _push(type);
+        }
         _emit(opBrIf, _target(frame));
       case 0x0E:
         final count = _r.u32();
@@ -940,14 +1166,14 @@ final class _Compiler {
         final depths = <int>[for (var i = 0; i <= count; i++) _r.u32()];
         _pop('br_table');
         final frames = <_Frame>[for (final depth in depths) _label(depth)];
-        final arity = frames.last.branchArity;
-        if (frames.any((_Frame f) => f.branchArity != arity)) {
+        final type = frames.last.branchType;
+        if (frames.any((_Frame f) => f.branchType != type)) {
           _refuse(
             '$_where has a br_table whose targets carry different '
-            'numbers of values',
+            'values',
           );
         }
-        _pop('br_table', arity);
+        if (type != null) _pop('br_table', type);
         final first = _targets.length ~/ 3;
         for (final frame in frames) {
           _target(frame);
@@ -955,14 +1181,16 @@ final class _Compiler {
         _emit(opBrTable, first, count);
         _unreachable();
       case 0x0F:
-        _pop('return', _type.results);
+        _popAll('return', _type.resultTypes);
         _emit(opReturn);
         _unreachable();
       case 0x10:
         final callee = _module._function(_r.u32(), _where);
         final type = _module._functionTypes[callee];
-        _pop('call', type.params);
-        _push(type.results);
+        _popAll('call', type.paramTypes);
+        for (final result in type.resultTypes) {
+          _push(result);
+        }
         _emit(opCall, callee);
       case 0x11:
         _refuse(
@@ -970,26 +1198,31 @@ final class _Compiler {
           '$wasmPluginAbi',
         );
       case 0x1A:
-        _pop('drop');
+        _pop('drop', null);
         _emit(opDrop);
       case 0x1B:
-        _pop('select', 3);
-        _push();
+        _pop('select');
+        final second = _pop('select', null);
+        final first = _pop('select', second == _anyType ? null : second);
+        _push(first == _anyType ? second : first);
         _emit(opSelect);
       case 0x1C:
         final count = _r.u32();
         if (count != 1) _refuse('$_where has a select of $count types');
-        _valueType(_r.byte(), '$_where\'s select');
-        _pop('select', 3);
-        _push();
+        final type = _module.valueType(_r.byte(), '$_where\'s select');
+        _pop('select');
+        _pop('select', type);
+        _pop('select', type);
+        _push(type);
         _emit(opSelect);
       case 0x20 || 0x21 || 0x22:
         final index = _r.u32();
-        if (index >= _localCount) {
-          _refuse('$_where reads local $index, and has $_localCount');
+        if (index >= _locals.length) {
+          _refuse('$_where reads local $index, and has ${_locals.length}');
         }
-        if (op != 0x20) _pop('local.set');
-        if (op != 0x21) _push();
+        final type = _locals[index];
+        if (op != 0x20) _pop('local.set', type);
+        if (op != 0x21) _push(type);
         _emit(op, index);
       case 0x23 || 0x24:
         final index = _r.u32();
@@ -999,56 +1232,90 @@ final class _Compiler {
             '${_module._globals.length}',
           );
         }
+        final global = _module._globals[index];
         if (op == 0x24) {
-          if (!_module._globals[index].mutable) {
+          if (!global.mutable) {
             _refuse('$_where sets global $index, which is immutable');
           }
-          _pop('global.set');
+          _pop('global.set', global.type);
         } else {
-          _push();
+          _push(global.type);
         }
         _emit(op, index);
       case 0x28:
         final offset = _memarg(2, 'i32.load');
         _pop('i32.load');
-        _push();
+        _push(typeI32);
         _emit(op, offset);
+      case 0x2A when _floats:
+        // f32.load: the four bytes as an i32's, which is what an f32 is here.
+        final offset = _memarg(2, 'f32.load');
+        _pop('f32.load');
+        _push(typeF32);
+        _emit(opLoad, offset);
       case 0x2C || 0x2D:
         final offset = _memarg(0, 'i32.load8');
         _pop('i32.load8');
-        _push();
+        _push(typeI32);
         _emit(op, offset);
       case 0x2E || 0x2F:
         final offset = _memarg(1, 'i32.load16');
         _pop('i32.load16');
-        _push();
+        _push(typeI32);
         _emit(op, offset);
       case 0x36:
         _emit(op, _memarg(2, 'i32.store'));
-        _pop('i32.store', 2);
+        _pop('i32.store');
+        _pop('i32.store');
+      case 0x38 when _floats:
+        _emit(opStore, _memarg(2, 'f32.store'));
+        _pop('f32.store', typeF32);
+        _pop('f32.store');
       case 0x3A:
         _emit(op, _memarg(0, 'i32.store8'));
-        _pop('i32.store8', 2);
+        _pop('i32.store8');
+        _pop('i32.store8');
       case 0x3B:
         _emit(op, _memarg(1, 'i32.store16'));
-        _pop('i32.store16', 2);
+        _pop('i32.store16');
+        _pop('i32.store16');
       case 0x3F || 0x40:
         _memory(op == 0x3F ? 'memory.size' : 'memory.grow');
         if (_r.byte() != 0) _refuse('$_where names a second memory');
         if (op == 0x40) _pop('memory.grow');
-        _push();
+        _push(typeI32);
         _emit(op);
       case 0x41:
-        _push();
+        _push(typeI32);
         _emit(op, _r.s32());
+      case 0x43 when _floats:
+        _push(typeF32);
+        _emit(opConst, _r.bits32());
       case 0x45 || 0x67 || 0x68 || 0x69 || 0xC0 || 0xC1:
-        _pop(_hex(op));
-        _push();
-        _emit(op);
+        _typed(op, const <int>[typeI32], typeI32);
       case (>= 0x46 && <= 0x4F) || (>= 0x6A && <= 0x78):
-        _pop(_hex(op), 2);
-        _push();
-        _emit(op);
+        _typed(op, const <int>[typeI32, typeI32], typeI32);
+      case >= 0x5B && <= 0x60 when _floats:
+        // The f32 comparisons, each answering an i32.
+        _typed(op, const <int>[typeF32, typeF32], typeI32);
+      case >= 0x8B && <= 0x91 when _floats:
+        // abs, neg, ceil, floor, trunc, nearest, sqrt.
+        _typed(op, const <int>[typeF32], typeF32);
+      case >= 0x92 && <= 0x98 when _floats:
+        // add, sub, mul, div, min, max, copysign.
+        _typed(op, const <int>[typeF32, typeF32], typeF32);
+      case (0xA8 || 0xA9) when _floats:
+        // i32.trunc_f32_s and _u, which trap on a value no i32 holds.
+        _typed(op, const <int>[typeF32], typeI32);
+      case (0xB2 || 0xB3) when _floats:
+        // f32.convert_i32_s and _u.
+        _typed(op, const <int>[typeI32], typeF32);
+      case 0xBC when _floats:
+        // i32.reinterpret_f32: the bits are already an i32's.
+        _typed(op, const <int>[typeF32], typeI32, emit: false);
+      case 0xBE when _floats:
+        // f32.reinterpret_i32.
+        _typed(op, const <int>[typeI32], typeF32, emit: false);
       case 0xFC:
         _refuse(
           '$_where uses a 0xFC-prefixed instruction (saturating '
@@ -1061,7 +1328,7 @@ final class _Compiler {
           (>= 0x50 && <= 0x66) ||
           (>= 0x79 && <= 0xBF) ||
           (>= 0xC2 && <= 0xC4):
-        _refuse(_abiOnlyI32('$_where uses instruction ${_hex(op)}'));
+        _refuse(_module._onlyOurs('$_where uses instruction ${_hex(op)}'));
       default:
         _refuse(
           '$_where uses instruction ${_hex(op)}, which ABI '

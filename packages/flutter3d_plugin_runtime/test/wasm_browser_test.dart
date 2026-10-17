@@ -9,6 +9,8 @@ library;
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show RenderProgramFrame;
 import 'package:flutter3d_plugin_runtime/src/wasm/wasm.dart';
 import 'package:test/test.dart';
 
@@ -105,4 +107,122 @@ void main() {
     instance.restore(good);
     expect(instance.save(), good);
   });
+
+  test('a render module says to the frame in the browser what it says on '
+      'the interpreter', () {
+    // Mutation, one per import: answer view_size with the width for every
+    // axis, hand param_floats a view of the browser's memory rather than a
+    // copy (the second frame's time overwrites the first's), or leave
+    // light_code or draw out of the import object.
+    final m = ModuleBuilder()
+      ..memory(1, max: 1)
+      ..exportMemory('memory');
+    final param = m.importOf('param', const <int>[
+      i32Type,
+      i32Type,
+      f32Type,
+    ], const <int>[]);
+    final floats = m.importOf('param_floats', const <int>[
+      i32Type,
+      i32Type,
+      i32Type,
+    ], const <int>[]);
+    final time = m.importOf('time', const <int>[], const <int>[f32Type]);
+    final size = m.importOf(
+      'view_size',
+      const <int>[i32Type],
+      const <int>[i32Type],
+    );
+    final light = m.importOf(
+      'light_code',
+      const <int>[i32Type],
+      const <int>[i32Type],
+    );
+    final draw = m.importOf('draw', const <int>[], const <int>[]);
+    List<int> set(int component, List<int> value) => <int>[
+      ...konst(0),
+      ...konst(component),
+      ...value,
+      call,
+      ...u32(param),
+    ];
+    m.render(
+      node: <int>[
+        ...set(0, <int>[...konst(1), call, ...u32(size), f32ConvertI32S]),
+        ...set(1, <int>[...konst(0), call, ...u32(light), f32ConvertI32S]),
+        ...set(2, <int>[...fconst(0.25), ...fconst(0.5), f32Mul]),
+        ...konst(0), call, ...u32(time), ...fstore(), //
+        ...konst(4), call, ...u32(time), ...fstore(),
+        ...konst(1), ...konst(0), ...konst(8), call, ...u32(floats),
+        call, ...u32(draw),
+      ],
+    );
+    final bytes = m.build();
+    List<String> said(WasmRuntime runtime) {
+      final node = WasmRenderNode(
+        const WasmRenderSpec(
+          module: 'm.wasm',
+          step: 'beat',
+          parameters: <String>['tint', 'strength'],
+          lights: <String>['tube'],
+        ),
+        WasmModule.decode(bytes, kind: WasmModuleKind.render),
+        plugin: 'acme',
+        runtime: runtime,
+      );
+      final first = _Frame(time: 1.5);
+      node.run(first);
+      node.run(_Frame(time: 9.0));
+      return first.said;
+    }
+
+    final interpreted = said(WasmRuntime.interpreter);
+    expect(interpreted, <String>[
+      'param 0 0 48.000',
+      'param 0 1 17.000',
+      'param 0 2 0.125',
+      'floats 1 1.500 1.500',
+      'draw',
+    ]);
+    expect(said(browserWasmRuntime()!), interpreted);
+  });
+}
+
+/// A frame that writes down every command it is handed, the floats as they
+/// were when it was handed them.
+final class _Frame extends RenderProgramFrame {
+  _Frame({required this.time});
+
+  final List<String> said = <String>[];
+
+  @override
+  final double time;
+
+  @override
+  int get frame => 7;
+
+  @override
+  int get view => 0;
+
+  @override
+  int get width => 64;
+
+  @override
+  int get height => 48;
+
+  @override
+  void setParameter(int parameter, int component, double value) =>
+      said.add('param $parameter $component ${value.toStringAsFixed(3)}');
+
+  @override
+  void setParameterFloats(int parameter, Float32List values) => said.add(
+    'floats $parameter '
+    '${values.map((v) => v.toStringAsFixed(3)).join(' ')}',
+  );
+
+  @override
+  void draw() => said.add('draw');
+
+  @override
+  int? lightCode(String name) => name == 'acme.tube' ? 17 : null;
 }

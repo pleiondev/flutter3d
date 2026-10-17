@@ -145,7 +145,7 @@ void main() {
   group('at instantiation', () {
     test('a module written for another ABI is refused with both numbers', () {
       // Mutation: skip the f3d_abi call in `_begin`, or drop either end of
-      // the range check. The host runs ABI 1 to 2, so 0 and 3 are both out.
+      // the range check. The host runs ABI 1 to 3, so 0 and 4 are both out.
       for (final abi in const <int>[0, wasmPluginAbiMax + 1]) {
         final module = WasmModule.decode(
           (ModuleBuilder()..abi(abi: abi)).build(),
@@ -166,28 +166,14 @@ void main() {
       }
     });
 
-    test('render nodes are a capability their export names, and no ABI '
-        'a host runs has them yet', () {
-      // Mutation: set `wasmRenderAbi` to a number of its own again. A minor
-      // that only adds a simulation import could not take the next ABI
-      // without taking render nodes with it.
-      expect(wasmRenderAbi, wasmPluginAbiMax + 1);
+    test('render nodes arrived in ABI 3, and a step module of any ABI '
+        'that exports their name runs as any other', () {
+      // Mutation: read a module as a render module by its export. Its
+      // section says it steps the simulation, and a step module that
+      // happened to export the name would be called each frame.
+      expect(wasmRenderAbi, 3);
       expect(wasmRenderNodeExport, 'f3d_render_node');
-      final beyond = WasmModule.decode(
-        (ModuleBuilder()..abi(abi: wasmRenderAbi)).build(),
-      );
-      expect(
-        () => WasmRuntime.interpreter.instantiate(
-          WasmInstantiation(
-            beyond,
-            imports: const _Quiet(),
-            limits: const WasmLimits(),
-          ),
-        ),
-        _refused('ABI $wasmRenderAbi and this engine runs ABI'),
-      );
-      // A module of a running ABI that exports a function of the name is
-      // not read for it, and runs as any other.
+      expect(wasmExportSince[wasmRenderNodeExport], wasmRenderAbi);
       final m = ModuleBuilder()..abi(abi: wasmPluginAbiMax);
       m.export(wasmRenderNodeExport, m.function(0, 0, const <int>[]));
       WasmRuntime.interpreter

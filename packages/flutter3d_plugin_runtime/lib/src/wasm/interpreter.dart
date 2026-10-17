@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'abi.dart';
@@ -17,9 +18,10 @@ const int _pageBytes = 65536;
 /// intermediate under 2^53, so a browser — where an `int` is a double — gives
 /// the bits the VM gives.
 ///
-/// **Small because ABI 1 is small.** One value type, one memory, no tables,
-/// no floats: decode has already resolved every branch to a jump, so what is
-/// left here is a loop over flat instructions.
+/// **Small because the ABI is small.** One memory, no tables, `i32` in a
+/// step module and `f32` beside it in a render module, held as its bits:
+/// decode has already resolved every branch to a jump and checked every
+/// type, so what is left here is a loop over flat instructions.
 final class WasmInterpreter extends WasmRuntime {
   const WasmInterpreter();
 
@@ -31,12 +33,19 @@ final class WasmInterpreter extends WasmRuntime {
 
   @override
   WasmInstance instantiate(WasmInstantiation request) =>
-      _Instance(request.module, request.imports, request.limits).._begin();
+      _Instance(request.module, request.imports, request.limits, request.render)
+        .._begin();
 }
 
 final class _Instance extends WasmInstance {
-  _Instance(this._module, this._imports, this._limits)
+  _Instance(this._module, this._imports, this._limits, this._render)
     : _globals = <int>[for (final g in _module.globals) g.init] {
+    if (_module.kind == WasmModuleKind.render && _render == null) {
+      throw const WasmException(
+        'a render module is instantiated with WasmInstantiation.render, '
+        'which hands it its render imports',
+      );
+    }
     final min = _module.memoryMin;
     if (min != null) {
       if (min > _limits.memoryPages) {
@@ -69,7 +78,12 @@ final class _Instance extends WasmInstance {
   final WasmModule _module;
   final WasmImports _imports;
   final WasmLimits _limits;
+  final WasmRenderImports? _render;
   final List<int> _globals;
+
+  /// The fuel the call running now may spend: [WasmLimits.fuelPerStep] for
+  /// a step, [WasmLimits.fuelPerFrame] for a frame's render call.
+  int _budget = 0;
 
   Uint8List _memory = Uint8List(0);
   ByteData _view = ByteData(0);
@@ -98,24 +112,49 @@ final class _Instance extends WasmInstance {
     final start = _module.start;
     if (start != null) _run(start, const <int>[]);
     final abi = _run(_module.abiFunction, const <int>[]);
-    final refusal = wasmAbiRefusal(abi, _module.importNames);
+    final refusal = wasmAbiRefusal(
+      abi,
+      _module.importNames,
+      kind: _module.kind,
+    );
     if (refusal != null) throw WasmException(refusal);
     _abi = abi;
     _used = 0;
   }
 
-  int _run(int function, List<int> args) {
-    _fuel = _limits.fuelPerStep;
+  int _run(int function, List<int> args, {int? fuel}) {
+    _budget = fuel ?? _limits.fuelPerStep;
+    _fuel = _budget;
     try {
       return _invoke(function, args, 0);
     } finally {
-      _used = _limits.fuelPerStep - (_fuel < 0 ? 0 : _fuel);
+      _used = _budget - (_fuel < 0 ? 0 : _fuel);
     }
   }
 
   @override
-  void step(WasmStep step) =>
-      _run(_module.stepFunction, <int>[i32(step.step), i32(step.dtFixed)]);
+  void step(WasmStep step) {
+    if (_module.kind != WasmModuleKind.step) {
+      throw const WasmException(
+        'a render module is called each frame, not stepped',
+      );
+    }
+    _run(_module.stepFunction, <int>[i32(step.step), i32(step.dtFixed)]);
+  }
+
+  @override
+  void render(WasmRenderCall call) {
+    if (_module.kind != WasmModuleKind.render) {
+      throw const WasmException(
+        'a step module is stepped, not called each frame: a render module is '
+        'declared under "wasmRender"',
+      );
+    }
+    _run(_module.renderFunction, <int>[
+      i32(call.frame),
+      i32(call.view),
+    ], fuel: _limits.fuelPerFrame);
+  }
 
   int _host(int host, List<int> args) {
     switch (host) {
@@ -128,9 +167,49 @@ final class _Instance extends WasmInstance {
         return 0;
       case hostFieldFrac:
         return i32(_imports.fieldFractionBits(args[0]));
-      default:
+      case hostPublish:
         _imports.publish(args[0], args[1], args[2]);
         return 0;
+      default:
+        return _renderHost(host, args);
+    }
+  }
+
+  /// A render module's import: its commands and what the frame is, each
+  /// `f32` crossing as its bits.
+  int _renderHost(int host, List<int> args) {
+    final render = _render!;
+    switch (host) {
+      case hostParam:
+        render.param(args[0], args[1], f32Value(args[2]));
+        return 0;
+      case hostParamFloats:
+        // Copied here, during the call, and the copy is what the host
+        // reads: the module's memory is never handed out, so nothing the
+        // host keeps can see the module write it again.
+        final len = u32(args[2]);
+        if (len % 4 != 0) {
+          throw WasmTrapException(
+            'the module handed param_floats $len bytes, which is not a '
+            'whole number of 32-bit floats',
+          );
+        }
+        final at = _address(args[1], 0, len);
+        final values = Float32List(len ~/ 4);
+        for (var i = 0; i < values.length; i++) {
+          values[i] = _view.getFloat32(at + i * 4, Endian.little);
+        }
+        render.paramFloats(args[0], values);
+        return 0;
+      case hostDraw:
+        render.draw();
+        return 0;
+      case hostTime:
+        return f32Bits(render.time);
+      case hostViewSize:
+        return i32(render.viewSize(args[0]));
+      default:
+        return i32(render.lightCode(args[0]));
     }
   }
 
@@ -181,8 +260,8 @@ final class _Instance extends WasmInstance {
     while (true) {
       if (--_fuel < 0) {
         throw WasmTrapException(
-          'the module ran out of fuel (${_limits.fuelPerStep} instructions '
-          'per step)',
+          'the module ran out of fuel ($_budget instructions '
+          '${_module.kind == WasmModuleKind.render ? 'per frame' : 'per step'})',
         );
       }
       final op = ops[pc];
@@ -317,6 +396,31 @@ final class _Instance extends WasmInstance {
         case 0xC1:
           stack[sp - 1] = i32Extend16(stack[sp - 1]);
           pc++;
+        case >= 0x5B && <= 0x60:
+          final y = f32Value(stack[--sp]);
+          final x = f32Value(stack[sp - 1]);
+          stack[sp - 1] = _compare(op, x, y) ? 1 : 0;
+          pc++;
+        case >= 0x8B && <= 0x91:
+          stack[sp - 1] = _unaryF32(op, stack[sp - 1]);
+          pc++;
+        case >= 0x92 && <= 0x98:
+          final y = stack[--sp];
+          stack[sp - 1] = _binaryF32(op, stack[sp - 1], y);
+          pc++;
+        case 0xA8 || 0xA9:
+          stack[sp - 1] =
+              f32Truncate(stack[sp - 1], unsigned: op == 0xA9) ??
+              (throw const WasmTrapException(
+                'the module truncated a float no 32-bit integer holds',
+              ));
+          pc++;
+        case 0xB2:
+          stack[sp - 1] = f32Bits(stack[sp - 1].toDouble());
+          pc++;
+        case 0xB3:
+          stack[sp - 1] = f32Bits(u32(stack[sp - 1]).toDouble());
+          pc++;
         default:
           final y = stack[--sp];
           final x = stack[sp - 1];
@@ -353,6 +457,39 @@ final class _Instance extends WasmInstance {
     0x76 => i32ShrU(x, y),
     0x77 => i32Rotl(x, y),
     _ => i32Rotr(x, y),
+  };
+
+  /// The f32 comparisons, 0x5B–0x60: a NaN equals nothing and is unequal
+  /// to everything, as Wasm says and Dart's doubles do.
+  static bool _compare(int op, double x, double y) => switch (op) {
+    0x5B => x == y,
+    0x5C => x != y,
+    0x5D => x < y,
+    0x5E => x > y,
+    0x5F => x <= y,
+    _ => x >= y,
+  };
+
+  /// The f32 instructions of one operand, 0x8B–0x91, on its bits.
+  static int _unaryF32(int op, int bits) => switch (op) {
+    0x8B => i32(bits & 0x7FFFFFFF),
+    0x8C => i32(bits ^ 0x80000000),
+    0x8D => f32Bits(f32Value(bits).ceilToDouble()),
+    0x8E => f32Bits(f32Value(bits).floorToDouble()),
+    0x8F => f32Bits(f32Value(bits).truncateToDouble()),
+    0x90 => f32Bits(f32Nearest(f32Value(bits))),
+    _ => f32Bits(math.sqrt(f32Value(bits))),
+  };
+
+  /// The f32 instructions of two operands, 0x92–0x98, on their bits.
+  static int _binaryF32(int op, int x, int y) => switch (op) {
+    0x92 => f32Bits(f32Value(x) + f32Value(y)),
+    0x93 => f32Bits(f32Value(x) - f32Value(y)),
+    0x94 => f32Bits(f32Value(x) * f32Value(y)),
+    0x95 => f32Bits(f32Value(x) / f32Value(y)),
+    0x96 => f32MinMax(x, y, max: false),
+    0x97 => f32MinMax(x, y, max: true),
+    _ => i32((x & 0x7FFFFFFF) | (y & 0x80000000)),
   };
 
   static Never _byZero() =>

@@ -1,10 +1,21 @@
-/// A data plugin's `materials`, `renderSteps`, `bindings` and `pipeline`:
-/// the sections of a `.f3dplugin` document the renderer reads, through the
-/// plugin API's `DataSectionRegistry`.
+/// A data plugin's `materials`, `renderSteps`, `bindings`, `pipeline`,
+/// `lightTypes`, `vertexLayouts` and `lodTables`: the sections of a
+/// `.f3dplugin` document the renderer reads, through the plugin API's
+/// `DataSectionRegistry`.
 library;
 
-import 'package:flutter3d_core/flutter3d_core.dart' show RendererSteps;
+import 'package:flutter3d_core/flutter3d_core.dart'
+    show
+        LightPackContext,
+        LightTypeHook,
+        LightTypes,
+        LodContext,
+        LodPolicy,
+        RenderHooks,
+        RendererSteps;
 import 'package:flutter3d_core/formats.dart' show PipelineDocument;
+import 'package:flutter3d_core/geometry.dart'
+    show VertexAttribute, VertexLayout;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show
         DataSection,
@@ -14,6 +25,7 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
         DataSectionRead,
         DocumentFormatException,
         FormatSpec,
+        LightType,
         PluginException,
         PluginHost,
         RenderAnchor,
@@ -38,7 +50,55 @@ const List<DataSection> renderDataSections = <DataSection>[
   renderStepsSection,
   bindingsSection,
   pipelineSection,
+  lightTypesSection,
+  vertexLayoutsSection,
+  lodTablesSection,
 ];
+
+/// A data plugin's `lightTypes`: light types of its own in the light loop
+/// (D22), each packed as the built-in shape it is based on, with up to four
+/// numbers of its own in the row's last `vec4` — what its `lighttype`
+/// declaration in a `.f3dmat` reads as `lightParams`.
+///
+/// ```json
+/// "lightTypes": [{"name": "tube", "base": "point", "params": [1.5, 0, 0, 0]}]
+/// ```
+///
+/// Registered with the renderer's [LightTypes] as `<id>.<name>`, so a light
+/// of that type gets a code of a plugin's own, which a Wasm render module
+/// asks with `light_code`. On an engine that draws nothing it is read and
+/// noted.
+const DataSection lightTypesSection = _LightTypesSection();
+
+/// A data plugin's `vertexLayouts`: the vertex layouts its meshes and its
+/// materials' stages are written against, by name, each a list of the
+/// engine's vertex attributes.
+///
+/// ```json
+/// "vertexLayouts": [{"name": "ribbon", "attributes": ["position", "color"]}]
+/// ```
+///
+/// **Declared, and held to what the engine draws.** Every attribute is one
+/// of the engine's (`position`, `normal`, `texcoord`, `tangent`, `color`,
+/// `joints`, `weights`), in a layout no larger than the engine's skinned
+/// one; an attribute of a plugin's own is refused when the document is
+/// read, naming it, since a stage that read one would be bound to nothing.
+/// The declaration is the shape a later minor's own attributes arrive in.
+const DataSection vertexLayoutsSection = _VertexLayoutsSection();
+
+/// A data plugin's `lodTables`: levels of detail chosen by distance, a
+/// table each, for the groups named after it.
+///
+/// ```json
+/// "lodTables": [{"name": "trees", "distances": [12, 40, 90]}]
+/// ```
+///
+/// A `LodGroup` named `<id>.trees` shows level 0 nearer than 12 metres from
+/// the camera, level 1 to 40, level 2 to 90 and level 3 beyond, clamped to
+/// its levels; any other group passes to the next policy. Registered as a
+/// `LodPolicy` with the renderer's [RenderHooks], chained in dependency
+/// order with every other plugin's.
+const DataSection lodTablesSection = _LodTablesSection();
 
 /// A data plugin's `pipeline`: an `f3d.pipeline` document's body — its
 /// anchors and its nodes, each made by a `PipelineNodeKind` a Dart plugin
@@ -340,6 +400,9 @@ final class _RenderStepsSection extends DataSection {
           refuse: PluginException.new,
         );
       }
+      // A Wasm render module of the document's drives the step, when one
+      // names it: the runtime that read the document made it.
+      final program = context.renderProgram(step.name);
       shaders.addRenderStep(
         RuntimeRenderStep(
           name: '$id.${step.name}',
@@ -349,6 +412,8 @@ final class _RenderStepsSection extends DataSection {
           needs: step.needs,
           after: step.after,
           before: step.before,
+          program: program,
+          lightTypes: program == null ? null : host.maybeRegistry<LightTypes>(),
         ),
         renderer,
       );
@@ -562,5 +627,322 @@ void _checkSide(
       'mapping has turned it into the picture; place it before '
       '"${RenderAnchor.afterTonemap.name}", or set "present": true',
     );
+  }
+}
+
+/// The numbers of a written list, or a refusal naming [what].
+List<double> _numbers(Object? written, String what, {int? most}) =>
+    switch (written) {
+      null => const <double>[],
+      final List<Object?> list
+          when list.every((e) => e is num && e.isFinite) &&
+              (most == null || list.length <= most) =>
+        List<double>.unmodifiable(<double>[
+          for (final e in list) (e! as num).toDouble(),
+        ]),
+      _ => throw DocumentFormatException(
+        '$what is not a list of${most == null ? '' : ' at most $most'} '
+        'finite numbers',
+      ),
+    };
+
+/// A name of a data plugin's own, without the dot its id is put before it
+/// with, or a refusal naming [what].
+String _ownName(Object? written, String what) => switch (written) {
+  final String name when name.isNotEmpty && !name.contains('.') => name,
+  _ => throw DocumentFormatException(
+    '$what names no "name" of its own, without a dot: the plugin\'s id is '
+    'put before it',
+  ),
+};
+
+/// A data plugin's light type, as read: its name, its base, its numbers.
+final class DataLightType {
+  const DataLightType({
+    required this.name,
+    required this.base,
+    this.params = const <double>[],
+  });
+
+  /// The name without the plugin's prefix.
+  final String name;
+
+  /// The built-in shape it is packed as.
+  final LightType base;
+
+  /// Up to four numbers, written into floats 12–15 of its row.
+  final List<double> params;
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'name': name,
+    'base': base.name,
+    if (params.isNotEmpty) 'params': params,
+  };
+}
+
+/// Packs one data light type: its base's row, with its numbers in the last
+/// `vec4`.
+final class _DataLightTypeHook extends LightTypeHook {
+  _DataLightTypeHook(this.type, this.params);
+
+  @override
+  final LightType type;
+
+  final List<double> params;
+
+  @override
+  void pack(LightPackContext context) {
+    final row = context.row;
+    for (var i = 0; i < params.length; i++) {
+      row[12 + i] = params[i];
+    }
+  }
+}
+
+final class _LightTypesSection extends DataSection {
+  const _LightTypesSection();
+
+  @override
+  String get name => 'lightTypes';
+
+  @override
+  Object read(DataSectionRead step) =>
+      List<DataLightType>.unmodifiable(<DataLightType>[
+        for (final entry in _entries(step.written, name)) _lightType(entry),
+      ]);
+
+  static DataLightType _lightType(Map<String, Object?> entry) {
+    final type = _ownName(entry['name'], 'a light type');
+    final base = switch (entry['base'] ?? 'point') {
+      final String written => LightType.byName(written),
+      _ => null,
+    };
+    if (base == null) {
+      throw DocumentFormatException(
+        'light type "$type": "base" is ${entry['base']}, and a light type is '
+        'based on ${LightType.values.map((t) => t.name).join(', ')}',
+      );
+    }
+    return DataLightType(
+      name: type,
+      base: base,
+      params: _numbers(
+        entry['params'],
+        'light type "$type": "params"',
+        most: 4,
+      ),
+    );
+  }
+
+  @override
+  Object? write(Object section) => <Object?>[
+    for (final type in section as List<DataLightType>) type.toJson(),
+  ];
+
+  @override
+  void install(DataSectionInstall step) {
+    final types = step.section as List<DataLightType>;
+    if (types.isEmpty) return;
+    final registry = step.host.maybeRegistry<LightTypes>();
+    if (registry == null) {
+      step.context.note(
+        'light types not registered: this engine draws nothing',
+      );
+      return;
+    }
+    for (final type in types) {
+      registry.register(
+        _DataLightTypeHook(
+          LightType.custom(
+            '${step.context.plugin}.${type.name}',
+            base: type.base,
+          ),
+          type.params,
+        ),
+      );
+    }
+  }
+}
+
+/// A data plugin's vertex layout, as read: its name and its attributes, in
+/// order.
+final class DataVertexLayout {
+  const DataVertexLayout({required this.name, required this.attributes});
+
+  /// The name without the plugin's prefix.
+  final String name;
+
+  /// The engine's attributes it is made of, in order.
+  final List<String> attributes;
+
+  /// It as the engine describes a layout.
+  VertexLayout get layout => VertexLayout(<VertexAttribute>[
+    for (final attribute in attributes) _vertexAttributes[attribute]!,
+  ]);
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'name': name,
+    'attributes': attributes,
+  };
+}
+
+/// The engine's vertex attributes, by name: what a layout may hold.
+const Map<String, VertexAttribute> _vertexAttributes =
+    <String, VertexAttribute>{
+      'position': VertexLayout.position,
+      'normal': VertexLayout.normal,
+      'texcoord': VertexLayout.texcoord,
+      'tangent': VertexLayout.tangent,
+      'color': VertexLayout.color,
+      'joints': VertexLayout.joints,
+      'weights': VertexLayout.weights,
+    };
+
+final class _VertexLayoutsSection extends DataSection {
+  const _VertexLayoutsSection();
+
+  @override
+  String get name => 'vertexLayouts';
+
+  @override
+  Object read(DataSectionRead step) =>
+      List<DataVertexLayout>.unmodifiable(<DataVertexLayout>[
+        for (final entry in _entries(step.written, name)) _vertexLayout(entry),
+      ]);
+
+  static DataVertexLayout _vertexLayout(Map<String, Object?> entry) {
+    final layout = _ownName(entry['name'], 'a vertex layout');
+    final attributes = switch (entry['attributes']) {
+      final List<Object?> list
+          when list.isNotEmpty && list.every((e) => e is String) =>
+        List<String>.unmodifiable(list.cast<String>()),
+      _ => throw DocumentFormatException(
+        'vertex layout "$layout": "attributes" is not a list of the '
+        'engine\'s attribute names',
+      ),
+    };
+    for (final attribute in attributes) {
+      if (!_vertexAttributes.containsKey(attribute)) {
+        throw DocumentFormatException(
+          'vertex layout "$layout" names the attribute "$attribute", which '
+          'no stage of this engine reads: a layout is made of '
+          '${_vertexAttributes.keys.join(', ')}; an attribute of a plugin\'s '
+          'own arrives with the minor that binds one',
+        );
+      }
+    }
+    if (attributes.toSet().length != attributes.length) {
+      throw DocumentFormatException(
+        'vertex layout "$layout" names an attribute twice',
+      );
+    }
+    return DataVertexLayout(name: layout, attributes: attributes);
+  }
+
+  @override
+  Object? write(Object section) => <Object?>[
+    for (final layout in section as List<DataVertexLayout>) layout.toJson(),
+  ];
+
+  @override
+  void install(DataSectionInstall step) {
+    // Held to the engine's attributes when read; nothing of the engine's
+    // takes a plugin's layout by name yet, so what installs is the
+    // declaration the document keeps, which a minor's own attributes
+    // arrive in.
+  }
+}
+
+/// A data plugin's level-of-detail table, as read.
+final class DataLodTable {
+  const DataLodTable({required this.name, required this.distances});
+
+  /// The name without the plugin's prefix: the groups it chooses for are
+  /// named `<id>.<name>`.
+  final String name;
+
+  /// Where each level gives way to the next, in metres from the camera,
+  /// ascending.
+  final List<double> distances;
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'name': name,
+    'distances': distances,
+  };
+}
+
+/// Chooses a group's level by its distance from the camera, for the groups
+/// named after its table; any other group passes to the next policy.
+final class _DistanceLod extends LodPolicy {
+  const _DistanceLod(this.group, this.distances);
+
+  final String group;
+  final List<double> distances;
+
+  @override
+  int? select(LodContext context) {
+    if (context.group.name != group) return null;
+    final distance = context.group.worldPosition.distanceTo(
+      context.camera.worldPosition,
+    );
+    return distances.where((double at) => distance >= at).length;
+  }
+}
+
+final class _LodTablesSection extends DataSection {
+  const _LodTablesSection();
+
+  @override
+  String get name => 'lodTables';
+
+  @override
+  Object read(DataSectionRead step) =>
+      List<DataLodTable>.unmodifiable(<DataLodTable>[
+        for (final entry in _entries(step.written, name)) _lodTable(entry),
+      ]);
+
+  static DataLodTable _lodTable(Map<String, Object?> entry) {
+    final table = _ownName(entry['name'], 'a level-of-detail table');
+    final distances = _numbers(
+      entry['distances'],
+      'level-of-detail table "$table": "distances"',
+    );
+    if (distances.isEmpty) {
+      throw DocumentFormatException(
+        'level-of-detail table "$table" gives no "distances"',
+      );
+    }
+    for (var i = 0; i < distances.length; i++) {
+      if (distances[i] <= 0 || (i > 0 && distances[i] <= distances[i - 1])) {
+        throw DocumentFormatException(
+          'level-of-detail table "$table": its "distances" climb from above '
+          'nought, each further than the one before, in metres',
+        );
+      }
+    }
+    return DataLodTable(name: table, distances: distances);
+  }
+
+  @override
+  Object? write(Object section) => <Object?>[
+    for (final table in section as List<DataLodTable>) table.toJson(),
+  ];
+
+  @override
+  void install(DataSectionInstall step) {
+    final tables = step.section as List<DataLodTable>;
+    if (tables.isEmpty) return;
+    final hooks = step.host.maybeRegistry<RenderHooks>();
+    if (hooks == null) {
+      step.context.note(
+        'level-of-detail tables not registered: this engine draws nothing',
+      );
+      return;
+    }
+    for (final table in tables) {
+      hooks.addLodPolicy(
+        _DistanceLod('${step.context.plugin}.${table.name}', table.distances),
+      );
+    }
   }
 }

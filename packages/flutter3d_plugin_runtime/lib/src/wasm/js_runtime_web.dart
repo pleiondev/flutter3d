@@ -89,6 +89,34 @@ final class _BrowserRuntime extends WasmRuntime {
       ..['field_frac'] =
           ((JSNumber field) => imports.fieldFractionBits(field.toDartInt).toJS)
               .toJS;
+    late final _BrowserInstance running;
+    if (request.render case final render?) {
+      // A render module's imports (ABI 3). `param_floats` reads the floats
+      // from the module's exported memory during the call and hands the
+      // copy on; the browser's own memory is never handed out.
+      f3d
+        ..['param'] =
+            ((JSNumber parameter, JSNumber component, JSNumber value) =>
+                    render.param(
+                      parameter.toDartInt,
+                      component.toDartInt,
+                      value.toDartDouble,
+                    ))
+                .toJS
+        ..['param_floats'] =
+            ((JSNumber parameter, JSNumber pointer, JSNumber length) =>
+                    render.paramFloats(
+                      parameter.toDartInt,
+                      running._floats(pointer.toDartInt, length.toDartInt),
+                    ))
+                .toJS
+        ..['draw'] = render.draw.toJS
+        ..['time'] = (() => render.time.toJS).toJS
+        ..['view_size'] =
+            ((JSNumber axis) => render.viewSize(axis.toDartInt).toJS).toJS
+        ..['light_code'] =
+            ((JSNumber light) => render.lightCode(light.toDartInt).toJS).toJS;
+    }
     final importObject = JSObject()..['f3d'] = f3d;
     final _JsInstance instance;
     try {
@@ -101,9 +129,9 @@ final class _BrowserRuntime extends WasmRuntime {
         stackTrace,
       );
     }
-    final runtime = _BrowserInstance(module, instance.exports);
+    final runtime = running = _BrowserInstance(module, instance.exports);
     final abi = runtime._call('f3d_abi', const <int>[]);
-    final refusal = wasmAbiRefusal(abi, module.importNames);
+    final refusal = wasmAbiRefusal(abi, module.importNames, kind: module.kind);
     if (refusal != null) throw WasmException(refusal);
     runtime._abi = abi;
     return runtime;
@@ -147,6 +175,36 @@ final class _BrowserInstance extends WasmInstance {
     step.step.toSigned(32),
     step.dtFixed.toSigned(32),
   ]);
+
+  @override
+  void render(WasmRenderCall call) => _call(wasmRenderNodeExport, <int>[
+    call.frame.toSigned(32),
+    call.view.toSigned(32),
+  ]);
+
+  /// [length] bytes of floats at [pointer] in the module's exported memory,
+  /// copied; a trap where the module exports none or the range runs past it.
+  Float32List _floats(int pointer, int length) {
+    final memory = _memory;
+    if (memory == null) {
+      throw const WasmTrapException(
+        'the module called param_floats and exports no memory to read the '
+        'floats from; a render module run in the browser exports its memory',
+      );
+    }
+    final bytes = memory.buffer.toDart.asByteData();
+    final at = pointer & 0xFFFFFFFF;
+    final size = length & 0xFFFFFFFF;
+    if (size % 4 != 0 || at + size > bytes.lengthInBytes) {
+      throw WasmTrapException(
+        'the module handed param_floats $size bytes at $at, which are not '
+        'whole floats inside its memory',
+      );
+    }
+    return Float32List.fromList(<double>[
+      for (var i = 0; i < size; i += 4) bytes.getFloat32(at + i, Endian.little),
+    ]);
+  }
 
   _JsMemory? get _memory {
     final name = _module.memoryExport;

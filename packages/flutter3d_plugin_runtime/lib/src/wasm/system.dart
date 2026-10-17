@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 
 import '../data_event.dart';
+import '../sha256.dart';
 import '../world_fields.dart';
 import 'abi.dart';
 import 'module.dart';
@@ -110,6 +111,7 @@ final class WasmSystemSpec {
     this.fields = const <WasmFieldSpec>[],
     this.events = const <String>[],
     this.limits = const WasmLimits(),
+    this.sha256,
     this.unknown = const <String, Object?>{},
   });
 
@@ -147,6 +149,7 @@ final class WasmSystemSpec {
         final Map<String, Object?> map => WasmLimits.fromJson(map),
         _ => throw WasmFormatException('"limits" is not an object'),
       },
+      sha256: wasmSha256Of(json),
       unknown: FormatDocument.nestedUnknownIn(json, known: keys),
     );
   }
@@ -161,10 +164,19 @@ final class WasmSystemSpec {
     'fields',
     'events',
     'limits',
+    'sha256',
   };
 
-  /// The `.wasm`, relative to the plugin's own directory.
+  /// The `.wasm`, relative to the plugin's own directory, or an `https:`
+  /// URL, which needs [sha256] and the `network` permission.
   final String module;
+
+  /// The SHA-256 of [module]'s bytes, 64 lowercase hexadecimal digits:
+  /// required of a module fetched from a URL, which the loader refuses
+  /// without it or when the bytes it fetched are not these
+  /// ([wasmIntegrityRefusal]). A module of the plugin's own directory came
+  /// with the plugin and is not checked.
+  final String? sha256;
 
   /// The system's name; the loop knows it as `<plugin id>.<system>`.
   final String system;
@@ -201,7 +213,58 @@ final class WasmSystemSpec {
       'fields': <Object>[for (final field in fields) field.toJson()],
     if (events.isNotEmpty) 'events': events,
     'limits': limits.toJson(),
+    'sha256': ?sha256,
   }, unknown);
+}
+
+/// The `sha256` a module's declaration in [json] gives, or null when it
+/// gives none. Throws a [WasmFormatException] for one that is not 64
+/// lowercase hexadecimal digits.
+String? wasmSha256Of(Map<String, Object?> json) => switch (json['sha256']) {
+  null => null,
+  final String hash when RegExp(r'^[0-9a-f]{64}$').hasMatch(hash) => hash,
+  final Object? other => throw WasmFormatException(
+    '"sha256" is the module\'s SHA-256 as 64 lowercase hexadecimal digits, '
+    'not "$other"',
+  ),
+};
+
+/// Whether [module] is fetched from somewhere rather than read from the
+/// plugin's own directory: an `http:` or `https:` URL.
+bool wasmModuleIsRemote(String module) {
+  final scheme = Uri.tryParse(module)?.scheme ?? '';
+  return scheme == 'http' || scheme == 'https';
+}
+
+/// Why the [bytes] read for [module] cannot run, or null when they can.
+///
+/// **A remote module is pinned by its hash.** A module from a URL is code
+/// somebody else's server hands the game, and the server can change it
+/// after the plugin was written and granted: so its declaration names the
+/// SHA-256 of the bytes the plugin was written against, a declaration
+/// without one is refused, and so are bytes that do not hash to it. A
+/// module of the plugin's own directory came with the plugin, from
+/// wherever the plugin came from, and [sha256] is not checked for it.
+String? wasmIntegrityRefusal(
+  String module,
+  String? sha256,
+  Uint8List bytes, {
+  required String plugin,
+}) {
+  if (!wasmModuleIsRemote(module)) return null;
+  if (sha256 == null) {
+    return 'plugin "$plugin" fetches its Wasm module from $module and names '
+        'no "sha256" for it: a module from a URL runs only with the SHA-256 '
+        'of the bytes it was written against, so the server cannot change '
+        'it under the plugin';
+  }
+  final found = sha256Hex(bytes);
+  if (found != sha256) {
+    return 'plugin "$plugin" fetched its Wasm module from $module, and the '
+        'bytes hash to $found where its declaration names $sha256: the module '
+        'is not the one the plugin was written against';
+  }
+  return null;
 }
 
 /// Published once, on the step channel, when a Wasm system traps.

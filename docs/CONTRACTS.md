@@ -505,22 +505,47 @@ answers instead of throwing.
 
 ### Reserved names
 
-Two contracts of 1.0 have a name in rc.1 and no implementation; the
-release that implements them adds them, and nothing written against rc.1
-changes:
+One contract of 1.0 has a name in rc.1 and no implementation; the release
+that implements it adds it, and nothing written against rc.1 changes:
 
 - **`f3d.rule`** is the id of the rule document: a condition over probe
   readings in the expression language, with a severity, a message and an
   acknowledgement. No other format may take the id.
-- **Wasm render nodes** are a capability, detected by their export: a
-  module that exports `f3d_render_node` (`wasmRenderNodeExport`) records
-  encoder commands against the resources its `.f3dplugin` declares. The
-  release that implements them names the ABI they arrived in, as an
-  import's (`wasmImportSince`), and from that ABI on a module exporting the
-  name is read as one; no ABI number is set aside, so a minor that only
-  adds a simulation import takes the next number. `wasmRenderAbi` is the
-  lowest they can arrive in, one past the newest ABI a host runs (2 today);
-  a module of an older ABI that exports the name is not read for it.
+
+### Wasm render modules
+
+**Wasm render nodes arrived in ABI 3** (`wasmRenderAbi`), and the host
+runs ABI 1 to 3; the minimum stays 1 through 1.x. What they are is fixed
+for 1.x:
+
+- **A render module is told apart by the `.f3dplugin` section that
+  declares it**, never by its exports: a module under `wasmRender`
+  (`WasmRenderSpec`) is decoded as a render module, under `wasm` as a step
+  module, and checked at decode. A step module is `i32` only and exports
+  `f3d_step`; a render module may compute in `f32` (no `i64`, `f64` or
+  `v128`), exports `f3d_render_node(i32 frame, i32 view)` and needs no
+  `f3d_step`. Each kind is refused the other's imports, by name. A step
+  module that exports a function named `f3d_render_node` is not read for
+  it, and every `f3d_` export is the host's from the ABI it arrived in
+  (`wasmExportSince`).
+- **A render module runs in an instance of its own**, never a step
+  system's, and nothing it keeps is part of a save or the run's digest: a
+  client that draws and a server that never does stay one run. Its fuel is
+  counted per frame (`WasmLimits.fuelPerFrame`, in instructions); a trap
+  switches its step's node off with the plugin named, and it is not called
+  again.
+- **Render commands are imports with scalar arguments** (`param`,
+  `param_floats`, `draw`, `time`, `view_size`, `light_code`, each since 3).
+  **Bulk data is `(ptr, len)` in the module's memory**, copied by the host
+  during the call and never kept. **Resources are named by their index in
+  the declaration** (`parameters`, `lights`), as a step module's fields
+  are. A render module drives one render step of its own document, written
+  in the material language, through the plugin API's `RenderProgram`.
+- A render node has no I/O and needs no permission of its own; a module
+  fetched from a URL, of either kind, runs only with the `sha256` of the
+  bytes its declaration pins, and is refused without one or with bytes
+  that hash to something else. A module of the plugin's own directory is
+  not checked.
 
 ### Tools and the command line
 

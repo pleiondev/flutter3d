@@ -1,5 +1,6 @@
-/// Wasm modules as step systems: Wasm plugin ABIs 1 and 2, which this
-/// library is the specification of.
+/// Wasm modules as step systems and as render nodes: Wasm plugin ABIs 1 to
+/// 3, which this library is the specification of. What follows is a step
+/// module's contract; a render module's (ABI 3) is at the end.
 ///
 /// **Sandboxed and deterministic, written in any language** — decision 4 of
 /// `tasks/0.9-plugins.md`. A module reaches the world through four imports
@@ -10,9 +11,12 @@
 ///
 /// **Version.** Numbered apart from the plugin API. A module exports
 /// `f3d_abi() -> i32` returning the ABI it was written for, and the host
-/// runs every ABI from [wasmPluginAbiMin] to [wasmPluginAbiMax] (1 to 2);
+/// runs every ABI from [wasmPluginAbiMin] to [wasmPluginAbiMax] (1 to 3);
 /// a number outside that is refused at instantiation with the range named.
-/// [wasmPluginAbi] is the newest, what a module written today says.
+/// [wasmPluginAbi] is the newest, what a module written today says. The
+/// minimum stays 1 through 1.x. An export named `f3d_` is the host's word
+/// from the ABI it arrived in ([wasmExportSince]): a module of an earlier
+/// ABI that exports a function of the name is not read for it.
 ///
 /// **Exports.** `f3d_abi() -> i32` and `f3d_step(i32 step, i32 dt)`, called
 /// once a fixed step with the step's number and its length in Q16.16. A
@@ -84,6 +88,48 @@
 /// module must declare, and it cannot count fuel or calls, so a module that
 /// loops for ever hangs the page; its saves cover only what the module
 /// exports.
+///
+/// ## Render modules (ABI 3)
+///
+/// **Told apart by the section that declares them**
+/// ([WasmModuleKind.render]): a module under a `.f3dplugin`'s `wasmRender`
+/// ([WasmRenderSpec]) is decoded as a render module, and the same bytes
+/// under `wasm` are decoded as a step module and refused if they are not
+/// one. A render module drives one render step of its plugin's document
+/// ([WasmRenderNode], the plugin API's `RenderProgram`).
+///
+/// **Values.** `i32` and `f32`: the `f32` loads, stores, constants,
+/// comparisons, arithmetic, `min`, `max`, `copysign`, the conversions to
+/// and from `i32` (a truncation no `i32` holds traps) and the two
+/// reinterpretations. No `i64`, `f64` or `v128`. A render module is outside
+/// the simulation, so its floats need agree with nobody's.
+///
+/// **Exports.** `f3d_abi() -> i32`, 3 or later, and
+/// `f3d_render_node(i32 frame, i32 view)`, called once a frame for the
+/// view being drawn. `f3d_step` is not required.
+///
+/// **Imports**, from `f3d`, each since 3 ([wasmRenderImports]):
+///
+/// | Import | Signature | What it does |
+/// |---|---|---|
+/// | `param` | `(i32 parameter, i32 component, f32 value)` | sets one component of a declared parameter |
+/// | `param_floats` | `(i32 parameter, i32 ptr, i32 len)` | sets a parameter from `len` bytes of floats at `ptr`, copied during the call |
+/// | `draw` | `()` | the step draws this frame |
+/// | `time` | `() -> f32` | the frame's time, in seconds |
+/// | `view_size` | `(i32 axis) -> i32` | the view's width (0) or height (1) in pixels |
+/// | `light_code` | `(i32 light) -> i32` | the code a declared light type is packed with, -1 for none |
+///
+/// A parameter and a light type are named by their index in the
+/// declaration ([WasmRenderSpec.parameters], [WasmRenderSpec.lights]); bulk
+/// data is `(ptr, len)` in the module's memory, copied by the host during
+/// the call and never kept. A step module's imports are refused to a render
+/// module and a render module's to a step module, by name.
+///
+/// **An instance of its own**, outside the run's save and its digest: a
+/// client that draws and a server that never does stay one run. Its fuel
+/// is counted per frame ([WasmLimits.fuelPerFrame]); a trap switches its
+/// step's node off, with the plugin named, and the module is not called
+/// again.
 library;
 
 export 'abi.dart';
@@ -91,4 +137,5 @@ export 'interpreter.dart';
 export 'js_runtime_stub.dart'
     if (dart.library.js_interop) 'js_runtime_web.dart';
 export 'module.dart' show WasmModule;
+export 'render.dart';
 export 'system.dart';

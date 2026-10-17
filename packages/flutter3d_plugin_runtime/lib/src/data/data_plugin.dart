@@ -121,6 +121,10 @@ final class DataPluginSection {
 /// * `events` — the events its systems publish, declared on the bus as
 ///   `<plugin id>.<name>` ([PluginDataEvent]);
 /// * `wasm` — step systems in Wasm under ABI [wasmPluginAbi];
+/// * `wasmRender` — render modules in Wasm (ABI 3, [WasmRenderSpec]), each
+///   driving one of the document's `renderSteps` frame by frame in an
+///   instance of its own, outside the run's state; decoded on every engine,
+///   run only on one that draws;
 /// * `expressions` — step systems in the expression language
 ///   ([ExpressionSystemSpec]).
 ///
@@ -165,6 +169,7 @@ final class DataPluginDocument {
     this.phases = const <DataPhase>[],
     this.events = const <DataEventDeclaration>[],
     this.wasm = const <WasmSystemSpec>[],
+    this.wasmRender = const <WasmRenderSpec>[],
     this.expressions = const <ExpressionSystemSpec>[],
     this.sections = const <String, DataPluginSection>{},
     this.extra = const <String, Object?>{},
@@ -291,6 +296,9 @@ final class DataPluginDocument {
 
   final List<DataEventDeclaration> events;
   final List<WasmSystemSpec> wasm;
+
+  /// The render modules, each driving one of the document's render steps.
+  final List<WasmRenderSpec> wasmRender;
   final List<ExpressionSystemSpec> expressions;
 
   /// The sections a registered reader read, by name: each with the
@@ -407,6 +415,7 @@ final class DataPluginDocument {
   /// name. What a loader reads before anything is installed.
   List<String> get resources => <String>{
     for (final system in wasm) system.module,
+    for (final node in wasmRender) node.module,
     for (final system in expressions) ?system.source,
     for (final DataPluginSection(:reader, :section) in sections.values)
       ...reader.resources(section),
@@ -493,6 +502,30 @@ final class DataPluginDocument {
     final wasm = <WasmSystemSpec>[
       for (final entry in entries('wasm')) WasmSystemSpec.fromJson(entry),
     ];
+    final wasmRender = <WasmRenderSpec>[
+      for (final entry in entries('wasmRender')) WasmRenderSpec.fromJson(entry),
+    ];
+    final driven = <String>{};
+    for (final node in wasmRender) {
+      if (!driven.add(node.step)) {
+        throw DataPluginFormatException(
+          'two Wasm render modules drive the render step "${node.step}"; a '
+          'step is driven by one',
+        );
+      }
+    }
+    // One module is one kind: the bytes a step system steps are never the
+    // ones a render node is called with.
+    final stepModules = <String>{for (final system in wasm) system.module};
+    for (final node in wasmRender) {
+      if (stepModules.contains(node.module)) {
+        throw DataPluginFormatException(
+          '${node.module} is declared under "wasm" and under "wasmRender": a '
+          'module is a step module or a render module, and runs in an '
+          'instance of its own',
+        );
+      }
+    }
     final expressions = <ExpressionSystemSpec>[
       for (final entry in entries('expressions'))
         ExpressionSystemSpec.fromJson(entry),
@@ -533,6 +566,7 @@ final class DataPluginDocument {
       phases: List<DataPhase>.unmodifiable(phases),
       events: List<DataEventDeclaration>.unmodifiable(events),
       wasm: List<WasmSystemSpec>.unmodifiable(wasm),
+      wasmRender: List<WasmRenderSpec>.unmodifiable(wasmRender),
       expressions: List<ExpressionSystemSpec>.unmodifiable(expressions),
       sections: Map<String, DataPluginSection>.unmodifiable(sections),
       extra: Map<String, Object?>.unmodifiable(
@@ -560,6 +594,8 @@ final class DataPluginDocument {
     if (events.isNotEmpty)
       'events': <Object?>[for (final e in events) e.toJson()],
     if (wasm.isNotEmpty) 'wasm': <Object?>[for (final w in wasm) w.toJson()],
+    if (wasmRender.isNotEmpty)
+      'wasmRender': <Object?>[for (final r in wasmRender) r.toJson()],
     if (expressions.isNotEmpty)
       'expressions': <Object?>[for (final e in expressions) e.toJson()],
     for (final MapEntry(key: name, value: DataPluginSection(:reader, :section))
@@ -665,6 +701,19 @@ final class DataPluginLoader {
       for (final path in document.resources)
         path: await _read(manifest, path, source),
     };
+    // A module from a URL runs only as the bytes its declaration pinned.
+    for (final (module, sha256) in <(String, String?)>[
+      for (final system in document.wasm) (system.module, system.sha256),
+      for (final node in document.wasmRender) (node.module, node.sha256),
+    ]) {
+      final refusal = wasmIntegrityRefusal(
+        module,
+        sha256,
+        files[module]!,
+        plugin: manifest.id,
+      );
+      if (refusal != null) throw WasmException(refusal);
+    }
     String textOf(String path) => utf8.decode(files[path]!);
 
     // Read before anything is installed, as every other file is: a section
@@ -696,6 +745,16 @@ final class DataPluginLoader {
       },
       wasmRuntime,
       Map<String, Object>.unmodifiable(loaded),
+      // Decoded as what their section says they are, on every engine: a
+      // render module a server never runs is still refused at load if it
+      // is not one.
+      <String, WasmModule>{
+        for (final node in document.wasmRender)
+          node.step: WasmModule.decode(
+            files[node.module]!,
+            kind: WasmModuleKind.render,
+          ),
+      },
     );
   }
 
@@ -766,13 +825,31 @@ final class DataPluginLoader {
 /// world, for an application's snapshot and for the debug double-step
 /// check, which must cover everything a step system writes.
 final class DataPlugin extends Flutter3dPlugin {
-  DataPlugin._(this.document, this._modules, this._wasmRuntime, this._sections);
+  DataPlugin._(
+    this.document,
+    this._modules,
+    this._wasmRuntime,
+    this._sections,
+    this._renderModules,
+  );
 
   /// The document it was read from.
   final DataPluginDocument document;
 
   /// Each Wasm system's module, decoded, by system name.
   final Map<String, WasmModule> _modules;
+
+  /// Each render module, decoded as one, by the render step it drives.
+  final Map<String, WasmModule> _renderModules;
+
+  /// The render nodes the last install made, by the step each drives: what
+  /// the render step section ran. Empty on an engine that draws nothing.
+  final Map<String, WasmRenderNode> _renderNodes = <String, WasmRenderNode>{};
+
+  /// The render modules the last install runs, by the render step each
+  /// drives; empty on an engine that draws nothing.
+  Map<String, WasmRenderNode> get renderNodes =>
+      Map<String, WasmRenderNode>.unmodifiable(_renderNodes);
 
   final WasmRuntime _wasmRuntime;
 
@@ -795,6 +872,7 @@ final class DataPlugin extends Flutter3dPlugin {
   @override
   void install(PluginHost host) {
     _wasmSystems.clear();
+    _renderNodes.clear();
     _notes.clear();
     final id = manifest.id;
 
@@ -893,16 +971,54 @@ final class DataPlugin extends Flutter3dPlugin {
     // declared under on the bus; any other name is the engine's or another
     // plugin's, as written.
     final declared = <String>{for (final event in document.events) event.name};
+    // A render module runs only where a frame is drawn, in an instance of
+    // its own, made here so switching the plugin off and on starts it from
+    // the beginning as a step system's module starts.
+    final draws = host.backend != null;
+    if (draws) {
+      for (final spec in document.wasmRender) {
+        _renderNodes[spec.step] = WasmRenderNode(
+          spec,
+          _renderModules[spec.step]!,
+          plugin: id,
+          runtime: _wasmRuntime,
+        );
+      }
+    }
+    final asked = <String>{};
     final context = DataSectionContext(
       plugin: id,
       eventName: (event) => declared.contains(event) ? '$id.$event' : event,
       numbersOf: numbersOfDataEvent,
       note: _notes.add,
+      renderProgram: (step) {
+        final node = _renderNodes[step];
+        if (node != null) asked.add(step);
+        return node;
+      },
     );
     for (final MapEntry(key: name, value: DataPluginSection(:reader))
         in document.sections.entries) {
       reader.install(
         DataSectionInstall(_sections[name]!, host: host, context: context),
+      );
+    }
+    for (final spec in document.wasmRender) {
+      if (asked.contains(spec.step)) continue;
+      if (draws && document.sections.containsKey('renderSteps')) {
+        // A module driving nothing would be a frame's worth of work for no
+        // picture, and the document's mistake on every engine that draws.
+        throw PluginException(
+          'plugin "$id": its Wasm render module ${spec.module} drives the '
+          'render step "${spec.step}", which its "renderSteps" does not have',
+        );
+      }
+      _notes.add(
+        draws
+            ? 'Wasm render module ${spec.module} not run: no section this '
+                  'plugin was loaded with installs render steps'
+            : 'Wasm render module ${spec.module} not run: this engine draws '
+                  'nothing',
       );
     }
   }

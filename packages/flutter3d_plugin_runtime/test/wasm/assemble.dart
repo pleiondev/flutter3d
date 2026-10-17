@@ -3,7 +3,7 @@
 library;
 
 import 'dart:convert';
-import 'dart:typed_data';
+import 'dart:typed_data' show ByteData, Endian, Uint8List;
 
 /// An unsigned LEB128 number.
 List<int> u32(int value) {
@@ -88,6 +88,35 @@ List<int> konst(int value) => <int>[0x41, ...s32(value)];
 List<int> load() => <int>[0x28, 2, 0];
 List<int> store() => <int>[0x36, 2, 0];
 
+// A render module's values (ABI 3).
+const int i32Type = 0x7F;
+const int f32Type = 0x7D;
+const int f32Abs = 0x8B;
+const int f32Neg = 0x8C;
+const int f32Floor = 0x8E;
+const int f32Nearest = 0x90;
+const int f32Sqrt = 0x91;
+const int f32Add = 0x92;
+const int f32Sub = 0x93;
+const int f32Mul = 0x94;
+const int f32Div = 0x95;
+const int f32Min = 0x96;
+const int f32Max = 0x97;
+const int f32Lt = 0x5D;
+const int i32TruncF32S = 0xA8;
+const int f32ConvertI32S = 0xB2;
+const int i32ReinterpretF32 = 0xBC;
+
+/// `f32.const value`.
+List<int> fconst(double value) => <int>[
+  0x43,
+  ...(ByteData(4)..setFloat32(0, value, Endian.little)).buffer.asUint8List(),
+];
+
+/// `f32.load offset=0`, `f32.store offset=0`.
+List<int> fload() => <int>[0x2A, 2, 0];
+List<int> fstore() => <int>[0x38, 2, 0];
+
 /// One module, put together a section at a time.
 ///
 /// Imports are added before functions, so a function's index is the
@@ -119,6 +148,79 @@ final class ModuleBuilder {
     }
     _types.add(encoded);
     return _types.length - 1;
+  }
+
+  /// The index of a function type of [params] and [results], each a value
+  /// type, added the first time it is asked for.
+  int typeOf(List<int> params, List<int> results) {
+    final encoded = <int>[
+      0x60,
+      ...u32(params.length),
+      ...params,
+      ...u32(results.length),
+      ...results,
+    ];
+    for (var i = 0; i < _types.length; i++) {
+      if (_listEquals(_types[i], encoded)) return i;
+    }
+    _types.add(encoded);
+    return _types.length - 1;
+  }
+
+  /// Imports [module].[name] with value types of its own; returns its
+  /// function index.
+  int importOf(
+    String name,
+    List<int> params,
+    List<int> results, {
+    String module = 'f3d',
+  }) {
+    assert(_functions.isEmpty, 'imports come before functions');
+    _imports.add(<int>[
+      ..._name(module),
+      ..._name(name),
+      0,
+      ...u32(typeOf(params, results)),
+    ]);
+    return _imports.length - 1;
+  }
+
+  /// A function of value types of its own, its locals [locals] after its
+  /// parameters, one type each; returns its function index.
+  int functionOf(
+    List<int> params,
+    List<int> results,
+    List<int> code, {
+    List<int> locals = const <int>[],
+  }) {
+    _functions.add(typeOf(params, results));
+    final body = <int>[
+      ...u32(locals.length),
+      for (final type in locals) ...<int>[1, type],
+      ...code,
+      end,
+    ];
+    _bodies.add(<int>[...u32(body.length), ...body]);
+    return _imports.length + _functions.length - 1;
+  }
+
+  /// `f3d_abi` returning [abi], and `f3d_render_node` running [node] with
+  /// the frame in local 0 and the view in local 1: a render module.
+  void render({
+    int abi = 3,
+    List<int> node = const <int>[],
+    List<int> locals = const <int>[],
+  }) {
+    export('f3d_abi', function(0, 1, konst(abi)));
+    export(
+      'f3d_render_node',
+      functionOf(
+        const <int>[i32Type, i32Type],
+        const <int>[],
+        node,
+        locals: locals,
+      ),
+    );
   }
 
   /// Imports [module].[name] as a function; returns its function index.

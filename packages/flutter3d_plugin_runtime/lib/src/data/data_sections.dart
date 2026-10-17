@@ -29,13 +29,16 @@ final class DataSections extends DataSectionRegistry {
   /// The keys of a `.f3dplugin` document the runtime reads itself, which no
   /// section may take: the envelope of version 1, the manifest, and what
   /// every engine has, a replaying server included (the loop's phases, the
-  /// bus, and the step systems in Wasm and in the expression language).
+  /// bus, and the step systems in Wasm and in the expression language), and
+  /// the render modules in Wasm, which it decodes and runs for the section
+  /// that draws.
   static const Set<String> runtimeKeys = <String>{
     'f3dplugin',
     'manifest',
     'phases',
     'events',
     'wasm',
+    'wasmRender',
     'expressions',
   };
 

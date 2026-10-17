@@ -438,10 +438,23 @@ final class RuntimeRenderStep {
     this.needs = const <String>[],
     this.after = const <String>[],
     this.before = const <String>[],
+    this.program,
+    this.lightTypes,
   });
 
   /// The step's name and its pass's name: `<plugin id>.<step>`.
   final String name;
+
+  /// What drives the step frame by frame — a Wasm render module of the
+  /// plugin's — or null for a step drawn every frame with its uniforms at
+  /// their defaults. A driven step draws a frame only when the program
+  /// says so, with the uniforms it set; it is written in the material
+  /// language, since a raw stage has no uniforms the program could name.
+  final RenderProgram? program;
+
+  /// The renderer's light types, which a [program] asks the codes of; null
+  /// where it asks none.
+  final LightTypes? lightTypes;
 
   /// Where the pass goes.
   final RenderAnchor anchor;
@@ -724,7 +737,12 @@ final class RuntimeShaders extends PluginRegistry {
       for (final name in step.needs) _builtInStep(name, step.name),
     };
     final renderStep = RenderStep(step.name, needs: needs);
-    final node = _RuntimeEffectNode(step.name, present: step.present);
+    final node = _RuntimeEffectNode(
+      step.name,
+      present: step.present,
+      program: step.program,
+      lightTypes: step.lightTypes,
+    );
     final registrations = <Registration>[
       into.addStep(renderStep),
       into.addNode(
@@ -740,6 +758,11 @@ final class RuntimeShaders extends PluginRegistry {
     final material = step.shaders[RuntimeRenderStep.materialStage];
     if (material != null && backend != null) {
       _materialStep(step, material, node);
+    } else if (step.program != null && backend != null) {
+      _store.statuses[step.name] =
+          'render step "${step.name}" is driven by a render program, which '
+          'sets the uniforms of a stage written in the material language: '
+          'give it "shaders": {"material": …}';
     } else if (source == null) {
       _store.statuses[step.name] = backend == null
           ? 'this engine draws nothing'
@@ -844,6 +867,20 @@ final class RuntimeShaders extends PluginRegistry {
       return;
     }
     final bindings = describeMaterial(program);
+    // What a driving program names must be the stage's: a parameter it
+    // sets and the stage does not read would be a number nothing draws.
+    final unknown = <String>[
+      for (final name in step.program?.parameters ?? const <String>[])
+        if (!bindings.uniforms.containsKey(name)) name,
+    ];
+    if (unknown.isNotEmpty) {
+      _store.statuses[step.name] =
+          'render step "${step.name}" is driven by a program that sets '
+          '${unknown.join(', ')}, which its stage "${program.name}" has no '
+          'uniform of; its uniforms are '
+          '${bindings.uniforms.keys.isEmpty ? 'none' : bindings.uniforms.keys.join(', ')}';
+      return;
+    }
     _store.statuses[step.name] = null;
     _store.load(bundle, step.name, (library) {
       final shader = library[program.name];
@@ -852,13 +889,15 @@ final class RuntimeShaders extends PluginRegistry {
             'the loaded library has no stage named "${program.name}"';
         return;
       }
-      final uniforms = <String, Map<String, Float32List>>{
-        if (bindings.uniforms.isNotEmpty)
-          'MaterialParams': <String, Float32List>{
-            for (final MapEntry(:key, :value) in bindings.uniforms.entries)
-              key: Float32List.fromList(value),
-          },
+      final parameters = <String, Float32List>{
+        for (final MapEntry(:key, :value) in bindings.uniforms.entries)
+          key: Float32List.fromList(value),
       };
+      final uniforms = <String, Map<String, Float32List>>{
+        if (bindings.uniforms.isNotEmpty) 'MaterialParams': parameters,
+      };
+      // The lists the effect binds, which a program writes in place.
+      node.parameters = parameters;
       node.effect = step.present
           ? FullscreenEffect.present(
               name: step.name,
@@ -952,15 +991,33 @@ final class _ShaderStore {
 /// Until then it is inactive, which the frame reports the way it reports any
 /// pass that is switched off.
 final class _RuntimeEffectNode extends RenderNode {
-  _RuntimeEffectNode(this.name, {required this.present});
+  _RuntimeEffectNode(
+    this.name, {
+    required this.present,
+    this.program,
+    this.lightTypes,
+  });
 
   @override
   final String name;
 
   final bool present;
 
+  /// What drives the step, or null for one drawn every frame.
+  final RenderProgram? program;
+
+  /// The renderer's light types, for the codes [program] asks.
+  final LightTypes? lightTypes;
+
   /// The effect once its stage is loaded.
   FullscreenEffect? effect;
+
+  /// The stage's uniforms the effect binds, by name, which [program]
+  /// writes in place; set with [effect].
+  Map<String, Float32List> parameters = const <String, Float32List>{};
+
+  /// What [program] is handed, made once and reused frame to frame.
+  late final _ProgramFrame _driven = _ProgramFrame(this);
 
   ResourceId get _target =>
       present ? FrameResourceIds.frame : FrameResourceIds.hdrColor;
@@ -983,5 +1040,92 @@ final class _RuntimeEffectNode extends RenderNode {
   ViewRuns get viewRuns => ViewRuns.once;
 
   @override
-  void execute(RenderFrame frame) => effect?.execute(frame);
+  void execute(RenderFrame frame) {
+    final effect = this.effect;
+    if (effect == null) return;
+    final program = this.program;
+    if (program == null) return effect.execute(frame);
+    // The program runs first and says whether the step draws: a program
+    // that throws takes the node off with what it threw, as any node.
+    program.run(_driven..begin(frame));
+    if (_driven.drew) effect.execute(frame);
+  }
+}
+
+/// A frame as a [RenderProgram] sees it: the node's parameters to set, and
+/// whether to draw.
+final class _ProgramFrame extends RenderProgramFrame {
+  _ProgramFrame(this._node);
+
+  final _RuntimeEffectNode _node;
+  late RenderFrame _frame;
+  bool drew = false;
+
+  void begin(RenderFrame frame) {
+    _frame = frame;
+    drew = false;
+  }
+
+  @override
+  int get frame => _frame.frameIndex;
+
+  @override
+  int get view => _frame.viewIndex;
+
+  /// The frame's time, in seconds.
+  @override
+  double get time => _frame.time;
+
+  @override
+  int get width => _frame.width;
+
+  @override
+  int get height => _frame.height;
+
+  Float32List _parameter(int index) {
+    final names = _node.program!.parameters;
+    if (index < 0 || index >= names.length) {
+      throw PluginException(
+        'render step "${_node.name}": its program set parameter $index of '
+        '${names.length}',
+      );
+    }
+    return _node.parameters[names[index]] ??
+        (throw PluginException(
+          'render step "${_node.name}": its stage has no uniform '
+          '"${names[index]}"',
+        ));
+  }
+
+  @override
+  void setParameter(int parameter, int component, double value) {
+    final values = _parameter(parameter);
+    if (component < 0 || component >= values.length) {
+      throw PluginException(
+        'render step "${_node.name}": its program set component $component '
+        'of "${_node.program!.parameters[parameter]}", which has '
+        '${values.length}',
+      );
+    }
+    values[component] = value;
+  }
+
+  @override
+  void setParameterFloats(int parameter, Float32List values) {
+    final into = _parameter(parameter);
+    if (values.length > into.length) {
+      throw PluginException(
+        'render step "${_node.name}": its program handed '
+        '${values.length} floats to "${_node.program!.parameters[parameter]}", '
+        'which has ${into.length}',
+      );
+    }
+    into.setRange(0, values.length, values);
+  }
+
+  @override
+  void draw() => drew = true;
+
+  @override
+  int? lightCode(String name) => _node.lightTypes?.codeNamed(name);
 }
