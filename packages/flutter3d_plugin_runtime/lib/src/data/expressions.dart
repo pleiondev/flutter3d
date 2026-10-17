@@ -31,49 +31,6 @@ final class ExpressionSystemSpec {
          'an expression system is a source file or its text, not both',
        );
 
-  /// The file the expressions are in, relative to the plugin's own
-  /// directory; null when they are written in place as [text].
-  final String? source;
-
-  /// The expressions written in the document; null when they are in
-  /// [source].
-  final String? text;
-
-  /// The system's name; the loop has it as `<plugin id>.<system>`.
-  final String system;
-
-  /// A step phase.
-  final String phase;
-
-  final List<String> after;
-  final List<String> before;
-
-  /// World fields it reads, and those it may also write.
-  final List<String> reads;
-  final List<String> writes;
-
-  /// Events it may publish, without the plugin's prefix.
-  final List<String> events;
-
-  /// The keys a declaration is written with.
-  static const Set<String> keys = <String>{
-    'system',
-    'phase',
-    'source',
-    'text',
-    'after',
-    'before',
-    'reads',
-    'writes',
-    'events',
-  };
-
-  /// The keys this build does not read, as the document had them: written
-  /// back after its own, so a document a later minor wrote and this one
-  /// opened and saved keeps what the later one added here
-  /// (`FormatDocument.nestedUnknownIn`).
-  final Map<String, Object?> unknown;
-
   /// Reads a declaration, or throws a [DocumentFormatException] saying why
   /// not.
   factory ExpressionSystemSpec.fromJson(Map<String, Object?> json) {
@@ -113,6 +70,50 @@ final class ExpressionSystemSpec {
       unknown: FormatDocument.nestedUnknownIn(json, known: keys),
     );
   }
+
+  /// The file the expressions are in, relative to the plugin's own
+  /// directory; null when they are written in place as [text].
+  final String? source;
+
+  /// The expressions written in the document; null when they are in
+  /// [source].
+  final String? text;
+
+  /// The system's name; the loop has it as `<plugin id>.<system>`.
+  final String system;
+
+  /// A step phase.
+  final String phase;
+  final List<String> after;
+
+  final List<String> before;
+
+  /// World fields it reads, and those it may also write.
+  final List<String> reads;
+
+  final List<String> writes;
+
+  /// Events it may publish, without the plugin's prefix.
+  final List<String> events;
+
+  /// The keys a declaration is written with.
+  static const Set<String> keys = <String>{
+    'system',
+    'phase',
+    'source',
+    'text',
+    'after',
+    'before',
+    'reads',
+    'writes',
+    'events',
+  };
+
+  /// The keys this build does not read, as the document had them: written
+  /// back after its own, so a document a later minor wrote and this one
+  /// opened and saved keeps what the later one added here
+  /// (`FormatDocument.nestedUnknownIn`).
+  final Map<String, Object?> unknown;
 
   Map<String, Object?> toJson() => FormatDocument.writeNested(<String, Object?>{
     'system': system,

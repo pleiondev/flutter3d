@@ -45,39 +45,6 @@ SimulationSetup pendulumSimulation(Object? arguments) {
 final class PendulumLab {
   PendulumLab._(this._mesh, this._settings);
 
-  /// The probe on the angle from the vertical, in radians.
-  static const String angleProbe = 'pendulum.angle';
-
-  /// The probe on the measured period, in seconds; no reading until the bob
-  /// has crossed the vertical twice.
-  static const String periodProbe = 'pendulum.period';
-
-  /// The quantity [angleProbe] reads.
-  static const String angleId = 'lab.pendulum.angle';
-
-  /// The quantity [periodProbe] reads.
-  static const String periodId = 'lab.pendulum.period';
-
-  /// The rod, in metres.
-  static const double length = 1.0;
-
-  /// Where it is let go from, radians from the vertical.
-  static const double releasedAt = 0.1;
-
-  /// The period the series gives for a pendulum of [length] released at
-  /// [releasedAt] in standard gravity, to the sixth power of the angle:
-  /// 2π√(L/g)·(1 + θ²/16 + 11θ⁴/3072 + 173θ⁶/737280).
-  static double seriesPeriod() {
-    const t2 = releasedAt * releasedAt;
-    return 2.0 *
-        math.pi *
-        math.sqrt(length / standardGravity) *
-        (1.0 +
-            t2 / 16.0 +
-            11.0 * t2 * t2 / 3072.0 +
-            173.0 * t2 * t2 * t2 / 737280.0);
-  }
-
   /// Puts the pendulum into [loop]: the step that swings it, the samplers
   /// of its two quantities and an entity carrying the two probes.
   factory PendulumLab.install(EngineLoop loop) {
@@ -121,13 +88,47 @@ final class PendulumLab {
     return lab;
   }
 
-  final ClothMesh _mesh;
-  final ClothSettings _settings;
+  /// The probe on the angle from the vertical, in radians.
+  static const String angleProbe = 'pendulum.angle';
 
+  /// The probe on the measured period, in seconds; no reading until the bob
+  /// has crossed the vertical twice.
+  static const String periodProbe = 'pendulum.period';
+
+  /// The quantity [angleProbe] reads.
+  static const String angleId = 'lab.pendulum.angle';
+
+  /// The quantity [periodProbe] reads.
+  static const String periodId = 'lab.pendulum.period';
+
+  /// The rod, in metres.
+  static const double length = 1.0;
+
+  /// Where it is let go from, radians from the vertical.
+  static const double releasedAt = 0.1;
+
+  final ClothMesh _mesh;
+
+  final ClothSettings _settings;
   double _time = 0.0;
+
   int _crossings = 0;
   double _first = 0.0;
   double _last = 0.0;
+
+  /// The period the series gives for a pendulum of [length] released at
+  /// [releasedAt] in standard gravity, to the sixth power of the angle:
+  /// 2π√(L/g)·(1 + θ²/16 + 11θ⁴/3072 + 173θ⁶/737280).
+  static double seriesPeriod() {
+    const t2 = releasedAt * releasedAt;
+    return 2.0 *
+        math.pi *
+        math.sqrt(length / standardGravity) *
+        (1.0 +
+            t2 / 16.0 +
+            11.0 * t2 * t2 / 3072.0 +
+            173.0 * t2 * t2 * t2 / 737280.0);
+  }
 
   /// The angle from the vertical now, radians: positive to +x.
   double get angle {

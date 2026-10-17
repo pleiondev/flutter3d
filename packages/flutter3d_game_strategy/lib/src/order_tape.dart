@@ -36,6 +36,24 @@ final class OrderTape {
   OrderTape({required this.seed, List<List<StrategyOrder>>? frames})
     : frames = frames ?? <List<StrategyOrder>>[];
 
+  /// A tape read back from [toJson].
+  factory OrderTape.fromJson(Map<String, Object?> json) {
+    final Object? frames = json['frames'];
+    return OrderTape(
+      seed: json.integer('seed'),
+      frames: <List<StrategyOrder>>[
+        if (frames is List)
+          for (final Object? frame in frames)
+            <StrategyOrder>[
+              if (frame is List)
+                for (final Object? order in frame)
+                  if (order is Map)
+                    orderFromJson(order.cast<String, Object?>()),
+            ],
+      ],
+    );
+  }
+
   /// The generator state the match started from.
   ///
   /// Nothing in this simulation rolls a die yet — see
@@ -65,24 +83,6 @@ final class OrderTape {
         <Object?>[for (final StrategyOrder order in frame) order.toJson()],
     ],
   };
-
-  /// A tape read back from [toJson].
-  factory OrderTape.fromJson(Map<String, Object?> json) {
-    final Object? frames = json['frames'];
-    return OrderTape(
-      seed: json.integer('seed'),
-      frames: <List<StrategyOrder>>[
-        if (frames is List)
-          for (final Object? frame in frames)
-            <StrategyOrder>[
-              if (frame is List)
-                for (final Object? order in frame)
-                  if (order is Map)
-                    orderFromJson(order.cast<String, Object?>()),
-            ],
-      ],
-    );
-  }
 }
 
 /// Writes down what was asked for, one entry per step.
@@ -198,6 +198,16 @@ final class MatchDemo {
     this.unknown = const <String, Object?>{},
   });
 
+  /// Reads a demo, or throws a [DemoFormatException] that says why not.
+  ///
+  /// Throws rather than answering null, because every reason is worth a
+  /// sentence: a file from a newer build can still be opened by the build that
+  /// wrote it, and a file with no tape in it was cut short by whatever wrote
+  /// it, and whoever is holding it deserves to be told which of the two they
+  /// have.
+  factory MatchDemo.fromJson(Map<String, Object?> json) =>
+      _read(json, json['version']);
+
   /// Bumped when an existing field changes meaning.
   ///
   /// **Two since the map's world rode in the simulation's save.** A start
@@ -220,17 +230,6 @@ final class MatchDemo {
     genre: 'strategy',
     genreVersion: 0,
   );
-
-  /// One step per version, `_upgrades[n - 1]` taking `n` to `n + 1`.
-  ///
-  /// 1 → 2 changes no field's shape; what changed is the simulation under
-  /// the tape, so the step writes that down — [preWaterSimulation] — where a
-  /// file that names none would otherwise be read as the current one.
-  static Map<String, Object?> _toPreWater(Map<String, Object?> v1) =>
-      <String, Object?>{
-        ...v1,
-        'simulation': v1['simulation'] ?? preWaterSimulation.toJson(),
-      };
 
   /// A strategy match in the registry: `f3d.match`.
   ///
@@ -310,6 +309,17 @@ final class MatchDemo {
   /// viewer plays when the tape cannot be replayed. Null when none was kept.
   final PoseRecord? poses;
 
+  /// One step per version, `_upgrades[n - 1]` taking `n` to `n + 1`.
+  ///
+  /// 1 → 2 changes no field's shape; what changed is the simulation under
+  /// the tape, so the step writes that down — [preWaterSimulation] — where a
+  /// file that names none would otherwise be read as the current one.
+  static Map<String, Object?> _toPreWater(Map<String, Object?> v1) =>
+      <String, Object?>{
+        ...v1,
+        'simulation': v1['simulation'] ?? preWaterSimulation.toJson(),
+      };
+
   /// How many steps the match lasted.
   int get steps => tape.steps;
 
@@ -339,16 +349,6 @@ final class MatchDemo {
     for (final MapEntry(:key, :value) in unknown.entries)
       if (!_known.contains(key)) key: value,
   };
-
-  /// Reads a demo, or throws a [DemoFormatException] that says why not.
-  ///
-  /// Throws rather than answering null, because every reason is worth a
-  /// sentence: a file from a newer build can still be opened by the build that
-  /// wrote it, and a file with no tape in it was cut short by whatever wrote
-  /// it, and whoever is holding it deserves to be told which of the two they
-  /// have.
-  factory MatchDemo.fromJson(Map<String, Object?> json) =>
-      _read(json, json['version']);
 
   static MatchDemo _read(Map<String, Object?> written, Object? version) {
     if (version is! num) {

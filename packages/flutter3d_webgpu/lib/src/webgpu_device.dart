@@ -183,6 +183,47 @@ final class _StagePairKey {
 /// a browser through.
 final class WebGpuDevice extends GraphicsDevice
     with WgslModuleCompiler, EncodedImageUpload {
+  WebGpuDevice._(this._gpuDevice, this._canvas, this._context, this._stages)
+    : _slot = _CanvasSlot(_canvas),
+      _uniformArena = WebGpuFrameArena(
+        _gpuDevice,
+        usage: GpuBufferUsage.uniform,
+        // Every implementation so far reports 256 for
+        // `minUniformBufferOffsetAlignment`, and a dynamic offset that is not a
+        // multiple of it is refused. Stated as a constant rather than read from
+        // `limits` because a device that reported less would still accept 256,
+        // and one that reported more is a device this arena would have to be
+        // rebuilt for anyway.
+        alignment: 256,
+        label: 'flutter3d uniforms',
+      ),
+      _vertexArena = WebGpuFrameArena(
+        _gpuDevice,
+        usage: GpuBufferUsage.vertex,
+        alignment: 4,
+        label: 'flutter3d vertices',
+      ),
+      _indexArena = WebGpuFrameArena(
+        _gpuDevice,
+        usage: GpuBufferUsage.index,
+        alignment: 4,
+        label: 'flutter3d indices',
+      ) {
+    _zeroBlock = _gpuDevice.createBuffer(
+      GPUBufferDescriptor(
+        // 64 KiB is `maxUniformBufferBindingSize`'s guaranteed floor, so no
+        // block a shader can declare is larger than this and one buffer covers
+        // every unbound one. A WebGPU buffer starts zeroed, which is what makes
+        // the fallback read like GL's: a block nobody filled is zeros rather
+        // than whatever the last draw left in the arena.
+        size: 1 << 16,
+        usage: GpuBufferUsage.uniform | GpuBufferUsage.copyDst,
+        label: 'flutter3d unbound block',
+      ),
+    );
+    _watchBrowser();
+  }
+
   // ------------------------------------------------------- what it can do
 
   /// Every capability, decided once from what the device was granted — see
@@ -305,6 +346,261 @@ final class WebGpuDevice extends GraphicsDevice
     );
   }();
 
+  final Map<TextureFormat, TextureFormatSupport> _formatSupport =
+      <TextureFormat, TextureFormatSupport>{};
+
+  void Function(GpuFrameTimings timings)? _timingListener;
+  late final WebGpuTimer _timer = WebGpuTimer(_gpuDevice);
+
+  /// The staging buffers [readBuffer] and a read [mapBuffer] copy through,
+  /// kept between reads — since 1.0.0-rc.1+2.
+  late final WebGpuStagingPool _staging = WebGpuStagingPool(_gpuDevice);
+
+  late final bool _hdrDisplay = () {
+    try {
+      return _matchMedia('(dynamic-range: high)').matches;
+    } on Object {
+      return false;
+    }
+  }();
+
+  /// The format the canvas is configured for now: the frame's, since
+  /// presenting is a copy and a copy needs the two to match.
+  TextureFormat _canvasFormat = TextureFormat.r8g8b8a8UNormInt;
+
+  /// The browser's device. The encoder beside this one records into it,
+  /// through [WebGpuDeviceInternals].
+  final GPUDevice _gpuDevice;
+
+  final _Canvas _canvas;
+
+  final GPUCanvasContext _context;
+
+  final _CanvasSlot _slot;
+
+  final WebGpuSectionStages _stages;
+
+  /// The engine's own stages, compiled on first use.
+  ///
+  /// **Lazy, where the first version of this file compiled all thirty-nine at
+  /// `create`.** A scene binds a handful of them, and compiling the rest is a
+  /// pause the frame pays for shaders it never draws with. `late final` rather
+  /// than an initialiser because the library is handed `this` as its compiler,
+  /// and `this` does not exist yet in an initialiser list.
+  late final WebGpuShaderLibrary _library = WebGpuShaderLibrary(this, _stages);
+
+  /// Where a uniform block written this frame lands. See
+  /// `webgpu_resources.dart` for why one arena reset per frame is safe.
+  final WebGpuFrameArena _uniformArena;
+
+  /// The buffers a uniform block is filled in before `queue.writeBuffer`
+  /// copies it, one per block size, for the device's life.
+  final UniformScratch _uniformScratch = UniformScratch();
+
+  /// Where `PassEncoder.bindVertexData`'s bytes land.
+  final WebGpuFrameArena _vertexArena;
+
+  /// Where `PassEncoder.bindIndexData`'s bytes land.
+  final WebGpuFrameArena _indexArena;
+
+  /// Real _pipelines, by the signature that produced each. Shared across passes:
+  /// the signature already carries the attachment formats and the sample count.
+  final WebGpuPipelineCache<GPURenderPipeline> _pipelines =
+      WebGpuPipelineCache<GPURenderPipeline>();
+
+  final Map<_StagePairKey, WebGpuBindingLayouts> _bindingLayouts =
+      <_StagePairKey, WebGpuBindingLayouts>{};
+
+  final Map<SamplerDescriptor, GPUSampler> _samplers =
+      <SamplerDescriptor, GPUSampler>{};
+
+  final Map<_BindGroupKey, GPUBindGroup> _bindGroups =
+      <_BindGroupKey, GPUBindGroup>{};
+
+  final List<WebGpuTexture> _textures = <WebGpuTexture>[];
+
+  /// The mip pass for browser-decoded images, made on the first one.
+  late final WebGpuMipBuilder _mips = WebGpuMipBuilder(_gpuDevice);
+  final List<GPUBuffer> _buffers = <GPUBuffer>[];
+
+  late final GPUBuffer _zeroBlock;
+
+  bool _disposed = false;
+
+  // -------------------------------------------------------- error scopes
+
+  /// Every verdict the browser still owes and every complaint it made, handed
+  /// over at [beginFrame] — see `webgpu_error_ledger.dart`.
+  final WebGpuErrorLedger _ledger = WebGpuErrorLedger(backend: _backend);
+
+  /// The stage pairs whose bind group layouts were refused, and why — see
+  /// [_bindingsFor]. Kept for the device's life: a pair's modules are the
+  /// library's, and a reload that fixes a stage compiles new ones, which are
+  /// a new pair.
+  final WebGpuLayoutRefusals _layoutRefusals = WebGpuLayoutRefusals();
+
+  /// What [webgpuLayoutProblem] holds a layout to: the limits this device
+  /// was granted.
+  late final WebGpuLayoutLimits _layoutLimits = () {
+    final l = _gpuDevice.limits;
+    return (
+      maxBindGroups: l.maxBindGroups,
+      maxDynamicUniformBuffersPerPipelineLayout:
+          l.maxDynamicUniformBuffersPerPipelineLayout,
+      maxUniformBuffersPerShaderStage: l.maxUniformBuffersPerShaderStage,
+      maxSampledTexturesPerShaderStage: l.maxSampledTexturesPerShaderStage,
+      maxSamplersPerShaderStage: l.maxSamplersPerShaderStage,
+    );
+  }();
+
+  final Set<String> _reportedUnbound = <String>{};
+
+  final Map<(WebGpuTextureDimension, bool), WebGpuTexture> _blanks =
+      <(WebGpuTextureDimension, bool), WebGpuTexture>{};
+
+  /// What an unbound comparison slot samples with: a comparison slot takes a
+  /// comparison sampler, whatever is behind it.
+  static const SamplerDescriptor _blankComparison = SamplerDescriptor(
+    compare: CompareFunction.lessEqual,
+  );
+  // ------------------------------------------------------------- resources
+
+  /// Whether `deviceTransient` targets are allocated as WebGPU transient
+  /// attachments — `H7`. Asked of the browser once, since the answer is a
+  /// property of its API and not of this device.
+  late final bool _transientAttachments = gpuKnowsTransientAttachments();
+
+  /// How many live handles stand for each pair and layout; see
+  /// [releasePipeline].
+  final WebGpuPipelineHolders _holders = WebGpuPipelineHolders();
+
+  /// The stages each live handle [createPipeline] made stands for, taken out
+  /// at its release so a second release counts nothing.
+  final Expando<WebGpuStages> _heldStages = Expando<WebGpuStages>(
+    'held stages',
+  );
+
+  /// How many draw states [createPipelineAsync] warms a new pair in, at most:
+  /// the most recently built distinct ones.
+  static const int warmStateLimit = 32;
+
+  /// The draw states this device has built a pipeline in, by
+  /// `WebGpuDrawState.stateKey`, oldest first.
+  final Map<Object, WebGpuDrawState> _drawStates = <Object, WebGpuDrawState>{};
+
+  int _warmed = 0;
+
+  int _warmRefused = 0;
+
+  /// Whether a draw that meets a state no pipeline was built in yet builds
+  /// it off the frame, through `createRenderPipelineAsync`, and is skipped
+  /// until it arrives — for one frame at most, after which it is built in
+  /// place (`WebGpuPipelineCache.forDraw`).
+  ///
+  /// **Null, the default, defers once this device has shown a frame**
+  /// ([copyToCanvas]). Before that nothing is on the screen to stutter, and
+  /// a frame drawn once and read back — a golden, a thumbnail, a capture —
+  /// would come back without the draws it met first; after it, a level that
+  /// brings in a new material no longer stalls the frame that draws it
+  /// first. True defers from the first frame and false never does.
+  bool? deferPipelineBuilds;
+
+  /// Whether [copyToCanvas] has run.
+  bool _presented = false;
+
+  /// The frame being drawn, counted by [beginFrame], which is how a draw
+  /// waiting on a build knows a frame has gone by.
+  int _frame = 0;
+
+  int _deferredDraws = 0;
+
+  int _deferredBuilds = 0;
+
+  bool _isLost = false;
+
+  final StreamController<DeviceLoss> _lost =
+      StreamController<DeviceLoss>.broadcast();
+
+  final StreamController<DeviceError> _deviceErrors =
+      StreamController<DeviceError>.broadcast();
+
+  /// The platform view type this device's canvas is registered under.
+  ///
+  /// The registry has no unregister and never will, so the factory closure
+  /// outlives [dispose] whatever anybody does. What it holds is [_CanvasSlot]
+  /// rather than the element, so the pin the platform keeps is a pin on a box
+  /// this device is able to empty — which, together with unconfiguring the
+  /// context and destroying the device, is a genuinely complete teardown. The
+  /// WebGL2 backend cannot get that far and says so.
+  late final String viewType = _register();
+
+  /// The formats [_readConverted] will draw into an eight-bit target rather
+  /// than refuse.
+  ///
+  /// **The float ones and only those**, because they are the ones the contract
+  /// sends here: the whole of a float target is converted. The one-channel
+  /// float comes back as `(r, 0, 0, 1)`, which is what a shader sampling it
+  /// reads and so is not an invention.
+  ///
+  /// The eight-bit and two-channel `UNormInt` layouts are deliberately absent.
+  /// Nothing in the engine renders into `r8unorm` or `rg8unorm` and reads it
+  /// back, so a conversion for them would be a path with no caller and no test —
+  /// and the question of what the other three backends put in the missing
+  /// channels has never been asked, let alone answered the same way three times.
+  static const Set<TextureFormat> _convertibleFormats = <TextureFormat>{
+    TextureFormat.r16g16b16a16Float,
+    TextureFormat.r32g32b32a32Float,
+    TextureFormat.r32Float,
+  };
+
+  /// The conversion shader, compiled once for the life of the device.
+  ///
+  /// Written here rather than taken from the stage table, deliberately: this
+  /// device is opened over whatever [WebGpuSectionStages] it is handed — the
+  /// conformance harness hands it one, a game hands it another — so a readback
+  /// that named an engine stage would work in one of those and not the other.
+  /// Nine lines of WGSL that belong to the backend are the smaller dependency.
+  ///
+  /// [compileModule] is the same seam every other module goes through, so a
+  /// browser's opinion of this text reaches [debugDrainErrors] like any other.
+  ///
+  /// **`textureLoad` and no sampler at all**, which is what keeps the whole
+  /// question of filtering — and of `float32-filterable` — out of the picture:
+  /// the target is the source's own size, `@builtin(position)` in a WebGPU
+  /// fragment stage is the framebuffer coordinate with the origin at the top
+  /// left, and `textureLoad` takes texel coordinates from the same corner. One
+  /// texel in, one texel out, and nothing to turn over.
+  ///
+  /// **The clamp is the colour target's rather than this shader's**, and it was
+  /// written here first: `return clamp(texel, ...)` survived being deleted,
+  /// because writing an `f32` into an `rgba8unorm` attachment is specified to
+  /// clamp to `[0, 1]` before it quantises. So the range is held by the choice
+  /// of intermediate format, which is the thing `a value outside the range
+  /// clamps rather than wrapping` actually guards.
+  late final GPUShaderModule _conversionModule =
+      compileModule('readback conversion', r'''
+@group(0) @binding(0) var source: texture_2d<f32>;
+
+@vertex
+fn vs_main(@builtin(vertex_index) index: u32) -> @builtin(position) vec4<f32> {
+    let x = f32(i32(index) / 2) * 4.0 - 1.0;
+    let y = f32(i32(index) & 1) * 4.0 - 1.0;
+    return vec4<f32>(x, y, 0.0, 1.0);
+}
+
+@fragment
+fn fs_main(@builtin(position) at: vec4<f32>) -> @location(0) vec4<f32> {
+    return textureLoad(source, vec2<i32>(at.xy), 0);
+}
+''')
+          as GPUShaderModule;
+
+  final Map<String, GPUBindGroupLayout> _conversionLayouts =
+      <String, GPUBindGroupLayout>{};
+
+  final Map<String, GPURenderPipeline> _conversionPipelines =
+      <String, GPURenderPipeline>{};
+
   /// What [format] can be used for on what this device was granted — see
   /// `webgpuTextureFormatSupport`. Its `sampled` is what
   /// `supportsTextureFormat` answers.
@@ -329,12 +625,6 @@ final class WebGpuDevice extends GraphicsDevice
         format,
         granted: (String feature) => _gpuDevice.features.has(feature),
       );
-
-  final Map<TextureFormat, TextureFormatSupport> _formatSupport =
-      <TextureFormat, TextureFormatSupport>{};
-
-  void Function(GpuFrameTimings timings)? _timingListener;
-  late final WebGpuTimer _timer = WebGpuTimer(_gpuDevice);
 
   @override
   void onGpuTimings(void Function(GpuFrameTimings timings)? listener) =>
@@ -427,10 +717,6 @@ final class WebGpuDevice extends GraphicsDevice
   Future<ByteData> readBuffer(StorageBuffer buffer) =>
       webgpuReadBuffer(_gpuDevice, buffer, staging: _staging);
 
-  /// The staging buffers [readBuffer] and a read [mapBuffer] copy through,
-  /// kept between reads — since 1.0.0-rc.1+2.
-  late final WebGpuStagingPool _staging = WebGpuStagingPool(_gpuDevice);
-
   @override
   void releaseStorageBuffer(StorageBuffer buffer) =>
       (buffer.backend as WebGpuStorage).buffer.destroy();
@@ -443,59 +729,6 @@ final class WebGpuDevice extends GraphicsDevice
   List<TextureFormat> get hdrOutputFormats => _hdrDisplay
       ? const <TextureFormat>[TextureFormat.r16g16b16a16Float]
       : const <TextureFormat>[];
-
-  late final bool _hdrDisplay = () {
-    try {
-      return _matchMedia('(dynamic-range: high)').matches;
-    } on Object {
-      return false;
-    }
-  }();
-
-  /// The format the canvas is configured for now: the frame's, since
-  /// presenting is a copy and a copy needs the two to match.
-  TextureFormat _canvasFormat = TextureFormat.r8g8b8a8UNormInt;
-
-  WebGpuDevice._(this._gpuDevice, this._canvas, this._context, this._stages)
-    : _slot = _CanvasSlot(_canvas),
-      _uniformArena = WebGpuFrameArena(
-        _gpuDevice,
-        usage: GpuBufferUsage.uniform,
-        // Every implementation so far reports 256 for
-        // `minUniformBufferOffsetAlignment`, and a dynamic offset that is not a
-        // multiple of it is refused. Stated as a constant rather than read from
-        // `limits` because a device that reported less would still accept 256,
-        // and one that reported more is a device this arena would have to be
-        // rebuilt for anyway.
-        alignment: 256,
-        label: 'flutter3d uniforms',
-      ),
-      _vertexArena = WebGpuFrameArena(
-        _gpuDevice,
-        usage: GpuBufferUsage.vertex,
-        alignment: 4,
-        label: 'flutter3d vertices',
-      ),
-      _indexArena = WebGpuFrameArena(
-        _gpuDevice,
-        usage: GpuBufferUsage.index,
-        alignment: 4,
-        label: 'flutter3d indices',
-      ) {
-    _zeroBlock = _gpuDevice.createBuffer(
-      GPUBufferDescriptor(
-        // 64 KiB is `maxUniformBufferBindingSize`'s guaranteed floor, so no
-        // block a shader can declare is larger than this and one buffer covers
-        // every unbound one. A WebGPU buffer starts zeroed, which is what makes
-        // the fallback read like GL's: a block nobody filled is zeros rather
-        // than whatever the last draw left in the arena.
-        size: 1 << 16,
-        usage: GpuBufferUsage.uniform | GpuBufferUsage.copyDst,
-        label: 'flutter3d unbound block',
-      ),
-    );
-    _watchBrowser();
-  }
 
   /// Turns [wgsl] into a `GPUShaderModule`, and asks the browser what it
   /// thought of it.
@@ -701,67 +934,6 @@ final class WebGpuDevice extends GraphicsDevice
     }
   }
 
-  /// The browser's device. The encoder beside this one records into it,
-  /// through [WebGpuDeviceInternals].
-  final GPUDevice _gpuDevice;
-
-  final _Canvas _canvas;
-  final GPUCanvasContext _context;
-  final _CanvasSlot _slot;
-
-  final WebGpuSectionStages _stages;
-
-  /// The engine's own stages, compiled on first use.
-  ///
-  /// **Lazy, where the first version of this file compiled all thirty-nine at
-  /// `create`.** A scene binds a handful of them, and compiling the rest is a
-  /// pause the frame pays for shaders it never draws with. `late final` rather
-  /// than an initialiser because the library is handed `this` as its compiler,
-  /// and `this` does not exist yet in an initialiser list.
-  late final WebGpuShaderLibrary _library = WebGpuShaderLibrary(this, _stages);
-
-  /// Where a uniform block written this frame lands. See
-  /// `webgpu_resources.dart` for why one arena reset per frame is safe.
-  final WebGpuFrameArena _uniformArena;
-
-  /// The buffers a uniform block is filled in before `queue.writeBuffer`
-  /// copies it, one per block size, for the device's life.
-  final UniformScratch _uniformScratch = UniformScratch();
-
-  /// Where `PassEncoder.bindVertexData`'s bytes land.
-  final WebGpuFrameArena _vertexArena;
-
-  /// Where `PassEncoder.bindIndexData`'s bytes land.
-  final WebGpuFrameArena _indexArena;
-
-  /// Real _pipelines, by the signature that produced each. Shared across passes:
-  /// the signature already carries the attachment formats and the sample count.
-  final WebGpuPipelineCache<GPURenderPipeline> _pipelines =
-      WebGpuPipelineCache<GPURenderPipeline>();
-
-  final Map<_StagePairKey, WebGpuBindingLayouts> _bindingLayouts =
-      <_StagePairKey, WebGpuBindingLayouts>{};
-  final Map<SamplerDescriptor, GPUSampler> _samplers =
-      <SamplerDescriptor, GPUSampler>{};
-  final Map<_BindGroupKey, GPUBindGroup> _bindGroups =
-      <_BindGroupKey, GPUBindGroup>{};
-
-  final List<WebGpuTexture> _textures = <WebGpuTexture>[];
-
-  /// The mip pass for browser-decoded images, made on the first one.
-  late final WebGpuMipBuilder _mips = WebGpuMipBuilder(_gpuDevice);
-  final List<GPUBuffer> _buffers = <GPUBuffer>[];
-
-  late final GPUBuffer _zeroBlock;
-
-  bool _disposed = false;
-
-  // -------------------------------------------------------- error scopes
-
-  /// Every verdict the browser still owes and every complaint it made, handed
-  /// over at [beginFrame] — see `webgpu_error_ledger.dart`.
-  final WebGpuErrorLedger _ledger = WebGpuErrorLedger(backend: _backend);
-
   /// Runs [body] with a validation scope open, filing whatever the browser
   /// says in the ledger [beginFrame] empties.
   ///
@@ -905,26 +1077,6 @@ final class WebGpuDevice extends GraphicsDevice
       refused: (String message) => _layoutRefusals.refuse(key, message),
     );
   }
-
-  /// The stage pairs whose bind group layouts were refused, and why — see
-  /// [_bindingsFor]. Kept for the device's life: a pair's modules are the
-  /// library's, and a reload that fixes a stage compiles new ones, which are
-  /// a new pair.
-  final WebGpuLayoutRefusals _layoutRefusals = WebGpuLayoutRefusals();
-
-  /// What [webgpuLayoutProblem] holds a layout to: the limits this device
-  /// was granted.
-  late final WebGpuLayoutLimits _layoutLimits = () {
-    final l = _gpuDevice.limits;
-    return (
-      maxBindGroups: l.maxBindGroups,
-      maxDynamicUniformBuffersPerPipelineLayout:
-          l.maxDynamicUniformBuffersPerPipelineLayout,
-      maxUniformBuffersPerShaderStage: l.maxUniformBuffersPerShaderStage,
-      maxSampledTexturesPerShaderStage: l.maxSampledTexturesPerShaderStage,
-      maxSamplersPerShaderStage: l.maxSamplersPerShaderStage,
-    );
-  }();
 
   /// Why [pipeline]'s pair has no bind group layouts on this device, or null
   /// when it has them or has not been asked for them yet.
@@ -1114,8 +1266,6 @@ final class WebGpuDevice extends GraphicsDevice
     }
   }
 
-  final Set<String> _reportedUnbound = <String>{};
-
   /// One white texel — or one zero depth, for a comparison slot — in the
   /// shape a slot with nothing bound to it wants.
   ///
@@ -1131,15 +1281,6 @@ final class WebGpuDevice extends GraphicsDevice
     dimension,
     depth: depth,
   )).sampledView;
-
-  final Map<(WebGpuTextureDimension, bool), WebGpuTexture> _blanks =
-      <(WebGpuTextureDimension, bool), WebGpuTexture>{};
-
-  /// What an unbound comparison slot samples with: a comparison slot takes a
-  /// comparison sampler, whatever is behind it.
-  static const SamplerDescriptor _blankComparison = SamplerDescriptor(
-    compare: CompareFunction.lessEqual,
-  );
 
   /// Every GPU object this device owns and would have to release: the textures
   /// and geometry it handed out, the frame arenas and fallbacks it made for
@@ -1226,13 +1367,6 @@ final class WebGpuDevice extends GraphicsDevice
   @override
   ShaderLibrary get shaders => _library;
 
-  // ------------------------------------------------------------- resources
-
-  /// Whether `deviceTransient` targets are allocated as WebGPU transient
-  /// attachments — `H7`. Asked of the browser once, since the answer is a
-  /// property of its API and not of this device.
-  late final bool _transientAttachments = gpuKnowsTransientAttachments();
-
   TextureHandle _createTarget(RenderTargetDescriptor spec) => _guard(
     'a ${spec.width}x${spec.height} ${spec.format.name} target',
     () => webgpuCreateTexture(
@@ -1242,7 +1376,6 @@ final class WebGpuDevice extends GraphicsDevice
       transientAttachments: _transientAttachments,
     ),
   );
-
   @override
   TextureHandle createTextureFromPixels({
     required int width,
@@ -1472,16 +1605,6 @@ final class WebGpuDevice extends GraphicsDevice
     vertexLayout: pipeline.layoutFingerprint,
   );
 
-  /// How many live handles stand for each pair and layout; see
-  /// [releasePipeline].
-  final WebGpuPipelineHolders _holders = WebGpuPipelineHolders();
-
-  /// The stages each live handle [createPipeline] made stands for, taken out
-  /// at its release so a second release counts nothing.
-  final Expando<WebGpuStages> _heldStages = Expando<WebGpuStages>(
-    'held stages',
-  );
-
   /// Forgets what was built for [pipeline]'s pair and layout once no other
   /// handle stands for them: every `GPURenderPipeline` the draws built in
   /// whatever state, and — when the pair has no handle left under any
@@ -1575,14 +1698,6 @@ final class WebGpuDevice extends GraphicsDevice
     }
   }
 
-  /// How many draw states [createPipelineAsync] warms a new pair in, at most:
-  /// the most recently built distinct ones.
-  static const int warmStateLimit = 32;
-
-  /// The draw states this device has built a pipeline in, by
-  /// `WebGpuDrawState.stateKey`, oldest first.
-  final Map<Object, WebGpuDrawState> _drawStates = <Object, WebGpuDrawState>{};
-
   /// Remembers [state] as one a new pair is warmed in — called by a draw that
   /// builds a pipeline, not by every draw.
   void _rememberDrawState(WebGpuDrawState state) {
@@ -1598,40 +1713,17 @@ final class WebGpuDevice extends GraphicsDevice
   /// How many pipelines [createPipelineAsync] built ahead of a draw, and how
   /// many states it tried that the browser refused, for a test.
   int get debugWarmedPipelines => _warmed;
-  int get debugWarmRefused => _warmRefused;
-  int _warmed = 0;
-  int _warmRefused = 0;
 
-  /// Whether a draw that meets a state no pipeline was built in yet builds
-  /// it off the frame, through `createRenderPipelineAsync`, and is skipped
-  /// until it arrives — for one frame at most, after which it is built in
-  /// place (`WebGpuPipelineCache.forDraw`).
-  ///
-  /// **Null, the default, defers once this device has shown a frame**
-  /// ([copyToCanvas]). Before that nothing is on the screen to stutter, and
-  /// a frame drawn once and read back — a golden, a thumbnail, a capture —
-  /// would come back without the draws it met first; after it, a level that
-  /// brings in a new material no longer stalls the frame that draws it
-  /// first. True defers from the first frame and false never does.
-  bool? deferPipelineBuilds;
+  int get debugWarmRefused => _warmRefused;
 
   /// What [deferPipelineBuilds] decides for the frame being drawn.
   bool get defersPipelineBuilds => deferPipelineBuilds ?? _presented;
-
-  /// Whether [copyToCanvas] has run.
-  bool _presented = false;
-
-  /// The frame being drawn, counted by [beginFrame], which is how a draw
-  /// waiting on a build knows a frame has gone by.
-  int _frame = 0;
 
   /// How many draws were skipped while their pipeline was built off the
   /// frame, and how many of those builds arrived before the fallback, for
   /// a test.
   int get debugDeferredDraws => _deferredDraws;
   int get debugDeferredBuilds => _deferredBuilds;
-  int _deferredDraws = 0;
-  int _deferredBuilds = 0;
 
   /// The pipeline a draw uses for [signature], built for [handle]'s pair
   /// from [descriptor]: built, sent off the frame, or built in place when
@@ -1737,19 +1829,12 @@ final class WebGpuDevice extends GraphicsDevice
 
   @override
   bool get isLost => _isLost;
-  bool _isLost = false;
-
-  final StreamController<DeviceLoss> _lost =
-      StreamController<DeviceLoss>.broadcast();
 
   /// What the browser refused after the call returned, at the start of the
   /// frame after — the ledger's [DeviceError]s, since 1.0.0-rc.1+2. A loss
   /// goes to [lost] instead, and the refusals before it are dropped.
   @override
   Stream<DeviceError> get errors => _deviceErrors.stream;
-
-  final StreamController<DeviceError> _deviceErrors =
-      StreamController<DeviceError>.broadcast();
 
   /// Starts listening to the browser: the `lost` promise, and
   /// `uncapturederror` for every error no [_guard] scope caught — a per-draw
@@ -2022,16 +2107,6 @@ final class WebGpuDevice extends GraphicsDevice
       ..imageRendering = quality == FilterQuality.none ? 'pixelated' : 'auto';
   }
 
-  /// The platform view type this device's canvas is registered under.
-  ///
-  /// The registry has no unregister and never will, so the factory closure
-  /// outlives [dispose] whatever anybody does. What it holds is [_CanvasSlot]
-  /// rather than the element, so the pin the platform keeps is a pin on a box
-  /// this device is able to empty — which, together with unconfiguring the
-  /// context and destroying the device, is a genuinely complete teardown. The
-  /// WebGL2 backend cannot get that far and says so.
-  late final String viewType = _register();
-
   String _register() {
     final type = 'flutter3d-webgpu-${identityHashCode(this)}';
     final slot = _slot;
@@ -2128,25 +2203,6 @@ final class WebGpuDevice extends GraphicsDevice
     }
   }
 
-  /// The formats [_readConverted] will draw into an eight-bit target rather
-  /// than refuse.
-  ///
-  /// **The float ones and only those**, because they are the ones the contract
-  /// sends here: the whole of a float target is converted. The one-channel
-  /// float comes back as `(r, 0, 0, 1)`, which is what a shader sampling it
-  /// reads and so is not an invention.
-  ///
-  /// The eight-bit and two-channel `UNormInt` layouts are deliberately absent.
-  /// Nothing in the engine renders into `r8unorm` or `rg8unorm` and reads it
-  /// back, so a conversion for them would be a path with no caller and no test —
-  /// and the question of what the other three backends put in the missing
-  /// channels has never been asked, let alone answered the same way three times.
-  static const Set<TextureFormat> _convertibleFormats = <TextureFormat>{
-    TextureFormat.r16g16b16a16Float,
-    TextureFormat.r32g32b32a32Float,
-    TextureFormat.r32Float,
-  };
-
   /// [texture] drawn into a fresh `r8g8b8a8UNormInt` target of the same size.
   ///
   /// The caller owns what comes back and releases it — [_readConverted] does, in a
@@ -2215,53 +2271,6 @@ final class WebGpuDevice extends GraphicsDevice
           !_gpuDevice.features.has(GpuFeature.float32Filterable)
       ? 'unfilterable-float'
       : 'float';
-
-  /// The conversion shader, compiled once for the life of the device.
-  ///
-  /// Written here rather than taken from the stage table, deliberately: this
-  /// device is opened over whatever [WebGpuSectionStages] it is handed — the
-  /// conformance harness hands it one, a game hands it another — so a readback
-  /// that named an engine stage would work in one of those and not the other.
-  /// Nine lines of WGSL that belong to the backend are the smaller dependency.
-  ///
-  /// [compileModule] is the same seam every other module goes through, so a
-  /// browser's opinion of this text reaches [debugDrainErrors] like any other.
-  ///
-  /// **`textureLoad` and no sampler at all**, which is what keeps the whole
-  /// question of filtering — and of `float32-filterable` — out of the picture:
-  /// the target is the source's own size, `@builtin(position)` in a WebGPU
-  /// fragment stage is the framebuffer coordinate with the origin at the top
-  /// left, and `textureLoad` takes texel coordinates from the same corner. One
-  /// texel in, one texel out, and nothing to turn over.
-  ///
-  /// **The clamp is the colour target's rather than this shader's**, and it was
-  /// written here first: `return clamp(texel, ...)` survived being deleted,
-  /// because writing an `f32` into an `rgba8unorm` attachment is specified to
-  /// clamp to `[0, 1]` before it quantises. So the range is held by the choice
-  /// of intermediate format, which is the thing `a value outside the range
-  /// clamps rather than wrapping` actually guards.
-  late final GPUShaderModule _conversionModule =
-      compileModule('readback conversion', r'''
-@group(0) @binding(0) var source: texture_2d<f32>;
-
-@vertex
-fn vs_main(@builtin(vertex_index) index: u32) -> @builtin(position) vec4<f32> {
-    let x = f32(i32(index) / 2) * 4.0 - 1.0;
-    let y = f32(i32(index) & 1) * 4.0 - 1.0;
-    return vec4<f32>(x, y, 0.0, 1.0);
-}
-
-@fragment
-fn fs_main(@builtin(position) at: vec4<f32>) -> @location(0) vec4<f32> {
-    return textureLoad(source, vec2<i32>(at.xy), 0);
-}
-''')
-          as GPUShaderModule;
-
-  final Map<String, GPUBindGroupLayout> _conversionLayouts =
-      <String, GPUBindGroupLayout>{};
-  final Map<String, GPURenderPipeline> _conversionPipelines =
-      <String, GPURenderPipeline>{};
 
   /// The one-entry layout the conversion binds its source through, one per
   /// distinct [sampleType] — which on a device with `float32-filterable` is one

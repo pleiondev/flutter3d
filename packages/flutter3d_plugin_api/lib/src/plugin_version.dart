@@ -35,21 +35,6 @@ final class PluginVersion implements Comparable<PluginVersion> {
   const PluginVersion(this.major, this.minor, this.patch, {this.preRelease})
     : assert(major >= 0 && minor >= 0 && patch >= 0, 'whole numbers');
 
-  /// What a manifest that names no version is read as: before any release,
-  /// which every range from `any` and `>=0.0.0` accepts.
-  static const PluginVersion none = PluginVersion(0, 0, 0);
-
-  final int major;
-  final int minor;
-  final int patch;
-
-  /// The part after `-`, or null for a release.
-  final String? preRelease;
-
-  static final RegExp _pattern = RegExp(
-    r'^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.\-]+))?(?:\+[0-9A-Za-z.\-]+)?$',
-  );
-
   /// Reads `1.4.2` or `1.4.2-dev.1`; build metadata after `+` is ignored.
   /// Throws a [PluginFormatException] naming the text otherwise.
   factory PluginVersion.parse(String text) {
@@ -67,6 +52,21 @@ final class PluginVersion implements Comparable<PluginVersion> {
       preRelease: match[4],
     );
   }
+
+  /// What a manifest that names no version is read as: before any release,
+  /// which every range from `any` and `>=0.0.0` accepts.
+  static const PluginVersion none = PluginVersion(0, 0, 0);
+  final int major;
+  final int minor;
+
+  final int patch;
+
+  /// The part after `-`, or null for a release.
+  final String? preRelease;
+
+  static final RegExp _pattern = RegExp(
+    r'^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.\-]+))?(?:\+[0-9A-Za-z.\-]+)?$',
+  );
 
   /// The smallest version above every `major.minor.patch-*` release of this
   /// number: the end of a caret range.
@@ -115,9 +115,6 @@ final class PluginVersion implements Comparable<PluginVersion> {
 final class VersionRange {
   const VersionRange({this.min, this.max, this.includeMax = false});
 
-  /// Every version.
-  static const VersionRange any = VersionRange();
-
   /// Exactly [version].
   VersionRange.exactly(PluginVersion version)
     : min = version,
@@ -129,15 +126,6 @@ final class VersionRange {
     : min = version,
       max = version.nextBreaking,
       includeMax = false;
-
-  /// The lowest version accepted, inclusive; null for no lower bound.
-  final PluginVersion? min;
-
-  /// The version above every accepted one, or the highest accepted one when
-  /// [includeMax]; null for no upper bound.
-  final PluginVersion? max;
-
-  final bool includeMax;
 
   /// Reads a range. Throws a [PluginFormatException] naming the text when it
   /// is not one.
@@ -176,6 +164,18 @@ final class VersionRange {
     }
     return VersionRange(min: min, max: max, includeMax: includeMax);
   }
+
+  /// Every version.
+  static const VersionRange any = VersionRange();
+
+  /// The lowest version accepted, inclusive; null for no lower bound.
+  final PluginVersion? min;
+
+  /// The version above every accepted one, or the highest accepted one when
+  /// [includeMax]; null for no upper bound.
+  final PluginVersion? max;
+
+  final bool includeMax;
 
   /// Whether [version] is in the range.
   bool allows(PluginVersion version) {

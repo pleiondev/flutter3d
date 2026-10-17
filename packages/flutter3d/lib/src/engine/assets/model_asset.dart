@@ -66,6 +66,23 @@ final class ModelAsset {
        nodes = nodes ?? _flatNodesFor(parts),
        roots = roots ?? <int>[for (var i = 0; i < parts.length; i++) i];
 
+  /// Wraps a single procedurally generated mesh.
+  factory ModelAsset.fromMesh(
+    GraphicsDevice device,
+    MeshData mesh, {
+    RenderMaterial? material,
+    String? name,
+  }) {
+    final uploaded = DeviceMesh.upload(device, mesh);
+    return ModelAsset(
+      name: name,
+      parts: <ModelPart>[
+        ModelPart(mesh: uploaded, material: material ?? RenderMaterial()),
+      ],
+      localBounds: uploaded.bounds,
+    );
+  }
+
   final List<ModelPart> parts;
 
   /// The device [fromDocument] uploaded to, which [dispose] gives the
@@ -97,8 +114,8 @@ final class ModelAsset {
   /// Bounds in the model's own space, for framing a camera before anything is
   /// instantiated.
   final Aabb3 localBounds;
-
   final List<String> warnings;
+
   final String? name;
 
   /// The material variants the file offers, by name — see
@@ -113,6 +130,8 @@ final class ModelAsset {
   /// one roughness track, and a material only a variant uses is still one a
   /// clip may animate.
   final Map<int, RenderMaterial> materials;
+
+  bool _disposed = false;
 
   /// Whether the file brought any animation with it.
   ///
@@ -158,23 +177,6 @@ final class ModelAsset {
       total += part.mesh.indexCount ~/ 3;
     }
     return total;
-  }
-
-  /// Wraps a single procedurally generated mesh.
-  factory ModelAsset.fromMesh(
-    GraphicsDevice device,
-    MeshData mesh, {
-    RenderMaterial? material,
-    String? name,
-  }) {
-    final uploaded = DeviceMesh.upload(device, mesh);
-    return ModelAsset(
-      name: name,
-      parts: <ModelPart>[
-        ModelPart(mesh: uploaded, material: material ?? RenderMaterial()),
-      ],
-      localBounds: uploaded.bounds,
-    );
   }
 
   /// Uploads any decoded [ModelDocument].
@@ -558,5 +560,4 @@ final class ModelAsset {
 
   /// Whether [dispose] has run.
   bool get isDisposed => _disposed;
-  bool _disposed = false;
 }

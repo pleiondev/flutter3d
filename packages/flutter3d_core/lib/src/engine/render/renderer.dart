@@ -258,8 +258,86 @@ final class Renderer with RenderServices {
        // ignore: prefer_initializing_formals
        _fallbackBlack = fallbackBlack;
 
+  /// Builds a renderer on [device].
+  ///
+  /// The backend arrives as a value rather than being reached for, which is the
+  /// whole of how a second one will be selected: an application constructs
+  /// `GpuRenderBackend.open(width:, height:)` and hands it over. A compile-time choice could
+  /// not be faked, and a fake is the only way anything below this line is ever
+  /// exercised without a GPU.
+  ///
+  /// Which shaders it must contain is this package's business and is stated by
+  /// name — see [LightingModel.shaderName] and the `require` calls below. Where
+  /// those shaders come from, and in what format, is the backend's.
+  /// The two fallbacks are what a material without a map samples: white, so
+  /// that an untextured surface is its own base colour, and the neutral
+  /// tangent-space normal, so that sampling it perturbs nothing and the shader
+  /// needs no branch. **Optional, because every application in this repository
+  /// passed the same two** — `SolidColorTexture.white` and
+  /// `SolidColorTexture.flatNormal`, uploaded on the spot, in a dozen places
+  /// including four `main.dart`s that each did it twice. They are still
+  /// parameters: a renderer drawing into somebody else's colour space may want
+  /// its white somewhere other than 1.0, and that is not a decision this
+  /// package can take back. What it can do is stop asking for the answer it
+  /// already knows.
+  ///
+  /// **[replacing], after a device was lost.** A renderer made for the device
+  /// that came back (or a new one opened in its place) takes over
+  /// [replacing]'s [renderSteps] — the registry a plugin host holds — so a
+  /// plugin installed again after the loss adds its steps to this renderer.
+  /// What was added to the old one was made on the lost device: whoever owns
+  /// the plugins cancels and installs them again, which is what
+  /// `Flutter3dView` does. [replacing] draws nothing more and is disposed by
+  /// its owner.
+  factory Renderer.create({
+    required GraphicsDevice device,
+    TextureHandle? fallbackAlbedo,
+    TextureHandle? fallbackNormal,
+    ShaderLibrary? materials,
+    Renderer? replacing,
+  }) {
+    // Consulted before the backend's, so an application can replace a stage as
+    // well as add one — see [LayeredShaderLibrary] for why that order.
+    final library = materials == null
+        ? device.shaders
+        : LayeredShaderLibrary(materials, device.shaders);
+    ShaderHandle require(String name) {
+      final shader = library[name];
+      if (shader == null) {
+        // D15: every stage asked for here is one every bundle carries, so
+        // the refusal says the bundle was not built by this flutter3d.
+        throw MissingShaderStageException.forStage(
+          name,
+          backend: device.backendName,
+        );
+      }
+      return shader;
+    }
+
+    return Renderer._(
+        device: device,
+        require: require,
+        fallbackAlbedo:
+            fallbackAlbedo ?? SolidColorTexture.white.upload(device),
+        fallbackNormal:
+            fallbackNormal ?? SolidColorTexture.flatNormal.upload(device),
+        fallbackBlack: const SolidColorTexture.texel(
+          0.0,
+          0.0,
+          0.0,
+        ).upload(device),
+        msaaEnabled: device.features.has(DeviceFeature.offscreenMultisample),
+        steps: replacing?.renderSteps,
+      )
+      .._baseShaders = library
+      .._shaders = library
+      .._attachSteps()
+      .._listenForGpuTimings();
+  }
+
   /// Seconds since this renderer was made — `FrameContext.time`.
   double get _seconds => _age.elapsedMicroseconds / 1e6;
+
   final Stopwatch _age = Stopwatch()..start();
 
   /// The backend, injected rather than reached for.
@@ -277,6 +355,1637 @@ final class Renderer with RenderServices {
   /// change the simulation. Called on the frame's own thread, after submit
   /// and before [render] returns.
   RenderListener? listener;
+  late ShaderLibrary _shaders;
+
+  /// What [shaders] is built over: `materials` as [Renderer.create] was
+  /// given it, over the backend's bundle.
+  late final ShaderLibrary _baseShaders;
+
+  /// The libraries `renderSteps.addMaterials` added, the latest first.
+  final List<ShaderLibrary> _addedMaterials = <ShaderLibrary>[];
+
+  /// The one place a frame is extended — render steps of a plugin's or an
+  /// application's own, the passes placed at [RenderAnchor]s, the draws that
+  /// go inside the engine's own passes, and a plugin's own anchors. The
+  /// plugin API's `RenderStepRegistry`, filled.
+  ///
+  /// Handed to the plugin host as one of its registries, it is what a
+  /// plugin's `install` reaches with `host.registry<RendererSteps>()`:
+  /// `EngineLoop(registries: [renderer.renderSteps], plugins: …)`. An
+  /// application with no plugin host adds to it directly. Read at every
+  /// frame's compile, so what is added or withdrawn between frames is in the
+  /// next one. See [RendererSteps].
+  ///
+  /// **The only way in, since 1.0.** `addContributor`, `addNode` with a
+  /// `FramePhase`, and the `nodes` and `contributors` registries went: a pass
+  /// is `renderSteps.addNode`, a draw inside the scene's pass is
+  /// `renderSteps.addContributor`, and each hands back the [Registration]
+  /// that takes it out again.
+  final RendererSteps renderSteps;
+
+  /// The quality setting the next frames are drawn at, for a step's switch
+  /// to read as [RenderStepContext.quality]: what an `AdaptiveQuality`
+  /// chose, set beside the settings it applied (`adaptive.row.setting`).
+  /// Null, the default, where nobody chooses one; the renderer itself only
+  /// hands it on.
+  QualitySetting? quality;
+
+  final ShaderHandle _vertexShader;
+
+  /// The skinned vertex stage. A separate shader because joints and weights are
+  /// vertex attributes, and the layout is taken from the `in`
+  /// declarations — so a skinned mesh cannot share a shader with a static one
+  /// however similar the body is.
+  final ShaderHandle _skinnedVertexShader;
+
+  /// The instanced vertex stage: the standard layout in slot 0 and a
+  /// per-instance transform and colour in slot 1. The same varyings and the
+  /// same `FrameInfo` as [_vertexShader], so every fragment shader and both
+  /// shadow passes draw from it unchanged — see `mesh_instanced.vert`.
+  final ShaderHandle _instancedVertexShader;
+
+  /// The lightmapped vertex stage: the standard layout with the colour read
+  /// as the vertex's place in the level's lightmap and the tint held at
+  /// white. The same varyings as [_vertexShader] plus the coordinate, which
+  /// the other three stages leave at zero — see `mesh_lightmapped.vert`.
+  final ShaderHandle _lightmappedVertexShader;
+
+  /// The debug overlay's own stage pair. Separate from the mesh shaders because
+  /// the line buffer has a different vertex layout, and a backend takes the
+  /// layout from the shader's `in` declarations.
+  final ShaderHandle _debugLineVertexShader;
+
+  final ShaderHandle _debugLineFragmentShader;
+
+  /// The post-processing stages. All of them share one vertex shader, because a
+  /// full-screen pass differs only in its fragment work.
+  final ShaderHandle _fullscreenVertexShader;
+
+  final ShaderHandle _bloomThresholdShader;
+
+  final ShaderHandle _bloomDownsampleShader;
+
+  final ShaderHandle _bloomUpsampleShader;
+
+  final ShaderHandle _compositeShader;
+
+  /// `gfx-04n`: edges smoothed on the composited picture.
+  final ShaderHandle _fxaaShader;
+
+  /// The screen-space reflection pass.
+  final ShaderHandle _reflectionShader;
+
+  /// The ambient occlusion pass.
+  final ShaderHandle _ssaoShader;
+
+  /// The short march toward the light — `gfx-76n`. See `post/contact_shadow.frag`.
+  final ShaderHandle _contactShadowShader;
+
+  /// `post/contact_shadow_resolve.frag`: the march averaged over one window of
+  /// its dither pattern, for a frame no temporal resolve smooths.
+  final ShaderHandle _contactShadowResolveShader;
+
+  /// `post/camera_velocity.frag` — `R1`.
+  final ShaderHandle _cameraVelocityShader;
+
+  /// `post/velocity.frag` and the three vertex stages that feed it, for
+  /// nodes that moved — `R1`.
+  final ShaderHandle _velocityShader;
+  final ShaderHandle _velocityVertexShader;
+  final ShaderHandle _velocitySkinnedVertexShader;
+
+  final ShaderHandle _velocityInstancedVertexShader;
+
+  /// `post/reactive.frag` — `R4`: a blended surface marked in the velocity's
+  /// blue, through the same three vertex stages.
+  final ShaderHandle _reactiveShader;
+
+  /// `post/temporal_resolve.frag` — `R2`.
+  final ShaderHandle _temporalResolveShader;
+
+  /// `post/temporal_accumulate.frag` — `R3`.
+  final ShaderHandle _temporalAccumulateShader;
+
+  /// What the frame being drawn remembers from the last one: the state of
+  /// the first view of the [render] call — item 26. Each [CameraView] keeps
+  /// its own, so two views drawn by separate calls (an editor's viewports, a
+  /// texture view drawn as a frame of its own) never blend one another's
+  /// history; a view's is given back when it is disposed.
+  _ViewState _viewState = _ViewState();
+
+  final Expando<_ViewState> _viewStates = Expando<_ViewState>('view state');
+
+  /// The floats each member of a lighting model's own block is bound at
+  /// when a material leaves it unset (D21), made once per member rather
+  /// than once per draw.
+  final Expando<Float32List> _slotDefaults = Expando<Float32List>(
+    'slot default',
+  );
+
+  /// The floats each `lighttype` member of a material is bound at, by the
+  /// member's name: one per name, written with the code before each draw.
+  final Map<String, Float32List> _lightTypeCodes = <String, Float32List>{};
+  final Set<_ViewState> _allViewStates = <_ViewState>{};
+
+  /// How many [render] calls a view's state outlives the last one that drew
+  /// it. A view drawn again within them carries on; past them its textures
+  /// go back to the device and its history is forgotten, so views made
+  /// afresh every frame for several cameras — which no carry can match up —
+  /// cost a few frames of memory rather than a leak. A view drawn again
+  /// after that starts its resolve from nothing, as a new one does.
+  static const int viewIdleFrames = 16;
+
+  /// Views whose state another view took over or that went idle: drawn
+  /// again, they start afresh and take nothing over.
+  final Expando<bool> _retiredViews = Expando<bool>('retired view');
+
+  /// The scene origin the last frame was drawn at, for `Scene.shiftOrigin`
+  /// between frames: see [_followOrigin].
+  WorldPosition? _lastOrigin;
+
+  /// The cutoff this frame's hashed materials are drawn with, carrying the
+  /// scene's origin for their noise — see [_hashedCutoffAt].
+  double _hashedCutoff = -2.0;
+
+  /// `gfx-32n`'s depth-aware blur over what that pass produced.
+  final ShaderHandle _ssaoBlurShader;
+
+  /// `gfx-33n`'s volumetric shafts through the directional shadow map.
+  final ShaderHandle _lightShaftsShader;
+
+  /// `S4`'s half-resolution march through the air, and the depth-aware pass
+  /// that lays it over the scene.
+  final ShaderHandle _volumetricFogShader;
+
+  final ShaderHandle _volumetricFogUpsampleShader;
+
+  /// `gfx-34n`'s thin lens and its gather.
+  final ShaderHandle _depthOfFieldShader;
+
+  /// `R6`'s motion blur: the tile search, walked once per axis, the
+  /// neighbourhood over the tiles, and the gather.
+  final ShaderHandle _velocityTileMaxShader;
+  final ShaderHandle _velocityNeighborMaxShader;
+
+  final ShaderHandle _motionBlurShader;
+
+  /// `gfx-43n`/`44n`/`45n`'s three branches over the surface buffer.
+  final ShaderHandle _viewportShadeShader;
+
+  /// `N9`'s marks, drawn through the velocity vertex stages, and the
+  /// high-contrast look over the finished picture.
+  final ShaderHandle _outlineMaskShader;
+
+  final ShaderHandle _highContrastShader;
+
+  /// `P3`'s projected decals, read out of the surface and albedo buffers.
+  final ShaderHandle _decalShader;
+
+  /// `R8`'s resolve: the transparent layers' weighted average, laid over the
+  /// scene.
+  final ShaderHandle _wboitResolveShader;
+
+  /// `M3`'s copy: one level of the scene behind the transmissive draws.
+  final ShaderHandle _sceneColorCopyShader;
+
+  TextureHandle? _fallbackAlbedo;
+
+  TextureHandle? _fallbackNormal;
+
+  TextureHandle? _fallbackBlack;
+
+  /// A one-texel black cube, bound when a scene has no environment.
+  ///
+  /// **Bound, not omitted.** A sampler a shader declares and nobody binds is a
+  /// native crash on Metal rather than a black texture — the rule that keeps
+  /// the sky's cube out of `sky.frag` and a white texel under the composite's
+  /// occlusion. The shader branches on the level count instead, so what this
+  /// contains is never read; black is chosen so that a branch gone wrong is a
+  /// scene that goes dark rather than one that glows.
+  ///
+  /// Null on a device that cannot make cubes at all, which is allowed: the
+  /// binding is skipped and so is the branch that would have used it.
+  TextureHandle? _fallbackEnvironment;
+
+  final bool msaaEnabled;
+
+  /// Which slot of the deferred-release ring this frame retires.
+  ///
+  /// The per-frame uniform allocators used to be rotated here too. They belong
+  /// to the backend now — where a uniform's bytes live until the GPU has read
+  /// them is a property of the API, not of the engine — and
+  /// `GraphicsDevice.beginFrame` rotates them. The ring length is the same fact
+  /// twice, which is why it is named once here and once there.
+  int _frameIndex = 0;
+
+  /// What the previous frame looked like — `G2`. Recorded at the end of each
+  /// frame while [FrameHistory.tracking] is on, and read during the next.
+  final FrameHistory frameHistory = engineFrameHistory();
+
+  /// How far this renderer lets the CPU run ahead of the GPU, and which
+  /// pipeline builds it reports — `A1.4`, `A1.7`. Read at the top of each
+  /// [render]; change it between frames.
+  FramePacing pacing = const FramePacing();
+
+  int _heldFrames = 0;
+
+  /// The [frameIndex] of each of [unfinishedFrames], and the latest of them
+  /// submitted.
+  final Set<int> _unfinished = <int>{};
+
+  int _latestSubmitted = -1;
+
+  /// What the last drawn frame answered, for a held frame to answer again,
+  /// with the output size it was asked for.
+  FrameResult? _lastResult;
+  (int, int)? _lastRequestedSize;
+
+  /// Pipeline builds over [FramePacing.stallThreshold] during the frame
+  /// being drawn — `A1.7`. Emptied at the top of each [render].
+  final List<PipelineStall> _frameStalls = <PipelineStall>[];
+
+  final List<PipelineStall> _stallLog = <PipelineStall>[];
+
+  /// How many [pipelineStalls] are kept.
+  static const int stallLogLength = 64;
+  final RenderList _renderList = RenderList();
+
+  /// Reused across frames, so a steady overlay allocates nothing.
+  final DebugDraw debugDraw = DebugDraw();
+
+  /// Lines of the application's own, added to [debugDraw] every frame after
+  /// the ones [RenderSettings.debug] asks for, and drawn with them: a game's
+  /// hitboxes, a path an agent means to walk, a ray a gun just cast.
+  ///
+  /// **For what the scene cannot say about itself.** The built-in overlay
+  /// draws what nodes, lights and cameras are; a collision shape that lives
+  /// in a game's own tree, or in another engine's, is not in the scene, and
+  /// the only way to see it where it is was a mesh made for the purpose.
+  /// Null draws nothing extra, and costs nothing.
+  void Function(DebugDraw lines)? debugLines;
+
+  /// The scene's lights, repacked once per view.
+  final LightBuffer _frameLights = LightBuffer();
+
+  /// The scene [lights] was last gathered from — the world scene of the frame
+  /// being drawn. [encodeScene] compares against it: a contributor drawing the
+  /// same scene reuses the frame's tables, and one drawing its own scene gets
+  /// that scene's lights instead of the world's. The view model found the
+  /// difference the visible way: its studio's two lights were never gathered,
+  /// so a metallic weapon was lit by torches metres behind the camera and
+  /// rendered nearly black on every backend at once.
+  Scene? _lightsScene;
+
+  /// Lights for a contributor scene, gathered per [encodeScene] call. Its own
+  /// buffer rather than a re-gather into [lights], because the frame's buffer
+  /// is what the shadow tables were built against and must survive the pass.
+  final LightBuffer _passLights = LightBuffer();
+
+  /// The slot table that says "no light casts a point shadow", for scenes the
+  /// frame's atlas assignment knows nothing about. `slots[i].x < 0` is the
+  /// shader's own early-out, so binding this is cheaper than a flag.
+  static final Float32List _noShadowSlots = Float32List(
+    4 * LightBuffer.maxLights,
+  )..fillRange(0, 4 * LightBuffer.maxLights, -1.0);
+  // Uniform scratch, reused rather than rebuilt per draw. Writing a fresh
+  // Float32List for every member of every draw is precisely the allocation
+  // pattern the render list was shaped to avoid.
+  /// Eight morph weights and the shape of the delta texture.
+  ///
+  /// Written on every mesh draw, neutral when the mesh has no targets: the
+  /// vertex stage declares the block whatever is drawn through it, so leaving
+  /// it unbound is the arrangement that killed Metal in `sky.frag`.
+  // The uniform blocks the renderer fills, one object each and laid out as
+  // the compiler lays them out — `H1`. The scratch arrays below were fields
+  // of their own and are now the blocks' members under their old names, so
+  // every write that filled them fills the block.
+  final BloomInfoBlock _bloomInfo = BloomInfoBlock();
+
+  final CompositeInfoBlock _compositeInfo = CompositeInfoBlock();
+  final ContactShadowInfoBlock _contactShadowInfo = ContactShadowInfoBlock();
+
+  final ContactShadowResolveInfoBlock _contactShadowResolveInfo =
+      ContactShadowResolveInfoBlock();
+
+  final CameraVelocityInfoBlock _cameraVelocityInfo = CameraVelocityInfoBlock();
+
+  final PrevFrameInfoBlock _prevFrameInfo = PrevFrameInfoBlock();
+
+  final VelocityInfoBlock _velocityInfo = VelocityInfoBlock();
+
+  final ReactiveInfoBlock _reactiveInfo = ReactiveInfoBlock();
+
+  final OutlineMaskInfoBlock _outlineMaskInfo = OutlineMaskInfoBlock();
+
+  final HighContrastInfoBlock _highContrastInfo = HighContrastInfoBlock();
+
+  final TemporalInfoBlock _temporalInfo = TemporalInfoBlock();
+
+  final NoiseInfoBlock _noiseInfo = NoiseInfoBlock();
+
+  final AccumulateInfoBlock _accumulateInfo = AccumulateInfoBlock();
+
+  /// Whether this frame's screen-space effects read the blue noise and keep
+  /// histories — `R3`: while a temporal resolve runs, on a device that can
+  /// run one. Set at the top of [render].
+  bool _temporalEffects = false;
+
+  final DofInfoBlock _dofInfo = DofInfoBlock();
+
+  final DofTileInfoBlock _dofTileInfo = DofTileInfoBlock();
+  final TileMaxInfoBlock _tileMaxInfo = TileMaxInfoBlock();
+
+  final NeighborMaxInfoBlock _neighborMaxInfo = NeighborMaxInfoBlock();
+
+  final MotionBlurInfoBlock _motionBlurInfo = MotionBlurInfoBlock();
+
+  final FogInfoBlock _fogInfo = FogInfoBlock();
+  final LayerInfoBlock _layerInfo = LayerInfoBlock();
+
+  final SceneCopyInfoBlock _sceneCopyInfo = SceneCopyInfoBlock();
+
+  final FrameInfoBlock _frameInfo = FrameInfoBlock();
+
+  /// The material language's vertex stages' and scene-depth readers' own
+  /// blocks — item 9 of `tasks/1.0-scope-additions.md`. See
+  /// `renderer_material_stages.dart`.
+  final _MaterialVertexInfoBlock _materialVertexInfo =
+      _MaterialVertexInfoBlock();
+
+  final _SceneDepthInfoBlock _sceneDepthInfo = _SceneDepthInfoBlock();
+
+  /// The surface buffer while the pass that draws the surfaces reading the
+  /// scene behind them is open — `LightingModel.usesSceneDepth` — and null
+  /// everywhere else, where such a surface reads a black one: the sky.
+  TextureHandle? _sceneDepthRead;
+
+  final IdInfoBlock _idInfo = IdInfoBlock();
+
+  final LineInfoBlock _lineInfo = LineInfoBlock();
+
+  final SkinInfoBlock _skinInfo = SkinInfoBlock();
+
+  final FragCoordInfoBlock _fragCoordInfo = FragCoordInfoBlock();
+
+  final FragInfoBlock _fragInfo = FragInfoBlock();
+
+  /// The frame's debug views as `FragInfo.debug_view` carries them — the
+  /// right view, the wipe's column, the left view — kept apart from the
+  /// block because a subtree with a view of its own overwrites the block per
+  /// draw. See `renderer_debug_view.dart`.
+  final Float32List _debugFrame = Float32List(3);
+
+  /// Whether a draw this frame showed a subtree's own channel, which the
+  /// composite then passes through on both sides of the wipe.
+  bool _debugSubtreeShown = false;
+
+  /// Whether the draws being encoded keep the light whatever the views say —
+  /// a reflection or a probe capture, which run before the scene pass.
+  bool _debugSuppressed = false;
+  final FxaaInfoBlock _fxaaInfo = FxaaInfoBlock();
+  final SmaaInfoBlock _smaaInfo = SmaaInfoBlock();
+  final LensFlareInfoBlock _lensFlareInfo = LensFlareInfoBlock();
+  final EasuInfoBlock _easuInfo = EasuInfoBlock();
+  final LocalExposureInfoBlock _localExposureInfo = LocalExposureInfoBlock();
+  final LocalExposureBlurInfoBlock _localExposureBlurInfo =
+      LocalExposureBlurInfoBlock();
+  final LightListInfoBlock _lightListInfo = LightListInfoBlock();
+  final LuminanceInfoBlock _luminanceInfo = LuminanceInfoBlock();
+  final DepthPyramidInfoBlock _depthPyramidInfo = DepthPyramidInfoBlock();
+  final MaskInfoBlock _maskInfo = MaskInfoBlock();
+  final MorphInfoBlock _morphInfo = MorphInfoBlock();
+  final MorphInstanceInfoBlock _morphInstanceInfo = MorphInstanceInfoBlock();
+
+  final PointShadowBlock _pointShadow = PointShadowBlock();
+
+  final ProbeInfoBlock _probeInfo = ProbeInfoBlock();
+
+  final ReflectionInfoBlock _reflectionInfo = ReflectionInfoBlock();
+
+  final ShadeInfoBlock _shadeInfo = ShadeInfoBlock();
+  final DecalInfoBlock _decalInfo = DecalInfoBlock();
+
+  /// The clock read around each node while the telemetry times them, one
+  /// for the renderer rather than one per node per frame.
+  final Stopwatch _passClock = Stopwatch();
+
+  /// The decal pass's packed sort keys and the decals in the order they
+  /// paint, kept across frames so a frame of decals allocates no list.
+  final List<int> _decalKeys = <int>[];
+  final List<DecalNode> _decalOrder = <DecalNode>[];
+
+  /// What a view whose transparent half is drawn later keeps of itself, one
+  /// slot per deferred view of the frame, reused frame after frame so the
+  /// deferral allocates no matrix and no vector.
+  final List<vm.Matrix4> _deferredViewProjections = <vm.Matrix4>[];
+  final List<vm.Vector3> _deferredEyes = <vm.Vector3>[];
+  final List<vm.Vector3> _deferredForwards = <vm.Vector3>[];
+  final ShadowLightBlock _shadowLight = ShadowLightBlock();
+
+  final ShaftInfoBlock _shaftInfo = ShaftInfoBlock();
+  final VolumeFogInfoBlock _volumeFogInfo = VolumeFogInfoBlock();
+
+  final FogUpsampleInfoBlock _fogUpsampleInfo = FogUpsampleInfoBlock();
+
+  /// Whether this frame's fog already laid the occlusion and the contact
+  /// shadow on the surface behind it — `S4`. Set by the fog pass, and read
+  /// and cleared by the composite, which then multiplies neither in again.
+  bool _occlusionBeforeFog = false;
+  final SsaoBlurInfoBlock _ssaoBlurInfo = SsaoBlurInfoBlock();
+  final SsaoInfoBlock _ssaoInfo = SsaoInfoBlock();
+  final vm.Vector3 _forward = vm.Vector3.zero();
+
+  /// The reflection probes this renderer has drawn, by the node that placed
+  /// them. Two cubes each, kept across frames — see `renderer_probe_pass.dart`.
+  final Map<ReflectionProbeNode, _ProbeState> _probeStates =
+      <ReflectionProbeNode, _ProbeState>{};
+
+  /// Whether a probe has already drawn a whole cube this frame.
+  ///
+  /// The frame's budget, and one is the whole of it — see
+  /// `_claimWholeProbeCapture`. Cleared where the probe nodes are built,
+  /// which is once per `render`.
+  bool _wholeProbeCaptured = false;
+
+  /// Set while [warmUp] draws, which lifts that ration: a loading screen is
+  /// where every probe's first cube belongs — `N3`.
+  bool _warmingUp = false;
+
+  final vm.Vector3 _probePosition = vm.Vector3.zero();
+  PipelineHandle? _probePrefilterPipeline;
+
+  /// The planar reflectors this renderer has drawn, by node: a picture per
+  /// view, kept across frames — see `renderer_planar_pass.dart`.
+  final Map<PlanarReflectorNode, _PlanarState> _planarStates =
+      <PlanarReflectorNode, _PlanarState>{};
+
+  /// What a reflector's surfaces are drawn again with: its picture, its view
+  /// and its reflectance, written per reflector, and the surface's own
+  /// sidedness written per draw. Held for the x-ray materials' reason.
+  final PlanarReflectionInfoBlock _planarInfo = PlanarReflectionInfoBlock();
+  late final RenderMaterial _planarMaterial = RenderMaterial(
+    name: 'planar reflection',
+    lighting: LightingModel.planarReflection,
+    depthWrite: false,
+    depthCompare: CompareFunction.lessEqual,
+    parameterBlock: _planarInfo.name,
+    parameters: MaterialParameters.over(_planarInfo.members),
+    extraTextures: <String, TextureHandle>{},
+  );
+
+  /// A render texture's exposure, for the encode into its bytes.
+  final RenderTextureInfoBlock _renderTextureInfo = RenderTextureInfoBlock();
+  PipelineHandle? _debugLinePipeline;
+
+  /// A 0, 1, 2, … index buffer for the debug overlay.
+  ///
+  /// The overlay's vertices are already in draw order, so indices carry no
+  /// information — but `draw()` submits nothing without an index buffer bound,
+  /// and there is no non-indexed entry point in the API. Keeping the identity
+  /// sequence in a device buffer that only grows means the cost is one upload
+  /// when the overlay gets bigger, not one per frame.
+  final IdentityIndices _debugIndices = IdentityIndices();
+
+  /// Pipelines keyed by both stages; creating one compiles and links state on
+  /// the backend, far too expensive to repeat per frame.
+  ///
+  /// Keyed on the pair rather than the fragment shader alone, because skinning
+  /// added a second vertex stage: with only the fragment name as the key, a
+  /// skinned draw would be handed the static pipeline the first PBR draw built,
+  /// and the vertex layouts do not match.
+  ///
+  /// A field, not a part of `renderer_resources.dart`: a `part` shares this
+  /// library's scope but not a class's *body* — an extension can add the
+  /// getters and methods that read this cache, the same way the shadow and
+  /// sky passes already do, but the field itself has to live where the class
+  /// is declared.
+  final Map<String, PipelineHandle> _pipelineCache = <String, PipelineHandle>{};
+
+  /// The links [_pipelineForAsync] has asked for and not yet had, by key, so
+  /// two meshes of one material start one link between them.
+  final Map<String, Future<void>> _linking = <String, Future<void>>{};
+
+  /// Moved on whenever the stages a pipeline links may have changed — a
+  /// shader reload, the added materials changing, [dispose] — so a link
+  /// [_pipelineForAsync] began before then is not cached after it.
+  int _stageGeneration = 0;
+  final Map<String, ShaderHandle> _fragmentShaders = <String, ShaderHandle>{};
+
+  /// Each lighting model's opaque variant — `A1.2` — or null where no
+  /// library has one, kept so a missing one is asked about once.
+  final Map<String, ShaderHandle?> _opaqueStages = <String, ShaderHandle?>{};
+
+  /// The depth pre-draw's pipelines — `A1.2`, `A1.3` — one per vertex stage,
+  /// since the pre-draw must put every vertex exactly where the lit draw
+  /// after it does.
+  final Map<ShaderHandle, PipelineHandle> _predrawPipelines =
+      <ShaderHandle, PipelineHandle>{};
+
+  /// What the pre-draw is told: the cut, the alpha, the share, the bias.
+  final PredrawInfoBlock _predrawInfo = PredrawInfoBlock();
+
+  /// Vertex stages a material brought with it, by entry point — `gfx-75n`.
+  ///
+  /// Beside [_fragmentShaders] and for its reason: the lookup throws when the
+  /// name is not there, and a throw per draw would be a throw per frame.
+  final Map<String, ShaderHandle> _materialVertexShaders =
+      <String, ShaderHandle>{};
+
+  /// Textures reused across frames and across bloom levels.
+  ///
+  /// The device is the allocator: one rule for every texture in the engine,
+  /// and no second way to make one.
+  final RenderTargetPool targetPool;
+
+  /// Called with every pooled target of a [render] frame at the moment its
+  /// lifetime in the frame ends — `H7`. Null, and so nothing, by default.
+  ///
+  /// A test hook, and the way `RenderSettings.aliasTargets` is proved safe: a
+  /// callback that fills the texture with garbage makes a pass that reads a
+  /// resource after its last declared use, or loads a target it never wrote,
+  /// show up as a changed picture.
+  void Function(TextureHandle texture)? _debugOnTargetRetired;
+
+  int _targetWidth = 0;
+
+  int _targetHeight = 0;
+
+  /// The finished frame's size, which is [_targetWidth] × [_targetHeight]
+  /// except while temporal anti-aliasing reconstructs a larger one — `R2`.
+  int _frameTargetWidth = 0;
+
+  int _frameTargetHeight = 0;
+
+  /// The finished frame's format — `R9`: the device's first HDR output
+  /// format under `OutputTransform.extendedSrgb` where it has one, its
+  /// default colour format otherwise. Set per frame by [render].
+  TextureFormat _frameFormat = TextureFormat.r8g8b8a8UNormInt;
+  TextureFormat? _frameTargetFormat;
+
+  /// Whether this frame is encoded for an extended-range display — `R9`.
+  bool _extendedOutput = false;
+
+  /// This frame's allowance for work that can wait — `N3`. Remade when the
+  /// setting changes, started again at the top of every frame.
+  FrameWorkBudget _workBudget = FrameWorkBudget();
+
+  /// This frame's output size, as [render] worked it out.
+  int _outputWidth = 0;
+  int _outputHeight = 0;
+
+  /// The nodes that run at the output size rather than the scene's: those
+  /// registered after the temporal resolve. Empty while it is off.
+  Set<FrameGraphNode> _outputSized = const <FrameGraphNode>{};
+
+  /// This frame's nodes placed through [renderSteps], each with its entry:
+  /// who placed it, whether it runs per view, and whether it failed. The
+  /// engine's own passes are not here; a pass of theirs that throws ends
+  /// the frame as it always did.
+  Map<FrameGraphNode, _AnchoredNode> _placedEntries =
+      const <FrameGraphNode, _AnchoredNode>{};
+
+  /// Where the frame's placer has put the nodes that asked with
+  /// `FrameGraphBuilder.place`, kept between frames.
+  late final _FramePlacements _placements = _FramePlacements(this);
+
+  /// The scene, in linear light with no upper bound. Everything post-processing
+  /// does depends on values above display white surviving this far, which is
+  /// exactly what the old 8-bit target threw away.
+  TextureHandle? _hdrColor;
+
+  TextureHandle? _hdrMsaa;
+
+  /// The finished frames, and which of them the compositor has let go of.
+  ///
+  /// **One texture was a frame you could watch being drawn.** The composite
+  /// writes the picture a caller presents, and presenting it hands *that same
+  /// allocation* to Flutter, which composites on its own thread on its own
+  /// schedule — so the next frame's clear and passes land in the texture the
+  /// screen is reading. On a scene that changes every frame nobody sees it: a
+  /// half-written frame is a mix of two pictures a millimetre of camera apart.
+  /// On a still scene — an editor holding a level with nobody touching the
+  /// keyboard — it is unmissable.
+  ///
+  /// **A ring of a fixed depth is a guess, and every depth was wrong.** Three
+  /// flickered, eight flickered less, sixteen stopped it on this machine —
+  /// which says nothing about the next one, because what the depth has to be
+  /// depends on the display's rate, the build's speed and how far behind the
+  /// GPU is. So the depth is not chosen: a texture goes back into rotation when
+  /// [GraphicsDevice.onFrameComplete] says the work that read it is done, and
+  /// a frame that finds none free makes one. On a machine that needs two, two
+  /// is what it keeps.
+  ///
+  /// **What that callback tracks is the renderer's GPU work, not the
+  /// compositor's.** The texture is handed to Flutter as an image, and the
+  /// raster thread samples it on its own command buffer, later; the
+  /// completion this waits for is the renderer's, which comes first. The
+  /// surface probe (`ARCHITECTURE.md` §15) reduced this arrangement to a
+  /// clear-only frame and watched it reuse one texture at the display's
+  /// pace: one display period, 8.3 ms on the machine measured, between a
+  /// clear and the next, with the compositor's read landing somewhere inside
+  /// it. What the probe cannot do is catch that read going wrong. It reads
+  /// one frame back per path — the last — and it reads it out of the texture
+  /// this side owns rather than out of the composite Flutter drew, so a
+  /// picture torn on the raster thread leaves no mark on it. Most likely both
+  /// sit on one queue in submission order, and that is what keeps the picture
+  /// whole rather than anything here — which the probe did not observe and
+  /// nothing in this repository checks. A real frame's passes finish later
+  /// than a clear does, so the ring grows to what the overlap needs. The ring
+  /// could close the gap itself — keep a presented texture out of rotation
+  /// for one more presented frame, at the cost of one more texture, which is
+  /// the effect the backend's own presentable surface buys with a reference
+  /// count; the probe runs that variant too — and does not, because no torn
+  /// frame has been seen since the ring replaced the single texture. That is
+  /// an eye on the samples and the golden scenes rather than an instrument,
+  /// and it is the whole of the evidence.
+  /// That surface was measured and not taken, for the reason §15 gives with
+  /// the numbers.
+  final List<TextureHandle> _ldrFrames = <TextureHandle>[];
+  final List<TextureHandle> _ldrFree = <TextureHandle>[];
+
+  TextureHandle? _ldrCurrent;
+  final vm.Vector3 _reflectionCamera = vm.Vector3.zero();
+
+  final vm.Vector3 _reflectionForward = vm.Vector3.zero();
+  TextureHandle? _reflectionColor;
+  TextureHandle? _surfaceColor;
+
+  /// The albedo buffer — `L5`. See [FrameResourceIds.albedoBuffer].
+  TextureHandle? _albedoColor;
+  TextureHandle? _surfaceMsaa;
+  TextureHandle? _depthStencil;
+
+  /// A one-sample depth, for the frames that switch multisampling off because
+  /// they want the surface buffer. Attachments in one target must agree on
+  /// sample count, so a four-sample depth cannot sit beside a resolved colour.
+  TextureHandle? _depthStencilSingle;
+
+  /// Weighted blended transparency's targets — `R8`: the accumulation, the
+  /// revealage, and a one-sample depth the scene pass stores for the
+  /// transparent passes to load. Made the first time a frame asks, released
+  /// with the others on a resize; see `renderer_transparency_pass.dart`.
+  ///
+  /// Their own depth rather than [_depthStencilSingle], which is
+  /// `deviceTransient` — memoryless on Apple GPUs, with nothing to load. The
+  /// same depth carries the opaque half over to the transparent pass when a
+  /// frame splits the scene around a copy of it — `M3`; see
+  /// `_storedSceneDepth`.
+  TextureHandle? _wboitAccumulation;
+
+  TextureHandle? _wboitRevealage;
+
+  TextureHandle? _wboitDepth;
+
+  /// The copy of the scene the transparent pass lends its draws — `M3`: the
+  /// texture and the layout of its levels, for exactly as long as that pass
+  /// draws, and null everywhere else. Every other draw of the layered model
+  /// binds black in its place and reads the environment, as it always did.
+  ({TextureHandle texture, SceneColorChain chain})? _sceneColorRead;
+  // `hdrFormat` is declared in `renderer_resources.dart`, alongside the
+  // caches that key off it.
+
+  /// The two materials every marked node is drawn again with, and the nodes
+  /// this view marks. See `renderer_xray_pass.dart`.
+  ///
+  /// Held rather than built per frame for the reason the uniform scratch
+  /// arrays are: a material per node per frame is an allocation in the draw
+  /// loop. The colour is written into `baseColor` from the settings each
+  /// frame, and `doubleSided` from the node each draw.
+  ///
+  /// **[LightingModel.xray] rather than [LightingModel.unlit], and the
+  /// difference is the surface buffer.** Unlit writes attachment one like
+  /// every other model — a silhouette would then have stamped a hidden
+  /// monster's normal and depth over the wall in front of it, since the
+  /// paint's depth test passes exactly where the monster is behind something.
+  /// Nothing in the blend state could take that back: it protects attachment
+  /// zero, and only on the backends whose `setBlend` honours an attachment
+  /// index. `xray.frag` declares no second output at all.
+  final RenderMaterial _xrayMark = RenderMaterial(
+    name: 'x-ray mark',
+    lighting: LightingModel.xray,
+    depthWrite: false,
+    depthCompare: CompareFunction.lessEqual,
+  );
+  final RenderMaterial _xraySilhouette = RenderMaterial(
+    name: 'x-ray silhouette',
+    lighting: LightingModel.xray,
+    depthWrite: false,
+    depthCompare: CompareFunction.greater,
+  );
+
+  final List<MeshNode> _xrayNodes = <MeshNode>[];
+
+  PipelineHandle? _shadowPipeline;
+  PipelineHandle? _skinnedShadowPipeline;
+
+  /// `gfx-60n`: the same three again, against the cut-out shadow stages.
+  ///
+  /// Separate handles rather than a flag on the three above, because a
+  /// pipeline is a shader pair and these pair a different fragment stage. A
+  /// scene with no cut-out caster never builds them.
+  PipelineHandle? _maskedShadowPipeline;
+
+  PipelineHandle? _skinnedMaskedShadowPipeline;
+
+  PipelineHandle? _instancedMaskedShadowPipeline;
+
+  PipelineHandle? _maskedCubeShadowPipeline;
+
+  PipelineHandle? _skinnedMaskedCubeShadowPipeline;
+
+  PipelineHandle? _instancedMaskedCubeShadowPipeline;
+
+  /// The same three once more, against `ShadowTransmittance`: see-through
+  /// casters writing what they let through into the sun's atlas —
+  /// `ShadowSettings.translucentCasters`. Never built while it is off.
+  PipelineHandle? _transmittanceShadowPipeline;
+
+  PipelineHandle? _skinnedTransmittanceShadowPipeline;
+
+  PipelineHandle? _instancedTransmittanceShadowPipeline;
+
+  /// A see-through caster's colour, opacity, transmission and head-on
+  /// reflectance, and the way to the light, for `ShadowTransmittance`.
+  final TransmittanceInfoBlock _transmittanceInfo = TransmittanceInfoBlock();
+
+  /// `ShadowSettings.caustics`: a refracting caster's faces into its maps,
+  /// and its photons into the atlas; built the first frame they are needed.
+  PipelineHandle? _causticSurfacePipeline;
+
+  PipelineHandle? _causticPhotonPipeline;
+
+  /// Six corners, two triangles: the quad each photon is drawn as.
+  GeometryBuffer? _causticQuad;
+
+  /// A photon's matrices, grid and the caster's optics.
+  final CausticInfoBlock _causticInfo = CausticInfoBlock();
+
+  /// Whether the sun's atlas, as last drawn, had photons added to it.
+  bool _shadowCaustics = false;
+
+  /// Whether the sun's atlas, as last drawn, carries what see-through
+  /// casters let through — read by the draws that light with it, which
+  /// otherwise would take an atlas's empty channels for a black filter.
+  bool _shadowTransmits = false;
+
+  /// Whether the sun's atlas, as last drawn, keeps its depth turned round —
+  /// `A2.8` — and what it is made of. A change of either is a fresh atlas.
+  bool _shadowReversed = false;
+
+  TextureFormat? _shadowFormat;
+
+  /// How the sun's atlas stores its depth, as every stage that reads it is
+  /// told: the modes `lib/shadow_storage.glsl` lists. Written with the
+  /// cascades' biases, read by the lit draws, the fog, the shafts and the
+  /// moments filter.
+  double _shadowStorage = 0.0;
+  PipelineHandle? _instancedShadowPipeline;
+
+  PipelineHandle? _bloomUpsamplePipeline;
+  PipelineHandle? _wboitResolvePipeline;
+
+  PipelineHandle? _sceneColorCopyPipeline;
+  PipelineHandle? _compositePipeline;
+
+  /// Positions and UVs of the one triangle every full-screen pass draws.
+  GeometryBuffer? _fullscreenVertices;
+
+  /// Built the first time a frame asks for a sky, and never if none does.
+  ///
+  /// Lazy, and deliberately absent from the eager list `Renderer.create`
+  /// resolves: an application whose shader bundle predates the sky would
+  /// otherwise fail to start rather than fail to draw a sky it never asked for.
+  /// That is the same argument `renderer_create_test.dart` already pins for the
+  /// particle stages.
+  PipelineHandle? _skyPipeline;
+
+  /// The textured half of the same pair, built only if a cube is ever set.
+  PipelineHandle? _skyCubePipeline;
+
+  /// The air's, built only if a sky ever resolves to one — `P5`. That is any
+  /// sky switched on without a cube or gradient colours: see
+  /// `SkySettings.resolvedPhysical`.
+  PipelineHandle? _skyPhysicalPipeline;
+
+  /// World space to the shadow camera's clip space, rebuilt each frame the
+  /// light or the scene moves.
+  final vm.Matrix4 _shadowMatrix = vm.Matrix4.identity();
+
+  /// The second and third cascades' matrices. Copies of the first when there is
+  /// only one, so the shader can read all three without asking how many.
+  final vm.Matrix4 _shadowMatrixFar = vm.Matrix4.identity();
+
+  final vm.Matrix4 _shadowMatrixFarthest = vm.Matrix4.identity();
+
+  int _shadowCascadeCount = 1;
+
+  final List<double> _shadowCascadeRadii = <double>[];
+  final List<vm.Vector3> _shadowCascadeCentres = <vm.Vector3>[];
+
+  /// [_shadowMatrix] in the backend's clip space, for drawing the map with.
+  final vm.Matrix4 _shadowDrawMatrix = vm.Matrix4.identity();
+  final List<double> _shadowCascadeBiasScale = <double>[1.0, 1.0, 1.0];
+
+  /// Each cascade's depth range in metres, far plane less near: what one unit
+  /// of its stored depth is along the light.
+  final List<double> _shadowCascadeDepthRange = <double>[1.0, 1.0, 1.0];
+
+  TextureHandle? _shadowMap;
+
+  /// The static casters' own directional atlas — `S1`: drawn when they
+  /// change, and copied tile by tile into [_shadowMap] under the dynamic
+  /// ones. Null while nothing in the scene is marked static.
+  TextureHandle? _shadowMapStatic;
+
+  /// The other static atlas, which a frame that changes a static tile draws
+  /// into from [_shadowMapStatic] before the two change places — `S1`.
+  TextureHandle? _shadowMapStaticSpare;
+
+  /// The matrices each static tile was drawn with, for the next frame to
+  /// scroll it by, and the static casters' key it was drawn under.
+  final List<vm.Matrix4?> _staticShaderMatrices = <vm.Matrix4?>[
+    null,
+    null,
+    null,
+  ];
+  final List<vm.Matrix4?> _staticRawMatrices = <vm.Matrix4?>[null, null, null];
+  int? _staticSceneKey;
+
+  /// The depth buffer the cascade atlas is drawn with, kept for as long as the
+  /// atlas is rather than borrowed from the pool a frame at a time.
+  ///
+  /// **A pooled one is a different texture every frame, and that is a problem
+  /// the engine below cannot see.** A backend may cache the framebuffer it
+  /// built for a colour attachment — Impeller's Vulkan backend does — and a
+  /// framebuffer holds a view of every attachment in it. Pairing one long-lived
+  /// atlas with a fresh depth buffer each frame hands that cache a key it thinks
+  /// it has seen, and the pass is drawn with the *previous* depth texture: a
+  /// crash where that texture has since been freed, and a shadow map drawn into
+  /// the wrong buffer where it has not. Filed as flutter/flutter#192538.
+  ///
+  /// Owning it costs one texture the size of the atlas and takes the question
+  /// away.
+  TextureHandle? _shadowDepth;
+
+  /// The directional atlas as blurred exponential moments, and the atlas the
+  /// first of the two blur passes lands in — `S2`. Null until a frame asks
+  /// for moments — [ShadowFilter.evsm], or a technique with a
+  /// [ShadowPrefilter] — on a device that can filter them.
+  TextureHandle? _shadowMoments;
+  TextureHandle? _shadowMomentsScratch;
+
+  /// Counts the frames that drew into [_shadowMap], so the moments are made
+  /// again only when the depth they are made of changed — a kept atlas keeps
+  /// its moments too.
+  int _shadowMapVersion = 0;
+
+  /// What [_shadowMoments] was last made from: [_shadowMapVersion], the blur
+  /// radius, the cascade count and the prefilter stage's name. Null when it
+  /// holds nothing yet.
+  (int, int, int, String)? _shadowMomentsKey;
+  int _shadowResolution = 0;
+
+  int _shadowCasters = 0;
+
+  int _shadowsDenied = 0;
+
+  /// Whether the current run of empty frames has already been explained.
+  ///
+  /// See the assert at the end of [render]: the report is once per run of
+  /// empty frames, not once per empty frame and not once per renderer.
+  bool _emptyFrameReported = false;
+  final vm.Vector3 _shaftCameraVec = vm.Vector3.zero();
+
+  final vm.Vector3 _shaftForwardVec = vm.Vector3.zero();
+
+  final vm.Vector3 _shadeLightVec = vm.Vector3.zero();
+
+  /// The exposure as it stands, while auto exposure is on; null until a frame
+  /// has asked for it.
+  ///
+  /// Kept across a setting switched off and on again, so a game that toggles
+  /// the meter for a menu comes back to the exposure it left rather than to
+  /// the setting's number and a second climb.
+  ExposureAdapter? _autoExposure;
+
+  /// One adapter per view, for `gfx-22n`'s per-view metering.
+  ///
+  /// Beside [_autoExposure] rather than replacing it: with per-view metering
+  /// off there is one exposure for the frame and this stays empty, which is
+  /// what keeps a stereo pair — and every golden — on the path it has always
+  /// taken. Indexed by the view's place in the ordered list, so a frame that
+  /// gains a view gains an adapter starting where the frame's own exposure is
+  /// rather than at the setting's number and a fresh climb.
+  final List<ExposureAdapter> _viewExposure = <ExposureAdapter>[];
+
+  /// `C2`: the occluders rasterised on the CPU, made on the first frame
+  /// that asks for [OcclusionMode.software] and kept, so a renderer that
+  /// never does allocates no buffer.
+  SoftwareOcclusion? _softwareOcclusion;
+
+  /// `C3`: the last depth reading and the grid it is reprojected into, made
+  /// on the first frame that asks for [OcclusionMode.hiZ].
+  HiZOcclusion? _hiZ;
+
+  /// `C9`: the repacked index buffers of split meshes, made on the first draw
+  /// of a mesh that has clusters, so a scene without one allocates nothing.
+  ClusterDraws? _clusterDraws;
+
+  /// `C9`: what the view being drawn culls clusters against, set by the
+  /// scene pass for each of its views and null everywhere else — a shadow,
+  /// a probe face or a layer drawn after the pass draws a split mesh whole.
+  ({
+    int view,
+    vm.Frustum frustum,
+    vm.Matrix4 viewProjection,
+    OcclusionTest? occlusion,
+  })?
+  _clusterView;
+
+  /// Whether this frame's view depth runs reversed — `A2.8`, set by the
+  /// scene pass from [_DepthConvention._reversedFor] and read by every pass
+  /// after it that loads the depth that pass stored: the transparent
+  /// layers, the glass, the contributors that read the scene's depth. One
+  /// answer for the frame, because one buffer is cleared one way.
+  bool _depthReversed = false;
+
+  /// The near plane each view of the last scene pass was drawn with, in
+  /// metres, in the order the views were drawn — `A2.9`. For tests: the fit
+  /// buys precision, which no single picture shows, so the plane is what a
+  /// test holds to a value.
+  final List<double> _fittedNears = <double>[];
+
+  /// Advanced whenever the reading is thrown away, so a readback that was
+  /// already in the air lands on nothing rather than restoring a reading of
+  /// a scene the frame has since stopped trusting.
+  int _hiZEpoch = 0;
+
+  /// Whether a depth-pyramid readback has been asked for and not yet
+  /// answered — one at a time, for the reason [_meterInFlight] gives.
+  bool _pyramidInFlight = false;
+
+  int _meterFailures = 0;
+
+  /// Whether a luminance readback has been asked for and not yet answered.
+  ///
+  /// The meter asks once per answer rather than once per frame. A hardware
+  /// backend answers a frame or two after the ask, and on flutter_gpu the
+  /// answer is a `toByteData` off a staging texture — a GPU download the
+  /// raster thread pays for — so a meter that asked every frame would keep
+  /// two or three of those in the air for ever and grow the staging pool to
+  /// match. An exposure that adapts over seconds cannot tell the difference
+  /// between a reading every frame and one every other frame; a pool that
+  /// holds one staging texture instead of three can.
+  bool _meterInFlight = false;
+
+  /// Seconds between one `render` and the next, for the adapter's rate.
+  ///
+  /// Measured here rather than passed in, because `render` takes no clock and
+  /// the rate is the one thing in the frame that is about time: the composite
+  /// does not care how long the last frame took, the meter's approach does.
+  final Stopwatch _sinceLastFrame = Stopwatch();
+
+  /// What the composite last exposed with — see [exposure].
+  double _lastExposure = RenderSettings.defaultExposure;
+
+  /// Questions [pickPixel] has been asked since the last frame, answered by
+  /// the next one.
+  final List<_PickRequest> _pendingPicks = <_PickRequest>[];
+
+  /// What the GPU spent in each graph node's passes, from the last frame a
+  /// device reported on — `H2`. A frame or two behind the one being drawn,
+  /// because the GPU has to finish a frame before its timestamps can be read.
+  Map<String, int> _lastGpuMicros = const <String, int>{};
+
+  /// The six directions a cube shadow looks in, and the up vector for each.
+  ///
+  /// Order fixes the atlas layout, so the shader's face selection and this
+  /// list are one decision written twice — which is why they are both spelled
+  /// out rather than derived: +X, -X, +Y, -Y, +Z, -Z, left to right along the
+  /// light's own row of six tiles.
+  static final List<(vm.Vector3, vm.Vector3)> _cubeFaces =
+      <(vm.Vector3, vm.Vector3)>[
+        (vm.Vector3(1.0, 0.0, 0.0), vm.Vector3(0.0, 1.0, 0.0)),
+        (vm.Vector3(-1.0, 0.0, 0.0), vm.Vector3(0.0, 1.0, 0.0)),
+        (vm.Vector3(0.0, 1.0, 0.0), vm.Vector3(0.0, 0.0, 1.0)),
+        (vm.Vector3(0.0, -1.0, 0.0), vm.Vector3(0.0, 0.0, -1.0)),
+        (vm.Vector3(0.0, 0.0, 1.0), vm.Vector3(0.0, 1.0, 0.0)),
+        (vm.Vector3(0.0, 0.0, -1.0), vm.Vector3(0.0, 1.0, 0.0)),
+      ];
+
+  static const int _shadowedLights = 6;
+
+  /// The irradiance field's atlas and how to read it — `L3`. Uploaded when
+  /// the scene's field changes identity or version; see `_bindIrradiance`.
+  final IrradianceInfoBlock _irradianceInfo = IrradianceInfoBlock();
+
+  IrradianceField? _irradianceField;
+
+  int _irradianceVersion = -1;
+  TextureHandle? _irradianceAtlas;
+
+  int _irradianceColumns = 1;
+
+  int _irradianceMomentsTop = 0;
+
+  /// The field being updated on the GPU, when one is — `L4`.
+  _IrradianceGpu? _irradianceGpu;
+  final ConvolveInfoBlock _convolveInfo = ConvolveInfoBlock();
+  ({PhysicalSky air, vm.Vector3 toSun, vm.Vector3 up, vm.Vector3 down})?
+  _physicalAmbientKept;
+
+  /// Per atlas row: xyz the direction a spot aims, w the tangent of half its
+  /// frustum — or w negative when the row belongs to a point light.
+  ///
+  /// Separate from [_cubeLightData] rather than widening it, because that array
+  /// is uploaded to the shader as `lights[]` and this is not: the shading reads
+  /// a spot's tile through the matrix in `faces[]`, which already carries the
+  /// aim. This is what the *pass* needs in order to build that matrix.
+  final Float32List _cubeLightAim = Float32List(4 * shadowedLights);
+
+  /// One vec4 per light the shading knows about; x is its atlas row or -1.
+  final Float32List _shadowSlots = Float32List(4 * LightBuffer.maxLights);
+
+  /// Which atlas row each shadowed light owns, keyed by the light rather than
+  /// by its slot.
+  ///
+  /// A slot index only means something inside one packing, and with per-object
+  /// light lists there is a packing per draw. Keyed by the node, the assignment
+  /// is stated once for the frame and every packing can look itself up in it.
+  final Map<LightNode, int> _shadowRowOf = <LightNode, int>{};
+
+  /// Per row, what a slot needs beside the row number: y the shape (1 for a
+  /// spot's single cone-shaped tile, 0 for a cube), z the tangent of half the
+  /// frustum the row was drawn through.
+  final Float32List _shadowRowShape = Float32List(shadowedLights);
+
+  final Float32List _shadowRowTangent = Float32List(shadowedLights);
+
+  /// Repacked once per draw, for scenes that hold more lights than a draw can
+  /// carry, with the slot table that belongs to that packing. Hot-loop scratch,
+  /// like the uniform staging beside it. See [_drawLightsFor].
+  final LightBuffer _drawLights = LightBuffer();
+
+  final Float32List _drawShadowSlots = Float32List(4 * LightBuffer.maxLights);
+
+  /// What a lit contributor binds its lights through — `N6`. One for the
+  /// renderer, pointed at each view's lights as its contributors run.
+  late final _ContributorLights _contributorLights = _ContributorLights(this);
+
+  /// Number of atlas rows in use, or -1 when none are.
+  int _cubeShadowLight = -1;
+
+  final vm.Vector3 _cubePosition = vm.Vector3.zero();
+
+  final ShadowSlotAllocator _shadowSlotAllocator = ShadowSlotAllocator(
+    slotCount: shadowedLights,
+  );
+
+  final ShadowFaceScheduler _shadowFaceScheduler = ShadowFaceScheduler(
+    tileCount: shadowedLights * 6,
+  );
+  final List<ShadowCandidate> _shadowCandidates = <ShadowCandidate>[];
+
+  final vm.Vector3 _shadowEye = vm.Vector3.zero();
+  final vm.Vector3 _shadowAim = vm.Vector3.zero();
+
+  /// How much wider than its cone a spot's shadow frustum is drawn.
+  ///
+  /// The shader bails with "lit" for a fragment that projects outside its tile,
+  /// which is right for a cube face — a neighbouring face holds that direction
+  /// — and is the last thing wanted at the rim of a cone, where outside the
+  /// tile is simply where the light stops.
+  ///
+  /// Fitted exactly, a fragment at the very edge of the cone lands at |ndc| of
+  /// one, and the test is `> 1.0`, so in exact arithmetic it does not fire.
+  /// This is insurance against that arithmetic being float32 in one place and
+  /// float64 in another, on a ring where the cone's own falloff has nearly
+  /// closed anyway.
+  ///
+  /// **Stated honestly: no test here tells 1.06 from 1.0.** The mutation was
+  /// applied and `spot_shadow_test.dart` stayed green. It is kept because a few
+  /// per cent of angle costs a few per cent of texel density, and the failure
+  /// it guards against would be a thin bright ring that reads as a shader bug
+  /// rather than as a fitting one.
+  static const double _kSpotFrustumMargin = 1.06;
+
+  /// The signature of a tile that holds nothing and is meant to keep holding
+  /// nothing: the five columns beside a spot's own.
+  ///
+  /// A constant rather than null, because null means "no row here at all" and
+  /// leaves whatever the last owner drew. Any value would do as long as it
+  /// never collides with a real one; this one is far from anything
+  /// [_bakeKeyFor] produces from centimetres and thousandths.
+  static const int _kBlankTileSignature = 0x5B1A4E;
+
+  final List<int?> _faceSignatures = <int?>[];
+
+  final vm.Vector3 _shadowToCaster = vm.Vector3.zero();
+
+  /// The graph [_compileFrameGraph] fills each frame, kept so a frame that
+  /// asks what the last one did gets the last compile back.
+  final FrameGraph _frameGraph = FrameGraph();
+
+  /// The views of the frame being drawn, as `FrameContext.views` hands
+  /// them to every node and contributor.
+  List<FrameView> _frameViews = const <FrameView>[];
+
+  /// The unjittered view-projection each view drew through in its last
+  /// frame, for `FrameContext.previousViewProjection`.
+  final Expando<vm.Matrix4> _previousViewProjections = Expando<vm.Matrix4>();
+
+  /// The `render` call's views, by index, beside [_frameViews].
+  List<CameraView> _frameViewSources = const <CameraView>[];
+
+  /// The schedule the last frame — or plan — was registered from, for
+  /// [describePipeline].
+  _FrameSchedule? _lastSchedule;
+
+  /// Whether a node placed through [renderSteps] declared a read of the
+  /// velocity in the last frame compiled: what keeps the velocity passes and
+  /// the frame history running for it.
+  bool _velocityAsked = false;
+
+  PipelineHandle? _cubeShadowPipeline;
+
+  /// The same fragment stage paired with the skinned vertex one.
+  ///
+  /// A pipeline of its own rather than a reuse of [_skinnedShadowPipeline],
+  /// and the difference is the fragment half: the cascade pass records clip
+  /// depth through `ShadowDepth`, this one records radial distance through
+  /// `ShadowDistance`, and a pipeline is the pair. The uniform layout either
+  /// stage reads is identical, which is why nothing else about the skinned
+  /// path changes between the two.
+  PipelineHandle? _skinnedCubeShadowPipeline;
+
+  PipelineHandle? _instancedCubeShadowPipeline;
+  PipelineHandle? _cubeShadowResetPipeline;
+
+  /// Whether each atlas has been cleared since it was allocated.
+  bool _cubeShadowCleared = false;
+
+  bool _cubeShadowStaticCleared = false;
+
+  TextureHandle? _cubeShadow;
+  TextureHandle? _cubeShadowStatic;
+
+  /// The depth buffer both cube atlases are drawn with. Owned for the reason
+  /// [_shadowDepth] is owned.
+  TextureHandle? _cubeShadowDepth;
+
+  bool _staticShadowBaked = false;
+
+  /// The settings the static bake was drawn with, or null before the first one.
+  ///
+  /// **A bake that outlives the settings that made it is a picture of a scene
+  /// nobody asked for.** The static half of the cube atlas is drawn once and
+  /// kept for as long as the rows do not change hands — which is the whole
+  /// reason it is affordable — and until this field existed, "the rows did not
+  /// change" was the *only* thing that could make it redraw. Change which side
+  /// of a caster is recorded, or how far the volume is padded, and the atlas
+  /// went on holding what the previous setting produced, silently, for the rest
+  /// of the run.
+  ///
+  /// Found by measurement rather than by reading: two frames drawn with
+  /// opposite `casterFaces` came back identical to the pixel — 419 pixels
+  /// changed against a no-shadow frame in both, the same 419 — which is not a
+  /// setting that does nothing, it is a setting that never arrived.
+  ///
+  /// What is *not* here is as deliberate as what is: bias, normal offset,
+  /// softness and strength are all read at lookup time, so changing one of them
+  /// needs no redraw. Only what the pass itself uses belongs in this key.
+  StaticBakeKey? _staticBakeKey;
+
+  /// The value of `Scene.staticShadowGeneration` the standing bake was drawn
+  /// at, so a static caster that changed how it casts redraws the walls it is
+  /// in. The key above answers the same question about the settings.
+  int _staticBakeGeneration = 0;
+
+  /// Which faces each static caster recorded in the standing bake, hashed —
+  /// the one thing about a static caster that a material can change without
+  /// the node or the generation knowing.
+  int _staticBakeFaces = 0;
+
+  int _cubeShadowTile = 0;
+
+  final vm.Matrix4 _cubeMatrix = vm.Matrix4.identity();
+
+  /// [_cubeMatrix] in the backend's clip space, for drawing a face with.
+  final vm.Matrix4 _cubeDrawMatrix = vm.Matrix4.identity();
+
+  /// This frame's light rows, or null while the scene fits in eight slots —
+  /// `gfx-74n`. See `renderer_light_list.dart`.
+  TextureHandle? _lightListTexture;
+
+  int _lightListRows = 0;
+
+  /// `L6`: the cells of the view being drawn, and whether its draws read
+  /// them. Set per view in the scene pass and cleared after it, so a pass
+  /// with another camera — a probe's — never reads a view's cells.
+  final LightClusters _lightClusters = LightClusters();
+
+  bool _clustersActive = false;
+
+  /// Where the cells' headers and entries start in [_lightListTexture].
+  int _clusterHeaderRow = 0;
+  int _clusterEntryRow = 0;
+
+  /// `S4`: the light list the view's cells were written into, and its row
+  /// count, kept past the scene pass for the fog's march — which runs after
+  /// [_clustersActive] is cleared, and after later passes may have rebuilt
+  /// the list without cells. Null when the fog is off or the view drew none.
+  TextureHandle? _fogCells;
+  int _fogCellRows = 0;
+
+  /// The rows [_lightListTexture] was last uploaded with, compared against
+  /// this frame's rather than trusting `sceneChangeEpoch`: a light's
+  /// colour, intensity, range and cone are plain fields that advance no epoch,
+  /// so a torch that flickers without moving kept its first frame's row.
+  Float32List _lightListUploaded = Float32List(0);
+
+  /// Where this frame's rows are written before they are compared. Grown,
+  /// never shrunk, so a steady scene allocates nothing.
+  Float32List _lightListScratch = Float32List(0);
+
+  /// What [_lightListTexture] was last built from: the table, whether the
+  /// cells went in, and [_lightListEpoch] at the time. Every lit draw of a
+  /// view asks for the list, and while all three still hold the list it
+  /// holds is the one it would build — see `_buildLightList`.
+  LightBuffer? _lightListBuiltFrom;
+  bool _lightListBuiltClustered = false;
+  int _lightListBuiltEpoch = -1;
+
+  /// Advanced wherever the rows can change between two asks of one table:
+  /// a frame begun (the lights moved, the shadow rows reassigned), cells
+  /// cut for another view, a pass's own lights gathered into a table.
+  int _lightListEpoch = 0;
+
+  /// How many times the list's rows were written, for a test to hold it to
+  /// once a view.
+  int _lightListBuilds = 0;
+
+  /// The capture being filled, or null — `gfx-70n`.
+  FrameCaptureBuilder? _capture;
+  Completer<FrameCapture>? _captureWanted;
+  bool _captureDraws = false;
+  Float32List? Function(TextureHandle texture)? _captureFloats;
+
+  /// What each tile of the directional atlas currently holds, as the key
+  /// that drew it — `gfx-68n`, per cascade since `S1`. Null until a first
+  /// pass, and a null entry is a tile that has to be drawn.
+  final List<int?> _directionalBaked = <int?>[null, null, null];
+
+  /// What each caster brings to a directional tile's key, by its place in
+  /// `Scene.meshes`: everything the key reads off it except whether the
+  /// tile's volume holds it. Worked out once a frame by [_keyCasters] and
+  /// mixed into every tile's key from here, rather than read off every
+  /// caster again for every cascade. Grown with the scene, never shrunk.
+  Int32List _casterKeys = Int32List(0);
+
+  /// Beside [_casterKeys]: [_casts], [_castsSeeThrough] and [_castsStatic].
+  Uint8List _casterFlags = Uint8List(0);
+
+  /// What each tile of [_shadowMapStatic] holds, as the key that drew it.
+  final List<int?> _directionalStaticBaked = <int?>[null, null, null];
+
+  /// The copy from the static atlas into the frame's — `S1`.
+  PipelineHandle? _shadowCopyPipeline;
+
+  final ShadowCopyInfoBlock _shadowCopyInfo = ShadowCopyInfoBlock();
+
+  final EvsmFilterInfoBlock _evsmFilterInfo = EvsmFilterInfoBlock();
+
+  /// One reusable batch per mesh-and-material pair — `gfx-67n`.
+  ///
+  /// Held across frames on purpose: a scene whose runs are the same every frame
+  /// refills the same buffers rather than allocating a node and a typed list per
+  /// run per frame, which would cost more than the draw calls it saves.
+  final Map<_BatchKey, InstancedMeshNode> _batchPool =
+      <_BatchKey, InstancedMeshNode>{};
+
+  /// The pool entries some view drew with this frame. What the previous frame
+  /// did not use is dropped at the top of the next, so a mesh and material
+  /// that left the scene — or a scene with batching switched off — stop being
+  /// held by the pool.
+  final Set<_BatchKey> _batchesUsed = <_BatchKey>{};
+
+  /// How many individual draws the last frame's batching replaced.
+  ///
+  /// The reading the row is about: a hundred identical meshes drawn in one call
+  /// and a hundred drawn in a hundred look the same, so the saving needs a
+  /// number. Reset at the top of each frame.
+  int _batchedDraws = 0;
+
+  /// The volume of the cube face currently being filled — `gfx-63n`.
+  ///
+  /// One object reused across faces rather than one per face: there are up to
+  /// thirty-six of them in a frame, and a `Frustum` is six planes with a vector
+  /// each.
+  final vm.Frustum _faceFrustum = vm.Frustum();
+
+  /// Floats per vertex: three of clip position — the corner and the depth
+  /// it is drawn at, `A2.8` — three of ray, then six vec4s of preset — the
+  /// gradient's or the air's, the same size — or one vec4 of tint for the
+  /// cube.
+  static const int _kSkyVertexFloats = 3 + 3 + 6 * 4;
+  static const int _kSkyCubeVertexFloats = 3 + 3 + 4;
+
+  /// Where the sky is drawn the ordinary way round: the far plane less a
+  /// hair, strictly less than the 1.0 the depth is cleared to — see
+  /// `sky.vert`. Reversed, it is drawn at nought; see `_encodeSky`.
+  static const double _kSkyDepth = 0.999999;
+
+  final Float32List _skyVertexData = Float32List(3 * _kSkyVertexFloats);
+
+  final vm.Vector3 _skyRay = vm.Vector3.zero();
+
+  /// The lens the sky is seen through when the camera's is orthographic —
+  /// `P7`, set by `_encodeSky` for the one draw: the view axis, the world
+  /// directions of the frame's right and top edges, and the frame's aspect.
+  /// Null through a perspective lens, whose own rays the sky takes.
+  ({vm.Vector3 forward, vm.Vector3 right, vm.Vector3 up, double aspect})?
+  _skyOrthoLens;
+
+  /// Pipelines for full-screen stages this class does not have a field for.
+  ///
+  /// The engine's own effects each keep theirs in a named field, which is fine
+  /// while the set is fixed and closed. An application's stage has no field to
+  /// live in, and building the pipeline per frame is the one mistake this
+  /// helper exists to make impossible.
+  /// The frame graph node being executed, as the label every pass it opens
+  /// carries — `H2`. Null between nodes.
+  String? _passLabel;
+
+  final Map<ShaderHandle, PipelineHandle> _fullscreenPipelines =
+      <ShaderHandle, PipelineHandle>{};
+
+  /// The counters of the frame currently being encoded, or null between
+  /// frames — `gfx-01n`.
+  ///
+  /// **Not global state; the frame's own, held where the draws are.** A draw
+  /// is counted by whatever encodes it, and most of them are encoded inside
+  /// `encodeScene`, which is handed a `FramePassState` already. The post
+  /// chain and the shadow passes are not: they draw through [drawFullscreen]
+  /// and through their own passes, neither of which had anywhere to count.
+  /// So the shadow map and the whole bloom ladder were drawing and reporting
+  /// nothing — `FrameResult.drawCalls` was the scene and the composite, and
+  /// a shadow pass that gained a cascade moved no number at all. The comment
+  /// in `_renderShadowMap` even says "the draw call count is the graph's
+  /// business", which was a promise nobody had kept.
+  FramePassState? _frameCounters;
+
+  /// The diagnostic overlay: lines, on top of everything.
+  ///
+  /// Depth compare `always` rather than merely writing nothing — a bounding box
+  /// that disappears inside the very object it bounds is not much of a
+  /// diagnostic. It is also why the scene pass re-establishes its own state per
+  /// view: this leaves the pass drawing lines.
+  static const PassState _kDebugLineState = PassState(
+    primitiveType: PrimitiveType.line,
+    polygonMode: PolygonMode.fill,
+    cullMode: CullMode.none,
+    blend: null,
+    depthWrite: false,
+    depthCompare: CompareFunction.always,
+  );
+
+  /// The marking draw of the x-ray stage: every fragment passes, and each
+  /// one stores the reference. Paired with a depth test of `lessEqual` and
+  /// no depth writes, so what is stored is one wherever a marked node is the
+  /// nearest thing in the frame — its visible part, and nothing else.
+  static const StencilState _kXrayMarkStencil = StencilState(
+    passOp: StencilOperation.setToReferenceValue,
+  );
+
+  /// The silhouette draw: only where nothing marked is visible. Paired with
+  /// a depth test of `greater`, so a fragment lands only where the node is
+  /// behind what the scene drew *and* no marked node's visible part is in
+  /// front of it.
+  static const StencilState _kXraySilhouetteStencil = StencilState(
+    compare: CompareFunction.notEqual,
+  );
+
+  /// The one reference the stage uses. A byte, so up to two hundred and
+  /// fifty-five layers could be told apart; one is what a silhouette needs.
+  static const int _kXrayReference = 1;
+
+  /// What each view re-establishes at the top of the scene pass.
+  ///
+  /// Per view rather than once, and that is not redundancy: the debug overlay
+  /// at the end of a view leaves the pass drawing lines, so the next view has
+  /// to say it wants triangles again. Compare this with the overlay's own
+  /// state and the reason each of these fields is here is readable in one
+  /// diff.
+  ///
+  /// Blending is deliberately absent: it is per material, decided per mesh a
+  /// few hundred lines down, and mentioning it here would be a value the next
+  /// draw overwrites.
+  static const PassState _kSceneViewState = PassState(
+    primitiveType: PrimitiveType.triangle,
+    depthWrite: true,
+    depthCompare: CompareFunction.less,
+  );
+
+  /// How a caster is drawn into the cube atlas: depth on, nothing blended.
+  ///
+  /// [PassState.cullMode] is filled in per pass from `ShadowCasterFaces`, which
+  /// is the one thing about this that a setting decides.
+  static const PassState _kShadowCasterState = PassState(
+    primitiveType: PrimitiveType.triangle,
+    blend: null,
+    depthWrite: true,
+    depthCompare: CompareFunction.less,
+  );
+
+  /// How a see-through caster is drawn into the sun's atlas: tested against
+  /// the opaque casters' depth and writing none, so a pane behind a wall adds
+  /// nothing and two panes both count; both faces, since the stage counts a
+  /// closed body as crossed by its two surfaces; and blended so that layers
+  /// combine — what is taken from red and green as `src + dst·(1 − src)`,
+  /// which keeps the depth in red because the stage writes nought there,
+  /// and what is left of blue, in alpha, multiplied. See
+  /// `shadow_transmittance.frag` for the layout.
+  static const PassState _kShadowTransmittanceState = PassState(
+    primitiveType: PrimitiveType.triangle,
+    cullMode: CullMode.none,
+    blend: BlendState(
+      sourceColorFactor: BlendFactor.one,
+      destinationColorFactor: BlendFactor.oneMinusSourceColor,
+      sourceAlphaFactor: BlendFactor.destinationAlpha,
+      destinationAlphaFactor: BlendFactor.zero,
+    ),
+    depthWrite: false,
+    depthCompare: CompareFunction.less,
+  );
+
+  /// Photons given back into the atlas: colour as destination minus source,
+  /// which takes from what green and blue say was taken from red and green,
+  /// and alpha as destination plus source, which adds to what is left of
+  /// blue. Every photon lands wherever it lands, so no depth.
+  static const PassState _kCausticPhotonState = PassState(
+    primitiveType: PrimitiveType.triangle,
+    cullMode: CullMode.none,
+    blend: BlendState(
+      colorOperation: BlendOperation.reverseSubtract,
+      sourceColorFactor: BlendFactor.one,
+      destinationColorFactor: BlendFactor.one,
+      sourceAlphaFactor: BlendFactor.one,
+      destinationAlphaFactor: BlendFactor.one,
+    ),
+    depthWrite: false,
+    depthCompare: CompareFunction.always,
+  );
+
+  /// Blanking one tile of the atlas by drawing over it.
+  ///
+  /// The pass loads rather than clears — clearing is attachment-wide and would
+  /// erase every other light's tiles — so a refreshed tile is reset by drawing,
+  /// and this is the state that draw needs: **depth untouched**, or the reset
+  /// would occlude the casters that follow it into the same tile.
+  ///
+  /// Written as its own named state rather than three calls inside a loop,
+  /// which is where this whole type earns its keep: the alternation between
+  /// this and the caster state is now two names rather than six scattered
+  /// calls, and the `depthWrite: false` that Impeller silently ignores is
+  /// visible as a difference between two values instead of buried in a body.
+  static const PassState _kShadowTileResetState = PassState(
+    cullMode: CullMode.none,
+    depthWrite: false,
+    depthCompare: CompareFunction.always,
+  );
+
+  /// The static tile's copy — `S1`: no test, and depth written, since the
+  /// stage writes the depth it copies and the dynamic casters that follow
+  /// test against it.
+  static const PassState _kShadowCopyState = PassState(
+    cullMode: CullMode.none,
+    depthWrite: true,
+    depthCompare: CompareFunction.always,
+  );
+
+  /// What every full-screen pass sets, minus the rectangle.
+  ///
+  /// Depth out of the way rather than merely unused: a full-screen triangle
+  /// covers everything, so a depth test it did not ask for would decide which
+  /// of its own three vertices survived.
+  ///
+  /// Blending is *off* rather than unmentioned, which is a distinction this
+  /// type exists to keep. On WebGL an unmentioned field inherits whatever the
+  /// last pass left in global GL state, and the pass before a post chain is
+  /// usually the scene, which blends.
+  static const PassState _kFullscreenState = PassState(
+    primitiveType: PrimitiveType.triangle,
+    cullMode: CullMode.none,
+    blend: null,
+    depthWrite: false,
+    depthCompare: CompareFunction.always,
+  );
+
+  /// The same, adding to the target instead of replacing it.
+  ///
+  /// Only the bloom upsample wants this. It used to be a second copy of the
+  /// block above, and the copies had drifted: this one set blending *after*
+  /// depth and the other before. Nothing depended on it — these are
+  /// independent — but it is the reason the two could not be one function with
+  /// a blend argument, and nothing would have noticed if they had been.
+  static const PassState _kFullscreenAdditiveState = PassState(
+    primitiveType: PrimitiveType.triangle,
+    cullMode: CullMode.none,
+    blend: BlendState.additive,
+    depthWrite: false,
+    depthCompare: CompareFunction.always,
+  );
+
+  /// Clamped and linear: a post pass reading outside the source would otherwise
+  /// wrap the opposite edge of the screen into the glow.
+  static const SamplerDescriptor _clampSampler = SamplerDescriptor.linearClamp;
+
+  /// RenderMaterial samplers with `RenderSettings.anisotropy` applied, one per
+  /// distinct sampler the materials carry.
+  ///
+  /// A cache for the same reason the Impeller translation has one: a bind
+  /// happens several times per draw and hundreds of times per frame, and
+  /// `withAnisotropy` allocates. Bounded by the handful of samplers the
+  /// engine's loaders ever build; an entry is replaced rather than joined
+  /// when the setting changes, so a slider dragged across the range costs
+  /// one allocation per stop rather than a map that grows with it.
+  final Map<SamplerDescriptor, SamplerDescriptor> _anisotropicSamplers =
+      <SamplerDescriptor, SamplerDescriptor>{};
+
+  /// The device's ceiling on taps, asked for once.
+  ///
+  /// A property of the device, not of the frame: on Impeller the question is
+  /// a call across the FFI boundary, and a bind path that asked it up to
+  /// five times per draw would spend more on the question than on the map
+  /// lookup the answer feeds. Lazy, so a renderer that never draws a
+  /// textured mesh never asks.
+  late final int _maxAnisotropy = device.limits.maxSamplerAnisotropy;
+
+  /// What an environment cube is read through: linear *between levels* as
+  /// well as within one.
+  ///
+  /// The levels of an environment are its roughness scale, and a shader asks
+  /// for one by number — `textureLod(environment, r, roughness * levels)` —
+  /// so a mip filter is not a detail here. With the nearest level a surface
+  /// snaps between two lobes as its roughness crosses a half; with linear it
+  /// slides. And on a backend that folds the mip filter into minification, a
+  /// sampler that says nothing about levels reads the base level whatever
+  /// level the shader named, which is a mirror at every roughness.
+  static const SamplerDescriptor _environmentSampler = SamplerDescriptor(
+    minFilter: MinMagFilter.linear,
+    magFilter: MinMagFilter.linear,
+    mipFilter: MipFilter.linear,
+    widthAddressMode: SamplerAddressMode.clampToEdge,
+    heightAddressMode: SamplerAddressMode.clampToEdge,
+  );
+
+  /// Makes another finished-frame texture, at the size the targets are.
+  ///
+  /// Set by [_ensureTargets], because the size and the format are its business
+  /// and a frame that needs one more should not have to ask twice.
+  TextureHandle Function()? _makeLdrFrame;
+
+  /// The views of this frame that are windows of a larger frame
+  /// (`CameraViewSettings.window`): the camera's own projection, the window,
+  /// and whether the scene pass draws it exactly — through that projection
+  /// and a viewport the size of the frame — or through the crop every other
+  /// pass sees it by. Filled by [_openWindows] for the length of one frame.
+  final Map<CameraView, ({Projection whole, FrameWindow window, bool exact})>
+  _windows =
+      <CameraView, ({Projection whole, FrameWindow window, bool exact})>{};
+
+  final vm.Vector3 _ssaoCamera = vm.Vector3.zero();
+
+  final vm.Vector3 _ssaoForward = vm.Vector3.zero();
+
+  final List<List<TextureHandle>> _pendingRelease =
+      List<List<TextureHandle>>.generate(
+        _kFramesInFlight,
+        (_) => <TextureHandle>[],
+      );
+
+  final List<List<DeviceMesh>> _pendingMeshes = List<List<DeviceMesh>>.generate(
+    _kFramesInFlight,
+    (_) => <DeviceMesh>[],
+  );
+
+  final List<List<FrameGraphNode>> _pendingNodes =
+      List<List<FrameGraphNode>>.generate(
+        _kFramesInFlight,
+        (_) => <FrameGraphNode>[],
+      );
+
+  final List<List<TextureHandle>> _pendingDestroy =
+      List<List<TextureHandle>>.generate(
+        _kFramesInFlight,
+        (_) => <TextureHandle>[],
+      );
+
+  final List<List<PipelineHandle>> _pendingPipelines =
+      List<List<PipelineHandle>>.generate(
+        _kFramesInFlight,
+        (_) => <PipelineHandle>[],
+      );
 
   /// The stages this renderer can find by name: the application's, then the
   /// backend's bundle.
@@ -287,14 +1996,6 @@ final class Renderer with RenderServices {
   /// application that compiles a stage of its own and hands the library in gets
   /// that stage found first, and needs no entry in any table of this package's.
   ShaderLibrary get shaders => _shaders;
-  late ShaderLibrary _shaders;
-
-  /// What [shaders] is built over: `materials` as [Renderer.create] was
-  /// given it, over the backend's bundle.
-  late final ShaderLibrary _baseShaders;
-
-  /// The libraries `renderSteps.addMaterials` added, the latest first.
-  final List<ShaderLibrary> _addedMaterials = <ShaderLibrary>[];
 
   /// Puts [library] in front of the stages this renderer finds by name —
   /// `RendererSteps.addMaterials`, which is the public way in, says how.
@@ -326,25 +2027,6 @@ final class Renderer with RenderServices {
         : ShaderLibraryStack(<ShaderLibrary>[..._addedMaterials, _baseShaders]);
   }
 
-  /// The one place a frame is extended — render steps of a plugin's or an
-  /// application's own, the passes placed at [RenderAnchor]s, the draws that
-  /// go inside the engine's own passes, and a plugin's own anchors. The
-  /// plugin API's `RenderStepRegistry`, filled.
-  ///
-  /// Handed to the plugin host as one of its registries, it is what a
-  /// plugin's `install` reaches with `host.registry<RendererSteps>()`:
-  /// `EngineLoop(registries: [renderer.renderSteps], plugins: …)`. An
-  /// application with no plugin host adds to it directly. Read at every
-  /// frame's compile, so what is added or withdrawn between frames is in the
-  /// next one. See [RendererSteps].
-  ///
-  /// **The only way in, since 1.0.** `addContributor`, `addNode` with a
-  /// `FramePhase`, and the `nodes` and `contributors` registries went: a pass
-  /// is `renderSteps.addNode`, a draw inside the scene's pass is
-  /// `renderSteps.addContributor`, and each hands back the [Registration]
-  /// that takes it out again.
-  final RendererSteps renderSteps;
-
   /// The lighting models this renderer's documents may name: the built-in
   /// ones and every one a plugin registered with this engine (D23). A
   /// plugin reaches it as `host.registry<LightingModels>()`, through
@@ -368,13 +2050,6 @@ final class Renderer with RenderServices {
   ShadowTechnique _directionalTechnique(ShadowSettings shadows) =>
       hooks.techniqueFor(shadows.directionalFilter);
 
-  /// The quality setting the next frames are drawn at, for a step's switch
-  /// to read as [RenderStepContext.quality]: what an `AdaptiveQuality`
-  /// chose, set beside the settings it applied (`adaptive.row.setting`).
-  /// Null, the default, where nobody chooses one; the renderer itself only
-  /// hands it on.
-  QualitySetting? quality;
-
   /// How the simulation's components are shown in this renderer's scenes,
   /// and the kinds of node they are shown as (D37). A plugin reaches it as
   /// `host.registry<SceneBindingRegistry>()`, through [renderSteps].
@@ -385,115 +2060,20 @@ final class Renderer with RenderServices {
   /// through [renderSteps].
   PipelineNodeKinds get pipelineNodeKinds => renderSteps._store.nodeKinds;
 
-  final ShaderHandle _vertexShader;
-
-  /// The skinned vertex stage. A separate shader because joints and weights are
-  /// vertex attributes, and the layout is taken from the `in`
-  /// declarations — so a skinned mesh cannot share a shader with a static one
-  /// however similar the body is.
-  final ShaderHandle _skinnedVertexShader;
-
-  /// The instanced vertex stage: the standard layout in slot 0 and a
-  /// per-instance transform and colour in slot 1. The same varyings and the
-  /// same `FrameInfo` as [_vertexShader], so every fragment shader and both
-  /// shadow passes draw from it unchanged — see `mesh_instanced.vert`.
-  final ShaderHandle _instancedVertexShader;
-
-  /// The lightmapped vertex stage: the standard layout with the colour read
-  /// as the vertex's place in the level's lightmap and the tint held at
-  /// white. The same varyings as [_vertexShader] plus the coordinate, which
-  /// the other three stages leave at zero — see `mesh_lightmapped.vert`.
-  final ShaderHandle _lightmappedVertexShader;
-
-  /// The debug overlay's own stage pair. Separate from the mesh shaders because
-  /// the line buffer has a different vertex layout, and a backend takes the
-  /// layout from the shader's `in` declarations.
-  final ShaderHandle _debugLineVertexShader;
-  final ShaderHandle _debugLineFragmentShader;
-
-  /// The post-processing stages. All of them share one vertex shader, because a
-  /// full-screen pass differs only in its fragment work.
-  final ShaderHandle _fullscreenVertexShader;
-  final ShaderHandle _bloomThresholdShader;
-  final ShaderHandle _bloomDownsampleShader;
-  final ShaderHandle _bloomUpsampleShader;
-  final ShaderHandle _compositeShader;
-
-  /// `gfx-04n`: edges smoothed on the composited picture.
-  final ShaderHandle _fxaaShader;
-
-  /// The screen-space reflection pass.
-  final ShaderHandle _reflectionShader;
-
-  /// The ambient occlusion pass.
-  final ShaderHandle _ssaoShader;
-
-  /// The short march toward the light — `gfx-76n`. See `post/contact_shadow.frag`.
-  final ShaderHandle _contactShadowShader;
-
-  /// `post/contact_shadow_resolve.frag`: the march averaged over one window of
-  /// its dither pattern, for a frame no temporal resolve smooths.
-  final ShaderHandle _contactShadowResolveShader;
-
-  /// `post/camera_velocity.frag` — `R1`.
-  final ShaderHandle _cameraVelocityShader;
-
-  /// `post/velocity.frag` and the three vertex stages that feed it, for
-  /// nodes that moved — `R1`.
-  final ShaderHandle _velocityShader;
-  final ShaderHandle _velocityVertexShader;
-  final ShaderHandle _velocitySkinnedVertexShader;
-  final ShaderHandle _velocityInstancedVertexShader;
-
-  /// `post/reactive.frag` — `R4`: a blended surface marked in the velocity's
-  /// blue, through the same three vertex stages.
-  final ShaderHandle _reactiveShader;
-
-  /// `post/temporal_resolve.frag` — `R2`.
-  final ShaderHandle _temporalResolveShader;
-
-  /// `post/temporal_accumulate.frag` — `R3`.
-  final ShaderHandle _temporalAccumulateShader;
-
   /// The temporal resolve's two histories, at the output's size: one read,
   /// one written, swapped each frame. The renderer's own, like the cube
   /// atlases, because what they hold outlives the frame.
   List<TextureHandle?> get _history => _viewState.history;
+
   int get _historyRead => _viewState.historyRead;
+
   set _historyRead(int value) => _viewState.historyRead = value;
 
   /// Whether [_history] holds a frame worth blending: false at first, after a
   /// resize, and after a frame drawn with temporal anti-aliasing off.
   bool get _historyValid => _viewState.historyValid;
+
   set _historyValid(bool value) => _viewState.historyValid = value;
-
-  /// What the frame being drawn remembers from the last one: the state of
-  /// the first view of the [render] call — item 26. Each [CameraView] keeps
-  /// its own, so two views drawn by separate calls (an editor's viewports, a
-  /// texture view drawn as a frame of its own) never blend one another's
-  /// history; a view's is given back when it is disposed.
-  _ViewState _viewState = _ViewState();
-  final Expando<_ViewState> _viewStates = Expando<_ViewState>('view state');
-
-  /// The floats each member of a lighting model's own block is bound at
-  /// when a material leaves it unset (D21), made once per member rather
-  /// than once per draw.
-  final Expando<Float32List> _slotDefaults = Expando<Float32List>(
-    'slot default',
-  );
-
-  /// The floats each `lighttype` member of a material is bound at, by the
-  /// member's name: one per name, written with the code before each draw.
-  final Map<String, Float32List> _lightTypeCodes = <String, Float32List>{};
-  final Set<_ViewState> _allViewStates = <_ViewState>{};
-
-  /// How many [render] calls a view's state outlives the last one that drew
-  /// it. A view drawn again within them carries on; past them its textures
-  /// go back to the device and its history is forgotten, so views made
-  /// afresh every frame for several cameras — which no carry can match up —
-  /// cost a few frames of memory rather than a leak. A view drawn again
-  /// after that starts its resolve from nothing, as a new one does.
-  static const int viewIdleFrames = 16;
 
   _ViewState _stateFor(CameraView view) {
     final known = _viewStates[view];
@@ -595,18 +2175,6 @@ final class Renderer with RenderServices {
     _allViewStates.remove(state);
   }
 
-  /// Views whose state another view took over or that went idle: drawn
-  /// again, they start afresh and take nothing over.
-  final Expando<bool> _retiredViews = Expando<bool>('retired view');
-
-  /// The scene origin the last frame was drawn at, for `Scene.shiftOrigin`
-  /// between frames: see [_followOrigin].
-  WorldPosition? _lastOrigin;
-
-  /// The cutoff this frame's hashed materials are drawn with, carrying the
-  /// scene's origin for their noise — see [_hashedCutoffAt].
-  double _hashedCutoff = -2.0;
-
   /// The cutoff a hashed material is drawn with while the scene's origin is
   /// [origin] — readiness review §2.1.14.
   ///
@@ -654,44 +2222,6 @@ final class Renderer with RenderServices {
     }
   }
 
-  /// `gfx-32n`'s depth-aware blur over what that pass produced.
-  final ShaderHandle _ssaoBlurShader;
-
-  /// `gfx-33n`'s volumetric shafts through the directional shadow map.
-  final ShaderHandle _lightShaftsShader;
-
-  /// `S4`'s half-resolution march through the air, and the depth-aware pass
-  /// that lays it over the scene.
-  final ShaderHandle _volumetricFogShader;
-  final ShaderHandle _volumetricFogUpsampleShader;
-
-  /// `gfx-34n`'s thin lens and its gather.
-  final ShaderHandle _depthOfFieldShader;
-
-  /// `R6`'s motion blur: the tile search, walked once per axis, the
-  /// neighbourhood over the tiles, and the gather.
-  final ShaderHandle _velocityTileMaxShader;
-  final ShaderHandle _velocityNeighborMaxShader;
-  final ShaderHandle _motionBlurShader;
-
-  /// `gfx-43n`/`44n`/`45n`'s three branches over the surface buffer.
-  final ShaderHandle _viewportShadeShader;
-
-  /// `N9`'s marks, drawn through the velocity vertex stages, and the
-  /// high-contrast look over the finished picture.
-  final ShaderHandle _outlineMaskShader;
-  final ShaderHandle _highContrastShader;
-
-  /// `P3`'s projected decals, read out of the surface and albedo buffers.
-  final ShaderHandle _decalShader;
-
-  /// `R8`'s resolve: the transparent layers' weighted average, laid over the
-  /// scene.
-  final ShaderHandle _wboitResolveShader;
-
-  /// `M3`'s copy: one level of the scene behind the transmissive draws.
-  final ShaderHandle _sceneColorCopyShader;
-
   /// 1x1 opaque white, bound when a material has no base-colour texture.
   ///
   /// A shader that declares a sampler must have something bound to it, so
@@ -706,7 +2236,6 @@ final class Renderer with RenderServices {
   /// that silently draws with a released resource.
   TextureHandle get fallbackAlbedo =>
       _fallbackAlbedo ?? (throw StateError(_kDisposedMessage));
-  TextureHandle? _fallbackAlbedo;
 
   /// 1x1 (0.5, 0.5, 1.0): the tangent-space normal that perturbs nothing.
   ///
@@ -714,7 +2243,6 @@ final class Renderer with RenderServices {
   /// field rather than a plain final one.
   TextureHandle get fallbackNormal =>
       _fallbackNormal ?? (throw StateError(_kDisposedMessage));
-  TextureHandle? _fallbackNormal;
 
   /// 1x1 black, bound to the lightmap slot of a material without a map: the
   /// map is added, so black is the neutral that adds nothing.
@@ -723,20 +2251,6 @@ final class Renderer with RenderServices {
   /// field rather than a plain final one.
   TextureHandle get fallbackBlack =>
       _fallbackBlack ?? (throw StateError(_kDisposedMessage));
-  TextureHandle? _fallbackBlack;
-
-  /// A one-texel black cube, bound when a scene has no environment.
-  ///
-  /// **Bound, not omitted.** A sampler a shader declares and nobody binds is a
-  /// native crash on Metal rather than a black texture — the rule that keeps
-  /// the sky's cube out of `sky.frag` and a white texel under the composite's
-  /// occlusion. The shader branches on the level count instead, so what this
-  /// contains is never read; black is chosen so that a branch gone wrong is a
-  /// scene that goes dark rather than one that glows.
-  ///
-  /// Null on a device that cannot make cubes at all, which is allowed: the
-  /// binding is skipped and so is the branch that would have used it.
-  TextureHandle? _fallbackEnvironment;
 
   /// Made on demand, once, and only where cubes exist.
   TextureHandle? _environmentFallback(GraphicsDevice device) {
@@ -958,17 +2472,6 @@ final class Renderer with RenderServices {
     _pendingPicks.clear();
   }
 
-  final bool msaaEnabled;
-
-  /// Which slot of the deferred-release ring this frame retires.
-  ///
-  /// The per-frame uniform allocators used to be rotated here too. They belong
-  /// to the backend now — where a uniform's bytes live until the GPU has read
-  /// them is a property of the API, not of the engine — and
-  /// `GraphicsDevice.beginFrame` rotates them. The ring length is the same fact
-  /// twice, which is why it is named once here and once there.
-  int _frameIndex = 0;
-
   /// How many frames this renderer has drawn — `G2`.
   ///
   /// Public because everything temporal is a function of it and of nothing
@@ -977,33 +2480,18 @@ final class Renderer with RenderServices {
   /// what keeps a multi-frame golden as deterministic as a still.
   int get frameIndex => _frameIndex;
 
-  /// What the previous frame looked like — `G2`. Recorded at the end of each
-  /// frame while [FrameHistory.tracking] is on, and read during the next.
-  final FrameHistory frameHistory = engineFrameHistory();
-
   /// The depth of the deferred-release rings: the most frames that may be in
   /// flight, whatever [pacing] allows — see [FramePacing.maxFramesInFlight].
   static int get _kFramesInFlight => FramePacing.maxFramesInFlight;
 
-  /// How far this renderer lets the CPU run ahead of the GPU, and which
-  /// pipeline builds it reports — `A1.4`, `A1.7`. Read at the top of each
-  /// [render]; change it between frames.
-  FramePacing pacing = const FramePacing();
-
   /// Frames [render] held rather than drew because [pacing]'s frames in
   /// flight were all unfinished — `A1.4`. Cumulative.
   int get heldFrames => _heldFrames;
-  int _heldFrames = 0;
 
   /// Frames submitted whose completion the device has not reported yet —
   /// for a frame overlay's pacing line beside [heldFrames], and for
   /// `frame_pacing_test.dart`, which holds a frame on it.
   int get unfinishedFrames => _unfinished.length;
-
-  /// The [frameIndex] of each of [unfinishedFrames], and the latest of them
-  /// submitted.
-  final Set<int> _unfinished = <int>{};
-  int _latestSubmitted = -1;
 
   /// Whether [pacing]'s frames in flight are all unfinished.
   ///
@@ -1036,24 +2524,11 @@ final class Renderer with RenderServices {
         (pacing.holdWhenBehind && behind);
   }
 
-  /// What the last drawn frame answered, for a held frame to answer again,
-  /// with the output size it was asked for.
-  FrameResult? _lastResult;
-  (int, int)? _lastRequestedSize;
-
-  /// Pipeline builds over [FramePacing.stallThreshold] during the frame
-  /// being drawn — `A1.7`. Emptied at the top of each [render].
-  final List<PipelineStall> _frameStalls = <PipelineStall>[];
-
   /// Every pipeline stall since this renderer was made, oldest first, at
   /// most [stallLogLength] of them — for a report after the fact, where a
   /// frame's own list has gone with the frame.
   List<PipelineStall> get pipelineStalls =>
       List<PipelineStall>.unmodifiable(_stallLog);
-  final List<PipelineStall> _stallLog = <PipelineStall>[];
-
-  /// How many [pipelineStalls] are kept.
-  static const int stallLogLength = 64;
 
   /// Builds a material pipeline through [build], timing it, and records a
   /// [PipelineStall] when it took [FramePacing.stallThreshold] or more.
@@ -1086,78 +2561,6 @@ final class Renderer with RenderServices {
     return pipeline;
   }
 
-  final RenderList _renderList = RenderList();
-
-  /// Reused across frames, so a steady overlay allocates nothing.
-  final DebugDraw debugDraw = DebugDraw();
-
-  /// Lines of the application's own, added to [debugDraw] every frame after
-  /// the ones [RenderSettings.debug] asks for, and drawn with them: a game's
-  /// hitboxes, a path an agent means to walk, a ray a gun just cast.
-  ///
-  /// **For what the scene cannot say about itself.** The built-in overlay
-  /// draws what nodes, lights and cameras are; a collision shape that lives
-  /// in a game's own tree, or in another engine's, is not in the scene, and
-  /// the only way to see it where it is was a mesh made for the purpose.
-  /// Null draws nothing extra, and costs nothing.
-  void Function(DebugDraw lines)? debugLines;
-
-  /// The scene's lights, repacked once per view.
-  final LightBuffer _frameLights = LightBuffer();
-
-  /// The scene [lights] was last gathered from — the world scene of the frame
-  /// being drawn. [encodeScene] compares against it: a contributor drawing the
-  /// same scene reuses the frame's tables, and one drawing its own scene gets
-  /// that scene's lights instead of the world's. The view model found the
-  /// difference the visible way: its studio's two lights were never gathered,
-  /// so a metallic weapon was lit by torches metres behind the camera and
-  /// rendered nearly black on every backend at once.
-  Scene? _lightsScene;
-
-  /// Lights for a contributor scene, gathered per [encodeScene] call. Its own
-  /// buffer rather than a re-gather into [lights], because the frame's buffer
-  /// is what the shadow tables were built against and must survive the pass.
-  final LightBuffer _passLights = LightBuffer();
-
-  /// The slot table that says "no light casts a point shadow", for scenes the
-  /// frame's atlas assignment knows nothing about. `slots[i].x < 0` is the
-  /// shader's own early-out, so binding this is cheaper than a flag.
-  static final Float32List _noShadowSlots = Float32List(
-    4 * LightBuffer.maxLights,
-  )..fillRange(0, 4 * LightBuffer.maxLights, -1.0);
-
-  // Uniform scratch, reused rather than rebuilt per draw. Writing a fresh
-  // Float32List for every member of every draw is precisely the allocation
-  // pattern the render list was shaped to avoid.
-  /// Eight morph weights and the shape of the delta texture.
-  ///
-  /// Written on every mesh draw, neutral when the mesh has no targets: the
-  /// vertex stage declares the block whatever is drawn through it, so leaving
-  /// it unbound is the arrangement that killed Metal in `sky.frag`.
-  // The uniform blocks the renderer fills, one object each and laid out as
-  // the compiler lays them out — `H1`. The scratch arrays below were fields
-  // of their own and are now the blocks' members under their old names, so
-  // every write that filled them fills the block.
-  final BloomInfoBlock _bloomInfo = BloomInfoBlock();
-  final CompositeInfoBlock _compositeInfo = CompositeInfoBlock();
-  final ContactShadowInfoBlock _contactShadowInfo = ContactShadowInfoBlock();
-  final ContactShadowResolveInfoBlock _contactShadowResolveInfo =
-      ContactShadowResolveInfoBlock();
-  final CameraVelocityInfoBlock _cameraVelocityInfo = CameraVelocityInfoBlock();
-  final PrevFrameInfoBlock _prevFrameInfo = PrevFrameInfoBlock();
-  final VelocityInfoBlock _velocityInfo = VelocityInfoBlock();
-  final ReactiveInfoBlock _reactiveInfo = ReactiveInfoBlock();
-  final OutlineMaskInfoBlock _outlineMaskInfo = OutlineMaskInfoBlock();
-  final HighContrastInfoBlock _highContrastInfo = HighContrastInfoBlock();
-  final TemporalInfoBlock _temporalInfo = TemporalInfoBlock();
-  final NoiseInfoBlock _noiseInfo = NoiseInfoBlock();
-  final AccumulateInfoBlock _accumulateInfo = AccumulateInfoBlock();
-
-  /// Whether this frame's screen-space effects read the blue noise and keep
-  /// histories — `R3`: while a temporal resolve runs, on a device that can
-  /// run one. Set at the top of [render].
-  bool _temporalEffects = false;
-
   /// The noisy effects' histories, by the resource each one smooths — `R3`.
   Map<ResourceId, _EffectHistory> get _effectHistories => _viewState.effects;
 
@@ -1174,81 +2577,6 @@ final class Renderer with RenderServices {
         : fallbackAlbedo;
   }
 
-  final DofInfoBlock _dofInfo = DofInfoBlock();
-  final DofTileInfoBlock _dofTileInfo = DofTileInfoBlock();
-  final TileMaxInfoBlock _tileMaxInfo = TileMaxInfoBlock();
-  final NeighborMaxInfoBlock _neighborMaxInfo = NeighborMaxInfoBlock();
-  final MotionBlurInfoBlock _motionBlurInfo = MotionBlurInfoBlock();
-  final FogInfoBlock _fogInfo = FogInfoBlock();
-  final LayerInfoBlock _layerInfo = LayerInfoBlock();
-  final SceneCopyInfoBlock _sceneCopyInfo = SceneCopyInfoBlock();
-  final FrameInfoBlock _frameInfo = FrameInfoBlock();
-
-  /// The material language's vertex stages' and scene-depth readers' own
-  /// blocks — item 9 of `tasks/1.0-scope-additions.md`. See
-  /// `renderer_material_stages.dart`.
-  final _MaterialVertexInfoBlock _materialVertexInfo =
-      _MaterialVertexInfoBlock();
-  final _SceneDepthInfoBlock _sceneDepthInfo = _SceneDepthInfoBlock();
-
-  /// The surface buffer while the pass that draws the surfaces reading the
-  /// scene behind them is open — `LightingModel.usesSceneDepth` — and null
-  /// everywhere else, where such a surface reads a black one: the sky.
-  TextureHandle? _sceneDepthRead;
-  final IdInfoBlock _idInfo = IdInfoBlock();
-  final LineInfoBlock _lineInfo = LineInfoBlock();
-  final SkinInfoBlock _skinInfo = SkinInfoBlock();
-  final FragCoordInfoBlock _fragCoordInfo = FragCoordInfoBlock();
-  final FragInfoBlock _fragInfo = FragInfoBlock();
-
-  /// The frame's debug views as `FragInfo.debug_view` carries them — the
-  /// right view, the wipe's column, the left view — kept apart from the
-  /// block because a subtree with a view of its own overwrites the block per
-  /// draw. See `renderer_debug_view.dart`.
-  final Float32List _debugFrame = Float32List(3);
-
-  /// Whether a draw this frame showed a subtree's own channel, which the
-  /// composite then passes through on both sides of the wipe.
-  bool _debugSubtreeShown = false;
-
-  /// Whether the draws being encoded keep the light whatever the views say —
-  /// a reflection or a probe capture, which run before the scene pass.
-  bool _debugSuppressed = false;
-  final FxaaInfoBlock _fxaaInfo = FxaaInfoBlock();
-  final SmaaInfoBlock _smaaInfo = SmaaInfoBlock();
-  final LensFlareInfoBlock _lensFlareInfo = LensFlareInfoBlock();
-  final EasuInfoBlock _easuInfo = EasuInfoBlock();
-  final LocalExposureInfoBlock _localExposureInfo = LocalExposureInfoBlock();
-  final LocalExposureBlurInfoBlock _localExposureBlurInfo =
-      LocalExposureBlurInfoBlock();
-  final LightListInfoBlock _lightListInfo = LightListInfoBlock();
-  final LuminanceInfoBlock _luminanceInfo = LuminanceInfoBlock();
-  final DepthPyramidInfoBlock _depthPyramidInfo = DepthPyramidInfoBlock();
-  final MaskInfoBlock _maskInfo = MaskInfoBlock();
-  final MorphInfoBlock _morphInfo = MorphInfoBlock();
-  final MorphInstanceInfoBlock _morphInstanceInfo = MorphInstanceInfoBlock();
-  final PointShadowBlock _pointShadow = PointShadowBlock();
-  final ProbeInfoBlock _probeInfo = ProbeInfoBlock();
-  final ReflectionInfoBlock _reflectionInfo = ReflectionInfoBlock();
-  final ShadeInfoBlock _shadeInfo = ShadeInfoBlock();
-  final DecalInfoBlock _decalInfo = DecalInfoBlock();
-
-  /// The clock read around each node while the telemetry times them, one
-  /// for the renderer rather than one per node per frame.
-  final Stopwatch _passClock = Stopwatch();
-
-  /// The decal pass's packed sort keys and the decals in the order they
-  /// paint, kept across frames so a frame of decals allocates no list.
-  final List<int> _decalKeys = <int>[];
-  final List<DecalNode> _decalOrder = <DecalNode>[];
-
-  /// What a view whose transparent half is drawn later keeps of itself, one
-  /// slot per deferred view of the frame, reused frame after frame so the
-  /// deferral allocates no matrix and no vector.
-  final List<vm.Matrix4> _deferredViewProjections = <vm.Matrix4>[];
-  final List<vm.Vector3> _deferredEyes = <vm.Vector3>[];
-  final List<vm.Vector3> _deferredForwards = <vm.Vector3>[];
-
   /// Slot [index] of [pool], made with [make] the first time it is asked
   /// for.
   static T _deferredSlot<T>(List<T> pool, int index, T Function() make) {
@@ -1258,23 +2586,14 @@ final class Renderer with RenderServices {
     return pool[index];
   }
 
-  final ShadowLightBlock _shadowLight = ShadowLightBlock();
-  final ShaftInfoBlock _shaftInfo = ShaftInfoBlock();
-  final VolumeFogInfoBlock _volumeFogInfo = VolumeFogInfoBlock();
-  final FogUpsampleInfoBlock _fogUpsampleInfo = FogUpsampleInfoBlock();
-
-  /// Whether this frame's fog already laid the occlusion and the contact
-  /// shadow on the surface behind it — `S4`. Set by the fog pass, and read
-  /// and cleared by the composite, which then multiplies neither in again.
-  bool _occlusionBeforeFog = false;
-  final SsaoBlurInfoBlock _ssaoBlurInfo = SsaoBlurInfoBlock();
-  final SsaoInfoBlock _ssaoInfo = SsaoInfoBlock();
-
   Float32List get _morphWeights => _morphInfo.morphWeights;
+
   Float32List get _morphParams => _morphInfo.morphParams;
+
   Float32List get _morphInstanceParams => _morphInstanceInfo.instanceParams;
 
   Float32List get _fogData => _fogInfo.fog;
+
   Float32List get _cameraData => _fragInfo.cameraPosition;
 
   /// Which way the camera of the pass being encoded looks, in world space.
@@ -1283,88 +2602,17 @@ final class Renderer with RenderServices {
   /// along it — see `ViewDepth` in `lib/color.glsl`. Written wherever
   /// [_cameraData] is, and the two are meaningless apart.
   Float32List get _forwardData => _fogInfo.forward;
-  final vm.Vector3 _forward = vm.Vector3.zero();
   Float32List get _baseColorData => _fragInfo.baseColor;
+
   Float32List get _emissiveData => _fragInfo.emissive;
+
   Float32List get _materialData => _fragInfo.material;
+
   Float32List get _material2Data => _fragInfo.material2;
+
   Float32List get _frameParams => _fragInfo.frameParams;
 
-  /// The reflection probes this renderer has drawn, by the node that placed
-  /// them. Two cubes each, kept across frames — see `renderer_probe_pass.dart`.
-  final Map<ReflectionProbeNode, _ProbeState> _probeStates =
-      <ReflectionProbeNode, _ProbeState>{};
-
-  /// Whether a probe has already drawn a whole cube this frame.
-  ///
-  /// The frame's budget, and one is the whole of it — see
-  /// `_claimWholeProbeCapture`. Cleared where the probe nodes are built,
-  /// which is once per `render`.
-  bool _wholeProbeCaptured = false;
-
-  /// Set while [warmUp] draws, which lifts that ration: a loading screen is
-  /// where every probe's first cube belongs — `N3`.
-  bool _warmingUp = false;
   Float32List get _probeParams => _probeInfo.params;
-  final vm.Vector3 _probePosition = vm.Vector3.zero();
-  PipelineHandle? _probePrefilterPipeline;
-
-  /// The planar reflectors this renderer has drawn, by node: a picture per
-  /// view, kept across frames — see `renderer_planar_pass.dart`.
-  final Map<PlanarReflectorNode, _PlanarState> _planarStates =
-      <PlanarReflectorNode, _PlanarState>{};
-
-  /// What a reflector's surfaces are drawn again with: its picture, its view
-  /// and its reflectance, written per reflector, and the surface's own
-  /// sidedness written per draw. Held for the x-ray materials' reason.
-  final PlanarReflectionInfoBlock _planarInfo = PlanarReflectionInfoBlock();
-  late final RenderMaterial _planarMaterial = RenderMaterial(
-    name: 'planar reflection',
-    lighting: LightingModel.planarReflection,
-    depthWrite: false,
-    depthCompare: CompareFunction.lessEqual,
-    parameterBlock: _planarInfo.name,
-    parameters: MaterialParameters.over(_planarInfo.members),
-    extraTextures: <String, TextureHandle>{},
-  );
-
-  /// A render texture's exposure, for the encode into its bytes.
-  final RenderTextureInfoBlock _renderTextureInfo = RenderTextureInfoBlock();
-
-  PipelineHandle? _debugLinePipeline;
-
-  /// A 0, 1, 2, … index buffer for the debug overlay.
-  ///
-  /// The overlay's vertices are already in draw order, so indices carry no
-  /// information — but `draw()` submits nothing without an index buffer bound,
-  /// and there is no non-indexed entry point in the API. Keeping the identity
-  /// sequence in a device buffer that only grows means the cost is one upload
-  /// when the overlay gets bigger, not one per frame.
-  final IdentityIndices _debugIndices = IdentityIndices();
-
-  /// Pipelines keyed by both stages; creating one compiles and links state on
-  /// the backend, far too expensive to repeat per frame.
-  ///
-  /// Keyed on the pair rather than the fragment shader alone, because skinning
-  /// added a second vertex stage: with only the fragment name as the key, a
-  /// skinned draw would be handed the static pipeline the first PBR draw built,
-  /// and the vertex layouts do not match.
-  ///
-  /// A field, not a part of `renderer_resources.dart`: a `part` shares this
-  /// library's scope but not a class's *body* — an extension can add the
-  /// getters and methods that read this cache, the same way the shadow and
-  /// sky passes already do, but the field itself has to live where the class
-  /// is declared.
-  final Map<String, PipelineHandle> _pipelineCache = <String, PipelineHandle>{};
-
-  /// The links [_pipelineForAsync] has asked for and not yet had, by key, so
-  /// two meshes of one material start one link between them.
-  final Map<String, Future<void>> _linking = <String, Future<void>>{};
-
-  /// Moved on whenever the stages a pipeline links may have changed — a
-  /// shader reload, the added materials changing, [dispose] — so a link
-  /// [_pipelineForAsync] began before then is not cached after it.
-  int _stageGeneration = 0;
 
   /// Forgets the links still out: they are of the stages of before, and are
   /// given back when they complete.
@@ -1456,34 +2704,6 @@ final class Renderer with RenderServices {
     _shadowCopyPipeline = null;
   }
 
-  final Map<String, ShaderHandle> _fragmentShaders = <String, ShaderHandle>{};
-
-  /// Each lighting model's opaque variant — `A1.2` — or null where no
-  /// library has one, kept so a missing one is asked about once.
-  final Map<String, ShaderHandle?> _opaqueStages = <String, ShaderHandle?>{};
-
-  /// The depth pre-draw's pipelines — `A1.2`, `A1.3` — one per vertex stage,
-  /// since the pre-draw must put every vertex exactly where the lit draw
-  /// after it does.
-  final Map<ShaderHandle, PipelineHandle> _predrawPipelines =
-      <ShaderHandle, PipelineHandle>{};
-
-  /// What the pre-draw is told: the cut, the alpha, the share, the bias.
-  final PredrawInfoBlock _predrawInfo = PredrawInfoBlock();
-
-  /// Vertex stages a material brought with it, by entry point — `gfx-75n`.
-  ///
-  /// Beside [_fragmentShaders] and for its reason: the lookup throws when the
-  /// name is not there, and a throw per draw would be a throw per frame.
-  final Map<String, ShaderHandle> _materialVertexShaders =
-      <String, ShaderHandle>{};
-
-  /// Textures reused across frames and across bloom levels.
-  ///
-  /// The device is the allocator: one rule for every texture in the engine,
-  /// and no second way to make one.
-  final RenderTargetPool targetPool;
-
   /// Gives back every pooled transient target no live frame is holding —
   /// `gfx-71n`.
   ///
@@ -1520,286 +2740,25 @@ final class Renderer with RenderServices {
   /// report: nothing is read back from the device.
   MemoryReport memoryReport({Scene? scene}) => _buildMemoryReport(scene);
 
-  /// Called with every pooled target of a [render] frame at the moment its
-  /// lifetime in the frame ends — `H7`. Null, and so nothing, by default.
-  ///
-  /// A test hook, and the way `RenderSettings.aliasTargets` is proved safe: a
-  /// callback that fills the texture with garbage makes a pass that reads a
-  /// resource after its last declared use, or loads a target it never wrote,
-  /// show up as a changed picture.
-  void Function(TextureHandle texture)? _debugOnTargetRetired;
-
-  int _targetWidth = 0;
-  int _targetHeight = 0;
-
-  /// The finished frame's size, which is [_targetWidth] × [_targetHeight]
-  /// except while temporal anti-aliasing reconstructs a larger one — `R2`.
-  int _frameTargetWidth = 0;
-  int _frameTargetHeight = 0;
-
-  /// The finished frame's format — `R9`: the device's first HDR output
-  /// format under `OutputTransform.extendedSrgb` where it has one, its
-  /// default colour format otherwise. Set per frame by [render].
-  TextureFormat _frameFormat = TextureFormat.r8g8b8a8UNormInt;
-  TextureFormat? _frameTargetFormat;
-
-  /// Whether this frame is encoded for an extended-range display — `R9`.
-  bool _extendedOutput = false;
-
-  /// This frame's allowance for work that can wait — `N3`. Remade when the
-  /// setting changes, started again at the top of every frame.
-  FrameWorkBudget _workBudget = FrameWorkBudget();
-
   /// The allowance the last frame ran under, for a caller or a test to read
   /// what it spent and what it put off.
   FrameWorkBudget get frameWorkBudget => _workBudget;
 
-  /// This frame's output size, as [render] worked it out.
-  int _outputWidth = 0;
-  int _outputHeight = 0;
-
-  /// The nodes that run at the output size rather than the scene's: those
-  /// registered after the temporal resolve. Empty while it is off.
-  Set<FrameGraphNode> _outputSized = const <FrameGraphNode>{};
-
-  /// This frame's nodes placed through [renderSteps], each with its entry:
-  /// who placed it, whether it runs per view, and whether it failed. The
-  /// engine's own passes are not here; a pass of theirs that throws ends
-  /// the frame as it always did.
-  Map<FrameGraphNode, _AnchoredNode> _placedEntries =
-      const <FrameGraphNode, _AnchoredNode>{};
-
-  /// Where the frame's placer has put the nodes that asked with
-  /// `FrameGraphBuilder.place`, kept between frames.
-  late final _FramePlacements _placements = _FramePlacements(this);
-
-  /// The scene, in linear light with no upper bound. Everything post-processing
-  /// does depends on values above display white surviving this far, which is
-  /// exactly what the old 8-bit target threw away.
-  TextureHandle? _hdrColor;
-  TextureHandle? _hdrMsaa;
-
-  /// The finished frames, and which of them the compositor has let go of.
-  ///
-  /// **One texture was a frame you could watch being drawn.** The composite
-  /// writes the picture a caller presents, and presenting it hands *that same
-  /// allocation* to Flutter, which composites on its own thread on its own
-  /// schedule — so the next frame's clear and passes land in the texture the
-  /// screen is reading. On a scene that changes every frame nobody sees it: a
-  /// half-written frame is a mix of two pictures a millimetre of camera apart.
-  /// On a still scene — an editor holding a level with nobody touching the
-  /// keyboard — it is unmissable.
-  ///
-  /// **A ring of a fixed depth is a guess, and every depth was wrong.** Three
-  /// flickered, eight flickered less, sixteen stopped it on this machine —
-  /// which says nothing about the next one, because what the depth has to be
-  /// depends on the display's rate, the build's speed and how far behind the
-  /// GPU is. So the depth is not chosen: a texture goes back into rotation when
-  /// [GraphicsDevice.onFrameComplete] says the work that read it is done, and
-  /// a frame that finds none free makes one. On a machine that needs two, two
-  /// is what it keeps.
-  ///
-  /// **What that callback tracks is the renderer's GPU work, not the
-  /// compositor's.** The texture is handed to Flutter as an image, and the
-  /// raster thread samples it on its own command buffer, later; the
-  /// completion this waits for is the renderer's, which comes first. The
-  /// surface probe (`ARCHITECTURE.md` §15) reduced this arrangement to a
-  /// clear-only frame and watched it reuse one texture at the display's
-  /// pace: one display period, 8.3 ms on the machine measured, between a
-  /// clear and the next, with the compositor's read landing somewhere inside
-  /// it. What the probe cannot do is catch that read going wrong. It reads
-  /// one frame back per path — the last — and it reads it out of the texture
-  /// this side owns rather than out of the composite Flutter drew, so a
-  /// picture torn on the raster thread leaves no mark on it. Most likely both
-  /// sit on one queue in submission order, and that is what keeps the picture
-  /// whole rather than anything here — which the probe did not observe and
-  /// nothing in this repository checks. A real frame's passes finish later
-  /// than a clear does, so the ring grows to what the overlap needs. The ring
-  /// could close the gap itself — keep a presented texture out of rotation
-  /// for one more presented frame, at the cost of one more texture, which is
-  /// the effect the backend's own presentable surface buys with a reference
-  /// count; the probe runs that variant too — and does not, because no torn
-  /// frame has been seen since the ring replaced the single texture. That is
-  /// an eye on the samples and the golden scenes rather than an instrument,
-  /// and it is the whole of the evidence.
-  /// That surface was measured and not taken, for the reason §15 gives with
-  /// the numbers.
-  final List<TextureHandle> _ldrFrames = <TextureHandle>[];
-  final List<TextureHandle> _ldrFree = <TextureHandle>[];
-  TextureHandle? _ldrCurrent;
-
   /// The frame currently being drawn into.
   TextureHandle? get _ldrColor => _ldrCurrent;
+
   Float32List get _reflectionParams => _reflectionInfo.params;
+
   Float32List get _reflectionScreen => _reflectionInfo.screen;
   Float32List get _reflectionCameraData => _reflectionInfo.camera;
-  final vm.Vector3 _reflectionCamera = vm.Vector3.zero();
   Float32List get _reflectionForwardData => _reflectionInfo.forward;
-  final vm.Vector3 _reflectionForward = vm.Vector3.zero();
-  TextureHandle? _reflectionColor;
-  TextureHandle? _surfaceColor;
-
-  /// The albedo buffer — `L5`. See [FrameResourceIds.albedoBuffer].
-  TextureHandle? _albedoColor;
-  TextureHandle? _surfaceMsaa;
-  TextureHandle? _depthStencil;
-
-  /// A one-sample depth, for the frames that switch multisampling off because
-  /// they want the surface buffer. Attachments in one target must agree on
-  /// sample count, so a four-sample depth cannot sit beside a resolved colour.
-  TextureHandle? _depthStencilSingle;
-
-  /// Weighted blended transparency's targets — `R8`: the accumulation, the
-  /// revealage, and a one-sample depth the scene pass stores for the
-  /// transparent passes to load. Made the first time a frame asks, released
-  /// with the others on a resize; see `renderer_transparency_pass.dart`.
-  ///
-  /// Their own depth rather than [_depthStencilSingle], which is
-  /// `deviceTransient` — memoryless on Apple GPUs, with nothing to load. The
-  /// same depth carries the opaque half over to the transparent pass when a
-  /// frame splits the scene around a copy of it — `M3`; see
-  /// `_storedSceneDepth`.
-  TextureHandle? _wboitAccumulation;
-  TextureHandle? _wboitRevealage;
-  TextureHandle? _wboitDepth;
-
-  /// The copy of the scene the transparent pass lends its draws — `M3`: the
-  /// texture and the layout of its levels, for exactly as long as that pass
-  /// draws, and null everywhere else. Every other draw of the layered model
-  /// binds black in its place and reads the environment, as it always did.
-  ({TextureHandle texture, SceneColorChain chain})? _sceneColorRead;
-
-  // `hdrFormat` is declared in `renderer_resources.dart`, alongside the
-  // caches that key off it.
-
-  /// The two materials every marked node is drawn again with, and the nodes
-  /// this view marks. See `renderer_xray_pass.dart`.
-  ///
-  /// Held rather than built per frame for the reason the uniform scratch
-  /// arrays are: a material per node per frame is an allocation in the draw
-  /// loop. The colour is written into `baseColor` from the settings each
-  /// frame, and `doubleSided` from the node each draw.
-  ///
-  /// **[LightingModel.xray] rather than [LightingModel.unlit], and the
-  /// difference is the surface buffer.** Unlit writes attachment one like
-  /// every other model — a silhouette would then have stamped a hidden
-  /// monster's normal and depth over the wall in front of it, since the
-  /// paint's depth test passes exactly where the monster is behind something.
-  /// Nothing in the blend state could take that back: it protects attachment
-  /// zero, and only on the backends whose `setBlend` honours an attachment
-  /// index. `xray.frag` declares no second output at all.
-  final RenderMaterial _xrayMark = RenderMaterial(
-    name: 'x-ray mark',
-    lighting: LightingModel.xray,
-    depthWrite: false,
-    depthCompare: CompareFunction.lessEqual,
-  );
-  final RenderMaterial _xraySilhouette = RenderMaterial(
-    name: 'x-ray silhouette',
-    lighting: LightingModel.xray,
-    depthWrite: false,
-    depthCompare: CompareFunction.greater,
-  );
-  final List<MeshNode> _xrayNodes = <MeshNode>[];
-
-  PipelineHandle? _shadowPipeline;
-  PipelineHandle? _skinnedShadowPipeline;
-
-  /// `gfx-60n`: the same three again, against the cut-out shadow stages.
-  ///
-  /// Separate handles rather than a flag on the three above, because a
-  /// pipeline is a shader pair and these pair a different fragment stage. A
-  /// scene with no cut-out caster never builds them.
-  PipelineHandle? _maskedShadowPipeline;
-  PipelineHandle? _skinnedMaskedShadowPipeline;
-  PipelineHandle? _instancedMaskedShadowPipeline;
-  PipelineHandle? _maskedCubeShadowPipeline;
-  PipelineHandle? _skinnedMaskedCubeShadowPipeline;
-  PipelineHandle? _instancedMaskedCubeShadowPipeline;
-
-  /// The same three once more, against `ShadowTransmittance`: see-through
-  /// casters writing what they let through into the sun's atlas —
-  /// `ShadowSettings.translucentCasters`. Never built while it is off.
-  PipelineHandle? _transmittanceShadowPipeline;
-  PipelineHandle? _skinnedTransmittanceShadowPipeline;
-  PipelineHandle? _instancedTransmittanceShadowPipeline;
-
-  /// A see-through caster's colour, opacity, transmission and head-on
-  /// reflectance, and the way to the light, for `ShadowTransmittance`.
-  final TransmittanceInfoBlock _transmittanceInfo = TransmittanceInfoBlock();
-
-  /// `ShadowSettings.caustics`: a refracting caster's faces into its maps,
-  /// and its photons into the atlas; built the first frame they are needed.
-  PipelineHandle? _causticSurfacePipeline;
-  PipelineHandle? _causticPhotonPipeline;
-
-  /// Six corners, two triangles: the quad each photon is drawn as.
-  GeometryBuffer? _causticQuad;
-
-  /// A photon's matrices, grid and the caster's optics.
-  final CausticInfoBlock _causticInfo = CausticInfoBlock();
-
-  /// Whether the sun's atlas, as last drawn, had photons added to it.
-  bool _shadowCaustics = false;
-
-  /// Whether the sun's atlas, as last drawn, carries what see-through
-  /// casters let through — read by the draws that light with it, which
-  /// otherwise would take an atlas's empty channels for a black filter.
-  bool _shadowTransmits = false;
-
-  /// Whether the sun's atlas, as last drawn, keeps its depth turned round —
-  /// `A2.8` — and what it is made of. A change of either is a fresh atlas.
-  bool _shadowReversed = false;
-  TextureFormat? _shadowFormat;
-
-  /// How the sun's atlas stores its depth, as every stage that reads it is
-  /// told: the modes `lib/shadow_storage.glsl` lists. Written with the
-  /// cascades' biases, read by the lit draws, the fog, the shafts and the
-  /// moments filter.
-  double _shadowStorage = 0.0;
 
   /// `gfx-60n`: the cutoff and the base alpha, packed for the shadow stages.
   Float32List get _shadowMask => _maskInfo.mask;
-  PipelineHandle? _instancedShadowPipeline;
-  PipelineHandle? _bloomUpsamplePipeline;
-  PipelineHandle? _wboitResolvePipeline;
-  PipelineHandle? _sceneColorCopyPipeline;
-  PipelineHandle? _compositePipeline;
-
-  /// Positions and UVs of the one triangle every full-screen pass draws.
-  GeometryBuffer? _fullscreenVertices;
-
-  /// Built the first time a frame asks for a sky, and never if none does.
-  ///
-  /// Lazy, and deliberately absent from the eager list `Renderer.create`
-  /// resolves: an application whose shader bundle predates the sky would
-  /// otherwise fail to start rather than fail to draw a sky it never asked for.
-  /// That is the same argument `renderer_create_test.dart` already pins for the
-  /// particle stages.
-  PipelineHandle? _skyPipeline;
-
-  /// The textured half of the same pair, built only if a cube is ever set.
-  PipelineHandle? _skyCubePipeline;
-
-  /// The air's, built only if a sky ever resolves to one — `P5`. That is any
-  /// sky switched on without a cube or gradient colours: see
-  /// `SkySettings.resolvedPhysical`.
-  PipelineHandle? _skyPhysicalPipeline;
-
-  /// World space to the shadow camera's clip space, rebuilt each frame the
-  /// light or the scene moves.
-  final vm.Matrix4 _shadowMatrix = vm.Matrix4.identity();
-
-  /// The second and third cascades' matrices. Copies of the first when there is
-  /// only one, so the shader can read all three without asking how many.
-  final vm.Matrix4 _shadowMatrixFar = vm.Matrix4.identity();
-  final vm.Matrix4 _shadowMatrixFarthest = vm.Matrix4.identity();
 
   /// x, y: where cascades 0 and 1 end, in metres from the camera. z: how many
   /// there are. w: one texel of a tile, vertically.
   Float32List get _shadowCascades => _fragInfo.shadowCascades;
-
-  int _shadowCascadeCount = 1;
 
   /// How far each cascade reached, in metres, as of the last shadow pass.
   ///
@@ -1808,7 +2767,6 @@ final class Renderer with RenderServices {
   /// measured is a change that gets quietly undone.
   List<double> get _debugCascadeRadii =>
       List<double>.unmodifiable(_shadowCascadeRadii);
-  final List<double> _shadowCascadeRadii = <double>[];
 
   /// Where each cascade was centred, after snapping, as of the last pass.
   ///
@@ -1818,10 +2776,7 @@ final class Renderer with RenderServices {
   /// number that jumps and one that slides.
   List<vm.Vector3> get _debugCascadeCentres =>
       List<vm.Vector3>.unmodifiable(_shadowCascadeCentres);
-  final List<vm.Vector3> _shadowCascadeCentres = <vm.Vector3>[];
 
-  /// [_shadowMatrix] in the backend's clip space, for drawing the map with.
-  final vm.Matrix4 _shadowDrawMatrix = vm.Matrix4.identity();
   Float32List get _shadowParams => _fragInfo.shadowParams;
 
   /// `FragInfo.target_origin`: the rows of the target the scene draws into
@@ -1854,74 +2809,6 @@ final class Renderer with RenderServices {
   /// `ShadowSettings.bias` per cascade, in each cascade's own depth: see
   /// `shadow_bias` in `surface.glsl`.
   Float32List get _shadowCascadeBias => _fragInfo.shadowBias;
-  final List<double> _shadowCascadeBiasScale = <double>[1.0, 1.0, 1.0];
-
-  /// Each cascade's depth range in metres, far plane less near: what one unit
-  /// of its stored depth is along the light.
-  final List<double> _shadowCascadeDepthRange = <double>[1.0, 1.0, 1.0];
-  TextureHandle? _shadowMap;
-
-  /// The static casters' own directional atlas — `S1`: drawn when they
-  /// change, and copied tile by tile into [_shadowMap] under the dynamic
-  /// ones. Null while nothing in the scene is marked static.
-  TextureHandle? _shadowMapStatic;
-
-  /// The other static atlas, which a frame that changes a static tile draws
-  /// into from [_shadowMapStatic] before the two change places — `S1`.
-  TextureHandle? _shadowMapStaticSpare;
-
-  /// The matrices each static tile was drawn with, for the next frame to
-  /// scroll it by, and the static casters' key it was drawn under.
-  final List<vm.Matrix4?> _staticShaderMatrices = <vm.Matrix4?>[
-    null,
-    null,
-    null,
-  ];
-  final List<vm.Matrix4?> _staticRawMatrices = <vm.Matrix4?>[null, null, null];
-  int? _staticSceneKey;
-
-  /// The depth buffer the cascade atlas is drawn with, kept for as long as the
-  /// atlas is rather than borrowed from the pool a frame at a time.
-  ///
-  /// **A pooled one is a different texture every frame, and that is a problem
-  /// the engine below cannot see.** A backend may cache the framebuffer it
-  /// built for a colour attachment — Impeller's Vulkan backend does — and a
-  /// framebuffer holds a view of every attachment in it. Pairing one long-lived
-  /// atlas with a fresh depth buffer each frame hands that cache a key it thinks
-  /// it has seen, and the pass is drawn with the *previous* depth texture: a
-  /// crash where that texture has since been freed, and a shadow map drawn into
-  /// the wrong buffer where it has not. Filed as flutter/flutter#192538.
-  ///
-  /// Owning it costs one texture the size of the atlas and takes the question
-  /// away.
-  TextureHandle? _shadowDepth;
-
-  /// The directional atlas as blurred exponential moments, and the atlas the
-  /// first of the two blur passes lands in — `S2`. Null until a frame asks
-  /// for moments — [ShadowFilter.evsm], or a technique with a
-  /// [ShadowPrefilter] — on a device that can filter them.
-  TextureHandle? _shadowMoments;
-  TextureHandle? _shadowMomentsScratch;
-
-  /// Counts the frames that drew into [_shadowMap], so the moments are made
-  /// again only when the depth they are made of changed — a kept atlas keeps
-  /// its moments too.
-  int _shadowMapVersion = 0;
-
-  /// What [_shadowMoments] was last made from: [_shadowMapVersion], the blur
-  /// radius, the cascade count and the prefilter stage's name. Null when it
-  /// holds nothing yet.
-  (int, int, int, String)? _shadowMomentsKey;
-  int _shadowResolution = 0;
-  int _shadowCasters = 0;
-  int _shadowsDenied = 0;
-
-  /// Whether the current run of empty frames has already been explained.
-  ///
-  /// See the assert at the end of [render]: the report is once per run of
-  /// empty frames, not once per empty frame and not once per renderer.
-  bool _emptyFrameReported = false;
-
   Float32List get _bloomParams => _bloomInfo.params;
 
   /// The upsample step's per-channel factor: the ratio of this level's
@@ -1940,86 +2827,26 @@ final class Renderer with RenderServices {
   /// shadow pass's, reused rather than recomputed.
   Float32List get _shaftCamera => _shaftInfo.camera;
   Float32List get _shaftForward => _shaftInfo.forward;
+
   Float32List get _shaftScatter => _shaftInfo.scatter;
 
   /// The shafts' `sun`: the direction towards the caster, and the phase's g.
   Float32List get _shaftSun => _shaftInfo.sun;
+
   Float32List get _shaftCascades => _shaftInfo.cascades;
-  final vm.Vector3 _shaftCameraVec = vm.Vector3.zero();
-  final vm.Vector3 _shaftForwardVec = vm.Vector3.zero();
   Float32List get _dofLens => _dofInfo.lens;
+
   Float32List get _dofParams => _dofInfo.params;
+
   Float32List get _shadeParams => _shadeInfo.params;
+
   Float32List get _shadeScreen => _shadeInfo.screen;
   Float32List get _shadeLight => _shadeInfo.light;
-  final vm.Vector3 _shadeLightVec = vm.Vector3.zero();
   Float32List get _compositeParams => _compositeInfo.params;
+
   Float32List get _compositeAoTexel => _compositeInfo.aoTexel;
+
   Float32List get _luminanceParams => _luminanceInfo.params;
-
-  /// The exposure as it stands, while auto exposure is on; null until a frame
-  /// has asked for it.
-  ///
-  /// Kept across a setting switched off and on again, so a game that toggles
-  /// the meter for a menu comes back to the exposure it left rather than to
-  /// the setting's number and a second climb.
-  ExposureAdapter? _autoExposure;
-
-  /// One adapter per view, for `gfx-22n`'s per-view metering.
-  ///
-  /// Beside [_autoExposure] rather than replacing it: with per-view metering
-  /// off there is one exposure for the frame and this stays empty, which is
-  /// what keeps a stereo pair — and every golden — on the path it has always
-  /// taken. Indexed by the view's place in the ordered list, so a frame that
-  /// gains a view gains an adapter starting where the frame's own exposure is
-  /// rather than at the setting's number and a fresh climb.
-  final List<ExposureAdapter> _viewExposure = <ExposureAdapter>[];
-
-  /// `C2`: the occluders rasterised on the CPU, made on the first frame
-  /// that asks for [OcclusionMode.software] and kept, so a renderer that
-  /// never does allocates no buffer.
-  SoftwareOcclusion? _softwareOcclusion;
-
-  /// `C3`: the last depth reading and the grid it is reprojected into, made
-  /// on the first frame that asks for [OcclusionMode.hiZ].
-  HiZOcclusion? _hiZ;
-
-  /// `C9`: the repacked index buffers of split meshes, made on the first draw
-  /// of a mesh that has clusters, so a scene without one allocates nothing.
-  ClusterDraws? _clusterDraws;
-
-  /// `C9`: what the view being drawn culls clusters against, set by the
-  /// scene pass for each of its views and null everywhere else — a shadow,
-  /// a probe face or a layer drawn after the pass draws a split mesh whole.
-  ({
-    int view,
-    vm.Frustum frustum,
-    vm.Matrix4 viewProjection,
-    OcclusionTest? occlusion,
-  })?
-  _clusterView;
-
-  /// Whether this frame's view depth runs reversed — `A2.8`, set by the
-  /// scene pass from [_DepthConvention._reversedFor] and read by every pass
-  /// after it that loads the depth that pass stored: the transparent
-  /// layers, the glass, the contributors that read the scene's depth. One
-  /// answer for the frame, because one buffer is cleared one way.
-  bool _depthReversed = false;
-
-  /// The near plane each view of the last scene pass was drawn with, in
-  /// metres, in the order the views were drawn — `A2.9`. For tests: the fit
-  /// buys precision, which no single picture shows, so the plane is what a
-  /// test holds to a value.
-  final List<double> _fittedNears = <double>[];
-
-  /// Advanced whenever the reading is thrown away, so a readback that was
-  /// already in the air lands on nothing rather than restoring a reading of
-  /// a scene the frame has since stopped trusting.
-  int _hiZEpoch = 0;
-
-  /// Whether a depth-pyramid readback has been asked for and not yet
-  /// answered — one at a time, for the reason [_meterInFlight] gives.
-  bool _pyramidInFlight = false;
 
   /// The occlusion reading, for tests and a profiler: how many readings of
   /// the depth pyramid have arrived and been kept. Null until a frame has
@@ -2031,29 +2858,6 @@ final class Renderer with RenderServices {
   /// which looks like a meter that has settled, and this is what tells the
   /// two apart.
   int get _debugMeterFailures => _meterFailures;
-  int _meterFailures = 0;
-
-  /// Whether a luminance readback has been asked for and not yet answered.
-  ///
-  /// The meter asks once per answer rather than once per frame. A hardware
-  /// backend answers a frame or two after the ask, and on flutter_gpu the
-  /// answer is a `toByteData` off a staging texture — a GPU download the
-  /// raster thread pays for — so a meter that asked every frame would keep
-  /// two or three of those in the air for ever and grow the staging pool to
-  /// match. An exposure that adapts over seconds cannot tell the difference
-  /// between a reading every frame and one every other frame; a pool that
-  /// holds one staging texture instead of three can.
-  bool _meterInFlight = false;
-
-  /// Seconds between one `render` and the next, for the adapter's rate.
-  ///
-  /// Measured here rather than passed in, because `render` takes no clock and
-  /// the rate is the one thing in the frame that is about time: the composite
-  /// does not care how long the last frame took, the meter's approach does.
-  final Stopwatch _sinceLastFrame = Stopwatch();
-
-  /// What the composite last exposed with — see [exposure].
-  double _lastExposure = RenderSettings.defaultExposure;
 
   /// The exposure the last frame was composited with.
   ///
@@ -2103,10 +2907,6 @@ final class Renderer with RenderServices {
       renderSteps._store.contributors.active.toList(growable: false),
     );
   }
-
-  /// Questions [pickPixel] has been asked since the last frame, answered by
-  /// the next one.
-  final List<_PickRequest> _pendingPicks = <_PickRequest>[];
 
   /// Which mesh the next frame draws at ([u], [v]) — fractions of the frame
   /// from the top left, so a caller with a widget's local position divides by
@@ -2201,6 +3001,7 @@ final class Renderer with RenderServices {
   /// anyway, so seven floats cost the same as eight and the split reads better
   /// on the shader's side: grading in one, the lens and the film in the other.
   Float32List get _compositeLook => _compositeInfo.look;
+
   Float32List get _compositeLookMore => _compositeInfo.lookMore;
 
   /// `gfx-24n`'s fifth block: x is the dither amount, y and z the white
@@ -2211,7 +3012,9 @@ final class Renderer with RenderServices {
   /// `gfx-27n`'s three ranges. Neutral is (0,0,0) for the lift and (1,1,1)
   /// for the other two, which is what the composite reads as "do nothing".
   Float32List get _compositeLift => _compositeInfo.lift;
+
   Float32List get _compositeGamma => _compositeInfo.gamma;
+
   Float32List get _compositeGain => _compositeInfo.gain;
 
   /// `gfx-76n`'s strength, in x. Neutral is zero, which the composite reads as
@@ -2220,83 +3023,6 @@ final class Renderer with RenderServices {
   /// block and "off" has to be a number the shader cancels, not one it nearly
   /// cancels.
   Float32List get _compositeContact => _compositeInfo.contact;
-
-  /// Builds a renderer on [device].
-  ///
-  /// The backend arrives as a value rather than being reached for, which is the
-  /// whole of how a second one will be selected: an application constructs
-  /// `GpuRenderBackend.open(width:, height:)` and hands it over. A compile-time choice could
-  /// not be faked, and a fake is the only way anything below this line is ever
-  /// exercised without a GPU.
-  ///
-  /// Which shaders it must contain is this package's business and is stated by
-  /// name — see [LightingModel.shaderName] and the `require` calls below. Where
-  /// those shaders come from, and in what format, is the backend's.
-  /// The two fallbacks are what a material without a map samples: white, so
-  /// that an untextured surface is its own base colour, and the neutral
-  /// tangent-space normal, so that sampling it perturbs nothing and the shader
-  /// needs no branch. **Optional, because every application in this repository
-  /// passed the same two** — `SolidColorTexture.white` and
-  /// `SolidColorTexture.flatNormal`, uploaded on the spot, in a dozen places
-  /// including four `main.dart`s that each did it twice. They are still
-  /// parameters: a renderer drawing into somebody else's colour space may want
-  /// its white somewhere other than 1.0, and that is not a decision this
-  /// package can take back. What it can do is stop asking for the answer it
-  /// already knows.
-  ///
-  /// **[replacing], after a device was lost.** A renderer made for the device
-  /// that came back (or a new one opened in its place) takes over
-  /// [replacing]'s [renderSteps] — the registry a plugin host holds — so a
-  /// plugin installed again after the loss adds its steps to this renderer.
-  /// What was added to the old one was made on the lost device: whoever owns
-  /// the plugins cancels and installs them again, which is what
-  /// `Flutter3dView` does. [replacing] draws nothing more and is disposed by
-  /// its owner.
-  factory Renderer.create({
-    required GraphicsDevice device,
-    TextureHandle? fallbackAlbedo,
-    TextureHandle? fallbackNormal,
-    ShaderLibrary? materials,
-    Renderer? replacing,
-  }) {
-    // Consulted before the backend's, so an application can replace a stage as
-    // well as add one — see [LayeredShaderLibrary] for why that order.
-    final library = materials == null
-        ? device.shaders
-        : LayeredShaderLibrary(materials, device.shaders);
-    ShaderHandle require(String name) {
-      final shader = library[name];
-      if (shader == null) {
-        // D15: every stage asked for here is one every bundle carries, so
-        // the refusal says the bundle was not built by this flutter3d.
-        throw MissingShaderStageException.forStage(
-          name,
-          backend: device.backendName,
-        );
-      }
-      return shader;
-    }
-
-    return Renderer._(
-        device: device,
-        require: require,
-        fallbackAlbedo:
-            fallbackAlbedo ?? SolidColorTexture.white.upload(device),
-        fallbackNormal:
-            fallbackNormal ?? SolidColorTexture.flatNormal.upload(device),
-        fallbackBlack: const SolidColorTexture.texel(
-          0.0,
-          0.0,
-          0.0,
-        ).upload(device),
-        msaaEnabled: device.features.has(DeviceFeature.offscreenMultisample),
-        steps: replacing?.renderSteps,
-      )
-      .._baseShaders = library
-      .._shaders = library
-      .._attachSteps()
-      .._listenForGpuTimings();
-  }
 
   /// Hands [renderSteps] this renderer, for the stages a plugin adds, and
   /// every light buffer the light types plugins register (D22).
@@ -2312,11 +3038,6 @@ final class Renderer with RenderServices {
       buffer.lightTypes = lightTypes;
     }
   }
-
-  /// What the GPU spent in each graph node's passes, from the last frame a
-  /// device reported on — `H2`. A frame or two behind the one being drawn,
-  /// because the GPU has to finish a frame before its timestamps can be read.
-  Map<String, int> _lastGpuMicros = const <String, int>{};
 
   void _listenForGpuTimings() {
     if (!device.features.has(DeviceFeature.gpuTimestamps)) return;
@@ -2642,22 +3363,6 @@ final class Renderer with RenderServices {
     return (lights: _drawLights, shadowSlots: _drawShadowSlots);
   }
 
-  /// The six directions a cube shadow looks in, and the up vector for each.
-  ///
-  /// Order fixes the atlas layout, so the shader's face selection and this
-  /// list are one decision written twice — which is why they are both spelled
-  /// out rather than derived: +X, -X, +Y, -Y, +Z, -Z, left to right along the
-  /// light's own row of six tiles.
-  static final List<(vm.Vector3, vm.Vector3)> _cubeFaces =
-      <(vm.Vector3, vm.Vector3)>[
-        (vm.Vector3(1.0, 0.0, 0.0), vm.Vector3(0.0, 1.0, 0.0)),
-        (vm.Vector3(-1.0, 0.0, 0.0), vm.Vector3(0.0, 1.0, 0.0)),
-        (vm.Vector3(0.0, 1.0, 0.0), vm.Vector3(0.0, 0.0, 1.0)),
-        (vm.Vector3(0.0, -1.0, 0.0), vm.Vector3(0.0, 0.0, -1.0)),
-        (vm.Vector3(0.0, 0.0, 1.0), vm.Vector3(0.0, 1.0, 0.0)),
-        (vm.Vector3(0.0, 0.0, -1.0), vm.Vector3(0.0, 1.0, 0.0)),
-      ];
-
   /// Allocates the two cube atlases, or reallocates them when the tile size
   /// changed.
   ///
@@ -2754,22 +3459,8 @@ final class Renderer with RenderServices {
   /// Six. **A getter, not a constant**, since 1.0, so a later minor may
   /// change the atlas without changing a number compiled into a caller.
   static int get shadowedLights => _shadowedLights;
-  static const int _shadowedLights = 6;
 
   Float32List get _cubeFaceMatrices => _pointShadow.faces;
-
-  /// The irradiance field's atlas and how to read it — `L3`. Uploaded when
-  /// the scene's field changes identity or version; see `_bindIrradiance`.
-  final IrradianceInfoBlock _irradianceInfo = IrradianceInfoBlock();
-  IrradianceField? _irradianceField;
-  int _irradianceVersion = -1;
-  TextureHandle? _irradianceAtlas;
-  int _irradianceColumns = 1;
-  int _irradianceMomentsTop = 0;
-
-  /// The field being updated on the GPU, when one is — `L4`.
-  _IrradianceGpu? _irradianceGpu;
-  final ConvolveInfoBlock _convolveInfo = ConvolveInfoBlock();
 
   /// The texture the lit stages read the irradiance field from this frame:
   /// the GPU-updated atlas when the field is kept current there, the
@@ -2781,6 +3472,7 @@ final class Renderer with RenderServices {
   /// What a surface facing up, and one facing down, receive from the
   /// environment. Recomputed once a frame — see [_updateAmbient].
   Float32List get _ambientSky => _fragInfo.ambientSky;
+
   Float32List get _ambientGround => _fragInfo.ambientGround;
 
   /// Resolves the two ends of the hemispheric ambient for this frame.
@@ -2894,95 +3586,14 @@ final class Renderer with RenderServices {
     return (up: up, down: down);
   }
 
-  ({PhysicalSky air, vm.Vector3 toSun, vm.Vector3 up, vm.Vector3 down})?
-  _physicalAmbientKept;
-
-  /// Per atlas row: xyz the direction a spot aims, w the tangent of half its
-  /// frustum — or w negative when the row belongs to a point light.
-  ///
-  /// Separate from [_cubeLightData] rather than widening it, because that array
-  /// is uploaded to the shader as `lights[]` and this is not: the shading reads
-  /// a spot's tile through the matrix in `faces[]`, which already carries the
-  /// aim. This is what the *pass* needs in order to build that matrix.
-  final Float32List _cubeLightAim = Float32List(4 * shadowedLights);
   Float32List get _cubeLightData => _pointShadow.lights;
 
-  /// One vec4 per light the shading knows about; x is its atlas row or -1.
-  final Float32List _shadowSlots = Float32List(4 * LightBuffer.maxLights);
-
-  /// Which atlas row each shadowed light owns, keyed by the light rather than
-  /// by its slot.
-  ///
-  /// A slot index only means something inside one packing, and with per-object
-  /// light lists there is a packing per draw. Keyed by the node, the assignment
-  /// is stated once for the frame and every packing can look itself up in it.
-  final Map<LightNode, int> _shadowRowOf = <LightNode, int>{};
-
-  /// Per row, what a slot needs beside the row number: y the shape (1 for a
-  /// spot's single cone-shaped tile, 0 for a cube), z the tangent of half the
-  /// frustum the row was drawn through.
-  final Float32List _shadowRowShape = Float32List(shadowedLights);
-  final Float32List _shadowRowTangent = Float32List(shadowedLights);
-
-  /// Repacked once per draw, for scenes that hold more lights than a draw can
-  /// carry, with the slot table that belongs to that packing. Hot-loop scratch,
-  /// like the uniform staging beside it. See [_drawLightsFor].
-  final LightBuffer _drawLights = LightBuffer();
-  final Float32List _drawShadowSlots = Float32List(4 * LightBuffer.maxLights);
-
-  /// What a lit contributor binds its lights through — `N6`. One for the
-  /// renderer, pointed at each view's lights as its contributors run.
-  late final _ContributorLights _contributorLights = _ContributorLights(this);
-
   Float32List get _pointShadowParams => _pointShadow.params;
+
   Float32List get _pointShadowParams2 => _pointShadow.params2;
 
   /// x: whether this backend stores the cube atlas bottom-up. See surface.glsl.
   Float32List get _pointShadowParams3 => _pointShadow.params3;
-
-  /// Number of atlas rows in use, or -1 when none are.
-  int _cubeShadowLight = -1;
-
-  final vm.Vector3 _cubePosition = vm.Vector3.zero();
-
-  final ShadowSlotAllocator _shadowSlotAllocator = ShadowSlotAllocator(
-    slotCount: shadowedLights,
-  );
-  final ShadowFaceScheduler _shadowFaceScheduler = ShadowFaceScheduler(
-    tileCount: shadowedLights * 6,
-  );
-  final List<ShadowCandidate> _shadowCandidates = <ShadowCandidate>[];
-  final vm.Vector3 _shadowEye = vm.Vector3.zero();
-  final vm.Vector3 _shadowAim = vm.Vector3.zero();
-
-  /// How much wider than its cone a spot's shadow frustum is drawn.
-  ///
-  /// The shader bails with "lit" for a fragment that projects outside its tile,
-  /// which is right for a cube face — a neighbouring face holds that direction
-  /// — and is the last thing wanted at the rim of a cone, where outside the
-  /// tile is simply where the light stops.
-  ///
-  /// Fitted exactly, a fragment at the very edge of the cone lands at |ndc| of
-  /// one, and the test is `> 1.0`, so in exact arithmetic it does not fire.
-  /// This is insurance against that arithmetic being float32 in one place and
-  /// float64 in another, on a ring where the cone's own falloff has nearly
-  /// closed anyway.
-  ///
-  /// **Stated honestly: no test here tells 1.06 from 1.0.** The mutation was
-  /// applied and `spot_shadow_test.dart` stayed green. It is kept because a few
-  /// per cent of angle costs a few per cent of texel density, and the failure
-  /// it guards against would be a thin bright ring that reads as a shader bug
-  /// rather than as a fitting one.
-  static const double _kSpotFrustumMargin = 1.06;
-
-  /// The signature of a tile that holds nothing and is meant to keep holding
-  /// nothing: the five columns beside a spot's own.
-  ///
-  /// A constant rather than null, because null means "no row here at all" and
-  /// leaves whatever the last owner drew. Any value would do as long as it
-  /// never collides with a real one; this one is far from anything
-  /// [_bakeKeyFor] produces from centimetres and thousandths.
-  static const int _kBlankTileSignature = 0x5B1A4E;
 
   /// Builds this frame's list of lights asking for an atlas row.
   ///
@@ -3201,21 +3812,6 @@ final class Renderer with RenderServices {
 
   static int _mix(int hash, int value) => (hash * 31 + value) & 0x3FFFFFFF;
 
-  final List<int?> _faceSignatures = <int?>[];
-  final vm.Vector3 _shadowToCaster = vm.Vector3.zero();
-
-  /// The graph [_compileFrameGraph] fills each frame, kept so a frame that
-  /// asks what the last one did gets the last compile back.
-  final FrameGraph _frameGraph = FrameGraph();
-
-  /// The views of the frame being drawn, as `FrameContext.views` hands
-  /// them to every node and contributor.
-  List<FrameView> _frameViews = const <FrameView>[];
-
-  /// The unjittered view-projection each view drew through in its last
-  /// frame, for `FrameContext.previousViewProjection`.
-  final Expando<vm.Matrix4> _previousViewProjections = Expando<vm.Matrix4>();
-
   /// Which of [_frameViews] stands for [view]: its place in the `render`
   /// call's views, or nought for a view drawn outside one (a probe face, a
   /// texture view).
@@ -3227,9 +3823,6 @@ final class Renderer with RenderServices {
     }
     return 0;
   }
-
-  /// The `render` call's views, by index, beside [_frameViews].
-  List<CameraView> _frameViewSources = const <CameraView>[];
 
   /// [views] as the frame's [FrameView]s, each with the view-projection it
   /// drew through the frame before.
@@ -3253,10 +3846,6 @@ final class Renderer with RenderServices {
     final rect = _viewportPixels(view.viewportFraction, width, height);
     return rect.width / rect.height;
   }
-
-  /// The schedule the last frame — or plan — was registered from, for
-  /// [describePipeline].
-  _FrameSchedule? _lastSchedule;
 
   /// This renderer's frame written down as an `f3d.pipeline` document
   /// (D44): every node in the order the graph registers it, at its anchor,
@@ -3322,11 +3911,6 @@ final class Renderer with RenderServices {
       settings: <String>[for (final slot in renderSteps.settings) slot.id],
     );
   }
-
-  /// Whether a node placed through [renderSteps] declared a read of the
-  /// velocity in the last frame compiled: what keeps the velocity passes and
-  /// the frame history running for it.
-  bool _velocityAsked = false;
 
   /// The frame, ordered by what each pass declares.
   ///
@@ -3783,132 +4367,24 @@ final class Renderer with RenderServices {
     return hash;
   }
 
-  PipelineHandle? _cubeShadowPipeline;
-
-  /// The same fragment stage paired with the skinned vertex one.
-  ///
-  /// A pipeline of its own rather than a reuse of [_skinnedShadowPipeline],
-  /// and the difference is the fragment half: the cascade pass records clip
-  /// depth through `ShadowDepth`, this one records radial distance through
-  /// `ShadowDistance`, and a pipeline is the pair. The uniform layout either
-  /// stage reads is identical, which is why nothing else about the skinned
-  /// path changes between the two.
-  PipelineHandle? _skinnedCubeShadowPipeline;
-  PipelineHandle? _instancedCubeShadowPipeline;
-  PipelineHandle? _cubeShadowResetPipeline;
-
-  /// Whether each atlas has been cleared since it was allocated.
-  bool _cubeShadowCleared = false;
-  bool _cubeShadowStaticCleared = false;
-  TextureHandle? _cubeShadow;
-  TextureHandle? _cubeShadowStatic;
-
-  /// The depth buffer both cube atlases are drawn with. Owned for the reason
-  /// [_shadowDepth] is owned.
-  TextureHandle? _cubeShadowDepth;
-  bool _staticShadowBaked = false;
-
-  /// The settings the static bake was drawn with, or null before the first one.
-  ///
-  /// **A bake that outlives the settings that made it is a picture of a scene
-  /// nobody asked for.** The static half of the cube atlas is drawn once and
-  /// kept for as long as the rows do not change hands — which is the whole
-  /// reason it is affordable — and until this field existed, "the rows did not
-  /// change" was the *only* thing that could make it redraw. Change which side
-  /// of a caster is recorded, or how far the volume is padded, and the atlas
-  /// went on holding what the previous setting produced, silently, for the rest
-  /// of the run.
-  ///
-  /// Found by measurement rather than by reading: two frames drawn with
-  /// opposite `casterFaces` came back identical to the pixel — 419 pixels
-  /// changed against a no-shadow frame in both, the same 419 — which is not a
-  /// setting that does nothing, it is a setting that never arrived.
-  ///
-  /// What is *not* here is as deliberate as what is: bias, normal offset,
-  /// softness and strength are all read at lookup time, so changing one of them
-  /// needs no redraw. Only what the pass itself uses belongs in this key.
-  StaticBakeKey? _staticBakeKey;
-
-  /// The value of `Scene.staticShadowGeneration` the standing bake was drawn
-  /// at, so a static caster that changed how it casts redraws the walls it is
-  /// in. The key above answers the same question about the settings.
-  int _staticBakeGeneration = 0;
-
-  /// Which faces each static caster recorded in the standing bake, hashed —
-  /// the one thing about a static caster that a material can change without
-  /// the node or the generation knowing.
-  int _staticBakeFaces = 0;
-
-  int _cubeShadowTile = 0;
-  final vm.Matrix4 _cubeMatrix = vm.Matrix4.identity();
-
-  /// [_cubeMatrix] in the backend's clip space, for drawing a face with.
-  final vm.Matrix4 _cubeDrawMatrix = vm.Matrix4.identity();
   Float32List get _cubeLight => _shadowLight.light;
-
-  /// This frame's light rows, or null while the scene fits in eight slots —
-  /// `gfx-74n`. See `renderer_light_list.dart`.
-  TextureHandle? _lightListTexture;
-  int _lightListRows = 0;
-
-  /// `L6`: the cells of the view being drawn, and whether its draws read
-  /// them. Set per view in the scene pass and cleared after it, so a pass
-  /// with another camera — a probe's — never reads a view's cells.
-  final LightClusters _lightClusters = LightClusters();
-  bool _clustersActive = false;
-
-  /// Where the cells' headers and entries start in [_lightListTexture].
-  int _clusterHeaderRow = 0;
-  int _clusterEntryRow = 0;
-
-  /// `S4`: the light list the view's cells were written into, and its row
-  /// count, kept past the scene pass for the fog's march — which runs after
-  /// [_clustersActive] is cleared, and after later passes may have rebuilt
-  /// the list without cells. Null when the fog is off or the view drew none.
-  TextureHandle? _fogCells;
-  int _fogCellRows = 0;
-
-  /// The rows [_lightListTexture] was last uploaded with, compared against
-  /// this frame's rather than trusting `sceneChangeEpoch`: a light's
-  /// colour, intensity, range and cone are plain fields that advance no epoch,
-  /// so a torch that flickers without moving kept its first frame's row.
-  Float32List _lightListUploaded = Float32List(0);
-
-  /// Where this frame's rows are written before they are compared. Grown,
-  /// never shrunk, so a steady scene allocates nothing.
-  Float32List _lightListScratch = Float32List(0);
-
-  /// What [_lightListTexture] was last built from: the table, whether the
-  /// cells went in, and [_lightListEpoch] at the time. Every lit draw of a
-  /// view asks for the list, and while all three still hold the list it
-  /// holds is the one it would build — see `_buildLightList`.
-  LightBuffer? _lightListBuiltFrom;
-  bool _lightListBuiltClustered = false;
-  int _lightListBuiltEpoch = -1;
-
-  /// Advanced wherever the rows can change between two asks of one table:
-  /// a frame begun (the lights moved, the shadow rows reassigned), cells
-  /// cut for another view, a pass's own lights gathered into a table.
-  int _lightListEpoch = 0;
-
-  /// How many times the list's rows were written, for a test to hold it to
-  /// once a view.
-  int _lightListBuilds = 0;
 
   /// Staging for the per-draw list, beside every other uniform this renderer
   /// writes: arrays reused rather than allocated per draw.
   Float32List get _lightListParams => _lightListInfo.list;
+
   Float32List get _lightListIndices => _lightListInfo.indices;
+
   Float32List get _lightListScales => _lightListInfo.scales;
 
   /// Staging for the contact shadow's block — `gfx-76n`.
   Float32List get _contactParams => _contactShadowInfo.params;
-  Float32List get _contactCamera => _contactShadowInfo.camera;
-  Float32List get _contactForward => _contactShadowInfo.forward;
-  Float32List get _contactLight => _contactShadowInfo.toLight;
 
-  /// The capture being filled, or null — `gfx-70n`.
-  FrameCaptureBuilder? _capture;
+  Float32List get _contactCamera => _contactShadowInfo.camera;
+
+  Float32List get _contactForward => _contactShadowInfo.forward;
+
+  Float32List get _contactLight => _contactShadowInfo.toLight;
 
   /// Records the next frame pass by pass, with the pixels each one wrote.
   ///
@@ -3942,10 +4418,6 @@ final class Renderer with RenderServices {
     return completer.future;
   }
 
-  Completer<FrameCapture>? _captureWanted;
-  bool _captureDraws = false;
-  Float32List? Function(TextureHandle texture)? _captureFloats;
-
   /// Hands [wanted] the capture this frame built, and clears the builder.
   ///
   /// Called on both ways out of the graph loop, because a frame that threw is
@@ -3963,61 +4435,10 @@ final class Renderer with RenderServices {
     wanted.complete(builder.build());
   }
 
-  /// What each tile of the directional atlas currently holds, as the key
-  /// that drew it — `gfx-68n`, per cascade since `S1`. Null until a first
-  /// pass, and a null entry is a tile that has to be drawn.
-  final List<int?> _directionalBaked = <int?>[null, null, null];
-
-  /// What each caster brings to a directional tile's key, by its place in
-  /// `Scene.meshes`: everything the key reads off it except whether the
-  /// tile's volume holds it. Worked out once a frame by [_keyCasters] and
-  /// mixed into every tile's key from here, rather than read off every
-  /// caster again for every cascade. Grown with the scene, never shrunk.
-  Int32List _casterKeys = Int32List(0);
-
-  /// Beside [_casterKeys]: [_casts], [_castsSeeThrough] and [_castsStatic].
-  Uint8List _casterFlags = Uint8List(0);
-
   /// Whether a frame with [settings] runs the spatial upscale — `R5`: asked
   /// for, below full size, no temporal resolve, and a bundle with the stage.
   bool _upscales(RenderSettings settings) =>
       SpatialUpscaleSettings.runsFor(settings) && shaders['Easu'] != null;
-
-  /// What each tile of [_shadowMapStatic] holds, as the key that drew it.
-  final List<int?> _directionalStaticBaked = <int?>[null, null, null];
-
-  /// The copy from the static atlas into the frame's — `S1`.
-  PipelineHandle? _shadowCopyPipeline;
-  final ShadowCopyInfoBlock _shadowCopyInfo = ShadowCopyInfoBlock();
-  final EvsmFilterInfoBlock _evsmFilterInfo = EvsmFilterInfoBlock();
-
-  /// One reusable batch per mesh-and-material pair — `gfx-67n`.
-  ///
-  /// Held across frames on purpose: a scene whose runs are the same every frame
-  /// refills the same buffers rather than allocating a node and a typed list per
-  /// run per frame, which would cost more than the draw calls it saves.
-  final Map<_BatchKey, InstancedMeshNode> _batchPool =
-      <_BatchKey, InstancedMeshNode>{};
-
-  /// The pool entries some view drew with this frame. What the previous frame
-  /// did not use is dropped at the top of the next, so a mesh and material
-  /// that left the scene — or a scene with batching switched off — stop being
-  /// held by the pool.
-  final Set<_BatchKey> _batchesUsed = <_BatchKey>{};
-
-  /// How many individual draws the last frame's batching replaced.
-  ///
-  /// The reading the row is about: a hundred identical meshes drawn in one call
-  /// and a hundred drawn in a hundred look the same, so the saving needs a
-  /// number. Reset at the top of each frame.
-  int _batchedDraws = 0;
-
-  /// The volume of the cube face currently being filled — `gfx-63n`.
-  ///
-  /// One object reused across faces rather than one per face: there are up to
-  /// thirty-six of them in a frame, and a `Frustum` is six planes with a vector
-  /// each.
-  final vm.Frustum _faceFrustum = vm.Frustum();
 
   /// How far this camera sees, for dividing between cascades.
   ///
@@ -4103,41 +4524,6 @@ final class Renderer with RenderServices {
     );
   }
 
-  /// Floats per vertex: three of clip position — the corner and the depth
-  /// it is drawn at, `A2.8` — three of ray, then six vec4s of preset — the
-  /// gradient's or the air's, the same size — or one vec4 of tint for the
-  /// cube.
-  static const int _kSkyVertexFloats = 3 + 3 + 6 * 4;
-  static const int _kSkyCubeVertexFloats = 3 + 3 + 4;
-
-  /// Where the sky is drawn the ordinary way round: the far plane less a
-  /// hair, strictly less than the 1.0 the depth is cleared to — see
-  /// `sky.vert`. Reversed, it is drawn at nought; see `_encodeSky`.
-  static const double _kSkyDepth = 0.999999;
-
-  final Float32List _skyVertexData = Float32List(3 * _kSkyVertexFloats);
-  final vm.Vector3 _skyRay = vm.Vector3.zero();
-
-  /// The lens the sky is seen through when the camera's is orthographic —
-  /// `P7`, set by `_encodeSky` for the one draw: the view axis, the world
-  /// directions of the frame's right and top edges, and the frame's aspect.
-  /// Null through a perspective lens, whose own rays the sky takes.
-  ({vm.Vector3 forward, vm.Vector3 right, vm.Vector3 up, double aspect})?
-  _skyOrthoLens;
-
-  /// Pipelines for full-screen stages this class does not have a field for.
-  ///
-  /// The engine's own effects each keep theirs in a named field, which is fine
-  /// while the set is fixed and closed. An application's stage has no field to
-  /// live in, and building the pipeline per frame is the one mistake this
-  /// helper exists to make impossible.
-  /// The frame graph node being executed, as the label every pass it opens
-  /// carries — `H2`. Null between nodes.
-  String? _passLabel;
-
-  final Map<ShaderHandle, PipelineHandle> _fullscreenPipelines =
-      <ShaderHandle, PipelineHandle>{};
-
   @override
   void drawFullscreen(FullscreenDraw draw) {
     // One encoder per pass, because Metal allows a single encoder open at a
@@ -4210,208 +4596,6 @@ final class Renderer with RenderServices {
     pass.submit();
   }
 
-  /// The counters of the frame currently being encoded, or null between
-  /// frames — `gfx-01n`.
-  ///
-  /// **Not global state; the frame's own, held where the draws are.** A draw
-  /// is counted by whatever encodes it, and most of them are encoded inside
-  /// `encodeScene`, which is handed a `FramePassState` already. The post
-  /// chain and the shadow passes are not: they draw through [drawFullscreen]
-  /// and through their own passes, neither of which had anywhere to count.
-  /// So the shadow map and the whole bloom ladder were drawing and reporting
-  /// nothing — `FrameResult.drawCalls` was the scene and the composite, and
-  /// a shadow pass that gained a cascade moved no number at all. The comment
-  /// in `_renderShadowMap` even says "the draw call count is the graph's
-  /// business", which was a promise nobody had kept.
-  FramePassState? _frameCounters;
-
-  /// The diagnostic overlay: lines, on top of everything.
-  ///
-  /// Depth compare `always` rather than merely writing nothing — a bounding box
-  /// that disappears inside the very object it bounds is not much of a
-  /// diagnostic. It is also why the scene pass re-establishes its own state per
-  /// view: this leaves the pass drawing lines.
-  static const PassState _kDebugLineState = PassState(
-    primitiveType: PrimitiveType.line,
-    polygonMode: PolygonMode.fill,
-    cullMode: CullMode.none,
-    blend: null,
-    depthWrite: false,
-    depthCompare: CompareFunction.always,
-  );
-
-  /// The marking draw of the x-ray stage: every fragment passes, and each
-  /// one stores the reference. Paired with a depth test of `lessEqual` and
-  /// no depth writes, so what is stored is one wherever a marked node is the
-  /// nearest thing in the frame — its visible part, and nothing else.
-  static const StencilState _kXrayMarkStencil = StencilState(
-    passOp: StencilOperation.setToReferenceValue,
-  );
-
-  /// The silhouette draw: only where nothing marked is visible. Paired with
-  /// a depth test of `greater`, so a fragment lands only where the node is
-  /// behind what the scene drew *and* no marked node's visible part is in
-  /// front of it.
-  static const StencilState _kXraySilhouetteStencil = StencilState(
-    compare: CompareFunction.notEqual,
-  );
-
-  /// The one reference the stage uses. A byte, so up to two hundred and
-  /// fifty-five layers could be told apart; one is what a silhouette needs.
-  static const int _kXrayReference = 1;
-
-  /// What each view re-establishes at the top of the scene pass.
-  ///
-  /// Per view rather than once, and that is not redundancy: the debug overlay
-  /// at the end of a view leaves the pass drawing lines, so the next view has
-  /// to say it wants triangles again. Compare this with the overlay's own
-  /// state and the reason each of these fields is here is readable in one
-  /// diff.
-  ///
-  /// Blending is deliberately absent: it is per material, decided per mesh a
-  /// few hundred lines down, and mentioning it here would be a value the next
-  /// draw overwrites.
-  static const PassState _kSceneViewState = PassState(
-    primitiveType: PrimitiveType.triangle,
-    depthWrite: true,
-    depthCompare: CompareFunction.less,
-  );
-
-  /// How a caster is drawn into the cube atlas: depth on, nothing blended.
-  ///
-  /// [PassState.cullMode] is filled in per pass from `ShadowCasterFaces`, which
-  /// is the one thing about this that a setting decides.
-  static const PassState _kShadowCasterState = PassState(
-    primitiveType: PrimitiveType.triangle,
-    blend: null,
-    depthWrite: true,
-    depthCompare: CompareFunction.less,
-  );
-
-  /// How a see-through caster is drawn into the sun's atlas: tested against
-  /// the opaque casters' depth and writing none, so a pane behind a wall adds
-  /// nothing and two panes both count; both faces, since the stage counts a
-  /// closed body as crossed by its two surfaces; and blended so that layers
-  /// combine — what is taken from red and green as `src + dst·(1 − src)`,
-  /// which keeps the depth in red because the stage writes nought there,
-  /// and what is left of blue, in alpha, multiplied. See
-  /// `shadow_transmittance.frag` for the layout.
-  static const PassState _kShadowTransmittanceState = PassState(
-    primitiveType: PrimitiveType.triangle,
-    cullMode: CullMode.none,
-    blend: BlendState(
-      sourceColorFactor: BlendFactor.one,
-      destinationColorFactor: BlendFactor.oneMinusSourceColor,
-      sourceAlphaFactor: BlendFactor.destinationAlpha,
-      destinationAlphaFactor: BlendFactor.zero,
-    ),
-    depthWrite: false,
-    depthCompare: CompareFunction.less,
-  );
-
-  /// Photons given back into the atlas: colour as destination minus source,
-  /// which takes from what green and blue say was taken from red and green,
-  /// and alpha as destination plus source, which adds to what is left of
-  /// blue. Every photon lands wherever it lands, so no depth.
-  static const PassState _kCausticPhotonState = PassState(
-    primitiveType: PrimitiveType.triangle,
-    cullMode: CullMode.none,
-    blend: BlendState(
-      colorOperation: BlendOperation.reverseSubtract,
-      sourceColorFactor: BlendFactor.one,
-      destinationColorFactor: BlendFactor.one,
-      sourceAlphaFactor: BlendFactor.one,
-      destinationAlphaFactor: BlendFactor.one,
-    ),
-    depthWrite: false,
-    depthCompare: CompareFunction.always,
-  );
-
-  /// Blanking one tile of the atlas by drawing over it.
-  ///
-  /// The pass loads rather than clears — clearing is attachment-wide and would
-  /// erase every other light's tiles — so a refreshed tile is reset by drawing,
-  /// and this is the state that draw needs: **depth untouched**, or the reset
-  /// would occlude the casters that follow it into the same tile.
-  ///
-  /// Written as its own named state rather than three calls inside a loop,
-  /// which is where this whole type earns its keep: the alternation between
-  /// this and the caster state is now two names rather than six scattered
-  /// calls, and the `depthWrite: false` that Impeller silently ignores is
-  /// visible as a difference between two values instead of buried in a body.
-  static const PassState _kShadowTileResetState = PassState(
-    cullMode: CullMode.none,
-    depthWrite: false,
-    depthCompare: CompareFunction.always,
-  );
-
-  /// The static tile's copy — `S1`: no test, and depth written, since the
-  /// stage writes the depth it copies and the dynamic casters that follow
-  /// test against it.
-  static const PassState _kShadowCopyState = PassState(
-    cullMode: CullMode.none,
-    depthWrite: true,
-    depthCompare: CompareFunction.always,
-  );
-
-  /// What every full-screen pass sets, minus the rectangle.
-  ///
-  /// Depth out of the way rather than merely unused: a full-screen triangle
-  /// covers everything, so a depth test it did not ask for would decide which
-  /// of its own three vertices survived.
-  ///
-  /// Blending is *off* rather than unmentioned, which is a distinction this
-  /// type exists to keep. On WebGL an unmentioned field inherits whatever the
-  /// last pass left in global GL state, and the pass before a post chain is
-  /// usually the scene, which blends.
-  static const PassState _kFullscreenState = PassState(
-    primitiveType: PrimitiveType.triangle,
-    cullMode: CullMode.none,
-    blend: null,
-    depthWrite: false,
-    depthCompare: CompareFunction.always,
-  );
-
-  /// The same, adding to the target instead of replacing it.
-  ///
-  /// Only the bloom upsample wants this. It used to be a second copy of the
-  /// block above, and the copies had drifted: this one set blending *after*
-  /// depth and the other before. Nothing depended on it — these are
-  /// independent — but it is the reason the two could not be one function with
-  /// a blend argument, and nothing would have noticed if they had been.
-  static const PassState _kFullscreenAdditiveState = PassState(
-    primitiveType: PrimitiveType.triangle,
-    cullMode: CullMode.none,
-    blend: BlendState.additive,
-    depthWrite: false,
-    depthCompare: CompareFunction.always,
-  );
-
-  /// Clamped and linear: a post pass reading outside the source would otherwise
-  /// wrap the opposite edge of the screen into the glow.
-  static const SamplerDescriptor _clampSampler = SamplerDescriptor.linearClamp;
-
-  /// RenderMaterial samplers with `RenderSettings.anisotropy` applied, one per
-  /// distinct sampler the materials carry.
-  ///
-  /// A cache for the same reason the Impeller translation has one: a bind
-  /// happens several times per draw and hundreds of times per frame, and
-  /// `withAnisotropy` allocates. Bounded by the handful of samplers the
-  /// engine's loaders ever build; an entry is replaced rather than joined
-  /// when the setting changes, so a slider dragged across the range costs
-  /// one allocation per stop rather than a map that grows with it.
-  final Map<SamplerDescriptor, SamplerDescriptor> _anisotropicSamplers =
-      <SamplerDescriptor, SamplerDescriptor>{};
-
-  /// The device's ceiling on taps, asked for once.
-  ///
-  /// A property of the device, not of the frame: on Impeller the question is
-  /// a call across the FFI boundary, and a bind path that asked it up to
-  /// five times per draw would spend more on the question than on the map
-  /// lookup the answer feeds. Lazy, so a renderer that never draws a
-  /// textured mesh never asks.
-  late final int _maxAnisotropy = device.limits.maxSamplerAnisotropy;
-
   /// `RenderSettings.anisotropy` as this device can honour it — the level
   /// every material sampler of the frame is raised to, decided once per
   /// mesh rather than once per bind.
@@ -4438,24 +4622,6 @@ final class Renderer with RenderServices {
     if (cached != null && cached.anisotropy == level) return cached;
     return _anisotropicSamplers[sampler] = sampler.withAnisotropy(level);
   }
-
-  /// What an environment cube is read through: linear *between levels* as
-  /// well as within one.
-  ///
-  /// The levels of an environment are its roughness scale, and a shader asks
-  /// for one by number — `textureLod(environment, r, roughness * levels)` —
-  /// so a mip filter is not a detail here. With the nearest level a surface
-  /// snaps between two lobes as its roughness crosses a half; with linear it
-  /// slides. And on a backend that folds the mip filter into minification, a
-  /// sampler that says nothing about levels reads the base level whatever
-  /// level the shader named, which is a mirror at every roughness.
-  static const SamplerDescriptor _environmentSampler = SamplerDescriptor(
-    minFilter: MinMagFilter.linear,
-    magFilter: MinMagFilter.linear,
-    mipFilter: MipFilter.linear,
-    widthAddressMode: SamplerAddressMode.clampToEdge,
-    heightAddressMode: SamplerAddressMode.clampToEdge,
-  );
 
   /// Draws every visible mesh of [scene], as the world is drawn.
   ///
@@ -4616,12 +4782,6 @@ final class Renderer with RenderServices {
       ),
     );
   }
-
-  /// Makes another finished-frame texture, at the size the targets are.
-  ///
-  /// Set by [_ensureTargets], because the size and the format are its business
-  /// and a frame that needs one more should not have to ask twice.
-  TextureHandle Function()? _makeLdrFrame;
 
   TextureHandle _takeLdrFrame() {
     if (_ldrFree.isNotEmpty) return _ldrFree.removeLast();
@@ -5014,15 +5174,6 @@ final class Renderer with RenderServices {
         settings: settings,
       ),
   ];
-
-  /// The views of this frame that are windows of a larger frame
-  /// (`CameraViewSettings.window`): the camera's own projection, the window,
-  /// and whether the scene pass draws it exactly — through that projection
-  /// and a viewport the size of the frame — or through the crop every other
-  /// pass sees it by. Filled by [_openWindows] for the length of one frame.
-  final Map<CameraView, ({Projection whole, FrameWindow window, bool exact})>
-  _windows =
-      <CameraView, ({Projection whole, FrameWindow window, bool exact})>{};
 
   FrameResult render({
     required int width,
@@ -6386,11 +6537,12 @@ final class Renderer with RenderServices {
   }
 
   Float32List get _ssaoParams => _ssaoInfo.params;
+
   Float32List get _ssaoScreen => _ssaoInfo.screen;
+
   Float32List get _ssaoCameraData => _ssaoInfo.camera;
-  final vm.Vector3 _ssaoCamera = vm.Vector3.zero();
+
   Float32List get _ssaoForwardData => _ssaoInfo.forward;
-  final vm.Vector3 _ssaoForward = vm.Vector3.zero();
 
   /// Draws into two colour attachments and reports what came back.
   ///
@@ -6509,12 +6661,6 @@ final class Renderer with RenderServices {
     _pendingRelease[_frameIndex % _kFramesInFlight].add(texture);
   }
 
-  final List<List<TextureHandle>> _pendingRelease =
-      List<List<TextureHandle>>.generate(
-        _kFramesInFlight,
-        (_) => <TextureHandle>[],
-      );
-
   /// Frees a texture this renderer owns outright, once the GPU can no longer be
   /// reading it.
   ///
@@ -6577,11 +6723,6 @@ final class Renderer with RenderServices {
     _pendingDestroy[lastSubmitted].add(texture);
   }
 
-  final List<List<DeviceMesh>> _pendingMeshes = List<List<DeviceMesh>>.generate(
-    _kFramesInFlight,
-    (_) => <DeviceMesh>[],
-  );
-
   /// A node taken out of the frame (its registration cancelled), disposed
   /// once no frame in flight can still be using what it holds: filed under
   /// the last frame submitted, as [releaseMeshAfterFrame] files a mesh. A
@@ -6594,12 +6735,6 @@ final class Renderer with RenderServices {
         (_frameIndex + _kFramesInFlight - 1) % _kFramesInFlight;
     _pendingNodes[lastSubmitted].add(node);
   }
-
-  final List<List<FrameGraphNode>> _pendingNodes =
-      List<List<FrameGraphNode>>.generate(
-        _kFramesInFlight,
-        (_) => <FrameGraphNode>[],
-      );
 
   void _disposeNodes(List<FrameGraphNode> nodes) {
     for (final node in nodes) {
@@ -6616,12 +6751,6 @@ final class Renderer with RenderServices {
     }
     meshes.clear();
   }
-
-  final List<List<TextureHandle>> _pendingDestroy =
-      List<List<TextureHandle>>.generate(
-        _kFramesInFlight,
-        (_) => <TextureHandle>[],
-      );
 
   /// Every pipeline the renderer holds: its caches and the passes' own.
   /// A handle may sit in more than one; [_releasePipelines] gives each back
@@ -6676,12 +6805,6 @@ final class Renderer with RenderServices {
       if (pipeline != null) slot.add(pipeline);
     }
   }
-
-  final List<List<PipelineHandle>> _pendingPipelines =
-      List<List<PipelineHandle>>.generate(
-        _kFramesInFlight,
-        (_) => <PipelineHandle>[],
-      );
 
   /// Disposes each of [pipelines] once, however often it is listed, and
   /// empties the list when it is the ring's.

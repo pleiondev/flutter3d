@@ -44,19 +44,6 @@ final class Ktx2Texture {
     this.levels,
   );
 
-  final int pixelWidth;
-  final int pixelHeight;
-
-  /// The Khronos `VkFormat` number the mip bytes are in — see [VkFormat] for
-  /// the subset this container ever carries. A Basis Universal file, ETC1S or
-  /// UASTC, comes out of here as plain RGBA8, so this is
-  /// [VkFormat.r8g8b8a8UNorm] for those paths too: one vocabulary for "what
-  /// format are these bytes in", whichever path produced them.
-  final int vkFormat;
-
-  /// Level 0 (the base, largest image) first.
-  final List<ByteData> levels;
-
   /// Reads [bytes] as a KTX2 file.
   ///
   /// Throws [Ktx2FormatException] rather than returning null: a caller that
@@ -207,6 +194,19 @@ final class Ktx2Texture {
       _readLevels(bytes, view, levelCount, supercompressionScheme),
     );
   }
+  final int pixelWidth;
+
+  final int pixelHeight;
+
+  /// The Khronos `VkFormat` number the mip bytes are in — see [VkFormat] for
+  /// the subset this container ever carries. A Basis Universal file, ETC1S or
+  /// UASTC, comes out of here as plain RGBA8, so this is
+  /// [VkFormat.r8g8b8a8UNorm] for those paths too: one vocabulary for "what
+  /// format are these bytes in", whichever path produced them.
+  final int vkFormat;
+
+  /// Level 0 (the base, largest image) first.
+  final List<ByteData> levels;
 }
 
 /// Every level's bytes, through the level index and out of whatever

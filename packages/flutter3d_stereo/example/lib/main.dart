@@ -64,8 +64,10 @@ class _StereoScreenState extends State<StereoScreen>
     with SingleTickerProviderStateMixin {
   final StereoRig _rig = StereoRig();
   final SensorHeadTracker _tracker = SensorHeadTracker();
+  final Stopwatch _clock = Stopwatch();
   Scene? _scene;
   Renderer? _renderer;
+
   Object? _error;
 
   @override
@@ -112,10 +114,6 @@ class _StereoScreenState extends State<StereoScreen>
     }
   }
 
-  Ticker? _ticker;
-  final Stopwatch _clock = Stopwatch();
-  int _frames = 0;
-
   void _onTick(Duration _) {
     if (!mounted) return;
     if (!_clock.isRunning) _clock.start();
@@ -133,6 +131,10 @@ class _StereoScreenState extends State<StereoScreen>
     }
     setState(() {});
   }
+
+  Ticker? _ticker;
+
+  int _frames = 0;
 
   @override
   void dispose() {

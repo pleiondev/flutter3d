@@ -51,16 +51,6 @@ final class F3dDocument extends ModelDocument {
     this._lightingModels,
   );
 
-  final Uint8List _bytes;
-  final ByteData _view;
-  final Map<int, _Section> _sections;
-
-  /// The version the file was written at, 1 to [f3dVersion].
-  final int version;
-
-  /// The table a lighting model named by name is looked up in.
-  final LightingModels? _lightingModels;
-
   /// Reads the header of [bytes]. The body is decoded lazily.
   ///
   /// Throws [F3dFormatException] rather than returning null: a caller that
@@ -222,6 +212,138 @@ final class F3dDocument extends ModelDocument {
     }
     return document;
   }
+  final Uint8List _bytes;
+  final ByteData _view;
+
+  final Map<int, _Section> _sections;
+
+  /// The version the file was written at, 1 to [f3dVersion].
+  final int version;
+
+  /// The table a lighting model named by name is looked up in.
+  final LightingModels? _lightingModels;
+
+  /// Every section of a kind the engine does not write itself
+  /// ([F3dSection.known]), in file order: a tool's [f3dVendorKindStart]
+  /// sections, and a section a newer engine wrote that this build skips.
+  ///
+  /// Handed back to `F3dWriter.extraSections` as they are, so a file opened
+  /// and written again keeps what this build did not understand.
+  late final List<F3dExtraSection> extraSections =
+      List<F3dExtraSection>.unmodifiable(<F3dExtraSection>[
+        for (final kind in _sections.keys)
+          if (!F3dSection.known.contains(kind)) section(kind)!,
+      ]);
+
+  // Each field below caches one section's decode, done lazily and once; the
+  // method it calls lives in the theme's `part` file (see the imports above).
+  late final List<VertexLayout> _layouts = _readLayouts();
+
+  final Map<int, MeshData> _meshCache = <int, MeshData>{};
+
+  late final Map<int, List<MorphTarget>> _morphTargets = _readMorphTargets();
+
+  late final Map<int, MeshClusters> _clusters = _readClusters();
+
+  late final Map<int, List<double>> _morphWeights = _readMorphWeights();
+
+  late final Map<int, List<ModelLod>> _lods = _readLods();
+
+  /// Section 23 read once: the names, and each surface's variant → material
+  /// map for [_readSurfaces] to hand to its surface.
+  late final (List<String>, Map<int, Map<int, int>>) _variants =
+      _readVariants();
+
+  @override
+  late final List<ModelSurface> surfaces = _readSurfaces();
+
+  @override
+  late final List<SurfaceMaterial> materials = _readMaterials();
+
+  @override
+  late final List<EncodedImage> images = _readImages();
+
+  @override
+  late final List<ModelNode> nodes = _readNodes();
+
+  @override
+  late final List<int> roots = _readRoots();
+
+  @override
+  late final List<AnimationClip> animations = _readAnimations();
+
+  @override
+  late final List<ModelSkin> skins = _readSkins();
+
+  /// The file's own warnings, then what reading it skipped: a pointer track
+  /// to a property this build does not animate.
+  @override
+  late final List<String> warnings = List<String>.unmodifiable(<String>[
+    ..._readWarnings(),
+    // After the animations are read: reading them is what finds the tracks
+    // a later build's file points at and this one skips.
+    if (animations.isNotEmpty) ..._skippedPointers,
+  ]);
+
+  /// The plugins whose lighting models this file's materials are drawn
+  /// with: the namespace of every model section 32 names by name
+  /// (`acme_ink` for `acme_ink.Ink`). [F3dDocument.parse] refuses a file
+  /// naming one its `lightingModels` has no model of.
+  late final Set<String> requires = Set<String>.unmodifiable(<String>{
+    for (final word in _materialLightingWords().values) ?lightingPluginOf(word),
+  });
+
+  /// Filled by the pointer-track reader; read once, by [warnings].
+  final List<String> _skippedPointers = <String>[];
+  @override
+  late final DocumentAsset? asset = _readAsset();
+
+  @override
+  late final List<ModelLight> lights = _readLights();
+
+  @override
+  late final List<ModelCamera> cameras = _readCameras();
+
+  /// The material language (`.f3dmat`) sources the file carries, by name —
+  /// [F3dSection.programs]. A material draws with one when its
+  /// `lightingModel` names it; empty for a file that carries none.
+  late final Map<String, String> programs = Map<String, String>.unmodifiable(
+    _readNamedTexts(F3dSection.programs),
+  );
+
+  /// The level and prefab documents the file carries, by name —
+  /// [F3dSection.prefabs]. Each is a JSON object in the format envelope
+  /// (`"format": "f3d.level"`), read by `flutter3d_sim`'s `Level.fromJson`;
+  /// this package does not read levels, so it hands them over as they are.
+  /// A prefab names this file's own nodes by name, and the files it places
+  /// by the paths in [files] or by this file's own path.
+  late final Map<String, Map<String, Object?>> prefabs =
+      Map<String, Map<String, Object?>>.unmodifiable(_readPrefabs());
+
+  /// Files the bundle carries whole, by the path a prefab names them by —
+  /// [F3dSection.files]: models, `.fmat` materials and textures of a bundle
+  /// made from a scene. Views over the file's bytes, not copies.
+  late final Map<String, Uint8List> files = Map<String, Uint8List>.unmodifiable(
+    _readFiles(),
+  );
+
+  /// The physical materials the file carries whole, by id —
+  /// [F3dSection.physicalMaterials]: each the document `flutter3d_matter`
+  /// writes for one, read back by `PhysicalMaterial.fromJson` and added to
+  /// a `MaterialCatalog` by whoever has one. This package does not read
+  /// them. Empty for a file that carries none, which is every file whose
+  /// materials name only the catalog's own.
+  late final Map<String, Map<String, Object?>> physicalMaterials =
+      Map<String, Map<String, Object?>>.unmodifiable(_readPhysicalMaterials());
+
+  late final Map<int, (int?, int?)> _attachments = _readNodeAttachments();
+
+  late final Map<int, LightingModel> _lighting = _readMaterialLighting();
+
+  late final Map<int, (String?, int?)> _references = _readMaterialReferences();
+
+  /// Every [F3dSection.extras] block, by owner and index.
+  late final Map<(int, int), Map<String, Object?>> _extras = _readExtras();
 
   _Section _section(int kind) => _sections[kind] ?? const _Section(0, 0, 0);
 
@@ -247,18 +369,6 @@ final class F3dDocument extends ModelDocument {
       flags: found.flags,
     );
   }
-
-  /// Every section of a kind the engine does not write itself
-  /// ([F3dSection.known]), in file order: a tool's [f3dVendorKindStart]
-  /// sections, and a section a newer engine wrote that this build skips.
-  ///
-  /// Handed back to `F3dWriter.extraSections` as they are, so a file opened
-  /// and written again keeps what this build did not understand.
-  late final List<F3dExtraSection> extraSections =
-      List<F3dExtraSection>.unmodifiable(<F3dExtraSection>[
-        for (final kind in _sections.keys)
-          if (!F3dSection.known.contains(kind)) section(kind)!,
-      ]);
 
   /// The distance between two records of [kind]'s table, [recordBytes] or
   /// more.
@@ -423,111 +533,8 @@ final class F3dDocument extends ModelDocument {
     return section.offset + index * stride;
   }
 
-  // Each field below caches one section's decode, done lazily and once; the
-  // method it calls lives in the theme's `part` file (see the imports above).
-  late final List<VertexLayout> _layouts = _readLayouts();
-
-  final Map<int, MeshData> _meshCache = <int, MeshData>{};
-
-  late final Map<int, List<MorphTarget>> _morphTargets = _readMorphTargets();
-  late final Map<int, MeshClusters> _clusters = _readClusters();
-  late final Map<int, List<double>> _morphWeights = _readMorphWeights();
-  late final Map<int, List<ModelLod>> _lods = _readLods();
-
-  /// Section 23 read once: the names, and each surface's variant → material
-  /// map for [_readSurfaces] to hand to its surface.
-  late final (List<String>, Map<int, Map<int, int>>) _variants =
-      _readVariants();
-
   @override
   List<String> get variants => _variants.$1;
-
-  @override
-  late final List<ModelSurface> surfaces = _readSurfaces();
-
-  @override
-  late final List<SurfaceMaterial> materials = _readMaterials();
-
-  @override
-  late final List<EncodedImage> images = _readImages();
-
-  @override
-  late final List<ModelNode> nodes = _readNodes();
-
-  @override
-  late final List<int> roots = _readRoots();
-
-  @override
-  late final List<AnimationClip> animations = _readAnimations();
-
-  @override
-  late final List<ModelSkin> skins = _readSkins();
-
-  /// The file's own warnings, then what reading it skipped: a pointer track
-  /// to a property this build does not animate.
-  @override
-  late final List<String> warnings = List<String>.unmodifiable(<String>[
-    ..._readWarnings(),
-    // After the animations are read: reading them is what finds the tracks
-    // a later build's file points at and this one skips.
-    if (animations.isNotEmpty) ..._skippedPointers,
-  ]);
-
-  /// The plugins whose lighting models this file's materials are drawn
-  /// with: the namespace of every model section 32 names by name
-  /// (`acme_ink` for `acme_ink.Ink`). [F3dDocument.parse] refuses a file
-  /// naming one its `lightingModels` has no model of.
-  late final Set<String> requires = Set<String>.unmodifiable(<String>{
-    for (final word in _materialLightingWords().values) ?lightingPluginOf(word),
-  });
-
-  /// Filled by the pointer-track reader; read once, by [warnings].
-  final List<String> _skippedPointers = <String>[];
-
-  @override
-  late final DocumentAsset? asset = _readAsset();
-
-  @override
-  late final List<ModelLight> lights = _readLights();
-
-  @override
-  late final List<ModelCamera> cameras = _readCameras();
-
-  /// The material language (`.f3dmat`) sources the file carries, by name —
-  /// [F3dSection.programs]. A material draws with one when its
-  /// `lightingModel` names it; empty for a file that carries none.
-  late final Map<String, String> programs = Map<String, String>.unmodifiable(
-    _readNamedTexts(F3dSection.programs),
-  );
-
-  /// The level and prefab documents the file carries, by name —
-  /// [F3dSection.prefabs]. Each is a JSON object in the format envelope
-  /// (`"format": "f3d.level"`), read by `flutter3d_sim`'s `Level.fromJson`;
-  /// this package does not read levels, so it hands them over as they are.
-  /// A prefab names this file's own nodes by name, and the files it places
-  /// by the paths in [files] or by this file's own path.
-  late final Map<String, Map<String, Object?>> prefabs =
-      Map<String, Map<String, Object?>>.unmodifiable(_readPrefabs());
-
-  /// Files the bundle carries whole, by the path a prefab names them by —
-  /// [F3dSection.files]: models, `.fmat` materials and textures of a bundle
-  /// made from a scene. Views over the file's bytes, not copies.
-  late final Map<String, Uint8List> files = Map<String, Uint8List>.unmodifiable(
-    _readFiles(),
-  );
-
-  /// The physical materials the file carries whole, by id —
-  /// [F3dSection.physicalMaterials]: each the document `flutter3d_matter`
-  /// writes for one, read back by `PhysicalMaterial.fromJson` and added to
-  /// a `MaterialCatalog` by whoever has one. This package does not read
-  /// them. Empty for a file that carries none, which is every file whose
-  /// materials name only the catalog's own.
-  late final Map<String, Map<String, Object?>> physicalMaterials =
-      Map<String, Map<String, Object?>>.unmodifiable(_readPhysicalMaterials());
-
-  late final Map<int, (int?, int?)> _attachments = _readNodeAttachments();
-  late final Map<int, LightingModel> _lighting = _readMaterialLighting();
-  late final Map<int, (String?, int?)> _references = _readMaterialReferences();
 
   /// The one `asset` record, or null when the section is empty — a file
   /// written before `fmt-04`, or one whose document genuinely said nothing.
@@ -566,9 +573,6 @@ final class F3dDocument extends ModelDocument {
       license: license,
     );
   }
-
-  /// Every [F3dSection.extras] block, by owner and index.
-  late final Map<(int, int), Map<String, Object?>> _extras = _readExtras();
 
   /// The `extras` of the [index]th of [owner]'s kind, or null.
   Map<String, Object?>? _extrasOf(int owner, int index) =>

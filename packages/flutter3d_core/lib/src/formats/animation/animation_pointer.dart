@@ -161,6 +161,33 @@ final class AnimationPointer {
     required this.pointer,
   });
 
+  /// The pointer a writer emits for [property] of object [index] when there
+  /// is no source string to keep — a track built by hand.
+  factory AnimationPointer.of(AnimationPointerProperty property, int index) =>
+      AnimationPointer(
+        property: property,
+        index: index,
+        pointer: switch (property) {
+          AnimationPointerProperty.baseColor =>
+            '/materials/$index/pbrMetallicRoughness/baseColorFactor',
+          AnimationPointerProperty.emissiveStrength =>
+            '/materials/$index/extensions/KHR_materials_emissive_strength/'
+                'emissiveStrength',
+          AnimationPointerProperty.roughness =>
+            '/materials/$index/pbrMetallicRoughness/roughnessFactor',
+          AnimationPointerProperty.metallic =>
+            '/materials/$index/pbrMetallicRoughness/metallicFactor',
+          AnimationPointerProperty.textureOffset =>
+            '/materials/$index/pbrMetallicRoughness/baseColorTexture/'
+                'extensions/KHR_texture_transform/offset',
+          AnimationPointerProperty.lightColor =>
+            '/extensions/KHR_lights_punctual/lights/$index/color',
+          AnimationPointerProperty.lightIntensity =>
+            '/extensions/KHR_lights_punctual/lights/$index/intensity',
+          _ => throw UnsupportedError('no glTF pointer for $property'),
+        },
+      );
+
   /// Resolves [pointer] — a JSON pointer as `KHR_animation_pointer` writes
   /// it. Throws an [AnimationPointerFormatException] naming the pointer when
   /// it names nothing this engine animates.
@@ -248,33 +275,6 @@ final class AnimationPointer {
     r'normalTexture|occlusionTexture|emissiveTexture)'
     r'/extensions/KHR_texture_transform/offset$',
   );
-
-  /// The pointer a writer emits for [property] of object [index] when there
-  /// is no source string to keep — a track built by hand.
-  factory AnimationPointer.of(AnimationPointerProperty property, int index) =>
-      AnimationPointer(
-        property: property,
-        index: index,
-        pointer: switch (property) {
-          AnimationPointerProperty.baseColor =>
-            '/materials/$index/pbrMetallicRoughness/baseColorFactor',
-          AnimationPointerProperty.emissiveStrength =>
-            '/materials/$index/extensions/KHR_materials_emissive_strength/'
-                'emissiveStrength',
-          AnimationPointerProperty.roughness =>
-            '/materials/$index/pbrMetallicRoughness/roughnessFactor',
-          AnimationPointerProperty.metallic =>
-            '/materials/$index/pbrMetallicRoughness/metallicFactor',
-          AnimationPointerProperty.textureOffset =>
-            '/materials/$index/pbrMetallicRoughness/baseColorTexture/'
-                'extensions/KHR_texture_transform/offset',
-          AnimationPointerProperty.lightColor =>
-            '/extensions/KHR_lights_punctual/lights/$index/color',
-          AnimationPointerProperty.lightIntensity =>
-            '/extensions/KHR_lights_punctual/lights/$index/intensity',
-          _ => throw UnsupportedError('no glTF pointer for $property'),
-        },
-      );
 
   final AnimationPointerProperty property;
 

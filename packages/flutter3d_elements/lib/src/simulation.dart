@@ -256,51 +256,6 @@ final class Solid {
     );
   }
 
-  /// m³ inside [shape] once a wall [wall] thick is taken off it all round;
-  /// nought where the wall fills it.
-  static double _hollowOf(NativeShape shape, double wall) {
-    if (!(wall >= 0.0)) throw ArgumentError.value(wall, 'wall');
-    final a = shape.first - wall, b = shape.second - wall;
-    final c = shape.third - wall;
-    if (a <= 0.0) return 0.0;
-    final box = NativeShape.box(Vector3(1, 1, 1)).kind;
-    return switch (shape.kind) {
-      _ when shape.kind == box =>
-        b <= 0.0 || c <= 0.0
-            ? 0.0
-            : _volumeOf(NativeShape.box(Vector3(a, b, c))),
-      _ when shape.kind == const NativeShape.sphere(1).kind => _volumeOf(
-        NativeShape.sphere(a),
-      ),
-      _ when shape.kind == const NativeShape.cylinder(1, 1).kind =>
-        b <= 0.0 ? 0.0 : _volumeOf(NativeShape.cylinder(a, b)),
-      // A capsule's wall runs round its caps: the same length between them.
-      _ when shape.kind == const NativeShape.capsule(1, 1).kind => _volumeOf(
-        NativeShape.capsule(a, shape.second),
-      ),
-      _ => throw ArgumentError.value(shape, 'shape', 'not measured hollow'),
-    };
-  }
-
-  /// This solid put in the world at [kelvin], not at the air's temperature:
-  /// a bomb torn from its melt, a brand out of a flame, a casting from the
-  /// mould. [ElementsSimulation.addBody] sets it.
-  Solid at(double kelvin) {
-    if (!(kelvin > 0.0)) throw ArgumentError.value(kelvin, 'kelvin');
-    return Solid._(
-      shape,
-      volume,
-      material,
-      density,
-      parts: parts,
-      rounding: rounding,
-      temperature: kelvin,
-    );
-  }
-
-  /// K it is put in the world at; null for the air's.
-  final double? temperature;
-
   /// Several shapes as one body — a raft of logs, a cart, a beam cut in
   /// parts that each burn: its volume theirs summed. Parts that are hulls
   /// are not measured here; give their shapes instead.
@@ -324,24 +279,6 @@ final class Solid {
       density,
       parts: List<NativeCompoundPart>.unmodifiable(parts),
     );
-  }
-
-  /// m³ of [shape], as each constructor below measures its own.
-  static double _volumeOf(NativeShape shape) {
-    final a = shape.first, b = shape.second, c = shape.third;
-    final box = NativeShape.box(Vector3(1, 1, 1)).kind;
-    return switch (shape.kind) {
-      _ when shape.kind == box => 8.0 * a * b * c,
-      _ when shape.kind == const NativeShape.sphere(1).kind =>
-        4.0 / 3.0 * math.pi * a * a * a,
-      _ when shape.kind == const NativeShape.cylinder(1, 1).kind =>
-        math.pi * a * a * 2.0 * b,
-      _ when shape.kind == const NativeShape.capsule(1, 1).kind =>
-        math.pi * a * a * (2.0 * b + 4.0 / 3.0 * a),
-      _ when shape.kind == const NativeShape.cone(1, 1).kind =>
-        math.pi * a * a * b / 3.0,
-      _ => 0.0,
-    };
   }
 
   Solid.box(
@@ -393,6 +330,51 @@ final class Solid {
          density,
        );
 
+  /// m³ inside [shape] once a wall [wall] thick is taken off it all round;
+  /// nought where the wall fills it.
+  static double _hollowOf(NativeShape shape, double wall) {
+    if (!(wall >= 0.0)) throw ArgumentError.value(wall, 'wall');
+    final a = shape.first - wall, b = shape.second - wall;
+    final c = shape.third - wall;
+    if (a <= 0.0) return 0.0;
+    final box = NativeShape.box(Vector3(1, 1, 1)).kind;
+    return switch (shape.kind) {
+      _ when shape.kind == box =>
+        b <= 0.0 || c <= 0.0
+            ? 0.0
+            : _volumeOf(NativeShape.box(Vector3(a, b, c))),
+      _ when shape.kind == const NativeShape.sphere(1).kind => _volumeOf(
+        NativeShape.sphere(a),
+      ),
+      _ when shape.kind == const NativeShape.cylinder(1, 1).kind =>
+        b <= 0.0 ? 0.0 : _volumeOf(NativeShape.cylinder(a, b)),
+      // A capsule's wall runs round its caps: the same length between them.
+      _ when shape.kind == const NativeShape.capsule(1, 1).kind => _volumeOf(
+        NativeShape.capsule(a, shape.second),
+      ),
+      _ => throw ArgumentError.value(shape, 'shape', 'not measured hollow'),
+    };
+  }
+
+  /// This solid put in the world at [kelvin], not at the air's temperature:
+  /// a bomb torn from its melt, a brand out of a flame, a casting from the
+  /// mould. [ElementsSimulation.addBody] sets it.
+  Solid at(double kelvin) {
+    if (!(kelvin > 0.0)) throw ArgumentError.value(kelvin, 'kelvin');
+    return Solid._(
+      shape,
+      volume,
+      material,
+      density,
+      parts: parts,
+      rounding: rounding,
+      temperature: kelvin,
+    );
+  }
+
+  /// K it is put in the world at; null for the air's.
+  final double? temperature;
+
   final NativeShape shape;
 
   /// A compound's parts; null for one shape.
@@ -401,6 +383,32 @@ final class Solid {
   /// How far its shape is rounded out, in metres: a crate's worn edges. Its volume
   /// counts the rounding.
   final double rounding;
+
+  /// Its volume, in cubic metres.
+  final double volume;
+
+  final NativeMaterial material;
+
+  /// kg/m³.
+  final double density;
+
+  /// m³ of [shape], as each constructor below measures its own.
+  static double _volumeOf(NativeShape shape) {
+    final a = shape.first, b = shape.second, c = shape.third;
+    final box = NativeShape.box(Vector3(1, 1, 1)).kind;
+    return switch (shape.kind) {
+      _ when shape.kind == box => 8.0 * a * b * c,
+      _ when shape.kind == const NativeShape.sphere(1).kind =>
+        4.0 / 3.0 * math.pi * a * a * a,
+      _ when shape.kind == const NativeShape.cylinder(1, 1).kind =>
+        math.pi * a * a * 2.0 * b,
+      _ when shape.kind == const NativeShape.capsule(1, 1).kind =>
+        math.pi * a * a * (2.0 * b + 4.0 / 3.0 * a),
+      _ when shape.kind == const NativeShape.cone(1, 1).kind =>
+        math.pi * a * a * b / 3.0,
+      _ => 0.0,
+    };
+  }
 
   /// This solid with its shape rounded out by [radius].
   ///
@@ -452,13 +460,6 @@ final class Solid {
     }
     throw ArgumentError.value(shape, 'shape', 'not measured when rounded');
   }
-
-  /// Its volume, in cubic metres.
-  final double volume;
-  final NativeMaterial material;
-
-  /// kg/m³.
-  final double density;
 
   /// Its mass, in kilograms.
   double get mass => volume * density;

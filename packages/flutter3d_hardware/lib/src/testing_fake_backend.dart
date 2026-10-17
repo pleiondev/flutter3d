@@ -154,80 +154,6 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
     return pass;
   }
 
-  /// Whether this fake records compute — the constructor's `compute`.
-  final bool _compute;
-
-  /// Every compute pass opened, in order, for a test that asks what a step
-  /// bound and dispatched. Since 1.0.0-rc.1+2.
-  final List<FakeComputePass> computePasses = <FakeComputePass>[];
-
-  /// Zeros of the buffer's length: a fake keeps no bytes. Refused for a
-  /// buffer that was not made host-readable, as every backend refuses it.
-  @override
-  Future<ByteData> readBuffer(StorageBuffer buffer) async {
-    features.require(DeviceFeature.buffers, backend: _name);
-    if (!buffer.hostReadable) {
-      throw ArgumentError.value(buffer, 'buffer', 'is not hostReadable');
-    }
-    return ByteData(buffer.lengthInBytes);
-  }
-
-  @override
-  void releaseStorageBuffer(StorageBuffer buffer) {
-    _live.remove(buffer);
-    calls.add(RecordedCall('releaseStorageBuffer', arguments: buffer));
-  }
-
-  static UnsupportedCapabilityException _noCompute() =>
-      UnsupportedCapabilityException(
-        DeviceFeature.compute,
-        backend: _name,
-        reason: 'a fake runs no compute stage',
-      );
-
-  @override
-  Future<MappedBuffer> mapBuffer(
-    StorageBuffer buffer,
-    MapMode mode, {
-    int offsetInBytes = 0,
-    int? sizeInBytes,
-  }) async {
-    features.require(DeviceFeature.mappedBuffers, backend: _name);
-    final size = sizeInBytes ?? buffer.lengthInBytes - offsetInBytes;
-    calls.add(
-      RecordedCall(
-        'mapBuffer',
-        arguments: (
-          mode: mode,
-          offsetInBytes: offsetInBytes,
-          sizeInBytes: size,
-        ),
-      ),
-    );
-    return FakeMapping(ByteData(size));
-  }
-
-  @override
-  ByteData readBufferSync(
-    StorageBuffer buffer, {
-    int offsetInBytes = 0,
-    int? sizeInBytes,
-  }) {
-    features.require(DeviceFeature.synchronousReadback, backend: _name);
-    return ByteData(sizeInBytes ?? buffer.lengthInBytes - offsetInBytes);
-  }
-
-  @override
-  RenderBundleEncoder createRenderBundleEncoder(
-    RenderBundleDescriptor descriptor,
-  ) {
-    features.require(DeviceFeature.renderBundles, backend: _name);
-    return FakePass.bundle(descriptor, features: features);
-  }
-
-  @override
-  List<TextureFormat> get hdrOutputFormats => const <TextureFormat>[];
-
   /// [maxAnisotropy] and [maxColorAttachments] become [limits]; the flags and
   /// [extraFeatures] become [features]. See the class doc for what a feature
   /// named in [extraFeatures] does on a fake.
@@ -311,12 +237,16 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
          ...extraFeatures,
        });
 
+  /// Whether this fake records compute — the constructor's `compute`.
+  final bool _compute;
+
+  /// Every compute pass opened, in order, for a test that asks what a step
+  /// bound and dispatched. Since 1.0.0-rc.1+2.
+  final List<FakeComputePass> computePasses = <FakeComputePass>[];
+
   /// What this fake reports. Mutable only through [supportsOffscreenMsaa]'s
   /// setter, the one capability tests flip after construction.
   DeviceFeatures _features;
-
-  @override
-  DeviceFeatures get features => _features;
 
   /// Sixteen taps and two attachments unless the constructor said otherwise
   /// — `gfx-50n`. **Two is a parameter because the device it stands in for
@@ -326,6 +256,239 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
   /// takes the same number, answers what came out the other end as pixels.
   @override
   final DeviceLimits limits;
+
+  /// The backend name a refusal from this fake carries.
+  static const String _name = 'FakeBackend';
+
+  /// Every device-level 0.9 call, in order, for a test that wants to know a
+  /// buffer was written or a copy recorded. Pass-level calls go into the
+  /// pass's own `commands`.
+  final List<RecordedCall> calls = <RecordedCall>[];
+
+  /// What each stage declares, by name, or null to accept every bind.
+  ///
+  /// Given it, every pass this device opens holds binds to the contract and
+  /// writes each declared slot a draw left unbound to [bindingViolations]. The
+  /// engine's own map is compiled from the real bundle: `stageBindings` in
+  /// `flutter3d_shaders`. This is what lets a missing or misdirected bind fail
+  /// on the VM instead of on the one backend that happens to crash on it.
+  final Map<String, StageBindings>? stageBindings;
+
+  /// Declared slots left unbound at a draw, across every pass. See
+  /// [stageBindings].
+  final List<String> bindingViolations = <String>[];
+
+  @override
+  final FakeShaderLibrary shaders;
+
+  /// The formats this fake says it cannot sample, so a test can be the
+  /// device that has no BC7 and see what a loader does about it.
+  final Set<TextureFormat> unsupportedFormats;
+
+  /// Every library [loadShaders] has handed out, in order, so a test can
+  /// reach the one an application holds and count its refreshes.
+  final List<FakeLoadedShaderLibrary> loadedLibraries =
+      <FakeLoadedShaderLibrary>[];
+
+  /// Every cube a pass may draw into, with the level count it was asked for,
+  /// so a test can see that a probe allocated what it meant to.
+  final List<FakeCubeTarget> createdCubeRenderTargets = <FakeCubeTarget>[];
+
+  /// The engine's own convention by default, so a fake never exercises the
+  /// remap. The backends that need the other one are covered by running
+  /// them; a test that pins what the engine hands such a backend asks for
+  /// [FramebufferOrigin.bottomLeft].
+  @override
+  final FramebufferOrigin framebufferOrigin;
+
+  /// Every pass ever opened, in the order it was opened.
+  final List<FakePass> passes = <FakePass>[];
+
+  final List<RenderTargetDescriptor> createdTextures =
+      <RenderTargetDescriptor>[];
+
+  int frames = 0;
+
+  int _serial = 0;
+
+  /// Frames whose work the GPU has not "finished".
+  ///
+  /// Held rather than run, so a test can decide when a frame is over — which is
+  /// the whole question the renderer's finished-frame textures turn on.
+  final List<void Function()> pendingFrames = <void Function()>[];
+
+  /// Whether [onFrameComplete] runs its callback at once.
+  ///
+  /// True by default, so every test that does not care about this sees a
+  /// backend that finishes as it goes.
+  bool completesImmediately = true;
+
+  /// Pixel uploads, in order, so a test can assert what reached the device.
+  final List<RenderTargetDescriptor> uploadedTextures =
+      <RenderTargetDescriptor>[];
+
+  /// The bytes of each of those, for a test that cares what colour it was.
+  final List<ByteData> uploadedPixels = <ByteData>[];
+
+  /// The chain each of those came with — null for an upload that brought
+  /// none — so a test can tell a base level from a base level and its mips.
+  final List<List<ByteData>?> uploadedMipLevels = <List<ByteData>?>[];
+
+  /// Every call [overwriteTexture] has recorded, in order — wiring, not
+  /// content, the same promise [uploadedPixels] already makes for a whole
+  /// upload.
+  final List<FakeTextureOverwrite> overwrittenTextures =
+      <FakeTextureOverwrite>[];
+
+  /// Every pair linked so far, by name and in order, so a test can tell
+  /// whether a frame linked anything — a renderer that relinked drops every
+  /// pipeline it held and links each one again, and one it forgot to drop
+  /// shows up here as a link that did not happen.
+  final List<String> linkedPipelines = <String>[];
+
+  /// Pipelines, by name, that this fake's driver will not link — the
+  /// lazily linking OpenGL ES driver a phone falls back to, which accepts a
+  /// pipeline at `createPipeline` and refuses it at the first draw.
+  ///
+  /// A draw with one is skipped and reported to [pipelineRefusals], as the
+  /// contract on `PassEncoder.draw` says; the next draw builds it again,
+  /// until it is left refused.
+  final Set<String> refusingPipelines;
+
+  /// How many builds of a pipeline in [refusingPipelines] fail before one
+  /// links; null for every build. One is the driver that refused once and
+  /// links at the rebuild.
+  final int? refusedBuilds;
+
+  /// How many times each pipeline in [refusingPipelines] was built at a
+  /// draw, refused or not: what a test holds the rebuild bound to.
+  final Map<String, int> pipelineBuilds = <String, int>{};
+
+  /// The pipelines built at a draw and linked, which need no build again.
+  final Set<PipelineHandle> _linkedAtDraw = Set<PipelineHandle>.identity();
+
+  /// Recorded with its usage, because a backend exists that cannot change its
+  /// mind about one later.
+  final List<GeometryUsage> uploads = <GeometryUsage>[];
+
+  /// Every call [overwriteGeometry] has recorded, in order — a test asks this
+  /// rather than the bytes themselves, because this backend keeps none: it
+  /// records wiring, not content, the same promise [uploads] already makes.
+  final List<FakeGeometryOverwrite> overwrites = <FakeGeometryOverwrite>[];
+
+  /// Every readback asked for, in order: which texture and which region.
+  ///
+  /// Recorded because the thing worth testing about a readback off a device is
+  /// that it was asked for at all, of the right texture, for the right pixel —
+  /// what comes back is the backend's business, and this one has no pixels.
+  final List<FakeReadback> readbacks = <FakeReadback>[];
+
+  /// What a readback answers, or null for a region of zeros.
+  ///
+  /// A test that wants the renderer to *act* on a readback — an exposure that
+  /// climbs, a pick that finds something — sets this to hand back the bytes
+  /// the pass would have produced.
+  ByteData Function(TextureHandle texture, ScreenRect region)? answerReadback;
+
+  /// Called with each render pass as it is asked for, before it is opened:
+  /// what it throws is what [beginRenderPass] throws.
+  ///
+  /// A test that wants a frame to fail on the engine's side — a device that
+  /// goes away halfway through, after some passes have already run — throws
+  /// from here for the pass it picks.
+  void Function(RenderPassDescriptor descriptor)? onBeginRenderPass;
+
+  bool _isDisposed = false;
+
+  final StreamController<DeviceError> _errors =
+      StreamController<DeviceError>.broadcast();
+
+  final StreamController<DeviceLoss> _lost =
+      StreamController<DeviceLoss>.broadcast();
+
+  bool _isLost = false;
+
+  /// What was handed back one at a time, in the order it was handed back.
+  ///
+  /// Recorded rather than ignored because the thing worth testing about a
+  /// release is that it happened at all: the leak this contract exists for is
+  /// a caller that reallocates and never calls it, which is invisible to a
+  /// backend whose own release is a no-op.
+  final List<TextureHandle> releasedTextures = <TextureHandle>[];
+
+  final List<GeometryBuffer> releasedGeometry = <GeometryBuffer>[];
+
+  final Set<Object> _live = Set<Object>.identity();
+
+  /// Zeros of the buffer's length: a fake keeps no bytes. Refused for a
+  /// buffer that was not made host-readable, as every backend refuses it.
+  @override
+  Future<ByteData> readBuffer(StorageBuffer buffer) async {
+    features.require(DeviceFeature.buffers, backend: _name);
+    if (!buffer.hostReadable) {
+      throw ArgumentError.value(buffer, 'buffer', 'is not hostReadable');
+    }
+    return ByteData(buffer.lengthInBytes);
+  }
+
+  @override
+  void releaseStorageBuffer(StorageBuffer buffer) {
+    _live.remove(buffer);
+    calls.add(RecordedCall('releaseStorageBuffer', arguments: buffer));
+  }
+
+  static UnsupportedCapabilityException _noCompute() =>
+      UnsupportedCapabilityException(
+        DeviceFeature.compute,
+        backend: _name,
+        reason: 'a fake runs no compute stage',
+      );
+
+  @override
+  Future<MappedBuffer> mapBuffer(
+    StorageBuffer buffer,
+    MapMode mode, {
+    int offsetInBytes = 0,
+    int? sizeInBytes,
+  }) async {
+    features.require(DeviceFeature.mappedBuffers, backend: _name);
+    final size = sizeInBytes ?? buffer.lengthInBytes - offsetInBytes;
+    calls.add(
+      RecordedCall(
+        'mapBuffer',
+        arguments: (
+          mode: mode,
+          offsetInBytes: offsetInBytes,
+          sizeInBytes: size,
+        ),
+      ),
+    );
+    return FakeMapping(ByteData(size));
+  }
+
+  @override
+  ByteData readBufferSync(
+    StorageBuffer buffer, {
+    int offsetInBytes = 0,
+    int? sizeInBytes,
+  }) {
+    features.require(DeviceFeature.synchronousReadback, backend: _name);
+    return ByteData(sizeInBytes ?? buffer.lengthInBytes - offsetInBytes);
+  }
+
+  @override
+  RenderBundleEncoder createRenderBundleEncoder(
+    RenderBundleDescriptor descriptor,
+  ) {
+    features.require(DeviceFeature.renderBundles, backend: _name);
+    return FakePass.bundle(descriptor, features: features);
+  }
+
+  @override
+  List<TextureFormat> get hdrOutputFormats => const <TextureFormat>[];
+
+  @override
+  DeviceFeatures get features => _features;
 
   @override
   TextureFormatSupport textureFormatSupport(TextureFormat format) =>
@@ -340,14 +503,6 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
           resolve: true,
           depthStencil: true,
         );
-
-  /// The backend name a refusal from this fake carries.
-  static const String _name = 'FakeBackend';
-
-  /// Every device-level 0.9 call, in order, for a test that wants to know a
-  /// buffer was written or a copy recorded. Pass-level calls go into the
-  /// pass's own `commands`.
-  final List<RecordedCall> calls = <RecordedCall>[];
 
   /// True, and settable so a test can be the device that answers no —
   /// `gfx-20n`.
@@ -511,31 +666,6 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
   TransferEncoder beginTransferPass({String? label}) =>
       FakeTransfer(features, calls);
 
-  /// What each stage declares, by name, or null to accept every bind.
-  ///
-  /// Given it, every pass this device opens holds binds to the contract and
-  /// writes each declared slot a draw left unbound to [bindingViolations]. The
-  /// engine's own map is compiled from the real bundle: `stageBindings` in
-  /// `flutter3d_shaders`. This is what lets a missing or misdirected bind fail
-  /// on the VM instead of on the one backend that happens to crash on it.
-  final Map<String, StageBindings>? stageBindings;
-
-  /// Declared slots left unbound at a draw, across every pass. See
-  /// [stageBindings].
-  final List<String> bindingViolations = <String>[];
-
-  @override
-  final FakeShaderLibrary shaders;
-
-  /// The formats this fake says it cannot sample, so a test can be the
-  /// device that has no BC7 and see what a loader does about it.
-  final Set<TextureFormat> unsupportedFormats;
-
-  /// Every library [loadShaders] has handed out, in order, so a test can
-  /// reach the one an application holds and count its refreshes.
-  final List<FakeLoadedShaderLibrary> loadedLibraries =
-      <FakeLoadedShaderLibrary>[];
-
   /// Decodes the bundle — so bytes that are not one are refused the way every
   /// real backend refuses them — and answers its names. No section is read:
   /// a fake compiles nothing, which is also the software rasteriser's answer.
@@ -545,10 +675,6 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
     loadedLibraries.add(library);
     return library;
   }
-
-  /// Every cube a pass may draw into, with the level count it was asked for,
-  /// so a test can see that a probe allocated what it meant to.
-  final List<FakeCubeTarget> createdCubeRenderTargets = <FakeCubeTarget>[];
 
   @override
   TextureHandle createCubeRenderTarget({
@@ -595,13 +721,6 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
           'a cube has six faces and ${faces.length} were given',
         );
 
-  /// The engine's own convention by default, so a fake never exercises the
-  /// remap. The backends that need the other one are covered by running
-  /// them; a test that pins what the engine hands such a backend asks for
-  /// [FramebufferOrigin.bottomLeft].
-  @override
-  final FramebufferOrigin framebufferOrigin;
-
   @override
   DepthRange get depthRange => DepthRange.zeroToOne;
 
@@ -610,15 +729,6 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
 
   @override
   int get preferredSampleCount => 4;
-
-  /// Every pass ever opened, in the order it was opened.
-  final List<FakePass> passes = <FakePass>[];
-
-  final List<RenderTargetDescriptor> createdTextures =
-      <RenderTargetDescriptor>[];
-
-  int frames = 0;
-  int _serial = 0;
 
   @override
   TextureFormat get defaultColorFormat => TextureFormat.b8g8r8a8UNormInt;
@@ -641,18 +751,6 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
     );
   }
 
-  /// Frames whose work the GPU has not "finished".
-  ///
-  /// Held rather than run, so a test can decide when a frame is over — which is
-  /// the whole question the renderer's finished-frame textures turn on.
-  final List<void Function()> pendingFrames = <void Function()>[];
-
-  /// Whether [onFrameComplete] runs its callback at once.
-  ///
-  /// True by default, so every test that does not care about this sees a
-  /// backend that finishes as it goes.
-  bool completesImmediately = true;
-
   @override
   void onFrameComplete(void Function() whenDone) {
     if (completesImmediately) {
@@ -667,17 +765,6 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
     if (pendingFrames.isEmpty) return;
     pendingFrames.removeAt(0)();
   }
-
-  /// Pixel uploads, in order, so a test can assert what reached the device.
-  final List<RenderTargetDescriptor> uploadedTextures =
-      <RenderTargetDescriptor>[];
-
-  /// The bytes of each of those, for a test that cares what colour it was.
-  final List<ByteData> uploadedPixels = <ByteData>[];
-
-  /// The chain each of those came with — null for an upload that brought
-  /// none — so a test can tell a base level from a base level and its mips.
-  final List<List<ByteData>?> uploadedMipLevels = <List<ByteData>?>[];
 
   @override
   TextureHandle createTextureFromPixels({
@@ -698,12 +785,6 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
     uploadedMipLevels.add(mipLevels);
     return createTexture(spec);
   }
-
-  /// Every call [overwriteTexture] has recorded, in order — wiring, not
-  /// content, the same promise [uploadedPixels] already makes for a whole
-  /// upload.
-  final List<FakeTextureOverwrite> overwrittenTextures =
-      <FakeTextureOverwrite>[];
 
   @override
   Future<void> overwriteTexture(
@@ -752,12 +833,6 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
     );
   }
 
-  /// Every pair linked so far, by name and in order, so a test can tell
-  /// whether a frame linked anything — a renderer that relinked drops every
-  /// pipeline it held and links each one again, and one it forgot to drop
-  /// shows up here as a link that did not happen.
-  final List<String> linkedPipelines = <String>[];
-
   @override
   PipelineHandle createPipeline(
     ShaderHandle vertex,
@@ -768,27 +843,6 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
     linkedPipelines.add(name);
     return _born(wrapPipeline(owner: this, backend: name, name: name));
   }
-
-  /// Pipelines, by name, that this fake's driver will not link — the
-  /// lazily linking OpenGL ES driver a phone falls back to, which accepts a
-  /// pipeline at `createPipeline` and refuses it at the first draw.
-  ///
-  /// A draw with one is skipped and reported to [pipelineRefusals], as the
-  /// contract on `PassEncoder.draw` says; the next draw builds it again,
-  /// until it is left refused.
-  final Set<String> refusingPipelines;
-
-  /// How many builds of a pipeline in [refusingPipelines] fail before one
-  /// links; null for every build. One is the driver that refused once and
-  /// links at the rebuild.
-  final int? refusedBuilds;
-
-  /// How many times each pipeline in [refusingPipelines] was built at a
-  /// draw, refused or not: what a test holds the rebuild bound to.
-  final Map<String, int> pipelineBuilds = <String, int>{};
-
-  /// The pipelines built at a draw and linked, which need no build again.
-  final Set<PipelineHandle> _linkedAtDraw = Set<PipelineHandle>.identity();
 
   /// Whether a draw with [pipeline] goes ahead: builds it at its first draw
   /// as a lazy driver does, and reports a refusal instead of throwing. A
@@ -818,10 +872,6 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
     return false;
   }
 
-  /// Recorded with its usage, because a backend exists that cannot change its
-  /// mind about one later.
-  final List<GeometryUsage> uploads = <GeometryUsage>[];
-
   @override
   GeometryBuffer uploadGeometry(ByteData bytes, GeometryUsage usage) {
     uploads.add(usage);
@@ -837,11 +887,6 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
     lengthInBytes: bytes.lengthInBytes,
     release: release,
   );
-
-  /// Every call [overwriteGeometry] has recorded, in order — a test asks this
-  /// rather than the bytes themselves, because this backend keeps none: it
-  /// records wiring, not content, the same promise [uploads] already makes.
-  final List<FakeGeometryOverwrite> overwrites = <FakeGeometryOverwrite>[];
 
   @override
   void overwriteGeometry(
@@ -868,20 +913,6 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
   @override
   void beginFrame() => frames++;
 
-  /// Every readback asked for, in order: which texture and which region.
-  ///
-  /// Recorded because the thing worth testing about a readback off a device is
-  /// that it was asked for at all, of the right texture, for the right pixel —
-  /// what comes back is the backend's business, and this one has no pixels.
-  final List<FakeReadback> readbacks = <FakeReadback>[];
-
-  /// What a readback answers, or null for a region of zeros.
-  ///
-  /// A test that wants the renderer to *act* on a readback — an exposure that
-  /// climbs, a pick that finds something — sets this to hand back the bytes
-  /// the pass would have produced.
-  ByteData Function(TextureHandle texture, ScreenRect region)? answerReadback;
-
   /// Refuses what the contract refuses, records the rest, and answers zeros
   /// unless [answerReadback] says otherwise. A whole texture outside
   /// [readbackFormats] is "converted" to zeros of its size, and recorded as a
@@ -899,14 +930,6 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
           : answer(texture, resolved),
     );
   }
-
-  /// Called with each render pass as it is asked for, before it is opened:
-  /// what it throws is what [beginRenderPass] throws.
-  ///
-  /// A test that wants a frame to fail on the engine's side — a device that
-  /// goes away halfway through, after some passes have already run — throws
-  /// from here for the pass it picks.
-  void Function(RenderPassDescriptor descriptor)? onBeginRenderPass;
 
   @override
   CommandEncoder beginRenderPass(RenderPassDescriptor descriptor) {
@@ -935,7 +958,6 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
   /// Whether [dispose] has been called, for a test that wants to assert a
   /// device was actually torn down rather than merely dropped.
   bool get isDisposed => _isDisposed;
-  bool _isDisposed = false;
 
   /// Says [DeviceLossReason.destroyed] on [lost] the first time, as every
   /// backend owes for its own dispose, and closes [lost] and [errors].
@@ -960,9 +982,6 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
   /// — for a test of whoever listens.
   void reportError(DeviceError error) => _errors.add(error);
 
-  final StreamController<DeviceError> _errors =
-      StreamController<DeviceError>.broadcast();
-
   @override
   Stream<DeviceError> get errors => _errors.stream;
 
@@ -974,24 +993,11 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
     _lost.add(loss);
   }
 
-  final StreamController<DeviceLoss> _lost =
-      StreamController<DeviceLoss>.broadcast();
-  bool _isLost = false;
-
   @override
   Stream<DeviceLoss> get lost => _lost.stream;
 
   @override
   bool get isLost => _isLost;
-
-  /// What was handed back one at a time, in the order it was handed back.
-  ///
-  /// Recorded rather than ignored because the thing worth testing about a
-  /// release is that it happened at all: the leak this contract exists for is
-  /// a caller that reallocates and never calls it, which is invisible to a
-  /// backend whose own release is a no-op.
-  final List<TextureHandle> releasedTextures = <TextureHandle>[];
-  final List<GeometryBuffer> releasedGeometry = <GeometryBuffer>[];
 
   @override
   void releaseTexture(TextureHandle texture) {
@@ -1022,8 +1028,6 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
 
   /// How many handles [liveHandles] holds.
   int get liveHandleCount => _live.length;
-
-  final Set<Object> _live = Set<Object>.identity();
 
   T _born<T extends Object>(T handle) {
     _live.add(handle);

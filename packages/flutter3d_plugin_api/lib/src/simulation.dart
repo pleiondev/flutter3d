@@ -126,107 +126,6 @@ final class PublishedState {
        positions = Map<Entity, WorldPosition>.unmodifiable(positions),
        events = List<PublishedEvent>.unmodifiable(events);
 
-  /// Before the first step: nothing published.
-  static final PublishedState empty = PublishedState(step: 0, seconds: 0);
-
-  /// The number of steps run when this was published.
-  final int step;
-
-  /// Simulated seconds when this was published.
-  final double seconds;
-
-  /// The world origin the simulation's local frame was at.
-  final WorldPosition origin;
-
-  /// Every published component, by codec id, then by entity, as its codec
-  /// encoded it.
-  final Map<String, Map<Entity, Object?>> components;
-
-  /// Every entity with a published [WorldPosition], where it is.
-  final Map<Entity, WorldPosition> positions;
-
-  /// The step channel's events of the steps since the last publication, in
-  /// order and encoded: what the view plays sounds and particles for.
-  final List<PublishedEvent> events;
-
-  /// The events named [name], in order: what a view that answers one kind
-  /// of event walks.
-  Iterable<PublishedEvent> eventsNamed(String name) =>
-      events.where((event) => event.name == name);
-
-  /// The simulation that produced this.
-  final SimulationVersion simulation;
-
-  /// What every probe in the simulation read at the end of [step], in the
-  /// order the probes were read: what a chart or a gauge shows, read here
-  /// rather than off the world.
-  final List<ProbeReading> probes;
-
-  /// What the probe [id] read, or null when no probe of that id was read
-  /// (absent).
-  ProbeReading? probe(String id) =>
-      probes.where((reading) => reading.probe == id).firstOrNull;
-
-  /// Where [entity] is; null when it publishes no position (absent).
-  WorldPosition? positionOf(Entity entity) => positions[entity];
-
-  /// The entities carrying the published component [codec] writes, in
-  /// ascending index order: what a view plugin or a tool walks to draw or
-  /// list one kind of thing.
-  Iterable<Entity> entitiesWith(ComponentCodec<Object> codec) {
-    final rows = components[codec.id];
-    if (rows == null) return const <Entity>[];
-    return rows.keys.toList()..sort((a, b) => a.index.compareTo(b.index));
-  }
-
-  /// The component [codec] writes, on [entity], decoded; null when the
-  /// entity has none published (absent).
-  T? read<T extends Object>(ComponentCodec<T> codec, Entity entity) {
-    final rows = components[codec.id];
-    if (rows == null || !rows.containsKey(entity)) return null;
-    return codec.decode(
-      ComponentDecodeContext(rows[entity], version: codec.version),
-    );
-  }
-
-  /// This state as plain values — lists, maps of strings, numbers, strings,
-  /// booleans and null — which is what crosses an isolate's port or a
-  /// socket: `IsolateSimulation` in `flutter3d_sim` sends every published
-  /// state this way. [PublishedState.fromWire] reads it back.
-  ///
-  /// The components and events are already their codecs' output, so nothing
-  /// is encoded twice; an entity travels as its packed number.
-  Map<String, Object?> toWire() => <String, Object?>{
-    'step': step,
-    'seconds': seconds,
-    'origin': <double>[origin.x, origin.y, origin.z],
-    'components': <String, Object?>{
-      for (final MapEntry(:key, :value) in components.entries)
-        key: <Object?>[
-          for (final MapEntry(key: entity, value: data) in value.entries)
-            <Object?>[entity.packed, data],
-        ],
-    },
-    'positions': <Object?>[
-      for (final MapEntry(key: entity, value: at) in positions.entries)
-        <Object?>[entity.packed, at.x, at.y, at.z],
-    ],
-    'events': <Object?>[
-      for (final event in events)
-        <Object?>[
-          event.name,
-          event.version,
-          event.data,
-          event.step,
-          event.sequence,
-          event.resimulated,
-        ],
-    ],
-    'simulation': simulation.toJson(),
-    if (probes.isNotEmpty)
-      'probes': <Object?>[for (final reading in probes) reading.toJson()],
-  };
-
   /// Reads what [toWire] wrote. Throws a [PluginFormatException] for a value
   /// that is not one: a state read halfway would draw a world that never
   /// was.
@@ -330,6 +229,107 @@ final class PublishedState {
       probes: probes,
     );
   }
+
+  /// Before the first step: nothing published.
+  static final PublishedState empty = PublishedState(step: 0, seconds: 0);
+
+  /// The number of steps run when this was published.
+  final int step;
+
+  /// Simulated seconds when this was published.
+  final double seconds;
+
+  /// The world origin the simulation's local frame was at.
+  final WorldPosition origin;
+
+  /// Every published component, by codec id, then by entity, as its codec
+  /// encoded it.
+  final Map<String, Map<Entity, Object?>> components;
+
+  /// Every entity with a published [WorldPosition], where it is.
+  final Map<Entity, WorldPosition> positions;
+
+  /// The step channel's events of the steps since the last publication, in
+  /// order and encoded: what the view plays sounds and particles for.
+  final List<PublishedEvent> events;
+
+  /// The simulation that produced this.
+  final SimulationVersion simulation;
+
+  /// What every probe in the simulation read at the end of [step], in the
+  /// order the probes were read: what a chart or a gauge shows, read here
+  /// rather than off the world.
+  final List<ProbeReading> probes;
+
+  /// The events named [name], in order: what a view that answers one kind
+  /// of event walks.
+  Iterable<PublishedEvent> eventsNamed(String name) =>
+      events.where((event) => event.name == name);
+
+  /// What the probe [id] read, or null when no probe of that id was read
+  /// (absent).
+  ProbeReading? probe(String id) =>
+      probes.where((reading) => reading.probe == id).firstOrNull;
+
+  /// Where [entity] is; null when it publishes no position (absent).
+  WorldPosition? positionOf(Entity entity) => positions[entity];
+
+  /// The entities carrying the published component [codec] writes, in
+  /// ascending index order: what a view plugin or a tool walks to draw or
+  /// list one kind of thing.
+  Iterable<Entity> entitiesWith(ComponentCodec<Object> codec) {
+    final rows = components[codec.id];
+    if (rows == null) return const <Entity>[];
+    return rows.keys.toList()..sort((a, b) => a.index.compareTo(b.index));
+  }
+
+  /// The component [codec] writes, on [entity], decoded; null when the
+  /// entity has none published (absent).
+  T? read<T extends Object>(ComponentCodec<T> codec, Entity entity) {
+    final rows = components[codec.id];
+    if (rows == null || !rows.containsKey(entity)) return null;
+    return codec.decode(
+      ComponentDecodeContext(rows[entity], version: codec.version),
+    );
+  }
+
+  /// This state as plain values — lists, maps of strings, numbers, strings,
+  /// booleans and null — which is what crosses an isolate's port or a
+  /// socket: `IsolateSimulation` in `flutter3d_sim` sends every published
+  /// state this way. [PublishedState.fromWire] reads it back.
+  ///
+  /// The components and events are already their codecs' output, so nothing
+  /// is encoded twice; an entity travels as its packed number.
+  Map<String, Object?> toWire() => <String, Object?>{
+    'step': step,
+    'seconds': seconds,
+    'origin': <double>[origin.x, origin.y, origin.z],
+    'components': <String, Object?>{
+      for (final MapEntry(:key, :value) in components.entries)
+        key: <Object?>[
+          for (final MapEntry(key: entity, value: data) in value.entries)
+            <Object?>[entity.packed, data],
+        ],
+    },
+    'positions': <Object?>[
+      for (final MapEntry(key: entity, value: at) in positions.entries)
+        <Object?>[entity.packed, at.x, at.y, at.z],
+    ],
+    'events': <Object?>[
+      for (final event in events)
+        <Object?>[
+          event.name,
+          event.version,
+          event.data,
+          event.step,
+          event.sequence,
+          event.resimulated,
+        ],
+    ],
+    'simulation': simulation.toJson(),
+    if (probes.isNotEmpty)
+      'probes': <Object?>[for (final reading in probes) reading.toJson()],
+  };
 
   @override
   String toString() =>

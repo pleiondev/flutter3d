@@ -36,67 +36,6 @@ final class ModelerStage {
     this.lighting,
   );
 
-  /// What is in front of the camera: a model that was opened, or the cube a
-  /// project starts as.
-  ///
-  /// Held so a test can say the picture followed the document rather than
-  /// finding a node by walking the scene, which is the shape of assertion that
-  /// passes after somebody stops adding the node at all.
-  final SceneNode subject;
-
-  /// The half-edge mesh behind [subject], when there is one.
-  ///
-  /// **Null for anything that was opened, and that is a statement about where
-  /// the document is rather than about this class.** A project that starts as
-  /// the cube has an `EditMesh` because `flutter3d_mesh` built the cube; a
-  /// model read out of a glTF has vertex buffers and no topology, and building
-  /// one for it is `importMeshData` against a document that does not exist yet
-  /// — `doc-03`. Until then the overlay draws the wireframe of what it can and
-  /// nothing of what it cannot, which is honest, and the alternative — an
-  /// `EditMesh` imported here per model with nowhere to put the result — would
-  /// be a second document with no undo, no version and no owner.
-  final EditMesh? editMesh;
-
-  final Scene scene;
-  final CameraNode camera;
-  final OrbitController orbit;
-
-  /// What keeps [scene] in step with the project, when the stage was built from
-  /// one. Null for the measurement stands, which have a lattice and no
-  /// document — `p0-01` is about triangles on a screen and putting a project
-  /// behind it would be measuring the document instead.
-  final SceneSync? sync;
-
-  /// The project's materials, uploaded. Null for the measurement stands, which
-  /// have no document to take a table from.
-  ///
-  /// Filling it is asynchronous, so a stage arrives with it empty and whatever
-  /// opened the project fills it — see `openDocument`. Until then [sync] paints
-  /// in clay.
-  final MaterialPool? materials;
-
-  /// `ux-49`: keeps [scene]'s own environment cube in step with
-  /// [SceneLighting.panorama]. Its own object rather than a call, because it
-  /// remembers which image is on the scene so an ordinary edit costs a
-  /// comparison rather than a convolution.
-  final PanoramaSync panorama = PanoramaSync();
-
-  /// Keeps [scene]'s own lights in step with [ModelProject.lighting] —
-  /// `tut-07`'s own fix. Null for the measurement stands, the same reason
-  /// [sync] is: they have no document, only the fixed key/fill pair [_light]
-  /// always builds, and nothing on a lattice to light differently.
-  final LightingSync? lighting;
-
-  /// The colour behind everything, and a decision rather than a default.
-  ///
-  /// Flat, not a sky. A modeller is looked at for hours and every judgement
-  /// made in it — is that face dark because it is unlit or because its normal
-  /// is inverted — is a judgement against the background. A gradient makes the
-  /// same surface read as two different values depending on where in the
-  /// viewport it happens to be. `#0E1112` is the design's own, and it is dark
-  /// enough that an unlit face is still visibly a face.
-  static Vector4 get background => Vector4(0.055, 0.067, 0.071, 1.0);
-
   /// A stage with one object in it.
   ///
   /// [asset] is a model that has been opened and uploaded; with none, the
@@ -237,6 +176,69 @@ final class ModelerStage {
       of.lighting,
     );
   }
+
+  /// What is in front of the camera: a model that was opened, or the cube a
+  /// project starts as.
+  ///
+  /// Held so a test can say the picture followed the document rather than
+  /// finding a node by walking the scene, which is the shape of assertion that
+  /// passes after somebody stops adding the node at all.
+  final SceneNode subject;
+
+  /// The half-edge mesh behind [subject], when there is one.
+  ///
+  /// **Null for anything that was opened, and that is a statement about where
+  /// the document is rather than about this class.** A project that starts as
+  /// the cube has an `EditMesh` because `flutter3d_mesh` built the cube; a
+  /// model read out of a glTF has vertex buffers and no topology, and building
+  /// one for it is `importMeshData` against a document that does not exist yet
+  /// — `doc-03`. Until then the overlay draws the wireframe of what it can and
+  /// nothing of what it cannot, which is honest, and the alternative — an
+  /// `EditMesh` imported here per model with nowhere to put the result — would
+  /// be a second document with no undo, no version and no owner.
+  final EditMesh? editMesh;
+
+  final Scene scene;
+
+  final CameraNode camera;
+
+  final OrbitController orbit;
+
+  /// What keeps [scene] in step with the project, when the stage was built from
+  /// one. Null for the measurement stands, which have a lattice and no
+  /// document — `p0-01` is about triangles on a screen and putting a project
+  /// behind it would be measuring the document instead.
+  final SceneSync? sync;
+
+  /// The project's materials, uploaded. Null for the measurement stands, which
+  /// have no document to take a table from.
+  ///
+  /// Filling it is asynchronous, so a stage arrives with it empty and whatever
+  /// opened the project fills it — see `openDocument`. Until then [sync] paints
+  /// in clay.
+  final MaterialPool? materials;
+
+  /// `ux-49`: keeps [scene]'s own environment cube in step with
+  /// [SceneLighting.panorama]. Its own object rather than a call, because it
+  /// remembers which image is on the scene so an ordinary edit costs a
+  /// comparison rather than a convolution.
+  final PanoramaSync panorama = PanoramaSync();
+
+  /// Keeps [scene]'s own lights in step with [ModelProject.lighting] —
+  /// `tut-07`'s own fix. Null for the measurement stands, the same reason
+  /// [sync] is: they have no document, only the fixed key/fill pair [_light]
+  /// always builds, and nothing on a lattice to light differently.
+  final LightingSync? lighting;
+
+  /// The colour behind everything, and a decision rather than a default.
+  ///
+  /// Flat, not a sky. A modeller is looked at for hours and every judgement
+  /// made in it — is that face dark because it is unlit or because its normal
+  /// is inverted — is a judgement against the background. A gradient makes the
+  /// same surface read as two different values depending on where in the
+  /// viewport it happens to be. `#0E1112` is the design's own, and it is dark
+  /// enough that an unlit face is still visibly a face.
+  static Vector4 get background => Vector4(0.055, 0.067, 0.071, 1.0);
 
   /// **Two lights and no shadow.** A single light leaves half of every object
   /// black, and an object half black is an object whose silhouette cannot be

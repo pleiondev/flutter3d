@@ -178,6 +178,64 @@ final class ModelerSettings {
     this.layouts = const <String, DockLayout>{},
   });
 
+  /// What [json] says, with the default standing in for anything it does not
+  /// say or says wrongly — see the library comment for why that is not an
+  /// error.
+  factory ModelerSettings.fromJson(Map<String, Object?> json) {
+    const ModelerSettings fallback = ModelerSettings();
+    bool flag(String key, bool otherwise) {
+      final Object? value = json[key];
+      return value is bool ? value : otherwise;
+    }
+
+    // A cast rather than a check would throw on a document where one value is
+    // the wrong *type* — a number where an id belongs, an object where a
+    // string does — which is a shape a newer build, or a hand edit, really
+    // does produce, and which the library comment promises costs one
+    // preference rather than the launch.
+    String? text(String key) {
+      final Object? value = json[key];
+      return value is String ? value : null;
+    }
+
+    // A step of zero or less is not a step: it would divide by zero the
+    // moment the modifier was held. A document that says so gets the default
+    // rather than the launch getting an exception.
+    double step(String key, double otherwise) {
+      final Object? value = json[key];
+      if (value is! num) return otherwise;
+      final double read = value.toDouble();
+      return read.isFinite && read > 0 ? read : otherwise;
+    }
+
+    final String? language = text('language');
+    return ModelerSettings(
+      navigation:
+          NavigationScheme.byId(text('navigation')) ?? fallback.navigation,
+      keymap: KeymapPreset.byId(text('keymap')) ?? fallback.keymap,
+      transformStart:
+          TransformStart.byId(text('transformStart')) ??
+          fallback.transformStart,
+      workspace: Workspace.byId(text('workspace')) ?? fallback.workspace,
+      language: language != null && language.isNotEmpty ? language : null,
+      showHomeAtLaunch: flag('showHomeAtLaunch', fallback.showHomeAtLaunch),
+      saveWithHistory: flag('saveWithHistory', fallback.saveWithHistory),
+      quickSetupDone: flag('quickSetupDone', fallback.quickSetupDone),
+      snapMove: step('snapMove', fallback.snapMove),
+      snapTurnDegrees: step('snapTurnDegrees', fallback.snapTurnDegrees),
+      snapScale: step('snapScale', fallback.snapScale),
+      propertiesWidth: step('propertiesWidth', fallback.propertiesWidth),
+      layouts: switch (json['layouts']) {
+        final Map<String, Object?> saved => <String, DockLayout>{
+          for (final MapEntry<String, Object?> each in saved.entries)
+            if (each.value case final Map<String, Object?> layout)
+              each.key: DockLayout.fromJson(layout),
+        },
+        _ => fallback.layouts,
+      },
+    );
+  }
+
   /// How the camera is driven.
   final NavigationScheme navigation;
 
@@ -304,64 +362,6 @@ final class ModelerSettings {
           each.key: each.value.toJson(),
       },
   };
-
-  /// What [json] says, with the default standing in for anything it does not
-  /// say or says wrongly — see the library comment for why that is not an
-  /// error.
-  factory ModelerSettings.fromJson(Map<String, Object?> json) {
-    const ModelerSettings fallback = ModelerSettings();
-    bool flag(String key, bool otherwise) {
-      final Object? value = json[key];
-      return value is bool ? value : otherwise;
-    }
-
-    // A cast rather than a check would throw on a document where one value is
-    // the wrong *type* — a number where an id belongs, an object where a
-    // string does — which is a shape a newer build, or a hand edit, really
-    // does produce, and which the library comment promises costs one
-    // preference rather than the launch.
-    String? text(String key) {
-      final Object? value = json[key];
-      return value is String ? value : null;
-    }
-
-    // A step of zero or less is not a step: it would divide by zero the
-    // moment the modifier was held. A document that says so gets the default
-    // rather than the launch getting an exception.
-    double step(String key, double otherwise) {
-      final Object? value = json[key];
-      if (value is! num) return otherwise;
-      final double read = value.toDouble();
-      return read.isFinite && read > 0 ? read : otherwise;
-    }
-
-    final String? language = text('language');
-    return ModelerSettings(
-      navigation:
-          NavigationScheme.byId(text('navigation')) ?? fallback.navigation,
-      keymap: KeymapPreset.byId(text('keymap')) ?? fallback.keymap,
-      transformStart:
-          TransformStart.byId(text('transformStart')) ??
-          fallback.transformStart,
-      workspace: Workspace.byId(text('workspace')) ?? fallback.workspace,
-      language: language != null && language.isNotEmpty ? language : null,
-      showHomeAtLaunch: flag('showHomeAtLaunch', fallback.showHomeAtLaunch),
-      saveWithHistory: flag('saveWithHistory', fallback.saveWithHistory),
-      quickSetupDone: flag('quickSetupDone', fallback.quickSetupDone),
-      snapMove: step('snapMove', fallback.snapMove),
-      snapTurnDegrees: step('snapTurnDegrees', fallback.snapTurnDegrees),
-      snapScale: step('snapScale', fallback.snapScale),
-      propertiesWidth: step('propertiesWidth', fallback.propertiesWidth),
-      layouts: switch (json['layouts']) {
-        final Map<String, Object?> saved => <String, DockLayout>{
-          for (final MapEntry<String, Object?> each in saved.entries)
-            if (each.value case final Map<String, Object?> layout)
-              each.key: DockLayout.fromJson(layout),
-        },
-        _ => fallback.layouts,
-      },
-    );
-  }
 
   @override
   bool operator ==(Object other) =>

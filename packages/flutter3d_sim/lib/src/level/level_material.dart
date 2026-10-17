@@ -40,6 +40,42 @@ final class LevelMaterial {
        // ignore: prefer_initializing_formals
        _source = source;
 
+  factory LevelMaterial.fromJson(Map<String, Object?> json) => LevelMaterial(
+    baseColor: switch (json.vector4(
+      'baseColor',
+      fallback: Vector4(0.5, 0.5, 0.5, 1.0),
+    )) {
+      final stored => LinearColor.fromSrgb(
+        stored.x,
+        stored.y,
+        stored.z,
+        stored.w,
+      ),
+    },
+    roughness: json.numberOr('roughness', 0.85),
+    metallic: json.numberOr('metallic', 0.0),
+    emissive: json.containsKey('emissiveColor')
+        ? json.linearColor('emissiveColor', fallback: LinearColor.black)
+        : null,
+    emissiveStrength: json.numberOr('emissive', 0.0),
+    // `texelsPerMetre` until format 5; a level's lift renames it.
+    texelsPerMeter: json.numberOr('texelsPerMeter', 1.0),
+    albedo: json.textOrNull('albedo'),
+    normal: json.textOrNull('normal'),
+    orm: json.textOrNull('orm'),
+    fmat: json.textOrNull('fmat'),
+    depthLayer: json.integerOrNull('depthLayer') ?? 0,
+    parameters: _parameters(json['parameters']),
+    materialVersion: switch (json.integerOrNull('materialVersion')) {
+      final int version when version < 1 => throw LevelFormatException(
+        'a material version counts from 1, and this one says $version',
+      ),
+      final version => version,
+    },
+    physicalMaterial: readPhysicalMaterial(json, 'a material'),
+    source: json,
+  );
+
   /// The document this material was read from. See [writeThrough].
   final Map<String, Object?> _source;
 
@@ -172,42 +208,6 @@ final class LevelMaterial {
 
   /// Whether anything here has to be loaded from disk.
   bool get hasMaps => albedo != null || normal != null || orm != null;
-
-  factory LevelMaterial.fromJson(Map<String, Object?> json) => LevelMaterial(
-    baseColor: switch (json.vector4(
-      'baseColor',
-      fallback: Vector4(0.5, 0.5, 0.5, 1.0),
-    )) {
-      final stored => LinearColor.fromSrgb(
-        stored.x,
-        stored.y,
-        stored.z,
-        stored.w,
-      ),
-    },
-    roughness: json.numberOr('roughness', 0.85),
-    metallic: json.numberOr('metallic', 0.0),
-    emissive: json.containsKey('emissiveColor')
-        ? json.linearColor('emissiveColor', fallback: LinearColor.black)
-        : null,
-    emissiveStrength: json.numberOr('emissive', 0.0),
-    // `texelsPerMetre` until format 5; a level's lift renames it.
-    texelsPerMeter: json.numberOr('texelsPerMeter', 1.0),
-    albedo: json.textOrNull('albedo'),
-    normal: json.textOrNull('normal'),
-    orm: json.textOrNull('orm'),
-    fmat: json.textOrNull('fmat'),
-    depthLayer: json.integerOrNull('depthLayer') ?? 0,
-    parameters: _parameters(json['parameters']),
-    materialVersion: switch (json.integerOrNull('materialVersion')) {
-      final int version when version < 1 => throw LevelFormatException(
-        'a material version counts from 1, and this one says $version',
-      ),
-      final version => version,
-    },
-    physicalMaterial: readPhysicalMaterial(json, 'a material'),
-    source: json,
-  );
 
   /// A document's `parameters`: each name to a number or a list of them.
   static MaterialParameters _parameters(Object? json) => switch (json) {

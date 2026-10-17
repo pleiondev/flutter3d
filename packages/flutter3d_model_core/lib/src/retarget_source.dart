@@ -31,31 +31,6 @@ final class RetargetSource {
     this.warning,
   });
 
-  /// The file's own name, for the clip library's own card and the status
-  /// line — not [ModelDocument]'s own concern, since a decoded document
-  /// carries no file name at all.
-  final String name;
-
-  /// Read through [fromModelDocument], the same importer the live document
-  /// uses — but never folded into it. See the library doc comment.
-  final ModelProject project;
-
-  /// Which of [project]'s own skeletons [retargetClip] reads as
-  /// `sourceSkeleton` — always `0` today, since a source file names at most
-  /// one rig worth retargeting from.
-  final int skeletonIndex;
-
-  /// Set when [project] carried no skin at all and [skeleton] had to be
-  /// synthesised from its animated nodes — screen 14's own warning card:
-  /// "imported without a skin — mapped by node names only". Null for a file
-  /// that named a real skin, which is the ordinary case.
-  final String? warning;
-
-  ProjectSkeleton get skeleton => project.skeletons[skeletonIndex];
-
-  /// Every clip [project] carries — the clip library's own card list.
-  List<ProjectClip> get clips => project.clips;
-
   /// [document] read as a [RetargetSource] named [name].
   ///
   /// **The ordinary case:** [fromModelDocument] already builds
@@ -103,4 +78,29 @@ final class RetargetSource {
       warning: 'Imported without a skin — mapped by node names only.',
     );
   }
+
+  /// The file's own name, for the clip library's own card and the status
+  /// line — not [ModelDocument]'s own concern, since a decoded document
+  /// carries no file name at all.
+  final String name;
+
+  /// Read through [fromModelDocument], the same importer the live document
+  /// uses — but never folded into it. See the library doc comment.
+  final ModelProject project;
+
+  /// Which of [project]'s own skeletons [retargetClip] reads as
+  /// `sourceSkeleton` — always `0` today, since a source file names at most
+  /// one rig worth retargeting from.
+  final int skeletonIndex;
+
+  /// Set when [project] carried no skin at all and [skeleton] had to be
+  /// synthesised from its animated nodes — screen 14's own warning card:
+  /// "imported without a skin — mapped by node names only". Null for a file
+  /// that named a real skin, which is the ordinary case.
+  final String? warning;
+
+  ProjectSkeleton get skeleton => project.skeletons[skeletonIndex];
+
+  /// Every clip [project] carries — the clip library's own card list.
+  List<ProjectClip> get clips => project.clips;
 }

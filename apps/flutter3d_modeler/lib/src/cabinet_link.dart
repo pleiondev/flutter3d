@@ -30,6 +30,25 @@ final class CabinetLink {
     this.sourceSha,
   });
 
+  /// Reads `id`, `mode`, `csrf`, `editable` and `sourceSha` out of a query
+  /// string's own parameters — [Uri.queryParameters] shape, the same map
+  /// `screen/files.dart`'s own `_open` already reads `model`/`name` out of.
+  ///
+  /// An `id` that is present but does not parse as an integer is treated the
+  /// same as no `id` at all — [CabinetLink.none] in every field but `mode`
+  /// and `csrf`, which still come along in case something downstream wants
+  /// to know what the link claimed even though it could not be trusted.
+  factory CabinetLink.fromQuery(Map<String, String> query) => CabinetLink(
+    id: switch (query['id']) {
+      final String raw? => int.tryParse(raw),
+      null => null,
+    },
+    mode: query['mode'],
+    csrf: query['csrf'] ?? '',
+    isOwner: query['editable'] == 'true',
+    sourceSha: query['sourceSha'],
+  );
+
   /// No `id` at all — every launch that is not the cabinet's own iframe: a
   /// bare `flutter run`, a `--dart-define=model=` measurement run, a desktop
   /// build. [isFromCabinet] is false and nothing this stage added changes
@@ -114,23 +133,4 @@ final class CabinetLink {
       isOwner &&
       sourceSha != null &&
       sourceSha!.isNotEmpty;
-
-  /// Reads `id`, `mode`, `csrf`, `editable` and `sourceSha` out of a query
-  /// string's own parameters — [Uri.queryParameters] shape, the same map
-  /// `screen/files.dart`'s own `_open` already reads `model`/`name` out of.
-  ///
-  /// An `id` that is present but does not parse as an integer is treated the
-  /// same as no `id` at all — [CabinetLink.none] in every field but `mode`
-  /// and `csrf`, which still come along in case something downstream wants
-  /// to know what the link claimed even though it could not be trusted.
-  factory CabinetLink.fromQuery(Map<String, String> query) => CabinetLink(
-    id: switch (query['id']) {
-      final String raw? => int.tryParse(raw),
-      null => null,
-    },
-    mode: query['mode'],
-    csrf: query['csrf'] ?? '',
-    isOwner: query['editable'] == 'true',
-    sourceSha: query['sourceSha'],
-  );
 }

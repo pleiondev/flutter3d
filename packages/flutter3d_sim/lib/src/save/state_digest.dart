@@ -385,36 +385,6 @@ final class DigestTrace {
   /// comparing a fresh one against.
   DigestTrace._parts(this.every, this._steps, this._digests);
 
-  /// How many steps pass between checkpoints.
-  ///
-  /// Every step would be exact and is not the default: a thousand steps of a
-  /// crypt is a thousand snapshots taken, and the cost of taking one is the
-  /// cost of `save()` on every body in the world. Twenty-five is fine enough
-  /// that a divergence is bracketed to under half a second of play.
-  final int every;
-
-  final List<int> _steps;
-  final List<int> _digests;
-
-  /// The step numbers checkpointed, in order.
-  List<int> get steps => List<int>.unmodifiable(_steps);
-
-  /// The digest at each of [steps].
-  List<int> get digests => List<int>.unmodifiable(_digests);
-
-  /// The digests as eight-digit hexadecimal, which is how a trace is committed.
-  List<String> get hexDigests => <String>[
-    for (final digest in _digests) digest.toRadixString(16).padLeft(8, '0'),
-  ];
-
-  /// Writes this trace down — `every`, the checkpointed steps, and their
-  /// digests as hex — the shape a `.f3drun`'s `checkpoints` field holds.
-  Map<String, Object?> toJson() => <String, Object?>{
-    'every': every,
-    'steps': List<int>.of(_steps),
-    'digests': hexDigests,
-  };
-
   /// Reads a trace back, or throws a [DigestTraceFormatException] that says
   /// why not.
   factory DigestTrace.fromJson(Map<String, Object?> json) {
@@ -457,6 +427,36 @@ final class DigestTrace {
     }
     return DigestTrace._parts(every.toInt(), steps, digests);
   }
+
+  /// How many steps pass between checkpoints.
+  ///
+  /// Every step would be exact and is not the default: a thousand steps of a
+  /// crypt is a thousand snapshots taken, and the cost of taking one is the
+  /// cost of `save()` on every body in the world. Twenty-five is fine enough
+  /// that a divergence is bracketed to under half a second of play.
+  final int every;
+  final List<int> _steps;
+
+  final List<int> _digests;
+
+  /// The step numbers checkpointed, in order.
+  List<int> get steps => List<int>.unmodifiable(_steps);
+
+  /// The digest at each of [steps].
+  List<int> get digests => List<int>.unmodifiable(_digests);
+
+  /// The digests as eight-digit hexadecimal, which is how a trace is committed.
+  List<String> get hexDigests => <String>[
+    for (final digest in _digests) digest.toRadixString(16).padLeft(8, '0'),
+  ];
+
+  /// Writes this trace down — `every`, the checkpointed steps, and their
+  /// digests as hex — the shape a `.f3drun`'s `checkpoints` field holds.
+  Map<String, Object?> toJson() => <String, Object?>{
+    'every': every,
+    'steps': List<int>.of(_steps),
+    'digests': hexDigests,
+  };
 
   /// Takes a checkpoint if [step] is one, and does nothing if it is not.
   ///

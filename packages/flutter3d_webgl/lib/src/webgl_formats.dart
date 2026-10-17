@@ -484,13 +484,6 @@ final class CompressedTextureSupport {
     required this.astc,
   });
 
-  final bool etc2;
-  final bool s3tc;
-  final bool s3tcSrgb;
-  final bool rgtc;
-  final bool bptc;
-  final bool astc;
-
   factory CompressedTextureSupport.query(web.WebGL2RenderingContext gl) =>
       CompressedTextureSupport(
         etc2: gl.getExtension('WEBGL_compressed_texture_etc') != null,
@@ -500,6 +493,13 @@ final class CompressedTextureSupport {
         bptc: gl.getExtension('EXT_texture_compression_bptc') != null,
         astc: gl.getExtension('WEBGL_compressed_texture_astc') != null,
       );
+  final bool etc2;
+  final bool s3tc;
+  final bool s3tcSrgb;
+  final bool rgtc;
+  final bool bptc;
+
+  final bool astc;
 }
 
 /// What a WebGL2 context was granted at creation, as far as which formats it

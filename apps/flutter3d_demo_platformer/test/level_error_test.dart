@@ -36,7 +36,7 @@ void main() {
 
       // A brush with no size, which is what a hand-edited document looks like
       // when a line goes missing.
-      final brushes = List<Object?>.from(good['brushes']! as List<Object?>);
+      final brushes = List<Object?>.of(good['brushes']! as List<Object?>);
       brushes[0] = <String, Object?>{
         'at': <double>[0.0, 0.0, 0.0],
         'material': 'rock',

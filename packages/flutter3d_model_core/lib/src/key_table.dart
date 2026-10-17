@@ -74,20 +74,6 @@ final class KeyTable {
   }) : _keys = List<Keyframe>.of(keys ?? const <Keyframe>[])
          ..sort((a, b) => a.time.compareTo(b.time));
 
-  final int componentCount;
-  AnimationInterpolation interpolation;
-
-  final List<Keyframe> _keys;
-
-  /// Read-only — see [KeyTable.values] and every mutator on this class for
-  /// the one way to change what is here.
-  List<Keyframe> get keys => List<Keyframe>.unmodifiable(_keys);
-
-  int get keyCount => _keys.length;
-
-  /// The last key's time, in seconds.
-  double get duration => _keys.isEmpty ? 0.0 : _keys.last.time;
-
   /// [track] read into an editable table — the same values, split back out
   /// of whichever of [AnimationTrack]'s two flat layouts [track.interpolation]
   /// used, cubic's own in/value/out triple included.
@@ -123,6 +109,39 @@ final class KeyTable {
       keys: keys,
     );
   }
+  final int componentCount;
+
+  AnimationInterpolation interpolation;
+
+  final List<Keyframe> _keys;
+
+  /// How close two times have to be to count as the same key, rather than
+  /// bit-exact equality.
+  ///
+  /// **Found by `PoseJoint` (`anim-05`) doing exactly what this method's own
+  /// doc comment promises — calling it three times at one fixed frame — and
+  /// getting three keys back, not one.** A command's `apply` reads a table
+  /// fresh from [AnimationTrack.times] every time it runs, and that array is
+  /// a `Float32List`: a time computed as a plain `double` from `frame / fps`
+  /// survives one round trip through it rounded to float32 precision, so
+  /// the *next* call's freshly-computed `double` for the identical frame is
+  /// bit-different from the one already stored, and exact equality read
+  /// that as two authors disagreeing rather than one person calling this
+  /// twice. `1e-4` is comfortably under the smallest gap between two
+  /// *adjacent* frames at any fps this format is ever asked to hold — an
+  /// interval measured in whole milliseconds, not fractions of one — and
+  /// comfortably over what a `double` loses rounding to `float32` at any
+  /// time this format is used for.
+  static const double _kSameKeyTolerance = 1e-4;
+
+  /// Read-only — see [KeyTable.values] and every mutator on this class for
+  /// the one way to change what is here.
+  List<Keyframe> get keys => List<Keyframe>.unmodifiable(_keys);
+
+  int get keyCount => _keys.length;
+
+  /// The last key's time, in seconds.
+  double get duration => _keys.isEmpty ? 0.0 : _keys.last.time;
 
   static List<double> _slice(Float32List from, int at, int count) => <double>[
     for (var c = 0; c < count; c++) from[at + c],
@@ -206,25 +225,6 @@ final class KeyTable {
       timeOfFrame(frameOfTime(time, fps), fps);
 
   void _resort() => _keys.sort((a, b) => a.time.compareTo(b.time));
-
-  /// How close two times have to be to count as the same key, rather than
-  /// bit-exact equality.
-  ///
-  /// **Found by `PoseJoint` (`anim-05`) doing exactly what this method's own
-  /// doc comment promises — calling it three times at one fixed frame — and
-  /// getting three keys back, not one.** A command's `apply` reads a table
-  /// fresh from [AnimationTrack.times] every time it runs, and that array is
-  /// a `Float32List`: a time computed as a plain `double` from `frame / fps`
-  /// survives one round trip through it rounded to float32 precision, so
-  /// the *next* call's freshly-computed `double` for the identical frame is
-  /// bit-different from the one already stored, and exact equality read
-  /// that as two authors disagreeing rather than one person calling this
-  /// twice. `1e-4` is comfortably under the smallest gap between two
-  /// *adjacent* frames at any fps this format is ever asked to hold — an
-  /// interval measured in whole milliseconds, not fractions of one — and
-  /// comfortably over what a `double` loses rounding to `float32` at any
-  /// time this format is used for.
-  static const double _kSameKeyTolerance = 1e-4;
 
   /// Writes (or replaces) the key at [time]. An existing key within
   /// [_kSameKeyTolerance] of this time is replaced outright rather than

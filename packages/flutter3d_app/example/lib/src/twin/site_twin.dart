@@ -29,26 +29,6 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 final class SiteTwin {
   SiteTwin._(this.loop, this.air, this.tank, this._registrations);
 
-  /// The name readings of the air's temperature arrive under.
-  static const String airSource = 'site.air.temperature';
-
-  /// The probe on the air, in °C.
-  static const String airProbe = 'site.air';
-
-  /// The probe on the tank's water, in °C.
-  static const String waterProbe = 'tank.water';
-
-  /// Steps a second: ten, since nothing on the site moves faster than air
-  /// warms.
-  static const double stepRate = 10;
-
-  /// How long the water takes to close all but 1/e of a gap to the air, in
-  /// seconds of simulated time: ten minutes, for a small tank in the open.
-  static const double timeConstant = 600;
-
-  /// What both stand at before the first reading, in °C.
-  static const double startCelsius = 15;
-
   /// Puts the site into [loop]: the air and the tank with their probes, the
   /// assimilation that hears [airSource], the model, and [readings] asked
   /// at the start of every live step.
@@ -121,6 +101,26 @@ final class SiteTwin {
       }),
     ]);
   }
+
+  /// The name readings of the air's temperature arrive under.
+  static const String airSource = 'site.air.temperature';
+
+  /// The probe on the air, in °C.
+  static const String airProbe = 'site.air';
+
+  /// The probe on the tank's water, in °C.
+  static const String waterProbe = 'tank.water';
+
+  /// Steps a second: ten, since nothing on the site moves faster than air
+  /// warms.
+  static const double stepRate = 10;
+
+  /// How long the water takes to close all but 1/e of a gap to the air, in
+  /// seconds of simulated time: ten minutes, for a small tank in the open.
+  static const double timeConstant = 600;
+
+  /// What both stand at before the first reading, in °C.
+  static const double startCelsius = 15;
 
   /// The loop the site is in.
   final EngineLoop loop;

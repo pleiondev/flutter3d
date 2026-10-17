@@ -18,16 +18,16 @@ final class ApplyJobResult extends ModelCommand {
     required this.meshBytes,
   });
 
-  final int objectId;
-  final int baseVersion;
-  final Uint8List meshBytes;
-
   /// [result] as the command that writes it in.
   factory ApplyJobResult.of(JobResult result) => ApplyJobResult(
     objectId: result.objectId,
     baseVersion: result.baseVersion,
     meshBytes: result.meshBytes,
   );
+  final int objectId;
+  final int baseVersion;
+
+  final Uint8List meshBytes;
 
   @override
   String get name => 'applyJobResult';

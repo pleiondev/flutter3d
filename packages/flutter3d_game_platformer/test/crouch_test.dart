@@ -21,9 +21,6 @@ const double _dt = 1.0 / 60.0;
 const GameAction _crouch = PlatformerActions.dropThrough;
 
 final class _Run {
-  /// What the last step reported, drained the way a game drains it.
-  List<GameEvent> lastStep = const <GameEvent>[];
-
   _Run({
     List<EntityDef> extras = const <EntityDef>[],
     List<Brush> walls = const <Brush>[],
@@ -69,6 +66,9 @@ final class _Run {
     );
     sim.publishTo(heard.bus);
   }
+
+  /// What the last step reported, drained the way a game drains it.
+  List<GameEvent> lastStep = const <GameEvent>[];
 
   final CollisionWorld world = CollisionWorld(properties: platformerWorld);
   final InputState input = InputState();

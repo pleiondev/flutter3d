@@ -146,19 +146,6 @@ final class MissingShaderStageException extends ResourceException {
     this.detail,
   });
 
-  /// The entry point that was asked for.
-  final String stage;
-
-  /// The need that brings it, by [ShaderStageNeed.name]: an engine need or a
-  /// plugin's; null when nothing known declares it.
-  final String? need;
-
-  /// The backend whose bundle lacks it, when the thrower knows.
-  final String? backend;
-
-  /// What else is worth saying: who asked for it, what to rebuild.
-  final String? detail;
-
   /// The refusal for [stage], with the engine need that brings it filled in
   /// when there is one.
   factory MissingShaderStageException.forStage(
@@ -171,6 +158,19 @@ final class MissingShaderStageException extends ResourceException {
     backend: backend,
     detail: detail,
   );
+
+  /// The entry point that was asked for.
+  final String stage;
+
+  /// The need that brings it, by [ShaderStageNeed.name]: an engine need or a
+  /// plugin's; null when nothing known declares it.
+  final String? need;
+
+  /// The backend whose bundle lacks it, when the thrower knows.
+  final String? backend;
+
+  /// What else is worth saying: who asked for it, what to rebuild.
+  final String? detail;
 
   @override
   String get message {

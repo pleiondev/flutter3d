@@ -81,118 +81,6 @@ final class WorldProperties {
     if (medium.isEmpty) throw ArgumentError.value(medium, 'medium', 'no id');
   }
 
-  /// The standard world: [standardGravity] down, the air of a room at sea
-  /// level, no wind, in air.
-  static final WorldProperties standard = WorldProperties();
-
-  final Vector3 _gravity;
-  final Vector3 _wind;
-
-  /// Metres per second squared; [standardGravity] down y by default. A fresh
-  /// vector each call: a `Vector3` is mutable.
-  Vector3 get gravity => _gravity.clone();
-
-  /// How strong [gravity] is, m/s². **[standardGravity] to the bit** for the
-  /// standard gravity, as `NativeWorld.gravityMagnitude` is.
-  double get gravityMagnitude {
-    final x = _gravity.x, y = _gravity.y, z = _gravity.z;
-    if (x == 0.0 && z == 0.0 && y == _standardDown) return standardGravity;
-    return math.sqrt(x * x + y * y + z * z);
-  }
-
-  /// [standardGravity] downward, as a `Vector3`'s f32 holds it: -9.81 is
-  /// -9.8100004196… there, so comparing with the double never matches.
-  static final double _standardDown = standardGravityVector.y;
-
-  /// The air's temperature, K.
-  final double airTemperature;
-
-  /// The air's pressure at the world's datum — the surface of its sea, the
-  /// floor of its valley — Pa.
-  final double airPressure;
-
-  /// The air's density a world set explicitly, kg/m³; null when it is
-  /// derived ([airDensity]).
-  final double? airDensityOverride;
-
-  /// The air's density, kg/m³: [airDensityOverride], or the ideal gas's at
-  /// [airTemperature] and [airPressure] ([airDensityAt]) —
-  /// [standardAirDensity] for the standard air, to the bit.
-  double get airDensity =>
-      airDensityOverride ?? airDensityAt(airTemperature, airPressure);
-
-  /// The wind everywhere, m/s: what a cloth flaps in, smoke and sparks
-  /// drift on and the air drags a body by. A fresh vector each call.
-  Vector3 get wind => _wind.clone();
-
-  /// The id of the material the world is filled with, in its
-  /// `MaterialCatalog`: `f3d.air` by default.
-  final String medium;
-
-  /// What the world's numbers promise: [SimulationProfile.deterministic] by
-  /// default. Code that decides by it asks a capability
-  /// (`profile.usesDoublePrecision`), never which profile it is.
-  final SimulationProfile profile;
-
-  /// Where the world's origin is on the Earth, or null for a world that is
-  /// nowhere in particular: a game's level, a laboratory's bench.
-  final GeoOrigin? geoOrigin;
-
-  /// How fast sound travels in the world's air, m/s ([speedOfSoundAt] its
-  /// temperature): what a listener's Doppler shift is reckoned against.
-  double get speedOfSound => speedOfSoundAt(airTemperature);
-
-  /// The density of what a body moving through the world is dragged and
-  /// lifted by, kg/m³: [airDensity] when the [medium] is `f3d.air`, else
-  /// the [medium]'s in [catalog]. Throws an `UnknownMaterialException`
-  /// naming the plugin it needs when [catalog] has no such material, and a
-  /// [StateError] for a medium with no density.
-  double mediumDensity(MaterialCatalog catalog) {
-    if (medium == 'f3d.air') return airDensity;
-    return catalog.require(medium).density ??
-        (throw StateError('the medium "$medium" says no density'));
-  }
-
-  /// A copy with the fields given changed. [clearAirDensity] goes back to
-  /// deriving the air's density from its temperature and pressure.
-  WorldProperties copyWith({
-    Vector3? gravity,
-    double? airTemperature,
-    double? airPressure,
-    double? airDensity,
-    bool clearAirDensity = false,
-    Vector3? wind,
-    String? medium,
-    SimulationProfile? profile,
-    GeoOrigin? geoOrigin,
-    bool clearGeoOrigin = false,
-  }) => WorldProperties(
-    gravity: gravity ?? _gravity,
-    airTemperature: airTemperature ?? this.airTemperature,
-    airPressure: airPressure ?? this.airPressure,
-    airDensity: clearAirDensity ? null : (airDensity ?? airDensityOverride),
-    wind: wind ?? _wind,
-    medium: medium ?? this.medium,
-    profile: profile ?? this.profile,
-    geoOrigin: clearGeoOrigin ? null : (geoOrigin ?? this.geoOrigin),
-  );
-
-  /// The world as JSON, every field: what a snapshot and a level hold.
-  /// `airDensity` only when [airDensityOverride] says it; `profile` only
-  /// when it is not [SimulationProfile.deterministic] and `geoOrigin` only
-  /// when there is one, so the default world is written, and digested, as
-  /// it was before either existed.
-  Map<String, Object?> toJson() => <String, Object?>{
-    'gravity': <double>[_gravity.x, _gravity.y, _gravity.z],
-    'airTemperature': airTemperature,
-    'airPressure': airPressure,
-    'airDensity': ?airDensityOverride,
-    'wind': <double>[_wind.x, _wind.y, _wind.z],
-    'medium': medium,
-    if (profile != SimulationProfile.deterministic) 'profile': profile.toJson(),
-    if (geoOrigin case final origin?) 'geoOrigin': origin.toJson(),
-  };
-
   /// The world [json] describes, each field absent taken from [base] — the
   /// standard world by default, a game's own world when a level overrides
   /// only some of it.
@@ -283,6 +171,118 @@ final class WorldProperties {
       geoOrigin: geoOrigin ?? from.geoOrigin,
     );
   }
+
+  /// The standard world: [standardGravity] down, the air of a room at sea
+  /// level, no wind, in air.
+  static final WorldProperties standard = WorldProperties();
+  final Vector3 _gravity;
+
+  final Vector3 _wind;
+
+  /// [standardGravity] downward, as a `Vector3`'s f32 holds it: -9.81 is
+  /// -9.8100004196… there, so comparing with the double never matches.
+  static final double _standardDown = standardGravityVector.y;
+
+  /// The air's temperature, K.
+  final double airTemperature;
+
+  /// The air's pressure at the world's datum — the surface of its sea, the
+  /// floor of its valley — Pa.
+  final double airPressure;
+
+  /// The air's density a world set explicitly, kg/m³; null when it is
+  /// derived ([airDensity]).
+  final double? airDensityOverride;
+
+  /// The id of the material the world is filled with, in its
+  /// `MaterialCatalog`: `f3d.air` by default.
+  final String medium;
+
+  /// What the world's numbers promise: [SimulationProfile.deterministic] by
+  /// default. Code that decides by it asks a capability
+  /// (`profile.usesDoublePrecision`), never which profile it is.
+  final SimulationProfile profile;
+
+  /// Where the world's origin is on the Earth, or null for a world that is
+  /// nowhere in particular: a game's level, a laboratory's bench.
+  final GeoOrigin? geoOrigin;
+
+  /// Metres per second squared; [standardGravity] down y by default. A fresh
+  /// vector each call: a `Vector3` is mutable.
+  Vector3 get gravity => _gravity.clone();
+
+  /// How strong [gravity] is, m/s². **[standardGravity] to the bit** for the
+  /// standard gravity, as `NativeWorld.gravityMagnitude` is.
+  double get gravityMagnitude {
+    final x = _gravity.x, y = _gravity.y, z = _gravity.z;
+    if (x == 0.0 && z == 0.0 && y == _standardDown) return standardGravity;
+    return math.sqrt(x * x + y * y + z * z);
+  }
+
+  /// The air's density, kg/m³: [airDensityOverride], or the ideal gas's at
+  /// [airTemperature] and [airPressure] ([airDensityAt]) —
+  /// [standardAirDensity] for the standard air, to the bit.
+  double get airDensity =>
+      airDensityOverride ?? airDensityAt(airTemperature, airPressure);
+
+  /// The wind everywhere, m/s: what a cloth flaps in, smoke and sparks
+  /// drift on and the air drags a body by. A fresh vector each call.
+  Vector3 get wind => _wind.clone();
+
+  /// How fast sound travels in the world's air, m/s ([speedOfSoundAt] its
+  /// temperature): what a listener's Doppler shift is reckoned against.
+  double get speedOfSound => speedOfSoundAt(airTemperature);
+
+  /// The density of what a body moving through the world is dragged and
+  /// lifted by, kg/m³: [airDensity] when the [medium] is `f3d.air`, else
+  /// the [medium]'s in [catalog]. Throws an `UnknownMaterialException`
+  /// naming the plugin it needs when [catalog] has no such material, and a
+  /// [StateError] for a medium with no density.
+  double mediumDensity(MaterialCatalog catalog) {
+    if (medium == 'f3d.air') return airDensity;
+    return catalog.require(medium).density ??
+        (throw StateError('the medium "$medium" says no density'));
+  }
+
+  /// A copy with the fields given changed. [clearAirDensity] goes back to
+  /// deriving the air's density from its temperature and pressure.
+  WorldProperties copyWith({
+    Vector3? gravity,
+    double? airTemperature,
+    double? airPressure,
+    double? airDensity,
+    bool clearAirDensity = false,
+    Vector3? wind,
+    String? medium,
+    SimulationProfile? profile,
+    GeoOrigin? geoOrigin,
+    bool clearGeoOrigin = false,
+  }) => WorldProperties(
+    gravity: gravity ?? _gravity,
+    airTemperature: airTemperature ?? this.airTemperature,
+    airPressure: airPressure ?? this.airPressure,
+    airDensity: clearAirDensity ? null : (airDensity ?? airDensityOverride),
+    wind: wind ?? _wind,
+    medium: medium ?? this.medium,
+    profile: profile ?? this.profile,
+    geoOrigin: clearGeoOrigin ? null : (geoOrigin ?? this.geoOrigin),
+  );
+
+  /// The world as JSON, every field: what a snapshot and a level hold.
+  /// `airDensity` only when [airDensityOverride] says it; `profile` only
+  /// when it is not [SimulationProfile.deterministic] and `geoOrigin` only
+  /// when there is one, so the default world is written, and digested, as
+  /// it was before either existed.
+  Map<String, Object?> toJson() => <String, Object?>{
+    'gravity': <double>[_gravity.x, _gravity.y, _gravity.z],
+    'airTemperature': airTemperature,
+    'airPressure': airPressure,
+    'airDensity': ?airDensityOverride,
+    'wind': <double>[_wind.x, _wind.y, _wind.z],
+    'medium': medium,
+    if (profile != SimulationProfile.deterministic) 'profile': profile.toJson(),
+    if (geoOrigin case final origin?) 'geoOrigin': origin.toJson(),
+  };
 
   static void _positive(double value, String name) {
     if (!(value.isFinite && value > 0.0)) {

@@ -37,6 +37,16 @@ import 'package:vector_math/vector_math.dart';
 final class Looks {
   const Looks(this._byType);
 
+  factory Looks.parse(String text) {
+    final json = jsonDecode(text);
+    if (json is! Map<String, Object?>) return none;
+    return Looks(<String, Look>{
+      for (final entry in json.entries)
+        if (entry.value is Map<String, Object?>)
+          entry.key: Look.fromJson(entry.value! as Map<String, Object?>),
+    });
+  }
+
   /// A game that has said nothing, which is most of them.
   static const Looks none = Looks(<String, Look>{});
 
@@ -51,16 +61,6 @@ final class Looks {
   /// — and in an old level is every word except the one somebody opened the
   /// editor to add.
   Iterable<String> get types => _byType.keys;
-
-  factory Looks.parse(String text) {
-    final json = jsonDecode(text);
-    if (json is! Map<String, Object?>) return none;
-    return Looks(<String, Look>{
-      for (final entry in json.entries)
-        if (entry.value is Map<String, Object?>)
-          entry.key: Look.fromJson(entry.value! as Map<String, Object?>),
-    });
-  }
 
   /// The model [entity] should be drawn as, or null.
   ///
@@ -114,15 +114,6 @@ final class Looks {
 final class Look {
   const Look({this.model, this.size, this.tint, this.parts = const <Part>[]});
 
-  final String? model;
-  final Vector3? size;
-
-  /// What it is drawn in, linear: the document's `tint`.
-  final LinearColor? tint;
-
-  /// The shapes it is built out of, for a thing with no model.
-  final List<Part> parts;
-
   factory Look.fromJson(Map<String, Object?> json) => Look(
     model: json['model'] is String ? json['model']! as String : null,
     size: _vector(json['size']),
@@ -135,6 +126,15 @@ final class Look {
         if (part is Map<String, Object?>) Part.fromJson(part),
     ],
   );
+  final String? model;
+
+  final Vector3? size;
+
+  /// What it is drawn in, linear: the document's `tint`.
+  final LinearColor? tint;
+
+  /// The shapes it is built out of, for a thing with no model.
+  final List<Part> parts;
 
   /// A vector this document may or may not carry.
   ///
@@ -165,6 +165,20 @@ final class Part {
     required this.glows,
   });
 
+  factory Part.fromJson(Map<String, Object?> json) => Part(
+    shape: json['shape'] is String ? json['shape']! as String : 'box',
+    at: Look._vector(json['at']) ?? Vector3.zero(),
+    size: Look._vector(json['size']) ?? Vector3.all(0.1),
+    radius: json['radius'] is num ? (json['radius']! as num).toDouble() : 0.05,
+    height: json['height'] is num ? (json['height']! as num).toDouble() : 0.1,
+    pitch: json['pitch'] is num ? (json['pitch']! as num).toDouble() : 0.0,
+    color:
+        (Look._vector(json['colour']) ?? Look._vector(json['glow']))
+            ?.toLinearColor() ??
+        const LinearColor(0.6, 0.6, 0.62),
+    glows: json['glow'] != null,
+  );
+
   /// `box`, `cylinder`, `sphere` or `cone`. Anything else is drawn as a box,
   /// because a shape nobody recognises is still somewhere a thing is.
   final String shape;
@@ -192,20 +206,6 @@ final class Part {
   /// that a dark corridor cannot swallow it, which is the whole point of a
   /// flame.
   final bool glows;
-
-  factory Part.fromJson(Map<String, Object?> json) => Part(
-    shape: json['shape'] is String ? json['shape']! as String : 'box',
-    at: Look._vector(json['at']) ?? Vector3.zero(),
-    size: Look._vector(json['size']) ?? Vector3.all(0.1),
-    radius: json['radius'] is num ? (json['radius']! as num).toDouble() : 0.05,
-    height: json['height'] is num ? (json['height']! as num).toDouble() : 0.1,
-    pitch: json['pitch'] is num ? (json['pitch']! as num).toDouble() : 0.0,
-    color:
-        (Look._vector(json['colour']) ?? Look._vector(json['glow']))
-            ?.toLinearColor() ??
-        const LinearColor(0.6, 0.6, 0.62),
-    glows: json['glow'] != null,
-  );
 }
 
 /// Where a game keeps the file, if it keeps one.

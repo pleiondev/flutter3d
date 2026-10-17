@@ -24,6 +24,31 @@ final class DockLayout {
     this.viewportSplit = 0.5,
   });
 
+  /// What [json] says, with the default standing in for anything it does not
+  /// say or says wrongly — `settings.dart`'s own rule, and for its reason: a
+  /// preference file a newer build or a hand edit has made odd costs one
+  /// preference, never the launch.
+  factory DockLayout.fromJson(Map<String, Object?> json) {
+    const DockLayout fallback = DockLayout();
+    double number(String key, double otherwise) {
+      final Object? value = json[key];
+      return value is num ? value.toDouble() : otherwise;
+    }
+
+    return DockLayout(
+      propertiesWidth: number('propertiesWidth', fallback.propertiesWidth),
+      splitViewport: json['splitViewport'] is bool
+          ? json['splitViewport']! as bool
+          : fallback.splitViewport,
+      // A view of nothing is not a layout anybody asked for, whatever the
+      // file says.
+      viewportSplit: number(
+        'viewportSplit',
+        fallback.viewportSplit,
+      ).clamp(0.15, 0.85),
+    );
+  }
+
   /// In logical pixels — `ux-27`'s own number, moved in here so the two
   /// halves of "how this window is arranged" are one value.
   final double propertiesWidth;
@@ -51,31 +76,6 @@ final class DockLayout {
     'splitViewport': splitViewport,
     'viewportSplit': viewportSplit,
   };
-
-  /// What [json] says, with the default standing in for anything it does not
-  /// say or says wrongly — `settings.dart`'s own rule, and for its reason: a
-  /// preference file a newer build or a hand edit has made odd costs one
-  /// preference, never the launch.
-  factory DockLayout.fromJson(Map<String, Object?> json) {
-    const DockLayout fallback = DockLayout();
-    double number(String key, double otherwise) {
-      final Object? value = json[key];
-      return value is num ? value.toDouble() : otherwise;
-    }
-
-    return DockLayout(
-      propertiesWidth: number('propertiesWidth', fallback.propertiesWidth),
-      splitViewport: json['splitViewport'] is bool
-          ? json['splitViewport']! as bool
-          : fallback.splitViewport,
-      // A view of nothing is not a layout anybody asked for, whatever the
-      // file says.
-      viewportSplit: number(
-        'viewportSplit',
-        fallback.viewportSplit,
-      ).clamp(0.15, 0.85),
-    );
-  }
 
   @override
   bool operator ==(Object other) =>

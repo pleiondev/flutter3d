@@ -17,8 +17,50 @@ final class EventTrace {
 
   EventTrace._parts(this._steps, this._counts, this._digests);
 
+  /// Reads a trace back, or throws a [EventTraceFormatException] saying why not.
+  factory EventTrace.fromJson(Map<String, Object?> json) {
+    final steps = json['steps'];
+    final counts = json['counts'];
+    final digests = json['digests'];
+    if (steps is! List || counts is! List || digests is! List) {
+      throw EventTraceFormatException(
+        'the event trace has no steps, counts or digests',
+      );
+    }
+    if (steps.length != counts.length || steps.length != digests.length) {
+      throw EventTraceFormatException(
+        'the event trace has ${steps.length} steps, ${counts.length} counts '
+        'and ${digests.length} digests',
+      );
+    }
+    final readSteps = <int>[];
+    final readCounts = <int>[];
+    final readDigests = <int>[];
+    for (var i = 0; i < steps.length; i++) {
+      final step = steps[i];
+      final count = counts[i];
+      final digest = digests[i];
+      final parsed = digest is String ? int.tryParse(digest, radix: 16) : null;
+      if (step is! int || count is! int || count <= 0 || parsed == null) {
+        throw EventTraceFormatException(
+          'entry $i of the event trace is not a step, a count and a '
+          'hexadecimal digest',
+        );
+      }
+      if (readSteps.isNotEmpty && step <= readSteps.last) {
+        throw EventTraceFormatException(
+          'the event trace has step $step after step ${readSteps.last}',
+        );
+      }
+      readSteps.add(step);
+      readCounts.add(count);
+      readDigests.add(parsed);
+    }
+    return EventTrace._parts(readSteps, readCounts, readDigests);
+  }
   final List<int> _steps;
   final List<int> _counts;
+
   final List<int> _digests;
 
   /// The steps that published events, in order.
@@ -93,48 +135,6 @@ final class EventTrace {
       for (final digest in _digests) digest.toRadixString(16).padLeft(8, '0'),
     ],
   };
-
-  /// Reads a trace back, or throws a [EventTraceFormatException] saying why not.
-  factory EventTrace.fromJson(Map<String, Object?> json) {
-    final steps = json['steps'];
-    final counts = json['counts'];
-    final digests = json['digests'];
-    if (steps is! List || counts is! List || digests is! List) {
-      throw EventTraceFormatException(
-        'the event trace has no steps, counts or digests',
-      );
-    }
-    if (steps.length != counts.length || steps.length != digests.length) {
-      throw EventTraceFormatException(
-        'the event trace has ${steps.length} steps, ${counts.length} counts '
-        'and ${digests.length} digests',
-      );
-    }
-    final readSteps = <int>[];
-    final readCounts = <int>[];
-    final readDigests = <int>[];
-    for (var i = 0; i < steps.length; i++) {
-      final step = steps[i];
-      final count = counts[i];
-      final digest = digests[i];
-      final parsed = digest is String ? int.tryParse(digest, radix: 16) : null;
-      if (step is! int || count is! int || count <= 0 || parsed == null) {
-        throw EventTraceFormatException(
-          'entry $i of the event trace is not a step, a count and a '
-          'hexadecimal digest',
-        );
-      }
-      if (readSteps.isNotEmpty && step <= readSteps.last) {
-        throw EventTraceFormatException(
-          'the event trace has step $step after step ${readSteps.last}',
-        );
-      }
-      readSteps.add(step);
-      readCounts.add(count);
-      readDigests.add(parsed);
-    }
-    return EventTrace._parts(readSteps, readCounts, readDigests);
-  }
 }
 
 /// The first step at which two runs' events differed.

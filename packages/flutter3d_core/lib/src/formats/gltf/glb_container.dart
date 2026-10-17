@@ -8,15 +8,6 @@ import '../format_exceptions.dart';
 final class GlbContainer {
   const GlbContainer({required this.json, this.binaryChunk});
 
-  final Map<String, Object?> json;
-
-  /// The GLB `BIN` chunk. Buffers with no `uri` refer to this.
-  final Uint8List? binaryChunk;
-
-  static const int _kMagic = 0x46546C67; // 'glTF'
-  static const int _kChunkJson = 0x4E4F534A; // 'JSON'
-  static const int _kChunkBin = 0x004E4942; // 'BIN\0'
-
   /// Detects the container form and parses it.
   ///
   /// `.glb` starts with the `glTF` magic; anything else is treated as `.gltf`
@@ -109,6 +100,16 @@ final class GlbContainer {
     }
     return GlbContainer(json: json, binaryChunk: binary);
   }
+  final Map<String, Object?> json;
+
+  /// The GLB `BIN` chunk. Buffers with no `uri` refer to this.
+  final Uint8List? binaryChunk;
+
+  static const int _kMagic = 0x46546C67; // 'glTF'
+
+  static const int _kChunkJson = 0x4E4F534A; // 'JSON'
+
+  static const int _kChunkBin = 0x004E4942; // 'BIN\0'
 
   /// Encodes [json] and an optional [binary] chunk into a `.glb` file.
   ///

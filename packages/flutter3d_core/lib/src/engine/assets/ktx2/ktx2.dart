@@ -51,13 +51,6 @@ final class Ktx2Texture {
     this.levels,
   );
 
-  final int pixelWidth;
-  final int pixelHeight;
-  final TextureFormat format;
-
-  /// Level 0 (the base, largest image) first.
-  final List<ByteData> levels;
-
   /// Reads [bytes] as a KTX2 file and maps its `vkFormat` to a [TextureFormat].
   ///
   /// Throws [formats.Ktx2FormatException] rather than returning null: a
@@ -86,6 +79,13 @@ final class Ktx2Texture {
       texture.levels,
     );
   }
+  final int pixelWidth;
+  final int pixelHeight;
+
+  final TextureFormat format;
+
+  /// Level 0 (the base, largest image) first.
+  final List<ByteData> levels;
 }
 
 /// The best format [device] samples for a universal-block texture — `gfx-83n`,

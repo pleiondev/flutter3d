@@ -16,10 +16,6 @@ import 'heard.dart';
 const double _dt = 1.0 / 60.0;
 
 final class _Stage {
-  /// What the last step published, taken the way a game hears a step.
-  final Heard _heard = Heard();
-  List<GameEvent> lastStep = const <GameEvent>[];
-
   _Stage() {
     world.addBox(Vector3(0.0, -0.5, 0.0), Vector3(40.0, 1.0, 40.0));
     mechanisms = MechanismWorld(world);
@@ -29,10 +25,17 @@ final class _Stage {
     runner.events = _heard.bus;
   }
 
+  /// What the last step published, taken the way a game hears a step.
+  final Heard _heard = Heard();
+
+  List<GameEvent> lastStep = const <GameEvent>[];
+
   final CollisionWorld world = CollisionWorld(properties: platformerWorld);
   final InputState input = InputState();
   late final MechanismWorld mechanisms;
   late final Runner runner;
+
+  final Set<GameAction> _held = <GameAction>{};
 
   /// A wall whose face is at [x], running along Z.
   void wallAt(
@@ -66,8 +69,6 @@ final class _Stage {
       speed: speed,
     ),
   );
-
-  final Set<GameAction> _held = <GameAction>{};
 
   void step({Set<GameAction>? holding}) {
     input.beginStep();

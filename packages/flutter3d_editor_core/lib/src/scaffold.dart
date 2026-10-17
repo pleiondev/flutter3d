@@ -22,22 +22,6 @@ final class Template {
     required this.files,
   });
 
-  /// The directory it lives in, and the word written into a level so the
-  /// palette can be rebuilt later.
-  final String id;
-
-  /// What a person picking one reads.
-  final String name;
-  final String about;
-
-  /// What to copy: the file's name in the template, against where it lands in
-  /// a project.
-  ///
-  /// A manifest rather than a directory listing, because the template is read
-  /// out of an application bundle and a bundle cannot be listed — and because
-  /// a file that exists and is not listed is a file that never arrives.
-  final Map<String, String> files;
-
   factory Template.parse(String id, String manifest) {
     final json = jsonDecode(manifest) as Map<String, Object?>;
     final files = json['files'];
@@ -52,6 +36,23 @@ final class Template {
       },
     );
   }
+
+  /// The directory it lives in, and the word written into a level so the
+  /// palette can be rebuilt later.
+  final String id;
+
+  /// What a person picking one reads.
+  final String name;
+
+  final String about;
+
+  /// What to copy: the file's name in the template, against where it lands in
+  /// a project.
+  ///
+  /// A manifest rather than a directory listing, because the template is read
+  /// out of an application bundle and a bundle cannot be listed — and because
+  /// a file that exists and is not listed is a file that never arrives.
+  final Map<String, String> files;
 }
 
 /// Where a project's directory is, given the level path somebody asked for.

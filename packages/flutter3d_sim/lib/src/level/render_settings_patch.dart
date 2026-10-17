@@ -20,11 +20,6 @@ final class RenderSettingsPatch {
 
   const RenderSettingsPatch._(this._json);
 
-  /// The patch that asks for nothing.
-  static const RenderSettingsPatch empty = RenderSettingsPatch._(
-    <String, Object?>{},
-  );
-
   /// The patch [json] writes: an object of settings by slot id. Throws a
   /// [LevelFormatException] for a value JSON cannot carry.
   factory RenderSettingsPatch.fromJson(Map<String, Object?> json) {
@@ -39,6 +34,11 @@ final class RenderSettingsPatch {
     }
     return RenderSettingsPatch._(copy);
   }
+
+  /// The patch that asks for nothing.
+  static const RenderSettingsPatch empty = RenderSettingsPatch._(
+    <String, Object?>{},
+  );
 
   final Map<String, Object?> _json;
 

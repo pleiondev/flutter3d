@@ -875,7 +875,7 @@ final class Editing {
     final row = _rowOf(document);
     if (row == null) return false;
 
-    final before = Map<String, Object?>.from(row);
+    final before = Map<String, Object?>.of(row);
     // An entity's property lives under `props`; its own keys at the top.
     final target = kind == Piece.entity && !EntityDef.reservedKeys.contains(key)
         ? (row['props'] = <String, Object?>{

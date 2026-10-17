@@ -65,10 +65,6 @@ final class NativeBodyType {
 final class NativeShape {
   const NativeShape._(this.kind, this.first, this.second, this.third);
 
-  /// No extent: it touches nothing, does not turn, has no surface and feels
-  /// no wind. What a new body is.
-  static const NativeShape point = NativeShape._(c.ShapeKind.point, 0, 0, 0);
-
   const NativeShape.sphere(double radius)
     : this._(c.ShapeKind.sphere, radius, 0, 0);
 
@@ -90,6 +86,10 @@ final class NativeShape {
   /// above the base.
   const NativeShape.cone(double radius, double height)
     : this._(c.ShapeKind.cone, radius, height, 0);
+
+  /// No extent: it touches nothing, does not turn, has no surface and feels
+  /// no wind. What a new body is.
+  static const NativeShape point = NativeShape._(c.ShapeKind.point, 0, 0, 0);
 
   /// `F3dShapeKind`.
   final int kind;
@@ -202,13 +202,6 @@ final class GridSide {
 final class NativeEdgeFlow {
   const NativeEdgeFlow._(this.kind, this.value);
 
-  /// Nothing crosses it: a bank, a dam, the side of a tank.
-  static const NativeEdgeFlow wall = NativeEdgeFlow._(c.EdgeKind.wall, 0);
-
-  /// What reaches it runs off, and nothing comes in: a stream leaving the
-  /// map.
-  static const NativeEdgeFlow free = NativeEdgeFlow._(c.EdgeKind.open, 0);
-
   /// [discharge] m³/s let in over the whole edge — taken out where it is
   /// negative — shared over its wet cells by their conveyance h^(5/3): a
   /// river entering the map.
@@ -219,6 +212,13 @@ final class NativeEdgeFlow {
   /// flowing in or out as the surface inside is below or above it: the
   /// sea, a lake the map opens onto.
   const NativeEdgeFlow.level(double height) : this._(c.EdgeKind.level, height);
+
+  /// Nothing crosses it: a bank, a dam, the side of a tank.
+  static const NativeEdgeFlow wall = NativeEdgeFlow._(c.EdgeKind.wall, 0);
+
+  /// What reaches it runs off, and nothing comes in: a stream leaving the
+  /// map.
+  static const NativeEdgeFlow free = NativeEdgeFlow._(c.EdgeKind.open, 0);
 
   final int kind;
 

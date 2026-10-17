@@ -47,8 +47,6 @@ import 'render_view.dart';
 /// space — and letting equal depths pass is what makes an edge sit on its face
 /// rather than flicker through it.
 final class MeshOverlay extends PassContributor {
-  final LineInfoBlock _lineInfo = LineInfoBlock();
-
   /// Built with the two stages of the line pipeline, which the renderer holds
   /// as `debugLineVertexShader` and `debugLineFragmentShader`.
   ///
@@ -56,6 +54,8 @@ final class MeshOverlay extends PassContributor {
   /// and a pass and nothing else — and widening that interface so one overlay
   /// can find two shaders would be widening it for everybody.
   MeshOverlay({required this.vertexShader, required this.fragmentShader});
+
+  final LineInfoBlock _lineInfo = LineInfoBlock();
 
   final ShaderHandle vertexShader;
   final ShaderHandle fragmentShader;
@@ -100,6 +100,95 @@ final class MeshOverlay extends PassContributor {
 
   bool _through = false;
 
+  /// How much of the surface a fill lets through.
+  ///
+  /// **A number the design chose, not a taste.** A fill opaque enough to read
+  /// as a selection and thin enough to leave the shading under it visible is
+  /// the difference between "this face is selected" and "this face is a flat
+  /// colour" — and the second tells a person nothing about the shape they are
+  /// working on.
+  static const double fillOpacity = 0.55;
+
+  Vector3 _eye = Vector3.zero();
+  Vector3 _right = Vector3(1, 0, 0);
+
+  Vector3 _up = Vector3(0, 1, 0);
+
+  double _pixel = 0.0;
+
+  bool _perspective = true;
+
+  /// How far towards the eye the overlay sits, in logical pixels of depth.
+  ///
+  /// Small enough that nothing looks detached and large enough to beat the
+  /// float32 depth buffer at the distances a modeller works at.
+  double biasPixels = 12;
+
+  PipelineHandle? _pipeline;
+
+  /// The index sequence 0, 1, 2, … that every draw here is made through.
+  ///
+  /// **Not an optimisation and not a formality: `CommandEncoder.draw` in this
+  /// engine is always indexed, and there is no non-indexed path.** A draw with
+  /// a vertex buffer and no index buffer bound is a draw of nothing — silently,
+  /// with no refusal and no empty-frame report, because binding nothing is a
+  /// legal state that the mesh loop passes through between draws. The overlay
+  /// went a whole commit drawing nothing for exactly that reason, and every
+  /// test it had still passed, because they all read the batch. `DebugDraw`
+  /// keeps the same sequence for the same reason.
+  final IdentityIndices _identityIndices = IdentityIndices();
+
+  /// **`lessEqual` rather than `always`, which is the whole difference from
+  /// `DebugDraw`.** An overlay drawn over everything shows the edges of the far
+  /// side of a box as though they were on the near side, and a person reading a
+  /// silhouette cannot tell which is which. Letting the depth buffer refuse the
+  /// hidden ones — and letting equal depths through, because the overlay was
+  /// nudged to exactly that — is what makes the picture readable.
+  static const PassState _kLineState = PassState(
+    primitiveType: PrimitiveType.line,
+    polygonMode: PolygonMode.fill,
+    cullMode: CullMode.none,
+    blend: null,
+    depthWrite: false,
+    depthCompare: CompareFunction.lessEqual,
+  );
+  static const PassState _kSolidState = PassState(
+    primitiveType: PrimitiveType.triangle,
+    polygonMode: PolygonMode.fill,
+    cullMode: CullMode.none,
+    blend: null,
+    depthWrite: false,
+    depthCompare: CompareFunction.lessEqual,
+  );
+  static const PassState _kFillState = PassState(
+    primitiveType: PrimitiveType.triangle,
+    polygonMode: PolygonMode.fill,
+    cullMode: CullMode.none,
+    blend: BlendState.alphaBlend,
+    depthWrite: false,
+    depthCompare: CompareFunction.lessEqual,
+  );
+
+  /// The two through states: no depth test at all, and blended, because
+  /// [throughOpacity] is the whole point of them — an unblended alpha is a
+  /// number nothing on screen would show.
+  static const PassState _kLineThroughState = PassState(
+    primitiveType: PrimitiveType.line,
+    polygonMode: PolygonMode.fill,
+    cullMode: CullMode.none,
+    blend: BlendState.alphaBlend,
+    depthWrite: false,
+    depthCompare: CompareFunction.always,
+  );
+  static const PassState _kSolidThroughState = PassState(
+    primitiveType: PrimitiveType.triangle,
+    polygonMode: PolygonMode.fill,
+    cullMode: CullMode.none,
+    blend: BlendState.alphaBlend,
+    depthWrite: false,
+    depthCompare: CompareFunction.always,
+  );
+
   /// Runs [write] with everything it draws going to the through batches.
   ///
   /// A scope rather than a flag a caller sets and clears, because a flag left
@@ -116,21 +205,13 @@ final class MeshOverlay extends PassContributor {
   }
 
   OverlayBatch get _lineBatch => _through ? linesThrough : lines;
+
   OverlayBatch get _handleBatch => _through ? handlesThrough : handles;
 
   /// [color] as the current pass wants it: untouched ordinarily, faded to
   /// [throughOpacity] inside [throughGeometry].
   LinearColor _inThisPass(LinearColor color) =>
       _through ? color.withAlpha(color.a * throughOpacity) : color;
-
-  /// How much of the surface a fill lets through.
-  ///
-  /// **A number the design chose, not a taste.** A fill opaque enough to read
-  /// as a selection and thin enough to leave the shading under it visible is
-  /// the difference between "this face is selected" and "this face is a flat
-  /// colour" — and the second tells a person nothing about the shape they are
-  /// working on.
-  static const double fillOpacity = 0.55;
 
   /// Drawn last, over everything the scene put down.
   @override
@@ -166,12 +247,6 @@ final class MeshOverlay extends PassContributor {
     }
     return Aabb3.minMax(min, max);
   }
-
-  Vector3 _eye = Vector3.zero();
-  Vector3 _right = Vector3(1, 0, 0);
-  Vector3 _up = Vector3(0, 1, 0);
-  double _pixel = 0.0;
-  bool _perspective = true;
 
   /// Where the camera is and how big a pixel is in the world.
   ///
@@ -314,12 +389,6 @@ final class MeshOverlay extends PassContributor {
       ..vertex(_towardsEye(c), washed);
   }
 
-  /// How far towards the eye the overlay sits, in logical pixels of depth.
-  ///
-  /// Small enough that nothing looks detached and large enough to beat the
-  /// float32 depth buffer at the distances a modeller works at.
-  double biasPixels = 12;
-
   Vector3 _towardsEye(Vector3 at) {
     final away = _eye - at;
     final distance = away.length;
@@ -344,22 +413,8 @@ final class MeshOverlay extends PassContributor {
       ..vertex(d, color);
   }
 
-  PipelineHandle? _pipeline;
-
   @override
   void relinkShaders() => _pipeline = null;
-
-  /// The index sequence 0, 1, 2, … that every draw here is made through.
-  ///
-  /// **Not an optimisation and not a formality: `CommandEncoder.draw` in this
-  /// engine is always indexed, and there is no non-indexed path.** A draw with
-  /// a vertex buffer and no index buffer bound is a draw of nothing — silently,
-  /// with no refusal and no empty-frame report, because binding nothing is a
-  /// legal state that the mesh loop passes through between draws. The overlay
-  /// went a whole commit drawing nothing for exactly that reason, and every
-  /// test it had still passed, because they all read the batch. `DebugDraw`
-  /// keeps the same sequence for the same reason.
-  final IdentityIndices _identityIndices = IdentityIndices();
 
   @override
   void encode(ContributorFrame frame) {
@@ -405,60 +460,6 @@ final class MeshOverlay extends PassContributor {
       ..draw();
     frame.state.drawCalls++;
   }
-
-  /// **`lessEqual` rather than `always`, which is the whole difference from
-  /// `DebugDraw`.** An overlay drawn over everything shows the edges of the far
-  /// side of a box as though they were on the near side, and a person reading a
-  /// silhouette cannot tell which is which. Letting the depth buffer refuse the
-  /// hidden ones — and letting equal depths through, because the overlay was
-  /// nudged to exactly that — is what makes the picture readable.
-  static const PassState _kLineState = PassState(
-    primitiveType: PrimitiveType.line,
-    polygonMode: PolygonMode.fill,
-    cullMode: CullMode.none,
-    blend: null,
-    depthWrite: false,
-    depthCompare: CompareFunction.lessEqual,
-  );
-
-  static const PassState _kSolidState = PassState(
-    primitiveType: PrimitiveType.triangle,
-    polygonMode: PolygonMode.fill,
-    cullMode: CullMode.none,
-    blend: null,
-    depthWrite: false,
-    depthCompare: CompareFunction.lessEqual,
-  );
-
-  static const PassState _kFillState = PassState(
-    primitiveType: PrimitiveType.triangle,
-    polygonMode: PolygonMode.fill,
-    cullMode: CullMode.none,
-    blend: BlendState.alphaBlend,
-    depthWrite: false,
-    depthCompare: CompareFunction.lessEqual,
-  );
-
-  /// The two through states: no depth test at all, and blended, because
-  /// [throughOpacity] is the whole point of them — an unblended alpha is a
-  /// number nothing on screen would show.
-  static const PassState _kLineThroughState = PassState(
-    primitiveType: PrimitiveType.line,
-    polygonMode: PolygonMode.fill,
-    cullMode: CullMode.none,
-    blend: BlendState.alphaBlend,
-    depthWrite: false,
-    depthCompare: CompareFunction.always,
-  );
-
-  static const PassState _kSolidThroughState = PassState(
-    primitiveType: PrimitiveType.triangle,
-    polygonMode: PolygonMode.fill,
-    cullMode: CullMode.none,
-    blend: BlendState.alphaBlend,
-    depthWrite: false,
-    depthCompare: CompareFunction.always,
-  );
 }
 
 /// One buffer of overlay vertices, grown rather than reallocated.

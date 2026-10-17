@@ -109,6 +109,15 @@ final class Demo {
     this.unknown = const <String, Object?>{},
   });
 
+  /// Reads a demo, or throws a [DemoFormatException] that says why not.
+  ///
+  /// Throws rather than returning null, because every reason is worth a
+  /// sentence: a demo from a newer build can still be opened by the build that
+  /// wrote it, and a file with no tape in it was cut short by whatever wrote
+  /// it, and the player who attached it deserves to be told which.
+  factory Demo.fromJson(Map<String, Object?> json) =>
+      _read(json, json['version']);
+
   /// Bumped when an existing field changes meaning.
   ///
   /// **2 is written only by a run with [levelSwaps] in it.** A build that
@@ -417,15 +426,6 @@ final class Demo {
   static Map<String, Object?> _identity(Map<String, Object?> document) =>
       document;
 
-  /// Reads a demo, or throws a [DemoFormatException] that says why not.
-  ///
-  /// Throws rather than returning null, because every reason is worth a
-  /// sentence: a demo from a newer build can still be opened by the build that
-  /// wrote it, and a file with no tape in it was cut short by whatever wrote
-  /// it, and the player who attached it deserves to be told which.
-  factory Demo.fromJson(Map<String, Object?> json) =>
-      _read(json, json['version']);
-
   static Demo _read(Map<String, Object?> written, Object? version) {
     if (version is! num) {
       throw const DemoFormatException('the document has no version in it');
@@ -716,18 +716,6 @@ final class Demo {
 final class DemoLevelSwap {
   const DemoLevelSwap({required this.step, required this.level});
 
-  final int step;
-  final Level level;
-
-  /// [Level.digestHex] of [level], what the editor and the timeline call it.
-  String get levelHash => level.digestHex;
-
-  Map<String, Object?> toJson() => <String, Object?>{
-    'step': step,
-    'levelHash': levelHash,
-    'document': level.toJson(),
-  };
-
   /// **The digest is checked against the document**, as
   /// `ext.flutter3d.level.apply` checks it: a document that no longer
   /// digests to what was written beside it is not the level the run was
@@ -774,6 +762,18 @@ final class DemoLevelSwap {
     }
     return DemoLevelSwap(step: step, level: level);
   }
+  final int step;
+
+  final Level level;
+
+  /// [Level.digestHex] of [level], what the editor and the timeline call it.
+  String get levelHash => level.digestHex;
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'step': step,
+    'levelHash': levelHash,
+    'document': level.toJson(),
+  };
 }
 
 /// Thrown when a demo cannot be read at all.

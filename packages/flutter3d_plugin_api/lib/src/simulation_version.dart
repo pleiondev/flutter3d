@@ -46,210 +46,6 @@ final class SimulationVersion {
     this.extra = const <String, Object?>{},
   });
 
-  /// The keys [toJson] writes; [fromJson] keeps any other in [extra].
-  static const Set<String> _known = <String>{
-    'engine',
-    'genre',
-    'genreVersion',
-    'otherGenres',
-    'plugins',
-    'profile',
-    'subsystems',
-  };
-
-  /// The engine's simulation: the fixed step, the input, the physics and
-  /// everything in `flutter3d_sim` that moves a body. 1 is 1.0.0's.
-  static const int engineVersion = 1;
-
-  /// A game with no genre package of its own: the engine's number alone.
-  static const SimulationVersion engineOnly = SimulationVersion();
-
-  /// [engineVersion] when this build wrote it; whatever the file says when
-  /// it was read.
-  final int engine;
-
-  /// The genre whose rules the run was played by — `'platformer'`,
-  /// `'racing'` — or a game's own name when its rules are its own; null for
-  /// a game on the engine alone.
-  final String? genre;
-
-  /// [genre]'s own number, by the same promise. Meaningless without a genre.
-  ///
-  /// 0 names a genre's rules from before 1.0.0, which no 1.x build runs: what
-  /// a format migrating a pre-1.0 file tags it with, so that the file opens
-  /// and its tape is refused with a reason rather than the file with none.
-  final int genreVersion;
-
-  /// The genres played beside [genre], by name, each with its own number: an
-  /// engine with two genres installed — a racer whose track has a shooter's
-  /// turrets — runs both sets of rules, and a tape recorded there replays
-  /// only where both are at the same numbers. Empty for one genre or none.
-  final Map<String, int> otherGenres;
-
-  /// Every genre the run was played by, [genre] first, with its number.
-  Map<String, int> get genres => <String, int>{
-    ?genre: genreVersion,
-    for (final name in (otherGenres.keys.toList()..sort()))
-      name: otherGenres[name]!,
-  };
-
-  /// Every simulation plugin that was on, by id, with its own simulation
-  /// number. A view plugin changes nothing a step computes and is not here.
-  ///
-  /// Empty in a file written before plugins had numbers, which is read as
-  /// "no plugin was asked about" — see [refusalOn].
-  final Map<String, int> plugins;
-
-  /// What the simulation promises about its numbers: the same engine run
-  /// under another profile is another simulation, so a tape recorded on
-  /// one is refused on the other ([refusalOn]) and two machines on
-  /// different profiles never form a match.
-  ///
-  /// [SimulationProfile.deterministic] unless the loop says otherwise, and
-  /// written only when it is another ([toJson]), so a run and a hello of
-  /// the default simulation read as they did before there was a second
-  /// profile.
-  final SimulationProfile profile;
-
-  /// Every subsystem that was running, by id, with its own simulation
-  /// number: the solvers registered with the loop's `SubsystemRegistry`
-  /// (`flutter3d_fields`) that run under its profile. The simulation is
-  /// composed from them, so a solver a minor adds and switches on through a
-  /// profile is named here only where it runs.
-  ///
-  /// Empty for the default simulation, and written only when it is not
-  /// ([toJson]), so a run and a hello of it read as they did before there
-  /// were subsystems.
-  final Map<String, int> subsystems;
-
-  /// Keys a newer build wrote that this one does not know, kept as they
-  /// were read and written back.
-  ///
-  /// **A dimension of the simulation's identity a minor may add.** A newer
-  /// build that composes the simulation from something this one has no
-  /// field for writes it under a key of its own. Dropping it would read
-  /// that simulation as this build's and replay or match across the two;
-  /// kept, it is compared by [==] and [refusalOn], so the run or the hello
-  /// is refused with the key named rather than silently changed. Empty for
-  /// everything this build writes.
-  final Map<String, Object?> extra;
-
-  /// What a file written before simulations had numbers is read as: version
-  /// 1 of the engine and of whatever genre is [running] — the simulation
-  /// 1.0.0 shipped, which is the only one such a file can come from.
-  static SimulationVersion firstOf(SimulationVersion running) =>
-      SimulationVersion(
-        genre: running.genre,
-        engine: 1,
-        otherGenres: <String, int>{
-          for (final name in running.otherGenres.keys) name: 1,
-        },
-      );
-
-  /// This version with [plugins] in place of its own.
-  SimulationVersion withPlugins(Map<String, int> plugins) => SimulationVersion(
-    engine: engine,
-    genre: genre,
-    genreVersion: genreVersion,
-    otherGenres: otherGenres,
-    plugins: Map<String, int>.unmodifiable(plugins),
-    profile: profile,
-    subsystems: subsystems,
-    extra: extra,
-  );
-
-  /// This version run under [profile] instead of its own.
-  SimulationVersion withProfile(SimulationProfile profile) => SimulationVersion(
-    engine: engine,
-    genre: genre,
-    genreVersion: genreVersion,
-    otherGenres: otherGenres,
-    plugins: plugins,
-    profile: profile,
-    subsystems: subsystems,
-    extra: extra,
-  );
-
-  /// This version with [subsystems] in place of its own.
-  SimulationVersion withSubsystems(Map<String, int> subsystems) =>
-      SimulationVersion(
-        engine: engine,
-        genre: genre,
-        genreVersion: genreVersion,
-        otherGenres: otherGenres,
-        plugins: plugins,
-        profile: profile,
-        subsystems: Map<String, int>.unmodifiable(subsystems),
-        extra: extra,
-      );
-
-  /// This version with [name] at [version] played beside [genre] — or as
-  /// [genre] itself when there is none yet.
-  ///
-  /// For a game that installs a second genre into one engine: its loop's
-  /// `simulationBase` is the first genre's number `withGenre` the second's,
-  /// so a run file and a network hello name both.
-  SimulationVersion withGenre(String name, int version) => genre == null
-      ? SimulationVersion(
-          engine: engine,
-          genre: name,
-          genreVersion: version,
-          plugins: plugins,
-          profile: profile,
-          subsystems: subsystems,
-          extra: extra,
-        )
-      : SimulationVersion(
-          engine: engine,
-          genre: genre,
-          genreVersion: genreVersion,
-          otherGenres: Map<String, int>.unmodifiable(<String, int>{
-            ...otherGenres,
-            name: version,
-          }),
-          plugins: plugins,
-          profile: profile,
-          subsystems: subsystems,
-          extra: extra,
-        );
-
-  /// "engine 1, platformer 2, fire 3" — the words a refusal uses, and
-  /// what a hello and the relay match on. A profile other than
-  /// [SimulationProfile.deterministic] is named last ("engine 1, accurate
-  /// profile").
-  String describe() => <String>[
-    'engine $engine',
-    if (genre != null) '$genre $genreVersion',
-    for (final name in (otherGenres.keys.toList()..sort()))
-      '$name ${otherGenres[name]}',
-    for (final id in (plugins.keys.toList()..sort())) '$id ${plugins[id]}',
-    for (final id in (subsystems.keys.toList()..sort()))
-      '$id ${subsystems[id]}',
-    if (profile != SimulationProfile.deterministic) '${profile.name} profile',
-  ].join(', ');
-
-  Map<String, Object?> toJson() => <String, Object?>{
-    'engine': engine,
-    if (genre != null) 'genre': genre,
-    if (genre != null) 'genreVersion': genreVersion,
-    if (otherGenres.isNotEmpty)
-      'otherGenres': <String, Object?>{
-        for (final name in (otherGenres.keys.toList()..sort()))
-          name: otherGenres[name],
-      },
-    if (plugins.isNotEmpty)
-      'plugins': <String, Object?>{
-        for (final id in (plugins.keys.toList()..sort())) id: plugins[id],
-      },
-    if (profile != SimulationProfile.deterministic) 'profile': profile.toJson(),
-    if (subsystems.isNotEmpty)
-      'subsystems': <String, Object?>{
-        for (final id in (subsystems.keys.toList()..sort())) id: subsystems[id],
-      },
-    for (final MapEntry(:key, :value) in extra.entries)
-      if (!_known.contains(key)) key: value,
-  };
-
   /// Reads what [toJson] wrote. A number that is not one is refused with a
   /// [PluginFormatException] rather than guessed: a guessed simulation is a
   /// tape replayed into the wrong one.
@@ -368,6 +164,210 @@ final class SimulationVersion {
       }),
     );
   }
+
+  /// The keys [toJson] writes; [fromJson] keeps any other in [extra].
+  static const Set<String> _known = <String>{
+    'engine',
+    'genre',
+    'genreVersion',
+    'otherGenres',
+    'plugins',
+    'profile',
+    'subsystems',
+  };
+
+  /// The engine's simulation: the fixed step, the input, the physics and
+  /// everything in `flutter3d_sim` that moves a body. 1 is 1.0.0's.
+  static const int engineVersion = 1;
+
+  /// A game with no genre package of its own: the engine's number alone.
+  static const SimulationVersion engineOnly = SimulationVersion();
+
+  /// [engineVersion] when this build wrote it; whatever the file says when
+  /// it was read.
+  final int engine;
+
+  /// The genre whose rules the run was played by — `'platformer'`,
+  /// `'racing'` — or a game's own name when its rules are its own; null for
+  /// a game on the engine alone.
+  final String? genre;
+
+  /// [genre]'s own number, by the same promise. Meaningless without a genre.
+  ///
+  /// 0 names a genre's rules from before 1.0.0, which no 1.x build runs: what
+  /// a format migrating a pre-1.0 file tags it with, so that the file opens
+  /// and its tape is refused with a reason rather than the file with none.
+  final int genreVersion;
+
+  /// The genres played beside [genre], by name, each with its own number: an
+  /// engine with two genres installed — a racer whose track has a shooter's
+  /// turrets — runs both sets of rules, and a tape recorded there replays
+  /// only where both are at the same numbers. Empty for one genre or none.
+  final Map<String, int> otherGenres;
+
+  /// Every simulation plugin that was on, by id, with its own simulation
+  /// number. A view plugin changes nothing a step computes and is not here.
+  ///
+  /// Empty in a file written before plugins had numbers, which is read as
+  /// "no plugin was asked about" — see [refusalOn].
+  final Map<String, int> plugins;
+
+  /// What the simulation promises about its numbers: the same engine run
+  /// under another profile is another simulation, so a tape recorded on
+  /// one is refused on the other ([refusalOn]) and two machines on
+  /// different profiles never form a match.
+  ///
+  /// [SimulationProfile.deterministic] unless the loop says otherwise, and
+  /// written only when it is another ([toJson]), so a run and a hello of
+  /// the default simulation read as they did before there was a second
+  /// profile.
+  final SimulationProfile profile;
+
+  /// Every subsystem that was running, by id, with its own simulation
+  /// number: the solvers registered with the loop's `SubsystemRegistry`
+  /// (`flutter3d_fields`) that run under its profile. The simulation is
+  /// composed from them, so a solver a minor adds and switches on through a
+  /// profile is named here only where it runs.
+  ///
+  /// Empty for the default simulation, and written only when it is not
+  /// ([toJson]), so a run and a hello of it read as they did before there
+  /// were subsystems.
+  final Map<String, int> subsystems;
+
+  /// Keys a newer build wrote that this one does not know, kept as they
+  /// were read and written back.
+  ///
+  /// **A dimension of the simulation's identity a minor may add.** A newer
+  /// build that composes the simulation from something this one has no
+  /// field for writes it under a key of its own. Dropping it would read
+  /// that simulation as this build's and replay or match across the two;
+  /// kept, it is compared by [==] and [refusalOn], so the run or the hello
+  /// is refused with the key named rather than silently changed. Empty for
+  /// everything this build writes.
+  final Map<String, Object?> extra;
+
+  /// Every genre the run was played by, [genre] first, with its number.
+  Map<String, int> get genres => <String, int>{
+    ?genre: genreVersion,
+    for (final name in (otherGenres.keys.toList()..sort()))
+      name: otherGenres[name]!,
+  };
+
+  /// What a file written before simulations had numbers is read as: version
+  /// 1 of the engine and of whatever genre is [running] — the simulation
+  /// 1.0.0 shipped, which is the only one such a file can come from.
+  static SimulationVersion firstOf(SimulationVersion running) =>
+      SimulationVersion(
+        genre: running.genre,
+        engine: 1,
+        otherGenres: <String, int>{
+          for (final name in running.otherGenres.keys) name: 1,
+        },
+      );
+
+  /// This version with [plugins] in place of its own.
+  SimulationVersion withPlugins(Map<String, int> plugins) => SimulationVersion(
+    engine: engine,
+    genre: genre,
+    genreVersion: genreVersion,
+    otherGenres: otherGenres,
+    plugins: Map<String, int>.unmodifiable(plugins),
+    profile: profile,
+    subsystems: subsystems,
+    extra: extra,
+  );
+
+  /// This version run under [profile] instead of its own.
+  SimulationVersion withProfile(SimulationProfile profile) => SimulationVersion(
+    engine: engine,
+    genre: genre,
+    genreVersion: genreVersion,
+    otherGenres: otherGenres,
+    plugins: plugins,
+    profile: profile,
+    subsystems: subsystems,
+    extra: extra,
+  );
+
+  /// This version with [subsystems] in place of its own.
+  SimulationVersion withSubsystems(Map<String, int> subsystems) =>
+      SimulationVersion(
+        engine: engine,
+        genre: genre,
+        genreVersion: genreVersion,
+        otherGenres: otherGenres,
+        plugins: plugins,
+        profile: profile,
+        subsystems: Map<String, int>.unmodifiable(subsystems),
+        extra: extra,
+      );
+
+  /// This version with [name] at [version] played beside [genre] — or as
+  /// [genre] itself when there is none yet.
+  ///
+  /// For a game that installs a second genre into one engine: its loop's
+  /// `simulationBase` is the first genre's number `withGenre` the second's,
+  /// so a run file and a network hello name both.
+  SimulationVersion withGenre(String name, int version) => genre == null
+      ? SimulationVersion(
+          engine: engine,
+          genre: name,
+          genreVersion: version,
+          plugins: plugins,
+          profile: profile,
+          subsystems: subsystems,
+          extra: extra,
+        )
+      : SimulationVersion(
+          engine: engine,
+          genre: genre,
+          genreVersion: genreVersion,
+          otherGenres: Map<String, int>.unmodifiable(<String, int>{
+            ...otherGenres,
+            name: version,
+          }),
+          plugins: plugins,
+          profile: profile,
+          subsystems: subsystems,
+          extra: extra,
+        );
+
+  /// "engine 1, platformer 2, fire 3" — the words a refusal uses, and
+  /// what a hello and the relay match on. A profile other than
+  /// [SimulationProfile.deterministic] is named last ("engine 1, accurate
+  /// profile").
+  String describe() => <String>[
+    'engine $engine',
+    if (genre != null) '$genre $genreVersion',
+    for (final name in (otherGenres.keys.toList()..sort()))
+      '$name ${otherGenres[name]}',
+    for (final id in (plugins.keys.toList()..sort())) '$id ${plugins[id]}',
+    for (final id in (subsystems.keys.toList()..sort()))
+      '$id ${subsystems[id]}',
+    if (profile != SimulationProfile.deterministic) '${profile.name} profile',
+  ].join(', ');
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'engine': engine,
+    if (genre != null) 'genre': genre,
+    if (genre != null) 'genreVersion': genreVersion,
+    if (otherGenres.isNotEmpty)
+      'otherGenres': <String, Object?>{
+        for (final name in (otherGenres.keys.toList()..sort()))
+          name: otherGenres[name],
+      },
+    if (plugins.isNotEmpty)
+      'plugins': <String, Object?>{
+        for (final id in (plugins.keys.toList()..sort())) id: plugins[id],
+      },
+    if (profile != SimulationProfile.deterministic) 'profile': profile.toJson(),
+    if (subsystems.isNotEmpty)
+      'subsystems': <String, Object?>{
+        for (final id in (subsystems.keys.toList()..sort())) id: subsystems[id],
+      },
+    for (final MapEntry(:key, :value) in extra.entries)
+      if (!_known.contains(key)) key: value,
+  };
 
   /// Why a run recorded on this simulation does not replay on [running], or
   /// null when it does.

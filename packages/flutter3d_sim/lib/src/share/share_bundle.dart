@@ -43,82 +43,6 @@ final class ShareBundle extends FormatDocument {
     }
   }
 
-  /// Bumped when an existing field changes meaning, with a step in
-  /// [_migrations] and a fixture under `test/fixtures/v<N>/`.
-  static const int formatVersion = 1;
-
-  /// Entry `i` lifts a bundle from version `i + 1` to `i + 2`; empty while
-  /// version 1 is the only one, so reading it is the identity.
-  static const List<FormatMigration> _migrations = <FormatMigration>[];
-
-  /// The share bundle in the registry: `f3d.share`. The envelope is
-  /// additive at version 1 — a build from before it ignores the three keys.
-  static const FormatSpec format = FormatSpec(
-    id: 'f3d.share',
-    version: formatVersion,
-    suffixes: <String>['.share.json'],
-    fixture: 'test/fixtures/v<N>/first.share.json',
-    migrations: _migrations,
-  );
-
-  @override
-  FormatSpec get spec => format;
-
-  static const Set<String> _known = <String>{
-    'game',
-    'title',
-    'levelHash',
-    'level',
-    'run',
-  };
-
-  /// What the game calls itself, so that a viewer knows which game opens it.
-  final String game;
-
-  /// The level document, as its own `toJson()` wrote it.
-  final Map<String, Object?> level;
-
-  /// [Level.digestHex] of [level] read as a [Level]: which version of it this
-  /// is, the same number a run records ([Demo.levelHash]).
-  ///
-  /// **The level as read, not the document as it came.** A bundle hashed the
-  /// document, a run hashes the level: for any document not already in this
-  /// build's shape — a version-1 level in a game's assets — the two never
-  /// met, and a run of it could not be shared.
-  final String levelHash;
-
-  /// [contentDigestHex] of the document as it came: what a bundle or a run
-  /// written before 1.0.0-rc.1 named the level by, and still names it,
-  /// since the same document is the same level.
-  final String _documentHash;
-
-  bool _names(String hash) => hash == levelHash || hash == _documentHash;
-
-  static String _hashOf(Map<String, Object?> level) {
-    try {
-      return Level.fromJson(level).digestHex;
-    } on LevelFormatException catch (error) {
-      throw ShareFormatException(
-        'the level in the bundle cannot be read by this build, so there is no '
-        'telling which version of it it is: ${error.message}',
-      );
-    }
-  }
-
-  /// A run through [level], or null for a level shared on its own.
-  final Demo? run;
-
-  /// What the person sharing it called it, or null.
-  final String? title;
-
-  Map<String, Object?> toJson() => write(<String, Object?>{
-    'game': game,
-    if (title != null) 'title': title,
-    'levelHash': levelHash,
-    'level': level,
-    if (run != null) 'run': run!.toJson(),
-  });
-
   /// Reads a bundle, or throws a [ShareFormatException] that says why not.
   ///
   /// [levelHash] is read and compared rather than trusted: a bundle edited by
@@ -176,6 +100,82 @@ final class ShareBundle extends FormatDocument {
     }
     return bundle;
   }
+
+  /// Bumped when an existing field changes meaning, with a step in
+  /// [_migrations] and a fixture under `test/fixtures/v<N>/`.
+  static const int formatVersion = 1;
+
+  /// Entry `i` lifts a bundle from version `i + 1` to `i + 2`; empty while
+  /// version 1 is the only one, so reading it is the identity.
+  static const List<FormatMigration> _migrations = <FormatMigration>[];
+
+  /// The share bundle in the registry: `f3d.share`. The envelope is
+  /// additive at version 1 — a build from before it ignores the three keys.
+  static const FormatSpec format = FormatSpec(
+    id: 'f3d.share',
+    version: formatVersion,
+    suffixes: <String>['.share.json'],
+    fixture: 'test/fixtures/v<N>/first.share.json',
+    migrations: _migrations,
+  );
+
+  static const Set<String> _known = <String>{
+    'game',
+    'title',
+    'levelHash',
+    'level',
+    'run',
+  };
+
+  /// What the game calls itself, so that a viewer knows which game opens it.
+  final String game;
+
+  /// The level document, as its own `toJson()` wrote it.
+  final Map<String, Object?> level;
+
+  /// [Level.digestHex] of [level] read as a [Level]: which version of it this
+  /// is, the same number a run records ([Demo.levelHash]).
+  ///
+  /// **The level as read, not the document as it came.** A bundle hashed the
+  /// document, a run hashes the level: for any document not already in this
+  /// build's shape — a version-1 level in a game's assets — the two never
+  /// met, and a run of it could not be shared.
+  final String levelHash;
+
+  /// [contentDigestHex] of the document as it came: what a bundle or a run
+  /// written before 1.0.0-rc.1 named the level by, and still names it,
+  /// since the same document is the same level.
+  final String _documentHash;
+
+  /// A run through [level], or null for a level shared on its own.
+  final Demo? run;
+
+  /// What the person sharing it called it, or null.
+  final String? title;
+
+  @override
+  FormatSpec get spec => format;
+
+  bool _names(String hash) => hash == levelHash || hash == _documentHash;
+
+  static String _hashOf(Map<String, Object?> level) {
+    try {
+      return Level.fromJson(level).digestHex;
+    } on LevelFormatException catch (error) {
+      throw ShareFormatException(
+        'the level in the bundle cannot be read by this build, so there is no '
+        'telling which version of it it is: ${error.message}',
+      );
+    }
+  }
+
+  Map<String, Object?> toJson() => write(<String, Object?>{
+    'game': game,
+    if (title != null) 'title': title,
+    'levelHash': levelHash,
+    'level': level,
+    if (run != null) 'run': run!.toJson(),
+  });
 }
 
 /// Thrown when a bundle cannot be read, or would not mean what it says.

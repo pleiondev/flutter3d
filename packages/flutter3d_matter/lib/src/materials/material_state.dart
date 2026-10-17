@@ -55,6 +55,35 @@ final class MatterState {
     phase: phase,
   );
 
+  /// The state [json] holds, as [toJson] writes it. Every quantity is kept,
+  /// the ones this build does not know included.
+  ///
+  /// Throws a [MaterialFormatException] for an id that is not
+  /// `<namespace>.<name>`, a quantity that is not one, or a phase that is
+  /// not a word.
+  factory MatterState.fromJson(Map<String, Object?> json) {
+    final quantities = switch (json['quantities']) {
+      null => const <String, Object?>{},
+      final Map<String, Object?> map => map,
+      final other => throw MaterialFormatException(
+        'a material state\'s "quantities" must be an object, not $other',
+      ),
+    };
+    return MatterState(
+      quantities: Map<String, Quantity>.unmodifiable(<String, Quantity>{
+        for (final MapEntry(:key, :value) in quantities.entries)
+          checkedQuantityId(key): _quantity(key, value),
+      }),
+      phase: switch (json['phase']) {
+        null => null,
+        final String name when name.isNotEmpty => MaterialPhase.named(name),
+        final other => throw MaterialFormatException(
+          'a material state\'s "phase" must be a word, not $other',
+        ),
+      },
+    );
+  }
+
   /// 20 °C and one standard atmosphere, the state the catalogue's numbers
   /// are quoted at unless an entry says otherwise.
   static const MatterState standard = MatterState(
@@ -79,6 +108,10 @@ final class MatterState {
 
   /// The phase it is in, or null to take the material's.
   final MaterialPhase? phase;
+
+  static final RegExp _idShape = RegExp(
+    r'^[a-z][a-z0-9_.\-]*\.[a-zA-Z][A-Za-z0-9_]*$',
+  );
 
   /// The quantity under [id], or null when this state does not hold it.
   Quantity? operator [](String id) => quantities[id];
@@ -127,35 +160,6 @@ final class MatterState {
     'phase': ?phase?.name,
   };
 
-  /// The state [json] holds, as [toJson] writes it. Every quantity is kept,
-  /// the ones this build does not know included.
-  ///
-  /// Throws a [MaterialFormatException] for an id that is not
-  /// `<namespace>.<name>`, a quantity that is not one, or a phase that is
-  /// not a word.
-  factory MatterState.fromJson(Map<String, Object?> json) {
-    final quantities = switch (json['quantities']) {
-      null => const <String, Object?>{},
-      final Map<String, Object?> map => map,
-      final other => throw MaterialFormatException(
-        'a material state\'s "quantities" must be an object, not $other',
-      ),
-    };
-    return MatterState(
-      quantities: Map<String, Quantity>.unmodifiable(<String, Quantity>{
-        for (final MapEntry(:key, :value) in quantities.entries)
-          checkedQuantityId(key): _quantity(key, value),
-      }),
-      phase: switch (json['phase']) {
-        null => null,
-        final String name when name.isNotEmpty => MaterialPhase.named(name),
-        final other => throw MaterialFormatException(
-          'a material state\'s "phase" must be a word, not $other',
-        ),
-      },
-    );
-  }
-
   static Quantity _quantity(String id, Object? json) {
     try {
       return Quantity.fromJson(json);
@@ -172,10 +176,6 @@ final class MatterState {
           'a quantity\'s id is "<namespace>.<name>", as "f3d.temperature" '
           'is, not "$id"',
         );
-
-  static final RegExp _idShape = RegExp(
-    r'^[a-z][a-z0-9_.\-]*\.[a-zA-Z][A-Za-z0-9_]*$',
-  );
 
   @override
   bool operator ==(Object other) {

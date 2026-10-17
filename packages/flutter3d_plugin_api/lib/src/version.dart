@@ -20,6 +20,19 @@ final class PluginApiVersion implements Comparable<PluginApiVersion> {
   const PluginApiVersion(this.major, this.minor)
     : assert(major >= 0 && minor >= 0, 'a version is two whole numbers');
 
+  /// Reads `"1.0"`. Throws a [PluginFormatException] naming the text
+  /// otherwise.
+  factory PluginApiVersion.parse(String text) {
+    final match = RegExp(r'^(\d+)\.(\d+)$').firstMatch(text.trim());
+    if (match == null) {
+      throw PluginFormatException(
+        'a plugin API version is MAJOR.MINOR, such as "1.0"',
+        text,
+      );
+    }
+    return PluginApiVersion(int.parse(match[1]!), int.parse(match[2]!));
+  }
+
   /// The API this build of the package provides.
   ///
   /// 1.0: the manifest, the host, the loop and event registries, and the
@@ -38,22 +51,9 @@ final class PluginApiVersion implements Comparable<PluginApiVersion> {
   /// engine it is compiled with provides, so it always passes and says
   /// nothing about what the plugin calls.
   static const PluginApiVersion current = PluginApiVersion(1, 0);
-
   final int major;
-  final int minor;
 
-  /// Reads `"1.0"`. Throws a [PluginFormatException] naming the text
-  /// otherwise.
-  factory PluginApiVersion.parse(String text) {
-    final match = RegExp(r'^(\d+)\.(\d+)$').firstMatch(text.trim());
-    if (match == null) {
-      throw PluginFormatException(
-        'a plugin API version is MAJOR.MINOR, such as "1.0"',
-        text,
-      );
-    }
-    return PluginApiVersion(int.parse(match[1]!), int.parse(match[2]!));
-  }
+  final int minor;
 
   /// Why a plugin needing this version cannot install on an engine that
   /// provides [provided], or null when it can.

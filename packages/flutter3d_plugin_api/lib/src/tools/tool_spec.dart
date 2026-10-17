@@ -30,6 +30,16 @@ final class ToolHints {
          'a tool that changes nothing destroys nothing',
        );
 
+  /// Reads the protocol's `annotations` object; absent hints are false.
+  factory ToolHints.fromJson(Map<String, Object?> json) => ToolHints(
+    readOnly: json['readOnlyHint'] == true,
+    destructive:
+        json['destructiveHint'] == true && json['readOnlyHint'] != true,
+    idempotent: json['idempotentHint'] == true,
+    openWorld: json['openWorldHint'] == true,
+    title: json['title'] as String?,
+  );
+
   /// Reads and changes nothing: a listing, a picture, a check.
   static const ToolHints reads = ToolHints(readOnly: true);
 
@@ -40,8 +50,8 @@ final class ToolHints {
   /// Removes or overwrites something that may not come back: a file
   /// written over, a document replaced, a process stopped.
   static const ToolHints destroys = ToolHints(destructive: true);
-
   final bool readOnly;
+
   final bool destructive;
 
   /// Calling it twice with the same arguments does what calling it once did.
@@ -61,16 +71,6 @@ final class ToolHints {
     'idempotentHint': idempotent,
     'openWorldHint': openWorld,
   };
-
-  /// Reads the protocol's `annotations` object; absent hints are false.
-  factory ToolHints.fromJson(Map<String, Object?> json) => ToolHints(
-    readOnly: json['readOnlyHint'] == true,
-    destructive:
-        json['destructiveHint'] == true && json['readOnlyHint'] != true,
-    idempotent: json['idempotentHint'] == true,
-    openWorld: json['openWorldHint'] == true,
-    title: json['title'] as String?,
-  );
 
   @override
   bool operator ==(Object other) =>

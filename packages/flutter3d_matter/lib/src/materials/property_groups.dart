@@ -149,6 +149,26 @@ final class MechanicalProperties extends PropertyGroup {
     super.unknown,
   });
 
+  /// The group [json] holds. Throws a `MaterialFormatException` for a value
+  /// that is not a number or a law, or no source.
+  factory MechanicalProperties.fromJson(Map<String, Object?> json) {
+    final read = GroupReader(json, 'mechanical', _keys);
+    return MechanicalProperties(
+      density: read.law('density'),
+      youngsModulus: read.law('youngsModulus'),
+      poissonRatio: read.law('poissonRatio'),
+      yieldStrength: read.law('yieldStrength'),
+      tensileStrength: read.law('tensileStrength'),
+      hardness: read.law('hardness'),
+      staticFriction: read.law('staticFriction'),
+      kineticFriction: read.law('kineticFriction'),
+      restitution: read.law('restitution'),
+      rollingResistance: read.law('rollingResistance'),
+      source: read.source,
+      unknown: read.unknown,
+    );
+  }
+
   /// Kilograms per cubic metre: the bulk density for a granular material, a
   /// pile's with its air.
   final PropertyLaw? density;
@@ -187,6 +207,19 @@ final class MechanicalProperties extends PropertyGroup {
   /// wheel or a ball of it, over the load. No unit.
   final PropertyLaw? rollingResistance;
 
+  static const Set<String> _keys = <String>{
+    'density',
+    'youngsModulus',
+    'poissonRatio',
+    'yieldStrength',
+    'tensileStrength',
+    'hardness',
+    'staticFriction',
+    'kineticFriction',
+    'restitution',
+    'rollingResistance',
+  };
+
   /// **The one μ the engine's solvers use**, no unit: the kinetic
   /// coefficient, or the static where only that is known; null when neither
   /// is.
@@ -217,39 +250,6 @@ final class MechanicalProperties extends PropertyGroup {
 
   @override
   Map<String, Object?> toJson() => writeGroup(laws);
-
-  /// The group [json] holds. Throws a `MaterialFormatException` for a value
-  /// that is not a number or a law, or no source.
-  factory MechanicalProperties.fromJson(Map<String, Object?> json) {
-    final read = GroupReader(json, 'mechanical', _keys);
-    return MechanicalProperties(
-      density: read.law('density'),
-      youngsModulus: read.law('youngsModulus'),
-      poissonRatio: read.law('poissonRatio'),
-      yieldStrength: read.law('yieldStrength'),
-      tensileStrength: read.law('tensileStrength'),
-      hardness: read.law('hardness'),
-      staticFriction: read.law('staticFriction'),
-      kineticFriction: read.law('kineticFriction'),
-      restitution: read.law('restitution'),
-      rollingResistance: read.law('rollingResistance'),
-      source: read.source,
-      unknown: read.unknown,
-    );
-  }
-
-  static const Set<String> _keys = <String>{
-    'density',
-    'youngsModulus',
-    'poissonRatio',
-    'yieldStrength',
-    'tensileStrength',
-    'hardness',
-    'staticFriction',
-    'kineticFriction',
-    'restitution',
-    'rollingResistance',
-  };
 }
 
 /// How a liquid or a gas flows: its viscosity, its surface's pull and how
@@ -262,29 +262,6 @@ final class FluidProperties extends PropertyGroup {
     required super.source,
     super.unknown,
   });
-
-  /// Dynamic viscosity, Pa·s.
-  final PropertyLaw? viscosity;
-
-  /// Surface tension against air, N/m.
-  final PropertyLaw? surfaceTension;
-
-  /// Bulk modulus, Pa: the pressure it takes to squeeze it by its own volume
-  /// — what the speed of sound in it goes by, c = √(K / ρ).
-  final PropertyLaw? bulkModulus;
-
-  @override
-  String get name => 'fluid';
-
-  @override
-  Map<String, PropertyLaw> get laws => <String, PropertyLaw>{
-    'viscosity': ?viscosity,
-    'surfaceTension': ?surfaceTension,
-    'bulkModulus': ?bulkModulus,
-  };
-
-  @override
-  Map<String, Object?> toJson() => writeGroup(laws);
 
   /// The group [json] holds. Throws a `MaterialFormatException` for a value
   /// that is not a number or a law, or no source.
@@ -299,11 +276,34 @@ final class FluidProperties extends PropertyGroup {
     );
   }
 
+  /// Dynamic viscosity, Pa·s.
+  final PropertyLaw? viscosity;
+
+  /// Surface tension against air, N/m.
+  final PropertyLaw? surfaceTension;
+
+  /// Bulk modulus, Pa: the pressure it takes to squeeze it by its own volume
+  /// — what the speed of sound in it goes by, c = √(K / ρ).
+  final PropertyLaw? bulkModulus;
+
   static const Set<String> _keys = <String>{
     'viscosity',
     'surfaceTension',
     'bulkModulus',
   };
+
+  @override
+  String get name => 'fluid';
+
+  @override
+  Map<String, PropertyLaw> get laws => <String, PropertyLaw>{
+    'viscosity': ?viscosity,
+    'surfaceTension': ?surfaceTension,
+    'bulkModulus': ?bulkModulus,
+  };
+
+  @override
+  Map<String, Object?> toJson() => writeGroup(laws);
 }
 
 /// How a material takes heat, gives it off, changes phase and burns.
@@ -331,6 +331,30 @@ final class ThermalProperties extends PropertyGroup {
     required super.source,
     super.unknown,
   });
+
+  /// The group [json] holds. Throws a `MaterialFormatException` for a value
+  /// that is not a number or a law, or no source.
+  factory ThermalProperties.fromJson(Map<String, Object?> json) {
+    final read = GroupReader(json, 'thermal', _keys);
+    return ThermalProperties(
+      specificHeat: read.law('specificHeat'),
+      conductivity: read.law('conductivity'),
+      volumetricExpansion: read.law('volumetricExpansion'),
+      meltingPoint: read.law('meltingPoint'),
+      boilingPoint: read.law('boilingPoint'),
+      latentHeatOfFusion: read.law('latentHeatOfFusion'),
+      latentHeatOfVaporization: read.law('latentHeatOfVaporization'),
+      emissivity: read.law('emissivity'),
+      ignitionTemperature: read.law('ignitionTemperature'),
+      autoignitionTemperature: read.law('autoignitionTemperature'),
+      glowTemperature: read.law('glowTemperature'),
+      heatOfCombustion: read.law('heatOfCombustion'),
+      effectiveHeatOfCombustion: read.law('effectiveHeatOfCombustion'),
+      radiantFraction: read.law('radiantFraction'),
+      source: read.source,
+      unknown: read.unknown,
+    );
+  }
 
   /// Specific heat capacity at constant pressure, J/(kg·K).
   final PropertyLaw? specificHeat;
@@ -389,6 +413,23 @@ final class ThermalProperties extends PropertyGroup {
   /// one.
   final PropertyLaw? radiantFraction;
 
+  static const Set<String> _keys = <String>{
+    'specificHeat',
+    'conductivity',
+    'volumetricExpansion',
+    'meltingPoint',
+    'boilingPoint',
+    'latentHeatOfFusion',
+    'latentHeatOfVaporization',
+    'emissivity',
+    'ignitionTemperature',
+    'autoignitionTemperature',
+    'glowTemperature',
+    'heatOfCombustion',
+    'effectiveHeatOfCombustion',
+    'radiantFraction',
+  };
+
   @override
   String get name => 'thermal';
 
@@ -412,47 +453,6 @@ final class ThermalProperties extends PropertyGroup {
 
   @override
   Map<String, Object?> toJson() => writeGroup(laws);
-
-  /// The group [json] holds. Throws a `MaterialFormatException` for a value
-  /// that is not a number or a law, or no source.
-  factory ThermalProperties.fromJson(Map<String, Object?> json) {
-    final read = GroupReader(json, 'thermal', _keys);
-    return ThermalProperties(
-      specificHeat: read.law('specificHeat'),
-      conductivity: read.law('conductivity'),
-      volumetricExpansion: read.law('volumetricExpansion'),
-      meltingPoint: read.law('meltingPoint'),
-      boilingPoint: read.law('boilingPoint'),
-      latentHeatOfFusion: read.law('latentHeatOfFusion'),
-      latentHeatOfVaporization: read.law('latentHeatOfVaporization'),
-      emissivity: read.law('emissivity'),
-      ignitionTemperature: read.law('ignitionTemperature'),
-      autoignitionTemperature: read.law('autoignitionTemperature'),
-      glowTemperature: read.law('glowTemperature'),
-      heatOfCombustion: read.law('heatOfCombustion'),
-      effectiveHeatOfCombustion: read.law('effectiveHeatOfCombustion'),
-      radiantFraction: read.law('radiantFraction'),
-      source: read.source,
-      unknown: read.unknown,
-    );
-  }
-
-  static const Set<String> _keys = <String>{
-    'specificHeat',
-    'conductivity',
-    'volumetricExpansion',
-    'meltingPoint',
-    'boilingPoint',
-    'latentHeatOfFusion',
-    'latentHeatOfVaporization',
-    'emissivity',
-    'ignitionTemperature',
-    'autoignitionTemperature',
-    'glowTemperature',
-    'heatOfCombustion',
-    'effectiveHeatOfCombustion',
-    'radiantFraction',
-  };
 }
 
 /// How a material meets sound: what a surface of it absorbs, band by band,
@@ -465,6 +465,20 @@ final class AcousticProperties extends PropertyGroup {
     required super.source,
     super.unknown,
   });
+
+  /// The group [json] holds. Throws a `MaterialFormatException` for a value
+  /// that is not a number or a law, an absorption that is not six numbers,
+  /// or no source.
+  factory AcousticProperties.fromJson(Map<String, Object?> json) {
+    final read = GroupReader(json, 'acoustic', _keys);
+    return AcousticProperties(
+      absorption: read.numbers('absorption', count: bands.length),
+      speedOfSound: read.law('speedOfSound'),
+      impedance: read.law('impedance'),
+      source: read.source,
+      unknown: read.unknown,
+    );
+  }
 
   /// The octave bands [absorption] is given in, by their centres, Hz.
   static const List<double> bands = <double>[
@@ -489,6 +503,12 @@ final class AcousticProperties extends PropertyGroup {
   /// it from the density and [speedOfSound].
   final PropertyLaw? impedance;
 
+  static const Set<String> _keys = <String>{
+    'absorption',
+    'speedOfSound',
+    'impedance',
+  };
+
   @override
   String get name => 'acoustic';
 
@@ -501,26 +521,6 @@ final class AcousticProperties extends PropertyGroup {
   @override
   Map<String, Object?> toJson() =>
       writeGroup(<String, Object?>{'absorption': absorption, ...laws});
-
-  /// The group [json] holds. Throws a `MaterialFormatException` for a value
-  /// that is not a number or a law, an absorption that is not six numbers,
-  /// or no source.
-  factory AcousticProperties.fromJson(Map<String, Object?> json) {
-    final read = GroupReader(json, 'acoustic', _keys);
-    return AcousticProperties(
-      absorption: read.numbers('absorption', count: bands.length),
-      speedOfSound: read.law('speedOfSound'),
-      impedance: read.law('impedance'),
-      source: read.source,
-      unknown: read.unknown,
-    );
-  }
-
-  static const Set<String> _keys = <String>{
-    'absorption',
-    'speedOfSound',
-    'impedance',
-  };
 }
 
 /// Three numbers for the red, green and blue of linear light: a reflectance,
@@ -569,6 +569,28 @@ final class OpticalProperties extends PropertyGroup {
     super.unknown,
   });
 
+  /// The group [json] holds. Throws a `MaterialFormatException` for a value
+  /// that is not a number or a law, a colour that is not three numbers, or
+  /// no source.
+  factory OpticalProperties.fromJson(Map<String, Object?> json) {
+    final read = GroupReader(json, 'optical', _keys);
+    RgbValues? rgb(String key) => switch (read.numbers(key, count: 3)) {
+      null => null,
+      final List<double> v => RgbValues(v[0], v[1], v[2]),
+    };
+    return OpticalProperties(
+      refractiveIndex: read.law('refractiveIndex'),
+      abbeNumber: read.law('abbeNumber'),
+      dielectricF0: read.law('dielectricF0'),
+      absorption: rgb('absorption'),
+      metalReflectance: rgb('metalReflectance'),
+      roughnessMin: read.law('roughnessMin'),
+      roughnessMax: read.law('roughnessMax'),
+      source: read.source,
+      unknown: read.unknown,
+    );
+  }
+
   /// The refractive index at the sodium D line, 589 nm (n_D). No unit.
   final PropertyLaw? refractiveIndex;
 
@@ -595,6 +617,16 @@ final class OpticalProperties extends PropertyGroup {
   /// metallic–roughness material's roughness: a guide, not a measurement. No
   /// unit, nought to one.
   final PropertyLaw? roughnessMin, roughnessMax;
+
+  static const Set<String> _keys = <String>{
+    'refractiveIndex',
+    'abbeNumber',
+    'dielectricF0',
+    'absorption',
+    'metalReflectance',
+    'roughnessMin',
+    'roughnessMax',
+  };
 
   /// The dielectric F0 at the reference state: [dielectricF0]'s, or ((n −
   /// 1) / (n + 1))² from [refractiveIndex]; null when neither is known.
@@ -628,38 +660,6 @@ final class OpticalProperties extends PropertyGroup {
     'roughnessMin': roughnessMin,
     'roughnessMax': roughnessMax,
   });
-
-  /// The group [json] holds. Throws a `MaterialFormatException` for a value
-  /// that is not a number or a law, a colour that is not three numbers, or
-  /// no source.
-  factory OpticalProperties.fromJson(Map<String, Object?> json) {
-    final read = GroupReader(json, 'optical', _keys);
-    RgbValues? rgb(String key) => switch (read.numbers(key, count: 3)) {
-      null => null,
-      final List<double> v => RgbValues(v[0], v[1], v[2]),
-    };
-    return OpticalProperties(
-      refractiveIndex: read.law('refractiveIndex'),
-      abbeNumber: read.law('abbeNumber'),
-      dielectricF0: read.law('dielectricF0'),
-      absorption: rgb('absorption'),
-      metalReflectance: rgb('metalReflectance'),
-      roughnessMin: read.law('roughnessMin'),
-      roughnessMax: read.law('roughnessMax'),
-      source: read.source,
-      unknown: read.unknown,
-    );
-  }
-
-  static const Set<String> _keys = <String>{
-    'refractiveIndex',
-    'abbeNumber',
-    'dielectricF0',
-    'absorption',
-    'metalReflectance',
-    'roughnessMin',
-    'roughnessMax',
-  };
 }
 
 /// How a material carries a current.
@@ -669,20 +669,6 @@ final class ElectricalProperties extends PropertyGroup {
     required super.source,
     super.unknown,
   });
-
-  /// Electrical resistivity, in ohm metres (Ω·m).
-  final PropertyLaw? resistivity;
-
-  @override
-  String get name => 'electrical';
-
-  @override
-  Map<String, PropertyLaw> get laws => <String, PropertyLaw>{
-    'resistivity': ?resistivity,
-  };
-
-  @override
-  Map<String, Object?> toJson() => writeGroup(laws);
 
   /// The group [json] holds. Throws a `MaterialFormatException` for a value
   /// that is not a number or a law, or no source.
@@ -695,7 +681,21 @@ final class ElectricalProperties extends PropertyGroup {
     );
   }
 
+  /// Electrical resistivity, in ohm metres (Ω·m).
+  final PropertyLaw? resistivity;
+
   static const Set<String> _keys = <String>{'resistivity'};
+
+  @override
+  String get name => 'electrical';
+
+  @override
+  Map<String, PropertyLaw> get laws => <String, PropertyLaw>{
+    'resistivity': ?resistivity,
+  };
+
+  @override
+  Map<String, Object?> toJson() => writeGroup(laws);
 }
 
 /// A constitutive model of how a material gives way past the elastic: its
@@ -721,39 +721,6 @@ final class ConstitutiveModel {
     this.confidence,
     this.source,
   });
-
-  /// Ogden's hyperelastic model of a rubber.
-  static const String ogden = 'ogden';
-
-  /// A Prony series of relaxing moduli.
-  static const String prony = 'prony';
-
-  /// Johnson and Cook's flow stress of a metal.
-  static const String johnsonCook = 'johnsonCook';
-
-  /// The model's name.
-  final String model;
-
-  /// Its scalar parameters, by name, in SI.
-  final Map<String, double> parameters;
-
-  /// Its repeated terms, each a map of parameters by name, in SI.
-  final List<Map<String, double>> terms;
-
-  /// How the parameters were come by; null when the source does not say.
-  final Confidence? confidence;
-
-  /// Where the fit comes from, when it is not the group's source.
-  final String? source;
-
-  /// The model as a file holds it.
-  Map<String, Object?> toJson() => <String, Object?>{
-    'model': model,
-    if (parameters.isNotEmpty) 'parameters': parameters,
-    if (terms.isNotEmpty) 'terms': terms,
-    'confidence': ?confidence?.name,
-    'source': ?source,
-  };
 
   /// The model [json] holds. Throws a `MaterialFormatException` for one
   /// that is not.
@@ -801,6 +768,39 @@ final class ConstitutiveModel {
     );
   }
 
+  /// Ogden's hyperelastic model of a rubber.
+  static const String ogden = 'ogden';
+
+  /// A Prony series of relaxing moduli.
+  static const String prony = 'prony';
+
+  /// Johnson and Cook's flow stress of a metal.
+  static const String johnsonCook = 'johnsonCook';
+
+  /// The model's name.
+  final String model;
+
+  /// Its scalar parameters, by name, in SI.
+  final Map<String, double> parameters;
+
+  /// Its repeated terms, each a map of parameters by name, in SI.
+  final List<Map<String, double>> terms;
+
+  /// How the parameters were come by; null when the source does not say.
+  final Confidence? confidence;
+
+  /// Where the fit comes from, when it is not the group's source.
+  final String? source;
+
+  /// The model as a file holds it.
+  Map<String, Object?> toJson() => <String, Object?>{
+    'model': model,
+    if (parameters.isNotEmpty) 'parameters': parameters,
+    if (terms.isNotEmpty) 'terms': terms,
+    'confidence': ?confidence?.name,
+    'source': ?source,
+  };
+
   @override
   String toString() => 'ConstitutiveModel($model)';
 }
@@ -822,6 +822,23 @@ final class InelasticProperties extends PropertyGroup {
     super.unknown,
   });
 
+  /// The group [json] holds. Throws a `MaterialFormatException` for a value
+  /// that is not a number or a law, a model that is not one, or no source.
+  factory InelasticProperties.fromJson(Map<String, Object?> json) {
+    final read = GroupReader(json, 'inelastic', _keys);
+    ConstitutiveModel? model(String key) => json[key] == null
+        ? null
+        : ConstitutiveModel.fromJson(json[key], 'inelastic.$key');
+    return InelasticProperties(
+      lossFactor: read.law('lossFactor'),
+      hyperelastic: model('hyperelastic'),
+      viscoelastic: model('viscoelastic'),
+      plastic: model('plastic'),
+      source: read.source,
+      unknown: read.unknown,
+    );
+  }
+
   /// The loss factor η, twice the damping ratio: the share of a cycle's
   /// elastic energy lost to heat, over 2π. No unit.
   ///
@@ -841,6 +858,13 @@ final class InelasticProperties extends PropertyGroup {
   /// How it flows past its yield: a [ConstitutiveModel.johnsonCook].
   final ConstitutiveModel? plastic;
 
+  static const Set<String> _keys = <String>{
+    'lossFactor',
+    'hyperelastic',
+    'viscoelastic',
+    'plastic',
+  };
+
   @override
   String get name => 'inelastic';
 
@@ -856,28 +880,4 @@ final class InelasticProperties extends PropertyGroup {
     'viscoelastic': viscoelastic?.toJson(),
     'plastic': plastic?.toJson(),
   });
-
-  /// The group [json] holds. Throws a `MaterialFormatException` for a value
-  /// that is not a number or a law, a model that is not one, or no source.
-  factory InelasticProperties.fromJson(Map<String, Object?> json) {
-    final read = GroupReader(json, 'inelastic', _keys);
-    ConstitutiveModel? model(String key) => json[key] == null
-        ? null
-        : ConstitutiveModel.fromJson(json[key], 'inelastic.$key');
-    return InelasticProperties(
-      lossFactor: read.law('lossFactor'),
-      hyperelastic: model('hyperelastic'),
-      viscoelastic: model('viscoelastic'),
-      plastic: model('plastic'),
-      source: read.source,
-      unknown: read.unknown,
-    );
-  }
-
-  static const Set<String> _keys = <String>{
-    'lossFactor',
-    'hyperelastic',
-    'viscoelastic',
-    'plastic',
-  };
 }

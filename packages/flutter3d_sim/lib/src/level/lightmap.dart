@@ -73,6 +73,56 @@ final class Lightmap {
     }
   }
 
+  /// Reads a sidecar. Throws [LightmapFormatException] naming what is wrong
+  /// rather than returning a map of the wrong shape.
+  factory Lightmap.fromBytes(Uint8List bytes) {
+    if (bytes.length < _headerBytes) {
+      throw const LightmapFormatException('too short for a lightmap header');
+    }
+    for (var i = 0; i < magic.length; i++) {
+      if (bytes[i] != magic[i]) {
+        throw const LightmapFormatException(
+          'not a lightmap: the magic is wrong',
+        );
+      }
+    }
+    final view = ByteData.view(
+      bytes.buffer,
+      bytes.offsetInBytes,
+      bytes.lengthInBytes,
+    );
+    // Every version up to this build's: a later layout reads an older header
+    // the older way here. Only a sidecar from the future is refused, and a
+    // stale one is a re-bake, which `isStaleFor` already asks for. Mutation:
+    // put back `!=` and bump the constant, and
+    // `test/fixtures/v1/room.lightmap.bin` stops opening.
+    final version = view.getUint32(4, Endian.little);
+    if (version < 1 || version > formatVersion) {
+      throw LightmapFormatException(
+        'lightmap format $version, and this reader knows up to '
+        '$formatVersion: update flutter3d, or bake the lightmap again',
+      );
+    }
+    final width = view.getUint32(8, Endian.little);
+    final height = view.getUint32(12, Endian.little);
+    final expected = width * height * 4;
+    if (bytes.length - _headerBytes != expected) {
+      throw LightmapFormatException(
+        'a $width by $height lightmap needs $expected bytes of pixels, and '
+        'the file has ${bytes.length - _headerBytes}',
+      );
+    }
+    return Lightmap(
+      width: width,
+      height: height,
+      texelsPerMeter: view.getFloat32(16, Endian.little),
+      levelHash: view.getUint32(20, Endian.little),
+      pixels: Uint8List.fromList(
+        bytes.buffer.asUint8List(bytes.offsetInBytes + _headerBytes, expected),
+      ),
+    );
+  }
+
   static const int formatVersion = 1;
 
   /// The lightmap as a format: `f3d.lightmap`, bytes rather than JSON, told
@@ -93,8 +143,8 @@ final class Lightmap {
   static const List<int> magic = <int>[0x46, 0x33, 0x44, 0x4C];
 
   static const int _headerBytes = 4 + 4 + 4 + 4 + 4 + 4;
-
   final int width;
+
   final int height;
 
   /// The density it was baked at: texels per metre of face.
@@ -157,56 +207,6 @@ final class Lightmap {
       ..setUint32(20, levelHash, Endian.little);
     out.setRange(_headerBytes, out.length, pixels);
     return out;
-  }
-
-  /// Reads a sidecar. Throws [LightmapFormatException] naming what is wrong
-  /// rather than returning a map of the wrong shape.
-  factory Lightmap.fromBytes(Uint8List bytes) {
-    if (bytes.length < _headerBytes) {
-      throw const LightmapFormatException('too short for a lightmap header');
-    }
-    for (var i = 0; i < magic.length; i++) {
-      if (bytes[i] != magic[i]) {
-        throw const LightmapFormatException(
-          'not a lightmap: the magic is wrong',
-        );
-      }
-    }
-    final view = ByteData.view(
-      bytes.buffer,
-      bytes.offsetInBytes,
-      bytes.lengthInBytes,
-    );
-    // Every version up to this build's: a later layout reads an older header
-    // the older way here. Only a sidecar from the future is refused, and a
-    // stale one is a re-bake, which `isStaleFor` already asks for. Mutation:
-    // put back `!=` and bump the constant, and
-    // `test/fixtures/v1/room.lightmap.bin` stops opening.
-    final version = view.getUint32(4, Endian.little);
-    if (version < 1 || version > formatVersion) {
-      throw LightmapFormatException(
-        'lightmap format $version, and this reader knows up to '
-        '$formatVersion: update flutter3d, or bake the lightmap again',
-      );
-    }
-    final width = view.getUint32(8, Endian.little);
-    final height = view.getUint32(12, Endian.little);
-    final expected = width * height * 4;
-    if (bytes.length - _headerBytes != expected) {
-      throw LightmapFormatException(
-        'a $width by $height lightmap needs $expected bytes of pixels, and '
-        'the file has ${bytes.length - _headerBytes}',
-      );
-    }
-    return Lightmap(
-      width: width,
-      height: height,
-      texelsPerMeter: view.getFloat32(16, Endian.little),
-      levelHash: view.getUint32(20, Endian.little),
-      pixels: Uint8List.fromList(
-        bytes.buffer.asUint8List(bytes.offsetInBytes + _headerBytes, expected),
-      ),
-    );
   }
 
   /// A hash of everything a bake reads: every brush, the lights, and the

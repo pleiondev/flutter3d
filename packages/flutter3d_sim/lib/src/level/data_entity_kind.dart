@@ -93,15 +93,6 @@ final class DataEntityKind extends EntityKind {
     this.collider,
   });
 
-  /// The plugin that declared it, by id, for the sentences a level reads.
-  final String owner;
-
-  /// Properties every entity of this kind must have.
-  final List<String> requires;
-
-  /// The box it occupies, or null for a kind that is only a marker.
-  final ColliderKind? collider;
-
   /// Reads one declaration: `{"type": "vent", "requires": ["size"],
   /// "collider": "trigger"}`. Throws a [DocumentFormatException] saying what is
   /// wrong.
@@ -137,6 +128,15 @@ final class DataEntityKind extends EntityKind {
       collider: collider,
     );
   }
+
+  /// The plugin that declared it, by id, for the sentences a level reads.
+  final String owner;
+
+  /// Properties every entity of this kind must have.
+  final List<String> requires;
+
+  /// The box it occupies, or null for a kind that is only a marker.
+  final ColliderKind? collider;
 
   Map<String, Object?> toJson() => <String, Object?>{
     'type': type,

@@ -84,6 +84,69 @@ final class SkyPreset {
     this.sunDisc = 0.0,
   });
 
+  /// Reads a preset out of a track file's `"sky"` block, falling back field by
+  /// field to [SkyPresets.morning].
+  ///
+  /// Field by field rather than all or nothing, so a generator that grows a new
+  /// key does not have to rewrite every fixture that predates it, and so a
+  /// fixture that only cares about the sun's angle can say only that.
+  factory SkyPreset.fromJson(Map<String, Object?> json) {
+    final SkyPreset fallback = SkyPresets.morning;
+    double number(String key, double fallbackValue) {
+      final value = json[key];
+      return value is num ? value.toDouble() : fallbackValue;
+    }
+
+    double angle(String degreesKey, double fallbackRadians) {
+      final value = json[degreesKey];
+      return value is num ? value.toDouble() * _degrees : fallbackRadians;
+    }
+
+    // **A colour with a word in it used to come out partly black**, because
+    // each component that was not a number became nought on its own. The
+    // shared reader takes all three or none, which for a preset means the time
+    // of day it was falling back to anyway.
+    // Read as doubles, not through a float32 `Vector3`: the file's 0.1 is the
+    // colour's 0.1.
+    LinearColor color(String key, LinearColor fallbackValue) =>
+        switch (json[key]) {
+          [final num r, final num g, final num b, ...] => LinearColor(
+            r.toDouble(),
+            g.toDouble(),
+            b.toDouble(),
+          ),
+          _ => fallbackValue,
+        };
+
+    final name = json['name'];
+    return SkyPreset(
+      name: name is String ? name : fallback.name,
+      // A track file keeps its degrees (`sunElevationDeg`, `sunAzimuthDeg`);
+      // the engine takes radians, converted here at the reader.
+      sunElevation: angle('sunElevationDeg', fallback.sunElevation),
+      sunAzimuth: angle('sunAzimuthDeg', fallback.sunAzimuth),
+      sunColor: color('sunColor', fallback.sunColor),
+      sunIntensity: number('sunIntensity', fallback.sunIntensity),
+      zenith: color('zenith', fallback.zenith),
+      horizon: color('horizon', fallback.horizon),
+      belowHorizon: color('belowHorizon', fallback.belowHorizon),
+      glowWide: number('glowWide', fallback.glowWide),
+      glowStrength: number('glowStrength', fallback.glowStrength),
+      fogDensity: number('fogDensity', fallback.fogDensity),
+      fogBacklitExponent: number(
+        'fogBacklitExponent',
+        fallback.fogBacklitExponent,
+      ),
+      fogBacklitStrength: number(
+        'fogBacklitStrength',
+        fallback.fogBacklitStrength,
+      ),
+      ambientIntensity: number('ambientIntensity', fallback.ambientIntensity),
+      exposure: number('exposure', fallback.exposure),
+      sunDisc: number('sunDisc', fallback.sunDisc),
+    );
+  }
+
   /// Which preset this is, for a debug readout and for a test that wants to say
   /// which one it is looking at.
   final String name;
@@ -109,6 +172,7 @@ final class SkyPreset {
   /// haze rather than the sky's, and it is darker for it.
   final LinearColor zenith;
   final LinearColor horizon;
+
   final LinearColor belowHorizon;
 
   /// The wide scattering lobe around the sun: how sharp it is, and how bright.
@@ -251,69 +315,6 @@ final class SkyPreset {
         1.0 +
         fogBacklitStrength * math.pow(towards, fogBacklitExponent).toDouble();
     return base.scaled(boost);
-  }
-
-  /// Reads a preset out of a track file's `"sky"` block, falling back field by
-  /// field to [SkyPresets.morning].
-  ///
-  /// Field by field rather than all or nothing, so a generator that grows a new
-  /// key does not have to rewrite every fixture that predates it, and so a
-  /// fixture that only cares about the sun's angle can say only that.
-  factory SkyPreset.fromJson(Map<String, Object?> json) {
-    final SkyPreset fallback = SkyPresets.morning;
-    double number(String key, double fallbackValue) {
-      final value = json[key];
-      return value is num ? value.toDouble() : fallbackValue;
-    }
-
-    double angle(String degreesKey, double fallbackRadians) {
-      final value = json[degreesKey];
-      return value is num ? value.toDouble() * _degrees : fallbackRadians;
-    }
-
-    // **A colour with a word in it used to come out partly black**, because
-    // each component that was not a number became nought on its own. The
-    // shared reader takes all three or none, which for a preset means the time
-    // of day it was falling back to anyway.
-    // Read as doubles, not through a float32 `Vector3`: the file's 0.1 is the
-    // colour's 0.1.
-    LinearColor color(String key, LinearColor fallbackValue) =>
-        switch (json[key]) {
-          [final num r, final num g, final num b, ...] => LinearColor(
-            r.toDouble(),
-            g.toDouble(),
-            b.toDouble(),
-          ),
-          _ => fallbackValue,
-        };
-
-    final name = json['name'];
-    return SkyPreset(
-      name: name is String ? name : fallback.name,
-      // A track file keeps its degrees (`sunElevationDeg`, `sunAzimuthDeg`);
-      // the engine takes radians, converted here at the reader.
-      sunElevation: angle('sunElevationDeg', fallback.sunElevation),
-      sunAzimuth: angle('sunAzimuthDeg', fallback.sunAzimuth),
-      sunColor: color('sunColor', fallback.sunColor),
-      sunIntensity: number('sunIntensity', fallback.sunIntensity),
-      zenith: color('zenith', fallback.zenith),
-      horizon: color('horizon', fallback.horizon),
-      belowHorizon: color('belowHorizon', fallback.belowHorizon),
-      glowWide: number('glowWide', fallback.glowWide),
-      glowStrength: number('glowStrength', fallback.glowStrength),
-      fogDensity: number('fogDensity', fallback.fogDensity),
-      fogBacklitExponent: number(
-        'fogBacklitExponent',
-        fallback.fogBacklitExponent,
-      ),
-      fogBacklitStrength: number(
-        'fogBacklitStrength',
-        fallback.fogBacklitStrength,
-      ),
-      ambientIntensity: number('ambientIntensity', fallback.ambientIntensity),
-      exposure: number('exposure', fallback.exposure),
-      sunDisc: number('sunDisc', fallback.sunDisc),
-    );
   }
 }
 

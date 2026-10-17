@@ -170,6 +170,62 @@ final class DataPluginDocument {
     this.extra = const <String, Object?>{},
   });
 
+  /// Reads [text] as a document, or throws a [DataPluginFormatException].
+  /// [sections] read what their subsystems own; a section none of them
+  /// reads is kept in [extra].
+  factory DataPluginDocument.parse(
+    String text, {
+    DataSectionRegistry? sections,
+  }) {
+    final Object? json;
+    try {
+      json = jsonDecode(text);
+    } on FormatException catch (error) {
+      throw DataPluginFormatException(
+        'the document is not JSON: ${error.message}',
+      );
+    }
+    if (json is! Map<String, Object?>) {
+      throw const DataPluginFormatException('the document is not an object');
+    }
+    return DataPluginDocument.fromJson(json, sections: sections);
+  }
+
+  /// Reads a decoded document, or throws a [DataPluginFormatException] that
+  /// says what is wrong and where. [sections] as in [parse].
+  factory DataPluginDocument.fromJson(
+    Map<String, Object?> document, {
+    DataSectionRegistry? sections,
+  }) {
+    final version = document['version'] ?? document['f3dplugin'];
+    if (version is! int || version < 1) {
+      throw const DataPluginFormatException(
+        'the document has no version in it — neither "version" nor version '
+        '1\'s "f3dplugin"',
+      );
+    }
+    // A newer document, another format's or a `requires` this build does
+    // not know is refused by the spec; every older one is lifted through
+    // [_migrations] before a key is read (decision 8 of
+    // `tasks/1.0-stability.md`).
+    final json = format.open(
+      _withoutUnderstood(document, sections),
+      refuse: DataPluginFormatException.new,
+    );
+    try {
+      return _read(json, sections);
+    } on DataPluginFormatException {
+      rethrow;
+    } on Flutter3dFormatException catch (error) {
+      // A section's own reader refused — a Wasm system's declaration, an
+      // expression system's, the manifest inside the document, a registered
+      // section.
+      throw DataPluginFormatException(error.message);
+    } on FormatException catch (error) {
+      throw DataPluginFormatException(error.message);
+    }
+  }
+
   /// Bumped when an existing key changes meaning, with a step in
   /// [_migrations] and a fixture under `test/fixtures/v<N>/`.
   ///
@@ -206,6 +262,36 @@ final class DataPluginDocument {
     _scriptsToExpressions,
     _ownPhasesBare,
   ];
+
+  /// The data plugin format in the registry: `f3d.plugin`, read from its
+  /// own envelope or from version 1's `"f3dplugin": 1`.
+  ///
+  /// It understands no `requires` of its own: what a document requires is
+  /// a registered section's [DataSection.requirement], which the sections a
+  /// document is read with answer for ([_withoutUnderstood]).
+  static const FormatSpec format = FormatSpec(
+    id: 'f3d.plugin',
+    version: formatVersion,
+    suffixes: <String>['.f3dplugin'],
+    fixture: 'test/fixtures/v<N>/glow.f3dplugin',
+    migrations: _migrations,
+    legacyVersionKey: 'f3dplugin',
+  );
+
+  final PluginManifest manifest;
+
+  final List<DataPhase> phases;
+
+  final List<DataEventDeclaration> events;
+  final List<WasmSystemSpec> wasm;
+  final List<ExpressionSystemSpec> expressions;
+
+  /// The sections a registered reader read, by name: each with the
+  /// [DataSection] that read it and what its [DataSection.read] returned.
+  final Map<String, DataPluginSection> sections;
+
+  /// Top-level keys this build does not know, kept as they were read.
+  final Map<String, Object?> extra;
 
   /// 3 → 4: a phase of the document's own written as `<id>.<name>`, and
   /// each reference to it, becomes `<name>`, which version 4 files under
@@ -284,21 +370,6 @@ final class DataPluginDocument {
     },
   };
 
-  /// The data plugin format in the registry: `f3d.plugin`, read from its
-  /// own envelope or from version 1's `"f3dplugin": 1`.
-  ///
-  /// It understands no `requires` of its own: what a document requires is
-  /// a registered section's [DataSection.requirement], which the sections a
-  /// document is read with answer for ([_withoutUnderstood]).
-  static const FormatSpec format = FormatSpec(
-    id: 'f3d.plugin',
-    version: formatVersion,
-    suffixes: <String>['.f3dplugin'],
-    fixture: 'test/fixtures/v<N>/glow.f3dplugin',
-    migrations: _migrations,
-    legacyVersionKey: 'f3dplugin',
-  );
-
   /// [document] without the `requires` entries a section in [sections]
   /// reads, so [format] refuses only what nothing here understands: a
   /// document requiring a section nobody registered is refused, rather than
@@ -324,19 +395,6 @@ final class DataPluginDocument {
     };
   }
 
-  final PluginManifest manifest;
-  final List<DataPhase> phases;
-  final List<DataEventDeclaration> events;
-  final List<WasmSystemSpec> wasm;
-  final List<ExpressionSystemSpec> expressions;
-
-  /// The sections a registered reader read, by name: each with the
-  /// [DataSection] that read it and what its [DataSection.read] returned.
-  final Map<String, DataPluginSection> sections;
-
-  /// Top-level keys this build does not know, kept as they were read.
-  final Map<String, Object?> extra;
-
   /// Every file the document points at, in the order it names them: the
   /// Wasm modules, the expression systems' sources and what the [sections]
   /// name. What a loader reads before anything is installed.
@@ -346,62 +404,6 @@ final class DataPluginDocument {
     for (final DataPluginSection(:reader, :section) in sections.values)
       ...reader.resources(section),
   }.toList(growable: false);
-
-  /// Reads [text] as a document, or throws a [DataPluginFormatException].
-  /// [sections] read what their subsystems own; a section none of them
-  /// reads is kept in [extra].
-  factory DataPluginDocument.parse(
-    String text, {
-    DataSectionRegistry? sections,
-  }) {
-    final Object? json;
-    try {
-      json = jsonDecode(text);
-    } on FormatException catch (error) {
-      throw DataPluginFormatException(
-        'the document is not JSON: ${error.message}',
-      );
-    }
-    if (json is! Map<String, Object?>) {
-      throw const DataPluginFormatException('the document is not an object');
-    }
-    return DataPluginDocument.fromJson(json, sections: sections);
-  }
-
-  /// Reads a decoded document, or throws a [DataPluginFormatException] that
-  /// says what is wrong and where. [sections] as in [parse].
-  factory DataPluginDocument.fromJson(
-    Map<String, Object?> document, {
-    DataSectionRegistry? sections,
-  }) {
-    final version = document['version'] ?? document['f3dplugin'];
-    if (version is! int || version < 1) {
-      throw const DataPluginFormatException(
-        'the document has no version in it — neither "version" nor version '
-        '1\'s "f3dplugin"',
-      );
-    }
-    // A newer document, another format's or a `requires` this build does
-    // not know is refused by the spec; every older one is lifted through
-    // [_migrations] before a key is read (decision 8 of
-    // `tasks/1.0-stability.md`).
-    final json = format.open(
-      _withoutUnderstood(document, sections),
-      refuse: DataPluginFormatException.new,
-    );
-    try {
-      return _read(json, sections);
-    } on DataPluginFormatException {
-      rethrow;
-    } on Flutter3dFormatException catch (error) {
-      // A section's own reader refused — a Wasm system's declaration, an
-      // expression system's, the manifest inside the document, a registered
-      // section.
-      throw DataPluginFormatException(error.message);
-    } on FormatException catch (error) {
-      throw DataPluginFormatException(error.message);
-    }
-  }
 
   static DataPluginDocument _read(
     Map<String, Object?> json,

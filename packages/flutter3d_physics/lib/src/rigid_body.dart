@@ -439,8 +439,6 @@ final class RigidBody {
 final class _Symmetric {
   const _Symmetric(this.xx, this.yy, this.zz, this.xy, this.xz, this.yz);
 
-  static const _Symmetric zero = _Symmetric(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
-
   /// `R · diag(d) · Rᵀ`, with `R` the rotation of the unit quaternion [q].
   factory _Symmetric.turned(Quaternion q, Vector3 d) {
     final x = q.x, y = q.y, z = q.z, w = q.w;
@@ -463,6 +461,8 @@ final class _Symmetric {
       r10 * r20 * dx + r11 * r21 * dy + r12 * r22 * dz,
     );
   }
+
+  static const _Symmetric zero = _Symmetric(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
 
   final double xx, yy, zz, xy, xz, yz;
 

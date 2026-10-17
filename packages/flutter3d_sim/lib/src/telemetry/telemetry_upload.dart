@@ -52,6 +52,61 @@ final class TelemetryUpload extends FormatDocument {
     super.unknown,
   });
 
+  /// Reads an upload, or throws a [TelemetryUploadFormatException] that says
+  /// why not — a server's side of [toJson].
+  factory TelemetryUpload.fromJson(Map<String, Object?> json) =>
+      TelemetryUpload._read(json);
+
+  factory TelemetryUpload._read(Map<String, Object?> document) {
+    final version = document['version'];
+    if (version is! num || version < 1) {
+      throw const TelemetryUploadFormatException('the upload has no version');
+    }
+
+    // A server reads every upload any 1.x game sent (decision 8 of
+    // `tasks/1.0-stability.md`): older formats are lifted step by step.
+    // Mutation: skip the chain and an old upload reads with new meanings.
+    // A newer one is refused by the spec, naming both versions.
+    final json = format.open(
+      document,
+      refuse: TelemetryUploadFormatException.new,
+    );
+    final game = json['game'];
+    if (game is! String || game.isEmpty) {
+      throw const TelemetryUploadFormatException('the upload names no game');
+    }
+    final consent = json['consent'];
+    final policy = consent is Map ? consent['policy'] : null;
+    // A consent whose `at` is anything but a string is no consent: refused
+    // with this format's own exception, never a `TypeError` from a cast.
+    final at = switch (consent) {
+      {'at': final String said} => DateTime.tryParse(said),
+      _ => null,
+    };
+    if (policy is! String || policy.isEmpty || at == null) {
+      throw const TelemetryUploadFormatException(
+        'the upload carries no consent, so it was not agreed to',
+      );
+    }
+    final run = json['run'];
+    if (run is! Map<String, Object?>) {
+      throw const TelemetryUploadFormatException('the upload has no run');
+    }
+    final Demo demo;
+    try {
+      demo = Demo.fromJson(run);
+    } on DemoFormatException catch (error) {
+      throw TelemetryUploadFormatException('the run: ${error.message}');
+    }
+    return TelemetryUpload._(
+      game: game,
+      demo: demo,
+      policy: policy,
+      consentedAt: at,
+      unknown: FormatDocument.unknownIn(json, known: _known),
+    );
+  }
+
   /// Bumped when an existing field changes meaning, with a step in
   /// [_migrations] and a fixture under `test/fixtures/v<N>/`.
   static const int formatVersion = 1;
@@ -70,10 +125,16 @@ final class TelemetryUpload extends FormatDocument {
     migrations: _migrations,
   );
 
+  static const Set<String> _known = <String>{'game', 'consent', 'run'};
+
+  final String game;
+
+  final Demo demo;
+
+  final String policy;
+  final DateTime consentedAt;
   @override
   FormatSpec get spec => format;
-
-  static const Set<String> _known = <String>{'game', 'consent', 'run'};
 
   /// An upload of [demo], or a sentence saying why there is none.
   ///
@@ -137,66 +198,6 @@ final class TelemetryUpload extends FormatDocument {
       says: 'ready: ${demo.steps} steps of ${demo.level}',
     );
   }
-
-  /// Reads an upload, or throws a [TelemetryUploadFormatException] that says
-  /// why not — a server's side of [toJson].
-  factory TelemetryUpload.fromJson(Map<String, Object?> json) =>
-      TelemetryUpload._read(json);
-
-  factory TelemetryUpload._read(Map<String, Object?> document) {
-    final version = document['version'];
-    if (version is! num || version < 1) {
-      throw const TelemetryUploadFormatException('the upload has no version');
-    }
-
-    // A server reads every upload any 1.x game sent (decision 8 of
-    // `tasks/1.0-stability.md`): older formats are lifted step by step.
-    // Mutation: skip the chain and an old upload reads with new meanings.
-    // A newer one is refused by the spec, naming both versions.
-    final json = format.open(
-      document,
-      refuse: TelemetryUploadFormatException.new,
-    );
-    final game = json['game'];
-    if (game is! String || game.isEmpty) {
-      throw const TelemetryUploadFormatException('the upload names no game');
-    }
-    final consent = json['consent'];
-    final policy = consent is Map ? consent['policy'] : null;
-    // A consent whose `at` is anything but a string is no consent: refused
-    // with this format's own exception, never a `TypeError` from a cast.
-    final at = switch (consent) {
-      {'at': final String said} => DateTime.tryParse(said),
-      _ => null,
-    };
-    if (policy is! String || policy.isEmpty || at == null) {
-      throw const TelemetryUploadFormatException(
-        'the upload carries no consent, so it was not agreed to',
-      );
-    }
-    final run = json['run'];
-    if (run is! Map<String, Object?>) {
-      throw const TelemetryUploadFormatException('the upload has no run');
-    }
-    final Demo demo;
-    try {
-      demo = Demo.fromJson(run);
-    } on DemoFormatException catch (error) {
-      throw TelemetryUploadFormatException('the run: ${error.message}');
-    }
-    return TelemetryUpload._(
-      game: game,
-      demo: demo,
-      policy: policy,
-      consentedAt: at,
-      unknown: FormatDocument.unknownIn(json, known: _known),
-    );
-  }
-
-  final String game;
-  final Demo demo;
-  final String policy;
-  final DateTime consentedAt;
 
   Map<String, Object?> toJson() => write(<String, Object?>{
     'game': game,

@@ -213,25 +213,6 @@ final class RecordedMatch {
     this.events,
   });
 
-  /// The match: its start, its order tape, checkpoints and poses.
-  final MatchDemo demo;
-
-  /// The loop's changes, by the step they took effect before.
-  final List<LoopChange> loopChanges;
-
-  /// Each step's event count and digest, or null when none were kept.
-  final EventTrace? events;
-
-  /// [demo]'s document, with `loopChanges` and `events` beside its fields.
-  Map<String, Object?> toJson() => <String, Object?>{
-    ...demo.toJson(),
-    if (loopChanges.isNotEmpty)
-      'loopChanges': <Map<String, Object?>>[
-        for (final change in loopChanges) change.toJson(),
-      ],
-    if (events != null) 'events': events!.toJson(),
-  };
-
   /// Reads a match, or throws a [DemoFormatException] that says why not. A
   /// file written before the loop's record was kept reads with none.
   factory RecordedMatch.fromJson(Map<String, Object?> json) {
@@ -254,4 +235,23 @@ final class RecordedMatch {
       throw DemoFormatException(error.message);
     }
   }
+
+  /// The match: its start, its order tape, checkpoints and poses.
+  final MatchDemo demo;
+
+  /// The loop's changes, by the step they took effect before.
+  final List<LoopChange> loopChanges;
+
+  /// Each step's event count and digest, or null when none were kept.
+  final EventTrace? events;
+
+  /// [demo]'s document, with `loopChanges` and `events` beside its fields.
+  Map<String, Object?> toJson() => <String, Object?>{
+    ...demo.toJson(),
+    if (loopChanges.isNotEmpty)
+      'loopChanges': <Map<String, Object?>>[
+        for (final change in loopChanges) change.toJson(),
+      ],
+    if (events != null) 'events': events!.toJson(),
+  };
 }

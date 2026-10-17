@@ -109,141 +109,6 @@ final class PhysicalMaterial {
     this.unknown = const <String, Object?>{},
   });
 
-  /// The material as a document: `f3d.physicalMaterial`, version 2.
-  ///
-  /// Version 2 lets a property be a law (`PropertyLaw.toJson`) where
-  /// version 1 had a number, and adds `inelastic`, `externalIds` and
-  /// `confidence`; a version 1 document reads as it always did, each number
-  /// a constant law.
-  static const FormatSpec format = FormatSpec(
-    id: 'f3d.physicalMaterial',
-    version: formatVersion,
-    suffixes: <String>['.material.json'],
-    fixture: 'test/fixtures/v<N>/water.material.json',
-  );
-
-  /// The version [toJson] writes and the newest [PhysicalMaterial.fromJson]
-  /// reads.
-  static const int formatVersion = 2;
-
-  /// `f3d.<name>` for the engine's, `<pluginId>.<name>` for a plugin's.
-  final String id;
-
-  /// What a person calls it.
-  final String name;
-
-  final MaterialPhase phase;
-
-  /// The temperature its numbers are quoted at, K: 20 °C unless the entry
-  /// says otherwise — molten rock's are at its eruption, ice's at its
-  /// melting point.
-  final double temperature;
-
-  /// The pressure its numbers are quoted at, Pa: one standard atmosphere
-  /// unless the entry says otherwise.
-  final double pressure;
-
-  final MechanicalProperties? mechanical;
-  final FluidProperties? fluid;
-  final ThermalProperties? thermal;
-  final AcousticProperties? acoustic;
-  final OpticalProperties? optical;
-  final ElectricalProperties? electrical;
-  final InelasticProperties? inelastic;
-
-  /// The ids other systems know it by, by the space they are in:
-  /// [ExternalIdSpace.cas] `7732-18-5`, [ExternalIdSpace.ifc] `concrete`,
-  /// [ExternalIdSpace.materialX] a library's material name. What
-  /// `MaterialCatalog.byExternal` looks it up by, and what a converter binds
-  /// an imported model's materials with.
-  final Map<String, String> externalIds;
-
-  /// How the entry as a whole was come by, where its values do not each
-  /// say ([PropertyLaw.confidence]): what a value with none of its own is
-  /// taken to have. Null when nothing is said.
-  final Confidence? confidence;
-
-  /// The keys of its document this build did not read — a group a later
-  /// version added — kept so they are written back.
-  final Map<String, Object?> unknown;
-
-  /// Its density at its reference state, kg/m³: [mechanical]'s, or null.
-  double? get density => mechanical?.density?.value;
-
-  /// The state its numbers are quoted at: its [temperature] and [pressure],
-  /// in its [phase]. Every law of the entry gives its value there.
-  MatterState get referenceState => MatterState.at(
-    temperature: temperature,
-    pressure: pressure,
-    phase: phase,
-  );
-
-  /// Every group it has, in the order a document writes them.
-  List<PropertyGroup> get groups => <PropertyGroup>[
-    ?mechanical,
-    ?fluid,
-    ?thermal,
-    ?acoustic,
-    ?optical,
-    ?electrical,
-    ?inelastic,
-  ];
-
-  /// The confidence of [law] of this entry: its own, or the entry's.
-  Confidence? confidenceOf(PropertyLaw law) => law.confidence ?? confidence;
-
-  /// The plugin that declares it: the id's part before its last dot —
-  /// `f3d` for the engine's own.
-  String get namespace {
-    final dot = id.lastIndexOf('.');
-    return dot <= 0 ? id : id.substring(0, dot);
-  }
-
-  /// The top-level keys [PhysicalMaterial.fromJson] reads.
-  static const Set<String> _knownKeys = <String>{
-    'id',
-    'name',
-    'phase',
-    'temperature',
-    'pressure',
-    'mechanical',
-    'fluid',
-    'thermal',
-    'acoustic',
-    'optical',
-    'electrical',
-    'inelastic',
-    'externalIds',
-    'confidence',
-  };
-
-  /// The entry's fields without the envelope: what a data plugin's
-  /// `physicalMaterials` list holds, and what [toJson] puts after the envelope.
-  Map<String, Object?> toBody() => <String, Object?>{
-    'id': id,
-    'name': name,
-    'phase': phase.name,
-    'temperature': temperature,
-    'pressure': pressure,
-    'mechanical': ?mechanical?.toJson(),
-    'fluid': ?fluid?.toJson(),
-    'thermal': ?thermal?.toJson(),
-    'acoustic': ?acoustic?.toJson(),
-    'optical': ?optical?.toJson(),
-    'electrical': ?electrical?.toJson(),
-    'inelastic': ?inelastic?.toJson(),
-    if (externalIds.isNotEmpty) 'externalIds': externalIds,
-    'confidence': ?confidence?.name,
-    for (final MapEntry(:key, :value) in unknown.entries)
-      if (!_knownKeys.contains(key)) key: value,
-  };
-
-  /// The entry as a document of its own, in the envelope.
-  Map<String, Object?> toJson() => <String, Object?>{
-    ...format.envelope(),
-    ...toBody(),
-  };
-
   /// The material [json] describes: a document in the envelope, or a bare
   /// body as a data plugin's `physicalMaterials` list holds one.
   ///
@@ -327,6 +192,146 @@ final class PhysicalMaterial {
     );
   }
 
+  /// The material as a document: `f3d.physicalMaterial`, version 2.
+  ///
+  /// Version 2 lets a property be a law (`PropertyLaw.toJson`) where
+  /// version 1 had a number, and adds `inelastic`, `externalIds` and
+  /// `confidence`; a version 1 document reads as it always did, each number
+  /// a constant law.
+  static const FormatSpec format = FormatSpec(
+    id: 'f3d.physicalMaterial',
+    version: formatVersion,
+    suffixes: <String>['.material.json'],
+    fixture: 'test/fixtures/v<N>/water.material.json',
+  );
+
+  /// The version [toJson] writes and the newest [PhysicalMaterial.fromJson]
+  /// reads.
+  static const int formatVersion = 2;
+
+  /// `f3d.<name>` for the engine's, `<pluginId>.<name>` for a plugin's.
+  final String id;
+
+  /// What a person calls it.
+  final String name;
+
+  final MaterialPhase phase;
+
+  /// The temperature its numbers are quoted at, K: 20 °C unless the entry
+  /// says otherwise — molten rock's are at its eruption, ice's at its
+  /// melting point.
+  final double temperature;
+
+  /// The pressure its numbers are quoted at, Pa: one standard atmosphere
+  /// unless the entry says otherwise.
+  final double pressure;
+  final MechanicalProperties? mechanical;
+  final FluidProperties? fluid;
+  final ThermalProperties? thermal;
+  final AcousticProperties? acoustic;
+  final OpticalProperties? optical;
+  final ElectricalProperties? electrical;
+
+  final InelasticProperties? inelastic;
+
+  /// The ids other systems know it by, by the space they are in:
+  /// [ExternalIdSpace.cas] `7732-18-5`, [ExternalIdSpace.ifc] `concrete`,
+  /// [ExternalIdSpace.materialX] a library's material name. What
+  /// `MaterialCatalog.byExternal` looks it up by, and what a converter binds
+  /// an imported model's materials with.
+  final Map<String, String> externalIds;
+
+  /// How the entry as a whole was come by, where its values do not each
+  /// say ([PropertyLaw.confidence]): what a value with none of its own is
+  /// taken to have. Null when nothing is said.
+  final Confidence? confidence;
+
+  /// The keys of its document this build did not read — a group a later
+  /// version added — kept so they are written back.
+  final Map<String, Object?> unknown;
+
+  /// The top-level keys [PhysicalMaterial.fromJson] reads.
+  static const Set<String> _knownKeys = <String>{
+    'id',
+    'name',
+    'phase',
+    'temperature',
+    'pressure',
+    'mechanical',
+    'fluid',
+    'thermal',
+    'acoustic',
+    'optical',
+    'electrical',
+    'inelastic',
+    'externalIds',
+    'confidence',
+  };
+
+  static final RegExp _idShape = RegExp(
+    // A plugin's id — lower case, digits, `_`, `.` and `-` — then a name.
+    r'^[a-z][a-z0-9_.\-]*\.[a-z][A-Za-z0-9_]*$',
+  );
+
+  /// Its density at its reference state, kg/m³: [mechanical]'s, or null.
+  double? get density => mechanical?.density?.value;
+
+  /// The state its numbers are quoted at: its [temperature] and [pressure],
+  /// in its [phase]. Every law of the entry gives its value there.
+  MatterState get referenceState => MatterState.at(
+    temperature: temperature,
+    pressure: pressure,
+    phase: phase,
+  );
+
+  /// Every group it has, in the order a document writes them.
+  List<PropertyGroup> get groups => <PropertyGroup>[
+    ?mechanical,
+    ?fluid,
+    ?thermal,
+    ?acoustic,
+    ?optical,
+    ?electrical,
+    ?inelastic,
+  ];
+
+  /// The confidence of [law] of this entry: its own, or the entry's.
+  Confidence? confidenceOf(PropertyLaw law) => law.confidence ?? confidence;
+
+  /// The plugin that declares it: the id's part before its last dot —
+  /// `f3d` for the engine's own.
+  String get namespace {
+    final dot = id.lastIndexOf('.');
+    return dot <= 0 ? id : id.substring(0, dot);
+  }
+
+  /// The entry's fields without the envelope: what a data plugin's
+  /// `physicalMaterials` list holds, and what [toJson] puts after the envelope.
+  Map<String, Object?> toBody() => <String, Object?>{
+    'id': id,
+    'name': name,
+    'phase': phase.name,
+    'temperature': temperature,
+    'pressure': pressure,
+    'mechanical': ?mechanical?.toJson(),
+    'fluid': ?fluid?.toJson(),
+    'thermal': ?thermal?.toJson(),
+    'acoustic': ?acoustic?.toJson(),
+    'optical': ?optical?.toJson(),
+    'electrical': ?electrical?.toJson(),
+    'inelastic': ?inelastic?.toJson(),
+    if (externalIds.isNotEmpty) 'externalIds': externalIds,
+    'confidence': ?confidence?.name,
+    for (final MapEntry(:key, :value) in unknown.entries)
+      if (!_knownKeys.contains(key)) key: value,
+  };
+
+  /// The entry as a document of its own, in the envelope.
+  Map<String, Object?> toJson() => <String, Object?>{
+    ...format.envelope(),
+    ...toBody(),
+  };
+
   static T _within<T>(String id, T Function() read) {
     try {
       return read();
@@ -334,11 +339,6 @@ final class PhysicalMaterial {
       throw MaterialFormatException('material "$id": ${e.message}');
     }
   }
-
-  static final RegExp _idShape = RegExp(
-    // A plugin's id — lower case, digits, `_`, `.` and `-` — then a name.
-    r'^[a-z][a-z0-9_.\-]*\.[a-z][A-Za-z0-9_]*$',
-  );
 
   /// What is implausible about this entry, one sentence each; empty when
   /// nothing is.

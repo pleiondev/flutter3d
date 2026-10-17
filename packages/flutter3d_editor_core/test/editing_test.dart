@@ -495,7 +495,7 @@ void main() {
       // makes this true without a case per field: everything the row carried is
       // still there, including anything this build does not understand.
       final editing = _open()..select(Piece.brush, 1);
-      final before = Map<String, Object?>.from(editing.fields);
+      final before = Map<String, Object?>.of(editing.fields);
 
       editing.setField('layer', 3);
 

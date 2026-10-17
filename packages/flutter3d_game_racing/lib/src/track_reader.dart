@@ -28,6 +28,30 @@ final class TrackDocument extends FormatDocument {
     super.unknown,
   }) : sky = sky ?? SkyPresets.morning;
 
+  factory TrackDocument.fromJson(Map<String, Object?> json) =>
+      TrackDocument._read(json);
+
+  factory TrackDocument._read(Map<String, Object?> document) {
+    // A newer track, another format's document or a `requires` this build
+    // does not know is refused by the spec, naming both versions; an older
+    // one is lifted through the chain before a field is read.
+    final json = format.open(document, refuse: LevelFormatException.new);
+
+    final track = json['track'];
+    if (track == null) {
+      throw LevelFormatException('"track" is required');
+    }
+
+    final level = json['level'];
+    final sky = json['sky'];
+    return TrackDocument(
+      track: _trackFromJson(track.asJsonObject('track')),
+      level: level == null ? null : Level.fromJson(level.asJsonObject('level')),
+      sky: sky == null ? null : SkyPreset.fromJson(sky.asJsonObject('sky')),
+      unknown: FormatDocument.unknownIn(json, known: _known),
+    );
+  }
+
   /// The version this reader understands, written by the generator.
   ///
   /// **Every other document here had one and this did not.** The level, its
@@ -61,36 +85,9 @@ final class TrackDocument extends FormatDocument {
     migrations: _migrations,
   );
 
-  @override
-  FormatSpec get spec => format;
-
   /// The keys this reader takes; the rest — `name`, the generator's
   /// `generatedBy`, whatever a later build adds — are [unknown], kept.
   static const Set<String> _known = <String>{'track', 'level', 'sky'};
-
-  factory TrackDocument.fromJson(Map<String, Object?> json) =>
-      TrackDocument._read(json);
-
-  factory TrackDocument._read(Map<String, Object?> document) {
-    // A newer track, another format's document or a `requires` this build
-    // does not know is refused by the spec, naming both versions; an older
-    // one is lifted through the chain before a field is read.
-    final json = format.open(document, refuse: LevelFormatException.new);
-
-    final track = json['track'];
-    if (track == null) {
-      throw LevelFormatException('"track" is required');
-    }
-
-    final level = json['level'];
-    final sky = json['sky'];
-    return TrackDocument(
-      track: _trackFromJson(track.asJsonObject('track')),
-      level: level == null ? null : Level.fromJson(level.asJsonObject('level')),
-      sky: sky == null ? null : SkyPreset.fromJson(sky.asJsonObject('sky')),
-      unknown: FormatDocument.unknownIn(json, known: _known),
-    );
-  }
 
   final TrackSpline track;
 
@@ -107,6 +104,9 @@ final class TrackDocument extends FormatDocument {
   /// asks the preset, which knows which way the camera is pointing and can
   /// therefore answer something the level file cannot.
   final SkyPreset sky;
+
+  @override
+  FormatSpec get spec => format;
 }
 
 TrackSpline _trackFromJson(Map<String, Object?> json) {

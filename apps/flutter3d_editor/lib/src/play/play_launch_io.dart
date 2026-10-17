@@ -20,7 +20,7 @@ String? whyCannotPlay(String levelPath) => projectRootOnDisk(levelPath) == null
 PlayedGame gameFor(String levelPath, PlayedGame? current) {
   final root = projectRootOnDisk(levelPath)!;
   return switch (current) {
-    final FlutterRun same? when same.projectRoot == root => same,
+    final FlutterRun same when same.projectRoot == root => same,
     _ => FlutterRun(projectRoot: root),
   };
 }

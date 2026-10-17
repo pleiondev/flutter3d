@@ -59,11 +59,6 @@ final class WorldPropertiesPatch {
 
   const WorldPropertiesPatch._(this._json);
 
-  /// The patch that changes nothing.
-  static const WorldPropertiesPatch empty = WorldPropertiesPatch._(
-    <String, Object?>{},
-  );
-
   /// The patch [json] writes. Throws a [WorldPropertiesFormatException] for
   /// a field a world would refuse, naming it.
   factory WorldPropertiesPatch.fromJson(Map<String, Object?> json) {
@@ -73,6 +68,11 @@ final class WorldPropertiesPatch {
     WorldProperties.fromJson(copy);
     return WorldPropertiesPatch._(copy);
   }
+
+  /// The patch that changes nothing.
+  static const WorldPropertiesPatch empty = WorldPropertiesPatch._(
+    <String, Object?>{},
+  );
 
   final Map<String, Object?> _json;
 

@@ -537,16 +537,6 @@ final class SplatComposite {
 
 /// Draws a cloud into the scene pass.
 final class SplatContributor extends PassContributor {
-  final ParticleInfoBlock _particleInfo = ParticleInfoBlock();
-  final SplatHashInfoBlock _hashInfo = SplatHashInfoBlock();
-
-  /// `FogInfo` as `contributor_eye.glsl` declares it for both splat stages:
-  /// the fog's colour and density, the eye, the view axis and the lens.
-  final Float32List _fog = Float32List(4);
-  final Float32List _eye = Float32List(4);
-  final Float32List _forward = Float32List(4);
-  final Float32List _projection = Float32List(4);
-
   SplatContributor(
     SplatCloud cloud, {
     this.node,
@@ -562,8 +552,18 @@ final class SplatContributor extends PassContributor {
     this.composite = SplatComposite.automatic,
   }) : quads = SplatQuads.lod(lod);
 
-  /// What is drawn: the cloud given, or the cut last chosen from a tree.
-  SplatCloud get cloud => quads.cloud;
+  final ParticleInfoBlock _particleInfo = ParticleInfoBlock();
+  final SplatHashInfoBlock _hashInfo = SplatHashInfoBlock();
+
+  /// `FogInfo` as `contributor_eye.glsl` declares it for both splat stages:
+  /// the fog's colour and density, the eye, the view axis and the lens.
+  final Float32List _fog = Float32List(4);
+  final Float32List _eye = Float32List(4);
+
+  final Float32List _forward = Float32List(4);
+
+  final Float32List _projection = Float32List(4);
+
   final SplatQuads quads;
 
   /// Sorted, hashed, or whichever the frame's temporal setting calls for.
@@ -586,6 +586,63 @@ final class SplatContributor extends PassContributor {
   /// reactive pass then draws through too.
   bool _drewGpuOrder = false;
 
+  /// The node the cloud hangs from, when it has one: its world matrix places
+  /// the cloud, and hiding it hides the cloud. Null draws [cloud] in world
+  /// units as stored, which is what a PLY capture is.
+  ///
+  /// A glTF splat primitive belongs to the node that instantiates its mesh —
+  /// `ModelSplat.node` names it — and the node's scale and rotation reach
+  /// each splat's covariance, not only its centre, as the extension asks.
+  final SceneNode? node;
+
+  PipelineHandle? _pipeline;
+
+  PipelineHandle? _hashedPipeline;
+
+  /// The index sequence 0, 1, 2, … every draw in this engine needs — see
+  /// `MeshOverlay._identityIndices`, which keeps the same sequence for the
+  /// same reason: `CommandEncoder.draw` has no unindexed path, and a draw
+  /// left with a vertex buffer and no index buffer bound draws nothing, with
+  /// no refusal to say so.
+  final IdentityIndices _identityIndices = IdentityIndices();
+
+  /// The cloud's box in its own space, and the cloud it was measured on.
+  Aabb3? _ownBounds;
+  SplatCloud? _boundsOf;
+
+  PipelineHandle? _reactivePipeline;
+
+  /// **Blended and depth tested, but not depth written.** A splat is
+  /// translucent everywhere, so writing its depth would hide the splats behind
+  /// it — which is the whole of what back-to-front ordering exists to get
+  /// right. Testing against what the opaque pass left is still wanted: a cloud
+  /// behind a wall should be behind it.
+  ///
+  /// [BlendState.alphaBlend] because the fragment stage writes premultiplied
+  /// colour — that state's source factor is `one` and not `sourceAlpha`, which
+  /// is what composites a stack of translucent layers correctly in one pass.
+  static const PassState _kSplatState = PassState(
+    primitiveType: PrimitiveType.triangle,
+    polygonMode: PolygonMode.fill,
+    cullMode: CullMode.none,
+    blend: BlendState.alphaBlend,
+    depthWrite: false,
+  );
+
+  /// **Unblended and depth written**, which is the whole of `N5`: a hashed
+  /// splat is either wholly here or not at all, so the depth test can decide
+  /// which of the ones that survived is nearest, and the sort is not needed.
+  static const PassState _kHashedState = PassState(
+    primitiveType: PrimitiveType.triangle,
+    polygonMode: PolygonMode.fill,
+    cullMode: CullMode.none,
+    blend: null,
+    depthWrite: true,
+  );
+
+  /// What is drawn: the cloud given, or the cut last chosen from a tree.
+  SplatCloud get cloud => quads.cloud;
+
   /// Whether the last frame drew this cloud in the GPU sort's order — what
   /// a test asks to know which of the two orders it is looking at.
   bool get didDrawGpuOrder => _drewGpuOrder;
@@ -607,18 +664,6 @@ final class SplatContributor extends PassContributor {
     return _gpu = placed;
   }
 
-  /// The node the cloud hangs from, when it has one: its world matrix places
-  /// the cloud, and hiding it hides the cloud. Null draws [cloud] in world
-  /// units as stored, which is what a PLY capture is.
-  ///
-  /// A glTF splat primitive belongs to the node that instantiates its mesh —
-  /// `ModelSplat.node` names it — and the node's scale and rotation reach
-  /// each splat's covariance, not only its centre, as the extension asks.
-  final SceneNode? node;
-
-  PipelineHandle? _pipeline;
-  PipelineHandle? _hashedPipeline;
-
   @override
   void relinkShaders() {
     _pipeline = null;
@@ -626,13 +671,6 @@ final class SplatContributor extends PassContributor {
     _reactivePipeline = null;
     _gpu?.relink();
   }
-
-  /// The index sequence 0, 1, 2, … every draw in this engine needs — see
-  /// `MeshOverlay._identityIndices`, which keeps the same sequence for the
-  /// same reason: `CommandEncoder.draw` has no unindexed path, and a draw
-  /// left with a vertex buffer and no index buffer bound draws nothing, with
-  /// no refusal to say so.
-  final IdentityIndices _identityIndices = IdentityIndices();
 
   /// After the opaque scene, because every splat is translucent and has to
   /// land on top of whatever solid geometry is behind it.
@@ -645,10 +683,6 @@ final class SplatContributor extends PassContributor {
       // encode; asking the cut would keep it from ever being made.
       (quads.lod != null || cloud.count > 0) &&
       (node?.isVisibleInHierarchy ?? true);
-
-  /// The cloud's box in its own space, and the cloud it was measured on.
-  Aabb3? _ownBounds;
-  SplatCloud? _boundsOf;
 
   /// Every splat's centre widened by [splatReach] times its largest scale —
   /// the furthest any corner of its quad lies from the centre, since the
@@ -896,34 +930,4 @@ final class SplatContributor extends PassContributor {
     frame.bindSprite(fragmentShader, ReactiveShape.gaussian);
     frame.encoder.draw();
   }
-
-  PipelineHandle? _reactivePipeline;
-
-  /// **Blended and depth tested, but not depth written.** A splat is
-  /// translucent everywhere, so writing its depth would hide the splats behind
-  /// it — which is the whole of what back-to-front ordering exists to get
-  /// right. Testing against what the opaque pass left is still wanted: a cloud
-  /// behind a wall should be behind it.
-  ///
-  /// [BlendState.alphaBlend] because the fragment stage writes premultiplied
-  /// colour — that state's source factor is `one` and not `sourceAlpha`, which
-  /// is what composites a stack of translucent layers correctly in one pass.
-  static const PassState _kSplatState = PassState(
-    primitiveType: PrimitiveType.triangle,
-    polygonMode: PolygonMode.fill,
-    cullMode: CullMode.none,
-    blend: BlendState.alphaBlend,
-    depthWrite: false,
-  );
-
-  /// **Unblended and depth written**, which is the whole of `N5`: a hashed
-  /// splat is either wholly here or not at all, so the depth test can decide
-  /// which of the ones that survived is nearest, and the sort is not needed.
-  static const PassState _kHashedState = PassState(
-    primitiveType: PrimitiveType.triangle,
-    polygonMode: PolygonMode.fill,
-    cullMode: CullMode.none,
-    blend: null,
-    depthWrite: true,
-  );
 }

@@ -9,6 +9,24 @@ import 'snapshot.dart';
 final class GhostFrame {
   GhostFrame({this.time = 0.0, this.yaw = 0.0});
 
+  /// **Read leniently, because this is a file from somebody's disk.** Every
+  /// field used to be a `!` and an `as num`, so a tape truncated by a machine
+  /// that lost power threw a `TypeError` out of a load — and what is on that
+  /// disk is a best run somebody spent an evening on, whose worst possible
+  /// failure is being forgotten, not taking the game down with it.
+  ///
+  /// A pose it cannot read is a pose at the origin at time nought, which a
+  /// playback either interpolates through or drops off the end of.
+  factory GhostFrame.fromJson(Map<String, Object?> json) {
+    final pose = GhostFrame(time: json.number('t'), yaw: json.number('y'));
+    readVector(json['p'], pose.position);
+    // The up is optional: tapes written before there was one still read, which
+    // matters in the direction that counts — what is on disk was written by an
+    // older build.
+    readVector(json['u'], pose.up);
+    return pose;
+  }
+
   /// Seconds since the recording started.
   double time;
 
@@ -37,24 +55,6 @@ final class GhostFrame {
     'y': _round(yaw),
     'u': <double>[_round(up.x), _round(up.y), _round(up.z)],
   };
-
-  /// **Read leniently, because this is a file from somebody's disk.** Every
-  /// field used to be a `!` and an `as num`, so a tape truncated by a machine
-  /// that lost power threw a `TypeError` out of a load — and what is on that
-  /// disk is a best run somebody spent an evening on, whose worst possible
-  /// failure is being forgotten, not taking the game down with it.
-  ///
-  /// A pose it cannot read is a pose at the origin at time nought, which a
-  /// playback either interpolates through or drops off the end of.
-  factory GhostFrame.fromJson(Map<String, Object?> json) {
-    final pose = GhostFrame(time: json.number('t'), yaw: json.number('y'));
-    readVector(json['p'], pose.position);
-    // The up is optional: tapes written before there was one still read, which
-    // matters in the direction that counts — what is on disk was written by an
-    // older build.
-    readVector(json['u'], pose.up);
-    return pose;
-  }
 
   /// Three decimal places: a millimetre and a thousandth of a radian, which is
   /// far below anything a replay is looked at closely enough to show. Written

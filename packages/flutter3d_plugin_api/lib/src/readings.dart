@@ -164,76 +164,6 @@ final class ExternalStateInput {
     tag: tag,
   );
 
-  /// Where it comes from, by the name the simulation knows it under: a
-  /// sensor's tag, a channel, `xr.head`.
-  final String source;
-
-  /// Its components, in [unit].
-  final List<double> value;
-
-  /// The unit of [value], or null for a number with none.
-  final Unit? unit;
-
-  /// When the source took it, seconds on the source's clock; null when it
-  /// does not say.
-  final double? sourceTime;
-
-  /// When the engine received it, seconds on the receiving machine's clock;
-  /// null when not recorded.
-  final double? receivedTime;
-
-  /// How far its source trusts it; null when it does not say.
-  final ReadingQuality? quality;
-
-  /// How it came to be; null when its source does not say.
-  final ReadingKind? kind;
-
-  /// Free text its source attaches: a batch, a line, a device's serial.
-  final String? tag;
-
-  /// Fields a later build wrote that this one does not know, kept and
-  /// written back as they were.
-  final Map<String, Object?> unknown;
-
-  /// [value] as a [Quantity], for a reading of one component with a unit.
-  /// Throws a [StateError] for any other.
-  Quantity get quantity {
-    final unit = this.unit;
-    if (value.length != 1 || unit == null) {
-      throw StateError(
-        'the reading from $source has ${value.length} components'
-        '${unit == null ? ' and no unit' : ''}, not one quantity',
-      );
-    }
-    return Quantity(value.single, unit);
-  }
-
-  static const Set<String> _known = <String>{
-    'step',
-    'source',
-    'value',
-    'unit',
-    'sourceTime',
-    'receivedTime',
-    'quality',
-    'kind',
-    'tag',
-  };
-
-  /// The reading as plain values: what the tape's `externalInputs` and the
-  /// wire hold, beside the step the tape adds.
-  Map<String, Object?> toJson() => <String, Object?>{
-    ...unknown,
-    'source': source,
-    'value': value,
-    if (unit case final unit?) 'unit': unit.toJson(),
-    'sourceTime': ?sourceTime,
-    'receivedTime': ?receivedTime,
-    if (quality case final quality?) 'quality': quality.name,
-    if (kind case final kind?) 'kind': kind.name,
-    'tag': ?tag,
-  };
-
   /// Reads what [toJson] wrote; a `step` beside it is the tape's and is
   /// passed over. Throws a [PluginFormatException] naming the field that is
   /// not what it says.
@@ -287,6 +217,76 @@ final class ExternalStateInput {
       },
     );
   }
+
+  /// Where it comes from, by the name the simulation knows it under: a
+  /// sensor's tag, a channel, `xr.head`.
+  final String source;
+
+  /// Its components, in [unit].
+  final List<double> value;
+
+  /// The unit of [value], or null for a number with none.
+  final Unit? unit;
+
+  /// When the source took it, seconds on the source's clock; null when it
+  /// does not say.
+  final double? sourceTime;
+
+  /// When the engine received it, seconds on the receiving machine's clock;
+  /// null when not recorded.
+  final double? receivedTime;
+
+  /// How far its source trusts it; null when it does not say.
+  final ReadingQuality? quality;
+
+  /// How it came to be; null when its source does not say.
+  final ReadingKind? kind;
+
+  /// Free text its source attaches: a batch, a line, a device's serial.
+  final String? tag;
+
+  /// Fields a later build wrote that this one does not know, kept and
+  /// written back as they were.
+  final Map<String, Object?> unknown;
+
+  static const Set<String> _known = <String>{
+    'step',
+    'source',
+    'value',
+    'unit',
+    'sourceTime',
+    'receivedTime',
+    'quality',
+    'kind',
+    'tag',
+  };
+
+  /// [value] as a [Quantity], for a reading of one component with a unit.
+  /// Throws a [StateError] for any other.
+  Quantity get quantity {
+    final unit = this.unit;
+    if (value.length != 1 || unit == null) {
+      throw StateError(
+        'the reading from $source has ${value.length} components'
+        '${unit == null ? ' and no unit' : ''}, not one quantity',
+      );
+    }
+    return Quantity(value.single, unit);
+  }
+
+  /// The reading as plain values: what the tape's `externalInputs` and the
+  /// wire hold, beside the step the tape adds.
+  Map<String, Object?> toJson() => <String, Object?>{
+    ...unknown,
+    'source': source,
+    'value': value,
+    if (unit case final unit?) 'unit': unit.toJson(),
+    'sourceTime': ?sourceTime,
+    'receivedTime': ?receivedTime,
+    if (quality case final quality?) 'quality': quality.name,
+    if (kind case final kind?) 'kind': kind.name,
+    'tag': ?tag,
+  };
 
   @override
   bool operator ==(Object other) =>
@@ -343,21 +343,6 @@ final class ProbeField {
     }
   }
 
-  /// The size of each axis, outermost first.
-  final List<int> shape;
-
-  /// The values, row-major, in [unit].
-  final Float32List values;
-
-  /// The unit of every value.
-  final Unit unit;
-
-  Map<String, Object?> toJson() => <String, Object?>{
-    'shape': shape,
-    'values': values,
-    'unit': unit.toJson(),
-  };
-
   /// Reads what [toJson] wrote, the values as a [Float32List] or as a list
   /// of numbers. Throws a [PluginFormatException] for anything else.
   factory ProbeField.fromJson(Object? json) {
@@ -389,6 +374,21 @@ final class ProbeField {
       wrong('has a unit this build cannot read: $error');
     }
   }
+
+  /// The size of each axis, outermost first.
+  final List<int> shape;
+
+  /// The values, row-major, in [unit].
+  final Float32List values;
+
+  /// The unit of every value.
+  final Unit unit;
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'shape': shape,
+    'values': values,
+    'unit': unit.toJson(),
+  };
 }
 
 /// What one probe read at the end of one step: published to the view
@@ -409,45 +409,6 @@ final class ProbeReading {
     this.quality,
     this.field,
   }) : value = List<double>.unmodifiable(value);
-
-  /// The probe's id, unique in its simulation.
-  final String probe;
-
-  /// The step it was read at the end of.
-  final int step;
-
-  /// Its components, in [unit]: one for a quantity, three for a vector.
-  final List<double> value;
-
-  /// The unit of [value].
-  final Unit unit;
-
-  /// How it came to be: [ReadingKind.simulated] for a probe's own reading.
-  final ReadingKind kind;
-
-  /// How far it can be trusted; null when nothing says.
-  final ReadingQuality? quality;
-
-  /// A grid read at once, beside [value]; null for a reading of one place.
-  final ProbeField? field;
-
-  /// [value] as a [Quantity], for a reading of one component. Throws a
-  /// [StateError] for a vector.
-  Quantity get quantity => value.length == 1
-      ? Quantity(value.single, unit)
-      : throw StateError(
-          'probe $probe read ${value.length} components, not one quantity',
-        );
-
-  Map<String, Object?> toJson() => <String, Object?>{
-    'step': step,
-    'probe': probe,
-    'value': value,
-    'unit': unit.toJson(),
-    if (kind != ReadingKind.simulated) 'kind': kind.name,
-    if (quality case final quality?) 'quality': quality.name,
-    if (field case final field?) 'field': field.toJson(),
-  };
 
   /// Reads what [toJson] wrote. Throws a [PluginFormatException] naming the
   /// field that is not what it says.
@@ -489,6 +450,45 @@ final class ProbeReading {
       field: json['field'] == null ? null : ProbeField.fromJson(json['field']),
     );
   }
+
+  /// The probe's id, unique in its simulation.
+  final String probe;
+
+  /// The step it was read at the end of.
+  final int step;
+
+  /// Its components, in [unit]: one for a quantity, three for a vector.
+  final List<double> value;
+
+  /// The unit of [value].
+  final Unit unit;
+
+  /// How it came to be: [ReadingKind.simulated] for a probe's own reading.
+  final ReadingKind kind;
+
+  /// How far it can be trusted; null when nothing says.
+  final ReadingQuality? quality;
+
+  /// A grid read at once, beside [value]; null for a reading of one place.
+  final ProbeField? field;
+
+  /// [value] as a [Quantity], for a reading of one component. Throws a
+  /// [StateError] for a vector.
+  Quantity get quantity => value.length == 1
+      ? Quantity(value.single, unit)
+      : throw StateError(
+          'probe $probe read ${value.length} components, not one quantity',
+        );
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'step': step,
+    'probe': probe,
+    'value': value,
+    'unit': unit.toJson(),
+    if (kind != ReadingKind.simulated) 'kind': kind.name,
+    if (quality case final quality?) 'quality': quality.name,
+    if (field case final field?) 'field': field.toJson(),
+  };
 
   @override
   bool operator ==(Object other) =>

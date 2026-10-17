@@ -22,6 +22,42 @@ final class StepTimeTrace {
   StepTimeTrace({this.every = 1})
     : assert(every > 0, 'a sample every no steps is no samples');
 
+  /// Reads a trace back, or throws a [StepTimeTraceFormatException] that
+  /// says why not.
+  factory StepTimeTrace.fromJson(Map<String, Object?> json) {
+    final every = json['every'];
+    if (every is! num || every <= 0) {
+      throw const StepTimeTraceFormatException(
+        'a sample every no steps is no samples',
+      );
+    }
+    final rawSteps = json['steps'];
+    final rawMillis = json['millis'];
+    if (rawSteps is! List || rawMillis is! List) {
+      throw const StepTimeTraceFormatException(
+        'the trace has no steps or no costs',
+      );
+    }
+    if (rawSteps.length != rawMillis.length) {
+      throw const StepTimeTraceFormatException(
+        'the trace has a different number of steps and costs',
+      );
+    }
+    final trace = StepTimeTrace(every: every.toInt());
+    for (var i = 0; i < rawSteps.length; i++) {
+      final step = rawSteps[i];
+      final ms = rawMillis[i];
+      if (step is! num || ms is! num) {
+        throw const StepTimeTraceFormatException(
+          'a sample is a step number and a cost in milliseconds',
+        );
+      }
+      trace._steps.add(step.toInt());
+      trace._millis.add(ms.toDouble());
+    }
+    return trace;
+  }
+
   /// How many steps pass between kept samples. One by default — unlike
   /// [DigestTrace], a step's own cost is cheap to keep every one of, and a
   /// profiler that only sampled one step in twenty-five would miss the one
@@ -104,42 +140,6 @@ final class StepTimeTrace {
     'steps': List<int>.of(_steps),
     'millis': List<double>.of(_millis),
   };
-
-  /// Reads a trace back, or throws a [StepTimeTraceFormatException] that
-  /// says why not.
-  factory StepTimeTrace.fromJson(Map<String, Object?> json) {
-    final every = json['every'];
-    if (every is! num || every <= 0) {
-      throw const StepTimeTraceFormatException(
-        'a sample every no steps is no samples',
-      );
-    }
-    final rawSteps = json['steps'];
-    final rawMillis = json['millis'];
-    if (rawSteps is! List || rawMillis is! List) {
-      throw const StepTimeTraceFormatException(
-        'the trace has no steps or no costs',
-      );
-    }
-    if (rawSteps.length != rawMillis.length) {
-      throw const StepTimeTraceFormatException(
-        'the trace has a different number of steps and costs',
-      );
-    }
-    final trace = StepTimeTrace(every: every.toInt());
-    for (var i = 0; i < rawSteps.length; i++) {
-      final step = rawSteps[i];
-      final ms = rawMillis[i];
-      if (step is! num || ms is! num) {
-        throw const StepTimeTraceFormatException(
-          'a sample is a step number and a cost in milliseconds',
-        );
-      }
-      trace._steps.add(step.toInt());
-      trace._millis.add(ms.toDouble());
-    }
-    return trace;
-  }
 }
 
 /// Thrown when a [StepTimeTrace] cannot be read back at all.

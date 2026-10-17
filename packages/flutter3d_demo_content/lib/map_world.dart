@@ -1119,12 +1119,12 @@ final class MapWorld {
     for (final NativeContact c in contacts) {
       for (final (NativeBody it, NativeBody other)
           in <(NativeBody, NativeBody)>[(c.a, c.b), (c.b, c.a)]) {
-        if (aimed[it] case final MapPiece stone? when stone._aim != null) {
+        if (aimed[it] case final MapPiece stone when stone._aim != null) {
           final MapHall hall = stone._aim!;
           stone._aim = null;
           if (hall._stones.contains(other)) breaks.add((hall, c.point));
         }
-        if (flying[it] case final _Arrow arrow? when !spent.contains(it)) {
+        if (flying[it] case final _Arrow arrow when !spent.contains(it)) {
           spent.add(it);
           if (arrow.hall.timbers.contains(other)) {
             _held.add((

@@ -21,9 +21,6 @@ import 'heard_events.dart';
 const double _dt = 1.0 / 60.0;
 
 final class _Run {
-  /// What the last step published, as a game hears a step.
-  List<GameEvent> lastStep = const <GameEvent>[];
-
   _Run() {
     world.add(
       Collider(
@@ -43,6 +40,9 @@ final class _Run {
     );
     sim.publishTo(_heard.bus);
   }
+
+  /// What the last step published, as a game hears a step.
+  List<GameEvent> lastStep = const <GameEvent>[];
 
   final CollisionWorld world = CollisionWorld(properties: platformerWorld);
   final InputState input = InputState();

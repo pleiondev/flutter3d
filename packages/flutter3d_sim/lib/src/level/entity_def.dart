@@ -61,6 +61,66 @@ final class EntityDef {
              yaw,
            ]);
 
+  /// Reads a row in either shape: with `props` (format 3), or with its
+  /// properties at the top (before it).
+  factory EntityDef.fromJson(Map<String, Object?> json) {
+    final type = json['type'];
+    if (type is! String || type.isEmpty) {
+      throw const LevelFormatException('an entity has no "type"');
+    }
+    final id = json['id'];
+    if (id != null && (id is! String || id.isEmpty)) {
+      throw LevelFormatException('an entity\'s "id" must be text, not $id');
+    }
+    // `physicalMaterial` was reserved by format 5, long after `props`, so a
+    // row naming it is in the newer shape whatever else it says.
+    final shaped =
+        json.containsKey('props') ||
+        json.containsKey('components') ||
+        json.containsKey('physicalMaterial');
+    // The older shape: everything not reserved is a property, so the format
+    // grew by writing new keys. Moved under `props` on the way in, so the
+    // row is written back in the shape this build writes.
+    final row = shaped
+        ? json
+        : <String, Object?>{
+            for (final entry in json.entries)
+              if (_legacyReserved.contains(entry.key)) entry.key: entry.value,
+            if (json.keys.any((String key) => !_legacyReserved.contains(key)))
+              'props': <String, Object?>{
+                for (final entry in json.entries)
+                  if (!_legacyReserved.contains(entry.key))
+                    entry.key: entry.value,
+              },
+          };
+    return EntityDef(
+      type: type,
+      id: id as String?,
+      position: row.vector3('at', fallback: Vector3.zero()),
+      yaw: row.numberOr('yaw', 0.0),
+      name: row.textOrNull('name'),
+      properties: switch (row['props']) {
+        null => null,
+        final Map<Object?, Object?> props => <String, Object?>{
+          for (final MapEntry(:key, :value) in props.entries) '$key': value,
+        },
+        final other => throw LevelFormatException(
+          'an entity\'s "props" must be an object, not $other',
+        ),
+      },
+      components: row.objectMap('components'),
+      physicalMaterial: switch (row['physicalMaterial']) {
+        null => null,
+        final String id when id.isNotEmpty => id,
+        final other => throw LevelFormatException(
+          'an entity\'s "physicalMaterial" must be a material\'s id, not '
+          '$other',
+        ),
+      },
+      source: row,
+    );
+  }
+
   /// The document this entity was read from. See [writeThrough].
   final Map<String, Object?> _source;
 
@@ -68,8 +128,8 @@ final class EntityDef {
   /// a prefab override, the editor's selection. See [LevelIds]; given when
   /// the entity is made, derived from what it is otherwise.
   final String id;
-
   final String type;
+
   final Vector3 position;
 
   /// Facing, in radians about Y. Nothing in this game tilts.
@@ -160,66 +220,6 @@ final class EntityDef {
   /// This entity under another [id], everything else as it is.
   EntityDef withId(String id) =>
       EntityDef.fromJson(<String, Object?>{...toJson(), 'id': id});
-
-  /// Reads a row in either shape: with `props` (format 3), or with its
-  /// properties at the top (before it).
-  factory EntityDef.fromJson(Map<String, Object?> json) {
-    final type = json['type'];
-    if (type is! String || type.isEmpty) {
-      throw const LevelFormatException('an entity has no "type"');
-    }
-    final id = json['id'];
-    if (id != null && (id is! String || id.isEmpty)) {
-      throw LevelFormatException('an entity\'s "id" must be text, not $id');
-    }
-    // `physicalMaterial` was reserved by format 5, long after `props`, so a
-    // row naming it is in the newer shape whatever else it says.
-    final shaped =
-        json.containsKey('props') ||
-        json.containsKey('components') ||
-        json.containsKey('physicalMaterial');
-    // The older shape: everything not reserved is a property, so the format
-    // grew by writing new keys. Moved under `props` on the way in, so the
-    // row is written back in the shape this build writes.
-    final row = shaped
-        ? json
-        : <String, Object?>{
-            for (final entry in json.entries)
-              if (_legacyReserved.contains(entry.key)) entry.key: entry.value,
-            if (json.keys.any((String key) => !_legacyReserved.contains(key)))
-              'props': <String, Object?>{
-                for (final entry in json.entries)
-                  if (!_legacyReserved.contains(entry.key))
-                    entry.key: entry.value,
-              },
-          };
-    return EntityDef(
-      type: type,
-      id: id as String?,
-      position: row.vector3('at', fallback: Vector3.zero()),
-      yaw: row.numberOr('yaw', 0.0),
-      name: row.textOrNull('name'),
-      properties: switch (row['props']) {
-        null => null,
-        final Map<Object?, Object?> props => <String, Object?>{
-          for (final MapEntry(:key, :value) in props.entries) '$key': value,
-        },
-        final other => throw LevelFormatException(
-          'an entity\'s "props" must be an object, not $other',
-        ),
-      },
-      components: row.objectMap('components'),
-      physicalMaterial: switch (row['physicalMaterial']) {
-        null => null,
-        final String id when id.isNotEmpty => id,
-        final other => throw LevelFormatException(
-          'an entity\'s "physicalMaterial" must be a material\'s id, not '
-          '$other',
-        ),
-      },
-      source: row,
-    );
-  }
 
   Map<String, Object?> toJson() => writeThrough(_source, <WriteThroughField>[
     WriteThroughField('id', id),

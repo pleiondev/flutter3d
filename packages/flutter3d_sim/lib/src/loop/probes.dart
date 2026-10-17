@@ -166,63 +166,6 @@ final class Probe {
     }
   }
 
-  /// The id of where a body is, as a quantity a probe at a [ProbeBody]
-  /// reads: three components in metres, from the body's [WorldPosition].
-  static const String positionId = 'f3d.position';
-
-  /// Its id, unique in the simulation: what its readings are named by.
-  final String id;
-
-  /// What it reads, by quantity id.
-  final String quantity;
-
-  /// The unit [quantity] is reported in, and the unit of `x` in [derived].
-  final Unit unit;
-
-  /// Where it reads.
-  final ProbeRegion region;
-
-  /// [derived] as the language's tree, or null for a probe that publishes
-  /// what it reads.
-  final Expression? derivedExpression;
-
-  /// [derivedExpression] as canonical text, or null.
-  String? get derived => switch (derivedExpression) {
-    null => null,
-    final expression => ExpressionCodec(
-      scope: scopeFor(unit),
-    ).encode(expression),
-  };
-
-  /// [derivedExpression], compiled the first time it is read.
-  late final CompiledExpression? compiled = switch (derivedExpression) {
-    null => null,
-    final expression => CompiledExpression(expression),
-  };
-
-  /// What a [derived] expression reads in: `x` in [unit], `t` in seconds.
-  static ExpressionScope scopeFor(Unit unit) =>
-      ExpressionScope.quantities(<String, Unit>{'x': unit, 't': Unit.second});
-
-  /// How a probe is written in a snapshot or a level: `{"id", "quantity",
-  /// "unit", "region", "derived"}`.
-  static final ComponentCodec<Probe> codec = ComponentCodec<Probe>.of(
-    id: 'flutter3d.probe',
-    encode: (probe) => probe.toJson(),
-    decode: (context) {
-      final data = context.data;
-      return data is Map ? Probe.fromJson(data) : null;
-    },
-  );
-
-  Map<String, Object?> toJson() => <String, Object?>{
-    'id': id,
-    'quantity': quantity,
-    'unit': unit.toJson(),
-    'region': region.toJson(),
-    'derived': ?derived,
-  };
-
   /// Reads what [toJson] wrote. Throws a [PluginFormatException] naming
   /// what is wrong, an expression that does not read among it.
   factory Probe.fromJson(Map<Object?, Object?> json) {
@@ -256,6 +199,63 @@ final class Probe {
       wrong('"$id" has a unit this build cannot read: $error');
     }
   }
+
+  /// The id of where a body is, as a quantity a probe at a [ProbeBody]
+  /// reads: three components in metres, from the body's [WorldPosition].
+  static const String positionId = 'f3d.position';
+
+  /// Its id, unique in the simulation: what its readings are named by.
+  final String id;
+
+  /// What it reads, by quantity id.
+  final String quantity;
+
+  /// The unit [quantity] is reported in, and the unit of `x` in [derived].
+  final Unit unit;
+
+  /// Where it reads.
+  final ProbeRegion region;
+
+  /// [derived] as the language's tree, or null for a probe that publishes
+  /// what it reads.
+  final Expression? derivedExpression;
+
+  /// [derivedExpression], compiled the first time it is read.
+  late final CompiledExpression? compiled = switch (derivedExpression) {
+    null => null,
+    final expression => CompiledExpression(expression),
+  };
+
+  /// How a probe is written in a snapshot or a level: `{"id", "quantity",
+  /// "unit", "region", "derived"}`.
+  static final ComponentCodec<Probe> codec = ComponentCodec<Probe>.of(
+    id: 'flutter3d.probe',
+    encode: (probe) => probe.toJson(),
+    decode: (context) {
+      final data = context.data;
+      return data is Map ? Probe.fromJson(data) : null;
+    },
+  );
+
+  /// [derivedExpression] as canonical text, or null.
+  String? get derived => switch (derivedExpression) {
+    null => null,
+    final expression => ExpressionCodec(
+      scope: scopeFor(unit),
+    ).encode(expression),
+  };
+
+  /// What a [derived] expression reads in: `x` in [unit], `t` in seconds.
+  static ExpressionScope scopeFor(Unit unit) =>
+      ExpressionScope.quantities(<String, Unit>{'x': unit, 't': Unit.second});
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'id': id,
+    'quantity': quantity,
+    'unit': unit.toJson(),
+    'region': region.toJson(),
+    'derived': ?derived,
+  };
 
   @override
   String toString() => 'Probe($id: $quantity in $unit at ${region.kind})';

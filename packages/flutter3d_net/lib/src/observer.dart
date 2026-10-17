@@ -72,6 +72,13 @@ final class ObserverSnapshot {
 final class ObserverFilter {
   const ObserverFilter({this.probes});
 
+  factory ObserverFilter.fromJson(Object? json) => switch (json) {
+    {'probes': final List<Object?> ids} => ObserverFilter(
+      probes: <String>{for (final id in ids) '$id'},
+    ),
+    _ => everything,
+  };
+
   /// The probes whose readings to send, or null for all of them.
   final Set<String>? probes;
 
@@ -89,13 +96,6 @@ final class ObserverFilter {
 
   Map<String, Object?> toJson() => <String, Object?>{
     if (probes case final ids?) 'probes': (ids.toList()..sort()),
-  };
-
-  factory ObserverFilter.fromJson(Object? json) => switch (json) {
-    {'probes': final List<Object?> ids} => ObserverFilter(
-      probes: <String>{for (final id in ids) '$id'},
-    ),
-    _ => everything,
   };
 }
 

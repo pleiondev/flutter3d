@@ -162,39 +162,6 @@ final class AssetBuildManifest {
     this.shaders = ShaderSelection.none,
   });
 
-  static const AssetBuildManifest empty = AssetBuildManifest();
-
-  /// The manifest's version, read from `format:`; absent is 1.
-  static const int formatVersion = 1;
-
-  /// `flutter3d_assets.yaml` among the engine's formats.
-  static const FormatSpec spec = FormatSpec(
-    id: 'f3d.assets',
-    version: formatVersion,
-    suffixes: <String>['flutter3d_assets.yaml'],
-    fixture: 'test/fixtures/v<N>/flutter3d_assets.yaml',
-  );
-
-  final List<AssetRule> rules;
-
-  /// `N7`: the device classes a model is written for, one `.f3d` each —
-  /// `classes: [phone, web, desktop]` for the presets, or a mapping from a
-  /// class to the numbers it changes (`phone: {maxTextureSide: 512}`).
-  /// Empty, the default, writes the single `.f3d` a project always had.
-  final List<DeviceClassBudget> classes;
-
-  /// D15: which of the engine's shader stages the project's bundle carries
-  /// beyond the base — `shaders: [toon]`, or `shaders: full`.
-  final ShaderSelection shaders;
-
-  /// Reads a project's manifest if it has one, or [empty] if it does not —
-  /// the "no configuration" half of `ap-04`'s own acceptance.
-  static AssetBuildManifest readFrom(Directory projectRoot) {
-    final file = File('${projectRoot.path}/flutter3d_assets.yaml');
-    if (!file.existsSync()) return empty;
-    return AssetBuildManifest.parse(file.readAsStringSync());
-  }
-
   factory AssetBuildManifest.parse(String yamlText) {
     final YamlNode document;
     try {
@@ -268,6 +235,39 @@ final class AssetBuildManifest {
           ? ShaderSelection.none
           : _parseShaders(shadersNode),
     );
+  }
+
+  static const AssetBuildManifest empty = AssetBuildManifest();
+
+  /// The manifest's version, read from `format:`; absent is 1.
+  static const int formatVersion = 1;
+
+  /// `flutter3d_assets.yaml` among the engine's formats.
+  static const FormatSpec spec = FormatSpec(
+    id: 'f3d.assets',
+    version: formatVersion,
+    suffixes: <String>['flutter3d_assets.yaml'],
+    fixture: 'test/fixtures/v<N>/flutter3d_assets.yaml',
+  );
+
+  final List<AssetRule> rules;
+
+  /// `N7`: the device classes a model is written for, one `.f3d` each —
+  /// `classes: [phone, web, desktop]` for the presets, or a mapping from a
+  /// class to the numbers it changes (`phone: {maxTextureSide: 512}`).
+  /// Empty, the default, writes the single `.f3d` a project always had.
+  final List<DeviceClassBudget> classes;
+
+  /// D15: which of the engine's shader stages the project's bundle carries
+  /// beyond the base — `shaders: [toon]`, or `shaders: full`.
+  final ShaderSelection shaders;
+
+  /// Reads a project's manifest if it has one, or [empty] if it does not —
+  /// the "no configuration" half of `ap-04`'s own acceptance.
+  static AssetBuildManifest readFrom(Directory projectRoot) {
+    final file = File('${projectRoot.path}/flutter3d_assets.yaml');
+    if (!file.existsSync()) return empty;
+    return AssetBuildManifest.parse(file.readAsStringSync());
   }
 
   /// `shaders:` as the word `full` or a list of needs: the engine's by name,

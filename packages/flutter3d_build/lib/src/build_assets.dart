@@ -60,8 +60,16 @@ final class _CacheEntry {
     required this.lods,
   });
 
+  factory _CacheEntry.fromJson(Map<String, Object?> json) => _CacheEntry(
+    hash: json['hash']! as String,
+    formatVersion: json['formatVersion']! as int,
+    pipelineVersion: json['pipelineVersion']! as int,
+    textures: json['textures'] as String? ?? '(unrecorded)',
+    lods: json['lods'] as String? ?? '',
+  );
   final String hash;
   final int formatVersion;
+
   final int pipelineVersion;
 
   /// Which compression family the cached output was written with — `gfx-69n`.
@@ -79,14 +87,6 @@ final class _CacheEntry {
   /// changes nothing about the source's bytes, so without this the old file
   /// would stand.
   final String lods;
-
-  factory _CacheEntry.fromJson(Map<String, Object?> json) => _CacheEntry(
-    hash: json['hash']! as String,
-    formatVersion: json['formatVersion']! as int,
-    pipelineVersion: json['pipelineVersion']! as int,
-    textures: json['textures'] as String? ?? '(unrecorded)',
-    lods: json['lods'] as String? ?? '',
-  );
 
   Map<String, Object?> toJson() => <String, Object?>{
     'hash': hash,

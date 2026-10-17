@@ -62,23 +62,6 @@ final class ModelSession {
     history.recoveryJournal ??= CommandJournal();
   }
 
-  /// The directory every path a tool hands this session must lie inside:
-  /// `save`, `export`, `import` and `journal` resolve theirs through it and
-  /// refuse one outside. The project around [path] when not given — the
-  /// nearest directory above it with a `pubspec.yaml`, or its own — and the
-  /// working directory for a session with no path.
-  ///
-  /// The verbs themselves take any path: a person's file dialog in the
-  /// modeller is not an agent's argument.
-  final ProjectRoot root;
-
-  /// Which client this session is talking to, by the name it said hello with
-  /// — `ux-45`. Every step this session makes is stamped with it, so an undo
-  /// stack shared with a person, and possibly with a second agent, says which
-  /// of them did what. Null until `initialize` arrives, and for a session a
-  /// test built directly.
-  String? client;
-
   /// Opens the project at [path], or a fresh one when there is nothing there
   /// yet — the shape `dart_mcp`'s own examples and `Г8` (the plan's decision
   /// on this) both ask for: a host naming a project that does not exist yet is
@@ -104,8 +87,51 @@ final class ModelSession {
     };
   }
 
-  ModelHistory get history => _history;
+  /// The directory every path a tool hands this session must lie inside:
+  /// `save`, `export`, `import` and `journal` resolve theirs through it and
+  /// refuse one outside. The project around [path] when not given — the
+  /// nearest directory above it with a `pubspec.yaml`, or its own — and the
+  /// working directory for a session with no path.
+  ///
+  /// The verbs themselves take any path: a person's file dialog in the
+  /// modeller is not an agent's argument.
+  final ProjectRoot root;
+
+  /// Which client this session is talking to, by the name it said hello with
+  /// — `ux-45`. Every step this session makes is stamped with it, so an undo
+  /// stack shared with a person, and possibly with a second agent, says which
+  /// of them did what. Null until `initialize` arrives, and for a session a
+  /// test built directly.
+  String? client;
+
   ModelHistory _history;
+
+  /// Where this was opened from, or last saved to. Null only for a session
+  /// built directly in a test.
+  String? path;
+
+  /// Kept across calls to [export] rather than built fresh each time, so an
+  /// object nobody has touched since the last export keeps the same
+  /// [MeshData] — see `ProjectModelDocument`'s own doc comment for why that
+  /// is worth doing at all.
+  ProjectModelDocument _document = ProjectModelDocument();
+
+  /// What the last call left selected, when that is not what the document is
+  /// left holding — `ux-20`'s own targeted calls, which put the selection
+  /// back. Null the rest of the time, and cleared at the start of every call
+  /// by whoever brackets one (`model_server.dart`).
+  ProjectSelection? reportedSelection;
+
+  /// The argument names that carry both the elements and what they are —
+  /// `faces: [4]` rather than `level: "face", elements: [4]`, which is how a
+  /// person says it and which cannot be said inconsistently.
+  static const Map<String, String> _targetLevels = <String, String>{
+    'vertices': 'vertex',
+    'edges': 'edge',
+    'faces': 'face',
+  };
+
+  ModelHistory get history => _history;
 
   /// Points this session at the document a host has just put on screen in
   /// place of the old one.
@@ -123,16 +149,6 @@ final class ModelSession {
     // mesh from the old one.
     _document = ProjectModelDocument();
   }
-
-  /// Where this was opened from, or last saved to. Null only for a session
-  /// built directly in a test.
-  String? path;
-
-  /// Kept across calls to [export] rather than built fresh each time, so an
-  /// object nobody has touched since the last export keeps the same
-  /// [MeshData] — see `ProjectModelDocument`'s own doc comment for why that
-  /// is worth doing at all.
-  ProjectModelDocument _document = ProjectModelDocument();
 
   ModelProject get project => history.project;
 
@@ -544,12 +560,6 @@ final class ModelSession {
       ? was.level
       : null;
 
-  /// What the last call left selected, when that is not what the document is
-  /// left holding — `ux-20`'s own targeted calls, which put the selection
-  /// back. Null the rest of the time, and cleared at the start of every call
-  /// by whoever brackets one (`model_server.dart`).
-  ProjectSelection? reportedSelection;
-
   /// Several commands as one undo step, all or nothing — `ux-20`.
   ///
   /// **All or nothing is the point, not the transaction.** [_recipe] already
@@ -661,15 +671,6 @@ final class ModelSession {
       objects: _intsIn(arguments['ids']),
     );
   }
-
-  /// The argument names that carry both the elements and what they are —
-  /// `faces: [4]` rather than `level: "face", elements: [4]`, which is how a
-  /// person says it and which cannot be said inconsistently.
-  static const Map<String, String> _targetLevels = <String, String>{
-    'vertices': 'vertex',
-    'edges': 'edge',
-    'faces': 'face',
-  };
 
   /// [runOn]'s own arguments, gathered — see [targetIn].
   Answer runTargeted(ModelCommand command, CommandTarget target) => runOn(

@@ -170,11 +170,6 @@ final class _FseTable {
       bits = Uint8List(1 << accuracyLog),
       next = Uint16List(1 << accuracyLog);
 
-  final int accuracyLog;
-  final Uint8List symbol;
-  final Uint8List bits;
-  final Uint16List next;
-
   /// A table for a symbol that always decodes to itself, costing no bits —
   /// what an `RLE` compression mode means.
   factory _FseTable.rle(int value) {
@@ -184,6 +179,11 @@ final class _FseTable {
     table.next[0] = 0;
     return table;
   }
+  final int accuracyLog;
+  final Uint8List symbol;
+  final Uint8List bits;
+
+  final Uint16List next;
 }
 
 int _highestBit(int value) {

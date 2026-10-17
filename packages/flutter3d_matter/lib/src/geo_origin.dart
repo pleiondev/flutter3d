@@ -57,28 +57,66 @@ final class GeoOrigin {
     }
   }
 
+  /// Reads what [toJson] wrote, latitude and longitude in degrees;
+  /// `altitude` and `frame` may be left out. Throws a
+  /// [GeoOriginFormatException] naming the field that is not what it says,
+  /// a frame other than [frame] among them.
+  factory GeoOrigin.fromJson(Object? json) {
+    if (json is! Map) {
+      throw GeoOriginFormatException('a geo origin is an object, not $json');
+    }
+    double number(String key, {double? or}) => switch (json[key]) {
+      null when or != null => or,
+      final num value when value.isFinite => value.toDouble(),
+      final other => throw GeoOriginFormatException(
+        'a geo origin\'s "$key" is $other, not a finite number',
+      ),
+    };
+    switch (json['frame']) {
+      case null || frame:
+        break;
+      case final other:
+        throw GeoOriginFormatException(
+          'a geo origin\'s frame is "$other"; this build knows "$frame" '
+          '(east, north, up)',
+        );
+    }
+    try {
+      return GeoOrigin._(
+        number('latitude'),
+        number('longitude'),
+        number('altitude', or: 0.0),
+      );
+    } on ArgumentError catch (error) {
+      throw GeoOriginFormatException(
+        'a geo origin\'s ${error.name}: ${error.message}',
+      );
+    }
+  }
+
   /// The one frame a world's axes keep on the Earth in 1.0: east-north-up,
   /// laid on the engine's axes as +x east, +y up, −z north.
   static const String frame = 'enu';
-
   // As the document says them, in degrees: what equality and the document
   // read, so a place written and read back is the same place to the bit.
   final double _latitude;
+
   final double _longitude;
-
-  /// Radians north of the equator, −π/2 to π/2.
-  double get latitude => _latitude * math.pi / 180;
-
-  /// Radians east of Greenwich, −π to π.
-  double get longitude => _longitude * math.pi / 180;
 
   /// Metres above the WGS 84 ellipsoid.
   final double altitude;
 
   // WGS 84.
   static const double _a = 6378137.0;
+
   static const double _f = 1 / 298.257223563;
   static const double _e2 = _f * (2 - _f);
+
+  /// Radians north of the equator, −π/2 to π/2.
+  double get latitude => _latitude * math.pi / 180;
+
+  /// Radians east of Greenwich, −π to π.
+  double get longitude => _longitude * math.pi / 180;
 
   /// The place on the Earth of [position], a point of the world whose
   /// origin is here, as the origin a world centred on it would have.
@@ -141,43 +179,6 @@ final class GeoOrigin {
     'altitude': altitude,
     'frame': frame,
   };
-
-  /// Reads what [toJson] wrote, latitude and longitude in degrees;
-  /// `altitude` and `frame` may be left out. Throws a
-  /// [GeoOriginFormatException] naming the field that is not what it says,
-  /// a frame other than [frame] among them.
-  factory GeoOrigin.fromJson(Object? json) {
-    if (json is! Map) {
-      throw GeoOriginFormatException('a geo origin is an object, not $json');
-    }
-    double number(String key, {double? or}) => switch (json[key]) {
-      null when or != null => or,
-      final num value when value.isFinite => value.toDouble(),
-      final other => throw GeoOriginFormatException(
-        'a geo origin\'s "$key" is $other, not a finite number',
-      ),
-    };
-    switch (json['frame']) {
-      case null || frame:
-        break;
-      case final other:
-        throw GeoOriginFormatException(
-          'a geo origin\'s frame is "$other"; this build knows "$frame" '
-          '(east, north, up)',
-        );
-    }
-    try {
-      return GeoOrigin._(
-        number('latitude'),
-        number('longitude'),
-        number('altitude', or: 0.0),
-      );
-    } on ArgumentError catch (error) {
-      throw GeoOriginFormatException(
-        'a geo origin\'s ${error.name}: ${error.message}',
-      );
-    }
-  }
 
   @override
   bool operator ==(Object other) =>

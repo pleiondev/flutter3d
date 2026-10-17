@@ -2360,8 +2360,8 @@ class _EditorScreenState extends State<EditorScreen>
   /// somebody is in the middle of; they stop it first, in its own panel.
   Future<void> _attach(String uri) async {
     final session = switch (_run) {
-      final AttachedRun same? when same.vmService == uri => same,
-      final PlayedGame owned?
+      final AttachedRun same when same.vmService == uri => same,
+      final PlayedGame owned
           when owned.ownsTheGame && owned.state.value is! PlayStopped =>
         null,
       final other => () {

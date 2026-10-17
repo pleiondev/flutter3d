@@ -55,29 +55,6 @@ final class AnimationPose {
     }
   }
 
-  /// One node's parent index into this same pose, or -1 for a root.
-  ///
-  /// Not required to precede its child in array order — glTF's own `nodes`
-  /// array makes no such promise, and [worldMatrices] does not rely on one.
-  final List<int> parents;
-
-  /// The bind/rest pose every [sampleClip] call starts back from, so a track
-  /// that says nothing about a node leaves it exactly where the file put it.
-  final Float32List _restTranslations;
-  final Float32List _restRotations;
-  final Float32List _restScales;
-
-  /// Current local translation, 3 floats per node.
-  final Float32List translations;
-
-  /// Current local rotation, 4 floats per node, glTF's own xyzw order.
-  final Float32List rotations;
-
-  /// Current local scale, 3 floats per node.
-  final Float32List scales;
-
-  int get nodeCount => parents.length;
-
   /// Builds a pose from a document's own node list.
   ///
   /// [parents] is inverted out of each node's `children` rather than stored
@@ -117,6 +94,36 @@ final class AnimationPose {
       restScales: s,
     );
   }
+
+  /// One node's parent index into this same pose, or -1 for a root.
+  ///
+  /// Not required to precede its child in array order — glTF's own `nodes`
+  /// array makes no such promise, and [worldMatrices] does not rely on one.
+  final List<int> parents;
+
+  /// The bind/rest pose every [sampleClip] call starts back from, so a track
+  /// that says nothing about a node leaves it exactly where the file put it.
+  final Float32List _restTranslations;
+  final Float32List _restRotations;
+
+  final Float32List _restScales;
+
+  /// Current local translation, 3 floats per node.
+  final Float32List translations;
+
+  /// Current local rotation, 4 floats per node, glTF's own xyzw order.
+  final Float32List rotations;
+
+  /// Current local scale, 3 floats per node.
+  final Float32List scales;
+
+  final Float32List _sample3 = Float32List(3);
+
+  final Float32List _sample4 = Float32List(4);
+
+  final List<int> _chain = <int>[];
+
+  int get nodeCount => parents.length;
 
   /// Puts every node back at its rest transform.
   void resetToRest() {
@@ -188,9 +195,6 @@ final class AnimationPose {
       rotations[at + 3] = mixed.w;
     }
   }
-
-  final Float32List _sample3 = Float32List(3);
-  final Float32List _sample4 = Float32List(4);
 
   /// Resets to rest, then samples every track of [clip] at [time] onto the
   /// nodes it names.
@@ -306,8 +310,6 @@ final class AnimationPose {
     }
     return out;
   }
-
-  final List<int> _chain = <int>[];
 
   /// World matrices for every node, index-aligned with [parents].
   ///

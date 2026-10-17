@@ -76,25 +76,6 @@ const double _rippleSlopes =
 final class LiquidLook {
   LiquidLook._(this.material);
 
-  /// Where an application's asset bundle holds the compiled material:
-  /// `rootBundle.load(LiquidLook.asset)`.
-  static const String asset =
-      'packages/flutter3d_effects/assets/liquid.f3dshaders';
-
-  /// The material's name in its bundle.
-  static const String model = 'Liquid';
-
-  /// The look from the compiled [bundle] — what [asset] holds — with its
-  /// stages added to [renderer] for [device].
-  static Future<LiquidLook> load({
-    required GraphicsDevice device,
-    required Renderer renderer,
-    required ByteData bundle,
-  }) async {
-    renderer.renderSteps.addMaterials(await device.loadShaders(bundle));
-    return LiquidLook.of(bundle);
-  }
-
   /// The look from [bundle] without binding its stages: for a renderer that
   /// already has them, or a test that reads what the material declares.
   factory LiquidLook.of(ByteData bundle) {
@@ -111,8 +92,27 @@ final class LiquidLook {
     );
   }
 
+  /// Where an application's asset bundle holds the compiled material:
+  /// `rootBundle.load(LiquidLook.asset)`.
+  static const String asset =
+      'packages/flutter3d_effects/assets/liquid.f3dshaders';
+
+  /// The material's name in its bundle.
+  static const String model = 'Liquid';
+
   /// What a water surface is drawn with.
   final RenderMaterial material;
+
+  /// The look from the compiled [bundle] — what [asset] holds — with its
+  /// stages added to [renderer] for [device].
+  static Future<LiquidLook> load({
+    required GraphicsDevice device,
+    required Renderer renderer,
+    required ByteData bundle,
+  }) async {
+    renderer.renderSteps.addMaterials(await device.loadShaders(bundle));
+    return LiquidLook.of(bundle);
+  }
 
   /// The uniforms, typed — generated from `liquid.f3dmat`.
   LiquidParameters get _params => LiquidParameters(material.parameters);

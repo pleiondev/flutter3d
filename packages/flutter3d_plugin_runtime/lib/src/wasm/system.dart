@@ -31,9 +31,6 @@ final class WasmFieldSpec {
          'a field crosses with 0 to 30 fraction bits',
        );
 
-  /// What a field crosses at when its declaration does not say: Q16.16.
-  static const int defaultFractionBits = 16;
-
   /// Reads `"heat"` or `{"name": "x", "write": true, "unit": "m",
   /// "fraction": 8}`.
   factory WasmFieldSpec.fromJson(Object? json) => switch (json) {
@@ -67,6 +64,9 @@ final class WasmFieldSpec {
       'a field is a name or {"name", "write", "unit", "fraction"}',
     ),
   };
+
+  /// What a field crosses at when its declaration does not say: Q16.16.
+  static const int defaultFractionBits = 16;
 
   /// The [WorldField]'s name.
   final String name;
@@ -113,18 +113,6 @@ final class WasmSystemSpec {
     this.unknown = const <String, Object?>{},
   });
 
-  /// The keys a declaration is written with.
-  static const Set<String> keys = <String>{
-    'module',
-    'system',
-    'phase',
-    'after',
-    'before',
-    'fields',
-    'events',
-    'limits',
-  };
-
   /// Reads the keys [toJson] writes. Throws a [WasmFormatException] saying which
   /// key is wrong.
   factory WasmSystemSpec.fromJson(Map<String, Object?> json) {
@@ -162,6 +150,18 @@ final class WasmSystemSpec {
       unknown: FormatDocument.nestedUnknownIn(json, known: keys),
     );
   }
+
+  /// The keys a declaration is written with.
+  static const Set<String> keys = <String>{
+    'module',
+    'system',
+    'phase',
+    'after',
+    'before',
+    'fields',
+    'events',
+    'limits',
+  };
 
   /// The `.wasm`, relative to the plugin's own directory.
   final String module;

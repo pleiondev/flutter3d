@@ -85,6 +85,27 @@ final class XrPlane {
     }
   }
 
+  /// The plane [toInput] wrote. Throws a [PluginFormatException] for input
+  /// that is not one.
+  factory XrPlane.fromInput(ExternalStateInput input) {
+    if (!isPlane(input.source) || input.value.length != 9) {
+      throw PluginFormatException(
+        'a plane is xr.plane.<id> with nine numbers, not ${input.source} '
+        'with ${input.value.length}',
+        input.toJson(),
+      );
+    }
+    return XrPlane(
+      id: input.source.substring('${XrPoseSources.prefix}plane.'.length),
+      pose: RigidPose.fromComponents(input.value.sublist(0, 7)),
+      width: input.value[7],
+      depth: input.value[8],
+      orientation:
+          XrPlaneOrientation.byName(input.tag ?? '') ??
+          XrPlaneOrientation.arbitrary,
+    );
+  }
+
   /// The runtime's id, stable for as long as the plane is tracked.
   final String id;
 
@@ -124,27 +145,6 @@ final class XrPlane {
         value: const <double>[],
         sourceTime: displayTime,
       );
-
-  /// The plane [toInput] wrote. Throws a [PluginFormatException] for input
-  /// that is not one.
-  factory XrPlane.fromInput(ExternalStateInput input) {
-    if (!isPlane(input.source) || input.value.length != 9) {
-      throw PluginFormatException(
-        'a plane is xr.plane.<id> with nine numbers, not ${input.source} '
-        'with ${input.value.length}',
-        input.toJson(),
-      );
-    }
-    return XrPlane(
-      id: input.source.substring('${XrPoseSources.prefix}plane.'.length),
-      pose: RigidPose.fromComponents(input.value.sublist(0, 7)),
-      width: input.value[7],
-      depth: input.value[8],
-      orientation:
-          XrPlaneOrientation.byName(input.tag ?? '') ??
-          XrPlaneOrientation.arbitrary,
-    );
-  }
 
   /// A static collider over the plane: the axis-aligned box around it,
   /// [thickness] meters deep below its surface.
@@ -193,35 +193,6 @@ final class XrSceneMesh {
     }
   }
 
-  /// The runtime's id, stable for as long as the mesh is tracked.
-  final String id;
-
-  /// Where its vertices' space sits in the session's.
-  final RigidPose pose;
-
-  /// x, y, z of each vertex, in meters.
-  final Float32List vertices;
-
-  /// Three a triangle, into [vertices]' triples.
-  final Uint32List indices;
-
-  /// Where a scene mesh goes on the tape: `xr.mesh.<id>`.
-  static String sourceOf(String id) => '${XrPoseSources.prefix}mesh.$id';
-
-  /// The mesh as input for the step: the pose's seven numbers, the vertex
-  /// count, the coordinates, then the indices.
-  ExternalStateInput toInput({double? displayTime}) => ExternalStateInput(
-    source: sourceOf(id),
-    value: <double>[
-      ...pose.components,
-      (vertices.length ~/ 3).toDouble(),
-      ...vertices,
-      for (final index in indices) index.toDouble(),
-    ],
-    sourceTime: displayTime,
-    kind: ReadingKind.measured,
-  );
-
   /// The mesh [toInput] wrote. Throws a [PluginFormatException] for input
   /// that is not one.
   factory XrSceneMesh.fromInput(ExternalStateInput input) {
@@ -251,6 +222,35 @@ final class XrSceneMesh {
       ]),
     );
   }
+
+  /// The runtime's id, stable for as long as the mesh is tracked.
+  final String id;
+
+  /// Where its vertices' space sits in the session's.
+  final RigidPose pose;
+
+  /// x, y, z of each vertex, in meters.
+  final Float32List vertices;
+
+  /// Three a triangle, into [vertices]' triples.
+  final Uint32List indices;
+
+  /// Where a scene mesh goes on the tape: `xr.mesh.<id>`.
+  static String sourceOf(String id) => '${XrPoseSources.prefix}mesh.$id';
+
+  /// The mesh as input for the step: the pose's seven numbers, the vertex
+  /// count, the coordinates, then the indices.
+  ExternalStateInput toInput({double? displayTime}) => ExternalStateInput(
+    source: sourceOf(id),
+    value: <double>[
+      ...pose.components,
+      (vertices.length ~/ 3).toDouble(),
+      ...vertices,
+      for (final index in indices) index.toDouble(),
+    ],
+    sourceTime: displayTime,
+    kind: ReadingKind.measured,
+  );
 
   /// A static collider over the mesh: the axis-aligned box around its
   /// vertices in the session's space.

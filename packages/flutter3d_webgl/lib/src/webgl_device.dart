@@ -72,6 +72,8 @@ final class WebGlDevice extends GraphicsDevice
   void onGpuTimings(void Function(GpuFrameTimings timings)? listener) =>
       _timingListener = _frameTimer == null ? null : listener;
 
+  WebGlDevice._(this._gl, this._canvas, this._library);
+
   void Function(GpuFrameTimings timings)? _timingListener;
 
   /// The elapsed-time queries behind [onGpuTimings], where the extension was
@@ -82,6 +84,195 @@ final class WebGlDevice extends GraphicsDevice
   /// `OVR_multiview2`, where the context offers it: a pass draws every view
   /// of `RenderPassDescriptor.viewMask` at once, into consecutive layers.
   web.OVR_multiview2? _multiview;
+
+  bool _isLost = false;
+
+  late final StreamController<DeviceLoss> _lost =
+      StreamController<DeviceLoss>.broadcast(onListen: _watchLoss);
+
+  bool _watchingLoss = false;
+
+  // Debug groups and labels. WebGL2 has no `KHR_debug`, so neither reaches
+  // a browser's GPU tools or a frame capture. The labels are kept by the
+  // inherited `setLabel` for `labelOf`, and a pass that cannot draw into its
+  // attachments names them; the groups are kept by the encoder, whose
+  // refusals and unbound-slot reports say which group was open. A
+  // `RecordingDevice` over this device writes both into its trace.
+
+  /// Vertex attribute locations currently switched on in this context.
+  ///
+  /// **Context state, not pass state, and that distinction is the whole bug.**
+  /// `enableVertexAttribArray` acts on the context — on the default vertex
+  /// array object — so it outlives the encoder that called it, outlives the
+  /// pass, and outlives the frame. An encoder that tracked its own would put
+  /// back only what it had switched on itself, which is exactly nothing when
+  /// the next pass is a new encoder.
+  ///
+  /// The sky is what found it. Its vertex stage takes eight attributes against
+  /// a mesh's five and a post stage's none, so after the sky pass ended,
+  /// locations 5, 6 and 7 stayed on with no buffer under them — and in WebGL2 a
+  /// draw with an enabled array and no bound buffer is `INVALID_OPERATION`,
+  /// dropped with nothing logged. The composite never landed and the frame came
+  /// back the clear colour. Not a scene missing its sky: black.
+  final Set<int> _enabledAttributeLocations = <int>{};
+
+  /// Vertex attribute locations currently carrying a non-zero divisor.
+  ///
+  /// Context state for the same reason as the set above, and it leaked the same
+  /// way: `vertexAttribDivisor` belongs to the location, survives the draw, the
+  /// buffer, the program and the pass, and an encoder that tracked its own put
+  /// back only what it had set — which is nothing, once the next pass is a new
+  /// encoder.
+  final Set<int> _instancedAttributeLocations = <int>{};
+
+  /// The buffers a uniform block is filled in before `bufferData` copies
+  /// it, one per block size, for the device's life.
+  final UniformScratch _uniformScratch = UniformScratch();
+
+  late final DeviceFeatures _features;
+
+  late final DeviceLimits _limits;
+
+  bool _colorBufferFloat = false;
+
+  bool _floatBlend = false;
+  bool _depthClamp = false;
+
+  bool _blendFuncExtended = false;
+
+  /// `EXT_disjoint_timer_query_webgl2` where it counts timestamps; see
+  /// [_grantedTimestamps].
+  web.EXT_disjoint_timer_query_webgl2? _timerQuery;
+
+  web.WEBGL_multi_draw? _multiDraw;
+
+  JSObject? _baseVertexBaseInstance;
+
+  final web.WebGL2RenderingContext _gl;
+
+  final web.HTMLCanvasElement _canvas;
+
+  final WebGlShaderLibrary _library;
+
+  /// Every persistent texture and renderbuffer this device has handed out,
+  /// tracked so [dispose] has something to delete.
+  ///
+  /// **Persistent, not transient.** The buffers a pass makes for `submit`-time
+  /// geometry are already deleted at the end of the pass that made them — see
+  /// [WebGlEncoder.submit] — because their lifetime is the pass. A texture from
+  /// [createTexture] or [createCubeTextureFromPixels] has no such moment: WebGL2
+  /// objects are explicitly deletable, unlike flutter_gpu's `Texture`, so
+  /// nothing frees these unless something tracks them and calls
+  /// `gl.deleteTexture`/`gl.deleteRenderbuffer` itself. The tracking and the
+  /// deletion themselves are `webgl_resources.dart`'s; these lists are what it
+  /// is handed.
+  final List<web.WebGLTexture> _persistentTextures = <web.WebGLTexture>[];
+
+  final List<web.WebGLRenderbuffer> _persistentRenderbuffers =
+      <web.WebGLRenderbuffer>[];
+
+  /// Every geometry buffer [uploadGeometry] has handed out, for the same
+  /// reason as [_persistentTextures].
+  final List<web.WebGLBuffer> _persistentBuffers = <web.WebGLBuffer>[];
+
+  /// The GL target each buffer in [_persistentBuffers] was bound to when made
+  /// — `ARRAY_BUFFER` or `ELEMENT_ARRAY_BUFFER` — since a buffer bound to one
+  /// for life cannot be rebound to the other, and [overwriteGeometry] needs to
+  /// bind it again without being told a second time. See
+  /// `webglUploadGeometry`.
+  final Map<web.WebGLBuffer, int> _bufferTargets = <web.WebGLBuffer, int>{};
+
+  /// Whether [dispose] has already run. Guards against deleting the same GL
+  /// object twice, which is harmless by the WebGL spec but worth refusing
+  /// anyway: a second [dispose] call is a caller mistake worth surfacing rather
+  /// than one this device quietly absorbs.
+  bool _disposed = false;
+
+  /// Every library [loadShaders] built, so [dispose] can delete what they
+  /// compiled: a loaded stage is a driver object like any of the engine's.
+  final List<WebGlLoadedShaderLibrary> _loaded = <WebGlLoadedShaderLibrary>[];
+
+  /// Whether half-float textures may be filtered linearly here. Diagnostic:
+  /// see the note in [open].
+  bool _floatLinear = false;
+
+  /// Which compressed-texture extensions this context actually has, queried
+  /// once in [open]. See `CompressedTextureSupport`.
+  CompressedTextureSupport _compressedTextureSupport =
+      const CompressedTextureSupport(
+        etc2: false,
+        s3tc: false,
+        s3tcSrgb: false,
+        rgtc: false,
+        bptc: false,
+        astc: false,
+      );
+
+  /// `OES_draw_buffers_indexed`, when the context offers it — `R8`. What a
+  /// blend for one draw buffer is set through; null leaves the plain blend
+  /// functions, which set every draw buffer at once.
+  web.OES_draw_buffers_indexed? _drawBuffersIndexed;
+
+  /// What [_queryMaxAnisotropy] found at [open]. One without the extension.
+  ///
+  /// The extension's ceiling, and the number every bind clamps to —
+  /// `limits.maxSamplerAnisotropy`: in GL the parameter is texture state
+  /// rather than sampler state, and a value above this is `INVALID_VALUE` —
+  /// an error in the queue, a bind that did not land, and a picture that is
+  /// merely blurrier than asked for.
+  int _maxAnisotropy = 1;
+
+  /// What [_queryMaxColorAttachments] found at [open] —
+  /// `limits.maxColorAttachments`. One until then, which is the answer that
+  /// refuses everything rather than the one that promises it.
+  int _maxColorAttachments = 1;
+
+  /// Whether [open] found `EXT_clip_control` and turned clip depth to
+  /// `[0, 1]` with it.
+  bool _clipControl = false;
+
+  /// What [_provenMsaaSamples] measured at [open]. Zero on drivers that
+  /// cannot multisample the HDR formats — most phones.
+  int _msaaSamples = 0;
+
+  /// The platform view type this device's _canvas is registered under.
+  ///
+  /// Registered here rather than by the application, because the _canvas is this
+  /// package's own and nothing above should have to learn that a DOM element is
+  /// involved to show a frame. Registration is idempotent per device: the
+  /// factory hands back the one _canvas this device draws into.
+  ///
+  /// The registry has no unregister, so the factory — and through it the
+  /// _canvas object — outlives [dispose]. That pin is the platform's, not this
+  /// device's; what dispose *can* release of the _canvas and its context, it
+  /// does, and says so there.
+  late final String viewType = _register();
+
+  /// The error the last blit to the _canvas raised, or zero. Diagnostic only.
+  int _lastBlitError = 0;
+
+  /// The float colour formats [readback] reads as floats and converts, rather
+  /// than asking for bytes.
+  ///
+  /// **The contract converts the whole of a float target** — a region of one
+  /// is refused and says so — and `readPixels(RGBA, UNSIGNED_BYTE)`
+  /// on a float colour buffer is an `INVALID_OPERATION` that leaves the
+  /// destination at the zeros it was made with. So this read a half-float
+  /// frame as transparent black and completed successfully. `RGBA`/`FLOAT` is
+  /// the pair WebGL2 does accept for a float buffer once
+  /// `EXT_color_buffer_float` is on, which [open] insists on; see
+  /// `test/float_readback_probe_test.dart` for the measurement.
+  static const Set<TextureFormat> _floatReadFormats = <TextureFormat>{
+    TextureFormat.r16g16b16a16Float,
+    TextureFormat.r32g32b32a32Float,
+    TextureFormat.r32Float,
+  };
+
+  final List<String> _setAside = <String>[];
+
+  final Set<String> _reportedUnbound = <String>{};
+
+  final List<String> _unbound = <String>[];
 
   // TODO(webgl): compute — WebGL2 has no compute stage; the WebGL 2.0
   // Compute draft was abandoned, and compute on the web goes through the
@@ -130,15 +321,11 @@ final class WebGlDevice extends GraphicsDevice
 
   @override
   List<TextureFormat> get hdrOutputFormats => const <TextureFormat>[];
-
-  WebGlDevice._(this._gl, this._canvas, this._library);
-
   @override
   String get backendName => 'WebGL2';
 
   @override
   String get backendId => 'webgl';
-
   // ------------------------------------------------ 1.0: a context that goes
 
   /// `webglcontextlost` and `webglcontextrestored` on [_canvas], as
@@ -154,11 +341,6 @@ final class WebGlDevice extends GraphicsDevice
 
   @override
   bool get isLost => _isLost;
-  bool _isLost = false;
-
-  late final StreamController<DeviceLoss> _lost =
-      StreamController<DeviceLoss>.broadcast(onListen: _watchLoss);
-  bool _watchingLoss = false;
 
   void _watchLoss() {
     if (_watchingLoss) return;
@@ -195,43 +377,6 @@ final class WebGlDevice extends GraphicsDevice
         }.toJS,
       );
   }
-
-  // Debug groups and labels. WebGL2 has no `KHR_debug`, so neither reaches
-  // a browser's GPU tools or a frame capture. The labels are kept by the
-  // inherited `setLabel` for `labelOf`, and a pass that cannot draw into its
-  // attachments names them; the groups are kept by the encoder, whose
-  // refusals and unbound-slot reports say which group was open. A
-  // `RecordingDevice` over this device writes both into its trace.
-
-  /// Vertex attribute locations currently switched on in this context.
-  ///
-  /// **Context state, not pass state, and that distinction is the whole bug.**
-  /// `enableVertexAttribArray` acts on the context — on the default vertex
-  /// array object — so it outlives the encoder that called it, outlives the
-  /// pass, and outlives the frame. An encoder that tracked its own would put
-  /// back only what it had switched on itself, which is exactly nothing when
-  /// the next pass is a new encoder.
-  ///
-  /// The sky is what found it. Its vertex stage takes eight attributes against
-  /// a mesh's five and a post stage's none, so after the sky pass ended,
-  /// locations 5, 6 and 7 stayed on with no buffer under them — and in WebGL2 a
-  /// draw with an enabled array and no bound buffer is `INVALID_OPERATION`,
-  /// dropped with nothing logged. The composite never landed and the frame came
-  /// back the clear colour. Not a scene missing its sky: black.
-  final Set<int> _enabledAttributeLocations = <int>{};
-
-  /// Vertex attribute locations currently carrying a non-zero divisor.
-  ///
-  /// Context state for the same reason as the set above, and it leaked the same
-  /// way: `vertexAttribDivisor` belongs to the location, survives the draw, the
-  /// buffer, the program and the pass, and an encoder that tracked its own put
-  /// back only what it had set — which is nothing, once the next pass is a new
-  /// encoder.
-  final Set<int> _instancedAttributeLocations = <int>{};
-
-  /// The buffers a uniform block is filled in before `bufferData` copies
-  /// it, one per block size, for the device's life.
-  final UniformScratch _uniformScratch = UniformScratch();
 
   /// The engine's stages for [open] handed none: the project's bundle's
   /// `webgl` section where [load] finds one, the compiled table otherwise.
@@ -663,9 +808,6 @@ final class WebGlDevice extends GraphicsDevice
     );
   }
 
-  late final DeviceFeatures _features;
-  late final DeviceLimits _limits;
-
   @override
   DeviceFeatures get features => _features;
 
@@ -687,22 +829,9 @@ final class WebGlDevice extends GraphicsDevice
         ),
       );
 
-  bool _colorBufferFloat = false;
-  bool _floatBlend = false;
-  bool _depthClamp = false;
-  bool _blendFuncExtended = false;
-
-  /// `EXT_disjoint_timer_query_webgl2` where it counts timestamps; see
-  /// [_grantedTimestamps].
-  web.EXT_disjoint_timer_query_webgl2? _timerQuery;
-
-  web.WEBGL_multi_draw? _multiDraw;
-
   /// `WEBGL_multi_draw`, for the encoder, or null where it was not granted
   /// and `multiDraw` loops.
   web.WEBGL_multi_draw? get _multiDrawExtension => _multiDraw;
-
-  JSObject? _baseVertexBaseInstance;
 
   /// `WEBGL_draw_instanced_base_vertex_base_instance`, which `package:web`
   /// has no binding for, as a plain object the encoder calls by name.
@@ -790,43 +919,6 @@ final class WebGlDevice extends GraphicsDevice
     return 0;
   }
 
-  final web.WebGL2RenderingContext _gl;
-  final web.HTMLCanvasElement _canvas;
-  final WebGlShaderLibrary _library;
-
-  /// Every persistent texture and renderbuffer this device has handed out,
-  /// tracked so [dispose] has something to delete.
-  ///
-  /// **Persistent, not transient.** The buffers a pass makes for `submit`-time
-  /// geometry are already deleted at the end of the pass that made them — see
-  /// [WebGlEncoder.submit] — because their lifetime is the pass. A texture from
-  /// [createTexture] or [createCubeTextureFromPixels] has no such moment: WebGL2
-  /// objects are explicitly deletable, unlike flutter_gpu's `Texture`, so
-  /// nothing frees these unless something tracks them and calls
-  /// `gl.deleteTexture`/`gl.deleteRenderbuffer` itself. The tracking and the
-  /// deletion themselves are `webgl_resources.dart`'s; these lists are what it
-  /// is handed.
-  final List<web.WebGLTexture> _persistentTextures = <web.WebGLTexture>[];
-  final List<web.WebGLRenderbuffer> _persistentRenderbuffers =
-      <web.WebGLRenderbuffer>[];
-
-  /// Every geometry buffer [uploadGeometry] has handed out, for the same
-  /// reason as [_persistentTextures].
-  final List<web.WebGLBuffer> _persistentBuffers = <web.WebGLBuffer>[];
-
-  /// The GL target each buffer in [_persistentBuffers] was bound to when made
-  /// — `ARRAY_BUFFER` or `ELEMENT_ARRAY_BUFFER` — since a buffer bound to one
-  /// for life cannot be rebound to the other, and [overwriteGeometry] needs to
-  /// bind it again without being told a second time. See
-  /// `webglUploadGeometry`.
-  final Map<web.WebGLBuffer, int> _bufferTargets = <web.WebGLBuffer, int>{};
-
-  /// Whether [dispose] has already run. Guards against deleting the same GL
-  /// object twice, which is harmless by the WebGL spec but worth refusing
-  /// anyway: a second [dispose] call is a caller mistake worth surfacing rather
-  /// than one this device quietly absorbs.
-  bool _disposed = false;
-
   /// The count of persistent GL objects currently tracked, for tests: textures,
   /// renderbuffers and buffers, plus the shader library's compiled shaders and
   /// linked programs — which are driver objects just the same, and were the one
@@ -842,10 +934,6 @@ final class WebGlDevice extends GraphicsDevice
         (int count, WebGlLoadedShaderLibrary library) =>
             count + library.debugTrackedResourceCount,
       );
-
-  /// Every library [loadShaders] built, so [dispose] can delete what they
-  /// compiled: a loaded stage is a driver object like any of the engine's.
-  final List<WebGlLoadedShaderLibrary> _loaded = <WebGlLoadedShaderLibrary>[];
 
   /// The bundle's `webgl` section, compiled by the browser on first use.
   /// Nothing is waited for; the future is the interface's, for the backend
@@ -962,44 +1050,9 @@ final class WebGlDevice extends GraphicsDevice
     }
   }
 
-  /// Whether half-float textures may be filtered linearly here. Diagnostic:
-  /// see the note in [open].
-  bool _floatLinear = false;
-
-  /// Which compressed-texture extensions this context actually has, queried
-  /// once in [open]. See `CompressedTextureSupport`.
-  CompressedTextureSupport _compressedTextureSupport =
-      const CompressedTextureSupport(
-        etc2: false,
-        s3tc: false,
-        s3tcSrgb: false,
-        rgtc: false,
-        bptc: false,
-        astc: false,
-      );
-
   /// Whether this context can sample a half-float texture with linear
   /// filtering. False makes every shadow map read as zero.
   bool get _supportsFloatLinearFiltering => _floatLinear;
-
-  /// `OES_draw_buffers_indexed`, when the context offers it — `R8`. What a
-  /// blend for one draw buffer is set through; null leaves the plain blend
-  /// functions, which set every draw buffer at once.
-  web.OES_draw_buffers_indexed? _drawBuffersIndexed;
-
-  /// What [_queryMaxAnisotropy] found at [open]. One without the extension.
-  ///
-  /// The extension's ceiling, and the number every bind clamps to —
-  /// `limits.maxSamplerAnisotropy`: in GL the parameter is texture state
-  /// rather than sampler state, and a value above this is `INVALID_VALUE` —
-  /// an error in the queue, a bind that did not land, and a picture that is
-  /// merely blurrier than asked for.
-  int _maxAnisotropy = 1;
-
-  /// What [_queryMaxColorAttachments] found at [open] —
-  /// `limits.maxColorAttachments`. One until then, which is the answer that
-  /// refuses everything rather than the one that promises it.
-  int _maxColorAttachments = 1;
 
   @override
   ShaderLibrary get shaders => _library;
@@ -1034,10 +1087,6 @@ final class WebGlDevice extends GraphicsDevice
   DepthRange get depthRange =>
       _clipControl ? DepthRange.zeroToOne : DepthRange.negativeOneToOne;
 
-  /// Whether [open] found `EXT_clip_control` and turned clip depth to
-  /// `[0, 1]` with it.
-  bool _clipControl = false;
-
   /// Asks for `EXT_clip_control` and, where it is offered, puts clip depth in
   /// `[0, 1]` with the origin where OpenGL keeps it — `A2.8`. False where it
   /// is not offered, which leaves the context as WebGL2 makes it.
@@ -1070,10 +1119,6 @@ final class WebGlDevice extends GraphicsDevice
   // context is made; see create(). Without it this is a texture format that
   // silently accepts no draws.
   TextureFormat get hdrColorFormat => TextureFormat.r16g16b16a16Float;
-
-  /// What [_provenMsaaSamples] measured at [open]. Zero on drivers that
-  /// cannot multisample the HDR formats — most phones.
-  int _msaaSamples = 0;
 
   @override
   int get preferredSampleCount => _msaaSamples;
@@ -1453,6 +1498,7 @@ final class WebGlDevice extends GraphicsDevice
   /// done (`KHR_parallel_shader_compile`), which is what lets
   /// [createPipelineAsync] link without holding up its caller.
   bool get supportsParallelShaderCompile => _library.parallelCompile;
+
   set _parallelShaderCompile(bool value) => _library.parallelCompile = value;
 
   /// The program for [handle], whose pair would not link at
@@ -1711,19 +1757,6 @@ final class WebGlDevice extends GraphicsDevice
     }
   }
 
-  /// The platform view type this device's _canvas is registered under.
-  ///
-  /// Registered here rather than by the application, because the _canvas is this
-  /// package's own and nothing above should have to learn that a DOM element is
-  /// involved to show a frame. Registration is idempotent per device: the
-  /// factory hands back the one _canvas this device draws into.
-  ///
-  /// The registry has no unregister, so the factory — and through it the
-  /// _canvas object — outlives [dispose]. That pin is the platform's, not this
-  /// device's; what dispose *can* release of the _canvas and its context, it
-  /// does, and says so there.
-  late final String viewType = _register();
-
   String _register() {
     final type = 'flutter3d-webgl-${identityHashCode(this)}';
     ui_web.platformViewRegistry.registerViewFactory(
@@ -1732,9 +1765,6 @@ final class WebGlDevice extends GraphicsDevice
     );
     return type;
   }
-
-  /// The error the last blit to the _canvas raised, or zero. Diagnostic only.
-  int _lastBlitError = 0;
 
   /// What the _canvas holds, for when it holds nothing and should not.
   ///
@@ -1938,23 +1968,6 @@ final class WebGlDevice extends GraphicsDevice
     }
     return ByteData.sublistView(flipped);
   }
-
-  /// The float colour formats [readback] reads as floats and converts, rather
-  /// than asking for bytes.
-  ///
-  /// **The contract converts the whole of a float target** — a region of one
-  /// is refused and says so — and `readPixels(RGBA, UNSIGNED_BYTE)`
-  /// on a float colour buffer is an `INVALID_OPERATION` that leaves the
-  /// destination at the zeros it was made with. So this read a half-float
-  /// frame as transparent black and completed successfully. `RGBA`/`FLOAT` is
-  /// the pair WebGL2 does accept for a float buffer once
-  /// `EXT_color_buffer_float` is on, which [open] insists on; see
-  /// `test/float_readback_probe_test.dart` for the measurement.
-  static const Set<TextureFormat> _floatReadFormats = <TextureFormat>{
-    TextureFormat.r16g16b16a16Float,
-    TextureFormat.r32g32b32a32Float,
-    TextureFormat.r32Float,
-  };
 
   /// The bound read framebuffer's bottom-left [width] by [height], as RGBA8.
   ///
@@ -2191,8 +2204,6 @@ final class WebGlDevice extends GraphicsDevice
     }
   }
 
-  final List<String> _setAside = <String>[];
-
   /// Records a declared slot a draw left unbound, once per slot per device, so
   /// a mistake repeated every frame is one line rather than a flood.
   void _reportUnbound(String what) {
@@ -2200,9 +2211,6 @@ final class WebGlDevice extends GraphicsDevice
       _unbound.add('$what is declared and nothing was bound to it');
     }
   }
-
-  final Set<String> _reportedUnbound = <String>{};
-  final List<String> _unbound = <String>[];
 
   /// Whether the currently bound framebuffer can be drawn to, in words.
   String debugFramebufferStatus() {

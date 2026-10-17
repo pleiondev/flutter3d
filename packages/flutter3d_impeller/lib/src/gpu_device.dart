@@ -84,6 +84,8 @@ final class GpuRenderBackend extends GraphicsDevice
   /// widget that composites the engine's frame itself paints.
   ui.Image frameImage(TextureHandle frame) => frame.gpuTexture.asImage();
 
+  GpuRenderBackend._(this._library, this._transients, this._granule);
+
   // TODO(impeller): debug groups, resource labels, a platform's device loss
   // and asynchronous pipelines. flutter_gpu exposes no debug labels, no loss
   // signal and no asynchronous pipeline creation, so the inherited defaults
@@ -93,15 +95,6 @@ final class GpuRenderBackend extends GraphicsDevice
   // `gpu_device_loss.dart`.
 
   final GpuDeviceLoss _loss = GpuDeviceLoss();
-
-  /// [GraphicsDevice.lost]: this device's own [dispose], as
-  /// `DeviceLossReason.destroyed`. A context the platform takes away is not
-  /// reported, because flutter_gpu does not say.
-  @override
-  Stream<DeviceLoss> get lost => _loss.lost;
-
-  @override
-  bool get isLost => _loss.isLost;
 
   // ------------------------------------------------------- capabilities
 
@@ -119,6 +112,107 @@ final class GpuRenderBackend extends GraphicsDevice
     msaa: features.has(DeviceFeature.offscreenMultisample),
   );
 
+  void Function(GpuFrameTimings timings)? _timingListener;
+
+  /// The bundle this package ships, package-qualified.
+  ///
+  /// It lives here rather than on `Renderer` because it is `impellerc` output:
+  /// an artefact only this backend can read, built by this package's
+  /// `tool/build_shaders.sh` from the GLSL in `flutter3d_shaders`, which every
+  /// backend compiles its own way. The engine names the shaders it wants by
+  /// entry point and does not know what compiled them.
+  ///
+  /// The `packages/<name>/` prefix is how Flutter addresses a dependency's
+  /// assets, and it is the same string from inside this package as from an
+  /// application that merely depends on it.
+  static const String defaultBundleAsset =
+      'packages/flutter3d_impeller/assets/shaders/flutter3d.shaderbundle';
+
+  static const int _kFramesInFlight = 3;
+
+  /// The granule these allocators were built on.
+  final int _granule;
+
+  /// Where each allocator's cursor is, mirrored so a write that would not fit
+  /// in what is left of a block can be pushed onto the next one. See
+  /// `host_buffer_grid.dart`.
+  /// D56: whether this device's stages declare the index attributes, learnt
+  /// at the first pipeline over a stage that reads one.
+  final IndexStreamsAnswer _indexStreams = IndexStreamsAnswer();
+
+  /// The buffer of 0, 1, 2 … the index attributes read, grown when a draw
+  /// needs more of it. Null until a draw on OpenGL ES first asks.
+  gpu.DeviceBuffer? _indexBuffer;
+
+  int _indexBufferCapacity = 0;
+
+  late final List<BlockCursor> _cursors = List<BlockCursor>.generate(
+    _kFramesInFlight,
+    (_) =>
+        BlockCursor(blockLength: blockLengthFor(_granule), granule: _granule),
+  );
+
+  /// What a filler writes: nothing anybody reads, so one block's worth of
+  /// zeros serves every filler, a view of it at a time.
+  late final Uint8List _fillerZeros = Uint8List(blockLengthFor(_granule));
+
+  /// The buffers a uniform block is filled in, one per granule-rounded size:
+  /// `HostBuffer.emplace` copies at the call, and a block already on the grid
+  /// is written as it is, with no rounded copy made of it.
+  final UniformScratch _uniformScratch = UniformScratch();
+
+  /// What each stage's uniform blocks look like, asked of flutter_gpu once
+  /// per block rather than once per member per draw.
+  final Expando<Map<String, GpuUniformLayout?>> _uniformLayouts =
+      Expando<Map<String, GpuUniformLayout?>>('uniform layouts');
+
+  final GpuShaderLibrary _library;
+
+  final List<gpu.HostBuffer> _transients;
+
+  /// Which allocator this frame writes into. -1 until the first [beginFrame].
+  int _frame = -1;
+
+  /// When a transient slot's leaked-block estimate is worth a fresh allocator.
+  ///
+  /// Thirty-two blocks is about 32 MB retained by one slot — three slots, so
+  /// under 100 MB in the worst case before every slot has been recreated. Low
+  /// enough that the leak stays invisible next to the render targets, high
+  /// enough that a scene crossing a boundary or two per frame recreates a slot
+  /// every few hundred frames rather than every few, and each recreation only
+  /// costs the four fresh blocks `HostBuffer`'s constructor allocates.
+  static const int _kTransientBlockBudget = 32;
+
+  int _transientRecreations = 0;
+
+  /// The frame being encoded, and the ones the GPU has not finished.
+  ///
+  /// **A frame is not over when `submit` returns.** flutter_gpu hands the work
+  /// to the queue and comes straight back; what is on the screen is a texture
+  /// this backend still owns, and drawing into it again before the compositor
+  /// has read it is a picture made of two frames. Which is exactly what an
+  /// editor holding a still camera showed, and what three, and eight, and
+  /// sixteen buffers each made rarer without making impossible.
+  GpuFrame _openFrame = GpuFrame();
+
+  /// Frames begun so far; the number [GpuFrameTimings.frame] carries.
+  int _frameNumber = 0;
+
+  int _rejectedSubmissions = 0;
+
+  late final GpuReadback _readback = GpuReadback(
+    onRejectedSubmission: noteRejectedSubmission,
+  );
+
+  /// [GraphicsDevice.lost]: this device's own [dispose], as
+  /// `DeviceLossReason.destroyed`. A context the platform takes away is not
+  /// reported, because flutter_gpu does not say.
+  @override
+  Stream<DeviceLoss> get lost => _loss.lost;
+
+  @override
+  bool get isLost => _loss.isLost;
+
   @override
   TextureFormatSupport textureFormatSupport(TextureFormat format) =>
       impellerFormatSupport(format, features);
@@ -132,8 +226,6 @@ final class GpuRenderBackend extends GraphicsDevice
   @override
   void onGpuTimings(void Function(GpuFrameTimings timings)? listener) =>
       _timingListener = listener;
-
-  void Function(GpuFrameTimings timings)? _timingListener;
 
   void _timings(GpuFrameTimings timings) => _timingListener?.call(timings);
 
@@ -179,11 +271,8 @@ final class GpuRenderBackend extends GraphicsDevice
   /// release either. Only [createBuffer] makes one here.
   @override
   void releaseStorageBuffer(StorageBuffer buffer) {}
-
   @override
   List<TextureFormat> get hdrOutputFormats => const <TextureFormat>[];
-
-  GpuRenderBackend._(this._library, this._transients, this._granule);
 
   /// Loads [bundleAsset] and builds a backend around the running context, for
   /// a surface of [width] by [height] to start with.
@@ -272,22 +361,6 @@ final class GpuRenderBackend extends GraphicsDevice
     );
   }
 
-  /// The bundle this package ships, package-qualified.
-  ///
-  /// It lives here rather than on `Renderer` because it is `impellerc` output:
-  /// an artefact only this backend can read, built by this package's
-  /// `tool/build_shaders.sh` from the GLSL in `flutter3d_shaders`, which every
-  /// backend compiles its own way. The engine names the shaders it wants by
-  /// entry point and does not know what compiled them.
-  ///
-  /// The `packages/<name>/` prefix is how Flutter addresses a dependency's
-  /// assets, and it is the same string from inside this package as from an
-  /// application that merely depends on it.
-  static const String defaultBundleAsset =
-      'packages/flutter3d_impeller/assets/shaders/flutter3d.shaderbundle';
-
-  static const int _kFramesInFlight = 3;
-
   /// What every write into a transient buffer is rounded up to.
   ///
   /// Asked of the backend rather than assumed: the alignment is a property of
@@ -295,21 +368,6 @@ final class GpuRenderBackend extends GraphicsDevice
   /// the cursor off the grid this depends on.
   static int get _deviceGranule =>
       granuleFor(gpu.gpuContext.minimumUniformByteAlignment);
-
-  /// The granule these allocators were built on.
-  final int _granule;
-
-  /// Where each allocator's cursor is, mirrored so a write that would not fit
-  /// in what is left of a block can be pushed onto the next one. See
-  /// `host_buffer_grid.dart`.
-  /// D56: whether this device's stages declare the index attributes, learnt
-  /// at the first pipeline over a stage that reads one.
-  final IndexStreamsAnswer _indexStreams = IndexStreamsAnswer();
-
-  /// The buffer of 0, 1, 2 … the index attributes read, grown when a draw
-  /// needs more of it. Null until a draw on OpenGL ES first asks.
-  gpu.DeviceBuffer? _indexBuffer;
-  int _indexBufferCapacity = 0;
 
   /// [count] entries of the index buffer, from its start.
   gpu.BufferView _indexView(int count) {
@@ -327,12 +385,6 @@ final class GpuRenderBackend extends GraphicsDevice
     );
   }
 
-  late final List<BlockCursor> _cursors = List<BlockCursor>.generate(
-    _kFramesInFlight,
-    (_) =>
-        BlockCursor(blockLength: blockLengthFor(_granule), granule: _granule),
-  );
-
   /// Writes [bytes] into this frame's allocator without letting it hand back a
   /// range that runs off the end of a block. The encoder reaches it through
   /// [GpuRenderBackendInternals.emplace].
@@ -346,20 +398,6 @@ final class GpuRenderBackend extends GraphicsDevice
     return host.emplace(on);
   }
 
-  /// What a filler writes: nothing anybody reads, so one block's worth of
-  /// zeros serves every filler, a view of it at a time.
-  late final Uint8List _fillerZeros = Uint8List(blockLengthFor(_granule));
-
-  /// The buffers a uniform block is filled in, one per granule-rounded size:
-  /// `HostBuffer.emplace` copies at the call, and a block already on the grid
-  /// is written as it is, with no rounded copy made of it.
-  final UniformScratch _uniformScratch = UniformScratch();
-
-  /// What each stage's uniform blocks look like, asked of flutter_gpu once
-  /// per block rather than once per member per draw.
-  final Expando<Map<String, GpuUniformLayout?>> _uniformLayouts =
-      Expando<Map<String, GpuUniformLayout?>>('uniform layouts');
-
   /// The layout of [blockName] in [shader], or null when the compiled stage
   /// has no such block (or it is empty), cached for the device's life.
   GpuUniformLayout? _uniformLayout(gpu.Shader shader, String blockName) =>
@@ -372,12 +410,6 @@ final class GpuRenderBackend extends GraphicsDevice
   /// at.
   Float32List _uniformScratchFor(GpuUniformLayout layout) =>
       _uniformScratch.zeroed(layout.emplacedSize);
-
-  final GpuShaderLibrary _library;
-  final List<gpu.HostBuffer> _transients;
-
-  /// Which allocator this frame writes into. -1 until the first [beginFrame].
-  int _frame = -1;
 
   gpu.HostBuffer get _host => _transients[_frame < 0 ? 0 : _frame];
 
@@ -939,16 +971,6 @@ final class GpuRenderBackend extends GraphicsDevice
     _cursors[_frame].reset();
   }
 
-  /// When a transient slot's leaked-block estimate is worth a fresh allocator.
-  ///
-  /// Thirty-two blocks is about 32 MB retained by one slot — three slots, so
-  /// under 100 MB in the worst case before every slot has been recreated. Low
-  /// enough that the leak stays invisible next to the render targets, high
-  /// enough that a scene crossing a boundary or two per frame recreates a slot
-  /// every few hundred frames rather than every few, and each recreation only
-  /// costs the four fresh blocks `HostBuffer`'s constructor allocates.
-  static const int _kTransientBlockBudget = 32;
-
   /// How many transient allocators have been thrown away over the leak above.
   ///
   /// Diagnostic, like [rejectedSubmissions]: a number climbing fast means the
@@ -960,8 +982,6 @@ final class GpuRenderBackend extends GraphicsDevice
   /// [GpuRenderBackendInternals.debugReadbackStagingCount] are the two numbers that say the cost is
   /// allocation rather than drawing.
   int get _debugTransientRecreations => _transientRecreations;
-  int _transientRecreations = 0;
-
   @override
   CommandEncoder beginRenderPass(RenderPassDescriptor descriptor) {
     // `gfx-50n`. Before anything reaches flutter_gpu, because past this line
@@ -991,19 +1011,6 @@ final class GpuRenderBackend extends GraphicsDevice
     );
   }
 
-  /// The frame being encoded, and the ones the GPU has not finished.
-  ///
-  /// **A frame is not over when `submit` returns.** flutter_gpu hands the work
-  /// to the queue and comes straight back; what is on the screen is a texture
-  /// this backend still owns, and drawing into it again before the compositor
-  /// has read it is a picture made of two frames. Which is exactly what an
-  /// editor holding a still camera showed, and what three, and eight, and
-  /// sixteen buffers each made rarer without making impossible.
-  GpuFrame _openFrame = GpuFrame();
-
-  /// Frames begun so far; the number [GpuFrameTimings.frame] carries.
-  int _frameNumber = 0;
-
   /// How many command buffers the driver has refused since this device opened.
   ///
   /// **The one signal flutter_gpu offers about a failed submission**, and it
@@ -1016,7 +1023,6 @@ final class GpuRenderBackend extends GraphicsDevice
   /// Zero on a healthy device, and anything else is worth investigating rather
   /// than tolerating.
   int get rejectedSubmissions => _rejectedSubmissions;
-  int _rejectedSubmissions = 0;
 
   /// Called from the encoder's completion callback, through
   /// [GpuRenderBackendInternals.noteRejectedSubmission].
@@ -1060,10 +1066,6 @@ final class GpuRenderBackend extends GraphicsDevice
       readbackConverts(texture, region: region)
       ? _readConverted(texture)
       : _readback.read(texture, region);
-
-  late final GpuReadback _readback = GpuReadback(
-    onRejectedSubmission: noteRejectedSubmission,
-  );
 
   /// How many staging textures the readbacks have made so far. Diagnostic.
   ///

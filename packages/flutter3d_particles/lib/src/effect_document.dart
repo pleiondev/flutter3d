@@ -346,50 +346,6 @@ final class EffectDocument extends FormatDocument {
   EffectDocument._(this.effects, Map<String, Object?> extra)
     : super(unknown: extra);
 
-  /// Bumped when an existing key changes meaning, with a step in
-  /// [_migrations] and a fixture under `test/fixtures/v<N>/`.
-  ///
-  /// **2 is the format envelope** (`"format": "f3d.effect", "version": 2`)
-  /// in place of version 1's `"f3dfx": 1`. Nothing an effect says changed;
-  /// what changed is the key a build from before looks for its version
-  /// under, so it would refuse a version-2 file as having none — the honest
-  /// answer, and the reason this is a version and not an added key.
-  static const int formatVersion = 2;
-
-  /// Entry `i` lifts a document from version `i + 1` to `i + 2`.
-  ///
-  /// 1 → 2 is the identity: [FormatSpec.open] has read the version from
-  /// `f3dfx` already, and the effects are written the same way in both.
-  static const List<FormatMigration> _migrations = <FormatMigration>[_identity];
-
-  static Map<String, Object?> _identity(Map<String, Object?> document) =>
-      document;
-
-  /// The effect format in the registry: `f3d.effect`, read from its own
-  /// envelope or from version 1's `"f3dfx": 1`.
-  static const FormatSpec format = FormatSpec(
-    id: 'f3d.effect',
-    version: formatVersion,
-    suffixes: <String>['.f3dfx'],
-    fixture: 'test/fixtures/v<N>/blast.f3dfx',
-    migrations: _migrations,
-    legacyVersionKey: 'f3dfx',
-  );
-
-  @override
-  FormatSpec get spec => format;
-
-  /// Top-level keys this build does not know, kept as they were read — the
-  /// same map as [unknown], under the name it had before the envelope.
-  Map<String, Object?> get extra => unknown;
-
-  /// In the order written; names are unique.
-  final List<EffectDescription> effects;
-
-  /// The effect called [name], or null.
-  EffectDescription? operator [](String name) =>
-      effects.where((e) => e.name == name).firstOrNull;
-
   /// Reads [text], or throws an [EffectFormatException]. [from] names the
   /// document in every message.
   factory EffectDocument.parse(
@@ -463,7 +419,51 @@ final class EffectDocument extends FormatDocument {
     }
   }
 
+  /// Bumped when an existing key changes meaning, with a step in
+  /// [_migrations] and a fixture under `test/fixtures/v<N>/`.
+  ///
+  /// **2 is the format envelope** (`"format": "f3d.effect", "version": 2`)
+  /// in place of version 1's `"f3dfx": 1`. Nothing an effect says changed;
+  /// what changed is the key a build from before looks for its version
+  /// under, so it would refuse a version-2 file as having none — the honest
+  /// answer, and the reason this is a version and not an added key.
+  static const int formatVersion = 2;
+
+  /// Entry `i` lifts a document from version `i + 1` to `i + 2`.
+  ///
+  /// 1 → 2 is the identity: [FormatSpec.open] has read the version from
+  /// `f3dfx` already, and the effects are written the same way in both.
+  static const List<FormatMigration> _migrations = <FormatMigration>[_identity];
+
+  /// The effect format in the registry: `f3d.effect`, read from its own
+  /// envelope or from version 1's `"f3dfx": 1`.
+  static const FormatSpec format = FormatSpec(
+    id: 'f3d.effect',
+    version: formatVersion,
+    suffixes: <String>['.f3dfx'],
+    fixture: 'test/fixtures/v<N>/blast.f3dfx',
+    migrations: _migrations,
+    legacyVersionKey: 'f3dfx',
+  );
+
+  /// In the order written; names are unique.
+  final List<EffectDescription> effects;
+
   static const Set<String> _known = <String>{'effects'};
+
+  static Map<String, Object?> _identity(Map<String, Object?> document) =>
+      document;
+
+  @override
+  FormatSpec get spec => format;
+
+  /// Top-level keys this build does not know, kept as they were read — the
+  /// same map as [unknown], under the name it had before the envelope.
+  Map<String, Object?> get extra => unknown;
+
+  /// The effect called [name], or null.
+  EffectDescription? operator [](String name) =>
+      effects.where((e) => e.name == name).firstOrNull;
 
   /// The document as JSON, in the envelope at [formatVersion], with every
   /// unknown key it was read with.

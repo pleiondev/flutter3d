@@ -56,43 +56,6 @@ final class PoseRecord {
   }) : bodies = List<String>.unmodifiable(bodies),
        frames = List<PoseRecordFrame>.unmodifiable(frames);
 
-  /// Steps between frames.
-  final int every;
-
-  /// How long a step was, so a viewer plays the record at the run's pace.
-  final double stepSeconds;
-
-  /// Every body the record names, in the order it first appeared.
-  final List<String> bodies;
-
-  /// In step order, one per recorded step.
-  final List<PoseRecordFrame> frames;
-
-  bool get isEmpty => frames.isEmpty;
-
-  /// The step of the last frame, which is where a viewer's scrubber ends.
-  int get lastStep => frames.isEmpty ? 0 : frames.last.step;
-
-  Map<String, Object?> toJson() => <String, Object?>{
-    'every': every,
-    'dt': stepSeconds,
-    'bodies': bodies,
-    'frames': <Map<String, Object?>>[
-      for (final frame in frames)
-        <String, Object?>{
-          's': frame.step,
-          'b': <Object?>[
-            for (final body in frame.bodies)
-              if (body == null)
-                null
-              else ...<double>[
-                for (var i = 0; i < 7; i++) _round(body[i], i < 3 ? 1e3 : 1e4),
-              ],
-          ],
-        },
-    ],
-  };
-
   /// Reads what [toJson] wrote, or throws a [PoseRecordFormatException] saying where
   /// it stopped making sense.
   factory PoseRecord.fromJson(Map<String, Object?> json) {
@@ -171,6 +134,43 @@ final class PoseRecord {
       frames: frames,
     );
   }
+
+  /// Steps between frames.
+  final int every;
+
+  /// How long a step was, so a viewer plays the record at the run's pace.
+  final double stepSeconds;
+
+  /// Every body the record names, in the order it first appeared.
+  final List<String> bodies;
+
+  /// In step order, one per recorded step.
+  final List<PoseRecordFrame> frames;
+
+  bool get isEmpty => frames.isEmpty;
+
+  /// The step of the last frame, which is where a viewer's scrubber ends.
+  int get lastStep => frames.isEmpty ? 0 : frames.last.step;
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'every': every,
+    'dt': stepSeconds,
+    'bodies': bodies,
+    'frames': <Map<String, Object?>>[
+      for (final frame in frames)
+        <String, Object?>{
+          's': frame.step,
+          'b': <Object?>[
+            for (final body in frame.bodies)
+              if (body == null)
+                null
+              else ...<double>[
+                for (var i = 0; i < 7; i++) _round(body[i], i < 3 ? 1e3 : 1e4),
+              ],
+          ],
+        },
+    ],
+  };
 
   /// [body]'s path as the ghost's [Tape]: its place and, from its rotation,
   /// a facing about the vertical and an up — what [Playback] draws. Frames

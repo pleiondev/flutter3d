@@ -48,30 +48,6 @@ final class NavLattice {
     required this.rows,
   });
 
-  /// Nothing to stand on: no columns.
-  static const NavLattice empty = NavLattice(
-    originX: 0.0,
-    originY: 0.0,
-    originZ: 0.0,
-    columns: 0,
-    rows: 0,
-  );
-
-  /// The world position of voxel `(0, 0, 0)`'s lowest corner: its X, in
-  /// metres.
-  final double originX;
-
-  /// That corner's Y, in metres.
-  final double originY;
-
-  /// That corner's Z, in metres.
-  final double originZ;
-
-  final int columns;
-  final int rows;
-
-  bool get isEmpty => columns == 0 || rows == 0;
-
   /// The lattice of [brushes]' solid ones and [ground] — `NavGrid.bake`'s.
   factory NavLattice.of(
     Iterable<Brush> brushes, {
@@ -120,6 +96,30 @@ final class NavLattice {
       rows: math.max(1, ((maxZ - minZ) / cs).ceil()),
     );
   }
+
+  /// Nothing to stand on: no columns.
+  static const NavLattice empty = NavLattice(
+    originX: 0.0,
+    originY: 0.0,
+    originZ: 0.0,
+    columns: 0,
+    rows: 0,
+  );
+
+  /// The world position of voxel `(0, 0, 0)`'s lowest corner: its X, in
+  /// metres.
+  final double originX;
+
+  /// That corner's Y, in metres.
+  final double originY;
+
+  /// That corner's Z, in metres.
+  final double originZ;
+  final int columns;
+
+  final int rows;
+
+  bool get isEmpty => columns == 0 || rows == 0;
 
   @override
   bool operator ==(Object other) =>

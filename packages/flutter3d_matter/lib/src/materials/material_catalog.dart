@@ -31,6 +31,50 @@ final class MaterialPair {
     required this.source,
   });
 
+  /// The pair [json] describes. Throws a [MaterialFormatException] for a
+  /// side that is not a material's id, a number that is not one, or no
+  /// source; [problems] judges whether the numbers are plausible.
+  factory MaterialPair.fromJson(Map<String, Object?> json) {
+    String side(String key) => switch (json[key]) {
+      final String id when id.contains('.') => id,
+      final other => throw MaterialFormatException(
+        'a material pair\'s "$key" must be a material\'s id, not $other',
+      ),
+    };
+    final first = side('first'), second = side('second');
+    double? number(String key) => switch (json[key]) {
+      null => null,
+      final num value when value.isFinite => value.toDouble(),
+      final other => throw MaterialFormatException(
+        'the pair of "$first" and "$second": "$key" must be a finite number, '
+        'not $other',
+      ),
+    };
+    return MaterialPair(
+      first,
+      second,
+      friction: number('friction'),
+      restitution: number('restitution'),
+      rollingResistance: number('rollingResistance'),
+      contactAngle: number('contactAngle'),
+      confidence: switch (json['confidence']) {
+        null => null,
+        final String name when name.isNotEmpty => Confidence.named(name),
+        final other => throw MaterialFormatException(
+          'the pair of "$first" and "$second": "confidence" must be a word, '
+          'not $other',
+        ),
+      },
+      source: switch (json['source']) {
+        final String said when said.trim().isNotEmpty => said,
+        _ => throw MaterialFormatException(
+          'the pair of "$first" and "$second" has no "source": a measured '
+          'pair names where it was measured',
+        ),
+      },
+    );
+  }
+
   /// The two materials' ids.
   final String first, second;
 
@@ -82,50 +126,6 @@ final class MaterialPair {
     'confidence': ?confidence?.name,
     'source': source,
   };
-
-  /// The pair [json] describes. Throws a [MaterialFormatException] for a
-  /// side that is not a material's id, a number that is not one, or no
-  /// source; [problems] judges whether the numbers are plausible.
-  factory MaterialPair.fromJson(Map<String, Object?> json) {
-    String side(String key) => switch (json[key]) {
-      final String id when id.contains('.') => id,
-      final other => throw MaterialFormatException(
-        'a material pair\'s "$key" must be a material\'s id, not $other',
-      ),
-    };
-    final first = side('first'), second = side('second');
-    double? number(String key) => switch (json[key]) {
-      null => null,
-      final num value when value.isFinite => value.toDouble(),
-      final other => throw MaterialFormatException(
-        'the pair of "$first" and "$second": "$key" must be a finite number, '
-        'not $other',
-      ),
-    };
-    return MaterialPair(
-      first,
-      second,
-      friction: number('friction'),
-      restitution: number('restitution'),
-      rollingResistance: number('rollingResistance'),
-      contactAngle: number('contactAngle'),
-      confidence: switch (json['confidence']) {
-        null => null,
-        final String name when name.isNotEmpty => Confidence.named(name),
-        final other => throw MaterialFormatException(
-          'the pair of "$first" and "$second": "confidence" must be a word, '
-          'not $other',
-        ),
-      },
-      source: switch (json['source']) {
-        final String said when said.trim().isNotEmpty => said,
-        _ => throw MaterialFormatException(
-          'the pair of "$first" and "$second" has no "source": a measured '
-          'pair names where it was measured',
-        ),
-      },
-    );
-  }
 
   /// What is implausible about this pair, one sentence each: a friction
   /// outside 0…5, a restitution or rolling resistance outside 0…1, a contact

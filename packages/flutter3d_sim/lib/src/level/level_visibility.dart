@@ -66,6 +66,69 @@ final class LevelVisibility extends FormatDocument {
        // ignore: prefer_initializing_formals
        _pvs = pvs;
 
+  /// Reads a table, or throws a [VisibilityFormatException] that says why not.
+  ///
+  /// The envelope is checked first: another format's document, or a table
+  /// from a newer build, is refused with both version numbers.
+  factory LevelVisibility.fromJson(Map<String, Object?> json) {
+    final document = format.open(json, refuse: VisibilityFormatException.new);
+    final cellSize = document['cellSize'];
+    final origin = document['origin'];
+    final counts = document['counts'];
+    final hash = document['brushHash'];
+    final cells = document['cells'];
+    final pvs = document['pvs'];
+    if (cellSize is! num ||
+        origin is! List<Object?> ||
+        origin.length != 3 ||
+        counts is! List<Object?> ||
+        counts.length != 3 ||
+        hash is! num ||
+        cells is! String ||
+        pvs is! String) {
+      throw const VisibilityFormatException(
+        'the table is missing a field, so it was not written all the way',
+      );
+    }
+    final countX = (counts[0]! as num).toInt();
+    final countY = (counts[1]! as num).toInt();
+    final countZ = (counts[2]! as num).toInt();
+    final cellBytes = base64Decode(cells);
+    final slots = Int32List.view(
+      Uint8List.fromList(cellBytes).buffer,
+      0,
+      countX * countY * countZ,
+    );
+    var open = 0;
+    for (final cell in slots) {
+      if (cell >= 0) open++;
+    }
+    final words = (open + 31) >> 5;
+    final pvsWords = Uint32List.view(
+      Uint8List.fromList(base64Decode(pvs)).buffer,
+      0,
+      open * words,
+    );
+    return LevelVisibility._(
+      cellSize: cellSize.toDouble(),
+      origin: Vector3(
+        (origin[0]! as num).toDouble(),
+        (origin[1]! as num).toDouble(),
+        (origin[2]! as num).toDouble(),
+      ),
+      countX: countX,
+      countY: countY,
+      countZ: countZ,
+      cells: slots,
+      pvs: <Uint32List>[
+        for (var i = 0; i < open; i++)
+          pvsWords.sublist(i * words, (i + 1) * words),
+      ],
+      brushHash: hash.toInt(),
+      unknown: FormatDocument.unknownIn(document, known: _known, spec: format),
+    );
+  }
+
   /// Bumped when an existing field changes meaning.
   static const int formatVersion = 1;
 
@@ -89,9 +152,6 @@ final class LevelVisibility extends FormatDocument {
     'pvs',
   };
 
-  @override
-  FormatSpec get spec => format;
-
   /// The edge of one cell, in metres.
   final double cellSize;
 
@@ -110,6 +170,23 @@ final class LevelVisibility extends FormatDocument {
 
   /// Per open cell, a bit per open cell: set where the two see each other.
   final List<Uint32List> _pvs;
+
+  /// How far past a cell's edge a query looks, in metres.
+  ///
+  /// **A metre, and the number was measured.** The table is a sample, and
+  /// its misses cluster where an eye or a wall stands near a cell boundary:
+  /// the sample points of the cell it is in do not reach the extreme line
+  /// that squeezes past a doorway's edge, while the next cell's would. So a
+  /// query asks on behalf of every cell within this distance of the eye, and
+  /// grows the box it asks about by the same, and the misses go. Against
+  /// fifty-five hundred random unblocked rays through the dungeon's three
+  /// levels: none hidden at a metre, one at half a metre, twenty-two at
+  /// nought. The price is culling — the crypt's standing point sees 54% of
+  /// cells instead of 41% — and it is paid for a room that never pops.
+  static const double queryMargin = 1.0;
+
+  @override
+  FormatSpec get spec => format;
 
   /// How many open cells the level has.
   int get cellCount => _pvs.length;
@@ -163,20 +240,6 @@ final class LevelVisibility extends FormatDocument {
     }
     return !overlapsOpen;
   }
-
-  /// How far past a cell's edge a query looks, in metres.
-  ///
-  /// **A metre, and the number was measured.** The table is a sample, and
-  /// its misses cluster where an eye or a wall stands near a cell boundary:
-  /// the sample points of the cell it is in do not reach the extreme line
-  /// that squeezes past a doorway's edge, while the next cell's would. So a
-  /// query asks on behalf of every cell within this distance of the eye, and
-  /// grows the box it asks about by the same, and the misses go. Against
-  /// fifty-five hundred random unblocked rays through the dungeon's three
-  /// levels: none hidden at a metre, one at half a metre, twenty-two at
-  /// nought. The price is culling — the crypt's standing point sees 54% of
-  /// cells instead of 41% — and it is paid for a room that never pops.
-  static const double queryMargin = 1.0;
 
   /// Whether anything inside [bounds] can be seen by an eye at [eye].
   ///
@@ -273,69 +336,6 @@ final class LevelVisibility extends FormatDocument {
       'cells': base64Encode(_cells.buffer.asUint8List()),
       'pvs': base64Encode(all.buffer.asUint8List()),
     });
-  }
-
-  /// Reads a table, or throws a [VisibilityFormatException] that says why not.
-  ///
-  /// The envelope is checked first: another format's document, or a table
-  /// from a newer build, is refused with both version numbers.
-  factory LevelVisibility.fromJson(Map<String, Object?> json) {
-    final document = format.open(json, refuse: VisibilityFormatException.new);
-    final cellSize = document['cellSize'];
-    final origin = document['origin'];
-    final counts = document['counts'];
-    final hash = document['brushHash'];
-    final cells = document['cells'];
-    final pvs = document['pvs'];
-    if (cellSize is! num ||
-        origin is! List<Object?> ||
-        origin.length != 3 ||
-        counts is! List<Object?> ||
-        counts.length != 3 ||
-        hash is! num ||
-        cells is! String ||
-        pvs is! String) {
-      throw const VisibilityFormatException(
-        'the table is missing a field, so it was not written all the way',
-      );
-    }
-    final countX = (counts[0]! as num).toInt();
-    final countY = (counts[1]! as num).toInt();
-    final countZ = (counts[2]! as num).toInt();
-    final cellBytes = base64Decode(cells);
-    final slots = Int32List.view(
-      Uint8List.fromList(cellBytes).buffer,
-      0,
-      countX * countY * countZ,
-    );
-    var open = 0;
-    for (final cell in slots) {
-      if (cell >= 0) open++;
-    }
-    final words = (open + 31) >> 5;
-    final pvsWords = Uint32List.view(
-      Uint8List.fromList(base64Decode(pvs)).buffer,
-      0,
-      open * words,
-    );
-    return LevelVisibility._(
-      cellSize: cellSize.toDouble(),
-      origin: Vector3(
-        (origin[0]! as num).toDouble(),
-        (origin[1]! as num).toDouble(),
-        (origin[2]! as num).toDouble(),
-      ),
-      countX: countX,
-      countY: countY,
-      countZ: countZ,
-      cells: slots,
-      pvs: <Uint32List>[
-        for (var i = 0; i < open; i++)
-          pvsWords.sublist(i * words, (i + 1) * words),
-      ],
-      brushHash: hash.toInt(),
-      unknown: FormatDocument.unknownIn(document, known: _known, spec: format),
-    );
   }
 
   /// Bakes a table for [level].

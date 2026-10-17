@@ -19,23 +19,6 @@ import 'materials.g.dart';
 final class SeabedLook {
   SeabedLook._(this.material);
 
-  /// Where an application's asset bundle holds the compiled material.
-  static const String asset =
-      'packages/flutter3d_effects/assets/seabed.f3dshaders';
-
-  /// The material's name in its bundle.
-  static const String model = 'Seabed';
-
-  /// The look from the compiled [bundle], its stages added to [renderer].
-  static Future<SeabedLook> load({
-    required GraphicsDevice device,
-    required Renderer renderer,
-    required ByteData bundle,
-  }) async {
-    renderer.renderSteps.addMaterials(await device.loadShaders(bundle));
-    return SeabedLook.of(bundle);
-  }
-
   /// The look from [bundle] without binding its stages.
   factory SeabedLook.of(ByteData bundle) {
     final materials = BundledMaterials.read(bundle);
@@ -48,8 +31,25 @@ final class SeabedLook {
     );
   }
 
+  /// Where an application's asset bundle holds the compiled material.
+  static const String asset =
+      'packages/flutter3d_effects/assets/seabed.f3dshaders';
+
+  /// The material's name in its bundle.
+  static const String model = 'Seabed';
+
   /// What a sea floor is drawn with; its base colour is the floor's own.
   final RenderMaterial material;
+
+  /// The look from the compiled [bundle], its stages added to [renderer].
+  static Future<SeabedLook> load({
+    required GraphicsDevice device,
+    required Renderer renderer,
+    required ByteData bundle,
+  }) async {
+    renderer.renderSteps.addMaterials(await device.loadShaders(bundle));
+    return SeabedLook.of(bundle);
+  }
 
   /// Anything else under the same sea — a rock, a wreck's timbers, a
   /// diver — in its own colour, lit through the same surface and coloured

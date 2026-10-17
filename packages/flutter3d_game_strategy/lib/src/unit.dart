@@ -47,6 +47,19 @@ final class UnitType {
   }) : assert(health > 0.0, 'a kind that is dead the moment it is made'),
        assert(radius > 0.0, 'a kind that needs no room');
 
+  /// A kind read back from [toJson], filling in the worker for anything the
+  /// document left out.
+  factory UnitType.fromJson(Map<String, Object?> from) => UnitType(
+    name: from.text('name') ?? worker.name,
+    radius: from.number('radius', orElse: worker.radius),
+    speed: from.number('speed', orElse: worker.speed),
+    sight: from.number('sight', orElse: worker.sight),
+    health: from.number('health', orElse: worker.health),
+    damage: from.number('damage', orElse: worker.damage),
+    range: from.number('range', orElse: worker.range),
+    reload: from.number('reload', orElse: worker.reload),
+  );
+
   /// The kind that digs. Unarmed, and that is the interesting part: [damage]
   /// of nought is what makes the fight skip it entirely rather than what makes
   /// it lose one.
@@ -155,19 +168,6 @@ final class UnitType {
     'reload': reload,
   };
 
-  /// A kind read back from [toJson], filling in the worker for anything the
-  /// document left out.
-  factory UnitType.fromJson(Map<String, Object?> from) => UnitType(
-    name: from.text('name') ?? worker.name,
-    radius: from.number('radius', orElse: worker.radius),
-    speed: from.number('speed', orElse: worker.speed),
-    sight: from.number('sight', orElse: worker.sight),
-    health: from.number('health', orElse: worker.health),
-    damage: from.number('damage', orElse: worker.damage),
-    range: from.number('range', orElse: worker.range),
-    reload: from.number('reload', orElse: worker.reload),
-  );
-
   /// Two kinds are the same kind when their numbers are.
   ///
   /// A value rather than an identity, because a kind that has been through a
@@ -218,6 +218,23 @@ final class UnitOrder {
     : goal = target.position,
       slot = null;
 
+  /// An order read back from [save], minus the target.
+  ///
+  /// **A unit cannot resolve an entity index and this does not pretend to.**
+  /// The crowd a save describes is being built while this runs, so the quarry
+  /// may not exist yet — `StrategySimulation` puts the target back once every
+  /// unit is standing up, which is the same second pass a harvest job needs and
+  /// for the same reason.
+  factory UnitOrder.fromSnapshot(Map<String, Object?> from) {
+    final Vector3 goal = Vector3.zero();
+    if (!from.vectorInto('goal', goal)) return const UnitOrder.hold();
+    final Vector3 slot = Vector3.zero();
+    return UnitOrder.moveTo(
+      goal,
+      slot: from.vectorInto('slot', slot) ? slot : null,
+    );
+  }
+
   /// Where the order points, or null for one that points nowhere.
   final Vector3? goal;
 
@@ -256,23 +273,6 @@ final class UnitOrder {
       if (slot case final Vector3 at) 'slot': vectorOf(at),
     },
   };
-
-  /// An order read back from [save], minus the target.
-  ///
-  /// **A unit cannot resolve an entity index and this does not pretend to.**
-  /// The crowd a save describes is being built while this runs, so the quarry
-  /// may not exist yet — `StrategySimulation` puts the target back once every
-  /// unit is standing up, which is the same second pass a harvest job needs and
-  /// for the same reason.
-  factory UnitOrder.fromSnapshot(Map<String, Object?> from) {
-    final Vector3 goal = Vector3.zero();
-    if (!from.vectorInto('goal', goal)) return const UnitOrder.hold();
-    final Vector3 slot = Vector3.zero();
-    return UnitOrder.moveTo(
-      goal,
-      slot: from.vectorInto('slot', slot) ? slot : null,
-    );
-  }
 }
 
 /// One unit on the map.
@@ -290,6 +290,27 @@ final class StrategyUnit {
     double? health,
   }) : order = order ?? const UnitOrder.hold(),
        health = health ?? type.health;
+
+  /// A unit read back from [save], standing where it stood.
+  ///
+  /// A factory rather than a `restore` on an existing unit, for the reason the
+  /// note on [entity] gives: the crowd a snapshot describes is not the crowd
+  /// the fresh map was staged with.
+  factory StrategyUnit.fromSnapshot(Map<String, Object?> from) {
+    final Vector3 at = Vector3.zero();
+    from.vectorInto('at', at);
+    final UnitType type = switch (from.object('type')) {
+      final Map<String, Object?> row => UnitType.fromJson(row),
+      null => UnitType.worker,
+    };
+    return StrategyUnit(
+      position: at,
+      type: type,
+      side: from.integer('side'),
+      order: UnitOrder.fromSnapshot(from),
+      health: from.number('health', orElse: type.health),
+    )..cooldown = from.number('cooldown');
+  }
 
   /// Where it is, in world space. Mutated in place by the step: a crowd that
   /// allocated a vector per unit per frame would spend its budget on the
@@ -322,18 +343,6 @@ final class StrategyUnit {
   /// of one recording then disagree about who is left standing.
   double cooldown = 0.0;
 
-  /// Whether it is still on the map. See [health].
-  bool get isAlive => health > 0.0;
-
-  /// How much room it needs, in metres. Its kind's.
-  double get radius => type.radius;
-
-  /// How fast it walks, in metres a second. Its kind's.
-  double get speed => type.speed;
-
-  /// How far it uncovers the map around itself, in metres. Its kind's.
-  double get sight => type.sight;
-
   /// What it is doing. Assigning a new one is how a game gives an order.
   UnitOrder order;
 
@@ -350,6 +359,18 @@ final class StrategyUnit {
   /// at minute three has more of them than the map it is restored into, and an
   /// index into a list of a different length names the wrong unit or none.
   Entity entity = Entity.none;
+
+  /// Whether it is still on the map. See [health].
+  bool get isAlive => health > 0.0;
+
+  /// How much room it needs, in metres. Its kind's.
+  double get radius => type.radius;
+
+  /// How fast it walks, in metres a second. Its kind's.
+  double get speed => type.speed;
+
+  /// How far it uncovers the map around itself, in metres. Its kind's.
+  double get sight => type.sight;
 
   /// Takes [amount] off, never past nought.
   ///
@@ -382,25 +403,4 @@ final class StrategyUnit {
     'cooldown': cooldown,
     ...order.save(),
   };
-
-  /// A unit read back from [save], standing where it stood.
-  ///
-  /// A factory rather than a `restore` on an existing unit, for the reason the
-  /// note on [entity] gives: the crowd a snapshot describes is not the crowd
-  /// the fresh map was staged with.
-  factory StrategyUnit.fromSnapshot(Map<String, Object?> from) {
-    final Vector3 at = Vector3.zero();
-    from.vectorInto('at', at);
-    final UnitType type = switch (from.object('type')) {
-      final Map<String, Object?> row => UnitType.fromJson(row),
-      null => UnitType.worker,
-    };
-    return StrategyUnit(
-      position: at,
-      type: type,
-      side: from.integer('side'),
-      order: UnitOrder.fromSnapshot(from),
-      health: from.number('health', orElse: type.health),
-    )..cooldown = from.number('cooldown');
-  }
 }

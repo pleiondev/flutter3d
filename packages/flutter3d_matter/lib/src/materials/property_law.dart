@@ -98,6 +98,40 @@ final class LawInput {
     this.fallback,
   });
 
+  /// The input [json] holds. Throws a [MaterialFormatException] for one
+  /// that is not.
+  factory LawInput.fromJson(Object? json) {
+    if (json is! Map<String, Object?>) {
+      throw MaterialFormatException('a law\'s input is an object, not $json');
+    }
+    final id = switch (json['id']) {
+      final String id => MatterState.checkedQuantityId(id),
+      final other => throw MaterialFormatException(
+        'a law\'s input names a quantity\'s id, not $other',
+      ),
+    };
+    final Unit unit;
+    try {
+      unit = json['unit'] == null ? Unit.one : Unit.fromJson(json['unit']);
+    } on UnitFormatException catch (e) {
+      throw MaterialFormatException('the law\'s input "$id": ${e.message}');
+    }
+    double? number(String key) => switch (json[key]) {
+      null => null,
+      final num n when n.isFinite => n.toDouble(),
+      final other => throw MaterialFormatException(
+        'the law\'s input "$id": "$key" must be a finite number, not $other',
+      ),
+    };
+    return LawInput(
+      id,
+      unit: unit,
+      low: number('low'),
+      high: number('high'),
+      fallback: number('fallback'),
+    );
+  }
+
   /// A body's temperature, K.
   static const LawInput temperature = LawInput(
     MatterState.temperatureId,
@@ -158,40 +192,6 @@ final class LawInput {
     'high': ?high,
     'fallback': ?fallback,
   };
-
-  /// The input [json] holds. Throws a [MaterialFormatException] for one
-  /// that is not.
-  factory LawInput.fromJson(Object? json) {
-    if (json is! Map<String, Object?>) {
-      throw MaterialFormatException('a law\'s input is an object, not $json');
-    }
-    final id = switch (json['id']) {
-      final String id => MatterState.checkedQuantityId(id),
-      final other => throw MaterialFormatException(
-        'a law\'s input names a quantity\'s id, not $other',
-      ),
-    };
-    final Unit unit;
-    try {
-      unit = json['unit'] == null ? Unit.one : Unit.fromJson(json['unit']);
-    } on UnitFormatException catch (e) {
-      throw MaterialFormatException('the law\'s input "$id": ${e.message}');
-    }
-    double? number(String key) => switch (json[key]) {
-      null => null,
-      final num n when n.isFinite => n.toDouble(),
-      final other => throw MaterialFormatException(
-        'the law\'s input "$id": "$key" must be a finite number, not $other',
-      ),
-    };
-    return LawInput(
-      id,
-      unit: unit,
-      low: number('low'),
-      high: number('high'),
-      fallback: number('fallback'),
-    );
-  }
 
   @override
   bool operator ==(Object other) =>
@@ -588,12 +588,6 @@ final class FormulaLaw extends PropertyLaw {
     super.interval,
   });
 
-  /// `T`, the temperature in K, and `p`, the pressure in Pa.
-  static const Map<String, LawInput> standardInputs = <String, LawInput>{
-    'T': LawInput.temperature,
-    'p': LawInput.pressure,
-  };
-
   /// Andrade's law of a liquid's viscosity, or any quantity whose
   /// logarithm is linear in 1/T: ln(y / [unit]) = [a] + [b] / T, with [b]
   /// in K.
@@ -657,10 +651,11 @@ final class FormulaLaw extends PropertyLaw {
     );
   }
 
-  /// [value] as the expression language reads it back, a negative one in
-  /// parentheses.
-  static String _n(double value) =>
-      value.isNegative ? '($value)' : value.toString();
+  /// `T`, the temperature in K, and `p`, the pressure in Pa.
+  static const Map<String, LawInput> standardInputs = <String, LawInput>{
+    'T': LawInput.temperature,
+    'p': LawInput.pressure,
+  };
 
   /// The formula's text.
   final String expression;
@@ -669,6 +664,11 @@ final class FormulaLaw extends PropertyLaw {
   final Map<String, LawInput> inputs;
 
   static final Expando<_Compiled> _compiled = Expando<_Compiled>();
+
+  /// [value] as the expression language reads it back, a negative one in
+  /// parentheses.
+  static String _n(double value) =>
+      value.isNegative ? '($value)' : value.toString();
 
   _Compiled get _program => _compiled[this] ??= _Compiled.of(this);
 

@@ -238,8 +238,8 @@ final class RunElements {
         // Water the run swims in is filled to its top.
         Water() => (center.y + half.y - 0.05, false),
         _ => switch ((dressing.water[name], dressing.molten[name])) {
-          (final double cold?, _) => (cold, false),
-          (_, final double hot?) => (hot, true),
+          (final double cold, _) => (cold, false),
+          (_, final double hot) => (hot, true),
           _ => (null, false),
         },
       };

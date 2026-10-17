@@ -195,7 +195,7 @@ List<InitStep> planInit(Directory projectRoot, {bool force = false}) {
       InitStep(
         description: 'add $gitignoreEntry to .gitignore',
         apply: () {
-          final result = List<String>.from(gitignoreLines);
+          final result = List<String>.of(gitignoreLines);
           if (result.isNotEmpty && result.last.trim().isNotEmpty) {
             result.add('');
           }
@@ -272,7 +272,7 @@ List<String>? _withDevDependency(List<String> lines) {
   final entry = '  flutter3d_build: $flutter3dBuildVersionConstraint';
   final start = _topLevelKey(lines, key);
   if (start == null) {
-    final result = List<String>.from(lines);
+    final result = List<String>.of(lines);
     if (result.isNotEmpty && result.last.trim().isNotEmpty) result.add('');
     result
       ..add('$key:')
@@ -295,7 +295,7 @@ List<String>? _withDevDependency(List<String> lines) {
 List<String>? _withGeneratedAsset(List<String> lines, String entryText) {
   final flutterStart = _topLevelKey(lines, 'flutter');
   if (flutterStart == null) {
-    final result = List<String>.from(lines);
+    final result = List<String>.of(lines);
     if (result.isNotEmpty && result.last.trim().isNotEmpty) result.add('');
     result
       ..add('flutter:')
@@ -386,7 +386,7 @@ List<String> _insertAtEndOfBlock(
   for (var i = start + 1; i < end; i++) {
     if (lines[i].trim().isNotEmpty) insertAt = i + 1;
   }
-  final result = List<String>.from(lines);
+  final result = List<String>.of(lines);
   result.insertAll(insertAt, entries);
   return result;
 }

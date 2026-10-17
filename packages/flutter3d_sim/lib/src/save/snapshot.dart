@@ -44,6 +44,43 @@ final class SnapshotFormatException extends Flutter3dFormatException {
 final class Snapshot {
   const Snapshot(this.data, {this.requires = const <String>[]});
 
+  factory Snapshot.fromJson(Map<String, Object?> json) {
+    final version = json[versionKey];
+    if (version is! num) {
+      throw const SnapshotFormatException(
+        'no version, so this is not a '
+        'snapshot',
+      );
+    }
+    if (version < 1) {
+      throw SnapshotFormatException(
+        'snapshot format version $version is not one any build has written',
+      );
+    }
+    // Every envelope version up to this one, lifted step by step; the game's
+    // own fields are `SaveSchema`'s and pass through untouched, unknown ones
+    // included. A newer version or another format's document is refused by
+    // the spec, with the reason. `requires` names plugins, which only the
+    // engine restoring it knows it has: it is kept and answered there.
+    final requires = switch (json['requires']) {
+      null => const <String>[],
+      final List<Object?> list when list.every((Object? e) => e is String) =>
+        List<String>.unmodifiable(list),
+      final other => throw SnapshotFormatException(
+        '"requires" must be a list of names, not $other',
+      ),
+    };
+    final lifted = format.open(<String, Object?>{
+      for (final entry in json.entries)
+        if (entry.key != 'requires') entry.key: entry.value,
+    }, refuse: SnapshotFormatException.new);
+    return Snapshot(<String, Object?>{
+      for (final entry in lifted.entries)
+        if (!FormatSpec.envelopeKeys.contains(entry.key))
+          entry.key: entry.value,
+    }, requires: requires);
+  }
+
   /// Bumped when an existing field changes meaning.
   static const int formatVersion = 1;
 
@@ -88,6 +125,11 @@ final class Snapshot {
     migrations: _migrations,
   );
 
+  /// Entry `i` lifts an envelope from version `i + 1` to `i + 2`. Empty while
+  /// version 1 is the only one, which makes reading it the identity; a bump
+  /// adds its step here and a fixture under `test/fixtures/v<N>/`.
+  static const List<FormatMigration> _migrations = <FormatMigration>[];
+
   /// The envelope, then [data] beside it.
   ///
   /// **Beside it rather than under a key of its own**, because every save's
@@ -109,48 +151,6 @@ final class Snapshot {
     }
     return <String, Object?>{...format.envelope(requires: requires), ...data};
   }
-
-  factory Snapshot.fromJson(Map<String, Object?> json) {
-    final version = json[versionKey];
-    if (version is! num) {
-      throw const SnapshotFormatException(
-        'no version, so this is not a '
-        'snapshot',
-      );
-    }
-    if (version < 1) {
-      throw SnapshotFormatException(
-        'snapshot format version $version is not one any build has written',
-      );
-    }
-    // Every envelope version up to this one, lifted step by step; the game's
-    // own fields are `SaveSchema`'s and pass through untouched, unknown ones
-    // included. A newer version or another format's document is refused by
-    // the spec, with the reason. `requires` names plugins, which only the
-    // engine restoring it knows it has: it is kept and answered there.
-    final requires = switch (json['requires']) {
-      null => const <String>[],
-      final List<Object?> list when list.every((Object? e) => e is String) =>
-        List<String>.unmodifiable(list),
-      final other => throw SnapshotFormatException(
-        '"requires" must be a list of names, not $other',
-      ),
-    };
-    final lifted = format.open(<String, Object?>{
-      for (final entry in json.entries)
-        if (entry.key != 'requires') entry.key: entry.value,
-    }, refuse: SnapshotFormatException.new);
-    return Snapshot(<String, Object?>{
-      for (final entry in lifted.entries)
-        if (!FormatSpec.envelopeKeys.contains(entry.key))
-          entry.key: entry.value,
-    }, requires: requires);
-  }
-
-  /// Entry `i` lifts an envelope from version `i + 1` to `i + 2`. Empty while
-  /// version 1 is the only one, which makes reading it the identity; a bump
-  /// adds its step here and a fixture under `test/fixtures/v<N>/`.
-  static const List<FormatMigration> _migrations = <FormatMigration>[];
 }
 
 /// Reading and writing the handful of shapes a snapshot is made of.

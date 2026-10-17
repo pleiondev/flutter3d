@@ -2218,7 +2218,7 @@ final class _Scan extends RecursiveAstVisitor<void> {
       if (typeSystem != null)
         for (final a in node.arguments)
           if ((a.argumentExpression.staticType, a.correspondingParameter?.type)
-              case (final DartType given?, final DartType wanted?)
+              case (final DartType given, final DartType wanted)
               when given is! InvalidType &&
                   given is! DynamicType &&
                   !typeSystem.isAssignableTo(given, wanted))

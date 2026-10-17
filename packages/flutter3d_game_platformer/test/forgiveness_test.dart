@@ -35,10 +35,6 @@ const double _dt = 1.0 / 60.0;
 
 /// A ledge to walk off, and nothing below it for a long way.
 final class _Ledge {
-  /// What the last step published, taken the way a game hears a step.
-  final Heard _heard = Heard();
-  List<GameEvent> lastStep = const <GameEvent>[];
-
   _Ledge({RunnerSettings tuning = const RunnerSettings()}) {
     // Ends at z = 0. Walking forward is walking off.
     world.addBox(Vector3(0.0, -0.5, -4.0), Vector3(8.0, 1.0, 8.0));
@@ -51,6 +47,11 @@ final class _Ledge {
     );
     runner.events = _heard.bus;
   }
+
+  /// What the last step published, taken the way a game hears a step.
+  final Heard _heard = Heard();
+
+  List<GameEvent> lastStep = const <GameEvent>[];
 
   final CollisionWorld world = CollisionWorld(properties: platformerWorld);
   final InputState input = InputState();
@@ -94,10 +95,6 @@ final class _Ledge {
 
 /// A floor with the runner dropped above it.
 final class _Floor {
-  /// What the last step published, taken the way a game hears a step.
-  final Heard _heard = Heard();
-  List<GameEvent> lastStep = const <GameEvent>[];
-
   _Floor({double from = 3.0, RunnerSettings tuning = const RunnerSettings()}) {
     world.addBox(Vector3(0.0, -0.5, 0.0), Vector3(40.0, 1.0, 40.0));
     runner = Runner(
@@ -109,6 +106,11 @@ final class _Floor {
     );
     runner.events = _heard.bus;
   }
+
+  /// What the last step published, taken the way a game hears a step.
+  final Heard _heard = Heard();
+
+  List<GameEvent> lastStep = const <GameEvent>[];
 
   final CollisionWorld world = CollisionWorld(properties: platformerWorld);
   final InputState input = InputState();

@@ -306,44 +306,6 @@ final class InputTape extends FormatDocument {
     super.unknown,
   }) : frames = frames ?? <InputFrame>[];
 
-  /// The input tape in the registry: `f3d.inputTape`, also what a `.f3drun`
-  /// holds under `tape`.
-  ///
-  /// **The envelope is additive, and the version is now always written.** A
-  /// version-1 tape used to leave it out; a build from before reads a
-  /// missing version and a `1` the same, and ignores the other three keys.
-  ///
-  /// `f3d.input-tape`, the id a tape was written under before the ids took
-  /// one style (dotted lowerCamel), is read as this one.
-  static const FormatSpec format = FormatSpec(
-    id: 'f3d.inputTape',
-    aliases: <String>['f3d.input-tape'],
-    version: formatVersion,
-    suffixes: <String>['.tape.json'],
-    fixture: 'test/fixtures/v<N>/input.tape.json',
-    understands: <String>{externalInputsRequirement},
-  );
-
-  @override
-  FormatSpec get spec => format;
-
-  /// What a tape holding [InputFrame.external] says it `requires`: a build
-  /// that would replay the tape without them, into another run, refuses it
-  /// by this name instead.
-  static const String externalInputsRequirement = 'externalInputs';
-
-  @override
-  List<String> get requires => <String>[
-    if (frames.any((frame) => frame.external.isNotEmpty))
-      externalInputsRequirement,
-  ];
-
-  static const Set<String> _known = <String>{
-    'seed',
-    'frames',
-    'externalInputs',
-  };
-
   /// Reads what [toJson] wrote, at any version up to [formatVersion].
   ///
   /// A tape with no version was written before tapes had one, and is 1.
@@ -378,6 +340,61 @@ final class InputTape extends FormatDocument {
       frames: frames,
     );
   }
+
+  /// The input tape in the registry: `f3d.inputTape`, also what a `.f3drun`
+  /// holds under `tape`.
+  ///
+  /// **The envelope is additive, and the version is now always written.** A
+  /// version-1 tape used to leave it out; a build from before reads a
+  /// missing version and a `1` the same, and ignores the other three keys.
+  ///
+  /// `f3d.input-tape`, the id a tape was written under before the ids took
+  /// one style (dotted lowerCamel), is read as this one.
+  static const FormatSpec format = FormatSpec(
+    id: 'f3d.inputTape',
+    aliases: <String>['f3d.input-tape'],
+    version: formatVersion,
+    suffixes: <String>['.tape.json'],
+    fixture: 'test/fixtures/v<N>/input.tape.json',
+    understands: <String>{externalInputsRequirement},
+  );
+
+  /// What a tape holding [InputFrame.external] says it `requires`: a build
+  /// that would replay the tape without them, into another run, refuses it
+  /// by this name instead.
+  static const String externalInputsRequirement = 'externalInputs';
+
+  static const Set<String> _known = <String>{
+    'seed',
+    'frames',
+    'externalInputs',
+  };
+
+  /// The newest tape version this build reads and writes.
+  static const int formatVersion = 2;
+
+  /// The version this tape was read at — [formatVersion] for one recorded
+  /// by this build. Below 2 it may need `ActionSet.upgradeTape`.
+  final int version;
+
+  /// The generator state the run started from.
+  ///
+  /// Without it the tape is a recording of a different run: the same inputs
+  /// against different dice go somewhere else, and the divergence looks like the
+  /// replay being broken rather than like a missing number.
+  final int seed;
+
+  /// One entry per fixed step, in order. Index is the step number.
+  final List<InputFrame> frames;
+
+  @override
+  FormatSpec get spec => format;
+
+  @override
+  List<String> get requires => <String>[
+    if (frames.any((frame) => frame.external.isNotEmpty))
+      externalInputsRequirement,
+  ];
 
   /// [frames]' external inputs as a tape writes them: one entry per input,
   /// each with the `step` it was fed at, in step order and, within a step,
@@ -425,25 +442,8 @@ final class InputTape extends FormatDocument {
     return read;
   }
 
-  /// The newest tape version this build reads and writes.
-  static const int formatVersion = 2;
-
-  /// The version this tape was read at — [formatVersion] for one recorded
-  /// by this build. Below 2 it may need `ActionSet.upgradeTape`.
-  final int version;
-
   /// The version [toJson] writes: the lowest that says what the frames hold.
   int get writtenVersion => frames.any((frame) => frame.needsVersion2) ? 2 : 1;
-
-  /// The generator state the run started from.
-  ///
-  /// Without it the tape is a recording of a different run: the same inputs
-  /// against different dice go somewhere else, and the divergence looks like the
-  /// replay being broken rather than like a missing number.
-  final int seed;
-
-  /// One entry per fixed step, in order. Index is the step number.
-  final List<InputFrame> frames;
 
   int get steps => frames.length;
 

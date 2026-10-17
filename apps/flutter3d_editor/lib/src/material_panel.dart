@@ -129,7 +129,7 @@ bool setLevelMaterialField(
   final row = materials[material];
   if (row is! Map<String, Object?>) return false;
 
-  final before = Map<String, Object?>.from(row);
+  final before = Map<String, Object?>.of(row);
   if (value == null) {
     row.remove(key);
   } else {

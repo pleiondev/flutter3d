@@ -147,6 +147,70 @@ final class PluginManifest {
     this.extra = const <String, Object?>{},
   });
 
+  /// Reads a manifest, or throws a [PluginFormatException] saying why not. Keys
+  /// it does not know go to [extra].
+  factory PluginManifest.fromJson(Map<String, Object?> json) {
+    List<String> names(String key) => switch (json[key]) {
+      null => const <String>[],
+      final List<Object?> list when list.every((e) => e is String) =>
+        List<String>.unmodifiable(list.cast<String>()),
+      _ => throw PluginFormatException('"$key" is not a list of names', json),
+    };
+    final id = json['id'];
+    if (id is! String) {
+      throw PluginFormatException('the manifest names no plugin id', json);
+    }
+    final version = json['apiVersion'];
+    if (version is! String) {
+      throw PluginFormatException(
+        'the manifest of "$id" names no plugin API version',
+        json,
+      );
+    }
+    final touches = json['touches'];
+    final description = json['description'];
+    final own = json['version'];
+    final simulation = json['simulationVersion'] ?? 1;
+    if (own != null && own is! String) {
+      throw PluginFormatException(
+        'the manifest of "$id" gives its version as $own, not as text',
+        json,
+      );
+    }
+    if (simulation is! int || simulation < 0) {
+      throw PluginFormatException(
+        'the manifest of "$id" names simulation version $simulation',
+        json,
+      );
+    }
+    final manifest = PluginManifest(
+      id: id,
+      apiVersion: PluginApiVersion.parse(version),
+      version: own is String ? PluginVersion.parse(own) : PluginVersion.none,
+      simulationVersion: simulation,
+      // A dependency on an engine plugin by its id from before 1.0 is on
+      // the plugin of that id now.
+      dependsOn: List<String>.unmodifiable(<String>[
+        for (final entry in names('dependsOn')) liftPluginDependency(entry),
+      ]),
+      backends: names('backends').toSet(),
+      touches: touches is String
+          ? PluginTouches.named(touches)
+          : PluginTouches.simulation,
+      permissions: <PluginPermission>{
+        for (final name in names('permissions')) PluginPermission(name),
+      },
+      description: description is String ? description : null,
+      extra: Map<String, Object?>.unmodifiable(<String, Object?>{
+        for (final entry in json.entries)
+          if (!_known.contains(entry.key)) entry.key: entry.value,
+      }),
+    );
+    // Read now, so a range that is not one is refused with the manifest.
+    manifest.dependencies;
+    return manifest;
+  }
+
   /// The plugin's name, unique among the plugins of one engine: lower case
   /// letters, digits, `_`, `.` and `-`, starting with a letter.
   ///
@@ -177,17 +241,6 @@ final class PluginManifest {
   /// refused with both numbers named.
   final List<String> dependsOn;
 
-  /// [dependsOn], read. Throws a [PluginFormatException] for an entry whose
-  /// range is not one.
-  List<PluginDependency> get dependencies => <PluginDependency>[
-    for (final entry in dependsOn) PluginDependency.parse(entry),
-  ];
-
-  /// The ids [dependsOn] names, without their ranges.
-  List<String> get dependencyIds => <String>[
-    for (final dependency in dependencies) dependency.id,
-  ];
-
   /// The graphics backends this plugin runs on, by `GraphicsDevice` name —
   /// `'webgpu'`, `'cpu'` — or empty for all of them. A plugin that does not
   /// run on the engine's backend is installed switched off, with the reason
@@ -209,73 +262,7 @@ final class PluginManifest {
   /// Keys this build does not know, kept as they were read.
   final Map<String, Object?> extra;
 
-  /// Whether this plugin runs on [backend]; null asks about no backend in
-  /// particular, which every plugin answers yes to.
-  bool runsOn(String? backend) =>
-      backend == null || backends.isEmpty || backends.contains(backend);
-
   static final RegExp _idPattern = RegExp(r'^[a-z][a-z0-9_.\-]*$');
-
-  /// Why [id] is not a usable name, or null when it is: an id that is not
-  /// lower case letters, digits, `_`, `.` and `-`, one with `__` in it, or,
-  /// when the plugin is not the engine's own, whose [namespace] is one of
-  /// the engine's [reservedAreas], or the namespace of a 0.8 add-on whose
-  /// plugins' ids readers lift to the engine's.
-  ///
-  /// **`__` is the dot of a shader's name.** A lighting model `acme.Ink` is
-  /// compiled as the stage `acme__Ink`, and an id with `__` in it could
-  /// spell another plugin's stage (`acme__ink` + `Glow` is `acme` +
-  /// `ink__Glow`).
-  String? get idProblem {
-    if (!_idPattern.hasMatch(id)) {
-      return 'a plugin id is lower case letters, digits, "_", "." and "-", '
-          'starting with a letter; "$id" is not one';
-    }
-    if (id.contains('__')) {
-      return 'a plugin id has no "__", which is how a shader spells the dot '
-          'of a name in the plugin\'s namespace; "$id" has one';
-    }
-    if (isEngine) return null;
-    if (reservedAreas.contains(namespace)) {
-      return 'plugin "$id" takes the namespace "$namespace", which names one '
-          'of the engine\'s own areas (its MCP tools, VM extensions and '
-          'events start with it); a plugin names itself after its package';
-    }
-    if (retiredPluginNamespaces.contains(namespace)) {
-      return 'plugin "$id" takes the namespace "$namespace", which the '
-          'engine\'s own plugins were named by before 1.0, and a recorded run '
-          'that names them is read as naming the engine\'s; a plugin names '
-          'itself after its package';
-    }
-    return null;
-  }
-
-  /// The namespace every name this plugin registers starts with, a dot after
-  /// it: its [id] up to the first dot — the package that ships it, so the
-  /// effects of one package (`acme_frost.frost`, `acme_frost.haze`) share
-  /// `acme_frost.`.
-  ///
-  /// **What keeps a name of a plugin's from meeting one of the engine's, or
-  /// another plugin's** (D23): a render step, a node, an anchor, a settings
-  /// slot, a resource it makes, a light type, a format — each is
-  /// `<namespace>.<name>`, so a name the engine adds in a minor (which never
-  /// carries a plugin's namespace) cannot be one a plugin already took. `f3d`
-  /// is the engine's own and no plugin from outside it may use it. Names are
-  /// compared case-sensitively everywhere.
-  String get namespace {
-    final dot = id.indexOf('.');
-    return dot < 0 ? id : id.substring(0, dot);
-  }
-
-  /// Whether this plugin ships with the engine — its [namespace] is one of
-  /// [engineNamespaces] — and so registers the engine's own names, which
-  /// carry no plugin's namespace. Every engine plugin is named after the
-  /// package that ships it, as every other plugin is.
-  ///
-  /// Decided by the lists, never by a prefix: pub.dev reserves no
-  /// `flutter3d_` prefix, so a package published as `flutter3d_frost` by
-  /// somebody else is a plugin from outside and is held to its namespace.
-  bool get isEngine => engineNamespaces.contains(namespace);
 
   /// The namespaces of the engine's own plugins: every package this
   /// repository publishes on pub.dev, today or under the name it had at
@@ -403,6 +390,99 @@ final class PluginManifest {
     'input', 'matter', 'net', 'particles', 'post', 'sim', 'voxel', 'xr',
   };
 
+  /// The engine's own namespace: `f3d.`, which no plugin from outside the
+  /// engine may register a name in.
+  static const String reservedNamespace = 'f3d';
+
+  static const Set<String> _known = <String>{
+    'id',
+    'apiVersion',
+    'version',
+    'simulationVersion',
+    'dependsOn',
+    'backends',
+    'touches',
+    'permissions',
+    'description',
+  };
+
+  /// [dependsOn], read. Throws a [PluginFormatException] for an entry whose
+  /// range is not one.
+  List<PluginDependency> get dependencies => <PluginDependency>[
+    for (final entry in dependsOn) PluginDependency.parse(entry),
+  ];
+
+  /// The ids [dependsOn] names, without their ranges.
+  List<String> get dependencyIds => <String>[
+    for (final dependency in dependencies) dependency.id,
+  ];
+
+  /// Whether this plugin runs on [backend]; null asks about no backend in
+  /// particular, which every plugin answers yes to.
+  bool runsOn(String? backend) =>
+      backend == null || backends.isEmpty || backends.contains(backend);
+
+  /// Why [id] is not a usable name, or null when it is: an id that is not
+  /// lower case letters, digits, `_`, `.` and `-`, one with `__` in it, or,
+  /// when the plugin is not the engine's own, whose [namespace] is one of
+  /// the engine's [reservedAreas], or the namespace of a 0.8 add-on whose
+  /// plugins' ids readers lift to the engine's.
+  ///
+  /// **`__` is the dot of a shader's name.** A lighting model `acme.Ink` is
+  /// compiled as the stage `acme__Ink`, and an id with `__` in it could
+  /// spell another plugin's stage (`acme__ink` + `Glow` is `acme` +
+  /// `ink__Glow`).
+  String? get idProblem {
+    if (!_idPattern.hasMatch(id)) {
+      return 'a plugin id is lower case letters, digits, "_", "." and "-", '
+          'starting with a letter; "$id" is not one';
+    }
+    if (id.contains('__')) {
+      return 'a plugin id has no "__", which is how a shader spells the dot '
+          'of a name in the plugin\'s namespace; "$id" has one';
+    }
+    if (isEngine) return null;
+    if (reservedAreas.contains(namespace)) {
+      return 'plugin "$id" takes the namespace "$namespace", which names one '
+          'of the engine\'s own areas (its MCP tools, VM extensions and '
+          'events start with it); a plugin names itself after its package';
+    }
+    if (retiredPluginNamespaces.contains(namespace)) {
+      return 'plugin "$id" takes the namespace "$namespace", which the '
+          'engine\'s own plugins were named by before 1.0, and a recorded run '
+          'that names them is read as naming the engine\'s; a plugin names '
+          'itself after its package';
+    }
+    return null;
+  }
+
+  /// The namespace every name this plugin registers starts with, a dot after
+  /// it: its [id] up to the first dot — the package that ships it, so the
+  /// effects of one package (`acme_frost.frost`, `acme_frost.haze`) share
+  /// `acme_frost.`.
+  ///
+  /// **What keeps a name of a plugin's from meeting one of the engine's, or
+  /// another plugin's** (D23): a render step, a node, an anchor, a settings
+  /// slot, a resource it makes, a light type, a format — each is
+  /// `<namespace>.<name>`, so a name the engine adds in a minor (which never
+  /// carries a plugin's namespace) cannot be one a plugin already took. `f3d`
+  /// is the engine's own and no plugin from outside it may use it. Names are
+  /// compared case-sensitively everywhere.
+  String get namespace {
+    final dot = id.indexOf('.');
+    return dot < 0 ? id : id.substring(0, dot);
+  }
+
+  /// Whether this plugin ships with the engine — its [namespace] is one of
+  /// [engineNamespaces] — and so registers the engine's own names, which
+  /// carry no plugin's namespace. Every engine plugin is named after the
+  /// package that ships it, as every other plugin is.
+  ///
+  /// Decided by the lists, never by a prefix: pub.dev reserves no
+  /// `flutter3d_` prefix, so a package published as `flutter3d_frost` by
+  /// somebody else is a plugin from outside and is held to its namespace.
+  bool get isEngine => engineNamespaces.contains(namespace);
+
   /// Why this plugin may not register [name] as [what] — a sentence naming
   /// both — or null when it may: [name] is `<namespace>.<something>`, or the
   /// plugin is one of the engine's own ([isEngine]).
@@ -438,22 +518,6 @@ final class PluginManifest {
     return whole;
   }
 
-  /// The engine's own namespace: `f3d.`, which no plugin from outside the
-  /// engine may register a name in.
-  static const String reservedNamespace = 'f3d';
-
-  static const Set<String> _known = <String>{
-    'id',
-    'apiVersion',
-    'version',
-    'simulationVersion',
-    'dependsOn',
-    'backends',
-    'touches',
-    'permissions',
-    'description',
-  };
-
   Map<String, Object?> toJson() => <String, Object?>{
     ...extra,
     'id': id,
@@ -467,70 +531,6 @@ final class PluginManifest {
       'permissions': <String>[for (final p in permissions) p.name],
     if (description != null) 'description': description,
   };
-
-  /// Reads a manifest, or throws a [PluginFormatException] saying why not. Keys
-  /// it does not know go to [extra].
-  factory PluginManifest.fromJson(Map<String, Object?> json) {
-    List<String> names(String key) => switch (json[key]) {
-      null => const <String>[],
-      final List<Object?> list when list.every((e) => e is String) =>
-        List<String>.unmodifiable(list.cast<String>()),
-      _ => throw PluginFormatException('"$key" is not a list of names', json),
-    };
-    final id = json['id'];
-    if (id is! String) {
-      throw PluginFormatException('the manifest names no plugin id', json);
-    }
-    final version = json['apiVersion'];
-    if (version is! String) {
-      throw PluginFormatException(
-        'the manifest of "$id" names no plugin API version',
-        json,
-      );
-    }
-    final touches = json['touches'];
-    final description = json['description'];
-    final own = json['version'];
-    final simulation = json['simulationVersion'] ?? 1;
-    if (own != null && own is! String) {
-      throw PluginFormatException(
-        'the manifest of "$id" gives its version as $own, not as text',
-        json,
-      );
-    }
-    if (simulation is! int || simulation < 0) {
-      throw PluginFormatException(
-        'the manifest of "$id" names simulation version $simulation',
-        json,
-      );
-    }
-    final manifest = PluginManifest(
-      id: id,
-      apiVersion: PluginApiVersion.parse(version),
-      version: own is String ? PluginVersion.parse(own) : PluginVersion.none,
-      simulationVersion: simulation,
-      // A dependency on an engine plugin by its id from before 1.0 is on
-      // the plugin of that id now.
-      dependsOn: List<String>.unmodifiable(<String>[
-        for (final entry in names('dependsOn')) liftPluginDependency(entry),
-      ]),
-      backends: names('backends').toSet(),
-      touches: touches is String
-          ? PluginTouches.named(touches)
-          : PluginTouches.simulation,
-      permissions: <PluginPermission>{
-        for (final name in names('permissions')) PluginPermission(name),
-      },
-      description: description is String ? description : null,
-      extra: Map<String, Object?>.unmodifiable(<String, Object?>{
-        for (final entry in json.entries)
-          if (!_known.contains(entry.key)) entry.key: entry.value,
-      }),
-    );
-    // Read now, so a range that is not one is refused with the manifest.
-    manifest.dependencies;
-    return manifest;
-  }
 
   @override
   String toString() => version == PluginVersion.none

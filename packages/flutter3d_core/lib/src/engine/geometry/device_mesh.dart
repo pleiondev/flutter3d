@@ -126,25 +126,6 @@ final class DeviceMesh extends DrawableGeometry {
     // ignore: prefer_initializing_formals
   }) : _device = device;
 
-  final GraphicsDevice? _device;
-
-  /// Gives the two buffers back to the device that holds them — item 20:
-  /// one release verb, on whatever holds GPU memory. A node still drawing
-  /// this mesh draws nothing after it; a second call does nothing.
-  void dispose() {
-    if (_disposed) return;
-    _disposed = true;
-    final device = _device;
-    if (device == null) return;
-    device
-      ..releaseGeometry(vertices)
-      ..releaseGeometry(indices);
-  }
-
-  /// Whether [dispose] has run.
-  bool get isDisposed => _disposed;
-  bool _disposed = false;
-
   /// Uploads [mesh] through [device].
   ///
   /// The device is an argument and not a global, which is the difference this
@@ -173,6 +154,9 @@ final class DeviceMesh extends DrawableGeometry {
     );
   }
 
+  final GraphicsDevice? _device;
+
+  bool _disposed = false;
   @override
   final ClusteredIndices? clusters;
 
@@ -194,16 +178,6 @@ final class DeviceMesh extends DrawableGeometry {
   @override
   Aabb3 bounds;
 
-  /// Bumped on every [overwriteVertices] call.
-  ///
-  /// [bounds] is compared by a caller that caches it — `MeshNode.
-  /// markBoundsDirty` is the escape hatch for that cache today, since
-  /// `MeshNode`'s own invalidation compares this mesh by identity and an
-  /// in-place overwrite changes nothing an identity check can see. This
-  /// counter is for a future caller that would rather poll than remember to
-  /// call one, the same reason `MorphState.version` and `SceneNode.
-  /// worldVersion` already exist.
-  int get version => _version;
   int _version = 0;
 
   /// The geometry this was uploaded from, retained for anything the CPU still
@@ -216,6 +190,33 @@ final class DeviceMesh extends DrawableGeometry {
   /// with `keepSourceData: false`.
   @override
   final MeshData? source;
+
+  /// Gives the two buffers back to the device that holds them — item 20:
+  /// one release verb, on whatever holds GPU memory. A node still drawing
+  /// this mesh draws nothing after it; a second call does nothing.
+  void dispose() {
+    if (_disposed) return;
+    _disposed = true;
+    final device = _device;
+    if (device == null) return;
+    device
+      ..releaseGeometry(vertices)
+      ..releaseGeometry(indices);
+  }
+
+  /// Whether [dispose] has run.
+  bool get isDisposed => _disposed;
+
+  /// Bumped on every [overwriteVertices] call.
+  ///
+  /// [bounds] is compared by a caller that caches it — `MeshNode.
+  /// markBoundsDirty` is the escape hatch for that cache today, since
+  /// `MeshNode`'s own invalidation compares this mesh by identity and an
+  /// in-place overwrite changes nothing an identity check can see. This
+  /// counter is for a future caller that would rather poll than remember to
+  /// call one, the same reason `MorphState.version` and `SceneNode.
+  /// worldVersion` already exist.
+  int get version => _version;
 
   /// Half the bounds' diagonal, in metres.
   @override

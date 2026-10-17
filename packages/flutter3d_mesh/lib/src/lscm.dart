@@ -371,11 +371,6 @@ void _accumulateTriangle(
 class _Csr {
   _Csr(this._rowPtr, this._colIndex, this._values, this.size);
 
-  final Int32List _rowPtr;
-  final Int32List _colIndex;
-  final Float64List _values;
-  final int size;
-
   /// Builds a [_Csr] from unmerged (column, value) pairs per row — the same
   /// column can appear more than once in a row, and its values are summed.
   ///
@@ -434,6 +429,11 @@ class _Csr {
 
     return _Csr(rowPtr, colIndex, finalValues, n);
   }
+  final Int32List _rowPtr;
+  final Int32List _colIndex;
+  final Float64List _values;
+
+  final int size;
 
   Float64List multiply(Float64List x) => multiplyInto(x, Float64List(size));
 

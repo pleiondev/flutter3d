@@ -89,7 +89,7 @@ final class StereoSurface extends StatelessWidget {
         // halves to divide into.
         final width = (constraints.maxWidth * dpr).round().clamp(2, 8192);
         final height = (constraints.maxHeight * dpr).round().clamp(1, 8192);
-        if (viewer case final StereoViewer holder?) {
+        if (viewer case final StereoViewer holder) {
           rig.applyViewer(
             holder,
             screen ??

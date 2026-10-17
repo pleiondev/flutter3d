@@ -59,8 +59,6 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback {
   @override
   bool get isSoftware => !_standsInForGpu;
 
-  bool _standsInForGpu = false;
-
   // Debug groups, labels and loss: the inherited defaults are the truth
   // here. There is no debugger to show a group to, a label is kept for
   // `labelOf`, nothing can take a CPU away, and a pipeline links in the
@@ -86,6 +84,8 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback {
          maxSamplerAnisotropy: 16,
          minStorageBufferOffsetAlignment: 4,
        );
+
+  bool _standsInForGpu = false;
 
   /// Everything this rasteriser really does, whatever a test withholds.
   ///
@@ -233,6 +233,40 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback {
   final DeviceLimits limits;
 
   final CpuClock _clock = CpuClock();
+
+  // `independentBlend` comes from the constructor: the pass keeps a blend
+  // state for each of its first two attachments — `R8`. A third, the albedo
+  // buffer, is written unblended whatever is set, as it always was. A
+  // constructor argument, like the attachment count, so the fallback a device
+  // without it takes — weighted blended transparency drawing its list once
+  // per target — can be drawn here and compared with the path it stands in
+  // for.
+
+  /// None unless a test hands some in — `R9`: there is no display here to
+  /// be HDR, and the extended output is exercised by asking for one.
+  @override
+  final List<TextureFormat> hdrOutputFormats;
+
+  final int width;
+
+  final int height;
+
+  @override
+  final CpuShaderLibrary shaders;
+
+  /// What makes a Dart stage of a material written in the engine's language,
+  /// for a bundle that carries one — `P8`. Null, the default, refuses such a
+  /// bundle by name, as it refuses any stage [shaders] does not have.
+  final CpuMaterialCompiler? materialCompiler;
+
+  /// The lists every pass of this device rasterises in, kept rather than made
+  /// per draw and per triangle.
+  final CpuRasterScratch _rasterScratch = CpuRasterScratch();
+
+  bool _isLost = false;
+
+  final StreamController<DeviceLoss> _lost =
+      StreamController<DeviceLoss>.broadcast();
 
   /// What [format] can be used for here.
   ///
@@ -382,30 +416,6 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback {
 
   @override
   void releaseStorageBuffer(StorageBuffer buffer) {}
-
-  // `independentBlend` comes from the constructor: the pass keeps a blend
-  // state for each of its first two attachments — `R8`. A third, the albedo
-  // buffer, is written unblended whatever is set, as it always was. A
-  // constructor argument, like the attachment count, so the fallback a device
-  // without it takes — weighted blended transparency drawing its list once
-  // per target — can be drawn here and compared with the path it stands in
-  // for.
-
-  /// None unless a test hands some in — `R9`: there is no display here to
-  /// be HDR, and the extended output is exercised by asking for one.
-  @override
-  final List<TextureFormat> hdrOutputFormats;
-
-  final int width;
-  final int height;
-
-  @override
-  final CpuShaderLibrary shaders;
-
-  /// What makes a Dart stage of a material written in the engine's language,
-  /// for a bundle that carries one — `P8`. Null, the default, refuses such a
-  /// bundle by name, as it refuses any stage [shaders] does not have.
-  final CpuMaterialCompiler? materialCompiler;
 
   /// The bundle's names, answered with this device's own Dart stages; a name
   /// it has no Dart for is a refusal naming the bundle and the stage. See
@@ -867,10 +877,6 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback {
       scratch: _rasterScratch,
     );
   }
-
-  /// The lists every pass of this device rasterises in, kept rather than made
-  /// per draw and per triangle.
-  final CpuRasterScratch _rasterScratch = CpuRasterScratch();
 
   // ------------------------------------------------------------------ 1.0
 
@@ -1450,10 +1456,6 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback {
 
   @override
   bool get isLost => _isLost;
-  bool _isLost = false;
-
-  final StreamController<DeviceLoss> _lost =
-      StreamController<DeviceLoss>.broadcast();
 
   /// Nothing to free, for the same reason [dispose] has nothing to free: a
   /// texture here is a Dart list, and dropping the handle is already the whole

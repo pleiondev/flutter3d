@@ -252,9 +252,6 @@ final class Flutter3dEngine {
 final class ViewResolution {
   const ViewResolution._(this._scale, this._maxPixels);
 
-  /// The screen's own: every device pixel drawn.
-  static const ViewResolution native = ViewResolution._(1.0, null);
-
   /// The screen's resolution times [factor] — 0.5 draws a quarter of the
   /// pixels, which a phone may want for a 3D view behind its UI.
   const ViewResolution.scaled(double factor) : this._(factor, null);
@@ -262,6 +259,9 @@ final class ViewResolution {
   /// The screen's own, lowered until the view is no more than [maxPixels]
   /// device pixels in all.
   const ViewResolution.capped(int maxPixels) : this._(1.0, maxPixels);
+
+  /// The screen's own: every device pixel drawn.
+  static const ViewResolution native = ViewResolution._(1.0, null);
 
   final double _scale;
   final int? _maxPixels;

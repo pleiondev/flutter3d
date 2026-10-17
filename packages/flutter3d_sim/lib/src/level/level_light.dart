@@ -39,15 +39,41 @@ final class LevelLight {
              position?.z ?? 0.0,
            ]);
 
+  factory LevelLight.fromJson(Map<String, Object?> json) {
+    final word = json.textOrNull('type');
+    final type = word == null
+        ? LightType.point
+        : LightType.byName(word) ??
+              (throw LevelFormatException(
+                'unknown light type "$word"; expected one of '
+                '${LightType.values.map((LightType t) => t.name).join(', ')}',
+              ));
+    final id = json['id'];
+    if (id != null && (id is! String || id.isEmpty)) {
+      throw LevelFormatException('a light\'s "id" must be text, not $id');
+    }
+    return LevelLight(
+      id: id as String?,
+      type: type,
+      position: json.vector3('at', fallback: Vector3.zero()),
+      direction: json.vector3('direction', fallback: Vector3(0.0, -1.0, 0.0)),
+      color: json.linearColor('color', fallback: LinearColor.white),
+      intensity: json.numberOr('intensity', defaultIntensity),
+      range: json.numberOr('range', 0.0),
+      castsShadow: json.flagOr(
+        'castsShadow',
+        fallback: type == LightType.directional,
+      ),
+      name: json.textOrNull('name'),
+      source: json,
+    );
+  }
+
   /// The document this light was read from. See [writeThrough].
   final Map<String, Object?> _source;
 
   /// What this light is called by the editor and by tools. See [LevelIds].
   final String id;
-
-  /// This light under another [id], everything else as it is.
-  LevelLight withId(String id) =>
-      LevelLight.fromJson(<String, Object?>{...toJson(), 'id': id});
 
   final LightType type;
   final Vector3 position;
@@ -91,35 +117,9 @@ final class LevelLight {
 
   final String? name;
 
-  factory LevelLight.fromJson(Map<String, Object?> json) {
-    final word = json.textOrNull('type');
-    final type = word == null
-        ? LightType.point
-        : LightType.byName(word) ??
-              (throw LevelFormatException(
-                'unknown light type "$word"; expected one of '
-                '${LightType.values.map((LightType t) => t.name).join(', ')}',
-              ));
-    final id = json['id'];
-    if (id != null && (id is! String || id.isEmpty)) {
-      throw LevelFormatException('a light\'s "id" must be text, not $id');
-    }
-    return LevelLight(
-      id: id as String?,
-      type: type,
-      position: json.vector3('at', fallback: Vector3.zero()),
-      direction: json.vector3('direction', fallback: Vector3(0.0, -1.0, 0.0)),
-      color: json.linearColor('color', fallback: LinearColor.white),
-      intensity: json.numberOr('intensity', defaultIntensity),
-      range: json.numberOr('range', 0.0),
-      castsShadow: json.flagOr(
-        'castsShadow',
-        fallback: type == LightType.directional,
-      ),
-      name: json.textOrNull('name'),
-      source: json,
-    );
-  }
+  /// This light under another [id], everything else as it is.
+  LevelLight withId(String id) =>
+      LevelLight.fromJson(<String, Object?>{...toJson(), 'id': id});
 
   Map<String, Object?> toJson() => writeThrough(_source, <WriteThroughField>[
     WriteThroughField('id', id),

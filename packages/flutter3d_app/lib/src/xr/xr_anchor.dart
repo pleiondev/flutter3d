@@ -52,52 +52,6 @@ final class XrAnchor {
     if (id.isEmpty) throw ArgumentError.value(id, 'id', 'empty');
   }
 
-  /// The runtime's id for it, stable across sessions where the runtime
-  /// keeps anchors (a UUID on every runtime that has them).
-  final String id;
-
-  /// Where it is now, in [space].
-  final RigidPose pose;
-
-  /// The space [pose] is in.
-  final XrSpace space;
-
-  /// Where it is on the Earth, when it was placed there.
-  final GeoOrigin? geo;
-
-  /// Where [geo] is in [world]: the place seen from the world's own origin
-  /// (`WorldProperties.geoOrigin`, a level's site), in metres east, up and
-  /// north (−z) of it — where an outdoor anchor stands in the level. Null
-  /// for an anchor placed by no place on the Earth, or in a world that is
-  /// nowhere in particular.
-  WorldPosition? placeIn(WorldProperties world) =>
-      switch ((world.geoOrigin, geo)) {
-        (final GeoOrigin origin?, final GeoOrigin place?) => origin.positionOf(
-          place,
-        ),
-        _ => null,
-      };
-
-  /// The entity type an anchor is kept under in a level.
-  static const String entityType = 'xr.anchor';
-
-  /// The anchor as an entity of a level: [entityType], with the anchor's
-  /// id as the entity's, its position, and the orientation, the space and
-  /// the place on the Earth as properties.
-  EntityDef toEntity() {
-    final turn = pose.orientation;
-    return EntityDef(
-      type: entityType,
-      id: id,
-      position: pose.position,
-      properties: <String, Object?>{
-        'orientation': <double>[turn.x, turn.y, turn.z, turn.w],
-        'space': space.name,
-        if (geo case final geo?) 'geo': geo.toJson(),
-      },
-    );
-  }
-
   /// The anchor a level kept as [entity]. Throws an [ArgumentError] for an
   /// entity of another type or without an orientation of four numbers.
   factory XrAnchor.fromEntity(EntityDef entity) {
@@ -131,6 +85,52 @@ final class XrAnchor {
       geo: switch (entity.properties['geo']) {
         null => null,
         final Object geo => GeoOrigin.fromJson(geo),
+      },
+    );
+  }
+
+  /// The runtime's id for it, stable across sessions where the runtime
+  /// keeps anchors (a UUID on every runtime that has them).
+  final String id;
+
+  /// Where it is now, in [space].
+  final RigidPose pose;
+
+  /// The space [pose] is in.
+  final XrSpace space;
+
+  /// Where it is on the Earth, when it was placed there.
+  final GeoOrigin? geo;
+
+  /// The entity type an anchor is kept under in a level.
+  static const String entityType = 'xr.anchor';
+
+  /// Where [geo] is in [world]: the place seen from the world's own origin
+  /// (`WorldProperties.geoOrigin`, a level's site), in metres east, up and
+  /// north (−z) of it — where an outdoor anchor stands in the level. Null
+  /// for an anchor placed by no place on the Earth, or in a world that is
+  /// nowhere in particular.
+  WorldPosition? placeIn(WorldProperties world) =>
+      switch ((world.geoOrigin, geo)) {
+        (final GeoOrigin origin?, final GeoOrigin place?) => origin.positionOf(
+          place,
+        ),
+        _ => null,
+      };
+
+  /// The anchor as an entity of a level: [entityType], with the anchor's
+  /// id as the entity's, its position, and the orientation, the space and
+  /// the place on the Earth as properties.
+  EntityDef toEntity() {
+    final turn = pose.orientation;
+    return EntityDef(
+      type: entityType,
+      id: id,
+      position: pose.position,
+      properties: <String, Object?>{
+        'orientation': <double>[turn.x, turn.y, turn.z, turn.w],
+        'space': space.name,
+        if (geo case final geo?) 'geo': geo.toJson(),
       },
     );
   }

@@ -39,26 +39,6 @@ final class MeshQualityStats {
     required this.maxAspectRatio,
   });
 
-  final int edgeCount;
-  final int triangleCount;
-
-  /// In metres.
-  final double meanEdgeLength;
-
-  /// In metres.
-  final double edgeLengthStdDev;
-
-  /// The mean [triangleAspectRatio]: a unitless ratio, 1 for equilateral.
-  final double meanAspectRatio;
-
-  /// The largest [triangleAspectRatio]: a unitless ratio, 1 for equilateral.
-  final double maxAspectRatio;
-
-  /// Standard deviation over the mean — scale-free, so a sphere of radius one
-  /// and the same sphere at radius ten read the same number.
-  double get edgeLengthCv =>
-      meanEdgeLength == 0 ? 0 : edgeLengthStdDev / meanEdgeLength;
-
   /// Reads every live triangle of [mesh] once. Refuses a mesh that is not
   /// already pure triangles — an n-gon has no aspect ratio this metric
   /// means, and averaging over some triangles and skipping the rest would
@@ -115,6 +95,26 @@ final class MeshQualityStats {
       maxAspectRatio: maxAspect,
     );
   }
+  final int edgeCount;
+
+  final int triangleCount;
+
+  /// In metres.
+  final double meanEdgeLength;
+
+  /// In metres.
+  final double edgeLengthStdDev;
+
+  /// The mean [triangleAspectRatio]: a unitless ratio, 1 for equilateral.
+  final double meanAspectRatio;
+
+  /// The largest [triangleAspectRatio]: a unitless ratio, 1 for equilateral.
+  final double maxAspectRatio;
+
+  /// Standard deviation over the mean — scale-free, so a sphere of radius one
+  /// and the same sphere at radius ten read the same number.
+  double get edgeLengthCv =>
+      meanEdgeLength == 0 ? 0 : edgeLengthStdDev / meanEdgeLength;
 
   @override
   String toString() =>
