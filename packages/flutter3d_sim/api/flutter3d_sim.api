@@ -836,12 +836,13 @@ final class EngineLoop extends LoopRegistry
   List<LoopPhase> phases(PhaseKind kind)
   List<ProbeReading> get probeReadings
   List<String> systemsIn(LoopPhase phase)
+  List<UnorderedAccess> unorderedAccess()
   List<int> get keptSteps
   LoopRegistry forPlugin(PluginScope scope)
   PublishedState get published
   Registration addAssimilation(String name, Assimilation assimilation, {List<String> after = const <String>[], List<String> before = const <String>[]})
   Registration addPhase(LoopPhase phase, {List<String> after = const <String>[], List<String> before = const <String>[]})
-  Registration addSystem(String name, LoopPhase phase, LoopSystem system, {List<String> after = const <String>[], List<String> before = const <String>[]})
+  Registration addSystem(String name, LoopPhase phase, LoopSystem system, {List<String> after = const <String>[], List<String> before = const <String>[], List<String> reads = const <String>[], List<String> writes = const <String>[]})
   Registration onChange(void Function(LoopChange change) observer)
   Registration onOriginShift(void Function(OriginShifted shift) hook)
   Registration onPublished(void Function(PublishedState state) listener)
@@ -893,6 +894,7 @@ final class EngineLoop extends LoopRegistry
   void schedule(Iterable<LoopChange> changes)
   void shiftOrigin(WorldPosition to)
   void stageWorld(CollisionWorld world)
+  void validateOrder()
 
 final class EntityCheck
   const EntityCheck({required this.entity, required this.scope, required this.out})
@@ -1203,6 +1205,7 @@ abstract base class GenrePlugin<S extends Object> extends Flutter3dPlugin
   S? get simulation
   Snapshot loopStateOf(Snapshot runState)
   Snapshot? runStateOf(Snapshot loopState)
+  String get simulationState
   abstract Snapshot captureSimulation(S simulation)
   abstract String get systemName
   abstract void restoreSimulation(GenreRestoreContext<S> restore)
@@ -2996,6 +2999,15 @@ base class SurfaceTable<T>
   const SurfaceTable(Map<String, T> this._byName, {required this.fallback})
   final T fallback
 
+final class SystemAccess
+  bool get declares
+  const SystemAccess(this.name, {this.after = const <String>[], this.before = const <String>[], this.reads = const <String>[], this.writes = const <String>[]})
+  final List<String> after
+  final List<String> before
+  final List<String> reads
+  final List<String> writes
+  final String name
+
 abstract base class Takeable extends Mechanism with CollisionListener
   ActivationOutcome activate(Activation by)
   Map<String, Object?> save()
@@ -3202,6 +3214,21 @@ final class Tunables
   final Map<String, double> defaults
   void readFrom(InputState input)
   void restore(Map<String, Object?> json)
+
+final class UnorderedAccess
+  String toString()
+  bool operator ==(Object other)
+  const UnorderedAccess({required this.phase, required this.first, required this.second, required this.state})
+  final List<String> state
+  final LoopPhase phase
+  final String first
+  final String second
+  int get hashCode
+
+final class UnorderedAccessException extends PluginException
+  String toString()
+  UnorderedAccessException(this.pairs)
+  final List<UnorderedAccess> pairs
 
 final class VisibilityFormatException extends Flutter3dFormatException
   String toString()
@@ -3482,5 +3509,7 @@ List<Brush> subtractBox(Brush brush, Aabb3 hole)
 String? surfaceUnder(Collider? collider)
 
 double turnedTowards(double yaw, double wanted, double step)
+
+List<UnorderedAccess> unorderedAccessIn(LoopPhase phase, List<SystemAccess> systems)
 
 List<double> vectorOf(Vector3 v)

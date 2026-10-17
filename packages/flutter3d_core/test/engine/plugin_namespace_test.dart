@@ -31,6 +31,8 @@ final class _Loop extends LoopRegistry {
     LoopSystem system, {
     List<String> after = const <String>[],
     List<String> before = const <String>[],
+    List<String> reads = const <String>[],
+    List<String> writes = const <String>[],
   }) => Registration(() {});
 
   @override

@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `LoopRegistry.addSystem` takes `reads:` and `writes:`.** A
+  system names the state it touches, a component, a field or a genre's
+  run, so the engine's loop can name two systems of one step phase that
+  touch the same state with nothing ordering them: a replay is bit for
+  bit only while they run in one order. Both default to empty, so every
+  call compiles as it did; a class that extends `LoopRegistry` adds the
+  two parameters to its `addSystem`.
 - **New: `RenderProgram`.** What drives a render step frame by frame, the
   shape a Wasm render module is run in: it sets the step's parameters by
   index through a `RenderProgramFrame`, draws, and asks a light type's

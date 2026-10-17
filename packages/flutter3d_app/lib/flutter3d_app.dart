@@ -143,6 +143,8 @@ export 'package:flutter3d_sim/flutter3d_sim.dart'
         SimulationSetup,
         TileLevelChooser,
         TimeSource,
+        UnorderedAccess,
+        UnorderedAccessException,
         WorldTiming,
         XrControl,
         XrControlReading,

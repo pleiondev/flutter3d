@@ -1127,7 +1127,7 @@ export package:flutter3d_physics/flutter3d_physics.dart show ClothObstacle, Coll
   SweptContact
   WorldMirror
 
-export package:flutter3d_sim/flutter3d_sim.dart show ActorHurt, AvoidanceNeighbor, AvoidanceVelocity, Brush, CollisionLayers, ContactEvent, DisplayTime, DualAxisValue, EngineLoop, EntityDef, EntityKind, EntityRegistry, FocusPoint, FrameCadence, GameEvent, HeightfieldTiles, InputAction, InputFrame, InputState, InputTapeRecorder, IsolateSimulation, JsonLinearColorWriter, Level, LevelCheck, LevelCollision, LevelIssue, LevelLight, LevelMaterial, LevelRecipe, LevelRule, LevelVisibility, Lightmap, LightmapLayout, LightmapTexel, LightmapUv, LocalSimulation, LogTime, ManualTime, NavMeshLink, PlayerStart, Prefab, SeatInput, ShadowCasting, SimulationFactory, SimulationHandle, SimulationQuestion, SimulationSetup, TileLevelChooser, TimeSource, WorldTiming, XrControl, XrControlReading, XrHand, XrPlane, XrPlaneOrientation, XrPoseInput, XrSceneMesh
+export package:flutter3d_sim/flutter3d_sim.dart show ActorHurt, AvoidanceNeighbor, AvoidanceVelocity, Brush, CollisionLayers, ContactEvent, DisplayTime, DualAxisValue, EngineLoop, EntityDef, EntityKind, EntityRegistry, FocusPoint, FrameCadence, GameEvent, HeightfieldTiles, InputAction, InputFrame, InputState, InputTapeRecorder, IsolateSimulation, JsonLinearColorWriter, Level, LevelCheck, LevelCollision, LevelIssue, LevelLight, LevelMaterial, LevelRecipe, LevelRule, LevelVisibility, Lightmap, LightmapLayout, LightmapTexel, LightmapUv, LocalSimulation, LogTime, ManualTime, NavMeshLink, PlayerStart, Prefab, SeatInput, ShadowCasting, SimulationFactory, SimulationHandle, SimulationQuestion, SimulationSetup, TileLevelChooser, TimeSource, UnorderedAccess, UnorderedAccessException, WorldTiming, XrControl, XrControlReading, XrHand, XrPlane, XrPlaneOrientation, XrPoseInput, XrSceneMesh
   ActorHurt
   AvoidanceNeighbor
   AvoidanceVelocity
@@ -1177,6 +1177,8 @@ export package:flutter3d_sim/flutter3d_sim.dart show ActorHurt, AvoidanceNeighbo
   SimulationSetup
   TileLevelChooser
   TimeSource
+  UnorderedAccess
+  UnorderedAccessException
   WorldTiming
   XrControl
   XrControlReading

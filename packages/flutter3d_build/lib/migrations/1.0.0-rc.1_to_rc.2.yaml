@@ -3148,3 +3148,11 @@ entries:
       record had and `==`, where `LightSample` was a record; field reads
       keep compiling, and a record literal of one becomes
       `LightSample(...)`, whose `ltc` and `corners` may be left out.
+  - id: plugin_api-LoopRegistry-addSystem-access
+    package: flutter3d_plugin_api
+    symbol: LoopRegistry.addSystem
+    kind: none
+    reason: >-
+      `addSystem` takes optional `reads:` and `writes:`, empty by default,
+      so every call compiles as it did. A class of your own that extends
+      `LoopRegistry` adds the two named parameters to its `addSystem`.

@@ -108,6 +108,16 @@ abstract base class GenrePlugin<S extends Object> extends Flutter3dPlugin {
   /// The phase the step runs in.
   LoopPhase get stepPhase => LoopPhase.physics;
 
+  /// The state the step writes, as `LoopRegistry.addSystem`'s `writes:`
+  /// names it: `<genre>.simulation`, the run this genre steps. A system
+  /// of the game's own in [stepPhase] that reads or moves the run declares
+  /// the same name and orders itself against [systemName]; unordered, the
+  /// engine's loop names the pair (`EngineLoop.unorderedAccess`).
+  String get simulationState => switch (systemName.lastIndexOf('.')) {
+    -1 => '$systemName.simulation',
+    final dot => '${systemName.substring(0, dot)}.simulation',
+  };
+
   S? _simulation;
   EventRegistry? _bus;
   Registration? _forward;
@@ -224,7 +234,7 @@ abstract base class GenrePlugin<S extends Object> extends Flutter3dPlugin {
           ..simulation = run
           ..context = context,
       );
-    });
+    }, writes: <String>[simulationState]);
     host.maybeRegistry<SnapshotRegistry>()?.add(_GenrePart<S>(this));
     _publishedWorlds = host.maybeRegistry<PublishedWorlds>();
     declareSimulationEvents(host.events);

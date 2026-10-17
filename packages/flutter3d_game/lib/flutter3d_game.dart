@@ -1524,6 +1524,8 @@ export 'package:flutter3d_sim/flutter3d_sim.dart'
         TrackSample,
         TriggerKind,
         TriggerVolume,
+        UnorderedAccess,
+        UnorderedAccessException,
         WorldTiming,
         XrControl,
         XrControlReading,

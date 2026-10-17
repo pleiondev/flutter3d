@@ -376,7 +376,7 @@ abstract base class LoopRegistry extends PluginRegistry
   Registration addAssimilation(String name, Assimilation assimilation, {List<String> after = const <String>[], List<String> before = const <String>[]})
   abstract LoopRegistry forPlugin(PluginScope scope)
   abstract Registration addPhase(LoopPhase phase, {List<String> after = const <String>[], List<String> before = const <String>[]})
-  abstract Registration addSystem(String name, LoopPhase phase, LoopSystem system, {List<String> after = const <String>[], List<String> before = const <String>[]})
+  abstract Registration addSystem(String name, LoopPhase phase, LoopSystem system, {List<String> after = const <String>[], List<String> before = const <String>[], List<String> reads = const <String>[], List<String> writes = const <String>[]})
   const LoopRegistry()
 
 typedef LoopSystem = void Function(LoopContext context);

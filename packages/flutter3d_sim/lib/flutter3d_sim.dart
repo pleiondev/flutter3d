@@ -118,6 +118,7 @@ export 'src/loop/run_loop.dart';
 export 'src/loop/run_outcome.dart';
 export 'src/loop/sim_queries.dart';
 export 'src/loop/simulation_handle.dart';
+export 'src/loop/system_access.dart';
 export 'src/loop/time_source.dart';
 export 'src/math/motion.dart';
 export 'src/math/spline.dart';

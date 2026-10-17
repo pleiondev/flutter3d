@@ -43,11 +43,13 @@ Subsystem _soak({
   List<SimulationProfile>? switchedOnBy,
   List<String> writes = const <String>['acme.water'],
   List<String> reads = const <String>[],
+  List<String> after = const <String>[],
   void Function(SubsystemContext context)? also,
 }) => Subsystem.of(
   SubsystemDeclaration(
     id: id,
     version: 2,
+    after: after,
     writesFields: writes,
     readsFields: reads,
     writesQuantities: const <String>['f3d.wetness'],
@@ -256,6 +258,9 @@ void main() {
             id: 'acme.drip',
             writes: const <String>[],
             reads: const <String>['acme.water'],
+            // It reads what the soak writes, so it runs after it: unordered,
+            // the loop refuses the pair (`EngineLoop.unorderedAccess`).
+            after: const <String>['acme.soak'],
             also: (SubsystemContext context) {
               try {
                 context.field('acme.water').setValueAt(0, 0, 0, 9);

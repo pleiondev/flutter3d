@@ -207,6 +207,11 @@ final class _LoopSubsystems extends SubsystemRegistry {
           step,
           after: declaration.after,
           before: declaration.before,
+          // The fields it declares are the state it touches, so two
+          // subsystems on one field are held to an order like any two
+          // systems.
+          reads: declaration.readsFields,
+          writes: declaration.writesFields,
         ),
       );
       // What it writes is the simulation's state from now on: snapshotted,

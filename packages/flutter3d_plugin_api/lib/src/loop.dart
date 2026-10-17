@@ -252,6 +252,21 @@ abstract base class LoopRegistry extends PluginRegistry {
   /// Adds [system] to [phase] under [name], unique in the loop, ordered
   /// against the phase's other systems by [after]/[before].
   ///
+  /// [reads] and [writes] name the state the system touches: a component's
+  /// or a resource's registered name, a field's id (`f3d.heat`), a genre's
+  /// simulation (`shooter.simulation`), any name the systems that share the
+  /// state agree on, namespaced like every other name a plugin brings. Both
+  /// default to empty, which declares nothing and is never checked.
+  ///
+  /// **Declared so an unordered pair can be named.** A replay is bit for bit
+  /// only while two systems that touch one state run in one order on every
+  /// machine; where the constraints leave a choice, registration order
+  /// decides, and an install order that differs between the run and its
+  /// replay is a different picture. The engine's loop names every pair of
+  /// systems in one step phase where one writes what the other reads or
+  /// writes and neither is ordered against the other, through
+  /// [after]/[before] or a chain of them.
+  ///
   /// Throws an [ArgumentError] for a name already used or a phase that does
   /// not exist.
   Registration addSystem(
@@ -260,6 +275,8 @@ abstract base class LoopRegistry extends PluginRegistry {
     LoopSystem system, {
     List<String> after = const <String>[],
     List<String> before = const <String>[],
+    List<String> reads = const <String>[],
+    List<String> writes = const <String>[],
   });
 
   /// Adds [assimilation] to the step under [name], unique in the loop: it

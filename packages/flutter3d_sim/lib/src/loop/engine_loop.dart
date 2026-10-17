@@ -21,6 +21,7 @@ import 'loop_change.dart';
 import 'probes.dart';
 import 'published_worlds.dart';
 import 'sim_queries.dart';
+import 'system_access.dart';
 import 'time_source.dart';
 
 part 'event_bus.dart';
@@ -374,6 +375,7 @@ final class EngineLoop extends LoopRegistry {
   bool _ordered = false;
   List<_PhaseRun> _stepRuns = const <_PhaseRun>[];
   List<_PhaseRun> _frameRuns = const <_PhaseRun>[];
+  List<UnorderedAccess> _unordered = const <UnorderedAccess>[];
   late final _Context _context = _Context(this);
 
   /// The world's timing, as of the last step boundary.
@@ -1112,7 +1114,17 @@ final class EngineLoop extends LoopRegistry {
         }
       }
     }
-    if (!_ordered) _order();
+    _orderToRun();
+  }
+
+  /// Sorts what changed before the loop runs it, and in a debug build
+  /// refuses a step phase where two systems touch one state unordered
+  /// ([validateOrder]): every test that steps the loop finds the pair the
+  /// first time it steps.
+  void _orderToRun() {
+    if (_ordered) return;
+    _order();
+    assert(_unordered.isEmpty || (throw UnorderedAccessException(_unordered)));
   }
 
   void _journalChange(LoopChange change) {
@@ -1123,7 +1135,7 @@ final class EngineLoop extends LoopRegistry {
   }
 
   void _runFrame() {
-    if (!_ordered) _order();
+    _orderToRun();
     _context
       ..step = _step
       ..dt = _lastFrame
@@ -1156,7 +1168,18 @@ final class EngineLoop extends LoopRegistry {
     LoopSystem system, {
     List<String> after = const <String>[],
     List<String> before = const <String>[],
-  }) => _addSystem(name, phase, system, after, before, null);
+    List<String> reads = const <String>[],
+    List<String> writes = const <String>[],
+  }) => _addSystem(
+    name,
+    phase,
+    system,
+    after,
+    before,
+    null,
+    reads: reads,
+    writes: writes,
+  );
 
   /// Runs [assimilation] as a system of [LoopPhase.input] under [name], each
   /// step handed the step's `InputState.externalThisStep`.
@@ -1240,8 +1263,10 @@ final class EngineLoop extends LoopRegistry {
     LoopSystem system,
     List<String> after,
     List<String> before,
-    PluginScope? scope,
-  ) {
+    PluginScope? scope, {
+    List<String> reads = const <String>[],
+    List<String> writes = const <String>[],
+  }) {
     final phase = named.current;
     _refuseOutside(scope, name, 'the system');
     final existing = _systems.where((s) => s.name == name).firstOrNull;
@@ -1269,6 +1294,8 @@ final class EngineLoop extends LoopRegistry {
       List<String>.unmodifiable(before),
       scope,
       _registered++,
+      reads: List<String>.unmodifiable(reads),
+      writes: List<String>.unmodifiable(writes),
     );
     _systems.add(entry);
     _ordered = false;
@@ -1337,7 +1364,48 @@ final class EngineLoop extends LoopRegistry {
 
     _stepRuns = runsOf(PhaseKind.step);
     _frameRuns = runsOf(PhaseKind.frame);
+    // In registration order within each phase, so a pair is named first
+    // registered first.
+    _unordered = <UnorderedAccess>[
+      for (final run in _stepRuns)
+        ...unorderedAccessIn(run.phase, <SystemAccess>[
+          for (final s in systems)
+            if (s.phase == run.phase)
+              SystemAccess(
+                s.name,
+                after: s.after,
+                before: s.before,
+                reads: s.reads,
+                writes: s.writes,
+              ),
+        ]),
+    ];
     _ordered = true;
+  }
+
+  /// Every pair of systems in one step phase that touch the same state —
+  /// one of them writing it, as their `reads:` and `writes:` declare — with
+  /// nothing ordering them; empty when the loop has none.
+  ///
+  /// **Only the step phases**, where a replay has to run the systems in the
+  /// order the recording did. A frame phase's order changes what is shown,
+  /// never what the simulation decides.
+  List<UnorderedAccess> unorderedAccess() {
+    if (!_ordered) _order();
+    return List<UnorderedAccess>.unmodifiable(_unordered);
+  }
+
+  /// Throws an [UnorderedAccessException] naming every pair
+  /// [unorderedAccess] finds.
+  ///
+  /// **A debug build asks this itself**, at the first step or frame after
+  /// a system is added or removed, so a test that steps a loop with such a
+  /// pair fails there. A release build never asks; a tool, a plugin's
+  /// conformance or an application that wants the answer in release calls
+  /// this.
+  void validateOrder() {
+    final pairs = unorderedAccess();
+    if (pairs.isNotEmpty) throw UnorderedAccessException(pairs);
   }
 }
 
@@ -1391,6 +1459,8 @@ final class _ScopedLoop extends LoopRegistry {
     LoopSystem system, {
     List<String> after = const <String>[],
     List<String> before = const <String>[],
+    List<String> reads = const <String>[],
+    List<String> writes = const <String>[],
   }) {
     if (_viewOnly && phase.kind == PhaseKind.step) {
       throw PluginException(
@@ -1400,7 +1470,16 @@ final class _ScopedLoop extends LoopRegistry {
         'PluginTouches.simulation',
       );
     }
-    return _loop._addSystem(name, phase, system, after, before, _scope);
+    return _loop._addSystem(
+      name,
+      phase,
+      system,
+      after,
+      before,
+      _scope,
+      reads: reads,
+      writes: writes,
+    );
   }
 
   @override
@@ -1494,14 +1573,18 @@ final class _System extends _Entry {
     this.after,
     this.before,
     super.scope,
-    super.sequence,
-  );
+    super.sequence, {
+    this.reads = const <String>[],
+    this.writes = const <String>[],
+  });
 
   final String name;
   final LoopPhase phase;
   final LoopSystem system;
   final List<String> after;
   final List<String> before;
+  final List<String> reads;
+  final List<String> writes;
 }
 
 final class _PhaseRun {

@@ -1,5 +1,14 @@
 ## 1.0.0-rc.1
 
+- **The loop names systems that touch one state unordered.** A system
+  added with `reads:`/`writes:` is checked against the others of its step
+  phase: `EngineLoop.unorderedAccess()` lists every pair where one writes
+  what the other reads or writes and no `after`/`before` chain orders
+  them, `validateOrder()` throws an `UnorderedAccessException` naming them,
+  and a debug build throws it at the first step after the systems change,
+  so a test that steps such a loop fails there. Subsystems declare their
+  fields this way, and a genre's step writes `<genre>.simulation`
+  (`GenrePlugin.simulationState`).
 - **`InputTapeRecorder.truncate(steps)`** keeps the first `steps` entries,
   for a run rewound and gone on from there: the next entry writes the step
   the run takes instead of the one it left.

@@ -59,6 +59,8 @@ final class _Loop extends LoopRegistry {
     LoopSystem system, {
     List<String> after = const <String>[],
     List<String> before = const <String>[],
+    List<String> reads = const <String>[],
+    List<String> writes = const <String>[],
   }) {
     systems[name] = system;
     return Registration(() => systems.remove(name));
@@ -99,6 +101,8 @@ final class _ScopedLoop extends LoopRegistry {
     LoopSystem system, {
     List<String> after = const <String>[],
     List<String> before = const <String>[],
+    List<String> reads = const <String>[],
+    List<String> writes = const <String>[],
   }) {
     _refuse(name, 'the system');
     final registration = _loop.addSystem(name, phase, system);
