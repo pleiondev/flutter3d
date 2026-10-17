@@ -24,15 +24,29 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 import 'src/sidecar_native.dart'
     if (dart.library.js_interop) 'src/sidecar_web.dart';
+import 'src/wgpu_adapter.dart';
+
+export 'src/wgpu_adapter.dart';
 
 /// Opening the sidecar, and what only it can answer.
 abstract final class WgpuSidecar {
-  /// The sidecar on the best adapter wgpu-native finds: a device with
+  /// The sidecar on the best adapter of [backend]: a device with
   /// `DeviceFeature.compute` that draws nothing.
   ///
+  /// **The backend is the sidecar's decision, never wgpu's guess.** Left
+  /// null it is the platform's own, tried in order and each alone:
+  /// Direct3D 12 then Vulkan on Windows, Metal on Apple platforms, Vulkan
+  /// then OpenGL elsewhere; [adapterInfo] says which one answered.
+  /// [fallbackAdapter] asks for the software adapter instead, WARP on
+  /// Direct3D 12, which is how CI computes on a runner with no GPU.
+  ///
   /// Throws [DeviceUnavailableException] saying why where there is none:
-  /// the browser, a build without wgpu-native, a machine without an adapter.
-  static Future<GraphicsDevice> open() => openSidecar();
+  /// the browser, a build without wgpu-native, no adapter on what was
+  /// asked. Throws an [ArgumentError] for [WgpuBackend.other].
+  static Future<GraphicsDevice> open({
+    WgpuBackend? backend,
+    bool fallbackAdapter = false,
+  }) => openSidecar(backend: backend, fallbackAdapter: fallbackAdapter);
 
   /// The `MTLTexture` behind [texture], a texture the sidecar [device] made,
   /// as a [NativeHandle] another Metal device could import; null off Metal
@@ -50,6 +64,12 @@ abstract final class WgpuSidecar {
   /// is not the sidecar.
   static String? adapterName(GraphicsDevice device) =>
       sidecarAdapterName(device);
+
+  /// The adapter the sidecar [device] opened, with the backend it runs on
+  /// and whether it is a software one; null for a device that is not the
+  /// sidecar.
+  static WgpuAdapterInfo? adapterInfo(GraphicsDevice device) =>
+      sidecarAdapterInfo(device);
 }
 
 /// Adds the sidecar to [registry] as [ComputePlacement.sidecar]: a frame

@@ -24,8 +24,10 @@ extern "C" {
 #endif
 
 /* Bumped whenever a signature here changes. 2: the readback that does not
- * wait (f3d_wgpu_read_begin, f3d_wgpu_read_poll). */
-#define F3D_WGPU_ABI_VERSION 2
+ * wait (f3d_wgpu_read_begin, f3d_wgpu_read_poll). 3: the backend chosen
+ * and reported (f3d_wgpu_open_on, f3d_wgpu_adapter_backend,
+ * f3d_wgpu_adapter_is_fallback). */
+#define F3D_WGPU_ABI_VERSION 3
 
 typedef struct F3dWgpu F3dWgpu;
 typedef struct F3dWgpuBuffer F3dWgpuBuffer;
@@ -44,8 +46,35 @@ enum {
 
 F3D_WGPU_EXPORT uint32_t f3d_wgpu_abi_version(void);
 
-/* The best adapter there is, or NULL. */
+/* The graphics API under the adapter: what f3d_wgpu_open_on is asked for
+ * and what f3d_wgpu_adapter_backend answers. */
+enum {
+  F3D_WGPU_BACKEND_DEFAULT = 0, /* asked: the platform's own, in order */
+  F3D_WGPU_BACKEND_DX12 = 1,
+  F3D_WGPU_BACKEND_VULKAN = 2,
+  F3D_WGPU_BACKEND_METAL = 3,
+  F3D_WGPU_BACKEND_GL = 4,      /* OpenGL or OpenGL ES */
+  F3D_WGPU_BACKEND_OTHER = 5,   /* answered: anything else wgpu reports */
+};
+
+/* The best adapter of the platform's own backend, or NULL:
+ * f3d_wgpu_open_on(F3D_WGPU_BACKEND_DEFAULT, 0). */
 F3D_WGPU_EXPORT F3dWgpu *f3d_wgpu_open(void);
+
+/* The best adapter on [backend] alone, or NULL. F3D_WGPU_BACKEND_DEFAULT
+ * tries the platform's backends in order, each alone, and keeps the first
+ * with an adapter: Direct3D 12 then Vulkan on Windows, Metal on Apple
+ * platforms, Vulkan then OpenGL elsewhere. Never every backend at once, so
+ * which one answered is a decision this file made, not wgpu's guess.
+ * [fallback] set asks for the software adapter (WARP on Direct3D 12). */
+F3D_WGPU_EXPORT F3dWgpu *f3d_wgpu_open_on(uint32_t backend, int fallback);
+
+/* The backend the adapter runs on, an F3D_WGPU_BACKEND_* other than
+ * DEFAULT. */
+F3D_WGPU_EXPORT uint32_t f3d_wgpu_adapter_backend(const F3dWgpu *gpu);
+
+/* 1 when the adapter is a CPU one (WARP, llvmpipe, SwiftShader). */
+F3D_WGPU_EXPORT int f3d_wgpu_adapter_is_fallback(const F3dWgpu *gpu);
 F3D_WGPU_EXPORT void f3d_wgpu_close(F3dWgpu *gpu);
 
 /* The adapter's name into [out], cut to [capacity] with its NUL; returns

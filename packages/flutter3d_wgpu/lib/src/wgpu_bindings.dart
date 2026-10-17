@@ -11,7 +11,15 @@ library;
 import 'dart:ffi';
 
 /// `F3D_WGPU_ABI_VERSION` this file was written against.
-const int wgpuAbiVersion = 2;
+const int wgpuAbiVersion = 3;
+
+/// Backends, as `f3d_wgpu.h` numbers them.
+const int wgpuBackendDefault = 0;
+const int wgpuBackendDx12 = 1;
+const int wgpuBackendVulkan = 2;
+const int wgpuBackendMetal = 3;
+const int wgpuBackendGl = 4;
+const int wgpuBackendOther = 5;
 
 /// Binding kinds, as `f3d_wgpu.h` numbers them.
 const int wgpuStorage = 0;
@@ -36,6 +44,15 @@ external int f3d_wgpu_abi_version();
 
 @Native<Pointer<F3dWgpu> Function()>()
 external Pointer<F3dWgpu> f3d_wgpu_open();
+
+@Native<Pointer<F3dWgpu> Function(Uint32, Int32)>()
+external Pointer<F3dWgpu> f3d_wgpu_open_on(int backend, int fallback);
+
+@Native<Uint32 Function(Pointer<F3dWgpu>)>(isLeaf: true)
+external int f3d_wgpu_adapter_backend(Pointer<F3dWgpu> gpu);
+
+@Native<Int32 Function(Pointer<F3dWgpu>)>(isLeaf: true)
+external int f3d_wgpu_adapter_is_fallback(Pointer<F3dWgpu> gpu);
 
 @Native<Void Function(Pointer<F3dWgpu>)>()
 external void f3d_wgpu_close(Pointer<F3dWgpu> gpu);

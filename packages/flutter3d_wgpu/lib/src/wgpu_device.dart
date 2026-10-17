@@ -30,6 +30,7 @@ import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_shaders/kernel.dart';
 
+import 'wgpu_adapter.dart';
 import 'wgpu_bindings.dart' as w;
 
 /// How a refusal from the sidecar names it.
@@ -56,9 +57,45 @@ final class _Kernel {
   Pointer<w.F3dWgpuKernel> pointer;
 }
 
-/// Opens the sidecar, or throws [DeviceUnavailableException] saying why: no
-/// library in this build, a library of another ABI, or no adapter.
-WgpuComputeDevice openWgpuComputeDevice() {
+/// The C side's number for [backend]; the platform's own order for null.
+int _backendCode(WgpuBackend? backend) => switch (backend) {
+  null => w.wgpuBackendDefault,
+  WgpuBackend.dx12 => w.wgpuBackendDx12,
+  WgpuBackend.vulkan => w.wgpuBackendVulkan,
+  WgpuBackend.metal => w.wgpuBackendMetal,
+  WgpuBackend.gl => w.wgpuBackendGl,
+  _ => throw ArgumentError.value(
+    backend,
+    'backend',
+    'the sidecar opens dx12, vulkan, metal or gl',
+  ),
+};
+
+/// The backend the C side reports for [code].
+WgpuBackend _backendOf(int code) => switch (code) {
+  w.wgpuBackendDx12 => WgpuBackend.dx12,
+  w.wgpuBackendVulkan => WgpuBackend.vulkan,
+  w.wgpuBackendMetal => WgpuBackend.metal,
+  w.wgpuBackendGl => WgpuBackend.gl,
+  _ => WgpuBackend.other,
+};
+
+/// What [openWgpuComputeDevice] tries on this platform when no backend is
+/// asked for, as `f3d_wgpu_open_on` does.
+String _platformOrder() => Platform.isWindows
+    ? 'dx12, then vulkan'
+    : Platform.isMacOS || Platform.isIOS
+    ? 'metal'
+    : 'vulkan, then gl';
+
+/// Opens the sidecar on [backend] (the platform's own, in order, when null)
+/// and on its software adapter when [fallbackAdapter], or throws
+/// [DeviceUnavailableException] saying why: no library in this build, a
+/// library of another ABI, or no adapter on what was asked.
+WgpuComputeDevice openWgpuComputeDevice({
+  WgpuBackend? backend,
+  bool fallbackAdapter = false,
+}) {
   final int abi;
   try {
     abi = w.f3d_wgpu_abi_version();
@@ -79,10 +116,15 @@ WgpuComputeDevice openWgpuComputeDevice() {
       backend: wgpuBackendName,
     );
   }
-  final gpu = w.f3d_wgpu_open();
+  final gpu = w.f3d_wgpu_open_on(
+    _backendCode(backend),
+    fallbackAdapter ? 1 : 0,
+  );
   if (gpu == nullptr) {
-    throw const DeviceUnavailableException(
-      'wgpu-native found no adapter it can use on this machine',
+    throw DeviceUnavailableException(
+      'wgpu-native found no '
+      '${fallbackAdapter ? 'software ' : ''}adapter on '
+      '${backend?.name ?? _platformOrder()} on this machine',
       backend: wgpuBackendName,
     );
   }
@@ -114,6 +156,14 @@ final class WgpuComputeDevice extends GraphicsDevice
   /// The adapter wgpu chose, as it names itself.
   String get adapterName => _text(
     (Pointer<Uint8> out, int n) => w.f3d_wgpu_adapter_name(_live, out, n),
+  );
+
+  /// The adapter: its name, the backend the sidecar opened it on, and
+  /// whether it is a software one.
+  WgpuAdapterInfo get adapterInfo => WgpuAdapterInfo(
+    name: adapterName,
+    backend: _backendOf(w.f3d_wgpu_adapter_backend(_live)),
+    isFallback: w.f3d_wgpu_adapter_is_fallback(_live) != 0,
   );
 
   /// The last error wgpu reported and nobody took, or empty.

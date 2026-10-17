@@ -1,5 +1,16 @@
 ## 1.0.0-rc.1+2
 
+- **The sidecar decides its backend and says which.** It opened wgpu with
+  every backend enabled, so a Windows machine computed on Direct3D 12 or
+  on Vulkan depending on its drivers, and nothing recorded which. Now the
+  platform's own backends are tried in order, each alone (Direct3D 12 then
+  Vulkan on Windows, Metal on Apple platforms, Vulkan then OpenGL
+  elsewhere), `WgpuSidecar.open` takes a `backend` and a `fallbackAdapter`
+  (WARP on Direct3D 12, what CI computes on), and
+  `WgpuSidecar.adapterInfo` (new) answers a `WgpuAdapterInfo` with the
+  `WgpuBackend` it runs on. A backend asked for and missing is refused,
+  never replaced. The C side is ABI 3 (`f3d_wgpu_open_on`,
+  `f3d_wgpu_adapter_backend`, `f3d_wgpu_adapter_is_fallback`).
 - **A readback that does not hold the caller.** `readBuffer` starts the
   copy, maps its staging buffer without waiting and polls the device on
   later turns of the event loop, where it waited on the queue in the

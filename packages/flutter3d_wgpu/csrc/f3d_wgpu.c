@@ -34,6 +34,9 @@ struct F3dWgpu {
   WGPUAdapter adapter;
   WGPUDevice device;
   WGPUQueue queue;
+  /* F3D_WGPU_BACKEND_*, and whether the adapter is a CPU one. */
+  uint32_t backend;
+  int fallback;
   char name[256];
   char error[1024];
   /* Every resource's id, never reused: what a kept bind group is keyed
@@ -156,17 +159,45 @@ static void wait_for(WGPUInstance instance, const int *done) {
   for (int i = 0; i < 100000 && !*done; i++) wgpuInstanceProcessEvents(instance);
 }
 
-F3dWgpu *f3d_wgpu_open(void) {
-  F3dWgpu *gpu = (F3dWgpu *)calloc(1, sizeof(F3dWgpu));
-  if (gpu == NULL) return NULL;
-  gpu->instance = wgpuCreateInstance(NULL);
-  if (gpu->instance == NULL) {
-    free(gpu);
-    return NULL;
+/* wgpu's instance flag for one of ours. */
+static WGPUInstanceBackend instance_backend(uint32_t backend) {
+  switch (backend) {
+    case F3D_WGPU_BACKEND_DX12: return WGPUInstanceBackend_DX12;
+    case F3D_WGPU_BACKEND_VULKAN: return WGPUInstanceBackend_Vulkan;
+    case F3D_WGPU_BACKEND_METAL: return WGPUInstanceBackend_Metal;
+    case F3D_WGPU_BACKEND_GL: return WGPUInstanceBackend_GL;
+    default: return 0;
   }
+}
+
+/* Ours for the backend wgpu reports an adapter on. */
+static uint32_t reported_backend(WGPUBackendType type) {
+  switch (type) {
+    case WGPUBackendType_D3D12: return F3D_WGPU_BACKEND_DX12;
+    case WGPUBackendType_Vulkan: return F3D_WGPU_BACKEND_VULKAN;
+    case WGPUBackendType_Metal: return F3D_WGPU_BACKEND_METAL;
+    case WGPUBackendType_OpenGL:
+    case WGPUBackendType_OpenGLES: return F3D_WGPU_BACKEND_GL;
+    default: return F3D_WGPU_BACKEND_OTHER;
+  }
+}
+
+/* An instance with [backend] alone enabled, and its best adapter, into
+ * [gpu]; 1 when there is one. Leaves nothing behind when there is not. */
+static int open_adapter(F3dWgpu *gpu, uint32_t backend, int fallback) {
+  WGPUInstanceExtras extras;
+  memset(&extras, 0, sizeof extras);
+  extras.chain.sType = (WGPUSType)WGPUSType_InstanceExtras;
+  extras.backends = instance_backend(backend);
+  WGPUInstanceDescriptor instance_descriptor;
+  memset(&instance_descriptor, 0, sizeof instance_descriptor);
+  instance_descriptor.nextInChain = &extras.chain;
+  gpu->instance = wgpuCreateInstance(&instance_descriptor);
+  if (gpu->instance == NULL) return 0;
   WGPURequestAdapterOptions options;
   memset(&options, 0, sizeof options);
   options.powerPreference = WGPUPowerPreference_HighPerformance;
+  options.forceFallbackAdapter = fallback ? 1u : 0u;
   WGPURequestAdapterCallbackInfo adapter_info;
   memset(&adapter_info, 0, sizeof adapter_info);
   Waiting wa = {0, NULL};
@@ -177,7 +208,35 @@ F3dWgpu *f3d_wgpu_open(void) {
   wait_for(gpu->instance, &wa.done);
   gpu->adapter = (WGPUAdapter)wa.result;
   if (gpu->adapter == NULL) {
-    f3d_wgpu_close(gpu);
+    wgpuInstanceRelease(gpu->instance);
+    gpu->instance = NULL;
+    return 0;
+  }
+  return 1;
+}
+
+F3dWgpu *f3d_wgpu_open(void) { return f3d_wgpu_open_on(F3D_WGPU_BACKEND_DEFAULT, 0); }
+
+F3dWgpu *f3d_wgpu_open_on(uint32_t backend, int fallback) {
+  F3dWgpu *gpu = (F3dWgpu *)calloc(1, sizeof(F3dWgpu));
+  if (gpu == NULL) return NULL;
+  /* The platform's own backends, in order, each alone: wgpu given all of
+   * them at once picks one and says nothing, and a Windows machine then
+   * computes on Direct3D 12 or on Vulkan depending on its drivers. */
+#if defined(_WIN32)
+  const uint32_t platform[] = {F3D_WGPU_BACKEND_DX12, F3D_WGPU_BACKEND_VULKAN};
+#elif defined(__APPLE__)
+  const uint32_t platform[] = {F3D_WGPU_BACKEND_METAL};
+#else
+  const uint32_t platform[] = {F3D_WGPU_BACKEND_VULKAN, F3D_WGPU_BACKEND_GL};
+#endif
+  const uint32_t *order = backend == F3D_WGPU_BACKEND_DEFAULT ? platform : &backend;
+  const size_t count =
+      backend == F3D_WGPU_BACKEND_DEFAULT ? sizeof platform / sizeof platform[0] : 1u;
+  int found = 0;
+  for (size_t i = 0; i < count && !found; i++) found = open_adapter(gpu, order[i], fallback);
+  if (!found) {
+    free(gpu);
     return NULL;
   }
   WGPUDeviceDescriptor descriptor;
@@ -200,12 +259,19 @@ F3dWgpu *f3d_wgpu_open(void) {
   gpu->queue = wgpuDeviceGetQueue(gpu->device);
   WGPUAdapterInfo info;
   memset(&info, 0, sizeof info);
+  gpu->backend = F3D_WGPU_BACKEND_OTHER;
   if (wgpuAdapterGetInfo(gpu->adapter, &info) == WGPUStatus_Success) {
     copy_message(gpu->name, sizeof gpu->name, info.device);
+    gpu->backend = reported_backend(info.backendType);
+    gpu->fallback = info.adapterType == WGPUAdapterType_CPU;
     wgpuAdapterInfoFreeMembers(info);
   }
   return gpu;
 }
+
+uint32_t f3d_wgpu_adapter_backend(const F3dWgpu *gpu) { return gpu->backend; }
+
+int f3d_wgpu_adapter_is_fallback(const F3dWgpu *gpu) { return gpu->fallback; }
 
 void f3d_wgpu_close(F3dWgpu *gpu) {
   if (gpu == NULL) return;
