@@ -77,9 +77,12 @@ Uint32List decodeMeshoptIndexBuffer(Uint8List source, int count) {
   }
   try {
     return _decodeIndexBuffer(source, count);
-  } on RangeError {
-    throw const MeshoptFormatException(
-      'meshopt index buffer: the stream ends part way through',
+  } on RangeError catch (_, stack) {
+    Error.throwWithStackTrace(
+      const MeshoptFormatException(
+        'meshopt index buffer: the stream ends part way through',
+      ),
+      stack,
     );
   }
 }

@@ -388,13 +388,16 @@ final class ShaderBundle {
         stages: stages,
         sections: sections,
       );
-    } on ShaderBundleException catch (refused) {
+    } on ShaderBundleException catch (refused, stack) {
       // The reader cannot know the name when it runs off the end; the name is
       // known here, and a refusal that names the bundle is the point.
-      throw ShaderBundleException(
-        name: name,
-        reason: refused.reason,
-        stale: refused.stale,
+      Error.throwWithStackTrace(
+        ShaderBundleException(
+          name: name,
+          reason: refused.reason,
+          stale: refused.stale,
+        ),
+        stack,
       );
     }
   }
@@ -517,13 +520,16 @@ final class _Reader {
       text = utf8.decode(
         _bytes.buffer.asUint8List(_bytes.offsetInBytes + _at, length),
       );
-    } on FormatException catch (error) {
+    } on FormatException catch (error, stack) {
       // The decoder's own exception would be the one thing `decode` lets out
       // that is not a refusal; a string that is not UTF-8 is bytes that are
       // not a bundle, and says so the same way.
-      throw ShaderBundleException(
-        name: '',
-        reason: 'a string field in the header is not UTF-8: ${error.message}',
+      Error.throwWithStackTrace(
+        ShaderBundleException(
+          name: '',
+          reason: 'a string field in the header is not UTF-8: ${error.message}',
+        ),
+        stack,
       );
     }
     _at += length;
@@ -616,8 +622,11 @@ Map<String, String> _decodeSources(
         ),
       ),
     );
-  } on FormatException catch (error) {
-    throw notThePayload('is not JSON: ${error.message}');
+  } on FormatException catch (error, stack) {
+    Error.throwWithStackTrace(
+      notThePayload('is not JSON: ${error.message}'),
+      stack,
+    );
   }
   if (json is! Map<String, Object?> ||
       json['stages'] is! Map<String, Object?>) {

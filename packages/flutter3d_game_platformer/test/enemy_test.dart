@@ -380,7 +380,7 @@ void main() {
       var bounced = false;
       for (var i = 0; i < 200 && !bounced; i++) {
         run.step();
-        bounced = run.heard.take().whereType<EnemyStomped>().isNotEmpty;
+        bounced = run.heard.take().any((e) => e is EnemyStomped);
       }
 
       expect(bounced, isTrue, reason: 'it landed on nothing');
@@ -405,7 +405,7 @@ void main() {
           run.step(
             holding: holding ? <GameAction>{GameAction.jump} : <GameAction>{},
           );
-          if (run.heard.take().whereType<EnemyStomped>().isNotEmpty) {
+          if (run.heard.take().any((e) => e is EnemyStomped)) {
             return run.runner.body.velocity.y;
           }
         }
@@ -522,7 +522,7 @@ void main() {
       var bounced = false;
       for (var i = 0; i < 200 && !bounced; i++) {
         run.step();
-        bounced = run.heard.take().whereType<EnemyStomped>().isNotEmpty;
+        bounced = run.heard.take().any((e) => e is EnemyStomped);
       }
       expect(bounced, isTrue, reason: 'it landed on nothing');
       expect(run.enemy.isAlive, isFalse, reason: 'the stomp did not kill it');

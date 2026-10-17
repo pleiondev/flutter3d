@@ -81,11 +81,11 @@ final class Trace {
         for (final e in (header['events']! as List<Object?>).map(asMap))
           TraceEvent.fromJson(e, blob),
       ], metadata: asMap(header['metadata'] ?? <String, Object?>{}));
-    } on FormatException catch (error) {
+    } on FormatException catch (error, stack) {
       // JSON or UTF-8 that does not parse: the file, not this build.
-      throw TraceFormatException(
-        'a trace header that does not read',
-        cause: error,
+      Error.throwWithStackTrace(
+        TraceFormatException('a trace header that does not read', cause: error),
+        stack,
       );
     }
   }

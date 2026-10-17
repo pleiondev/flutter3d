@@ -247,8 +247,7 @@ abstract base class RunSession<L> {
   /// Puts the current level back the way it started.
   Future<void> restart() async {
     final here = switch (_status) {
-      RunPlaying<L>(:final asset) => asset,
-      RunFailed<L>(:final asset) => asset,
+      RunPlaying<L>(:final asset) || RunFailed<L>(:final asset) => asset,
       _ => firstLevel,
     };
     await saves.clear();

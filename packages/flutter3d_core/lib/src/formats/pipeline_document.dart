@@ -297,8 +297,11 @@ final class PipelineDocument extends FormatDocument {
     final Object? decoded;
     try {
       decoded = jsonDecode(text);
-    } on FormatException catch (error) {
-      throw DocumentFormatException('a pipeline is not JSON: ${error.message}');
+    } on FormatException catch (error, stack) {
+      Error.throwWithStackTrace(
+        DocumentFormatException('a pipeline is not JSON: ${error.message}'),
+        stack,
+      );
     }
     if (decoded is! Map<String, Object?>) {
       throw const DocumentFormatException('a pipeline is a JSON object');

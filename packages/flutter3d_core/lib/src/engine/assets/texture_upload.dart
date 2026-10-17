@@ -181,9 +181,10 @@ Future<TextureHandle> uploadEncodedImage(
       );
     } on Flutter3dException {
       rethrow;
-    } catch (error) {
-      throw ImageFormatException(
-        '${codec.name} could not read the image: $error',
+    } catch (error, stack) {
+      Error.throwWithStackTrace(
+        ImageFormatException('${codec.name} could not read the image: $error'),
+        stack,
       );
     }
     if (decoded == null) {
@@ -225,10 +226,13 @@ Future<TextureHandle> uploadEncodedImage(
         : await decodeImage(encoded);
   } on Flutter3dException {
     rethrow;
-  } catch (error) {
+  } catch (error, stack) {
     // The decoder's own refusal, in whatever type it threw, as the one this
     // function promises.
-    throw ImageFormatException('the image could not be decoded: $error');
+    Error.throwWithStackTrace(
+      ImageFormatException('the image could not be decoded: $error'),
+      stack,
+    );
   }
   if (decoded == null) {
     throw const ImageFormatException(

@@ -77,8 +77,8 @@ void main() {
       saved,
       oldNames: oldNames,
       newNames: after.actors.nameList(),
-      newGenerations: newSave['generations']! as List<int>,
-      newFree: newSave['free']! as List<int>,
+      newGenerations: (newSave['generations']! as List<Object?>).cast<int>(),
+      newFree: (newSave['free']! as List<Object?>).cast<int>(),
     );
 
     expect(remap.dropped, <String>['archer']);

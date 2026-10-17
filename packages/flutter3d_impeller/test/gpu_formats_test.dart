@@ -629,9 +629,9 @@ void main() {
 /// The stable name of an engine value: an enum's, or an open class's (most
 /// of the hardware's sets are open since 1.0, and keep their enum's names).
 String _nameOf(Object? value) => switch (value) {
-  Enum(:final name) => name,
-  TextureFormat(:final name) => name,
-  VertexFormat(:final name) => name,
+  Enum(:final name) ||
+  TextureFormat(:final name) ||
+  VertexFormat(:final name) ||
   BlendFactor(:final name) ||
   BlendOperation(:final name) ||
   CullMode(:final name) ||

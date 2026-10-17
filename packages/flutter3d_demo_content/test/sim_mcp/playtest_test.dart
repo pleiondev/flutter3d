@@ -28,7 +28,8 @@ void main() {
     }
 
     final heatmap = Playtest.heatmap(runs, cellSize: 2.0);
-    final outcomes = heatmap['outcomes']! as Map<String, int>;
+    final outcomes = (heatmap['outcomes']! as Map<String, Object?>)
+        .cast<String, int>();
     expect(
       outcomes.values.fold<int>(0, (a, b) => a + b),
       8,

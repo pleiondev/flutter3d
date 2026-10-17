@@ -273,9 +273,12 @@ void main() {
       await tester.tap(find.byType(GestureDetector).last);
       await tester.pumpAndSettle();
 
-      expect(written, isA<List<num>>());
-      expect((written! as List<num>).length, 4);
-      expect((written! as List<num>).last, 0.25);
+      expect(
+        written,
+        isA<List<num>>()
+            .having((it) => it.length, 'length', 4)
+            .having((it) => it.last, 'last', 0.25),
+      );
     });
 
     testWidgets('a three-channel hint never offers a fourth box', (

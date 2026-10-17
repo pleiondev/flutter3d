@@ -27,9 +27,12 @@ final class RenderSettingsPatch {
     final copy = Map<String, Object?>.unmodifiable(<String, Object?>{...json});
     try {
       jsonEncode(copy);
-    } on JsonUnsupportedObjectError catch (error) {
-      throw LevelFormatException(
-        'render settings are JSON: ${error.unsupportedObject} is not',
+    } on JsonUnsupportedObjectError catch (error, stackTrace) {
+      Error.throwWithStackTrace(
+        LevelFormatException(
+          'render settings are JSON: ${error.unsupportedObject} is not',
+        ),
+        stackTrace,
       );
     }
     return RenderSettingsPatch._(copy);

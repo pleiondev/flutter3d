@@ -128,6 +128,7 @@ final class FluidMedium {
   /// A copy with the given fields replaced. One that changes a density, a
   /// viscosity or a surface tension is no longer its [material]'s, and
   /// keeps none.
+  // ignore: avoid-incomplete-copy-with, the material follows from the numbers and is not set apart
   FluidMedium copyWith({
     String? name,
     double? density,

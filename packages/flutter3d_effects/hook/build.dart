@@ -17,8 +17,8 @@ void main(List<String> arguments) async {
     final List<File> sources;
     try {
       sources = buildMaterialBundles(package);
-    } on MaterialBuildException catch (error) {
-      throw BuildError(message: '$error');
+    } on MaterialBuildException catch (error, stackTrace) {
+      Error.throwWithStackTrace(BuildError(message: '$error'), stackTrace);
     }
     for (final source in sources) {
       output.dependencies.add(source.absolute.uri);

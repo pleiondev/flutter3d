@@ -43,7 +43,6 @@ void main() {
       }
       final png = encodeCompressedPng(side, side, rgba);
       final decoded = decodePng(png);
-      expect(decoded, isNotNull);
       expect(decoded.width, side);
       expect(decoded.height, side);
       expect(decoded.rgba, rgba);

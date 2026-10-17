@@ -89,6 +89,7 @@ import 'package:flutter_test/flutter_test.dart';
   }
 }
 
+// ignore: prefer-correct-test-file-name, not a suite on purpose, see the top
 void main() {
   test('a live flutter3d_sim_mcp server, reachable over a socket', () async {
     final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);

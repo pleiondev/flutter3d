@@ -129,7 +129,7 @@ void main() {
         reason: 'the pile never came to rest',
       );
       expect(
-        dynamics.bodies.where((b) => b.isAsleep).isNotEmpty,
+        dynamics.bodies.any((b) => b.isAsleep),
         isTrue,
         reason: 'nothing went to sleep, so that branch is untested here',
       );

@@ -77,7 +77,6 @@ void main() {
         ],
       );
       final decoded = decodePng(png);
-      expect(decoded, isNotNull);
       expect(decoded.width, 2);
       expect(decoded.height, 2);
       expect(decoded.rgba, <int>[

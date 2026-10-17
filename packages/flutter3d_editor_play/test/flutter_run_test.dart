@@ -5,6 +5,7 @@
 ///     dart test test/flutter_run_test.dart
 library;
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter3d_editor_play/flutter3d_editor_play.dart';
@@ -96,6 +97,38 @@ void main() {
 
     await expectLater(reload, throwsStateError);
     expect((it.run.state.value as PlayStopped).exitCode, 1);
+  });
+
+  test('a failed request says where it failed', () async {
+    Future<StackTrace> traceOf(Future<Object?> request) async {
+      try {
+        await request;
+      } on StateError catch (_, stackTrace) {
+        return stackTrace;
+      }
+      fail('the request did not fail');
+    }
+
+    final it = fakeFlutterRun();
+    await it.run.start();
+    it.tool.running();
+    await pumpEventQueue();
+
+    // Mutation: complete the pending reply with the error alone. The caller
+    // gets an empty stack trace and nothing in the log points at the run.
+    final refused = it.run.hotSwap();
+    await pumpEventQueue();
+    it.tool.say(
+      jsonEncode(<Object?>[
+        <String, Object?>{'id': 0, 'error': 'no such app'},
+      ]),
+    );
+    expect(await traceOf(refused), isNot(StackTrace.empty));
+
+    final orphaned = it.run.hotSwap();
+    await pumpEventQueue();
+    it.tool.exit(1);
+    expect(await traceOf(orphaned), isNot(StackTrace.empty));
   });
 
   test(

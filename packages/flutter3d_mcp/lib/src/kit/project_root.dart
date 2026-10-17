@@ -65,11 +65,14 @@ final class ProjectRoot {
     final String real;
     try {
       real = _canonical(existing);
-    } on FileSystemException {
-      throw PathOutsideRootException(
-        requested,
-        root: path,
-        why: 'it goes through a link that points nowhere',
+    } on FileSystemException catch (_, stackTrace) {
+      Error.throwWithStackTrace(
+        PathOutsideRootException(
+          requested,
+          root: path,
+          why: 'it goes through a link that points nowhere',
+        ),
+        stackTrace,
       );
     }
     final resolved = rest.isEmpty

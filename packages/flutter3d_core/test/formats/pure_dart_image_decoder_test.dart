@@ -44,7 +44,6 @@ Uint8List _onePixelPng() {
 void main() {
   test('a PNG decodes into an Rgba8Image the same size and colour', () async {
     final decoded = await decodeImagePure(_onePixelPng());
-    expect(decoded, isNotNull);
     expect(decoded.width, 1);
     expect(decoded.height, 1);
     expect(decoded.pixels, <int>[255, 0, 0, 255]);

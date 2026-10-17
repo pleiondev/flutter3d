@@ -278,9 +278,9 @@ void main() {
       var told = 0;
       unawaited(cancel.whenCanceled.then((_) => told++));
       expect(cancel.isCanceled, isFalse);
-      cancel
-        ..cancel()
-        ..cancel();
+      // The second cancel is the one under test.
+      cancel.cancel();
+      cancel.cancel();
       await Future<void>.delayed(Duration.zero);
       expect(cancel.isCanceled, isTrue);
       expect(told, 1);

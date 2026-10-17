@@ -863,6 +863,7 @@ final class AnimationPlayer {
         break;
 
       case AnimationPath.pointer:
+      // ignore: no-equal-switch-case, kept apart from weights for its reason.
       default:
         // Layers leave pointer tracks alone — see [_applyPointer] — and a
         // path a later release adds is not one a layer knows how to fold.

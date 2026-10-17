@@ -67,12 +67,15 @@ final class GpuRenderBackend extends GraphicsDevice
     final TextureHandle texture;
     try {
       texture = wrapPlatformImage(image);
-    } on Exception catch (error) {
-      throw refuseResource(
-        'textureFromPlatformImage',
-        "flutter_gpu could not wrap the image's texture (an image from "
-            'toImageSync may not have one yet); read its pixels back instead',
-        cause: error,
+    } on Exception catch (error, stack) {
+      Error.throwWithStackTrace(
+        refuseResource(
+          'textureFromPlatformImage',
+          "flutter_gpu could not wrap the image's texture (an image from "
+              'toImageSync may not have one yet); read its pixels back instead',
+          cause: error,
+        ),
+        stack,
       );
     }
     if (label != null) setLabel(texture, label);

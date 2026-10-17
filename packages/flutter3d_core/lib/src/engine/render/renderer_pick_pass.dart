@@ -152,6 +152,7 @@ final class _FramePick extends _PickRequest {
   @override
   void abandon() => completer.completeError(
     StateError('the renderer was disposed before a frame answered'),
+    StackTrace.current,
   );
 }
 

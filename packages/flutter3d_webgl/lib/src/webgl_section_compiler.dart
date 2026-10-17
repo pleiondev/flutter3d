@@ -66,10 +66,10 @@ final class WebGlSectionCompiler extends MaterialCompiler {
           },
         ),
       );
-    } on GlslTranslateException catch (error) {
-      throw MaterialCompileException(error.message);
-    } on StageAgreementException catch (error) {
-      throw MaterialCompileException(error.message);
+    } on GlslTranslateException catch (error, stack) {
+      Error.throwWithStackTrace(MaterialCompileException(error.message), stack);
+    } on StageAgreementException catch (error, stack) {
+      Error.throwWithStackTrace(MaterialCompileException(error.message), stack);
     }
   }
 }

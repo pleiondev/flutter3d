@@ -274,7 +274,7 @@ List<SimTool> simToolsFor(HeadlessGame game) => <SimTool>[
       ),
     ),
     (session, args) => switch (_entityLayout(args['entities'])) {
-      (layout: final layout, refused: null) => session.bisect(
+      (:final layout, refused: null) => session.bisect(
         args['a']! as String,
         args['b']! as String,
         layout: layout,

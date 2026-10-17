@@ -97,12 +97,15 @@ final class WebGpuLoadedShaderLibrary with ShaderLibrary, LoadedShaderLibrary {
     _refuseUnknownVersion(bundle.name, section);
     try {
       return decodeWebGpuSection(section);
-    } on BundleSectionFormatException catch (error) {
-      throw ShaderBundleException(
-        name: bundle.name,
-        reason:
-            'its "${ShaderBundle.webgpuSection}" section is not the JSON '
-            'document this backend reads: ${error.message}',
+    } on BundleSectionFormatException catch (error, stack) {
+      Error.throwWithStackTrace(
+        ShaderBundleException(
+          name: bundle.name,
+          reason:
+              'its "${ShaderBundle.webgpuSection}" section is not the JSON '
+              'document this backend reads: ${error.message}',
+        ),
+        stack,
       );
     }
   }
@@ -261,13 +264,16 @@ final class WebGpuLoadedShaderLibrary with ShaderLibrary, LoadedShaderLibrary {
           module: _compiler.compileModule(handle.name, packed.wgsl),
         );
       }
-    } on StateError catch (error) {
+    } on StateError catch (error, stack) {
       // What a compiler throws for text the browser would not take. Nothing has
       // to be undone: the modules compiled so far are ordinary JavaScript
       // objects nobody else holds, and dropping the map is the whole of letting
       // them go — where the WebGL2 backend has to delete each shader it made by
       // hand before it rethrows.
-      throw ShaderBundleException(name: bundle.name, reason: error.message);
+      Error.throwWithStackTrace(
+        ShaderBundleException(name: bundle.name, reason: error.message),
+        stack,
+      );
     }
 
     // The swap. A `PipelineHandle` the renderer already holds keeps its own

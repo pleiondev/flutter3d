@@ -232,7 +232,8 @@ void main() {
     ]) {
       final pose = GhostFrame.fromJson(broken);
 
-      expect(pose.time, isNotNull);
+      // A time that reads is kept, and one that does not is nought.
+      expect(pose.time, broken['t'] is num ? broken['t'] : 0.0);
       expect(pose.position.x.isFinite, isTrue);
       expect(pose.up.y, 1.0, reason: 'the up was left broken rather than up');
     }

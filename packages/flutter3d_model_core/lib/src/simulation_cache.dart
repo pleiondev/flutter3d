@@ -126,8 +126,11 @@ final class SimulationCache {
       ];
       try {
         return SimulationCache(vertexCount: vertexCount, frames: frames);
-      } on ArgumentError catch (error) {
-        throw ProjectFormatException('a simulation cache does not fit: $error');
+      } on ArgumentError catch (error, stackTrace) {
+        Error.throwWithStackTrace(
+          ProjectFormatException('a simulation cache does not fit: $error'),
+          stackTrace,
+        );
       }
     }
     throw const ProjectFormatException(

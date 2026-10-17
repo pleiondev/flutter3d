@@ -344,7 +344,7 @@ void main() {
         size: 4,
         levels: 2,
       );
-      expect(fromPng, isNotNull);
+      expect(fromPng.levels, 2);
       expect(decoded, <int>[4]);
     });
 

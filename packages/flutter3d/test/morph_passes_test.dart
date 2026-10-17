@@ -73,7 +73,6 @@ MorphTarget _slideTarget(MeshData mesh) => MorphTarget(
     format: TextureFormat.r32g32b32a32Float,
     pixels: packed.bytes,
   );
-  expect(texture, isNotNull, reason: 'the deltas would not upload');
 
   final scene = Scene();
   final cube =
@@ -146,7 +145,6 @@ Future<Uint8List> _draw(
     settings: settings,
   );
   final pixels = await it.device.readback(result.frame);
-  expect(pixels, isNotNull, reason: 'the frame could not be read back');
   return pixels.buffer.asUint8List();
 }
 

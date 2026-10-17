@@ -15,6 +15,7 @@ import 'package:flutter3d_sim_mcp/src/diagnostic_server.dart';
 import 'package:flutter3d_sim_mcp/src/diagnostic_session.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+// ignore: prefer-correct-test-file-name, kept out of the suite on purpose, as the doc above says
 void main() {
   test('a live diagnostic server, reachable over a socket', () async {
     final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);

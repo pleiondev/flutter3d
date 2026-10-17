@@ -163,8 +163,11 @@ final class MatterState {
   static Quantity _quantity(String id, Object? json) {
     try {
       return Quantity.fromJson(json);
-    } on UnitFormatException catch (e) {
-      throw MaterialFormatException('material state "$id": ${e.message}');
+    } on UnitFormatException catch (e, stackTrace) {
+      Error.throwWithStackTrace(
+        MaterialFormatException('material state "$id": ${e.message}'),
+        stackTrace,
+      );
     }
   }
 

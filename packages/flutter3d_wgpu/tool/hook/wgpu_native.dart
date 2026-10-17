@@ -155,7 +155,7 @@ Future<Directory?> fetchWgpuNative(
     if (!keep) continue;
     File('${home.path}/$name')
       ..createSync(recursive: true)
-      ..writeAsBytesSync(entry.content as List<int>)
+      ..writeAsBytesSync(entry.content)
       // Dated long before this build: the headers are what a library that
       // links wgpu is compiled against, so they are among its dependencies,
       // and a file

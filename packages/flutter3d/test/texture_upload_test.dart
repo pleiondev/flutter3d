@@ -45,14 +45,13 @@ void main() {
       );
       final reports = <String>[];
 
-      final handle = await uploadEncodedImage(
+      await uploadEncodedImage(
         device,
         bytes,
         decodeImage: _neverDecodes,
         report: reports.add,
       );
 
-      expect(handle, isNotNull);
       expect(reports, isEmpty);
       final spec = device.uploadedTextures.single;
       expect(spec.format, TextureFormat.bc7RGBAUNormInt);
@@ -185,13 +184,8 @@ void main() {
       final device = FakeBackend();
       final bytes = _readSample('ktx2/etc1s_alpha_mips.ktx2');
 
-      final handle = await uploadEncodedImage(
-        device,
-        bytes,
-        decodeImage: _neverDecodes,
-      );
+      await uploadEncodedImage(device, bytes, decodeImage: _neverDecodes);
 
-      expect(handle, isNotNull);
       final spec = device.uploadedTextures.single;
       expect(spec.format, TextureFormat.r8g8b8a8UNormInt);
       expect(spec.width, 16);
@@ -226,13 +220,8 @@ void main() {
     final device = FakeBackend();
     final bytes = _readSample('ktx2/etc1s_gradient_quadrants.ktx2');
 
-    final handle = await uploadEncodedImage(
-      device,
-      bytes,
-      decodeImage: _neverDecodes,
-    );
+    await uploadEncodedImage(device, bytes, decodeImage: _neverDecodes);
 
-    expect(handle, isNotNull);
     expect(device.uploadedTextures, hasLength(1));
     final spec = device.uploadedTextures.single;
     expect(spec.width, 8);
@@ -265,7 +254,7 @@ void main() {
       final device = FakeBackend();
       final reports = <String>[];
 
-      final handle = await uploadEncodedImage(
+      await uploadEncodedImage(
         device,
         File('$fixtures/uastc_alpha_mips.ktx2').readAsBytesSync(),
         decodeImage: _neverDecodes,
@@ -273,7 +262,6 @@ void main() {
       );
 
       expect(reports, isEmpty);
-      expect(handle, isNotNull);
       final spec = device.uploadedTextures.single;
       expect(spec.width, 64);
       expect(spec.height, 64);
@@ -347,14 +335,13 @@ void main() {
           final device = FakeBackend(unsupportedFormats: unsupported);
           final reports = <String>[];
 
-          final handle = await uploadEncodedImage(
+          await uploadEncodedImage(
             device,
             cooked,
             decodeImage: _neverDecodes,
             report: reports.add,
           );
 
-          expect(handle, isNotNull);
           expect(reports, isEmpty);
           expect(device.uploadedTextures.single.format, expected);
           expect(device.uploadedTextures.single.width, 4);

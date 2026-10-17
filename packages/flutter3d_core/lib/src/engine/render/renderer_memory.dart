@@ -69,7 +69,7 @@ extension _MemoryAccount on Renderer {
     // physics — the one buffer the renderer can see that is not a mesh's own
     // on the device.
     for (final MapEntry(key: geometry, value: label) in meshes.entries) {
-      if (geometry case DeviceMesh(source: final MeshData source)) {
+      if (geometry case DeviceMesh(:final MeshData source)) {
         entries.add(
           MemoryEntry(
             category: MemoryCategory.buffers,

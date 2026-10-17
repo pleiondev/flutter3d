@@ -87,7 +87,7 @@ Future<LoadedShaderLibrary> loadShaderBundleBytes(
     final library = await device.loadShaders(bytes);
     platform.forgetStaleRefresh(asset);
     return library;
-  } on ShaderBundleException catch (refused) {
+  } on ShaderBundleException catch (refused, stack) {
     if (!refused.stale) rethrow;
     final refreshing = platform.canRefreshForStale(asset);
     final stale = ShaderBundleException(
@@ -100,7 +100,7 @@ Future<LoadedShaderLibrary> loadShaderBundleBytes(
     );
     debugPrint('flutter3d: ${stale.message}');
     if (refreshing) platform.refreshForStale(asset, stale.message);
-    throw stale;
+    Error.throwWithStackTrace(stale, stack);
   }
 }
 

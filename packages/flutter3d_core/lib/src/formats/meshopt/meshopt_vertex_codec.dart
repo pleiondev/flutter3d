@@ -75,11 +75,14 @@ Uint8List decodeMeshoptVertexBufferV0(
   }
   try {
     return _decodeVertexBufferV0(source, elementCount, byteStride);
-  } on RangeError {
+  } on RangeError catch (_, stack) {
     // A truncated stream indexes past its own end somewhere in the block
     // loop; the caller was promised one kind of exception.
-    throw const MeshoptFormatException(
-      'meshopt vertex buffer: the stream ends part way through',
+    Error.throwWithStackTrace(
+      const MeshoptFormatException(
+        'meshopt vertex buffer: the stream ends part way through',
+      ),
+      stack,
     );
   }
 }
@@ -347,7 +350,6 @@ void _writeGroup(
       }
       out.add(bits);
       out.add(Uint8List.fromList(escapes));
-      return;
     case 2:
       // modeBits == 4: sixteen 4-bit codes packed two to a byte, 0xf as the
       // escape — an 8-byte header.
@@ -362,7 +364,6 @@ void _writeGroup(
       }
       out.add(bits);
       out.add(Uint8List.fromList(escapes));
-      return;
     case 3:
     default:
       // Mode 3 in _bestGroupWidth's own numbering means "write verbatim",

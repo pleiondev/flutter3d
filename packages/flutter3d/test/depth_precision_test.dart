@@ -212,7 +212,6 @@ Future<Uint8List> _frame({
     ),
   );
   final pixels = await it.device.readback(result.frame);
-  expect(pixels, isNotNull, reason: 'the frame could not be read back');
   return pixels.buffer.asUint8List();
 }
 
@@ -567,7 +566,6 @@ Future<Uint8List> _shadowShot({
     ),
   );
   final pixels = await device.readback(frame.frame);
-  expect(pixels, isNotNull, reason: 'the frame could not be read back');
   return pixels.buffer.asUint8List();
 }
 

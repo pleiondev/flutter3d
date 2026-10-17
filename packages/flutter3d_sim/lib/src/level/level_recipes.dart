@@ -105,15 +105,21 @@ Level _recipesExpanded(Level level) {
         ));
     try {
       kit(sketch, recipe);
-    } on LevelFormatException catch (e) {
-      throw LevelFormatException(
-        'recipe ${index + 1} (${recipe.kind}): ${e.message}',
+    } on LevelFormatException catch (e, stackTrace) {
+      Error.throwWithStackTrace(
+        LevelFormatException(
+          'recipe ${index + 1} (${recipe.kind}): ${e.message}',
+        ),
+        stackTrace,
       );
-    } on TypeError catch (e) {
+    } on TypeError catch (e, stackTrace) {
       // A param of the wrong JSON type reaches a cast inside a kit. Named
       // like every other refusal of a document, rather than a stack trace.
-      throw LevelFormatException(
-        'recipe ${index + 1} (${recipe.kind}): a param has the wrong type: $e',
+      Error.throwWithStackTrace(
+        LevelFormatException(
+          'recipe ${index + 1} (${recipe.kind}): a param has the wrong type: $e',
+        ),
+        stackTrace,
       );
     }
   }

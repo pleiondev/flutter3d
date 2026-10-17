@@ -94,7 +94,6 @@ Future<Uint8List> _draw(
     settings: const RenderSettings(),
   );
   final pixels = await it.device.readback(result.frame);
-  expect(pixels, isNotNull, reason: 'the frame could not be read back');
   return pixels.buffer.asUint8List();
 }
 
@@ -118,7 +117,6 @@ void _light(CpuDevice device, Scene scene, {int levels = 4}) {
     faces: faces,
     mipLevels: chain,
   );
-  expect(texture, isNotNull, reason: 'the environment could not be uploaded');
 
   scene
     ..environment = texture

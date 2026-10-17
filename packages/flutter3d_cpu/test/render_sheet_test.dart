@@ -45,7 +45,6 @@ void main() {
         deviceFactory: _cpuDevice,
       );
       final decodedSheet = await decodeImagePure(sheet);
-      expect(decodedSheet, isNotNull);
       expect(decodedSheet.width, 128);
       expect(decodedSheet.height, 128);
 
@@ -157,7 +156,6 @@ void main() {
       deviceFactory: _cpuDevice,
     );
     final decoded = await decodeImagePure(sheet);
-    expect(decoded, isNotNull);
     expect(decoded.width, 64);
     expect(decoded.height, 64);
   });

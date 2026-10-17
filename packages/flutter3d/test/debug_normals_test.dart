@@ -74,7 +74,6 @@ Future<({List<int> pixels, int lines})> _draw(
     ),
   );
   final pixels = await it.device.readback(result.frame);
-  expect(pixels, isNotNull, reason: 'the frame could not be read back');
   return (pixels: pixels.buffer.asUint8List(), lines: result.debugLines);
 }
 

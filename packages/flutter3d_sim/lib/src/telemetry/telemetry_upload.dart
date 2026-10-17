@@ -95,8 +95,11 @@ final class TelemetryUpload extends FormatDocument {
     final Demo demo;
     try {
       demo = Demo.fromJson(run);
-    } on DemoFormatException catch (error) {
-      throw TelemetryUploadFormatException('the run: ${error.message}');
+    } on DemoFormatException catch (error, stackTrace) {
+      Error.throwWithStackTrace(
+        TelemetryUploadFormatException('the run: ${error.message}'),
+        stackTrace,
+      );
     }
     return TelemetryUpload._(
       game: game,

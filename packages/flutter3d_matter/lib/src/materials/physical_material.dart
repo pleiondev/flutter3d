@@ -335,8 +335,11 @@ final class PhysicalMaterial {
   static T _within<T>(String id, T Function() read) {
     try {
       return read();
-    } on MaterialFormatException catch (e) {
-      throw MaterialFormatException('material "$id": ${e.message}');
+    } on MaterialFormatException catch (e, stackTrace) {
+      Error.throwWithStackTrace(
+        MaterialFormatException('material "$id": ${e.message}'),
+        stackTrace,
+      );
     }
   }
 

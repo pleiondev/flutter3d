@@ -1058,10 +1058,8 @@ final class Runner
   /// is in one, which the step tells it before this runs.
   void _swim(double dt, InputState input) {
     final water = inWater;
-    if (water == null) {
-      _gliding = _gliding && true;
-      return;
-    }
+    // On dry land the glide is left as the glide step set it.
+    if (water == null) return;
 
     // Gliding and swimming are the same button meaning two things, and being
     // in water wins: a runner underwater is not falling.

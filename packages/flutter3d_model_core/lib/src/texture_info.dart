@@ -219,7 +219,8 @@ CompressedBlock? blockLayoutFor(TextureFileFormat format) => switch (format) {
     blockHeight: 4,
     bytesPerBlock: 16,
   ),
-  TextureFileFormat.rgba8 || TextureFileFormat.other => null,
+  // rgba8 and other have no block, and neither does a format a later minor
+  // adds before this table learns it.
   _ => null,
 };
 

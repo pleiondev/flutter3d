@@ -228,7 +228,10 @@ Future<PartySeat> _seat(
   void Function(Map<String, Object?>)? onward;
   void refuse(String reason) {
     if (welcomed.isCompleted) return;
-    welcomed.completeError(StateError('the relay at $at: $reason'));
+    welcomed.completeError(
+      StateError('the relay at $at: $reason'),
+      StackTrace.current,
+    );
     unawaited(socket.close());
   }
 
@@ -281,6 +284,7 @@ Future<PartySeat> _seat(
       if (welcomed.isCompleted) return;
       welcomed.completeError(
         StateError('the relay closed $at: ${reason ?? 'no reason given'}'),
+        StackTrace.current,
       );
     }),
   );

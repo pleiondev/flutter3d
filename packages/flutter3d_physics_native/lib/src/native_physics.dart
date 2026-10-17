@@ -248,8 +248,11 @@ Future<PhysicsStart> startPhysics({
   if (asked != 'dart') {
     try {
       await loadPhysicsCore(threads: threads);
-    } on Object catch (e) {
-      return _choose(asked, () => throw StateError('$e'));
+    } on Object catch (e, stackTrace) {
+      return _choose(
+        asked,
+        () => Error.throwWithStackTrace(StateError('$e'), stackTrace),
+      );
     }
   }
   return _choose(asked, probe ?? () => NativeWorld().dispose());

@@ -122,12 +122,12 @@ String _field(String name, Object? value, ParamHint? hint) =>
 
 /// What a field's own example value says about its shape.
 String _shapeOf(Object? value) => switch (value) {
-  final bool _ => 'true or false',
-  final int _ => 'a whole number',
-  final double _ => 'a number',
-  final String _ => 'a word',
+  bool() => 'true or false',
+  int() => 'a whole number',
+  double() => 'a number',
+  String() => 'a word',
   final List<Object?> list => '${list.length} numbers',
-  final Map<Object?, Object?> _ => 'an object',
+  Map<Object?, Object?>() => 'an object',
   null => 'optional; omit it or give a number',
   _ => 'a value',
 };
@@ -135,12 +135,12 @@ String _shapeOf(Object? value) => switch (value) {
 /// The range and unit an inspector would build a slider from, when there is
 /// one — the same table `modifier_slot.dart` already keeps for the panels.
 String _hint(ParamHint? hint) => switch (hint) {
-  null => '',
   IntHint(:final min, :final max) => ', $min to $max',
   DoubleHint(:final min, :final max, :final unit) =>
     ', ${min ?? '−∞'} to ${max ?? '∞'}${unit == null ? '' : ' ($unit)'}',
   Vector3Hint(:final unit) => unit == null ? '' : ' (in $unit)',
   ChoiceHint(:final values) => ', one of ${values.join(', ')}',
-  BoolHint() => '',
+  // No hint, a BoolHint (a switch has no range) and a hint this table does
+  // not know yet all add nothing.
   _ => '',
 };

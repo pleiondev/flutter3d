@@ -250,14 +250,17 @@ MaterialComputeKernel lowerMaterialCompute(MaterialProgram program) {
   final source = _Lowering(program).source();
   try {
     return MaterialComputeKernel._(program, ComputeKernel.parse(source));
-  } on ComputeKernelException catch (error) {
+  } on ComputeKernelException catch (error, stack) {
     // The one thing a valid material can do that its lowering cannot say: a
     // texture bound under a word of the kernel language.
-    throw MaterialSyntaxException(
-      'compute stage "${program.name}" does not lower to the kernel '
-      'language: ${error.reason}',
-      1,
-      1,
+    Error.throwWithStackTrace(
+      MaterialSyntaxException(
+        'compute stage "${program.name}" does not lower to the kernel '
+        'language: ${error.reason}',
+        1,
+        1,
+      ),
+      stack,
     );
   }
 }

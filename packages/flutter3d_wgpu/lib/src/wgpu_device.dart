@@ -62,11 +62,14 @@ WgpuComputeDevice openWgpuComputeDevice() {
   final int abi;
   try {
     abi = w.f3d_wgpu_abi_version();
-  } on ArgumentError {
-    throw const DeviceUnavailableException(
-      'there is no wgpu sidecar in this build: wgpu-native was not fetched '
-      'for this target, so compute runs on the device or the CPU',
-      backend: wgpuBackendName,
+  } on ArgumentError catch (_, stack) {
+    Error.throwWithStackTrace(
+      const DeviceUnavailableException(
+        'there is no wgpu sidecar in this build: wgpu-native was not fetched '
+        'for this target, so compute runs on the device or the CPU',
+        backend: wgpuBackendName,
+      ),
+      stack,
     );
   }
   if (abi != w.wgpuAbiVersion) {

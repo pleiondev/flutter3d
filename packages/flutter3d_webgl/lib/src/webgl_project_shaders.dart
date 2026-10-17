@@ -31,26 +31,32 @@ WebGlSectionSources? projectWebGlSources(ByteData? bytes) {
   final ShaderBundle bundle;
   try {
     bundle = ShaderBundle.decode(bytes);
-  } on ShaderBundleException catch (error) {
-    throw ShaderBundleException(
-      name: error.name,
-      reason: error.reason,
-      asset: asset,
-      advice: 'Build the project again so its hook writes the bundle anew',
+  } on ShaderBundleException catch (error, stack) {
+    Error.throwWithStackTrace(
+      ShaderBundleException(
+        name: error.name,
+        reason: error.reason,
+        asset: asset,
+        advice: 'Build the project again so its hook writes the bundle anew',
+      ),
+      stack,
     );
   }
   final section = bundle.section(ShaderBundle.webglSection);
   if (section == null) return null;
   try {
     return decodeWebGlSection(section);
-  } on BundleSectionFormatException catch (error) {
-    throw ShaderBundleException(
-      name: bundle.name,
-      asset: asset,
-      reason:
-          'its "${ShaderBundle.webglSection}" section is not the JSON '
-          'document this backend reads: ${error.message}',
-      advice: 'Build the project again so its hook writes the bundle anew',
+  } on BundleSectionFormatException catch (error, stack) {
+    Error.throwWithStackTrace(
+      ShaderBundleException(
+        name: bundle.name,
+        asset: asset,
+        reason:
+            'its "${ShaderBundle.webglSection}" section is not the JSON '
+            'document this backend reads: ${error.message}',
+        advice: 'Build the project again so its hook writes the bundle anew',
+      ),
+      stack,
     );
   }
 }

@@ -168,7 +168,6 @@ void main() {
       format: format,
       pixels: ByteData.sublistView(encoded),
     );
-    expect(texture, isNotNull);
 
     final left = await _sampleAt(device, texture, 0.25, 0.5);
     final right = await _sampleAt(device, texture, 0.75, 0.5);

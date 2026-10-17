@@ -56,7 +56,6 @@ void main() {
       pixels: _levelBytes(TextureFormat.etc2RGB8UNormInt, 4, 4),
     );
 
-    expect(handle, isNotNull);
     expect(handle.format, TextureFormat.etc2RGB8UNormInt);
     expect(device.debugDrainErrors('after ETC2 upload'), isNull);
     device.dispose();
@@ -77,7 +76,7 @@ void main() {
       mipLevels: [_levelBytes(format, 4, 4)],
     );
 
-    expect(handle, isNotNull);
+    expect(handle.format, format);
     expect(device.debugDrainErrors('after ETC2 mip chain upload'), isNull);
     device.dispose();
   });

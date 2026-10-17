@@ -239,9 +239,12 @@ DecodedImage decodeJpeg(Uint8List bytes) {
   final DecodedImage? decoded;
   try {
     decoded = _decodeJpeg(bytes);
-  } on RangeError {
-    throw ImageFormatException(
-      'a JPEG whose segments run past the end of its ${bytes.length} bytes',
+  } on RangeError catch (_, stack) {
+    Error.throwWithStackTrace(
+      ImageFormatException(
+        'a JPEG whose segments run past the end of its ${bytes.length} bytes',
+      ),
+      stack,
     );
   }
   if (decoded != null) return decoded;

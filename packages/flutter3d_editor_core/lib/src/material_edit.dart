@@ -120,9 +120,7 @@ bool _fits(MaterialHint? hint, Object? value, Object? was) {
 }
 
 bool _sameShape(Object? value, Object? was) => switch ((value, was)) {
-  (num(), num()) => true,
-  (bool(), bool()) => true,
-  (String(), String()) => true,
+  (num(), num()) || (bool(), bool()) || (String(), String()) => true,
   (final List<Object?> a, final List<Object?> b) => a.length == b.length,
   _ => false,
 };

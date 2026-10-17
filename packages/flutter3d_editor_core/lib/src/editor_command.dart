@@ -105,6 +105,7 @@ abstract final class EditorCommand extends DocumentCommand {
   /// One word in lower camel case, matching the method it stands for, so a
   /// person reading a log of what an agent did reads verbs rather than numbers.
   @override
+  // ignore: avoid-unnecessary-overrides, redeclared for its own documentation.
   String get name;
 
   /// What it does, read as a sentence.
@@ -114,6 +115,7 @@ abstract final class EditorCommand extends DocumentCommand {
   /// because "move" and "move by 0.25, 0, 0" answer different questions when
   /// somebody is looking for the step they want to go back past.
   @override
+  // ignore: avoid-unnecessary-overrides, redeclared for its own documentation.
   String get says;
 
   /// Everything this carries except its [name].
@@ -122,6 +124,7 @@ abstract final class EditorCommand extends DocumentCommand {
   /// caller that already knows which command it is holding can read the
   /// arguments without having to look past the name it just wrote.
   @override
+  // ignore: avoid-unnecessary-overrides, redeclared for its own documentation.
   Map<String, Object?> get arguments;
 
   /// Does it, to [editing].
@@ -136,6 +139,7 @@ abstract final class EditorCommand extends DocumentCommand {
   ///
   /// A command that answers false has changed nothing.
   @override
+  // ignore: avoid-unnecessary-overrides, redeclared for its own documentation.
   bool apply(Editing editing);
 
   /// This command as a map, ready for `jsonEncode`.

@@ -264,6 +264,8 @@ enum ParityScene {
 
     case ParityScene.plain:
     case ParityScene.bloom:
+    case ParityScene.sky:
+    case ParityScene.look:
       // Above and to the right, so the lit side of both spheres is up.
       scene.root.add(
         LightNode(name: 'key', type: LightType.directional)
@@ -293,15 +295,6 @@ enum ParityScene {
           ..range = 12.0
           ..castsShadow = true
           ..setPosition(2.2, 2.6, 1.8),
-      );
-
-    case ParityScene.sky:
-    case ParityScene.look:
-      scene.root.add(
-        LightNode(name: 'key', type: LightType.directional)
-          ..intensity = 3.5 * LightNode.defaultIntensity
-          ..setPosition(1.5, 3.0, 2.0)
-          ..lookAt(Vector3.zero()),
       );
 
     case ParityScene.imageBasedLighting:
@@ -444,7 +437,7 @@ const List<(double, double, double)> _torchStandoffs =
 /// which feature disagreed. A fixture with shadows *and* bloom would report one
 /// number for two questions.
 RenderSettings paritySettingsFor(ParityScene which) => switch (which) {
-  ParityScene.plain => const RenderSettings(
+  ParityScene.plain || ParityScene.imageBasedLighting => const RenderSettings(
     bloom: BloomSettings(enabled: false),
     shadows: ShadowSettings(enabled: false),
   ),
@@ -474,10 +467,6 @@ RenderSettings paritySettingsFor(ParityScene which) => switch (which) {
     bloom: const BloomSettings(enabled: false),
     shadows: const ShadowSettings(enabled: false),
     sky: _paritySky,
-  ),
-  ParityScene.imageBasedLighting => const RenderSettings(
-    bloom: BloomSettings(enabled: false),
-    shadows: ShadowSettings(enabled: false),
   ),
   // Turned up far past taste: a fixture that applied a look nobody could
   // see would compare two pictures of the same thing and agree.

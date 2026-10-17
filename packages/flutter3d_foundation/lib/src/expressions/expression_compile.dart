@@ -151,7 +151,7 @@ List<double> _slot(
     final num number when type.dimension.isNone && !type.isBoolean => <double>[
       number.toDouble(),
     ],
-    final num _ => throw UnitMismatchException(Unit.one, coherent),
+    num _ => throw UnitMismatchException(Unit.one, coherent),
     final List<double> components => components,
     _ => throw ArgumentError.value(
       value,

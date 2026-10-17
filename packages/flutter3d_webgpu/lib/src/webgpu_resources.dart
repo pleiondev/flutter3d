@@ -1278,7 +1278,10 @@ WebGpuTexture webgpuCreateBlank(
 }) {
   final layers = switch (dimension) {
     WebGpuTextureDimension.cube || WebGpuTextureDimension.cubeArray => 6,
-    _ => 1,
+    WebGpuTextureDimension.oneDimensional ||
+    WebGpuTextureDimension.twoDimensional ||
+    WebGpuTextureDimension.twoDimensionalArray ||
+    WebGpuTextureDimension.threeDimensional => 1,
   };
   final texture = gpu.createTexture(
     GPUTextureDescriptor(
@@ -1292,7 +1295,10 @@ WebGpuTexture webgpuCreateBlank(
       dimension: switch (dimension) {
         WebGpuTextureDimension.oneDimensional => '1d',
         WebGpuTextureDimension.threeDimensional => '3d',
-        _ => '2d',
+        WebGpuTextureDimension.twoDimensional ||
+        WebGpuTextureDimension.twoDimensionalArray ||
+        WebGpuTextureDimension.cube ||
+        WebGpuTextureDimension.cubeArray => '2d',
       },
       label: 'blank ${dimension.gpuName}${depth ? ' depth' : ''}',
     ),

@@ -29,9 +29,12 @@ Object? decodeSectionJson(ByteData bytes) {
         bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),
       ),
     );
-  } on FormatException catch (error) {
-    throw BundleSectionFormatException(
-      'the section is not UTF-8 JSON: ${error.message}',
+  } on FormatException catch (error, stack) {
+    Error.throwWithStackTrace(
+      BundleSectionFormatException(
+        'the section is not UTF-8 JSON: ${error.message}',
+      ),
+      stack,
     );
   }
 }

@@ -571,7 +571,7 @@ final class WebGlDevice extends GraphicsDevice
         gl.getExtension('EXT_disjoint_timer_query_webgl2')
             as web.EXT_disjoint_timer_query_webgl2?;
     if (timer == null) return null;
-    final bits = (gl as JSObject).callMethod<JSAny?>(
+    final bits = gl.callMethod<JSAny?>(
       'getQuery'.toJS,
       webglTimestampTarget.toJS,
       web.EXT_disjoint_timer_query_webgl2.QUERY_COUNTER_BITS_EXT.toJS,

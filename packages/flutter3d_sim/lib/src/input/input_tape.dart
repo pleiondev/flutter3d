@@ -432,9 +432,12 @@ final class InputTape extends FormatDocument {
         (read[step] ??= <ExternalStateInput>[]).add(
           ExternalStateInput.fromJson(entry),
         );
-      } on Flutter3dFormatException catch (error) {
-        throw InputTapeFormatException(
-          'the external input at step $step: ${error.message}',
+      } on Flutter3dFormatException catch (error, stackTrace) {
+        Error.throwWithStackTrace(
+          InputTapeFormatException(
+            'the external input at step $step: ${error.message}',
+          ),
+          stackTrace,
         );
       }
       last = step;

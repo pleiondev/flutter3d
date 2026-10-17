@@ -48,6 +48,7 @@ abstract base class GameEvent extends BusEvent {
   /// in a digest. Not an identity between two events: two of the same name
   /// are still two events.
   @override
+  // ignore: avoid-unnecessary-overrides, kept for what it says of a game event's name
   String get name;
 }
 

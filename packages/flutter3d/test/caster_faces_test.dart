@@ -117,7 +117,6 @@ Future<List<int>> _grid(ShadowSettings shadows) async {
     ),
   );
   final pixels = await it.device.readback(frame.frame);
-  expect(pixels, isNotNull, reason: 'the frame could not be read back');
   return parityGrid(pixels.buffer.asUint8List(), _width, _height);
 }
 
@@ -221,7 +220,6 @@ void main() {
       ),
     );
     final pixels = await it.device.readback(frame.frame);
-    expect(pixels, isNotNull, reason: 'the frame could not be read back');
 
     expect(
       _shadowed(parityGrid(pixels.buffer.asUint8List(), _width, _height)),

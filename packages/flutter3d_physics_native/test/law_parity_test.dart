@@ -369,6 +369,7 @@ void main() {
       final answers = <List<double>>[];
       for (final values in fixture.values) {
         runs.add(<double>[
+          // ignore: prefer-null-aware-spread, a fixture missing an input must fail, not shift the rest
           for (final input in bytecode.inputs) ...values[input.name]!,
         ]);
         answers.add(bytecode.runNamed(values));

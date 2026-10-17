@@ -59,8 +59,11 @@ Future<ByteData> loadAsset(String key, {String? contentHash}) async {
       // right; without one, keep the copy but ask whether it is current.
       _RequestInit(cache: contentHash == null ? 'no-cache' : 'default'),
     ).toDart;
-  } catch (error) {
-    throw FlutterError('Unable to load asset: "$key" ($error).');
+  } catch (error, stack) {
+    Error.throwWithStackTrace(
+      FlutterError('Unable to load asset: "$key" ($error).'),
+      stack,
+    );
   }
   if (!response.ok) {
     throw FlutterError(

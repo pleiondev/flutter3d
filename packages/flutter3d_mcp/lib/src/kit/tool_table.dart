@@ -489,7 +489,7 @@ base class _Wire<S, A> extends MCPServer with ToolsSupport, PromptsSupport {
   Registration? _projectListener;
 
   @override
-  FutureOr<InitializeResult> initialize(InitializeRequest request) async {
+  Future<InitializeResult> initialize(InitializeRequest request) async {
     try {
       _owner.onInitialize?.call(request.clientInfo.name);
     } catch (_) {}

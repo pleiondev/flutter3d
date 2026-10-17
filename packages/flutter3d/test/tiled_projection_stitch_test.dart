@@ -81,7 +81,6 @@ Future<Uint8List> _render(
     settings: const RenderSettings(bloom: BloomSettings(enabled: false)),
   );
   final pixels = await device.readback(result.frame);
-  expect(pixels, isNotNull, reason: 'the frame could not be read back');
   return pixels.buffer.asUint8List();
 }
 

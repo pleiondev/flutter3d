@@ -585,6 +585,7 @@ final class ModelObject {
   /// **The version moves here rather than at the call sites**, so that an edit
   /// which forgets to bump it is an edit that cannot be written: there is no
   /// other way to make a changed object.
+  // ignore: avoid-incomplete-copy-with, the id never changes and the version only moves on, as the doc comment says.
   ModelObject copyWith({
     String? name,
     Geometry? geometry,
@@ -981,6 +982,7 @@ final class ModelProject with ModelProjectView {
     );
   }
 
+  // ignore: avoid-incomplete-copy-with, objects change through added, withObject and removed, which keep nextId honest.
   ModelProject copyWith({
     ProjectProfile? profile,
     List<ProjectMaterial>? materials,

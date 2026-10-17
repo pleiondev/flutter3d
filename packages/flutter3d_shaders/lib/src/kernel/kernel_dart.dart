@@ -297,6 +297,7 @@ final class CompiledKernel {
       case KFloatLiteral(:final value):
         final rounded = roundToF32(value);
         return (f) => rounded;
+      // ignore: no-equal-switch-case, an int and a bool cannot share a pattern.
       case KBoolLiteral(:final value):
         return (f) => value;
       case KLocalRef(:final local):

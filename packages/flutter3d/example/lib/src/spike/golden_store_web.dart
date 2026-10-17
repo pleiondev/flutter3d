@@ -136,6 +136,7 @@ Never finish(int code) => throw _GoldenFinished(code);
 
 /// Thrown to unwind out of a golden run. Caught by the runner's caller, which
 /// has already printed the verdict.
+// ignore: prefer-public-exception-classes, it only unwinds a run inside this library.
 final class _GoldenFinished implements Exception {
   const _GoldenFinished(this.code);
   final int code;

@@ -4429,6 +4429,7 @@ final class Renderer with RenderServices {
     if (builder == null) {
       wanted.completeError(
         StateError('The frame ran without building a capture.'),
+        StackTrace.current,
       );
       return;
     }

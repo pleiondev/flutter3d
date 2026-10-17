@@ -162,7 +162,6 @@ Future<Uint8List> _draw({RenderAnchor? at}) async {
     settings: const RenderSettings(bloom: BloomSettings(enabled: false)),
   );
   final pixels = await engine.device.readback(frame.frame);
-  expect(pixels, isNotNull);
   return pixels.buffer.asUint8List();
 }
 

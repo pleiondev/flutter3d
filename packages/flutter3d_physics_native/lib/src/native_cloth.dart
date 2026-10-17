@@ -118,6 +118,7 @@ final class ClothSettings {
 
   /// A copy with the given fields replaced. A `clear…` flag resets that
   /// nullable field to null, which passing null cannot say.
+  // ignore: avoid-incomplete-copy-with, the world only seeds the defaults and is not kept
   ClothSettings copyWith({
     Vector3? gravity,
     Vector3? wind,

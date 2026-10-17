@@ -211,8 +211,11 @@ final class Heatmap {
             key! as String: (value! as num).toInt(),
         },
       );
-    } on TypeError catch (error) {
-      throw HeatmapFormatException('a cell or a death is malformed: $error');
+    } on TypeError catch (error, stackTrace) {
+      Error.throwWithStackTrace(
+        HeatmapFormatException('a cell or a death is malformed: $error'),
+        stackTrace,
+      );
     }
   }
 

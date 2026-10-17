@@ -144,7 +144,6 @@ void main() {
       settings: const RenderSettings(bloom: BloomSettings(enabled: false)),
     );
     final pixels = await it.device.readback(frame.frame);
-    expect(pixels, isNotNull);
     final rgba = pixels.buffer.asUint8List();
 
     final left = _half(rgba, left: true);

@@ -35,14 +35,13 @@ void main() {
     }
     final box = _box(0.02);
     var highest = 0.0;
-    var fastest = 0.0;
     for (var i = 0; i < 120; i++) {
       fluid.step(1 / 240, gravity: Vector3(0, -9.81, 0), obstacles: box);
       for (final p in fluid.positions) {
         highest = math.max(highest, p.y);
       }
     }
-    fastest = fluid.velocities.fold(
+    final fastest = fluid.velocities.fold(
       0.0,
       (double m, Vector3 v) => math.max(m, v.length),
     );

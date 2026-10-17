@@ -87,9 +87,12 @@ final class Heightfield {
     final Uint8List bytes;
     try {
       bytes = base64Decode(heights);
-    } on FormatException catch (error) {
-      throw LevelFormatException(
-        'the heightfield\'s "heights" are not base64: ${error.message}',
+    } on FormatException catch (error, stackTrace) {
+      Error.throwWithStackTrace(
+        LevelFormatException(
+          'the heightfield\'s "heights" are not base64: ${error.message}',
+        ),
+        stackTrace,
       );
     }
     if (bytes.length != columns * rows * 4) {

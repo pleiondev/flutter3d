@@ -97,9 +97,12 @@ extension _F3dGeometry on F3dDocument {
             count * MeshClusters.floatsPerCluster,
           ),
         );
-      } on ArgumentError catch (error) {
-        throw F3dFormatException(
-          'clusters[$i] for meshes[$meshIndex] is malformed: ${error.message}',
+      } on ArgumentError catch (error, stack) {
+        Error.throwWithStackTrace(
+          F3dFormatException(
+            'clusters[$i] for meshes[$meshIndex] is malformed: ${error.message}',
+          ),
+          stack,
         );
       }
     }

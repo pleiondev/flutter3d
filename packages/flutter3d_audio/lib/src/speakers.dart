@@ -50,10 +50,13 @@ Future<Speakers> openSpeakers({
   final backend = SoLoudBackend(onIssue: onIssue);
   try {
     await backend.open();
-  } on Object catch (error) {
-    throw AudioDeviceException(
-      'the audio device did not open, so there is no sound',
-      cause: error,
+  } on Object catch (error, stackTrace) {
+    Error.throwWithStackTrace(
+      AudioDeviceException(
+        'the audio device did not open, so there is no sound',
+        cause: error,
+      ),
+      stackTrace,
     );
   }
 

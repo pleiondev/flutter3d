@@ -2958,7 +2958,6 @@ void main() {
         );
 
         final pixels = await device.readback(result.frame);
-        expect(pixels, isNotNull, reason: 'the frame could not be read back');
 
         final mine = parityGrid(
           pixels.buffer.asUint8List(),

@@ -156,9 +156,8 @@ final class WebRtcTransport extends PeerWire {
 
   Future<void> _onSignallingMessage(Map<String, Object?> message) async {
     final signal = switch (readSignal(message)) {
-      NotASignal() => null,
       SignalRefused(:final reason, otherVersion: true) => _refuse(reason),
-      SignalRefused() => null,
+      NotASignal() || SignalRefused() => null,
       SignalOf(:final signal) => signal,
     };
     if (signal == null) return;
@@ -190,7 +189,10 @@ final class WebRtcTransport extends PeerWire {
   /// Fails [ready] for a handshake that cannot finish, and reads nothing.
   Signal? _refuse(String reason) {
     if (!_readyCompleter.isCompleted) {
-      _readyCompleter.completeError(StateError('WebRTC signalling: $reason.'));
+      _readyCompleter.completeError(
+        StateError('WebRTC signalling: $reason.'),
+        StackTrace.current,
+      );
     }
     return null;
   }

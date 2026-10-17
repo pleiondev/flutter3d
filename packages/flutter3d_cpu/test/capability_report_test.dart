@@ -80,9 +80,9 @@ void main() {
     // on the way from the constructor into `features` and `limits`.
     final d = device(independentBlend: false, attachments: 1);
     expect(d.features.has(DeviceFeature.independentBlend), isFalse);
-    expect(d.features.has(DeviceFeature.independentBlend), isFalse);
+    expect(device().features.has(DeviceFeature.independentBlend), isTrue);
     expect(d.limits.maxColorAttachments, 1);
-    expect(d.limits.maxColorAttachments, 1);
+    expect(d.limits.maxColorAttachmentBytesPerSample, 16);
   });
 
   test('every 1.0 feature the rasteriser implements is listed, and the rest '

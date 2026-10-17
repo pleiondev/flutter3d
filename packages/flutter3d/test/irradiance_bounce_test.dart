@@ -116,7 +116,6 @@ Future<Uint8List> _draw({required bool field, required bool redWall}) async {
     settings: const RenderSettings(bloom: BloomSettings(enabled: false)),
   );
   final pixels = await it.device.readback(frame.frame);
-  expect(pixels, isNotNull);
   return pixels.buffer.asUint8List();
 }
 

@@ -72,10 +72,10 @@ final class WebGpuSectionCompiler extends MaterialCompiler {
             if (fragments.contains(key)) key: value,
         },
       );
-    } on WgslSectionException catch (error) {
-      throw MaterialCompileException(error.message);
-    } on StageAgreementException catch (error) {
-      throw MaterialCompileException(error.message);
+    } on WgslSectionException catch (error, stack) {
+      Error.throwWithStackTrace(MaterialCompileException(error.message), stack);
+    } on StageAgreementException catch (error, stack) {
+      Error.throwWithStackTrace(MaterialCompileException(error.message), stack);
     }
     return MaterialCompileResult(
       section: Uint8List.fromList(utf8.encode(document)).buffer.asByteData(),

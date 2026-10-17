@@ -150,35 +150,41 @@ ByteData engineSectionOf(
   final ShaderBundle bundle;
   try {
     bundle = ShaderBundle.decode(bytes);
-  } on ShaderBundleException catch (refused) {
-    throw ShaderBundleException(
-      name: refused.name,
-      reason: refused.reason,
-      stale: refused.stale,
-      asset: asset,
+  } on ShaderBundleException catch (refused, stack) {
+    Error.throwWithStackTrace(
+      ShaderBundleException(
+        name: refused.name,
+        reason: refused.reason,
+        stale: refused.stale,
+        asset: asset,
+      ),
+      stack,
     );
   }
   try {
     return impellerSectionOf(bundle, running: running);
-  } on ShaderBundleException catch (refused) {
+  } on ShaderBundleException catch (refused, stack) {
     final stamp = EngineBundleStamp.decode(
       bundle.section(EngineBundleStamp.section),
     );
-    throw ShaderBundleException(
-      name: refused.name,
-      reason: stamp == null
-          ? refused.reason
-          : '${refused.reason} It was built with $stamp.',
-      stale: refused.stale,
-      asset: asset,
-      advice: !refused.stale
-          ? null
-          : fromProject
-          ? 'Build the application again: flutter3d_build\'s hook compiles '
-                'the bundle for the SDK that runs it'
-          : 'Add flutter3d_build\'s hook to the application '
-                '(hook/build.dart calling buildAssets), which compiles the '
-                'engine\'s bundle for the SDK the application is built with',
+    Error.throwWithStackTrace(
+      ShaderBundleException(
+        name: refused.name,
+        reason: stamp == null
+            ? refused.reason
+            : '${refused.reason} It was built with $stamp.',
+        stale: refused.stale,
+        asset: asset,
+        advice: !refused.stale
+            ? null
+            : fromProject
+            ? 'Build the application again: flutter3d_build\'s hook compiles '
+                  'the bundle for the SDK that runs it'
+            : 'Add flutter3d_build\'s hook to the application '
+                  '(hook/build.dart calling buildAssets), which compiles the '
+                  'engine\'s bundle for the SDK the application is built with',
+      ),
+      stack,
     );
   }
 }
@@ -225,12 +231,15 @@ final class GpuLoadedShaderLibrary with ShaderLibrary, LoadedShaderLibrary {
     final gpu.ShaderLibrary? library;
     try {
       library = await gpu.ShaderLibrary.fromBytes(section);
-    } catch (error) {
+    } catch (error, stack) {
       // flutter_gpu throws a bare `Exception` with its parser's words; the
       // caller wants the bundle's name beside them.
-      throw ShaderBundleException(
-        name: bundle.name,
-        reason: 'flutter_gpu could not parse its compiled section: $error',
+      Error.throwWithStackTrace(
+        ShaderBundleException(
+          name: bundle.name,
+          reason: 'flutter_gpu could not parse its compiled section: $error',
+        ),
+        stack,
       );
     }
     if (library == null) {

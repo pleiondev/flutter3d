@@ -57,7 +57,10 @@ Future<IsolateLink> openIsolateLink(
       _ => '$error',
     };
     if (!ready.isCompleted) {
-      ready.completeError(StateError('the simulation was not built: $why'));
+      ready.completeError(
+        StateError('the simulation was not built: $why'),
+        StackTrace.current,
+      );
     } else {
       link._hear(<Object?>[LinkWords.exited, why]);
     }
@@ -66,6 +69,7 @@ Future<IsolateLink> openIsolateLink(
     if (!ready.isCompleted) {
       ready.completeError(
         StateError('the simulation\'s isolate ended before it was ready'),
+        StackTrace.current,
       );
     } else {
       link._hear(<Object?>[LinkWords.exited, 'its isolate ended']);

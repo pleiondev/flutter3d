@@ -399,14 +399,20 @@ final class MatchDemo {
     final Snapshot start;
     try {
       start = Snapshot.fromJson(run.cast<String, Object?>());
-    } on SnapshotFormatException catch (error) {
-      throw DemoFormatException('the starting state: ${error.message}');
+    } on SnapshotFormatException catch (error, stack) {
+      Error.throwWithStackTrace(
+        DemoFormatException('the starting state: ${error.message}'),
+        stack,
+      );
     }
     final DigestTrace trace;
     try {
       trace = DigestTrace.fromJson(checkpoints.cast<String, Object?>());
-    } on DigestTraceFormatException catch (error) {
-      throw DemoFormatException('the checkpoints: ${error.message}');
+    } on DigestTraceFormatException catch (error, stack) {
+      Error.throwWithStackTrace(
+        DemoFormatException('the checkpoints: ${error.message}'),
+        stack,
+      );
     }
     final Object? platform = json['platform'];
     final Object? recordedBy = json['recordedBy'];
@@ -427,8 +433,8 @@ final class MatchDemo {
           'the pose record is not a document',
         ),
       };
-    } on Flutter3dFormatException catch (error) {
-      throw DemoFormatException(error.message);
+    } on Flutter3dFormatException catch (error, stack) {
+      Error.throwWithStackTrace(DemoFormatException(error.message), stack);
     }
     return MatchDemo(
       level: level,

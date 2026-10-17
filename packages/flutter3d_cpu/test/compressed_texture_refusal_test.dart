@@ -70,13 +70,13 @@ void main() {
     final device = _device();
     final bytes = ByteData(4 * 4 * 4);
     expect(
-      device.createTextureFromPixels(
+      () => device.createTextureFromPixels(
         width: 4,
         height: 4,
         format: TextureFormat.r8g8b8a8UNormInt,
         pixels: bytes,
       ),
-      isNotNull,
+      returnsNormally,
     );
   });
 }

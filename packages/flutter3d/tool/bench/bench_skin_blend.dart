@@ -57,13 +57,14 @@ MeshData skinnedGrid(int side, int jointCount) {
   int idx(int x, int y) => y * (side + 1) + x;
   for (var y = 0; y < side; y++) {
     for (var x = 0; x < side; x++) {
-      indices
-        ..add(idx(x, y))
-        ..add(idx(x + 1, y))
-        ..add(idx(x + 1, y + 1))
-        ..add(idx(x, y))
-        ..add(idx(x + 1, y + 1))
-        ..add(idx(x, y + 1));
+      indices.addAll(<int>[
+        idx(x, y),
+        idx(x + 1, y),
+        idx(x + 1, y + 1),
+        idx(x, y),
+        idx(x + 1, y + 1),
+        idx(x, y + 1),
+      ]);
     }
   }
 

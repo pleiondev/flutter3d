@@ -112,7 +112,7 @@ void main() {
     final built = _chain(8);
 
     built.leaf.worldMatrix;
-    // ignore: no_self_assignments — the point of the test is the self-write.
+    // ignore: no_self_assignments, avoid-self-assignment, the point of the test is the self-write.
     built.chain[2].isVisible = built.chain[2].isVisible;
     expect(walksIn(() => built.leaf.worldMatrix), 0);
   });

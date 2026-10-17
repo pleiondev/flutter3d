@@ -356,8 +356,11 @@ final class EffectDocument extends FormatDocument {
     final Object? json;
     try {
       json = jsonDecode(text);
-    } on FormatException catch (error) {
-      throw EffectFormatException('$from is not JSON: ${error.message}');
+    } on FormatException catch (error, stackTrace) {
+      Error.throwWithStackTrace(
+        EffectFormatException('$from is not JSON: ${error.message}'),
+        stackTrace,
+      );
     }
     if (json is! Map<String, Object?>) {
       throw EffectFormatException('$from is not a JSON object');
@@ -410,12 +413,18 @@ final class EffectDocument extends FormatDocument {
         List<EffectDescription>.unmodifiable(read),
         FormatDocument.unknownIn(json, known: _known, spec: format),
       );
-    } on EffectFormatException catch (error) {
-      throw EffectFormatException('$from: ${error.message}');
-    } on FormatException catch (error) {
+    } on EffectFormatException catch (error, stackTrace) {
+      Error.throwWithStackTrace(
+        EffectFormatException('$from: ${error.message}'),
+        stackTrace,
+      );
+    } on FormatException catch (error, stackTrace) {
       // An emitter or affector reader a plugin brought may still throw the
       // SDK's own.
-      throw EffectFormatException('$from: ${error.message}');
+      Error.throwWithStackTrace(
+        EffectFormatException('$from: ${error.message}'),
+        stackTrace,
+      );
     }
   }
 

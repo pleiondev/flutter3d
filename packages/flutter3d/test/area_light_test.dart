@@ -169,7 +169,6 @@ Future<Uint8List> _draw(({Scene scene, CameraNode camera}) room) async {
     settings: const RenderSettings(bloom: BloomSettings(enabled: false)),
   );
   final pixels = await engine.device.readback(frame.frame);
-  expect(pixels, isNotNull);
   return pixels.buffer.asUint8List();
 }
 

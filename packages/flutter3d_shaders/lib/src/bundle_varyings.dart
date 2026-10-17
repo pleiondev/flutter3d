@@ -66,7 +66,10 @@ Map<String, int> bundleVaryingLocations(
 String _resolveEngine(ShaderSet engine, String file) {
   try {
     return resolveIncludes(engine.sources[file]!, engine.sources, from: file);
-  } on GlslTranslateException catch (error) {
-    throw WgslPrepareException('the engine\'s $file: ${error.message}');
+  } on GlslTranslateException catch (error, stack) {
+    Error.throwWithStackTrace(
+      WgslPrepareException('the engine\'s $file: ${error.message}'),
+      stack,
+    );
   }
 }

@@ -95,7 +95,6 @@ void main() {
     );
 
     final pixels = await it.device.readback(frame.frame);
-    expect(pixels, isNotNull);
 
     // And that it drew the floor rather than merely surviving: the bottom of
     // the frame is the floor near the camera, and it is lit.

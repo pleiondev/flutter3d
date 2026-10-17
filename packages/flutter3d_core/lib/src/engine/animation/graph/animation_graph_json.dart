@@ -97,8 +97,11 @@ abstract final class AnimationGraphJson {
   static AnimationStateMachine _decodeNamed(String name, Object? json) {
     try {
       return decode(json);
-    } on AnimationGraphFormatException catch (error) {
-      throw AnimationGraphFormatException('graph "$name": ${error.message}');
+    } on AnimationGraphFormatException catch (error, stack) {
+      Error.throwWithStackTrace(
+        AnimationGraphFormatException('graph "$name": ${error.message}'),
+        stack,
+      );
     }
   }
 

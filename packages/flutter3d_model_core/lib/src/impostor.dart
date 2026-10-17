@@ -320,10 +320,13 @@ Future<ImpostorBake> bakeImpostor({
     final DecodedImage view;
     try {
       view = decodePng(png);
-    } on ImageFormatException catch (error) {
-      throw StateError(
-        'the snapshot of impostor view $i did not decode as a PNG: '
-        '${error.message}',
+    } on ImageFormatException catch (error, stackTrace) {
+      Error.throwWithStackTrace(
+        StateError(
+          'the snapshot of impostor view $i did not decode as a PNG: '
+          '${error.message}',
+        ),
+        stackTrace,
       );
     }
     final ImpostorView where = atlas.viewAt(i);

@@ -174,12 +174,11 @@ void main() {
       final it = _engine();
       final hdr = _hdr(it.device);
 
-      final result = it.renderer.renderPost(
+      it.renderer.renderPost(
         hdr: hdr,
         settings: const RenderSettings(bloom: BloomSettings(enabled: false)),
       );
 
-      expect(result.frame, isNotNull);
       final compositeBloomBindings = it.device.passes
           .expand((p) => p.commands.whereType<RecordedTexture>())
           .where((t) => t.slot == 'bloom_texture');

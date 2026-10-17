@@ -115,8 +115,11 @@ extension _F3dBundle on F3dDocument {
         words[_view.getUint32(o, Endian.little)] = json == null
             ? null
             : jsonDecode(json);
-      } on FormatException catch (error) {
-        throw F3dFormatException('A lighting model is not JSON: $error');
+      } on FormatException catch (error, stack) {
+        Error.throwWithStackTrace(
+          F3dFormatException('A lighting model is not JSON: $error'),
+          stack,
+        );
       }
     }
     return words;
@@ -168,8 +171,11 @@ extension _F3dBundle on F3dDocument {
   Object? _decodeJson(String text, String what) {
     try {
       return jsonDecode(text);
-    } on FormatException catch (error) {
-      throw F3dFormatException('$what is not JSON: ${error.message}');
+    } on FormatException catch (error, stack) {
+      Error.throwWithStackTrace(
+        F3dFormatException('$what is not JSON: ${error.message}'),
+        stack,
+      );
     }
   }
 

@@ -96,7 +96,6 @@ Future<List<int>> _grid(
     settings: settings,
   );
   final pixels = await engine.device.readback(frame.frame);
-  expect(pixels, isNotNull);
   return parityGrid(pixels.buffer.asUint8List(), _width, _height);
 }
 

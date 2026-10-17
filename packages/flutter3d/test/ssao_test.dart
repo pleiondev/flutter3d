@@ -130,7 +130,6 @@ Future<Uint8List> _draw(RenderSettings settings, {bool lone = false}) async {
     settings: settings,
   );
   final pixels = await engine.device.readback(frame.frame);
-  expect(pixels, isNotNull);
   return pixels.buffer.asUint8List();
 }
 

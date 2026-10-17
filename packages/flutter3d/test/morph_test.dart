@@ -107,7 +107,6 @@ MorphTarget _riseTarget(MeshData mesh) {
       format: TextureFormat.r32g32b32a32Float,
       pixels: packed.bytes,
     );
-    expect(texture, isNotNull, reason: 'the deltas would not upload');
     node = MeshNode(DeviceMesh.upload(device, source), material, name: 'cube')
       ..morph = (MorphState(texture: texture, targetCount: 1)
         ..setWeights(<double>[weight]));
@@ -143,7 +142,6 @@ Future<Uint8List> _draw(
     settings: const RenderSettings(),
   );
   final pixels = await it.device.readback(result.frame);
-  expect(pixels, isNotNull, reason: 'the frame could not be read back');
   return pixels.buffer.asUint8List();
 }
 

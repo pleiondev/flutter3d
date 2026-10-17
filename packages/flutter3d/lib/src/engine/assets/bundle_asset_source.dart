@@ -52,15 +52,18 @@ final class BundleAssetSource extends AssetSource {
       data = isGeneratedAsset(key)
           ? await loadRevalidatedAsset(key)
           : await rootBundle.load(key);
-    } on FlutterError catch (error) {
+    } on FlutterError catch (error, stack) {
       // The message, not the error: a `FlutterError` carries diagnostics
       // that need not cross the isolate a model is decoded on.
-      throw AssetNotFoundException(
-        key,
-        detail:
-            'the asset bundle does not hold it; declare it under '
-            '`flutter: assets:` in pubspec.yaml',
-        cause: error.message,
+      Error.throwWithStackTrace(
+        AssetNotFoundException(
+          key,
+          detail:
+              'the asset bundle does not hold it; declare it under '
+              '`flutter: assets:` in pubspec.yaml',
+          cause: error.message,
+        ),
+        stack,
       );
     }
     return data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);

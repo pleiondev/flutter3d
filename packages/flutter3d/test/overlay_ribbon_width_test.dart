@@ -117,7 +117,6 @@ void main() {
         settings: const RenderSettings(tonemap: false, exposure: 1.0),
       );
       final pixels = await device.readback(result.frame);
-      expect(pixels, isNotNull, reason: 'the frame could not be read back');
       final rgba = pixels.buffer.asUint8List();
 
       // Columns are found by where each ribbon's own colour first appears in

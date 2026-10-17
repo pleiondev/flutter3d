@@ -141,8 +141,10 @@ void main() {
         if (copy case (
           source: final TextureCopyLocation from,
           destination: final TextureCopyLocation to,
-          width: final int width,
+          :final int width,
+          // ignore: avoid-misused-wildcard-pattern, a record shape names each field.
           height: _,
+          // ignore: avoid-misused-wildcard-pattern, a record shape names each field.
           depthOrArrayLayers: _,
         ))
           (from.x, to.z, width),

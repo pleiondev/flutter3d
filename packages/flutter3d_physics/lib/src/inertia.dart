@@ -36,14 +36,14 @@ import 'collision_shape.dart';
 Vector3 inertiaFor(CollisionShape shape, double mass) {
   if (mass <= 0.0) return Vector3.zero();
   return switch (shape) {
-    CollisionBox(:final halfExtents) => _box(halfExtents, mass),
+    CollisionBox(:final halfExtents) ||
+    CollisionWedge(:final halfExtents) => _box(halfExtents, mass),
     CollisionSphere(:final radius) => Vector3.all(0.4 * mass * radius * radius),
     CollisionCapsule(:final radius, :final halfHeight) => _capsule(
       radius,
       halfHeight,
       mass,
     ),
-    CollisionWedge(:final halfExtents) => _box(halfExtents, mass),
     CollisionHeightfield() => _box(shape.boundsHalfExtents, mass),
     _ => shape.inertia(mass),
   };

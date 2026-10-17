@@ -70,7 +70,6 @@ TextureHandle _cube(CpuDevice device, {int size = 4}) {
     format: TextureFormat.r8g8b8a8UNormInt,
     faces: faces,
   );
-  expect(handle, isNotNull, reason: 'the device refused a six-face cube');
   return handle;
 }
 
@@ -111,7 +110,6 @@ Future<Uint8List> _look(
     ),
   );
   final pixels = await it.device.readback(result.frame);
-  expect(pixels, isNotNull);
   return pixels.buffer.asUint8List();
 }
 

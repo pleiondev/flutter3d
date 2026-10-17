@@ -243,8 +243,11 @@ MaterialProgram parseMaterial(String source) {
       source.substring(0, end),
       syntax: materialSyntax,
     );
-  } on ExpressionSyntaxException catch (error) {
-    throw MaterialSyntaxException(error.message, error.line, error.column);
+  } on ExpressionSyntaxException catch (error, stack) {
+    Error.throwWithStackTrace(
+      MaterialSyntaxException(error.message, error.line, error.column),
+      stack,
+    );
   }
   final program = _Parser(tokens).parseMaterial();
   _checkAfterFirstBlock(source, end);

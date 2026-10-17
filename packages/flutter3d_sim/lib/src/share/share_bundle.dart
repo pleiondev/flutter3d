@@ -81,8 +81,11 @@ final class ShareBundle extends FormatDocument {
       run = rawRun == null
           ? null
           : Demo.fromJson(rawRun as Map<String, Object?>);
-    } on DemoFormatException catch (error) {
-      throw ShareFormatException('the run: ${error.message}');
+    } on DemoFormatException catch (error, stackTrace) {
+      Error.throwWithStackTrace(
+        ShareFormatException('the run: ${error.message}'),
+        stackTrace,
+      );
     }
     final bundle = ShareBundle(
       game: game,
@@ -161,10 +164,13 @@ final class ShareBundle extends FormatDocument {
   static String _hashOf(Map<String, Object?> level) {
     try {
       return Level.fromJson(level).digestHex;
-    } on LevelFormatException catch (error) {
-      throw ShareFormatException(
-        'the level in the bundle cannot be read by this build, so there is no '
-        'telling which version of it it is: ${error.message}',
+    } on LevelFormatException catch (error, stackTrace) {
+      Error.throwWithStackTrace(
+        ShareFormatException(
+          'the level in the bundle cannot be read by this build, so there is '
+          'no telling which version of it it is: ${error.message}',
+        ),
+        stackTrace,
       );
     }
   }

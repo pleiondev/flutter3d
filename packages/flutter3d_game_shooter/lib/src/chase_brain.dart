@@ -160,7 +160,7 @@ base class ChaseBrain extends Brain {
       // whatever the game's own code put it in until that code moves it on.
       // A brain that guessed would fight the game for control of its monster.
       default:
-        return;
+        break;
     }
   }
 
@@ -206,6 +206,7 @@ base class ChaseBrain extends Brain {
       // A state this brain does not know: it moves nothing and turns nothing,
       // for the reason `think` gives. The monster still steps — gravity and
       // collision are the world's, not this brain's — it simply is not driven.
+      // ignore: no-equal-switch-case, kept apart from idle and dead for this.
       default:
         break;
     }

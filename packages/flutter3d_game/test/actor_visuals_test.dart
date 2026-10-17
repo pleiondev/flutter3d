@@ -165,15 +165,16 @@ void main() {
       //
       // Mutation: drop `..layerMask = layerMask` from `add`. The capsule stays
       // on the default layer alone, and the mask below reads as one.
+      const layerMask = 1 | (1 << 1);
       final scene = Scene();
       final visuals = ActorVisuals(
         scene,
         appearance: const _PlainLook(),
         device: FakeBackend(),
-        layerMask: 1 | (1 << 1),
+        layerMask: layerMask,
       )..add(_actor());
 
-      expect(scene.meshes.single.layerMask, 1 | (1 << 1));
+      expect(scene.meshes.single.layerMask, layerMask);
       visuals.dispose();
     });
 

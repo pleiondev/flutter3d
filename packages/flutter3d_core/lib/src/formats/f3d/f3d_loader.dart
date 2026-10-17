@@ -492,10 +492,13 @@ final class F3dDocument extends ModelDocument {
     final start = _bytes.offsetInBytes + strings.offset + offset;
     try {
       return utf8.decode(_bytes.buffer.asUint8List(start, length));
-    } on FormatException catch (error) {
-      throw F3dFormatException(
-        'String bytes $offset..${offset + length} are not UTF-8: '
-        '${error.message}.',
+    } on FormatException catch (error, stack) {
+      Error.throwWithStackTrace(
+        F3dFormatException(
+          'String bytes $offset..${offset + length} are not UTF-8: '
+          '${error.message}.',
+        ),
+        stack,
       );
     }
   }
@@ -507,13 +510,15 @@ final class F3dDocument extends ModelDocument {
   T _built<T>(String what, T Function() build) {
     try {
       return build();
-    } on ArgumentError catch (error) {
-      throw F3dFormatException(
-        '$what does not hold together: ${error.message}',
+    } on ArgumentError catch (error, stack) {
+      Error.throwWithStackTrace(
+        F3dFormatException('$what does not hold together: ${error.message}'),
+        stack,
       );
-    } on UnsupportedError catch (error) {
-      throw F3dFormatException(
-        '$what does not hold together: ${error.message}',
+    } on UnsupportedError catch (error, stack) {
+      Error.throwWithStackTrace(
+        F3dFormatException('$what does not hold together: ${error.message}'),
+        stack,
       );
     }
   }
@@ -598,8 +603,11 @@ final class F3dDocument extends ModelDocument {
     final Object? decoded;
     try {
       decoded = json == null ? null : jsonDecode(json);
-    } on FormatException catch (error) {
-      throw F3dFormatException('An extras block is not JSON: $error');
+    } on FormatException catch (error, stack) {
+      Error.throwWithStackTrace(
+        F3dFormatException('An extras block is not JSON: $error'),
+        stack,
+      );
     }
     if (decoded is! Map<String, Object?>) return null;
     return (

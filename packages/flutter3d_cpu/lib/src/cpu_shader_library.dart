@@ -108,10 +108,13 @@ final class CpuLoadedShaderLibrary with ShaderLibrary, LoadedShaderLibrary {
       final CpuStage stage;
       try {
         stage = compiler(name, source);
-      } on Object catch (error) {
-        throw ShaderBundleException(
-          name: bundle.name,
-          reason: 'its material "$name" does not compile here: $error',
+      } on Object catch (error, stack) {
+        Error.throwWithStackTrace(
+          ShaderBundleException(
+            name: bundle.name,
+            reason: 'its material "$name" does not compile here: $error',
+          ),
+          stack,
         );
       }
       compiled[name] = _MaterialStage(source, stage);

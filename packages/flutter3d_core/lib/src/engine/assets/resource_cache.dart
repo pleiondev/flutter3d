@@ -141,7 +141,7 @@ final class ResourceRequest<K, V> {
     // handle is not told of an error it asked for; one that awaits still is.
     _handed
       ..future.ignore()
-      ..completeError(ResourceLoadCanceledException(key));
+      ..completeError(ResourceLoadCanceledException(key), StackTrace.current);
     _cache._forgetIfAbandoned(key, _entry);
   }
 }

@@ -174,10 +174,7 @@ List<EditorTool> get _renderTools {
         },
       );
       return switch (answer) {
-        GameExtensionReply(
-          json: final Map<String, Object?> json,
-          refused: null,
-        ) =>
+        GameExtensionReply(:final Map<String, Object?> json, refused: null) =>
           Answer(
             did: true,
             says: const JsonEncoder.withIndent('  ').convert(json),
@@ -347,10 +344,7 @@ List<EditorTool> get _renderTools {
           },
         );
         return switch (answer) {
-          GameExtensionReply(
-            json: final Map<String, Object?> json,
-            refused: null,
-          )
+          GameExtensionReply(:final Map<String, Object?> json, refused: null)
               when json['capture'] is Map<String, Object?> =>
             Answer(
               did: true,

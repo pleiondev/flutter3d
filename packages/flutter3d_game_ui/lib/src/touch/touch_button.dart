@@ -104,8 +104,7 @@ class _TouchButtonState extends State<TouchButton> {
   (InputState, GameAction)? _pressed;
 
   void _release() {
-    _pointer = null;
-    setState(() {});
+    setState(() => _pointer = null);
     _letGo();
   }
 
@@ -136,8 +135,7 @@ class _TouchButtonState extends State<TouchButton> {
       behavior: HitTestBehavior.opaque,
       onPointerDown: (PointerDownEvent event) {
         if (_pointer != null) return;
-        _pointer = event.pointer;
-        setState(() {});
+        setState(() => _pointer = event.pointer);
         _pressed = (widget.state, widget.action);
         widget.state.press(widget.action);
       },

@@ -176,7 +176,7 @@ void main() {
       final from = stage.runner.position.clone();
       stage.step(holding: _intoWallAndJump);
 
-      expect(stage.lastStep.whereType<WallJumped>().isNotEmpty, isTrue);
+      expect(stage.lastStep.any((e) => e is WallJumped), isTrue);
       expect(stage.runner.body.velocity.y, greaterThan(8.0));
       expect(
         stage.runner.body.velocity.x,
@@ -208,7 +208,7 @@ void main() {
       stage.run(2);
       stage.step(holding: _jump);
 
-      expect(stage.lastStep.whereType<WallJumped>().isNotEmpty, isTrue);
+      expect(stage.lastStep.any((e) => e is WallJumped), isTrue);
     });
   });
 
@@ -223,7 +223,7 @@ void main() {
       stage.run(20, holding: _forward);
 
       expect(
-        stage.lastStep.whereType<Mantled>().isNotEmpty ||
+        stage.lastStep.any((e) => e is Mantled) ||
             stage.runner.position.y > 2.0,
         isTrue,
       );
@@ -247,7 +247,7 @@ void main() {
         ..velocity.setValues(0.0, -1.0, 0.0);
       stage.run(20, holding: _forward);
 
-      expect(stage.lastStep.whereType<Mantled>().isNotEmpty, isFalse);
+      expect(stage.lastStep.any((e) => e is Mantled), isFalse);
       expect(stage.runner.position.y, lessThan(2.0));
     });
 
@@ -257,7 +257,7 @@ void main() {
       final stage = _Stage()..ledgeAt(1.0, top: 0.25);
       stage.run(30, holding: _forward);
 
-      expect(stage.lastStep.whereType<Mantled>().isNotEmpty, isFalse);
+      expect(stage.lastStep.any((e) => e is Mantled), isFalse);
       expect(stage.runner.isGrounded, isTrue);
     });
   });

@@ -579,7 +579,7 @@ final class GpuCommandEncoder extends PassEncoder with CommandEncoder {
   // has the first two).
   Never _refuseSampler(SamplerDescriptor sampler) {
     final (feature, what) = switch (sampler) {
-      SamplerDescriptor(compare: final CompareFunction _) => (
+      SamplerDescriptor(compare: CompareFunction _) => (
         DeviceFeature.samplerCompare,
         'a comparison sampler',
       ),

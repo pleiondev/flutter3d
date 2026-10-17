@@ -155,6 +155,7 @@ final class SignalCue {
       other is SignalCue &&
       other.step == step &&
       other.name == name &&
+      // ignore: avoid-collection-equality-checks, the same map, as the record compared it
       other.data == data;
 
   @override

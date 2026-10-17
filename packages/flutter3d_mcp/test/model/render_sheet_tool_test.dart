@@ -73,7 +73,6 @@ void main() {
 
     final png = base64Decode(imageContent.data);
     final decoded = await decodeImagePure(png);
-    expect(decoded, isNotNull);
     // The default sheet is two square 256-wide quadrants side by side.
     expect(decoded.width, 512);
     expect(decoded.height, 512);

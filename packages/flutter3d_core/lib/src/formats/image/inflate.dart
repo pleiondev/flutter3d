@@ -74,6 +74,7 @@ Uint8List? inflate(Uint8List data) {
 
 /// Thrown by [_BitReader] on reading past the end — caught once, at the top
 /// of [inflate], rather than checked after every read.
+// ignore: prefer-public-exception-classes, it never leaves this file.
 final class _Truncated implements Exception {
   const _Truncated();
 }

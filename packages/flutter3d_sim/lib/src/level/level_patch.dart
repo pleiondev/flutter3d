@@ -198,8 +198,7 @@ final class LevelPatch {
     }
     if (materials.isNotEmpty) {
       final table = <String, Object?>{
-        ...document['materials'] as Map<String, Object?>? ??
-            const <String, Object?>{},
+        ...?document['materials'] as Map<String, Object?>?,
       };
       for (final MapEntry(:key, :value) in materials.entries) {
         if (value == null) {
@@ -214,7 +213,7 @@ final class LevelPatch {
     // `toJson` as the very list it was read from.
     final lists = <String, List<Object?>>{
       for (final list in <String>{for (final edit in rows) edit.list})
-        list: <Object?>[...document[list] as List<Object?>? ?? const []],
+        list: <Object?>[...?document[list] as List<Object?>?],
     };
     for (final edit in rows) {
       final target = lists[edit.list]!;

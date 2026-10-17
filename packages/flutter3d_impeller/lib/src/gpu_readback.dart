@@ -100,6 +100,7 @@ final class GpuReadback {
               StateError(
                 'the GPU refused the command buffer carrying a readback',
               ),
+              StackTrace.current,
             );
             return;
           }
@@ -115,6 +116,7 @@ final class GpuReadback {
                   if (bytes == null) {
                     completer.completeError(
                       StateError('the staging texture read back as nothing'),
+                      StackTrace.current,
                     );
                   } else {
                     completer.complete(bytes);

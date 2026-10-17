@@ -563,7 +563,12 @@ final class ExpressionBytecode {
       switch (op) {
         case ExpressionOp.loadConstant:
           if (a + width > constants.length) refuse(n, 'no constant $a');
-        case ExpressionOp.move || ExpressionOp.negate:
+        case ExpressionOp.move ||
+            ExpressionOp.negate ||
+            ExpressionOp.length ||
+            ExpressionOp.abs ||
+            ExpressionOp.floor ||
+            ExpressionOp.fract:
           expect(read(a, width, 'a') == out, 'changes the unit');
         case ExpressionOp.swizzle:
           final source = <int>{
@@ -613,11 +618,6 @@ final class ExpressionBytecode {
             out == read(a, width, 'a').times(read(b, width, 'b'), 1),
             'writes the wrong unit',
           );
-        case ExpressionOp.length ||
-            ExpressionOp.abs ||
-            ExpressionOp.floor ||
-            ExpressionOp.fract:
-          expect(read(a, width, 'a') == out, 'changes the unit');
         case ExpressionOp.normalize || ExpressionOp.sign:
           read(a, width, 'a');
           expect(out == _Dim.none, 'is not a pure number');

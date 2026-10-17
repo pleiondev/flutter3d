@@ -52,8 +52,8 @@ final class WorldPropertiesPatch {
         if (profile != null) 'profile': profile.toJson(),
         if (geoOrigin != null) 'geoOrigin': geoOrigin.toJson(),
       });
-    } on WorldPropertiesFormatException catch (error) {
-      throw ArgumentError(error.message);
+    } on WorldPropertiesFormatException catch (error, stackTrace) {
+      Error.throwWithStackTrace(ArgumentError(error.message), stackTrace);
     }
   }
 

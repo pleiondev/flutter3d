@@ -87,9 +87,10 @@ void main() {
     final (:simulation, :world) = _field();
     addTearDown(world.dispose);
     final before = world.world.bodyCount;
-    world
-      ..shootAtHall(0, Vector3(50.0, 0.0, 60.0))
-      ..shootAtHall(0, Vector3(50.0, 0.0, 60.0));
+    // Loosed twice, one call after the other.
+    for (var i = 0; i < 2; i++) {
+      world.shootAtHall(0, Vector3(50.0, 0.0, 60.0));
+    }
     // Mutation: drop the arrow-in-flight check — two bodies are added.
     expect(world.world.bodyCount, before + 1);
     simulation.step(_dt);

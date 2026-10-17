@@ -63,6 +63,7 @@ Uint8List? zstdDecode(Uint8List bytes, {int? sizeHint}) {
   }
 }
 
+// ignore: prefer-public-exception-classes, it never leaves this file.
 class _ZstdError implements Exception {
   const _ZstdError(this.message);
   final String message;

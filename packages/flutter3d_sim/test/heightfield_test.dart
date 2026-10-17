@@ -205,11 +205,8 @@ void _navigationTests() {
       final grid = NavGrid.bakeHeightfield(field, cellSize: 1.0);
 
       expect(
-        List<int>.generate(
-          grid.cellCount,
-          (int i) => i,
-        ).where(grid.isWalkable).isEmpty,
-        isTrue,
+        List<int>.generate(grid.cellCount, (int i) => i).any(grid.isWalkable),
+        isFalse,
         reason: 'nothing on a 63-degree hillside is standable',
       );
     });

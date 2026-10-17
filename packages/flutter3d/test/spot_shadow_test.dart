@@ -139,7 +139,6 @@ Future<List<int>> _grid(
     settings: const RenderSettings(bloom: BloomSettings(enabled: false)),
   );
   final pixels = await engine.device.readback(frame.frame);
-  expect(pixels, isNotNull);
   return parityGrid(pixels.buffer.asUint8List(), _width, _height);
 }
 

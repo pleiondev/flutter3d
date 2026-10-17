@@ -113,8 +113,11 @@ final class LawInput {
     final Unit unit;
     try {
       unit = json['unit'] == null ? Unit.one : Unit.fromJson(json['unit']);
-    } on UnitFormatException catch (e) {
-      throw MaterialFormatException('the law\'s input "$id": ${e.message}');
+    } on UnitFormatException catch (e, stackTrace) {
+      Error.throwWithStackTrace(
+        MaterialFormatException('the law\'s input "$id": ${e.message}'),
+        stackTrace,
+      );
     }
     double? number(String key) => switch (json[key]) {
       null => null,
@@ -359,8 +362,11 @@ abstract base class PropertyLaw {
           '"law" must be a word, not $other',
         ),
       };
-    } on MaterialFormatException catch (e) {
-      throw MaterialFormatException('$where: ${e.message}');
+    } on MaterialFormatException catch (e, stackTrace) {
+      Error.throwWithStackTrace(
+        MaterialFormatException('$where: ${e.message}'),
+        stackTrace,
+      );
     }
   }
 
@@ -772,13 +778,19 @@ final class _Compiled {
             key: value.unit,
         }),
       ).decode(law.expression);
-    } on ExpressionSyntaxException catch (e) {
-      throw MaterialFormatException(
-        'the formula "${law.expression}" does not read: $e',
+    } on ExpressionSyntaxException catch (e, stackTrace) {
+      Error.throwWithStackTrace(
+        MaterialFormatException(
+          'the formula "${law.expression}" does not read: $e',
+        ),
+        stackTrace,
       );
-    } on UnitMismatchException catch (e) {
-      throw MaterialFormatException(
-        'the formula "${law.expression}" does not read: ${e.message}',
+    } on UnitMismatchException catch (e, stackTrace) {
+      Error.throwWithStackTrace(
+        MaterialFormatException(
+          'the formula "${law.expression}" does not read: ${e.message}',
+        ),
+        stackTrace,
       );
     }
     final compiled = CompiledExpression(expression);

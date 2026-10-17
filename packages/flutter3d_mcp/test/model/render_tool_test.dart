@@ -78,7 +78,6 @@ void main() {
 
     final png = base64Decode(imageContent.data);
     final decoded = await decodeImagePure(png);
-    expect(decoded, isNotNull);
     expect(decoded.width, greaterThan(0));
     expect(decoded.height, greaterThan(0));
   });

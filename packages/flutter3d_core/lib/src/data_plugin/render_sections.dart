@@ -441,10 +441,13 @@ final class _PipelineSection extends DataSection {
         ));
     try {
       steps.fromDocument(document);
-    } on ArgumentError catch (refused) {
-      throw PluginException(
-        'plugin "${context.plugin}": its pipeline ${refused.invalidValue} '
-        '${refused.message}',
+    } on ArgumentError catch (refused, stack) {
+      Error.throwWithStackTrace(
+        PluginException(
+          'plugin "${context.plugin}": its pipeline ${refused.invalidValue} '
+          '${refused.message}',
+        ),
+        stack,
       );
     }
   }

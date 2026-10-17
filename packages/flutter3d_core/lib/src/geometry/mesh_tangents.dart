@@ -318,6 +318,7 @@ void _perpendicularise(Vector3 tangent, Vector3 normal) {
       normal.z.abs() < 0.9 ? Vector3(0.0, 0.0, 1.0) : Vector3(1.0, 0.0, 0.0),
     );
     tangent.sub(normal.scaled(normal.dot(tangent)));
+    // ignore: no-equal-nested-conditions, the tangent changed in between.
     if (tangent.length2 < 1e-16) tangent.setValues(1.0, 0.0, 0.0);
   }
   tangent.normalize();

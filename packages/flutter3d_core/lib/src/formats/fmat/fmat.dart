@@ -96,8 +96,11 @@ MaterialDocument readFmat(
   final Object? parsed;
   try {
     parsed = json.decode(utf8.decode(bytes));
-  } on FormatException catch (error) {
-    throw FmatFormatException('$name is not JSON: ${error.message}');
+  } on FormatException catch (error, stack) {
+    Error.throwWithStackTrace(
+      FmatFormatException('$name is not JSON: ${error.message}'),
+      stack,
+    );
   }
   if (parsed is! Map<String, Object?>) {
     throw FmatFormatException('$name is not a JSON object');

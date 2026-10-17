@@ -84,7 +84,7 @@ void main() {
     test('an empty registry is simply empty', () {
       final registry = ContributorRegistry();
       expect(registry.active, isEmpty);
-      expect(registry.active, isEmpty);
+      expect(registry.all, isEmpty);
     });
   });
 

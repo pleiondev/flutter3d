@@ -411,11 +411,14 @@ final class HubModel {
     final HubReference reference;
     try {
       reference = HubReference(uuid: uuid, version: version, sha256: sha256);
-    } on HubReferenceFormatException catch (e) {
-      throw HubRefusedException(
-        HubRefusal.protocol,
-        detail: 'a resolve answer names no model: ${e.reason}.',
-        cause: e,
+    } on HubReferenceFormatException catch (e, stackTrace) {
+      Error.throwWithStackTrace(
+        HubRefusedException(
+          HubRefusal.protocol,
+          detail: 'a resolve answer names no model: ${e.reason}.',
+          cause: e,
+        ),
+        stackTrace,
       );
     }
     final url = _field<String>(json, 'url', message);

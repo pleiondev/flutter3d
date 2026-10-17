@@ -400,10 +400,13 @@ Map<String, ComputeKernel> kernelsOf(ShaderBundle bundle) {
   for (final MapEntry(key: name, value: source) in sources.entries) {
     try {
       kernels[name] = ComputeKernel.parse(source, name: name);
-    } on ComputeKernelException catch (error) {
-      throw ShaderBundleException(
-        name: bundle.name,
-        reason: 'its kernel "$name" does not read: ${error.message}',
+    } on ComputeKernelException catch (error, stack) {
+      Error.throwWithStackTrace(
+        ShaderBundleException(
+          name: bundle.name,
+          reason: 'its kernel "$name" does not read: ${error.message}',
+        ),
+        stack,
       );
     }
   }

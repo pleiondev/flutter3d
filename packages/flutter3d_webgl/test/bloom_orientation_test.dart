@@ -111,7 +111,6 @@ void main() {
     );
 
     final pixels = await device.readback(result.frame);
-    expect(pixels, isNotNull, reason: 'the frame could not be read back');
     final bytes = pixels.buffer.asUint8List();
 
     double brightest(int fromRow, int toRow) {

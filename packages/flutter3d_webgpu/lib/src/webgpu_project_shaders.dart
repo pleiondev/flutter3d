@@ -34,13 +34,16 @@ WebGpuSectionStages? projectWebGpuStages(ByteData? bytes) {
     final bundle = ShaderBundle.decode(bytes);
     if (bundle.section(ShaderBundle.webgpuSection) == null) return null;
     return WebGpuLoadedShaderLibrary.stagesOf(bundle);
-  } on ShaderBundleException catch (error) {
-    throw ShaderBundleException(
-      name: error.name,
-      reason: error.reason,
-      stale: error.stale,
-      asset: asset,
-      advice: 'Build the project again so its hook writes the bundle anew',
+  } on ShaderBundleException catch (error, stack) {
+    Error.throwWithStackTrace(
+      ShaderBundleException(
+        name: error.name,
+        reason: error.reason,
+        stale: error.stale,
+        asset: asset,
+        advice: 'Build the project again so its hook writes the bundle anew',
+      ),
+      stack,
     );
   }
 }

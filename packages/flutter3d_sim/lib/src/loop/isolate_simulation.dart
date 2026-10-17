@@ -208,6 +208,7 @@ final class IsolateSimulation extends SimulationHandle {
         SimulationCapabilityException(
           'the simulation was disposed before it answered $what',
         ),
+        StackTrace.current,
       );
     }
     _waiting.clear();
@@ -243,11 +244,15 @@ final class IsolateSimulation extends SimulationHandle {
         _waiting
             .remove(id)
             ?.$1
-            .completeError(SimulationCapabilityException(why));
+            .completeError(
+              SimulationCapabilityException(why),
+              StackTrace.current,
+            );
       case [LinkWords.failed, final int id, final String why]:
         if (_waiting.remove(id) case (final waiting, final what)) {
           waiting.completeError(
             StateError('the simulation failed answering $what: $why'),
+            StackTrace.current,
           );
         }
       case [LinkWords.exited, final String why]:
@@ -257,6 +262,7 @@ final class IsolateSimulation extends SimulationHandle {
             SimulationCapabilityException(
               'the simulation stopped before it answered $what: $why',
             ),
+            StackTrace.current,
           );
         }
         _waiting.clear();

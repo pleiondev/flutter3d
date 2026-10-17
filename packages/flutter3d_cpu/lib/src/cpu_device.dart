@@ -1484,7 +1484,6 @@ int _texelBytes(TextureFormat format) => switch (format) {
   _ when !format.isMirrored => format.bytesPerTexel,
   TextureFormat.r32g32b32a32Float => 16,
   TextureFormat.r16g16b16a16Float => 8,
-  TextureFormat.r32Float => 4,
   TextureFormat.r8UNormInt || TextureFormat.a8UNormInt => 1,
   TextureFormat.r8g8UNormInt => 2,
   _ => 4,

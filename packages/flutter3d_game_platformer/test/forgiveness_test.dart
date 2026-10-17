@@ -175,12 +175,12 @@ void main() {
     // exactly one of the four.
     void expectCoyoteJump(Runner runner, List<GameEvent> lastStep) {
       expect(
-        lastStep.whereType<Jumped>().isNotEmpty,
+        lastStep.any((e) => e is Jumped),
         isTrue,
         reason: 'nothing happened at all',
       );
       expect(
-        lastStep.whereType<WallJumped>().isNotEmpty,
+        lastStep.any((e) => e is WallJumped),
         isFalse,
         reason:
             'it jumped off the side of the ledge, not out of the coyote '
@@ -230,7 +230,7 @@ void main() {
       stage.step(holding: <GameAction>{..._forward, ..._jump});
 
       expect(
-        stage.lastStep.whereType<Jumped>().isNotEmpty,
+        stage.lastStep.any((e) => e is Jumped),
         isTrue,
         reason: 'the air jump should still have answered',
       );
@@ -256,7 +256,7 @@ void main() {
       stage.run(4, holding: _forward);
       stage.step(holding: <GameAction>{..._forward, ..._jump});
       expect(
-        stage.lastStep.whereType<Jumped>().isNotEmpty,
+        stage.lastStep.any((e) => e is Jumped),
         isTrue,
         reason: 'the first jump',
       );
@@ -315,7 +315,7 @@ void main() {
       stage.step(holding: _jump);
 
       expect(
-        stage.lastStep.whereType<Jumped>().isNotEmpty,
+        stage.lastStep.any((e) => e is Jumped),
         isTrue,
         reason: 'nothing happened',
       );
@@ -349,7 +349,7 @@ void main() {
       stage.run(30);
       stage.step(holding: _jump);
       expect(
-        stage.lastStep.whereType<Jumped>().isNotEmpty,
+        stage.lastStep.any((e) => e is Jumped),
         isFalse,
         reason: 'it jumped in air',
       );
@@ -359,7 +359,7 @@ void main() {
       var jumps = 0;
       for (var i = 0; i < 30; i++) {
         stage.step();
-        if (stage.lastStep.whereType<Jumped>().isNotEmpty) jumps++;
+        if (stage.lastStep.any((e) => e is Jumped)) jumps++;
       }
 
       expect(
@@ -397,7 +397,7 @@ void main() {
 
       run.step(holding: _jump);
       expect(
-        run.lastStep.whereType<Jumped>().isNotEmpty,
+        run.lastStep.any((e) => e is Jumped),
         isFalse,
         reason: 'it jumped in mid-air with no air jump left',
       );
@@ -423,7 +423,7 @@ void main() {
       // not a buffered one, and would prove nothing about either.
       run.run(20);
       run.step(holding: _jump);
-      expect(run.lastStep.whereType<Jumped>().isNotEmpty, isFalse);
+      expect(run.lastStep.any((e) => e is Jumped), isFalse);
 
       // Counted, not sampled at the end. Checking "is it at rest afterwards"
       // cannot fail: a jump taken on landing is over long before 400 steps are
@@ -433,7 +433,7 @@ void main() {
       var jumps = 0;
       for (var i = 0; i < 400; i++) {
         run.step();
-        if (run.lastStep.whereType<Jumped>().isNotEmpty) jumps++;
+        if (run.lastStep.any((e) => e is Jumped)) jumps++;
       }
 
       expect(run.runner.isGrounded, isTrue, reason: 'never landed');
@@ -458,10 +458,10 @@ void main() {
 
       var jumps = 0;
       run.step(holding: _jump);
-      if (run.lastStep.whereType<Jumped>().isNotEmpty) jumps++;
+      if (run.lastStep.any((e) => e is Jumped)) jumps++;
       for (var i = 0; i < 20; i++) {
         run.step();
-        if (run.lastStep.whereType<Jumped>().isNotEmpty) jumps++;
+        if (run.lastStep.any((e) => e is Jumped)) jumps++;
       }
 
       expect(
@@ -493,7 +493,7 @@ void main() {
       var jumps = 0;
       for (var i = 0; i < 400; i++) {
         run.step(holding: _jump);
-        if (run.lastStep.whereType<Jumped>().isNotEmpty) jumps++;
+        if (run.lastStep.any((e) => e is Jumped)) jumps++;
       }
 
       expect(

@@ -76,9 +76,12 @@ void main() {
           height: height,
           stages: webGpuEngineShaders,
         );
-      } on DeviceUnavailableException catch (refused) {
-        throw ConformanceDeclinedException(
-          'WebGpuDevice found no adapter in this browser: ${refused.message}',
+      } on DeviceUnavailableException catch (refused, stack) {
+        Error.throwWithStackTrace(
+          ConformanceDeclinedException(
+            'WebGpuDevice found no adapter in this browser: ${refused.message}',
+          ),
+          stack,
         );
       }
       // A decline rather than a failure, and the distinction is a CI runner:

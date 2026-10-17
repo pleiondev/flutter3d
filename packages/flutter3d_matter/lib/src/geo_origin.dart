@@ -87,9 +87,12 @@ final class GeoOrigin {
         number('longitude'),
         number('altitude', or: 0.0),
       );
-    } on ArgumentError catch (error) {
-      throw GeoOriginFormatException(
-        'a geo origin\'s ${error.name}: ${error.message}',
+    } on ArgumentError catch (error, stackTrace) {
+      Error.throwWithStackTrace(
+        GeoOriginFormatException(
+          'a geo origin\'s ${error.name}: ${error.message}',
+        ),
+        stackTrace,
       );
     }
   }

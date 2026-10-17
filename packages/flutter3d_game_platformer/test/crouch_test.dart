@@ -206,10 +206,10 @@ void main() {
     test('it says so on the step it starts', () {
       final run = _Run()
         ..run(60, holding: <GameAction>{GameAction.moveForward});
-      expect(run.lastStep.whereType<Slid>().isNotEmpty, isFalse);
+      expect(run.lastStep.any((e) => e is Slid), isFalse);
 
       run.step(holding: <GameAction>{GameAction.moveForward, _crouch});
-      expect(run.lastStep.whereType<Slid>().isNotEmpty, isTrue);
+      expect(run.lastStep.any((e) => e is Slid), isTrue);
       expect(run.runner.isSliding, isTrue);
 
       run.run(60, holding: <GameAction>{_crouch});
@@ -392,7 +392,7 @@ void main() {
         run.runner.body.teleport(Vector3(0.0, height, 0.0));
         for (var i = 0; i < 300; i++) {
           run.step();
-          if (run.lastStep.whereType<Landed>().isNotEmpty) {
+          if (run.lastStep.any((e) => e is Landed)) {
             return run.runner.landingSpeed;
           }
         }

@@ -223,11 +223,14 @@ CompiledStage compileStage(
       text: File(translatedPath).readAsStringSync(),
       offsets: offsets,
     );
-  } on ProcessException catch (error) {
-    throw WgslCompileException(
-      'could not run ${error.executable} for $name: ${error.message}. '
-      'glslangValidator comes with the Vulkan SDK or `brew install '
-      'glslang`; naga comes from `cargo install naga-cli`.',
+  } on ProcessException catch (error, stack) {
+    Error.throwWithStackTrace(
+      WgslCompileException(
+        'could not run ${error.executable} for $name: ${error.message}. '
+        'glslangValidator comes with the Vulkan SDK or `brew install '
+        'glslang`; naga comes from `cargo install naga-cli`.',
+      ),
+      stack,
     );
   } finally {
     directory.deleteSync(recursive: true);

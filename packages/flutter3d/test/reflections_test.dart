@@ -133,7 +133,6 @@ Future<Uint8List> _draw(RenderSettings settings) async {
     settings: settings,
   );
   final pixels = await it.device.readback(frame.frame);
-  expect(pixels, isNotNull);
   return pixels.buffer.asUint8List();
 }
 

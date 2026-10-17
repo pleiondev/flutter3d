@@ -47,8 +47,11 @@ abstract final class ExperimentEdit {
     change(json);
     try {
       return ExperimentDocument.fromJson(json);
-    } on Flutter3dFormatException catch (error) {
-      throw DocumentFormatException('$says: ${_message(error)}');
+    } on Flutter3dFormatException catch (error, stackTrace) {
+      Error.throwWithStackTrace(
+        DocumentFormatException('$says: ${_message(error)}'),
+        stackTrace,
+      );
     }
   }
 

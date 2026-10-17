@@ -82,7 +82,6 @@ MeshData _shapes() {
     format: TextureFormat.r32g32b32a32Float,
     pixels: packed.bytes,
   );
-  expect(deltas, isNotNull, reason: 'the deltas would not upload');
 
   final material = RenderMaterial(
     name: 'stone',
@@ -156,7 +155,6 @@ Future<Uint8List> _draw(
     settings: const RenderSettings(),
   );
   final pixels = await it.device.readback(result.frame);
-  expect(pixels, isNotNull, reason: 'the frame could not be read back');
   return pixels.buffer.asUint8List();
 }
 

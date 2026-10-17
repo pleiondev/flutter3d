@@ -28,8 +28,11 @@ final class GlbContainer {
     final Object? decoded;
     try {
       decoded = jsonDecode(utf8.decode(bytes));
-    } catch (error) {
-      throw GltfFormatException('Not a glTF file: JSON parse failed ($error).');
+    } catch (error, stack) {
+      Error.throwWithStackTrace(
+        GltfFormatException('Not a glTF file: JSON parse failed ($error).'),
+        stack,
+      );
     }
     if (decoded is! Map<String, Object?>) {
       throw const GltfFormatException('glTF root must be a JSON object.');

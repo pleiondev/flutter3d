@@ -167,7 +167,10 @@ final class FlutterRun with PlayedGame {
         _process = null;
         _appId = null;
         for (final pending in _pending.values) {
-          pending.completeError(StateError('flutter run exited ($code)'));
+          pending.completeError(
+            StateError('flutter run exited ($code)'),
+            StackTrace.current,
+          );
         }
         _pending.clear();
         state.value = PlayStopped(code);
@@ -294,7 +297,9 @@ final class FlutterRun with PlayedGame {
   void _message(Map<String, Object?> message) {
     switch (message) {
       case {'id': final int id, 'error': final Object? error}:
-        _pending.remove(id)?.completeError(StateError('$error'));
+        _pending
+            .remove(id)
+            ?.completeError(StateError('$error'), StackTrace.current);
       case {'id': final int id}:
         _pending.remove(id)?.complete(message['result']);
       case {'event': 'app.start', 'params': {'appId': final String appId}}:

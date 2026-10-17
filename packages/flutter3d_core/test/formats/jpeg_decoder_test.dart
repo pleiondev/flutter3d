@@ -27,7 +27,6 @@ void main() {
   group('dimensions', () {
     test('solid_8x8.jpg is 8x8 — one exact MCU', () {
       final decoded = decodeJpeg(_fixture('solid_8x8.jpg'));
-      expect(decoded, isNotNull);
       expect(decoded.width, 8);
       expect(decoded.height, 8);
       expect(decoded.rgba.length, 8 * 8 * 4);
@@ -35,21 +34,18 @@ void main() {
 
     test('gradient_444.jpg is 16x16', () {
       final decoded = decodeJpeg(_fixture('gradient_444.jpg'));
-      expect(decoded, isNotNull);
       expect(decoded.width, 16);
       expect(decoded.height, 16);
     });
 
     test('gradient_420.jpg is 16x16', () {
       final decoded = decodeJpeg(_fixture('gradient_420.jpg'));
-      expect(decoded, isNotNull);
       expect(decoded.width, 16);
       expect(decoded.height, 16);
     });
 
     test('gray_16x16.jpg is 16x16, single component', () {
       final decoded = decodeJpeg(_fixture('gray_16x16.jpg'));
-      expect(decoded, isNotNull);
       expect(decoded.width, 16);
       expect(decoded.height, 16);
     });

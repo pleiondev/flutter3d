@@ -219,7 +219,7 @@ void main() {
       expect(node.placements, hasLength(2));
       final placed = node.placements.first;
       expect(computePlacementOf(placed.site), ComputePlacement.cpu);
-      expect(placed.stage('Step'), isNotNull);
+      expect(() => placed.stage('Step'), returnsNormally);
     },
   );
 

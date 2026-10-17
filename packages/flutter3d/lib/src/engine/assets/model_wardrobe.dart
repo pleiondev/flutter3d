@@ -106,7 +106,7 @@ final class ModelWardrobe<K> {
     ModelDecoders? decoders,
     LightingModels? lightingModels,
   }) async {
-    for (final MapEntry(key: key, value: look) in looks.entries) {
+    for (final MapEntry(:key, value: look) in looks.entries) {
       if (has(key)) continue;
       try {
         final plain = ModelLoadRequest(

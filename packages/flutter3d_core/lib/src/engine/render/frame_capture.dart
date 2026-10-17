@@ -527,9 +527,12 @@ final class FrameCapture extends FormatDocument {
     final Object? decoded;
     try {
       decoded = jsonDecode(source);
-    } on FormatException catch (error) {
-      throw FrameCaptureFormatException(
-        'a frame capture is JSON, and this is not: ${error.message}',
+    } on FormatException catch (error, stack) {
+      Error.throwWithStackTrace(
+        FrameCaptureFormatException(
+          'a frame capture is JSON, and this is not: ${error.message}',
+        ),
+        stack,
       );
     }
     if (decoded is! Map<String, Object?>) {

@@ -243,8 +243,11 @@ Directory resolvePackageRoot(String packageName, Directory from) {
   final Object? decoded;
   try {
     decoded = jsonDecode(configFile.readAsStringSync());
-  } on FormatException catch (error) {
-    throw ShaderBundleBuildException('${configFile.path}: ${error.message}');
+  } on FormatException catch (error, stack) {
+    Error.throwWithStackTrace(
+      ShaderBundleBuildException('${configFile.path}: ${error.message}'),
+      stack,
+    );
   }
   if (decoded is! Map<String, Object?> || decoded['packages'] is! List) {
     throw ShaderBundleBuildException(

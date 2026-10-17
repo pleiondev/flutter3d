@@ -52,6 +52,7 @@ Future<ModelDocument?> decodeModelOnWorker(
 /// A panorama's faces and chain worked out by the worker, from a Radiance
 /// file [hdr] or from RGBA8 [pixels]: a record holding them, or null in it
 /// where the worker found no panorama; null where it is to be done in place.
+// ignore: avoid-one-field-records, a null in it is not a null record.
 Future<(PanoramaFaces?,)?> panoramaOnWorker({
   Uint8List? hdr,
   ByteData? pixels,
@@ -77,6 +78,7 @@ Future<(PanoramaFaces?,)?> panoramaOnWorker({
     }),
   );
   if (reply == null) return null;
+  // ignore: avoid-one-field-records, a null in it is not a null record.
   return (readWirePanorama(reply),);
 }
 

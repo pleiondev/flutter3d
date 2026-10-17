@@ -201,7 +201,7 @@ void main() {
       );
       expect(pass.depthWrite, isFalse);
       final pipeline = pass.recordedOf<RecordedPipeline>().single.pipeline;
-      expect(pipeline, isNotNull);
+      expect(pipeline.name, endsWith('+ParticleSixWay'));
       final textures = pass.recordedOf<RecordedTexture>();
       expect(textures.map((t) => t.slot), <String>[
         'six_way_positive',

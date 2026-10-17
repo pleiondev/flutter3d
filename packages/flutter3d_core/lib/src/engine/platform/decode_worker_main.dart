@@ -66,6 +66,7 @@ Future<void> _receive(JSObject message) async {
       } else {
         waiting.completeError(
           StateError(wireString(message, 'error') ?? 'the page read nothing'),
+          StackTrace.current,
         );
       }
     case final String other:

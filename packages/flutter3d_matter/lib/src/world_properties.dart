@@ -141,16 +141,22 @@ final class WorldProperties {
           'a profile is named by its word, not $other',
         ),
       };
-    } on DocumentFormatException catch (error) {
-      throw WorldPropertiesFormatException('"profile": ${error.message}');
+    } on DocumentFormatException catch (error, stackTrace) {
+      Error.throwWithStackTrace(
+        WorldPropertiesFormatException('"profile": ${error.message}'),
+        stackTrace,
+      );
     }
     final GeoOrigin? geoOrigin;
     try {
       geoOrigin = json['geoOrigin'] == null
           ? null
           : GeoOrigin.fromJson(json['geoOrigin']);
-    } on GeoOriginFormatException catch (error) {
-      throw WorldPropertiesFormatException('"geoOrigin": ${error.message}');
+    } on GeoOriginFormatException catch (error, stackTrace) {
+      Error.throwWithStackTrace(
+        WorldPropertiesFormatException('"geoOrigin": ${error.message}'),
+        stackTrace,
+      );
     }
     final airTemperature = positive('airTemperature');
     final airPressure = positive('airPressure');

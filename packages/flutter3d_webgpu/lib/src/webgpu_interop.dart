@@ -151,7 +151,7 @@ extension type GPUSupportedLimits._(JSObject _) implements JSObject {
 
   /// The limit called [name], for a caller that holds a list of names rather
   /// than a getter per limit: what `webgpuRequiredLimits` asks an adapter.
-  int named(String name) => _.getProperty<JSNumber>(name.toJS).toDartInt;
+  int named(String name) => getProperty<JSNumber>(name.toJS).toDartInt;
 
   /// The alignment a dynamic uniform offset has to satisfy — 256 on every
   /// implementation so far, and the reason a per-object uniform block is padded

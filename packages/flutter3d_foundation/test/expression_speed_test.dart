@@ -62,6 +62,7 @@ void main() {
     final watch = Stopwatch()..start();
     var same = 0;
     for (var i = 0; i < _runs; i++) {
+      // ignore: avoid-self-compare, two timed runs compared so neither is optimised away
       if (closures.evaluate(slots)[0] == closures.evaluate(slots)[0]) same++;
     }
     final closureMicros = watch.elapsedMicroseconds / (2 * _runs);
@@ -69,6 +70,7 @@ void main() {
       ..reset()
       ..start();
     for (var i = 0; i < _runs; i++) {
+      // ignore: avoid-self-compare, two timed runs compared so neither is optimised away
       if (bytecode.run(slots)[0] == bytecode.run(slots)[0]) same++;
     }
     final bytecodeMicros = watch.elapsedMicroseconds / (2 * _runs);

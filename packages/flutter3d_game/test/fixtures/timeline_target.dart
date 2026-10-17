@@ -48,6 +48,7 @@ final class _Toy {
   }
 }
 
+// ignore: prefer-correct-test-file-name, not a test on purpose, see the top.
 void main() {
   test('a live target for an external VM service client', () async {
     final toy = _Toy(1);

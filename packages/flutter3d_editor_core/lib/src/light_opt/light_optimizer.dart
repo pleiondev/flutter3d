@@ -325,8 +325,8 @@ final class LightOptimizer {
         LightType.point => true,
         LightType.spot =>
           a.direction.normalized().dot(b.direction.normalized()) >= 0.9,
-        LightType.directional => false,
-        // A kind this optimizer has no rule for is left alone.
+        // A directional light is never merged, and a kind this optimizer has
+        // no rule for is left alone.
         _ => false,
       };
 

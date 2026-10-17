@@ -146,7 +146,10 @@ void main() {
       final a = await _draw(1.0, MaterialAlphaMode.opaque);
       final b = await _draw(1.0, MaterialAlphaMode.opaque);
       expect(a, b);
-      expect(_survivingFraction(a) / _survivingFraction(a), 1.0);
+      // And an opaque surface ignores its alpha: a faint one keeps every
+      // pixel, where a leaked hash would keep about 40% of them.
+      final faint = await _draw(0.4, MaterialAlphaMode.opaque);
+      expect(_survivingFraction(faint), _survivingFraction(a));
     });
 
     test('a fully opaque hashed surface keeps every pixel', () async {

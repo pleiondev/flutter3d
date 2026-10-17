@@ -331,6 +331,7 @@ final class LoopbackWire extends PeerWire {
     final a = LoopbackWire._(delaySteps, lossRate, random, 0);
     final b = LoopbackWire._(delaySteps, lossRate, random, 1);
     a._peer = b;
+    // ignore: avoid-late-final-reassignment, the other end's field, set once like the first
     b._peer = a;
     return LoopbackPair._(a, b);
   }

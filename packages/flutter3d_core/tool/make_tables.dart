@@ -177,14 +177,10 @@ Uint8List smaaAreaTable() {
     2 => left >= right ? at(middle, (d, below)) : (0.0, 0.0),
     3 => smooth(at((0.0, below), middle), at(middle, (d, below))),
     4 => left <= right ? at((0.0, above), middle) : (0.0, 0.0),
-    6 => at((0.0, above), (d, below)),
-    7 => at((0.0, above), (d, below)),
+    6 || 7 || 14 => at((0.0, above), (d, below)),
     8 => left >= right ? at(middle, (d, above)) : (0.0, 0.0),
-    9 => at((0.0, below), (d, above)),
-    11 => at((0.0, below), (d, above)),
+    9 || 11 || 13 => at((0.0, below), (d, above)),
     12 => smooth(at((0.0, above), middle), at(middle, (d, above))),
-    13 => at((0.0, below), (d, above)),
-    14 => at((0.0, above), (d, below)),
     // Nothing to smooth: no crossing at all (0), a crossing on both sides of
     // one end (5, 10), or of both (15).
     _ => (0.0, 0.0),

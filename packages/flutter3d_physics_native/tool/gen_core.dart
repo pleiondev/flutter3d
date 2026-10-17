@@ -195,12 +195,12 @@ String _native(List<_Function> functions) {
     _Kind.real || _Kind.double => 'double',
     _Kind.pointer => 'Pointer<Void>',
     _Kind.none => 'void',
-    _ => 'int',
+    _Kind.int32 || _Kind.uint32 || _Kind.uint64 => 'int',
   };
   String dart(_Kind k) => switch (k) {
     _Kind.real || _Kind.double => 'double',
     _Kind.none => 'void',
-    _ => 'int',
+    _Kind.int32 || _Kind.uint32 || _Kind.uint64 || _Kind.pointer => 'int',
   };
   final b = StringBuffer()
     ..write(_banner)
@@ -281,10 +281,7 @@ String _web(List<_Function> functions) {
     ..write('_Exports get _x => coreExports as _Exports;\n');
   for (final f in functions) {
     final params = f.params
-        .map(
-          (p) =>
-              '${p.kind == _Kind.real || p.kind == _Kind.double ? 'double' : 'int'} ${_camel(p.name)}',
-        )
+        .map((p) => '${_number(p.kind)} ${_camel(p.name)}')
         .join(', ');
     final args = <String>[];
     for (final p in f.params) {
@@ -313,15 +310,18 @@ String _web(List<_Function> functions) {
       case _Kind.int32:
         body = '$call.toDartInt';
     }
-    final returns = switch (f.returns) {
-      _Kind.none => 'void',
-      _Kind.real || _Kind.double => 'double',
-      _ => 'int',
-    };
+    final returns = f.returns == _Kind.none ? 'void' : _number(f.returns);
     b.write('$returns ${f.name}($params) => $body;\n');
   }
   return b.toString();
 }
+
+/// The Dart number a value of kind [k] crosses as.
+String _number(_Kind k) => switch (k) {
+  _Kind.real || _Kind.double => 'double',
+  _Kind.int32 || _Kind.uint32 || _Kind.uint64 || _Kind.pointer => 'int',
+  _Kind.none => throw ArgumentError('a value has no kind none'),
+};
 
 /// Whether a call takes or gives a 64-bit value, and so goes through the
 /// shim.
@@ -378,7 +378,11 @@ String shim(String header) {
       _Kind.uint64 =>
         '  const uint64_t v = $call;\n  g_high = (uint32_t)(v >> 32);\n  return (uint32_t)v;',
       _Kind.none => '  $call;',
-      _ => '  return $call;',
+      _Kind.real ||
+      _Kind.double ||
+      _Kind.int32 ||
+      _Kind.uint32 ||
+      _Kind.pointer => '  return $call;',
     };
     b.write(
       '\nF3D_API $ret ${f.name}__w(${params.isEmpty ? 'void' : params.join(', ')}) {\n$body\n}\n',
@@ -422,7 +426,14 @@ Map<String, List<_Field>> _structs(String text) {
 }
 
 String _layout(Map<String, List<_Field>> structs) {
-  int size(_Kind k) => k == _Kind.uint64 || k == _Kind.double ? 8 : 4;
+  int size(_Kind k) => switch (k) {
+    _Kind.uint64 || _Kind.double => 8,
+    _Kind.real ||
+    _Kind.int32 ||
+    _Kind.uint32 ||
+    _Kind.pointer ||
+    _Kind.none => 4,
+  };
   final b = StringBuffer()
     ..write(_banner)
     ..write(

@@ -199,7 +199,6 @@ void main() {
           deviceFactory: _cpuDevice,
         );
         final decoded = await decodeImagePure(png);
-        expect(decoded, isNotNull);
         expect(decoded.width, 64);
         expect(decoded.height, 64);
         expect(
@@ -403,7 +402,6 @@ void main() {
         deviceFactory: _cpuDevice,
       );
       final decoded = await decodeImagePure(png);
-      expect(decoded, isNotNull);
       expect(decoded.width, 16);
       expect(decoded.height, 16);
     });

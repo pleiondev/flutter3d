@@ -124,8 +124,11 @@ final class Level extends FormatDocument {
     final Object? decoded;
     try {
       decoded = jsonDecode(source);
-    } on FormatException catch (error) {
-      throw LevelFormatException('a level is JSON: ${error.message}');
+    } on FormatException catch (error, stackTrace) {
+      Error.throwWithStackTrace(
+        LevelFormatException('a level is JSON: ${error.message}'),
+        stackTrace,
+      );
     }
     if (decoded is! Map<String, Object?>) {
       throw const LevelFormatException('a level is a JSON object');
@@ -634,16 +637,22 @@ final class Level extends FormatDocument {
     if (section == null) return null;
     try {
       return GeoOrigin.fromJson(section);
-    } on GeoOriginFormatException catch (error) {
-      throw LevelFormatException('"geoOrigin": ${error.message}');
+    } on GeoOriginFormatException catch (error, stackTrace) {
+      Error.throwWithStackTrace(
+        LevelFormatException('"geoOrigin": ${error.message}'),
+        stackTrace,
+      );
     }
   }
 
   static WorldPropertiesPatch _worldPatch(Map<String, Object?> section) {
     try {
       return WorldPropertiesPatch.fromJson(section);
-    } on WorldPropertiesFormatException catch (error) {
-      throw LevelFormatException('"world": ${error.message}');
+    } on WorldPropertiesFormatException catch (error, stackTrace) {
+      Error.throwWithStackTrace(
+        LevelFormatException('"world": ${error.message}'),
+        stackTrace,
+      );
     }
   }
 

@@ -77,10 +77,9 @@ void main() {
     speakers.scene.play(_torch, Vector3(0.0, 0.0, -3.0));
     speakers.scene.update(AudioListener());
 
-    speakers
-      ..resume()
-      ..pause()
-      ..pause();
+    speakers.resume();
+    speakers.pause();
+    speakers.pause();
     expect(backend.live.single.isPaused, isTrue);
     speakers.resume();
     expect(backend.live.single.isPaused, isFalse);

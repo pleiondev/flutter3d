@@ -160,9 +160,12 @@ ShaderBundle runtimeMaterialBundle(
   final MaterialProgram program;
   try {
     program = parseMaterial(source);
-  } on MaterialSyntaxException catch (error) {
-    throw RuntimeShadersException(
-      '$from:${error.line}:${error.column}: ${error.message}',
+  } on MaterialSyntaxException catch (error, stack) {
+    Error.throwWithStackTrace(
+      RuntimeShadersException(
+        '$from:${error.line}:${error.column}: ${error.message}',
+      ),
+      stack,
     );
   }
   final name = program.name;
@@ -184,8 +187,11 @@ ShaderBundle runtimeMaterialBundle(
       return kernelBundle(name, <ComputeKernel>[
         lowerMaterialCompute(program).kernel,
       ]);
-    } on MaterialSyntaxException catch (error) {
-      throw RuntimeShadersException('$from: ${error.message}');
+    } on MaterialSyntaxException catch (error, stack) {
+      Error.throwWithStackTrace(
+        RuntimeShadersException('$from: ${error.message}'),
+        stack,
+      );
     }
   }
   final fullscreen = program.kind == MaterialStageKind.fullscreen;
@@ -241,8 +247,11 @@ ShaderBundle runtimeMaterialBundle(
       final String resolved;
       try {
         resolved = resolveIncludes(text, engineSources, from: from);
-      } on GlslTranslateException catch (error) {
-        throw RuntimeShadersException('$from: ${error.message}');
+      } on GlslTranslateException catch (error, stack) {
+        Error.throwWithStackTrace(
+          RuntimeShadersException('$from: ${error.message}'),
+          stack,
+        );
       }
       if (MaterialStageBudget.problemOfGlsl(stage, resolved)
           case final problem?) {
@@ -294,8 +303,11 @@ ShaderBundle runtimeMaterialBundle(
         compiler.bundleSection: result.section,
         ShaderBundle.materialSection: material,
       });
-    } on MaterialCompileException catch (refused) {
-      throw RuntimeShadersException('$from: ${refused.message}');
+    } on MaterialCompileException catch (refused, stack) {
+      Error.throwWithStackTrace(
+        RuntimeShadersException('$from: ${refused.message}'),
+        stack,
+      );
     }
   }
   switch (kind) {
@@ -325,8 +337,11 @@ ShaderBundle runtimeMaterialBundle(
               fragment: false,
             ),
         };
-      } on GlslTranslateException catch (error) {
-        throw RuntimeShadersException('$from: ${error.message}');
+      } on GlslTranslateException catch (error, stack) {
+        Error.throwWithStackTrace(
+          RuntimeShadersException('$from: ${error.message}'),
+          stack,
+        );
       }
       return bundle(<String, ByteData>{
         ShaderBundle.webglSection: encodeWebGlSection(
@@ -351,8 +366,11 @@ ShaderBundle runtimeMaterialBundle(
           vertex: const <String, PackedStage>{},
           fragment: <String, PackedStage>{name: webGpuStage()!},
         );
-      } on WgslSectionException catch (error) {
-        throw RuntimeShadersException('$from: ${error.message}');
+      } on WgslSectionException catch (error, stack) {
+        Error.throwWithStackTrace(
+          RuntimeShadersException('$from: ${error.message}'),
+          stack,
+        );
       }
       return bundle(<String, ByteData>{
         ShaderBundle.webgpuSection: Uint8List.fromList(
@@ -376,8 +394,11 @@ ShaderBundle runtimeMaterialBundle(
           vertex: const <String, PackedStage>{},
           fragment: <String, PackedStage>{name: spliced},
         );
-      } on WgslSectionException catch (error) {
-        throw RuntimeShadersException('$from: ${error.message}');
+      } on WgslSectionException catch (error, stack) {
+        Error.throwWithStackTrace(
+          RuntimeShadersException('$from: ${error.message}'),
+          stack,
+        );
       }
       return bundle(<String, ByteData>{
         ShaderBundle.webgpuSection: Uint8List.fromList(
@@ -585,12 +606,15 @@ final class RuntimeShaders extends PluginRegistry {
           '"shaders" as "material"',
         );
       }
-    } on MaterialSyntaxException catch (error) {
+    } on MaterialSyntaxException catch (error, stack) {
       // A source that does not parse is the author's mistake on every
       // backend, so it fails the install rather than switching anything off.
-      throw PluginException(
-        '${_owner()} brought a material that does not parse: '
-        '$from:${error.line}:${error.column}: ${error.message}',
+      Error.throwWithStackTrace(
+        PluginException(
+          '${_owner()} brought a material that does not parse: '
+          '$from:${error.line}:${error.column}: ${error.message}',
+        ),
+        stack,
       );
     }
     if (_store.backend == RuntimeBackends.impeller) {
@@ -775,10 +799,13 @@ final class RuntimeShaders extends PluginRegistry {
     final MaterialProgram program;
     try {
       program = parseMaterial(source);
-    } on MaterialSyntaxException catch (error) {
-      throw PluginException(
-        'render step "${step.name}" is written in the material language and '
-        'does not parse: ${error.line}:${error.column}: ${error.message}',
+    } on MaterialSyntaxException catch (error, stack) {
+      Error.throwWithStackTrace(
+        PluginException(
+          'render step "${step.name}" is written in the material language and '
+          'does not parse: ${error.line}:${error.column}: ${error.message}',
+        ),
+        stack,
       );
     }
     if (program.kind != MaterialStageKind.fullscreen) {

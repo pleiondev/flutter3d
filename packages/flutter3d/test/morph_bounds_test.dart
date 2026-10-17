@@ -69,7 +69,6 @@ _scene({required double weight, required bool told}) {
     format: TextureFormat.r32g32b32a32Float,
     pixels: packed.bytes,
   );
-  expect(texture, isNotNull, reason: 'the deltas would not upload');
 
   final scene = Scene();
   final node =
@@ -124,7 +123,6 @@ Future<int> _litPixels(
     settings: const RenderSettings(),
   );
   final pixels = await it.device.readback(result.frame);
-  expect(pixels, isNotNull, reason: 'the frame could not be read back');
   final bytes = pixels.buffer.asUint8List();
 
   var lit = 0;

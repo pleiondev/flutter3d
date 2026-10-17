@@ -903,7 +903,7 @@ void main() {
       );
 
       resources.beginNode(0);
-      final drawn = resources.texture(color);
+      resources.texture(color);
       resources.endNode(0);
 
       // Reading from outside any node is refused too, and used not to be.
@@ -911,8 +911,8 @@ void main() {
       // purpose named only tests that had built a node's frame without
       // entering the node. The engine enters one before every read, so the
       // exception was open for the convenience of tests, which is the wrong way
-      // round. `drawn` is what the node saw; nothing outside can ask for it.
-      expect(drawn, isNotNull);
+      // round. What the node read is the node's; nothing outside can ask for
+      // it.
       expect(
         () => resources.tryTexture(color),
         throwsA(

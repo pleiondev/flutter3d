@@ -350,6 +350,7 @@ List<List<Vector3>> _loops(List<List<Vector3>> segments) {
         }
         left.removeAt(i);
         grew = true;
+        // ignore: avoid-unconditional-break, the first segment that joins
         break;
       }
     }

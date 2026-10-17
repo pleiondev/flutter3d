@@ -95,7 +95,9 @@ final class WebGpuTexture {
       WebGpuTextureDimension.threeDimensional => -1,
       WebGpuTextureDimension.cubeArray => layer * 6 + face,
       WebGpuTextureDimension.twoDimensionalArray => layer,
-      _ => face,
+      WebGpuTextureDimension.oneDimensional ||
+      WebGpuTextureDimension.twoDimensional ||
+      WebGpuTextureDimension.cube => face,
     };
     return _attachmentViews.putIfAbsent(
       (base, level),

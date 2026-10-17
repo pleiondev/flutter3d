@@ -498,8 +498,7 @@ final class _Parser {
       final access = _next();
       writable = switch (access.text) {
         'read' => false,
-        'read_write' => true,
-        'atomic' => true,
+        'read_write' || 'atomic' => true,
         _ => _fail('a buffer is read, read_write or atomic', access),
       };
       atomic = access.text == 'atomic';
@@ -1086,7 +1085,7 @@ final class _Parser {
         return inner;
       case _Kind.ident:
         break;
-      default:
+      case _Kind.punct || _Kind.eof:
         _fail('expected a value, found $token', token);
     }
     final name = token.text;

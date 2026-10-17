@@ -620,8 +620,8 @@ final class FrameCompute {
     final ComputeExecutor chosen;
     try {
       chosen = executors.place(step: step, accepts: tried.loaded.containsKey);
-    } on ComputePlacementException catch (refused) {
-      throw _withCause(refused, tried);
+    } on ComputePlacementException catch (refused, stack) {
+      Error.throwWithStackTrace(_withCause(refused, tried), stack);
     }
     _reportFallback(step, tried.passed, chosen.device.backendName);
     return PlacedWork._(
@@ -658,8 +658,8 @@ final class FrameCompute {
         hasHost: hasHost,
         accepts: tried.loaded.containsKey,
       );
-    } on ComputePlacementException catch (refused) {
-      throw _withCause(refused, tried);
+    } on ComputePlacementException catch (refused, stack) {
+      Error.throwWithStackTrace(_withCause(refused, tried), stack);
     }
     _reportFallback(
       step,

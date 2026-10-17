@@ -181,6 +181,20 @@ void main() {
       expect(loads.started, <String>['first']);
     });
 
+    test('a request called off fails with where it was called off', () async {
+      // Mutation: complete the handle with the exception alone, and the
+      // awaiting caller gets an empty stack trace with nothing to follow.
+      final loads = _Loads();
+      final cache = ResourceCache<String, int>(load: loads.call);
+      final request = cache.request('k')..cancel();
+      final stack = await request.handle.then<StackTrace?>(
+        (_) => null,
+        onError: (Object _, StackTrace stack) => stack,
+      );
+      expect(stack.toString(), contains('cancel'));
+      loads.finish('k', 1);
+    });
+
     test('a load called off midway is kept, held by nobody', () async {
       final loads = _Loads();
       final cache = ResourceCache<String, int>(load: loads.call);
@@ -208,7 +222,10 @@ void main() {
           first.handle,
           throwsA(isA<ResourceLoadCanceledException>()),
         );
-        loads.pending['k']!.completeError(StateError('the disk was not there'));
+        loads.pending['k']!.completeError(
+          StateError('the disk was not there'),
+          StackTrace.current,
+        );
         await Future<void>.delayed(Duration.zero);
         // Mutation: keep the failed entry when nobody waited for it, and the
         // next request gets the old failure without a load.

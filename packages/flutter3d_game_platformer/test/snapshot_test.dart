@@ -336,7 +336,7 @@ void _progressTests() {
       var died = false;
       for (var i = 0; i < 240 && !died; i++) {
         world.run(1, forward: true);
-        died = world.heard.take().whereType<RunnerDied>().isNotEmpty;
+        died = world.heard.take().any((e) => e is RunnerDied);
       }
 
       expect(died, isTrue, reason: 'nothing killed the runner in four seconds');
@@ -348,7 +348,7 @@ void _progressTests() {
       var died = false;
       for (var i = 0; i < 240 && !died; i++) {
         world.run(1, forward: true);
-        died = world.heard.take().whereType<RunnerDied>().isNotEmpty;
+        died = world.heard.take().any((e) => e is RunnerDied);
       }
       expect(died, isTrue);
 
@@ -377,13 +377,23 @@ void _progressTests() {
     });
 
     test('and every state has one', () {
-      // The switch is exhaustive, so this fails to compile rather than at run
-      // time if a state is added — and this asserts the other half: that a new
-      // state was thought about rather than mapped to `playing` to shut the
-      // compiler up.
-      for (final state in RunState.values) {
-        expect(state.outcome, isNotNull);
-      }
+      // A state cannot be made without an outcome, so asking whether it has
+      // one proves nothing. The whole table is pinned instead: a state added
+      // to `values` fails here until somebody has said what it means to a
+      // game, rather than riding along mapped to `playing`.
+      //
+      // Mutation: drop `lost` from `values`, or map `fallen` to `lost`.
+      expect(
+        <String, RunOutcome>{
+          for (final state in RunState.values) state.name: state.outcome,
+        },
+        <String, RunOutcome>{
+          'running': RunOutcome.playing,
+          'fallen': RunOutcome.playing,
+          'finished': RunOutcome.won,
+          'lost': RunOutcome.lost,
+        },
+      );
     });
   });
 }

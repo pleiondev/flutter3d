@@ -998,11 +998,6 @@ void main() {
         pixels: ByteData.sublistView(base),
         mipLevels: <ByteData>[ByteData.sublistView(block(136, 68, 204))],
       );
-      expect(
-        texture,
-        isNotNull,
-        reason: 'an 8x8 BC1 texture with one level below it was refused',
-      );
 
       // A level whose bytes are measured the wrong way is refused before a
       // texture exists, which is the other half of the same arithmetic.
@@ -1098,13 +1093,6 @@ void main() {
       expect(
         await device.debugDrainErrors(where: 'the ${format.name} conversion'),
         isNull,
-      );
-      expect(
-        pixels,
-        isNotNull,
-        reason:
-            '${format.name} came back null; the contract sends a float '
-            'target here',
       );
       expect(
         pixels.lengthInBytes,
@@ -1230,7 +1218,6 @@ void main() {
         format: TextureFormat.r16g16b16a16Float,
         mipLevels: 4,
       );
-      expect(cube, isNotNull);
       // Cleared through the level rather than merely allocated: a chain the
       // allocator accepted and the attachment path refused would pass every
       // assertion above.

@@ -75,7 +75,6 @@ Future<Uint8List> _draw(SplatCloud cloud) async {
     settings: const RenderSettings(bloom: BloomSettings(enabled: false)),
   );
   final pixels = await it.device.readback(frame.frame);
-  expect(pixels, isNotNull);
   return pixels.buffer.asUint8List();
 }
 

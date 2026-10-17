@@ -44,11 +44,8 @@ void main() {
     // somewhere other than 1.0.
     final device = FakeBackend();
 
-    final renderer = Renderer.create(device: device);
+    Renderer.create(device: device);
 
-    expect(renderer.fallbackAlbedo, isNotNull);
-    expect(renderer.fallbackNormal, isNotNull);
-    expect(renderer.fallbackBlack, isNotNull);
     expect(device.uploadedPixels.length, 3);
     expect(device.uploadedPixels[0].buffer.asUint8List(), <int>[
       255,

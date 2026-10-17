@@ -63,12 +63,15 @@ final class WebGlLoadedShaderLibrary with ShaderLibrary, LoadedShaderLibrary {
     try {
       final decoded = decodeWebGlSection(section);
       return ShaderSources(decoded.vertex, decoded.fragment);
-    } on BundleSectionFormatException catch (error) {
-      throw ShaderBundleException(
-        name: bundle.name,
-        reason:
-            'its "${ShaderBundle.webglSection}" section is not the JSON '
-            'document this backend reads: ${error.message}',
+    } on BundleSectionFormatException catch (error, stack) {
+      Error.throwWithStackTrace(
+        ShaderBundleException(
+          name: bundle.name,
+          reason:
+              'its "${ShaderBundle.webglSection}" section is not the JSON '
+              'document this backend reads: ${error.message}',
+        ),
+        stack,
       );
     }
   }
@@ -143,11 +146,14 @@ final class WebGlLoadedShaderLibrary with ShaderLibrary, LoadedShaderLibrary {
           isVertex: stage.isVertex,
         );
       }
-    } on ShaderCompileException catch (error) {
+    } on ShaderCompileException catch (error, stack) {
       for (final shader in fresh.values) {
         _gl.deleteShader(shader);
       }
-      throw ShaderBundleException(name: bundle.name, reason: error.message);
+      Error.throwWithStackTrace(
+        ShaderBundleException(name: bundle.name, reason: error.message),
+        stack,
+      );
     } on ShaderBundleException {
       for (final shader in fresh.values) {
         _gl.deleteShader(shader);

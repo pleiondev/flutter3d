@@ -128,7 +128,7 @@ void main() {
     Future<Rgba8Image?> never(Uint8List encoded) =>
         throw StateError('the device decoded it');
 
-    final handle = await uploadEncodedImage(
+    await uploadEncodedImage(
       device,
       _pngHeader(4, 4),
       decodeImage: never,
@@ -136,7 +136,6 @@ void main() {
       maxDimension: 1024,
     );
 
-    expect(handle, isNotNull);
     expect(device.asked.single, (mipmaps: true, maxDimension: 1024));
   });
 
@@ -188,8 +187,7 @@ void main() {
       decodeImage: (_) async => _flat(8, 4, 90),
       maxDimension: 4,
       platformDecode: false,
-    ).then((handle) {
-      expect(handle, isNotNull);
+    ).then((_) {
       final spec = device.uploadedTextures.single;
       expect((spec.width, spec.height), (4, 2));
       expect(device.uploadedPixels.single.getUint8(0), 90);

@@ -375,8 +375,11 @@ final class BehaviorKindsRegistry extends PluginRegistry {
     }
     try {
       register();
-    } on ArgumentError catch (error) {
-      throw ArgumentError.value(kind, 'kind', '${error.message} ($_owner)');
+    } on ArgumentError catch (error, stackTrace) {
+      Error.throwWithStackTrace(
+        ArgumentError.value(kind, 'kind', '${error.message} ($_owner)'),
+        stackTrace,
+      );
     }
     final registration = Registration(() {
       // Only when it is still this one: a later replacement owns the name.

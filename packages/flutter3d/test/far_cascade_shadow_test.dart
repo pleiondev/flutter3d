@@ -119,7 +119,6 @@ Future<Uint8List> _shot({required bool shadows}) async {
     ),
   );
   final pixels = await it.device.readback(frame.frame);
-  expect(pixels, isNotNull, reason: 'the frame could not be read back');
   return pixels.buffer.asUint8List();
 }
 

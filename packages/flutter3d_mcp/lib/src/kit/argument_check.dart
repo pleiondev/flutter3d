@@ -84,6 +84,7 @@ String _sentence(
     case ValidationErrorType.maximumExceeded:
     case ValidationErrorType.exclusiveMaximumExceeded:
       return '$field is out of range — ${error.details ?? 'see the schema'}';
+    // ignore: avoid-wildcard-cases-with-enums, the enum is dart_mcp's and grows with its releases.
     default:
       // Everything else keeps `dart_mcp`'s own words rather than being
       // guessed at: a sentence this file invented for a case it has never
@@ -100,9 +101,9 @@ Schema? _schemaAt(Schema schema, List<String> path) {
     final Object? properties = raw['properties'];
     final Object? items = raw['items'];
     if (properties is Map && properties[step] != null) {
-      at = properties[step] as Schema;
+      at = Schema.fromMap(properties[step] as Map<String, Object?>);
     } else if (items != null && int.tryParse(step) != null) {
-      at = items as Schema;
+      at = Schema.fromMap(items as Map<String, Object?>);
     } else {
       return null;
     }

@@ -76,7 +76,6 @@ double? evaluateNumber(String said, {NumberUnit unit = NumberUnit.plain}) {
 /// How much of [unit] one of the suffix is worth, or null when the suffix is
 /// not one this kind of field knows.
 double? _factorFor(String suffix, NumberUnit unit) => switch (unit) {
-  NumberUnit.plain => null,
   NumberUnit.meters => switch (suffix) {
     'mm' => 0.001,
     'cm' => 0.01,
@@ -93,6 +92,7 @@ double? _factorFor(String suffix, NumberUnit unit) => switch (unit) {
     'turn' || 'turns' => 360.0,
     _ => null,
   },
+  // A plain number takes no suffix at all.
   _ => null,
 };
 

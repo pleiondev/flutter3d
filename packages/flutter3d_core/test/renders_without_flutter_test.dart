@@ -34,7 +34,6 @@ void main() {
       views: <CameraView>[CameraView(camera: scene.cameras.single)],
     );
 
-    expect(result.frame, isNotNull);
     expect(result.drawCalls, greaterThan(0));
   });
 }

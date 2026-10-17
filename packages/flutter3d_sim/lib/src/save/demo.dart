@@ -471,14 +471,20 @@ final class Demo {
     final Snapshot start;
     try {
       start = Snapshot.fromJson(run);
-    } on SnapshotFormatException catch (error) {
-      throw DemoFormatException('the starting state: ${error.message}');
+    } on SnapshotFormatException catch (error, stackTrace) {
+      Error.throwWithStackTrace(
+        DemoFormatException('the starting state: ${error.message}'),
+        stackTrace,
+      );
     }
     final DigestTrace trace;
     try {
       trace = DigestTrace.fromJson(checkpoints);
-    } on DigestTraceFormatException catch (error) {
-      throw DemoFormatException('the checkpoints: ${error.message}');
+    } on DigestTraceFormatException catch (error, stackTrace) {
+      Error.throwWithStackTrace(
+        DemoFormatException('the checkpoints: ${error.message}'),
+        stackTrace,
+      );
     }
     final platform = json['platform'];
     final recordedBy = json['recordedBy'];
@@ -488,8 +494,11 @@ final class Demo {
     if (rawDataSources is Map<String, Object?>) {
       try {
         dataSources = DataSourceTrace.fromJson(rawDataSources);
-      } on DataSourceTraceFormatException catch (error) {
-        throw DemoFormatException('the data sources: ${error.message}');
+      } on DataSourceTraceFormatException catch (error, stackTrace) {
+        Error.throwWithStackTrace(
+          DemoFormatException('the data sources: ${error.message}'),
+          stackTrace,
+        );
       }
     }
     // A reserved list's entries this build can read become its own types;
@@ -508,8 +517,11 @@ final class Demo {
         ...tape,
         if (externalInputs.isNotEmpty) 'externalInputs': externalInputs,
       });
-    } on Flutter3dFormatException catch (error) {
-      throw DemoFormatException('the tape: ${error.message}');
+    } on Flutter3dFormatException catch (error, stackTrace) {
+      Error.throwWithStackTrace(
+        DemoFormatException('the tape: ${error.message}'),
+        stackTrace,
+      );
     }
     final List<LoopChange> loopChanges;
     final EventTrace? events;
@@ -538,8 +550,8 @@ final class Demo {
           'the pose record is not a document',
         ),
       };
-    } on Flutter3dFormatException catch (error) {
-      throw DemoFormatException(error.message);
+    } on Flutter3dFormatException catch (error, stackTrace) {
+      Error.throwWithStackTrace(DemoFormatException(error.message), stackTrace);
     }
     for (final key in _reserved) {
       _checkSteps(key, json[key], steps: readTape.steps);
@@ -740,9 +752,12 @@ final class DemoLevelSwap {
     final Level level;
     try {
       level = Level.fromJson(document);
-    } on LevelFormatException catch (error) {
-      throw DemoFormatException(
-        'the level swapped in at step $step: ${error.message}',
+    } on LevelFormatException catch (error, stackTrace) {
+      Error.throwWithStackTrace(
+        DemoFormatException(
+          'the level swapped in at step $step: ${error.message}',
+        ),
+        stackTrace,
       );
     }
     // The level's digest, or the document's as it was written: a swap
