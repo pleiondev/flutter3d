@@ -202,7 +202,12 @@ final class _Block {
 final class _Lanes extends LiquidPairLoops {
   _Lanes(Float64List constants) : _k = _Block(constants.length * 8) {
     _k.doubles.asTypedList(constants.length).setAll(0, constants);
+    // The constants live as long as the executor does, and go with it.
+    _constantsGone.attach(this, _k.address);
   }
+
+  static final Finalizer<Pointer<Void>> _constantsGone =
+      Finalizer<Pointer<Void>>(_free);
 
   final _Block _k;
 
