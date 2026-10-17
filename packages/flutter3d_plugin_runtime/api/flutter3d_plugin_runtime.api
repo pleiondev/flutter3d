@@ -26,6 +26,7 @@ final class DataPhase
 final class DataPlugin extends Flutter3dPlugin
   List<String> get notes
   Map<String, Object?> save()
+  Map<String, WasmRenderNode> get renderNodes
   PluginManifest get manifest
   final DataPluginDocument document
   static List<double>? numbersOfDataEvent(BusEvent event)
@@ -35,12 +36,13 @@ final class DataPlugin extends Flutter3dPlugin
 final class DataPluginDocument
   List<String> get resources
   Map<String, Object?> toJson()
-  const DataPluginDocument({required this.manifest, this.phases = const <DataPhase>[], this.events = const <DataEventDeclaration>[], this.wasm = const <WasmSystemSpec>[], this.expressions = const <ExpressionSystemSpec>[], this.sections = const <String, DataPluginSection>{}, this.extra = const <String, Object?>{}})
+  const DataPluginDocument({required this.manifest, this.phases = const <DataPhase>[], this.events = const <DataEventDeclaration>[], this.wasm = const <WasmSystemSpec>[], this.wasmRender = const <WasmRenderSpec>[], this.expressions = const <ExpressionSystemSpec>[], this.sections = const <String, DataPluginSection>{}, this.extra = const <String, Object?>{}})
   factory DataPluginDocument.fromJson(Map<String, Object?> document, {DataSectionRegistry? sections})
   factory DataPluginDocument.parse(String text, {DataSectionRegistry? sections})
   final List<DataEventDeclaration> events
   final List<DataPhase> phases
   final List<ExpressionSystemSpec> expressions
+  final List<WasmRenderSpec> wasmRender
   final List<WasmSystemSpec> wasm
   final Map<String, DataPluginSection> sections
   final Map<String, Object?> extra
@@ -73,7 +75,7 @@ final class DataSections extends DataSectionRegistry
   DataSections([Iterable<DataSection> sections = const <DataSection>[]])
   List<String> get names
   Registration register(DataSection section)
-  static const Set<String> runtimeKeys = <String>{'f3dplugin', 'manifest', 'phases', 'events', 'wasm', 'expressions'}
+  static const Set<String> runtimeKeys = <String>{'f3dplugin', 'manifest', 'phases', 'events', 'wasm', 'wasmRender', 'expressions'}
 
 final class ExpressionSystemSpec
   Map<String, Object?> toJson()
@@ -169,12 +171,15 @@ abstract base class WasmInstance
   abstract void step(WasmStep step)
   const WasmInstance()
   int get abi
+  void render(WasmRenderCall call)
 
 final class WasmInstantiation
   const WasmInstantiation(this.module, {required this.imports, required this.limits})
+  const WasmInstantiation.render(this.module, {required WasmRenderImports this.render, required this.limits})
   final WasmImports imports
   final WasmLimits limits
   final WasmModule module
+  final WasmRenderImports? render
 
 final class WasmInterpreter extends WasmRuntime
   String get name
@@ -184,11 +189,13 @@ final class WasmInterpreter extends WasmRuntime
 
 final class WasmLimits
   Map<String, Object?> toJson()
-  const WasmLimits({this.memoryPages = 16, this.fuelPerStep = 1000000, this.callDepth = 64})
+  const WasmLimits({this.memoryPages = 16, this.fuelPerStep = 1000000, this.callDepth = 64, this.fuelPerFrame = defaultFuelPerFrame})
   factory WasmLimits.fromJson(Map<String, Object?> json)
   final int callDepth
+  final int fuelPerFrame
   final int fuelPerStep
   final int memoryPages
+  static const int defaultFuelPerFrame = 200000
 
 final class WasmModule
   final List<String> importNames
@@ -197,12 +204,24 @@ final class WasmModule
   final Map<String, int> globalExports
   final String? memoryExport
   final Uint8List bytes
+  final WasmModuleKind kind
   final int? memoryMax
   final int? memoryMin
   final int? start
   int get abiFunction
+  int get renderFunction
   int get stepFunction
-  static WasmModule decode(Uint8List bytes)
+  static WasmModule decode(Uint8List bytes, {WasmModuleKind kind = WasmModuleKind.step})
+
+final class WasmModuleKind
+  String toString()
+  final String entry
+  final String name
+  final String section
+  static WasmModuleKind? byName(String name)
+  static const List<WasmModuleKind> values = <WasmModuleKind>[step, render]
+  static const WasmModuleKind render = WasmModuleKind._('render', 'wasmRender', wasmRenderNodeExport)
+  static const WasmModuleKind step = WasmModuleKind._('step', 'wasm', 'f3d_step')
 
 final class WasmPlugin extends Flutter3dPlugin
   WasmPlugin({required this.manifest, required this.spec, required Uint8List bytes, this.runtime = WasmRuntime.interpreter})
@@ -213,6 +232,42 @@ final class WasmPlugin extends Flutter3dPlugin
   final WasmSystemSpec spec
   void install(PluginHost host)
   void uninstall(PluginHost host)
+
+final class WasmRenderCall
+  WasmRenderCall({this.frame = 0, this.view = 0})
+  int frame
+  int view
+
+abstract base class WasmRenderImports
+  abstract double get time
+  abstract int viewSize(int axis)
+  abstract void draw()
+  abstract void param(int parameter, int component, double value)
+  abstract void paramFloats(int parameter, Float32List values)
+  const WasmRenderImports()
+  int lightCode(int light)
+
+final class WasmRenderNode extends RenderProgram
+  List<String> get parameters
+  String? get trapped
+  WasmRenderNode(this.spec, WasmModule module, {required this.plugin, WasmRuntime runtime = WasmRuntime.interpreter})
+  final String plugin
+  final WasmRenderSpec spec
+  int get fuelUsed
+  void run(RenderProgramFrame frame)
+
+final class WasmRenderSpec
+  Map<String, Object?> toJson()
+  const WasmRenderSpec({required this.module, required this.step, this.parameters = const <String>[], this.lights = const <String>[], this.limits = const WasmLimits(), this.sha256, this.unknown = const <String, Object?>{}})
+  factory WasmRenderSpec.fromJson(Map<String, Object?> json)
+  final List<String> lights
+  final List<String> parameters
+  final Map<String, Object?> unknown
+  final String module
+  final String step
+  final String? sha256
+  final WasmLimits limits
+  static const Set<String> keys = <String>{'module', 'step', 'parameters', 'lights', 'limits', 'sha256'}
 
 abstract base class WasmRuntime
   abstract String get name
@@ -236,7 +291,7 @@ final class WasmSystem
 
 final class WasmSystemSpec
   Map<String, Object?> toJson()
-  const WasmSystemSpec({required this.module, required this.system, required this.phase, this.after = const <String>[], this.before = const <String>[], this.fields = const <WasmFieldSpec>[], this.events = const <String>[], this.limits = const WasmLimits(), this.unknown = const <String, Object?>{}})
+  const WasmSystemSpec({required this.module, required this.system, required this.phase, this.after = const <String>[], this.before = const <String>[], this.fields = const <WasmFieldSpec>[], this.events = const <String>[], this.limits = const WasmLimits(), this.sha256, this.unknown = const <String, Object?>{}})
   factory WasmSystemSpec.fromJson(Map<String, Object?> json)
   final List<String> after
   final List<String> before
@@ -246,8 +301,9 @@ final class WasmSystemSpec
   final String module
   final String phase
   final String system
+  final String? sha256
   final WasmLimits limits
-  static const Set<String> keys = <String>{'module', 'system', 'phase', 'after', 'before', 'fields', 'events', 'limits'}
+  static const Set<String> keys = <String>{'module', 'system', 'phase', 'after', 'before', 'fields', 'events', 'limits', 'sha256'}
 
 final class WasmTrapException extends PluginException
   String toString()
@@ -282,16 +338,26 @@ WasmRuntime? browserWasmRuntime()
 
 WasmSystem installWasmSystem(PluginHost host, WasmSystemSpec spec, WasmModule module, {WasmRuntime runtime = WasmRuntime.interpreter})
 
-String? wasmAbiRefusal(int abi, Iterable<String> imports)
+String? wasmAbiRefusal(int abi, Iterable<String> imports, {WasmModuleKind kind = WasmModuleKind.step})
 
-const Map<String, int> wasmImportSince = <String, int>{'field_len': 1, 'field_get': 1, 'field_set': 1, 'publish': 1, 'field_frac': 2}
+const Map<String, int> wasmExportSince = <String, int>{'f3d_abi': 1, 'f3d_step': 1, wasmRenderNodeExport: 3}
+
+const Map<String, int> wasmImportSince = …
+
+String? wasmIntegrityRefusal(String module, String? sha256, Uint8List bytes, {required String plugin})
+
+bool wasmModuleIsRemote(String module)
 
 const int wasmPluginAbi = wasmPluginAbiMax
 
-const int wasmPluginAbiMax = 2
+const int wasmPluginAbiMax = 3
 
 const int wasmPluginAbiMin = 1
 
-const int wasmRenderAbi = wasmPluginAbiMax + 1
+const int wasmRenderAbi = 3
+
+const Set<String> wasmRenderImports = <String>{'param', 'param_floats', 'draw', 'time', 'view_size', 'light_code'}
 
 const String wasmRenderNodeExport = 'f3d_render_node'
+
+String? wasmSha256Of(Map<String, Object?> json)

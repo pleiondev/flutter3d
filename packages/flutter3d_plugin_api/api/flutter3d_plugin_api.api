@@ -14,6 +14,12 @@ final class ComponentHints
   final String title
   static ComponentHints fromJson(Object? json)
 
+abstract base class EditorCommandValue
+  Map<String, Object?> toJson()
+  abstract Map<String, Object?> get arguments
+  abstract String get name
+  const EditorCommandValue()
+
 abstract base class EditorHintRegistry extends PluginRegistry
   abstract EditorHintRegistry forPlugin(PluginScope scope)
   abstract List<ComponentHints> get components
@@ -196,9 +202,10 @@ abstract base class DataSection
 
 final class DataSectionContext
   List<double>? numbersOf(BusEvent event)
+  RenderProgram? renderProgram(String step)
   String eventName(String event)
   String textOf(String path)
-  const DataSectionContext({required this.plugin, String Function(String path)? this._textOf, String Function(String event)? this._eventName, List<double>? Function(BusEvent event)? this._numbersOf, void Function(String note)? this._note})
+  const DataSectionContext({required this.plugin, String Function(String path)? this._textOf, String Function(String event)? this._eventName, List<double>? Function(BusEvent event)? this._numbersOf, void Function(String note)? this._note, RenderProgram? Function(String step)? this._renderProgram})
   final String plugin
   void note(String note)
 
@@ -737,8 +744,26 @@ final class RenderAnchor
   static const RenderAnchor beforeViewportShading = RenderAnchor._('f3d.before_viewport_shading')
   static const RenderAnchor beforeVolumetricFog = RenderAnchor._('f3d.before_volumetric_fog')
 
+abstract base class RenderProgram
+  abstract List<String> get parameters
+  abstract void run(RenderProgramFrame frame)
+  const RenderProgram()
+
+abstract base class RenderProgramFrame
+  abstract double get time
+  abstract int get frame
+  abstract int get height
+  abstract int get view
+  abstract int get width
+  abstract void draw()
+  abstract void setParameter(int parameter, int component, double value)
+  abstract void setParameterFloats(int parameter, Float32List values)
+  const RenderProgramFrame()
+  int? lightCode(String name)
+
 abstract base class RenderStepRegistry extends PluginRegistry
   List<RenderAnchor> get anchors
+  List<String> get nodeNames
   const RenderStepRegistry()
 
 abstract base class SceneBindingRegistry extends PluginRegistry

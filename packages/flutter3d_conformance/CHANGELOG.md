@@ -1,5 +1,18 @@
 ## 1.0.0-rc.1+2
 
+- **Breaking: a plugin that draws earns its badge with the render checks.**
+  `plugin.render`, the eighth of `pluginCheckNames`, finds whether the
+  plugin places nodes in the frame; one that does earns `conformant@1.0`
+  only with `render.nodes` passed on `cpu`, which
+  `runPluginRenderConformance` records into the same report
+  (`recordRenderOutcomes`), and keeps it only while no render check it ran
+  failed on any backend.
+- **An engine package's own event is not the plugin's.** The Wasm
+  runtime declares its trap the first time a plugin's Wasm system is
+  installed and keeps it for the engine; `plugin.names` and
+  `plugin.switch` counted it as the plugin's, failing every correct Wasm
+  plugin. A declaration made under one of the engine's namespaces by no
+  plugin of the loop is now left out of both.
 - **The inexact operations against their declared tolerance.**
   `kernelToleranceChecks` (new, in `computeChecks`) run `/`, `sqrt`, `sin`,
   `cos` and `pow` in a kernel on the device and in its Dart translation,

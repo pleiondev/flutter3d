@@ -318,7 +318,11 @@ const Set<String> pluginContractRoots = <String>{
 /// One more with the refusal every registry throws for a name already
 /// taken: `NameTakenException`, a `PluginException` a plugin's install
 /// catches with the rest, where an `ArgumentError` read as a bug.
-const int pluginApiTypeBudget = 79;
+/// Two more with the Wasm render modules (D29): `RenderProgram`, what
+/// drives a render step frame by frame, and `RenderProgramFrame`, the frame
+/// it is handed, so that a data section hands a step its module without
+/// the runtime naming the renderer's types.
+const int pluginApiTypeBudget = 81;
 
 /// The packages of the simulation stack: what steps a run, which a server
 /// replays with no window and no GPU.

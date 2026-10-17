@@ -4,6 +4,19 @@
 
 library package:flutter3d_core/data_plugins.dart
 
+final class DataLightType
+  Map<String, Object?> toJson()
+  const DataLightType({required this.name, required this.base, this.params = const <double>[]})
+  final LightType base
+  final List<double> params
+  final String name
+
+final class DataLodTable
+  Map<String, Object?> toJson()
+  const DataLodTable({required this.name, required this.distances})
+  final List<double> distances
+  final String name
+
 final class DataMaterial
   Map<String, Object?> toJson()
   const DataMaterial({this.source, this.text})
@@ -21,6 +34,13 @@ final class DataRenderStep
   final String name
   final bool present
 
+final class DataVertexLayout
+  Map<String, Object?> toJson()
+  VertexLayout get layout
+  const DataVertexLayout({required this.name, required this.attributes})
+  final List<String> attributes
+  final String name
+
 abstract final class RuntimeBackends
   static String? normalize(String? backend)
   static const String cpu = 'cpu'
@@ -29,12 +49,14 @@ abstract final class RuntimeBackends
   static const String webgpu = 'webgpu'
 
 final class RuntimeRenderStep
-  const RuntimeRenderStep({required this.name, required this.anchor, required this.shaders, this.present = false, this.needs = const <String>[], this.after = const <String>[], this.before = const <String>[]})
+  const RuntimeRenderStep({required this.name, required this.anchor, required this.shaders, this.present = false, this.needs = const <String>[], this.after = const <String>[], this.before = const <String>[], this.program, this.lightTypes})
+  final LightTypes? lightTypes
   final List<String> after
   final List<String> before
   final List<String> needs
   final Map<String, String> shaders
   final RenderAnchor anchor
+  final RenderProgram? program
   final String name
   final bool present
   static const String materialStage = 'material'
@@ -59,11 +81,15 @@ const DataSection bindingsSection = _BindingsSection()
 
 PackedStage fullscreenMaterialWgsl(MaterialProgram program, {required int uvLocation, required String from})
 
+const DataSection lightTypesSection = _LightTypesSection()
+
+const DataSection lodTablesSection = _LodTablesSection()
+
 const DataSection materialsSection = _MaterialsSection()
 
 const DataSection pipelineSection = _PipelineSection()
 
-const List<DataSection> renderDataSections = <DataSection>[materialsSection, renderStepsSection, bindingsSection, pipelineSection]
+const List<DataSection> renderDataSections = <DataSection>[materialsSection, renderStepsSection, bindingsSection, pipelineSection, lightTypesSection, vertexLayoutsSection, lodTablesSection]
 
 const DataSection renderStepsSection = _RenderStepsSection()
 
@@ -72,6 +98,8 @@ ShaderBundle runtimeMaterialBundle(String source, {required String? backend, req
 const String runtimeShaderSdk = 'flutter3d run time'
 
 PackedStage spliceMaterialWgsl(MaterialProgram program, PackedStage host, {required String from})
+
+const DataSection vertexLayoutsSection = _VertexLayoutsSection()
 
 library package:flutter3d_core/flutter3d_core.dart
 
@@ -2663,7 +2691,7 @@ final class MaterialAlphaMode
 final class MaterialBindings
   LightingModel lightingModel({required String label, required String shaderName, String? vertexShaderName, bool vertexStageMorphs = true, Set<VertexStageVariant>? vertexVariants})
   bool get usesMaterialParameters
-  const MaterialBindings({required this.name, required this.usesAlbedoTexture, required this.usesMaterialMaps, required this.usesMetallicRoughnessMap, required this.usesMetallic, this.usesLightList = false, this.uniforms = const <String, List<double>>{}, this.kind = MaterialStageKind.surface, this.state = MaterialFileState.none, this.usesSceneDepth = false, this.readsSurfaceBuffer = false, this.vertexShaderName, this.slots = MaterialSlotTable.none, this.textureBindings = const <String>[], this.vertexVariants = const <VertexStageVariant>{}, this.lightTypes = const <String, String>{}})
+  const MaterialBindings({required this.name, required this.usesAlbedoTexture, required this.usesMaterialMaps, required this.usesMetallicRoughnessMap, required this.usesMetallic, this.usesLightList = false, this.usesEnvironment = false, this.uniforms = const <String, List<double>>{}, this.kind = MaterialStageKind.surface, this.state = MaterialFileState.none, this.usesSceneDepth = false, this.readsSurfaceBuffer = false, this.vertexShaderName, this.slots = MaterialSlotTable.none, this.textureBindings = const <String>[], this.vertexVariants = const <VertexStageVariant>{}, this.lightTypes = const <String, String>{}})
   final List<String> textureBindings
   final Map<String, List<double>> uniforms
   final Map<String, String> lightTypes
@@ -2675,6 +2703,7 @@ final class MaterialBindings
   final String? vertexShaderName
   final bool readsSurfaceBuffer
   final bool usesAlbedoTexture
+  final bool usesEnvironment
   final bool usesLightList
   final bool usesMaterialMaps
   final bool usesMetallic
@@ -2897,14 +2926,16 @@ final class MaterialProgram
   MaterialParameterSchema get schema
   String? get vertexStageName
   bool get isLit
+  bool get isStandard
   bool get readsLightRow
   bool get readsSceneDepth
-  const MaterialProgram({required this.name, required this.parameters, required this.textures, required this.body, required this.inputsUsed, this.light, this.languageVersion = materialLanguageFirstVersion, this.kind = MaterialStageKind.surface, this.state = MaterialFileState.none, this.vertex, this.ambient, this.composite, this.workgroupSize = const WorkgroupSize(8, 8, 1), this.version = firstMaterialVersion, this.updates = const <MaterialUpdate>[], this.lightTypes = const <String, String>{}})
+  const MaterialProgram({required this.name, required this.parameters, required this.textures, required this.body, required this.inputsUsed, this.light, this.languageVersion = materialLanguageFirstVersion, this.kind = MaterialStageKind.surface, this.state = MaterialFileState.none, this.vertex, this.ambient, this.composite, this.workgroupSize = const WorkgroupSize(8, 8, 1), this.version = firstMaterialVersion, this.updates = const <MaterialUpdate>[], this.lightTypes = const <String, String>{}, this.lighting, this.surface})
   final List<MaterialParameter> parameters
   final List<MaterialStatement> body
   final List<MaterialStatement>? ambient
   final List<MaterialStatement>? composite
   final List<MaterialStatement>? light
+  final List<MaterialStatement>? surface
   final List<MaterialStatement>? vertex
   final List<MaterialTextureSlot> textures
   final List<MaterialUpdate> updates
@@ -2913,6 +2944,7 @@ final class MaterialProgram
   final MaterialStageKind kind
   final Set<String> inputsUsed
   final String name
+  final String? lighting
   final WorkgroupSize workgroupSize
   final int languageVersion
   final int version
@@ -4526,6 +4558,7 @@ final class RendererSteps extends RenderStepRegistry
   List<RenderStep> get all
   List<RenderStep> get provided
   List<SettingsSlot<Object>> get settings
+  List<String> get nodeNames
   List<String> nodesAt(RenderAnchor anchor)
   Registration addAnchor(RenderAnchor anchor)
   Registration addComputeStep(ComputeStep step, {RenderAnchor? at, RenderStep? owner, List<String> after = const <String>[], List<String> before = const <String>[]})
@@ -5959,6 +5992,8 @@ List<double> evaluateMaterialComposite(MaterialProgram program, MaterialSurfaceV
 
 List<double> evaluateMaterialLight(MaterialProgram program, MaterialSurfaceValues surface)
 
+Map<String, List<double>> evaluateMaterialSurface(MaterialProgram program, MaterialSurfaceValues surface)
+
 Map<String, List<double>> evaluateMaterialVertex(MaterialProgram program, MaterialSurfaceValues vertex)
 
 Future<ExportReport> exportChecked(ModelDocument document, CheckedModelWriter writer, {String name = 'model'})
@@ -6132,6 +6167,12 @@ const Set<String> materialReservedBlockNames = …
 const List<MaterialInput> materialSceneInputs = …
 
 String? materialStageIn(String namespace, String material)
+
+const MaterialInput materialStandardLightInput = MaterialInput('standard', ExpressionType.vec3, 'f3d_standard', since: 3)
+
+const String materialStandardLighting = 'standard'
+
+const List<MaterialInput> materialSurfaceOutputs = …
 
 const ExpressionSyntax materialSyntax = ExpressionSyntax(units: false, exponents: false, logic: false, punctuation: '{}=;:>')
 
@@ -7115,7 +7156,7 @@ final class LightingModels extends PluginRegistry
 final class MaterialBindings
   LightingModel lightingModel({required String label, required String shaderName, String? vertexShaderName, bool vertexStageMorphs = true, Set<VertexStageVariant>? vertexVariants})
   bool get usesMaterialParameters
-  const MaterialBindings({required this.name, required this.usesAlbedoTexture, required this.usesMaterialMaps, required this.usesMetallicRoughnessMap, required this.usesMetallic, this.usesLightList = false, this.uniforms = const <String, List<double>>{}, this.kind = MaterialStageKind.surface, this.state = MaterialFileState.none, this.usesSceneDepth = false, this.readsSurfaceBuffer = false, this.vertexShaderName, this.slots = MaterialSlotTable.none, this.textureBindings = const <String>[], this.vertexVariants = const <VertexStageVariant>{}, this.lightTypes = const <String, String>{}})
+  const MaterialBindings({required this.name, required this.usesAlbedoTexture, required this.usesMaterialMaps, required this.usesMetallicRoughnessMap, required this.usesMetallic, this.usesLightList = false, this.usesEnvironment = false, this.uniforms = const <String, List<double>>{}, this.kind = MaterialStageKind.surface, this.state = MaterialFileState.none, this.usesSceneDepth = false, this.readsSurfaceBuffer = false, this.vertexShaderName, this.slots = MaterialSlotTable.none, this.textureBindings = const <String>[], this.vertexVariants = const <VertexStageVariant>{}, this.lightTypes = const <String, String>{}})
   final List<String> textureBindings
   final Map<String, List<double>> uniforms
   final Map<String, String> lightTypes
@@ -7127,6 +7168,7 @@ final class MaterialBindings
   final String? vertexShaderName
   final bool readsSurfaceBuffer
   final bool usesAlbedoTexture
+  final bool usesEnvironment
   final bool usesLightList
   final bool usesMaterialMaps
   final bool usesMetallic
@@ -7341,14 +7383,16 @@ final class MaterialProgram
   MaterialParameterSchema get schema
   String? get vertexStageName
   bool get isLit
+  bool get isStandard
   bool get readsLightRow
   bool get readsSceneDepth
-  const MaterialProgram({required this.name, required this.parameters, required this.textures, required this.body, required this.inputsUsed, this.light, this.languageVersion = materialLanguageFirstVersion, this.kind = MaterialStageKind.surface, this.state = MaterialFileState.none, this.vertex, this.ambient, this.composite, this.workgroupSize = const WorkgroupSize(8, 8, 1), this.version = firstMaterialVersion, this.updates = const <MaterialUpdate>[], this.lightTypes = const <String, String>{}})
+  const MaterialProgram({required this.name, required this.parameters, required this.textures, required this.body, required this.inputsUsed, this.light, this.languageVersion = materialLanguageFirstVersion, this.kind = MaterialStageKind.surface, this.state = MaterialFileState.none, this.vertex, this.ambient, this.composite, this.workgroupSize = const WorkgroupSize(8, 8, 1), this.version = firstMaterialVersion, this.updates = const <MaterialUpdate>[], this.lightTypes = const <String, String>{}, this.lighting, this.surface})
   final List<MaterialParameter> parameters
   final List<MaterialStatement> body
   final List<MaterialStatement>? ambient
   final List<MaterialStatement>? composite
   final List<MaterialStatement>? light
+  final List<MaterialStatement>? surface
   final List<MaterialStatement>? vertex
   final List<MaterialTextureSlot> textures
   final List<MaterialUpdate> updates
@@ -7357,6 +7401,7 @@ final class MaterialProgram
   final MaterialStageKind kind
   final Set<String> inputsUsed
   final String name
+  final String? lighting
   final WorkgroupSize workgroupSize
   final int languageVersion
   final int version
@@ -8188,6 +8233,8 @@ List<double> evaluateMaterialComposite(MaterialProgram program, MaterialSurfaceV
 
 List<double> evaluateMaterialLight(MaterialProgram program, MaterialSurfaceValues surface)
 
+Map<String, List<double>> evaluateMaterialSurface(MaterialProgram program, MaterialSurfaceValues surface)
+
 Map<String, List<double>> evaluateMaterialVertex(MaterialProgram program, MaterialSurfaceValues vertex)
 
 Future<ExportReport> exportChecked(ModelDocument document, CheckedModelWriter writer, {String name = 'model'})
@@ -8329,6 +8376,12 @@ const Set<String> materialReservedBlockNames = …
 const List<MaterialInput> materialSceneInputs = …
 
 String? materialStageIn(String namespace, String material)
+
+const MaterialInput materialStandardLightInput = MaterialInput('standard', ExpressionType.vec3, 'f3d_standard', since: 3)
+
+const String materialStandardLighting = 'standard'
+
+const List<MaterialInput> materialSurfaceOutputs = …
 
 const ExpressionSyntax materialSyntax = ExpressionSyntax(units: false, exponents: false, logic: false, punctuation: '{}=;:>')
 

@@ -3084,3 +3084,46 @@ entries:
       `cpuComputeDevice(standInForGpu: true)` is
       `cpuComputeDeviceStandingInForGpu()` from
       `package:flutter3d_cpu/testing.dart`; with false, drop the argument.
+
+  - id: build-PluginKind-values
+    package: flutter3d_build
+    symbol: PluginKind.values
+    kind: none
+    reason: >-
+      Five plugin kinds join the list, `material`, `compute`, `codec`,
+      `editor` and `data`, before `backend`; every kind before keeps its
+      name. A `switch` over `PluginKind` that named each one needs the new
+      five or a wildcard.
+
+  - id: core-renderDataSections
+    package: flutter3d_core
+    symbol: renderDataSections
+    kind: none
+    reason: >-
+      The renderer's sections gain `lightTypes`, `vertexLayouts` and
+      `lodTables`; a loader handed the list reads them too, and a document
+      without them reads as before.
+
+  - id: plugin_runtime-DataSections-runtimeKeys
+    package: flutter3d_plugin_runtime
+    symbol: DataSections.runtimeKeys
+    kind: none
+    reason: >-
+      The runtime reads `wasmRender` itself, so a section registered under
+      that name is refused as one under `wasm` is.
+
+  - id: plugin_runtime-wasmPluginAbiMax
+    package: flutter3d_plugin_runtime
+    symbol: wasmPluginAbiMax
+    kind: none
+    reason: >-
+      The newest Wasm plugin ABI is 3, the one render modules arrive in; a
+      step module of ABI 1 or 2 runs as it did.
+
+  - id: plugin_runtime-wasmRenderAbi
+    package: flutter3d_plugin_runtime
+    symbol: wasmRenderAbi
+    kind: none
+    reason: >-
+      Render modules arrived in ABI 3, and the constant names it rather
+      than the ABI after the newest; it was 3 already.

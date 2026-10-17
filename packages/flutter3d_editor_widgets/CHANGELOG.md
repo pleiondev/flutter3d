@@ -1,5 +1,9 @@
 ## 1.0.0-rc.1+1
 
+- **A panel runs a typed command.** `EditorPanelContext.runCommand` takes
+  an `EditorCommandValue`, a plugin's command class or the editor's own,
+  so a misspelled key is a compile error in the panel rather than a
+  command that does nothing.
 - **Breaking: results that were records are final classes.** `ColorField`
   answered or held a record, which can never gain a field. Each answers a
   final class now, with the record's field names (a positional `$1` has a

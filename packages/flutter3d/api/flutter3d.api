@@ -1041,7 +1041,7 @@ export package:flutter3d_matter/flutter3d_matter.dart show AcousticProperties, C
   WorldPropertiesFormatException
   WorldPropertiesPatch
 
-export package:flutter3d_plugin_api/flutter3d_plugin_api.dart show Assimilation, AssimilationContext, BindingInterpolation, BindingLifetime, BusChannel, BusEvent, ComponentCodec, ComponentDecodeContext, ComponentInfo, ComponentRegistry, ComponentRestoreContext, ConstraintCycleException, DataSection, DataSectionContext, DataSectionInstall, DataSectionLoad, DataSectionRead, DataSectionRegistry, Delivered, Entity, EventCodec, EventDeclaration, EventDecodeContext, EventDigestSink, EventHandler, EventRegistry, ExternalStateInput, Flutter3dPlugin, FormatRegistrationException, FormatRegistry, InPlaceCodec, LoopContext, LoopPhase, LoopRegistry, LoopSystem, NameTakenException, OriginShifted, PhaseKind, PluginApiVersion, PluginChange, PluginDependency, PluginDisabled, PluginEnabled, PluginFormatException, PluginGroup, PluginHost, PluginManager, PluginManifest, PluginPermission, PluginRegistry, PluginScope, PluginStatus, PluginTouches, PluginVersion, PluginsReordered, PluginsSet, ProbeField, ProbeReading, PublishedEvent, PublishedState, ReadingKind, ReadingQuality, RenderAnchor, RenderStepRegistry, SceneBindingRegistry, SceneBindingSpec, SimCommands, SimQuery, SimSpawned, SimWorld, SimulationProfile, SimulationVersion, SnapshotPart, SnapshotRegistry, SnapshotRestoreContext, VersionRange, VmExtensionHandler, VmExtensions, WorldPositionCodec
+export package:flutter3d_plugin_api/flutter3d_plugin_api.dart show Assimilation, AssimilationContext, BindingInterpolation, BindingLifetime, BusChannel, BusEvent, ComponentCodec, ComponentDecodeContext, ComponentInfo, ComponentRegistry, ComponentRestoreContext, ConstraintCycleException, DataSection, DataSectionContext, DataSectionInstall, DataSectionLoad, DataSectionRead, DataSectionRegistry, Delivered, Entity, EventCodec, EventDeclaration, EventDecodeContext, EventDigestSink, EventHandler, EventRegistry, ExternalStateInput, Flutter3dPlugin, FormatRegistrationException, FormatRegistry, InPlaceCodec, LoopContext, LoopPhase, LoopRegistry, LoopSystem, NameTakenException, OriginShifted, PhaseKind, PluginApiVersion, PluginChange, PluginDependency, PluginDisabled, PluginEnabled, PluginFormatException, PluginGroup, PluginHost, PluginManager, PluginManifest, PluginPermission, PluginRegistry, PluginScope, PluginStatus, PluginTouches, PluginVersion, PluginsReordered, PluginsSet, ProbeField, ProbeReading, PublishedEvent, PublishedState, ReadingKind, ReadingQuality, RenderAnchor, RenderProgram, RenderProgramFrame, RenderStepRegistry, SceneBindingRegistry, SceneBindingSpec, SimCommands, SimQuery, SimSpawned, SimWorld, SimulationProfile, SimulationVersion, SnapshotPart, SnapshotRegistry, SnapshotRestoreContext, VersionRange, VmExtensionHandler, VmExtensions, WorldPositionCodec
   Assimilation
   AssimilationContext
   BindingInterpolation
@@ -1105,6 +1105,8 @@ export package:flutter3d_plugin_api/flutter3d_plugin_api.dart show Assimilation,
   ReadingKind
   ReadingQuality
   RenderAnchor
+  RenderProgram
+  RenderProgramFrame
   RenderStepRegistry
   SceneBindingRegistry
   SceneBindingSpec

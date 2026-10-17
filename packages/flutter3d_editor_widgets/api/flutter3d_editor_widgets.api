@@ -105,6 +105,7 @@ final class EditorPanel
 
 final class EditorPanelContext
   bool run(Map<String, Object?> command)
+  bool runCommand(EditorCommandValue command)
   const EditorPanelContext({required this.context, required this.document, required bool Function(Map<String, Object?> command) this._run, this.selection = const <PanelSelection>[], this.path, void Function(String says)? this._say})
   final BuildContext context
   final List<PanelSelection> selection

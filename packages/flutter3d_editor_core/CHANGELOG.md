@@ -1,5 +1,16 @@
 ## 1.0.0-rc.1+1
 
+- **An editor plugin's menus, toolbar and tool modes.** `EditorPieces`
+  takes `addMenuItem` (an `EditorMenuItem` under a menu, with an
+  `EditorShortcut`), `addToolbarItem` (an `EditorToolbarItem` that runs a
+  command or picks a tool mode) and `addToolMode` (an `EditorToolMode`
+  answering a press, a drag and a release with a command and drawing its
+  preview), each filed under the plugin's namespace and withdrawn with it.
+  Every one of them changes the level through a command, one step of undo.
+- **Breaking: a document command is the plugin API's command value.**
+  `DocumentCommand` extends `EditorCommandValue`, whose `name`,
+  `arguments` and `toJson` it now inherits rather than declares, so a
+  panel can hand a typed command to the editor.
 - **A command says what it does to an agent, and reaches one only with
   `tools`.** `EditorPieces.addCommand(hints:)` (new) gives the command's
   `ToolHints`; `PluginCommandInfo.hints`, `toolHints` (the hints, or

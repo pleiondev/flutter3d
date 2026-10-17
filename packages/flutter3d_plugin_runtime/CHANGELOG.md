@@ -1,5 +1,23 @@
 ## 1.0.0-rc.1+1
 
+- **Breaking: Wasm render modules, ABI 3.** A `.f3dplugin`'s `wasmRender`
+  section declares a module that drives one of its render steps frame by
+  frame (`WasmRenderSpec`, run as a `WasmRenderNode`): decoded as a render
+  module, so it may compute in `f32` and needs no `f3d_step`, run in an
+  instance of its own outside every save and digest, its commands imports
+  with scalar arguments (`param`, `param_floats`, `draw`, `time`,
+  `view_size`, `light_code`) naming what the declaration lists by index,
+  and metered per frame (`WasmLimits.fuelPerFrame`). A trap switches the
+  node off with the plugin named, and the frame is drawn. The browser's own
+  WebAssembly runs it as the interpreter does. `wasmPluginAbiMax` and
+  `wasmRenderAbi` are 3, and `DataSections.runtimeKeys` gains
+  `wasmRender`.
+- **Breaking: a module from a URL is pinned by its hash.** `WasmSystemSpec`
+  and `WasmRenderSpec` take a `sha256`, whose key `WasmSystemSpec.keys`
+  gains; a module fetched from an `https:` URL without one, or whose bytes
+  hash to another, is refused before anything is installed
+  (`wasmIntegrityRefusal`). A module of the plugin's own directory is not
+  checked.
 - **A data section's name already taken is a `NameTakenException`.**
   `DataSections.register` refused a second section under one name with an
   `ArgumentError`; it is the `PluginException` every registry throws for a

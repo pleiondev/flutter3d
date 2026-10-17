@@ -1,5 +1,13 @@
 ## 1.0.0-rc.1+1
 
+- **New: `RenderProgram`.** What drives a render step frame by frame, the
+  shape a Wasm render module is run in: it sets the step's parameters by
+  index through a `RenderProgramFrame`, draws, and asks a light type's
+  code; a data section reaches the one for its step with
+  `DataSectionContext.renderProgram`.
+- **New: `EditorCommandValue`.** A command as its name and arguments, in
+  `editor.dart`: what the editor's own commands and a plugin's are, and
+  what a panel hands the editor typed.
 - **New: `PluginPermission.replace`.** What a plugin from outside the
   engine declares to take over a step or a stage the engine draws — the
   renderer refuses a takeover without it — and the `tools` permission is

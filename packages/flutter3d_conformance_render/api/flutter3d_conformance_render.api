@@ -4,21 +4,35 @@
 
 library package:flutter3d_conformance_render/flutter3d_conformance_render.dart
 
+final class PluginCodecPoint
+  const PluginCodecPoint({required this.name, required this.sample, this.width, this.height})
+  final String name
+  final Uint8List sample
+  final int? height
+  final int? width
+
 final class PluginRenderPoints
-  const PluginRenderPoints({this.nodes = const <String>[], this.litModel, this.lightType, this.decal, this.velocityReader, this.shadows})
+  const PluginRenderPoints({this.nodes = const <String>[], this.litModel, this.lightType, this.decal, this.velocityReader, this.shadows, this.drawList, this.lod, this.skinning, this.computeStep, this.codec})
+  final DrawListHook? drawList
   final LightType? lightType
   final LightingModel? decal
   final LightingModel? litModel
   final List<String> nodes
+  final LodPolicy? lod
+  final PluginCodecPoint? codec
   final ShadowTechnique? shadows
+  final SkinningHook? skinning
+  final String? computeStep
   final String? velocityReader
 
 typedef RenderCheckDevice = FutureOr<GraphicsDevice> Function();
 
 typedef RenderCheckMaterials = FutureOr<ShaderLibrary?> Function(GraphicsDevice device);
 
-Future<List<PluginCheckOutcome>> checkPluginRender(Flutter3dPlugin Function() create, {required RenderCheckDevice device, required PluginRenderPoints points, required String backend, RenderCheckMaterials? materials})
+typedef RenderCheckRegistries = List<PluginRegistry> Function(Renderer renderer, GraphicsDevice device);
 
-const List<String> pluginRenderCheckNames = <String>['render.nodes', 'render.litModel', 'render.litModelDefaults', 'render.lightType', 'render.decal', 'render.velocity', 'render.shadows']
+Future<List<PluginCheckOutcome>> checkPluginRender(Flutter3dPlugin Function() create, {required RenderCheckDevice device, required PluginRenderPoints points, required String backend, RenderCheckMaterials? materials, RenderCheckRegistries? registries, String? engineBackend})
 
-void runPluginRenderConformance(Flutter3dPlugin Function() create, {required RenderCheckDevice device, required PluginRenderPoints points, required String backend, RenderCheckMaterials? materials})
+const List<String> pluginRenderCheckNames = …
+
+void runPluginRenderConformance(Flutter3dPlugin Function() create, {required RenderCheckDevice device, required PluginRenderPoints points, required String backend, RenderCheckMaterials? materials, RenderCheckRegistries? registries, String? engineBackend})

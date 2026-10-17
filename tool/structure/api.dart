@@ -1797,6 +1797,53 @@ const List<BuildAllowance> buildAllowances = <BuildAllowance>[
         'The facade re-exports `MaterialComputePlacement` (1.0.0-rc.1+2), '
         'which changes the one line it re-exports the engine with.',
   ),
+  BuildAllowance(
+    package: 'flutter3d_core',
+    members: <String>['renderDataSections'],
+    reason:
+        'A data plugin declares its light types, vertex layouts and '
+        'level-of-detail tables (1.0.0-rc.1+2): the list of the renderer\'s '
+        'sections grows by three, and a document without them reads as '
+        'before.',
+  ),
+  BuildAllowance(
+    package: 'flutter3d_plugin_runtime',
+    members: <String>[
+      'DataSections.runtimeKeys',
+      'WasmSystemSpec.keys',
+      'wasmPluginAbiMax',
+      'wasmRenderAbi',
+    ],
+    reason:
+        'Wasm render modules arrive in ABI 3, in the release candidate '
+        '(1.0.0-rc.1+1): `wasmRender` is a key the runtime reads, a module '
+        'from a URL names its `sha256`, and the newest ABI is 3. A step '
+        'module of ABI 1 or 2 runs as before.',
+  ),
+  BuildAllowance(
+    package: 'flutter3d_build',
+    members: <String>['PluginKind.values', 'plugin.create.kind'],
+    reason:
+        'Five more plugin kinds (1.0.0-rc.1+1): `material`, `compute`, '
+        '`codec`, `editor` and `data` join the list `--list` prints and '
+        '`plugin.create` takes, and every kind before keeps its name. The '
+        'server\'s schema stays 1.0.0 until the first stable release, as '
+        '`pluginAuthorMcpSchemaVersion` says.',
+  ),
+  BuildAllowance(
+    package: 'flutter3d_editor_core',
+    members: <String>[
+      'DocumentCommand',
+      'DocumentCommand.arguments',
+      'DocumentCommand.name',
+      'DocumentCommand.toJson',
+    ],
+    reason:
+        'A document command is the plugin API\'s `EditorCommandValue` '
+        '(1.0.0-rc.1+1): `name`, `arguments` and `toJson` are inherited '
+        'from it with the same signatures, so every call and every '
+        'subclass compiles.',
+  ),
 ];
 
 /// Whether [change] to [package] is one [buildAllowances] lets through

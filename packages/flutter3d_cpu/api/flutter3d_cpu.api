@@ -259,10 +259,19 @@ final class ParticleVertexShader extends CpuVertexShader
   const ParticleVertexShader()
   int get varyingCount
 
+abstract base class PbrHooks
+  Vector3 light(Surface s, LightSample light, Vector3 standard)
+  bool get readsLightRow
+  bool lightType(double code, Vector4 params)
+  const PbrHooks()
+  void surface(Surface s, Float32List v, ShaderBindings b, FragmentContext c)
+
 final class PbrShader extends CpuFragmentShader
   Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
   const PbrShader()
+  const PbrShader.hooked(PbrHooks this.hooks)
   const PbrShader.layered()
+  final PbrHooks? hooks
   final bool layered
   static Vector3 eonAlbedo(Vector3 rho, double r, double mu)
   static Vector3 eonLobe(Vector3 rho, double r, double muI, double muO, double lDotV)
@@ -484,7 +493,7 @@ final class XrayShader extends CpuFragmentShader
   Vector4? run(Float32List v, ShaderBindings bindings, FragmentContext c)
   const XrayShader()
 
-Vector3 accumulateLights(Surface s, ShaderBindings b, FragmentContext c, {required Vector3 Function(Surface s, LightSample light) shade, required bool shadowed})
+Vector3 accumulateLights(Surface s, ShaderBindings b, FragmentContext c, {required Vector3 Function(Surface s, LightSample light) shade, required bool shadowed, bool Function(double code, Vector4 params)? lightType})
 
 Vector3 agxSigmoid(Vector3 color)
 
@@ -578,7 +587,7 @@ double rectangleFormFactor(List<Vector3> corners, Vector3 n)
 
 Vector3 sampleIrradiance(ShaderBindings b, Vector3 world, Vector3 normal, Vector3 view)
 
-LightSample? sampleLight(ShaderBindings bindings, int index, Surface s)
+LightSample? sampleLight(ShaderBindings bindings, int index, Surface s, {bool Function(double code, Vector4 params)? lightType})
 
 Vector3 sampleLightmap(Float32List v, ShaderBindings b, FragmentContext c)
 

@@ -527,16 +527,22 @@ final class PluginDiscoveryException extends PluginException
 
 final class PluginKind
   String toString()
+  final List<String> aliases
   final String about
   final String name
   final bool isPlugin
   final bool simulates
   static PluginKind named(String name)
-  static const List<PluginKind> values = <PluginKind>[renderStep, effect, genre, element, tool, backend]
+  static const List<PluginKind> values = <PluginKind>[renderStep, effect, genre, element, tool, material, compute, codec, editor, data, backend]
   static const PluginKind backend = PluginKind._('backend', 'a graphics backend with no GPU yet, which passes conformance and grows ' 'into one for another API', simulates: false, isPlugin: false)
+  static const PluginKind codec = PluginKind._('codec', 'an image format of its own, read wherever the engine loads a texture', simulates: false)
+  static const PluginKind compute = …
+  static const PluginKind data = …
+  static const PluginKind editor = PluginKind._('editor', 'an editor plugin: a command, a menu entry with a key, a toolbar button ' 'and a tool mode', simulates: false)
   static const PluginKind effect = PluginKind._('effect', 'something seen when an event arrives, aged once a displayed frame', simulates: false)
   static const PluginKind element = …
   static const PluginKind genre = PluginKind._('genre', 'a step phase of its own between physics and fields, with a rule ' 'that scores and an event it publishes', simulates: true)
+  static const PluginKind material = …
   static const PluginKind renderStep = PluginKind._('render-step', 'a full-screen pass at a render anchor, switched like a built-in step', simulates: false)
   static const PluginKind tool = PluginKind._('tool', 'an MCP tool published under the plugin\'s id', simulates: false)
 

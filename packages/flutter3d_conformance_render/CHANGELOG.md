@@ -1,5 +1,19 @@
 ## 1.0.0-rc.1+1
 
+- **Five more render checks.** `render.drawList`, `render.lod`,
+  `render.skinning`, `render.compute` and `render.codec`, each set through
+  `PluginRenderPoints` (`PluginCodecPoint` for an image format), and
+  `render.nodes` holds the points to every node the plugin places.
+- **A check draws once what the install started has landed.** A stage
+  waits for the compute placements and for the stages `RuntimeShaders`
+  compiles before its first frame, so a compute step is no longer missing
+  from `render.nodes` as pending; a node the device refuses with the typed
+  refusal, and the reader it starves, pass as `render.compute` does.
+- **A data plugin through the same checks.** `registries` hands the
+  plugin what an application gives it beside the renderer
+  (`RenderCheckRegistries`), and `engineBackend` the backend the engine
+  says it draws with, so a `.f3dplugin`'s render steps and its Wasm render
+  nodes install and are drawn.
 - **Breaking: the render checks are named like tools.**
   `render.lit model`, `render.lit model defaults` and `render.light type`
   are `render.litModel`, `render.litModelDefaults` and `render.lightType`;

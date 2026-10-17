@@ -7,6 +7,10 @@
   read a later cascade than the ground under it.
 - **Particles and splats integrate the height fog** (`fogTransmittance`),
   as `ApplyFog` does for the lit stages.
+- **The standard model's injection points on the software backend.**
+  `PbrShader.hooked` takes `PbrHooks`, a material's surface, light and
+  light-type hooks, and `sampleLight` and `accumulateLights` take the
+  light-type hook a plugin's light is let into the loop by.
 - **Breaking: standing in for a GPU is a test's knob, in `testing.dart`.**
   `CpuDevice(standInForGpu:)`, `CpuDevice.standInForGpu` and
   `cpuComputeDevice(standInForGpu:)` are gone from the main library;

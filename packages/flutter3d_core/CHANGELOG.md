@@ -9,6 +9,18 @@
 - **Splats fog in a height fog as the ground does.** The splat contributor
   binds the fog's falloff (`FogInfo.eye.w`), and the stages integrate it
   along the ray where they fogged at the camera's density the whole way.
+- **Injection points in the standard model, in version 3 of the material
+  language.** `lighting standard;` lights a material by the engine's PBR,
+  with a `surface` block that rewrites the surface once its maps are read,
+  a `light` block that answers each light given the model's own answer
+  (`standard`), and a `lighttype` of a plugin's lit in the model's loop.
+  The GPU stage is `lighting/pbr.frag` with the hooks switched on, the
+  software backend runs the same through `PbrShader.hooked`, and a
+  material that injects nothing is the engine's PBR to the pixel.
+- **Breaking: a data plugin's light types, vertex layouts and level-of-detail
+  tables.** `renderDataSections` gains `lightTypesSection`,
+  `vertexLayoutsSection` and `lodTablesSection`; a render step a Wasm
+  module drives is handed its `RenderProgram` (`RuntimeRenderStep.program`).
 - **Breaking: the splat sort is placed, not handed a device.**
   `SplatGpuSort.place(device)` (new) asks the hardware layer for the
   drawing device's site (`FrameCompute.placeOnFrame`) and answers null

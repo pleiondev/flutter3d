@@ -689,6 +689,8 @@ export 'package:flutter3d/flutter3d.dart'
         RenderMaterial,
         RenderNode,
         RenderPassDescriptor,
+        RenderProgram,
+        RenderProgramFrame,
         RenderServices,
         RenderSettings,
         RenderStep,

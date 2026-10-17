@@ -1,5 +1,14 @@
 ## 1.0.0-rc.1+1
 
+- **Breaking: five more plugin kinds.** `flutter3d create plugin --kind`
+  and `plugin.create` take `material` (also `lit-model`), `compute`,
+  `codec`, `editor` and `data` (also `wasm`) beside the five before, and
+  `PluginKind.values` lists all ten and the backend. Each writes a package
+  that analyses clean and passes its own unit and conformance tests, which
+  `tool/compile_plugin_kinds.sh` holds in CI by generating every kind
+  against the tree. A material injects into the standard model from
+  `assets_src/`, a compute step comes with the reader that keeps it in the
+  frame, and a data plugin carries its document and its module's text.
 - **A backend from outside is compiled for by being a dependency.** A
   package that names its material compiler under `flutter3d_backend:` in
   its pubspec (`backend`, `section`, `compiler`; `backendMarkerKey`) is

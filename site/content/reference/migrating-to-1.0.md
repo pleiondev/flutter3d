@@ -5,7 +5,7 @@ description: Move a project written against flutter3d 0.8 to 1.0.0-rc.1, with on
 # Migrating from 0.8 to 1.0
 
 1.0 is the release the engine promises to keep: from it on, a break comes
-only in a major version. To get there, and on to this release, the API changed in 2362 places,
+only in a major version. To get there, and on to this release, the API changed in 2367 places,
 316 of them left to you; 380 are backend internals no application called.
 The rest a program carries out for you, and three
 tools share the work. All three read the same tables,
@@ -225,7 +225,7 @@ carried out:
 
 <!-- migration-table:start -->
 
-*Generated from `flutter3d_build/lib/migrations/` — 267 entries from 1.0.0-rc.1 to 1.0.0-rc.1+1, 15 by hand: 23 `dart fix`, 160 `migrate`, 15 by hand, 69 nothing to do.*
+*Generated from `flutter3d_build/lib/migrations/` — 272 entries from 1.0.0-rc.1 to 1.0.0-rc.1+1, 15 by hand: 23 `dart fix`, 160 `migrate`, 15 by hand, 74 nothing to do.*
 
 ### `flame_flutter3d`
 
@@ -264,6 +264,7 @@ carried out:
 - <a id="build-ConformanceRun-missing"></a>**`ConformanceRun.missing`** (by hand). Gone with the server's own check list. The checks a run made are its `report`'s `outcomes`; a check of the suite that is not among them did not run, and the report's `badge` is then null.
 - <a id="build-ConformanceTest-new"></a>**`ConformanceTest.ConformanceTest`** (`dart fix`). A test is no longer matched to a check by a word in its name; the suite's report says which check each outcome is.
 - <a id="build-ConformanceTest-check"></a>**`ConformanceTest.check`** (by hand). Gone: which check a test belongs to is in the suite's report, the `check` of each of `ConformanceRun.report`'s `outcomes`.
+- <a id="build-PluginKind-values"></a>**`PluginKind.values`** (nothing to do). Five plugin kinds join the list, `material`, `compute`, `codec`, `editor` and `data`, before `backend`; every kind before keeps its name. A `switch` over `PluginKind` that named each one needs the new five or a wildcard.
 - <a id="build-cliCommands"></a>**`cliCommands`** (nothing to do). The list gains `visibility` and `decode-worker`, the two commands that joined `flutter3d`. Nothing to change in code that reads it.
 - <a id="build-createProject-record"></a>**`createProject`** (`migrate`). `createProject` is a class: `.did` is `.did`, `.says` is `.says`; a destructuring pattern is yours to rewrite. `createProject` answers an `Answer` (from `package:flutter3d_mcp/kit.dart`, the type `PluginWorkshop.create` answers) with `did` and `says`, where it answered a `(did:, says:)` record; only a destructuring pattern names the class.
 - <a id="build-flutter3dBuildVersionConstraint"></a>**`flutter3dBuildVersionConstraint`** (nothing to do). The constraint `init` writes follows the package's version.
@@ -352,6 +353,7 @@ carried out:
 - <a id="core-jitterOffset-record"></a>**`jitterOffset`** (`migrate`). `jitterOffset` is a class: `.$1` is `.x`, `.$2` is `.y`; a destructuring pattern is yours to rewrite. `jitterOffset` answers a `PixelJitter` with `x` and `y`, where it answered a pair; only a destructuring pattern names the class.
 - <a id="core-pipelineVersion-2"></a>**`pipelineVersion`** (nothing to do). `f3d.pipeline` is version 2, which writes the engine's anchors, resources and steps as `f3d.<name>`; a version 1 file reads, its words renamed. Code that compared a document's version with this constant reads the newer number.
 - <a id="core-projectPoint-record"></a>**`projectPoint`** (`migrate`). `projectPoint` is a class: `.x` is `.x`, `.y` is `.y`; a destructuring pattern is yours to rewrite. `projectPoint` answers a `ScreenPoint?` with `x` and `y`, in logical pixels, where it answered a record; field reads are unchanged.
+- <a id="core-renderDataSections"></a>**`renderDataSections`** (nothing to do). The renderer's sections gain `lightTypes`, `vertexLayouts` and `lodTables`; a loader handed the list reads them too, and a document without them reads as before.
 - <a id="core-symmetricEigen3-record"></a>**`symmetricEigen3`** (`migrate`). `symmetricEigen3` is a class: `.$1` is `.values`, `.$2` is `.vectors`; a destructuring pattern is yours to rewrite. `symmetricEigen3` answers a `SymmetricEigen` with `values` and `vectors`, where it answered a pair; destructure with `final SymmetricEigen(:values, :vectors) = ...`.
 - <a id="core-toGltfFilters-record"></a>**`toGltfFilters`** (`migrate`). `toGltfFilters` is a class: `.$1` is `.magFilter`, `.$2` is `.minFilter`; a destructuring pattern is yours to rewrite. `toGltfFilters` answers `GltfFilters` with `magFilter` and `minFilter`, where it answered a pair; destructure with `final GltfFilters(:magFilter, :minFilter) = ...`.
 
@@ -557,6 +559,12 @@ carried out:
 
 - <a id="plugin_api-OriginShifted-offset-record"></a>**`OriginShifted.offset`** (`migrate`). `OriginShifted` is a class: `.x` is `.x`, `.y` is `.y`, `.z` is `.z`; a destructuring pattern is yours to rewrite. `offset` is a `WorldOffset` with `x`, `y` and `z`, in metres, where it was a record; field reads are unchanged.
 - <a id="plugin_api-RenderAnchor-f3d"></a>**`RenderAnchor`** (nothing to do). Each engine anchor is named `f3d.<name>` (`f3d.after_bloom` where it was `after bloom`); `RenderAnchor.named` still finds one by its old word. Code that compared an anchor's name with a string uses the new word.
+
+### `flutter3d_plugin_runtime`
+
+- <a id="plugin_runtime-DataSections-runtimeKeys"></a>**`DataSections.runtimeKeys`** (nothing to do). The runtime reads `wasmRender` itself, so a section registered under that name is refused as one under `wasm` is.
+- <a id="plugin_runtime-wasmPluginAbiMax"></a>**`wasmPluginAbiMax`** (nothing to do). The newest Wasm plugin ABI is 3, the one render modules arrive in; a step module of ABI 1 or 2 runs as it did.
+- <a id="plugin_runtime-wasmRenderAbi"></a>**`wasmRenderAbi`** (nothing to do). Render modules arrived in ABI 3, and the constant names it rather than the ABI after the newest; it was 3 already.
 
 ### `flutter3d_post`
 

@@ -88,10 +88,7 @@ final class Delete extends EditorCommand
   bool apply(Editing editing)
   const Delete()
 
-abstract final class DocumentCommand
-  Map<String, Object?> toJson()
-  abstract Map<String, Object?> get arguments
-  abstract String get name
+abstract final class DocumentCommand extends EditorCommandValue
   abstract String get says
   abstract bool apply(Editing editing)
   const DocumentCommand()
@@ -254,13 +251,26 @@ abstract base class EditorImporter
   abstract String get label
   const EditorImporter()
 
+final class EditorMenuItem
+  const EditorMenuItem({required this.name, required this.label, required this.command, this.menu = pluginsMenu, this.arguments = const <String, Object?>{}, this.shortcut})
+  final EditorShortcut? shortcut
+  final Map<String, Object?> arguments
+  final String command
+  final String label
+  final String menu
+  final String name
+  static const String pluginsMenu = 'Plugins'
+
 final class EditorPieces extends EditorRegistry
   AddedAssetEntry? assetEntryFor(String path)
   AddedImporter? importerFor(String path)
+  DocumentCommand? commandOf(EditorMenuItem item)
   DocumentCommand? dragged(DrawnMark drawn, Level level, {required Vector3 from, required Vector3 to})
   DocumentCommand? readCommand(Map<String, Object?> json)
+  EditorMenuItem? menuItemFor(EditorShortcut shortcut)
   EditorPieces forPlugin(PluginScope scope)
   EditorPieces()
+  EditorToolMode? toolModeNamed(String name)
   FieldHint? fieldHint(Piece piece, String key, {String? type})
   Iterable<PluginRegistry> get companions
   List<AddedAssetEntry> get assetEntries
@@ -268,11 +278,14 @@ final class EditorPieces extends EditorRegistry
   List<DrawnMark> marksFor(Level level, {Iterable<Picked> selected = const <Picked>[]})
   List<EditorComponent> componentsFor(Piece piece, {String? type})
   List<EditorComponent> get components
+  List<EditorMenuItem> get menuItems
+  List<EditorToolbarItem> get toolbarItems
   List<FieldHint> argumentsOf(String name)
   List<PaletteEntry> get paletteEntries
   List<PluginCommandInfo> get pluginCommands
   List<String> get commandNames
   List<String> get gizmoNames
+  List<String> get toolModeNames
   Map<String, Object?> offersFor(Piece piece, Iterable<String> present, {String? type})
   MaterialHint? materialHint(String? model, String key)
   Registration addAssetEntry(String written, AssetBrowserEntry entry)
@@ -280,12 +293,17 @@ final class EditorPieces extends EditorRegistry
   Registration addComponent(EditorComponent written)
   Registration addGizmo(String written, EditorGizmo gizmo)
   Registration addImporter(String written, EditorImporter importer)
+  Registration addMenuItem(EditorMenuItem item)
   Registration addPaletteEntry(PaletteEntry entry)
+  Registration addToolMode(String written, EditorToolMode mode)
+  Registration addToolbarItem(EditorToolbarItem item)
   Registration listen(void Function() onChange)
   String published(String name, {String what = 'name'})
   String? descriptionOf(String name)
   String? refusalOf(Piece piece, String key, Object? value, {String? type})
   late final EditorHints hints
+  static DocumentCommand? askToolMode(EditorToolMode mode, ToolModeEvent event, ToolModeInput input)
+  static List<GizmoMark> previewOf(EditorToolMode mode, ToolModeInput input)
   static bool builtInComponentKind(String kind)
 
 abstract base class EditorRegistry extends PluginRegistry
@@ -296,6 +314,35 @@ final class EditorSectionContents
   final List<ComponentHints> components
   final List<EntityKindHints> entityKinds
   final List<MaterialHints> materials
+
+final class EditorShortcut
+  String toString()
+  bool operator ==(Object other)
+  const EditorShortcut(this.key, {this.control = false, this.shift = false, this.alt = false})
+  final String key
+  final bool alt
+  final bool control
+  final bool shift
+  int get hashCode
+  static EditorShortcut parse(String written)
+
+abstract base class EditorToolMode
+  DocumentCommand? dragged(ToolModeInput input)
+  DocumentCommand? pressed(ToolModeInput input)
+  DocumentCommand? released(ToolModeInput input)
+  List<GizmoMark> preview(ToolModeInput input)
+  abstract String get label
+  const EditorToolMode()
+
+final class EditorToolbarItem
+  const EditorToolbarItem.command({required this.name, required this.label, required String this.command, this.icon, this.arguments = const <String, Object?>{}})
+  const EditorToolbarItem.toolMode({required this.name, required this.label, required String this.toolMode, this.icon})
+  final Map<String, Object?> arguments
+  final String label
+  final String name
+  final String? command
+  final String? icon
+  final String? toolMode
 
 abstract final class ExperimentEdit
   ExperimentDocument applyTo(ExperimentDocument document)
@@ -791,6 +838,23 @@ final class Template
   final String about
   final String id
   final String name
+
+final class ToolModeEvent
+  String toString()
+  final String name
+  static ToolModeEvent? byName(String name)
+  static const List<ToolModeEvent> values = <ToolModeEvent>[press, drag, release]
+  static const ToolModeEvent drag = ToolModeEvent._('drag')
+  static const ToolModeEvent press = ToolModeEvent._('press')
+  static const ToolModeEvent release = ToolModeEvent._('release')
+
+final class ToolModeInput
+  ToolModeInput({required this.level, required Vector3 point, this.picked, this.selected = const <Picked>[], this.shift = false})
+  final Level level
+  final List<Picked> selected
+  final Picked? picked
+  final Vector3 point
+  final bool shift
 
 final class Turn extends EditorCommand
   Map<String, Object?> get arguments
