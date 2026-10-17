@@ -147,8 +147,11 @@ final class SimulationVersion {
           'the simulation names profile $other',
         ),
       };
-    } on DocumentFormatException catch (error) {
-      throw PluginFormatException(error.message, json);
+    } on DocumentFormatException catch (error, stackTrace) {
+      Error.throwWithStackTrace(
+        PluginFormatException(error.message, json),
+        stackTrace,
+      );
     }
     return SimulationVersion(
       engine: engine,

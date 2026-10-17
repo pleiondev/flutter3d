@@ -110,13 +110,13 @@ final class XrAnchor {
   /// north (−z) of it — where an outdoor anchor stands in the level. Null
   /// for an anchor placed by no place on the Earth, or in a world that is
   /// nowhere in particular.
-  WorldPosition? placeIn(WorldProperties world) =>
-      switch ((world.geoOrigin, geo)) {
-        (final GeoOrigin origin?, final GeoOrigin place?) => origin.positionOf(
-          place,
-        ),
-        _ => null,
-      };
+  WorldPosition? placeIn(WorldProperties world) => switch ((
+    world.geoOrigin,
+    geo,
+  )) {
+    (final GeoOrigin origin, final GeoOrigin place) => origin.positionOf(place),
+    _ => null,
+  };
 
   /// The anchor as an entity of a level: [entityType], with the anchor's
   /// id as the entity's, its position, and the orientation, the space and

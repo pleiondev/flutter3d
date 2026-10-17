@@ -317,11 +317,14 @@ ShaderBuildReport runShaderBuild(
   final ShaderSet shaders;
   try {
     shaders = engine ?? loadShaders(from: projectRoot.path);
-  } on StateError catch (error) {
-    throw MaterialBuildException(
-      'the engine\'s shaders are not reachable from ${projectRoot.path}: '
-      '${error.message}',
-      source: '',
+  } on StateError catch (error, stackTrace) {
+    Error.throwWithStackTrace(
+      MaterialBuildException(
+        'the engine\'s shaders are not reachable from ${projectRoot.path}: '
+        '${error.message}',
+        source: '',
+      ),
+      stackTrace,
     );
   }
   final tools = switch (compilers) {
@@ -503,11 +506,14 @@ ByteData _outside(
           ),
         )
         .section;
-  } on MaterialCompileException catch (error) {
-    throw MaterialBuildException(
-      'the ${compiler.backend} compiler refused the engine\'s stages: '
-      '${error.message}',
-      source: '${shaders.root}/flutter3d.shaderbundle.json',
+  } on MaterialCompileException catch (error, stackTrace) {
+    Error.throwWithStackTrace(
+      MaterialBuildException(
+        'the ${compiler.backend} compiler refused the engine\'s stages: '
+        '${error.message}',
+        source: '${shaders.root}/flutter3d.shaderbundle.json',
+      ),
+      stackTrace,
     );
   }
 }
@@ -536,10 +542,13 @@ ByteData _impeller(
       '--include=${shaders.root}',
       for (final include in tools.impellerIncludes) '--include=$include',
     ], workingDirectory: shaders.root);
-  } on ProcessException catch (error) {
-    throw MaterialBuildException(
-      'could not run ${tools.impellerc}: ${error.message}',
-      source: '',
+  } on ProcessException catch (error, stackTrace) {
+    Error.throwWithStackTrace(
+      MaterialBuildException(
+        'could not run ${tools.impellerc}: ${error.message}',
+        source: '',
+      ),
+      stackTrace,
     );
   }
   if (result.exitCode != 0 || !out.existsSync()) {
@@ -568,14 +577,20 @@ ByteData _webgl(List<String> stages, ShaderSet shaders) {
         from: stage.file,
         fragment: stage.fragment,
       );
-    } on GlslTranslateException catch (error) {
-      throw MaterialBuildException(error.message, source: stage.file);
+    } on GlslTranslateException catch (error, stackTrace) {
+      Error.throwWithStackTrace(
+        MaterialBuildException(error.message, source: stage.file),
+        stackTrace,
+      );
     }
   }
   try {
     return encodeWebGlSection(vertex: vertex, fragment: fragment);
-  } on StageAgreementException catch (error) {
-    throw MaterialBuildException(error.message, source: '');
+  } on StageAgreementException catch (error, stackTrace) {
+    Error.throwWithStackTrace(
+      MaterialBuildException(error.message, source: ''),
+      stackTrace,
+    );
   }
 }
 
@@ -626,20 +641,32 @@ ByteData _webgpu(
     return Uint8List.fromList(
       utf8.encode(wgslSectionDocument(vertex: vertex, fragment: fragment)),
     ).buffer.asByteData();
-  } on GlslTranslateException catch (error) {
-    throw MaterialBuildException(error.message, source: current);
-  } on WgslPrepareException catch (error) {
-    throw MaterialBuildException(
-      'the WebGPU preparation of $current: ${error.message}',
-      source: current,
+  } on GlslTranslateException catch (error, stackTrace) {
+    Error.throwWithStackTrace(
+      MaterialBuildException(error.message, source: current),
+      stackTrace,
     );
-  } on WgslCompileException catch (error) {
-    throw MaterialBuildException(
-      'the WebGPU compile of $current: ${error.message}',
-      source: current,
+  } on WgslPrepareException catch (error, stackTrace) {
+    Error.throwWithStackTrace(
+      MaterialBuildException(
+        'the WebGPU preparation of $current: ${error.message}',
+        source: current,
+      ),
+      stackTrace,
     );
-  } on WgslSectionException catch (error) {
-    throw MaterialBuildException(error.message, source: current);
+  } on WgslCompileException catch (error, stackTrace) {
+    Error.throwWithStackTrace(
+      MaterialBuildException(
+        'the WebGPU compile of $current: ${error.message}',
+        source: current,
+      ),
+      stackTrace,
+    );
+  } on WgslSectionException catch (error, stackTrace) {
+    Error.throwWithStackTrace(
+      MaterialBuildException(error.message, source: current),
+      stackTrace,
+    );
   }
 }
 

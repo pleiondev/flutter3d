@@ -503,7 +503,7 @@ final class _Scan extends RecursiveAstVisitor<void> {
       _ => null,
     };
     final element = switch (target) {
-      SimpleIdentifier(:final element) => element,
+      SimpleIdentifier(:final element) ||
       PrefixedIdentifier(:final element) => element,
       _ => null,
     };
@@ -775,8 +775,8 @@ final class _Scan extends RecursiveAstVisitor<void> {
     if (!body.isAsynchronous && !makeAsync) return null;
     final parent = call.parent;
     final operand = switch (parent) {
-      PropertyAccess(:final target) => target == call,
-      MethodInvocation(:final target) => target == call,
+      PropertyAccess(:final target) ||
+      MethodInvocation(:final target) ||
       IndexExpression(:final target) => target == call,
       _ => false,
     };
@@ -1072,7 +1072,7 @@ final class _Scan extends RecursiveAstVisitor<void> {
     edits.add(_outOfImplements(clause, type));
     // Into `with`.
     final WithClause? withClause = switch (declaration) {
-      ClassDeclaration(:final withClause) => withClause,
+      ClassDeclaration(:final withClause) ||
       EnumDeclaration(:final withClause) => withClause,
       _ => null,
     };
@@ -1766,8 +1766,7 @@ final class _Scan extends RecursiveAstVisitor<void> {
       ReturnStatement() || ExpressionFunctionBody() => switch (at
           .thisOrAncestorOfType<FunctionBody>()
           ?.parent) {
-        FunctionExpression(parent: FunctionDeclaration(:final returnType?)) =>
-          returnType.type,
+        FunctionExpression(parent: FunctionDeclaration(:final returnType?)) ||
         MethodDeclaration(:final returnType?) => returnType.type,
         // A closure: the return type of the function type its place asks
         // for (a builder passed for a `FrameSubject Function()`).
@@ -2834,7 +2833,7 @@ final class _Scan extends RecursiveAstVisitor<void> {
     };
     final outer = whole.parent;
     final used = switch (outer) {
-      PropertyAccess(:final target) => target == whole,
+      PropertyAccess(:final target) ||
       MethodInvocation(:final target) => target == whole,
       PrefixedIdentifier(:final prefix) => prefix == whole,
       _ => false,

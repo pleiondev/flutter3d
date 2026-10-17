@@ -129,11 +129,14 @@ MaterialBuildReport runMaterialBuild(
   final ShaderSet shaders;
   try {
     shaders = engine ?? loadShaders(from: projectRoot.path);
-  } on StateError catch (error) {
-    throw MaterialBuildException(
-      'the engine\'s shaders are not reachable from ${projectRoot.path}: '
-      '${error.message}',
-      source: plan.first.source,
+  } on StateError catch (error, stackTrace) {
+    Error.throwWithStackTrace(
+      MaterialBuildException(
+        'the engine\'s shaders are not reachable from ${projectRoot.path}: '
+        '${error.message}',
+        source: plan.first.source,
+      ),
+      stackTrace,
     );
   }
   final tools = compilers ?? MaterialCompilers.locate(registry: registry);

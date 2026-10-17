@@ -36,7 +36,7 @@ void main() {
 
     expect(device, isA<GraphicsDevice>());
     expect(
-      device.shaders,
+      device.shaders['MeshVertex'],
       isNotNull,
       reason: 'a device with no shader library cannot draw a frame',
     );

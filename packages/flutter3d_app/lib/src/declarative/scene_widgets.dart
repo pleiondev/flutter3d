@@ -770,6 +770,7 @@ class _Mesh3DState extends _SpatialState<Mesh3D, MeshNode> {
         _answerTaps(scope.host, <MeshNode>[node], null);
       }
     }
+    // ignore: proper-super-calls, the node leaves the scene here before its mesh is given back.
     super.dispose();
     _release();
   }
@@ -1358,6 +1359,7 @@ class _Model3DState extends _SpatialState<Model3D, SceneNode>
       turn.release();
     }
     _turns.clear();
+    // ignore: proper-super-calls, the node leaves the scene here before its asset is disposed.
     super.dispose();
     // The instance went out of the scene with the node it hangs from.
     _asset?.dispose();

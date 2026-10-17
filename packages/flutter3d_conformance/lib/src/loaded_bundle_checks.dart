@@ -94,9 +94,12 @@ Future<void> checkLoadedLibrary(
   final LoadedShaderLibrary loaded;
   try {
     loaded = await device.loadShaders(bundle.encode());
-  } on ShaderBundleException catch (refused) {
-    throw ConformanceFailureException(
-      'the backend refused its own shaders packed as a bundle: $refused',
+  } on ShaderBundleException catch (refused, stackTrace) {
+    Error.throwWithStackTrace(
+      ConformanceFailureException(
+        'the backend refused its own shaders packed as a bundle: $refused',
+      ),
+      stackTrace,
     );
   }
   require(
@@ -120,9 +123,12 @@ Future<void> checkLoadedLibrary(
     device.createPipelineFrom(
       PipelineDescriptor(vertex: vertex, fragment: fragment),
     );
-  } catch (error) {
-    throw ConformanceFailureException(
-      'MeshVertex + Pbr from the loaded library do not link: $error',
+  } catch (error, stackTrace) {
+    Error.throwWithStackTrace(
+      ConformanceFailureException(
+        'MeshVertex + Pbr from the loaded library do not link: $error',
+      ),
+      stackTrace,
     );
   }
 
@@ -133,9 +139,12 @@ Future<void> checkLoadedLibrary(
   // would pass the identity check and fail at the first frame.
   try {
     loaded.refresh(bundle.encode());
-  } on ShaderBundleException catch (refused) {
-    throw ConformanceFailureException(
-      'refreshing the bundle it had just accepted was refused: $refused',
+  } on ShaderBundleException catch (refused, stackTrace) {
+    Error.throwWithStackTrace(
+      ConformanceFailureException(
+        'refreshing the bundle it had just accepted was refused: $refused',
+      ),
+      stackTrace,
     );
   }
   require(
@@ -152,9 +161,12 @@ Future<void> checkLoadedLibrary(
         fragment: loaded['Pbr']!,
       ),
     );
-  } catch (error) {
-    throw ConformanceFailureException(
-      'MeshVertex + Pbr do not link after a refresh: $error',
+  } catch (error, stackTrace) {
+    Error.throwWithStackTrace(
+      ConformanceFailureException(
+        'MeshVertex + Pbr do not link after a refresh: $error',
+      ),
+      stackTrace,
     );
   }
 

@@ -386,6 +386,7 @@ final class ProbeField {
 
   Map<String, Object?> toJson() => <String, Object?>{
     'shape': shape,
+    // ignore: avoid-not-encodable-in-to-json, a Float32List is a List<double>, which jsonEncode writes.
     'values': values,
     'unit': unit.toJson(),
   };

@@ -54,11 +54,14 @@ final class WebStorage extends Storage {
   Future<void> write(String name, String contents) async {
     try {
       web.window.localStorage.setItem(_key(name), contents);
-    } catch (error) {
+    } catch (error, stackTrace) {
       // A quota that has run out is the usual one, and it arrives as an
       // exception rather than as a return value.
       onIssue(Issue('storage: could not write $name ($error)'));
-      throw StorageException(name, 'could not write $name', cause: error);
+      Error.throwWithStackTrace(
+        StorageException(name, 'could not write $name', cause: error),
+        stackTrace,
+      );
     }
   }
 
@@ -92,6 +95,7 @@ extension on web.IDBRequest {
     onerror = ((web.Event _) {
       completer.completeError(
         error ?? StateError('IndexedDB request failed with no error set'),
+        StackTrace.current,
       );
     }).toJS;
     return completer.future;
@@ -163,9 +167,12 @@ final class IndexedDbBinaryStorage extends BinaryStorage {
         db,
         'readwrite',
       ).put(contents.toJS, name.toJS).complete<JSAny?>();
-    } catch (error) {
+    } catch (error, stackTrace) {
       onIssue(Issue('storage: could not write $name ($error)'));
-      throw StorageException(name, 'could not write $name', cause: error);
+      Error.throwWithStackTrace(
+        StorageException(name, 'could not write $name', cause: error),
+        stackTrace,
+      );
     }
   }
 

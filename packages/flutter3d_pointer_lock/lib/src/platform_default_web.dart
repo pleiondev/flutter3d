@@ -128,9 +128,7 @@ final class WebPointerLock extends PointerLockPlatform {
     // When it is a promise, its rejection is swallowed here: the refusal is
     // already reported through `pointerlockerror`, and an unhandled rejection
     // would put a red line in the console for a case the caller has handled.
-    final returned = (_target as JSObject).callMethod<JSAny?>(
-      'requestPointerLock'.toJS,
-    );
+    final returned = _target.callMethod<JSAny?>('requestPointerLock'.toJS);
     if (returned.isA<JSPromise<JSAny?>>()) {
       unawaited(
         (returned! as JSPromise<JSAny?>).toDart.catchError((Object _) => null),

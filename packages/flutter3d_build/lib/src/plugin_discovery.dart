@@ -944,8 +944,11 @@ Map<Object?, Object?> _readPubspec(File file) {
   final Object? document;
   try {
     document = loadYaml(file.readAsStringSync());
-  } on YamlException catch (error) {
-    throw PluginDiscoveryException('${file.path}: ${error.message}');
+  } on YamlException catch (error, stackTrace) {
+    Error.throwWithStackTrace(
+      PluginDiscoveryException('${file.path}: ${error.message}'),
+      stackTrace,
+    );
   }
   return document is Map ? document : const <Object?, Object?>{};
 }
@@ -971,8 +974,11 @@ Map<String, Uri> _packageRoots(File config) {
   final Object? json;
   try {
     json = jsonDecode(config.readAsStringSync());
-  } on FormatException catch (error) {
-    throw PluginDiscoveryException('${config.path}: ${error.message}');
+  } on FormatException catch (error, stackTrace) {
+    Error.throwWithStackTrace(
+      PluginDiscoveryException('${config.path}: ${error.message}'),
+      stackTrace,
+    );
   }
   final packages = json is Map ? json['packages'] : null;
   if (packages is! List) {

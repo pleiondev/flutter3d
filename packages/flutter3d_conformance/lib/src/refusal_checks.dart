@@ -124,14 +124,17 @@ Future<void> checkPrimitiveTypesAreDrawnOrRefused(GraphicsDevice device) async {
       refused = true;
     } on UnsupportedError {
       refused = true;
-    } on Object catch (error) {
-      throw ConformanceFailureException(
-        'drawing PrimitiveType.${type.name} failed with '
-        '${error.runtimeType}: $error. A backend that cannot assemble a '
-        'primitive type refuses with an UnsupportedCapabilityException (or at least an '
-        'UnsupportedError) — a caller deciding '
-        'between two ways of drawing cannot act on anything else. See '
-        'PassEncoder.setPrimitiveType.',
+    } on Object catch (error, stackTrace) {
+      Error.throwWithStackTrace(
+        ConformanceFailureException(
+          'drawing PrimitiveType.${type.name} failed with '
+          '${error.runtimeType}: $error. A backend that cannot assemble a '
+          'primitive type refuses with an UnsupportedCapabilityException (or at least an '
+          'UnsupportedError) — a caller deciding '
+          'between two ways of drawing cannot act on anything else. See '
+          'PassEncoder.setPrimitiveType.',
+        ),
+        stackTrace,
       );
     }
     painted[type] = refused ? null : await _paintedPixels(device, target);

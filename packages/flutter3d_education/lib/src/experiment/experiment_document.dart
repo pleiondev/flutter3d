@@ -335,10 +335,16 @@ final class ExperimentDocument extends FormatDocument {
       return _read(document);
     } on DocumentFormatException {
       rethrow;
-    } on Flutter3dFormatException catch (error) {
-      throw DocumentFormatException('an experiment: $error');
-    } on ArgumentError catch (error) {
-      throw DocumentFormatException('an experiment: ${error.message}');
+    } on Flutter3dFormatException catch (error, stackTrace) {
+      Error.throwWithStackTrace(
+        DocumentFormatException('an experiment: $error'),
+        stackTrace,
+      );
+    } on ArgumentError catch (error, stackTrace) {
+      Error.throwWithStackTrace(
+        DocumentFormatException('an experiment: ${error.message}'),
+        stackTrace,
+      );
     }
   }
 
@@ -347,9 +353,10 @@ final class ExperimentDocument extends FormatDocument {
     final Object? decoded;
     try {
       decoded = jsonDecode(text);
-    } on FormatException catch (error) {
-      throw DocumentFormatException(
-        'an experiment is not JSON: ${error.message}',
+    } on FormatException catch (error, stackTrace) {
+      Error.throwWithStackTrace(
+        DocumentFormatException('an experiment is not JSON: ${error.message}'),
+        stackTrace,
       );
     }
     if (decoded is! Map<String, Object?>) {

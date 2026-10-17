@@ -643,6 +643,7 @@ final class _Expr {
   String describe() => kind == 'node' ? '$op ("$label")' : label;
 }
 
+// ignore: prefer-public-exception-classes, it is caught inside this file and never leaves it.
 final class _Unsupported implements Exception {
   const _Unsupported(this.what);
 

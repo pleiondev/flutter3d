@@ -95,8 +95,11 @@ final class _BrowserRuntime extends WasmRuntime {
       instance = _JsInstance(_JsModule(module.bytes.toJS), importObject);
     } on WasmTrapException {
       rethrow;
-    } on Object catch (error) {
-      throw WasmTrapException('the browser stopped the module: $error');
+    } on Object catch (error, stackTrace) {
+      Error.throwWithStackTrace(
+        WasmTrapException('the browser stopped the module: $error'),
+        stackTrace,
+      );
     }
     final runtime = _BrowserInstance(module, instance.exports);
     final abi = runtime._call('f3d_abi', const <int>[]);
@@ -131,8 +134,11 @@ final class _BrowserInstance extends WasmInstance {
       return result == null ? 0 : (result as JSNumber).toDartInt;
     } on WasmTrapException {
       rethrow;
-    } on Object catch (error) {
-      throw WasmTrapException('the module trapped: $error');
+    } on Object catch (error, stackTrace) {
+      Error.throwWithStackTrace(
+        WasmTrapException('the module trapped: $error'),
+        stackTrace,
+      );
     }
   }
 
@@ -198,8 +204,8 @@ final class _BrowserInstance extends WasmInstance {
     final Uint8List restored;
     try {
       restored = base64Decode(saved);
-    } on FormatException {
-      throw refused;
+    } on FormatException catch (_, stackTrace) {
+      Error.throwWithStackTrace(refused, stackTrace);
     }
     if (restored.length > pages * 65536) throw refused;
     if (memory != null) {

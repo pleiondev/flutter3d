@@ -66,7 +66,7 @@ String migratePubspec(
   for (final section in dependencySections) {
     final deps = doc.nodes[section];
     if (deps is! YamlMap) continue;
-    for (final MapEntry(key: keyNode, value: value) in deps.nodes.entries) {
+    for (final MapEntry(key: keyNode, :value) in deps.nodes.entries) {
       final key = keyNode as YamlNode;
       final name = '${key.value}';
       if (!table.owns(name)) continue;
@@ -111,7 +111,7 @@ String migratePubspec(
           // `flutter3d:` alone: any version. Pin it to the release.
           final colon = pubspec.indexOf(':', key.span.end.offset);
           edits.add((offset: colon + 1, length: 0, text: ' $constraint'));
-        case YamlScalar(value: final String _):
+        case YamlScalar(value: String _):
           edits.add((
             offset: value.span.start.offset,
             length: value.span.length,
@@ -166,7 +166,7 @@ List<TextEdit> migratePluginList(YamlMap doc, {required List<String> notes}) {
     (final YamlNode key, false) => <TextEdit>[
       (offset: key.span.start.offset, length: key.span.length, text: 'without'),
     ],
-    (final YamlNode _, true) => () {
+    (YamlNode _, true) => () {
       notes.add(
         'the project\'s plugin list has both `exclude:` and `without:`; move '
         'what is under `exclude:` into `without:` and remove it',

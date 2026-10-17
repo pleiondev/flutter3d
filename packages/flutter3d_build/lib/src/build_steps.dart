@@ -230,8 +230,11 @@ Future<BuildStepsReport> runBuildSteps(
     } else {
       try {
         await step.run(context);
-      } catch (error) {
-        throw BuildStepException(step.name, error);
+      } catch (error, stackTrace) {
+        Error.throwWithStackTrace(
+          BuildStepException(step.name, error),
+          stackTrace,
+        );
       }
     }
     ran.add(step.name);

@@ -166,10 +166,13 @@ final class AssetBuildManifest {
     final YamlNode document;
     try {
       document = loadYamlNode(yamlText);
-    } on YamlException catch (error) {
-      throw ManifestFormatException(
-        error.message,
-        (error.span?.start.line ?? 0) + 1,
+    } on YamlException catch (error, stackTrace) {
+      Error.throwWithStackTrace(
+        ManifestFormatException(
+          error.message,
+          (error.span?.start.line ?? 0) + 1,
+        ),
+        stackTrace,
       );
     }
 
@@ -435,10 +438,13 @@ final class AssetBuildManifest {
           final pattern = _textOf(valueNode, 'glob');
           try {
             glob = Glob(pattern);
-          } on FormatException catch (error) {
-            throw ManifestFormatException(
-              'bad glob "$pattern": ${error.message}',
-              valueNode.span.start.line + 1,
+          } on FormatException catch (error, stackTrace) {
+            Error.throwWithStackTrace(
+              ManifestFormatException(
+                'bad glob "$pattern": ${error.message}',
+                valueNode.span.start.line + 1,
+              ),
+              stackTrace,
             );
           }
         case 'textures':

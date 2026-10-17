@@ -145,11 +145,10 @@ final class FileStorage extends Storage {
     final File? file;
     try {
       file = _file(name);
-    } catch (error) {
-      throw StorageException(
-        name,
-        'no directory to write $name in',
-        cause: error,
+    } catch (error, stackTrace) {
+      Error.throwWithStackTrace(
+        StorageException(name, 'no directory to write $name in', cause: error),
+        stackTrace,
       );
     }
     if (file == null) {
@@ -161,9 +160,12 @@ final class FileStorage extends Storage {
       // which is where this now lives because the level editor needed the same
       // thing and had written the unsafe version instead.
       writeFileAtomicallySync(file.path, contents);
-    } catch (error) {
+    } catch (error, stackTrace) {
       onIssue(Issue('storage: could not write $name ($error)'));
-      throw StorageException(name, 'could not write $name', cause: error);
+      Error.throwWithStackTrace(
+        StorageException(name, 'could not write $name', cause: error),
+        stackTrace,
+      );
     }
   }
 
@@ -245,11 +247,10 @@ final class FileBinaryStorage extends BinaryStorage {
     final File? file;
     try {
       file = directory == null ? null : _file(name);
-    } catch (error) {
-      throw StorageException(
-        name,
-        'no directory to write $name in',
-        cause: error,
+    } catch (error, stackTrace) {
+      Error.throwWithStackTrace(
+        StorageException(name, 'no directory to write $name in', cause: error),
+        stackTrace,
       );
     }
     if (file == null) {
@@ -258,9 +259,12 @@ final class FileBinaryStorage extends BinaryStorage {
     try {
       _makeRoomFor(file);
       writeBytesAtomicallySync(file.path, contents);
-    } catch (error) {
+    } catch (error, stackTrace) {
       onIssue(Issue('storage: could not write $name ($error)'));
-      throw StorageException(name, 'could not write $name', cause: error);
+      Error.throwWithStackTrace(
+        StorageException(name, 'could not write $name', cause: error),
+        stackTrace,
+      );
     }
   }
 

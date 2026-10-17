@@ -78,12 +78,14 @@ void main() {
     ]);
     expect(_names(controller), <String?>['placeholder']);
 
-    failed.completeError(const FormatException('not a model'));
+    final trace = StackTrace.current;
+    failed.completeError(const FormatException('not a model'), trace);
     await tester.pump();
     await tester.pump();
     expect(failures, hasLength(1));
     expect(failures.single.error, isA<FormatException>());
-    expect(failures.single.stackTrace, isNotNull);
+    // The load's own trace, not one taken where the failure was caught.
+    expect(failures.single.stackTrace, same(trace));
     expect(_names(controller), <String?>['broken']);
   });
 
@@ -120,7 +122,7 @@ void main() {
       ),
     ]);
     await tester.pumpWidget(const SizedBox());
-    failed.completeError(StateError('too late'));
+    failed.completeError(StateError('too late'), StackTrace.current);
     await tester.pump();
     expect(told, 0);
   });

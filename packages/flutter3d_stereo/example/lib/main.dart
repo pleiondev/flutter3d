@@ -129,6 +129,7 @@ class _StereoScreenState extends State<StereoScreen>
         ..reset()
         ..start();
     }
+    // ignore: avoid-empty-setstate, the frame was drawn outside the widget.
     setState(() {});
   }
 
@@ -249,9 +250,8 @@ Scene _room(GraphicsDevice device) {
     (0.36, 0.55, 0.95),
     (0.95, 0.78, 0.30),
   ];
-  for (var i = 0; i < 4; i++) {
+  for (final (i, color) in colors.indexed) {
     final angle = i * math.pi / 2.0;
-    final color = colors[i % colors.length];
     scene.add(
       MeshNode(
         pillar,

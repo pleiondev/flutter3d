@@ -180,9 +180,10 @@ final class DataPluginDocument {
     final Object? json;
     try {
       json = jsonDecode(text);
-    } on FormatException catch (error) {
-      throw DataPluginFormatException(
-        'the document is not JSON: ${error.message}',
+    } on FormatException catch (error, stackTrace) {
+      Error.throwWithStackTrace(
+        DataPluginFormatException('the document is not JSON: ${error.message}'),
+        stackTrace,
       );
     }
     if (json is! Map<String, Object?>) {
@@ -216,13 +217,19 @@ final class DataPluginDocument {
       return _read(json, sections);
     } on DataPluginFormatException {
       rethrow;
-    } on Flutter3dFormatException catch (error) {
+    } on Flutter3dFormatException catch (error, stackTrace) {
       // A section's own reader refused — a Wasm system's declaration, an
       // expression system's, the manifest inside the document, a registered
       // section.
-      throw DataPluginFormatException(error.message);
-    } on FormatException catch (error) {
-      throw DataPluginFormatException(error.message);
+      Error.throwWithStackTrace(
+        DataPluginFormatException(error.message),
+        stackTrace,
+      );
+    } on FormatException catch (error, stackTrace) {
+      Error.throwWithStackTrace(
+        DataPluginFormatException(error.message),
+        stackTrace,
+      );
     }
   }
 
@@ -674,8 +681,11 @@ final class DataPluginLoader {
             in document.sections.entries)
           name: reader.load(DataSectionLoad(section, context: context)),
       };
-    } on Flutter3dFormatException catch (error) {
-      throw DataPluginFormatException(error.message);
+    } on Flutter3dFormatException catch (error, stackTrace) {
+      Error.throwWithStackTrace(
+        DataPluginFormatException(error.message),
+        stackTrace,
+      );
     }
 
     return DataPlugin._(

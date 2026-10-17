@@ -253,12 +253,15 @@ ShaderBundle compileMaterial(
     }
     named = stage == parsed.name ? text : renameMaterialSource(text, stage);
     program = stage == parsed.name ? parsed : parseMaterial(named);
-  } on MaterialSyntaxException catch (error) {
-    throw MaterialBuildException(
-      error.message,
-      source: source,
-      line: error.line,
-      column: error.column,
+  } on MaterialSyntaxException catch (error, stackTrace) {
+    Error.throwWithStackTrace(
+      MaterialBuildException(
+        error.message,
+        source: source,
+        line: error.line,
+        column: error.column,
+      ),
+      stackTrace,
     );
   }
   // One entry point per source, at its declared defaults. A variant is a
@@ -275,8 +278,11 @@ ShaderBundle compileMaterial(
       return kernelBundle(name, <ComputeKernel>[
         lowerMaterialCompute(program).kernel,
       ]);
-    } on MaterialSyntaxException catch (error) {
-      throw MaterialBuildException(error.message, source: source);
+    } on MaterialSyntaxException catch (error, stackTrace) {
+      Error.throwWithStackTrace(
+        MaterialBuildException(error.message, source: source),
+        stackTrace,
+      );
     }
   }
   final specialised = specializeMaterial(program, MaterialVariant(name));

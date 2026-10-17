@@ -93,9 +93,10 @@ Map<int, UnityObject> parseUnityYaml(String text) {
     final Object? parsed;
     try {
       parsed = loadYaml(body);
-    } on YamlException catch (error) {
-      throw SourceFormatException(
-        'object &${match.group(2)}: ${error.message}',
+    } on YamlException catch (error, stackTrace) {
+      Error.throwWithStackTrace(
+        SourceFormatException('object &${match.group(2)}: ${error.message}'),
+        stackTrace,
       );
     }
     if (parsed is! Map || parsed.isEmpty) continue;

@@ -127,8 +127,11 @@ final class ConformanceReportFile {
     final Object? json;
     try {
       json = jsonDecode(file.readAsStringSync());
-    } on FormatException catch (error) {
-      throw FormatException('${file.path} is not JSON: ${error.message}');
+    } on FormatException catch (error, stackTrace) {
+      Error.throwWithStackTrace(
+        FormatException('${file.path} is not JSON: ${error.message}'),
+        stackTrace,
+      );
     }
     if (json is! Map<String, Object?> || json['format'] != 'f3d.conformance') {
       throw FormatException('${file.path} is not an f3d.conformance report');
@@ -466,7 +469,7 @@ final class PluginWorkshop {
     final failed = tests.where((ConformanceTest t) => !t.passed).length;
     final badge = switch (report) {
       null => '; the suite wrote no $package.conformance.json, so no badge',
-      ConformanceReportFile(badge: final String badge) =>
+      ConformanceReportFile(:final String badge) =>
         '; the plugin earns the badge $badge',
       _ => '',
     };

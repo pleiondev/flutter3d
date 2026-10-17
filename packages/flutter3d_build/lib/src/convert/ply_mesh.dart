@@ -252,6 +252,7 @@ int _indexOf(Uint8List bytes, String text) {
     for (var j = 0; j < pattern.length; j++) {
       if (bytes[i + j] != pattern[j]) continue outer;
     }
+    // ignore: avoid-unconditional-break, a mismatch continues the outer loop, so this is reached only on a match.
     return i;
   }
   return -1;

@@ -245,10 +245,13 @@ Future<void> checkLinking(GraphicsDevice device) async {
       pipeline = device.createPipelineFrom(
         PipelineDescriptor(vertex: vertex!, fragment: fragment!),
       );
-    } catch (error) {
-      throw ConformanceFailureException(
-        '$vertexName + $fragmentName does not link: '
-        '$error',
+    } catch (error, stackTrace) {
+      Error.throwWithStackTrace(
+        ConformanceFailureException(
+          '$vertexName + $fragmentName does not link: '
+          '$error',
+        ),
+        stackTrace,
       );
     }
     final refusal = device.pipelineRefusals.refusalOf(pipeline);

@@ -139,7 +139,7 @@ final class MethodChannelPointerLock extends PointerLockPlatform {
     try {
       await methodChannel.invokeMethod<void>(method);
     } on MissingPluginException {
-      return;
+      // Nothing to do: the capture state stays where it was.
     }
   }
 }

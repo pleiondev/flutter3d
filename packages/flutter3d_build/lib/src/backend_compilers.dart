@@ -77,10 +77,13 @@ final class ProcessMaterialCompiler extends MaterialCompiler {
           asked.path,
           out.path,
         ]);
-      } on ProcessException catch (error) {
-        throw MaterialCompileException(
-          '${package.name}\'s compiler could not be run with $_dart: '
-          '${error.message}',
+      } on ProcessException catch (error, stackTrace) {
+        Error.throwWithStackTrace(
+          MaterialCompileException(
+            '${package.name}\'s compiler could not be run with $_dart: '
+            '${error.message}',
+          ),
+          stackTrace,
         );
       }
       if (result.exitCode != 0 || !out.existsSync()) {

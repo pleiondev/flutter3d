@@ -842,9 +842,12 @@ Future<void> checkSecondDisposeDoesNothing(GraphicsDevice device) async {
     device
       ..dispose()
       ..dispose();
-  } on Object catch (error) {
-    throw ConformanceFailureException(
-      'a second dispose threw $error: letting go twice is harmless',
+  } on Object catch (error, stackTrace) {
+    Error.throwWithStackTrace(
+      ConformanceFailureException(
+        'a second dispose threw $error: letting go twice is harmless',
+      ),
+      stackTrace,
     );
   }
   await Future<void>.delayed(const Duration(milliseconds: 50));

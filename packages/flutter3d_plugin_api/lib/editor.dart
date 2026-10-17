@@ -420,8 +420,11 @@ final class FieldHint {
     final Unit? unit;
     try {
       unit = json['unit'] == null ? null : Unit.fromJson(json['unit']);
-    } on FormatException catch (error) {
-      throw DocumentFormatException('the field "$key": ${error.message}');
+    } on FormatException catch (error, stackTrace) {
+      Error.throwWithStackTrace(
+        DocumentFormatException('the field "$key": ${error.message}'),
+        stackTrace,
+      );
     }
     return FieldHint(
       key,

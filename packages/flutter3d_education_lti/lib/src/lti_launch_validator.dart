@@ -69,10 +69,13 @@ final class LtiLaunchValidator {
         audience: Audience(<String>[platform.clientId]),
       );
       payload = (verified.payload as Map).cast<String, dynamic>();
-    } on JWTExpiredException {
-      throw const LtiTokenExpiredException();
-    } on JWTException catch (e) {
-      throw LtiTokenInvalidException(e.message);
+    } on JWTExpiredException catch (_, stackTrace) {
+      Error.throwWithStackTrace(const LtiTokenExpiredException(), stackTrace);
+    } on JWTException catch (e, stackTrace) {
+      Error.throwWithStackTrace(
+        LtiTokenInvalidException(e.message),
+        stackTrace,
+      );
     }
 
     if (payload['nonce'] != expectedNonce) {
@@ -98,8 +101,11 @@ final class LtiLaunchValidator {
   JWT _decodeUnverified(String idToken) {
     try {
       return JWT.decode(idToken);
-    } on JWTException catch (e) {
-      throw LtiTokenInvalidException(e.message);
+    } on JWTException catch (e, stackTrace) {
+      Error.throwWithStackTrace(
+        LtiTokenInvalidException(e.message),
+        stackTrace,
+      );
     }
   }
 
@@ -125,9 +131,12 @@ final class LtiLaunchValidator {
     final Map<String, dynamic> body;
     try {
       body = jsonDecode(response.body) as Map<String, dynamic>;
-    } on FormatException {
-      throw LtiTokenInvalidException(
-        'JWKS from ${platform.jwksUrl} is not valid JSON',
+    } on FormatException catch (_, stackTrace) {
+      Error.throwWithStackTrace(
+        LtiTokenInvalidException(
+          'JWKS from ${platform.jwksUrl} is not valid JSON',
+        ),
+        stackTrace,
       );
     }
 

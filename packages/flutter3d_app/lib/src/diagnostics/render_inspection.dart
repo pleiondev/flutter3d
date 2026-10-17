@@ -395,6 +395,7 @@ Map<String, Object?> renderDebugViews() => <String, Object?>{
 /// Raised inside a function here and answered at its edge by [_answering],
 /// so a helper several calls down can refuse without every caller between
 /// passing the refusal along by hand. Never escapes this file.
+// ignore: prefer-public-exception-classes, it never leaves this file.
 final class _Refusal implements Exception {
   const _Refusal(this.why);
   final String why;

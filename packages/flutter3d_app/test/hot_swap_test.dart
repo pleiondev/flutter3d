@@ -345,9 +345,10 @@ material Paint {
   test('two surfaces reassembling in one hot reload share one run', () async {
     final it = _stage();
     final contributor = it.renderer.renderSteps.addContributor(_Contributor());
-    final swap = HotSwap(enabled: true)
-      ..registerRenderer(it.renderer)
-      ..registerRenderer(it.renderer);
+    final swap = HotSwap(enabled: true);
+    // The same renderer twice, once for each surface.
+    swap.registerRenderer(it.renderer);
+    swap.registerRenderer(it.renderer);
 
     await Future.wait(<Future<HotSwapReport>>[swap.swap(), swap.swap()]);
 

@@ -877,11 +877,10 @@ final class _UsdReader {
 
   AttributeRate _rate(Object? interpolation, String where) =>
       switch (_word(interpolation)) {
-        'vertex' || 'varying' => AttributeRate.point,
+        'vertex' || 'varying' || null => AttributeRate.point,
         'faceVarying' => AttributeRate.corner,
         'uniform' => AttributeRate.face,
         'constant' => AttributeRate.constant,
-        null => AttributeRate.point,
         final other => () {
           report.warn('$where: interpolation "$other" read as per point');
           return AttributeRate.point;

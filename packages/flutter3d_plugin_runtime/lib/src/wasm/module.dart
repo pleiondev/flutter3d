@@ -402,6 +402,7 @@ final class _Decoder {
           _code = body;
         case 11:
           _dataSection(body);
+        // ignore: no-equal-switch-case, each skipped section keeps its own reason.
         case 12:
           break; // the data count, which only bulk memory needs
         default:
@@ -1044,11 +1045,7 @@ final class _Compiler {
         _pop(_hex(op));
         _push();
         _emit(op);
-      case >= 0x46 && <= 0x4F:
-        _pop(_hex(op), 2);
-        _push();
-        _emit(op);
-      case >= 0x6A && <= 0x78:
+      case (>= 0x46 && <= 0x4F) || (>= 0x6A && <= 0x78):
         _pop(_hex(op), 2);
         _push();
         _emit(op);

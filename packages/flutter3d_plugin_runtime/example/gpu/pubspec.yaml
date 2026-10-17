@@ -55,4 +55,5 @@ flutter:
   assets:
     # The sample plugin's stages for Impeller, WebGL2 and WebGPU, written by
     # tool/build_bundle.dart and not committed.
+    # ignore: asset_does_not_exist
     - assets/acme_sample.f3dshaders

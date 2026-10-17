@@ -455,8 +455,8 @@ Future<void> _buildAssets(
   try {
     requested = texturesDefine(input.userDefines['textures']);
     requestedClasses = deviceClassesDefine(input.userDefines['deviceClasses']);
-  } on FormatException catch (error) {
-    throw BuildError(message: error.message);
+  } on FormatException catch (error, stackTrace) {
+    Error.throwWithStackTrace(BuildError(message: error.message), stackTrace);
   }
   final textures = requested ?? _familyForTarget(input);
 
@@ -497,12 +497,18 @@ Future<void> _buildAssets(
       fullShaders: fullShaders,
       shaderTarget: shaderTarget,
     );
-  } on MaterialBuildException catch (error) {
-    throw BuildError(message: error.toString());
-  } on PluginDiscoveryException catch (error) {
-    throw BuildError(message: error.toString());
-  } on BuildStepException catch (error) {
-    throw BuildError(message: error.message);
+  } on MaterialBuildException catch (error, stackTrace) {
+    Error.throwWithStackTrace(
+      BuildError(message: error.toString()),
+      stackTrace,
+    );
+  } on PluginDiscoveryException catch (error, stackTrace) {
+    Error.throwWithStackTrace(
+      BuildError(message: error.toString()),
+      stackTrace,
+    );
+  } on BuildStepException catch (error, stackTrace) {
+    Error.throwWithStackTrace(BuildError(message: error.message), stackTrace);
   }
 
   for (final source in report.dependencies) {

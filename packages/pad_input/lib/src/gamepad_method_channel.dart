@@ -72,6 +72,7 @@ final class MethodChannelGamepad extends GamepadPlatform {
     TargetPlatform.android => AndroidPads(),
     TargetPlatform.windows => XInputPads(),
     TargetPlatform.linux => JoystickPads(),
+    // ignore: avoid-wildcard-cases-with-enums, a platform Flutter adds later reads as the Darwin pads rather than failing to compile.
     _ => DarwinPads(),
   };
 

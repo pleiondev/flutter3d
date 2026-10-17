@@ -215,8 +215,7 @@ List<GhostFrame>? _posesIn(String path) {
     return null;
   }
   final rows = switch (decoded) {
-    final List<Object?> list => list,
-    {'poses': final List<Object?> list} => list,
+    final List<Object?> list || {'poses': final List<Object?> list} => list,
     _ => null,
   };
   if (rows == null) return null;

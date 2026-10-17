@@ -432,8 +432,8 @@ final class _Instance extends WasmInstance {
     final Uint8List bytes;
     try {
       bytes = base64Decode(memory);
-    } on FormatException {
-      throw refused;
+    } on FormatException catch (_, stackTrace) {
+      Error.throwWithStackTrace(refused, stackTrace);
     }
     if (bytes.length > pages * _pageBytes) throw refused;
     _memory = Uint8List(0);

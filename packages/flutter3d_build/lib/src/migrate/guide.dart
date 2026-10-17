@@ -19,12 +19,17 @@ String howCarriedOut(MigrationEntry e) => switch (e.kind) {
   // positional argument a call is left with.
   'parameters' when toNamedOf(e).isNotEmpty => '`migrate`',
   'rename' || 'moved' || 'parameters' => '`dart fix`',
-  'rewrite' || 'implementsToWith' || 'import' => '`migrate`',
+  'rewrite' ||
+  'implementsToWith' ||
+  'import' ||
+  'regroup' ||
+  'recordToClass' ||
+  'argument' ||
+  'hookContext' => '`migrate`',
   'subclassModifier' when e.to == 'base' => '`migrate`',
   // Nothing outside a final class's package may subclass it: what it leaves
   // is a TODO at each clause that did.
   'subclassModifier' => '`migrate`, with a TODO',
-  'regroup' || 'recordToClass' || 'argument' || 'hookContext' => '`migrate`',
   // Each leaves a TODO beside what it wrote: a throw where a value used to
   // fall through, a `try` around what used to answer null.
   'enumToClass' || 'nullToThrow' => '`migrate`, with a TODO',

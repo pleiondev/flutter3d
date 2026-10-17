@@ -102,10 +102,13 @@ final class AgsClient {
     final Map<String, dynamic> body;
     try {
       body = jsonDecode(response.body) as Map<String, dynamic>;
-    } on FormatException {
-      throw AgsException(
-        'client-credentials response from ${platform.authTokenUrl} is not '
-        'valid JSON',
+    } on FormatException catch (_, stackTrace) {
+      Error.throwWithStackTrace(
+        AgsException(
+          'client-credentials response from ${platform.authTokenUrl} is not '
+          'valid JSON',
+        ),
+        stackTrace,
       );
     }
     final accessToken = body['access_token'] as String?;
