@@ -694,6 +694,7 @@ void main() {
       );
       final int after = stepsOf(made.cubit);
       made.session
+        // Two moves on purpose: the step must land once, at their sum.
         ..valueDragged(const Offset(40, 0))
         ..valueDragged(const Offset(40, 0))
         ..commitValueDrag();

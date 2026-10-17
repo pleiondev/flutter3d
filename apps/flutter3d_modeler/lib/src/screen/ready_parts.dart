@@ -63,15 +63,7 @@ extension _ReadyParts on _ModelerScreenState {
     // `ui-15` is the start screen and this is the state it will show in. Until
     // it exists there is no way to reach this, and a wildcard here would be a
     // silent blank window on the day somebody adds the first path to it.
-    ModelerChoosing(:final said) => Scaffold(
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Text(said, textAlign: TextAlign.center),
-        ),
-      ),
-    ),
-    ModelerFailed(:final said) => Scaffold(
+    ModelerChoosing(:final said) || ModelerFailed(:final said) => Scaffold(
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -148,6 +140,7 @@ extension _ReadyParts on _ModelerScreenState {
             () => lookFrom(stage.orbit, switch (view) {
               ModelerAction.viewSide => StandardView.right,
               ModelerAction.viewTop => StandardView.top,
+              // ignore: avoid-wildcard-cases-with-enums, only the three view actions reach here, and every other action means the front
               _ => StandardView.front,
             }),
           ),
@@ -571,6 +564,7 @@ extension _ReadyParts on _ModelerScreenState {
                         tilesTotal: _render.tilesTotal,
                         onCancel: _cancelRender,
                       ),
+                      // ignore: avoid-wildcard-cases-with-enums, the remaining modes have no panel of their own here
                       _ => null,
                     };
 

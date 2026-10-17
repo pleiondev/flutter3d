@@ -78,7 +78,7 @@ final class _Car with VehicleController {
   void restore(Map<String, Object?> from) {}
 }
 
-({CarVoice voice, _Car car, AudioScene scene, SilentBackend backend}) heard() {
+({CarVoice voice, _Car car, AudioScene scene, SilentBackend backend}) _heard() {
   final backend = SilentBackend();
   final scene = AudioScene(backend: backend);
   final car = _Car()..velocity.setValues(0.0, 0.0, 30.0);
@@ -115,7 +115,7 @@ void main() {
       // Mutation: drive the note straight from `rpm`. A car on the grid has
       // none, so the field would sit in silence until the lights went out and
       // the first thing anybody heard would be four engines starting at once.
-      final it = heard();
+      final it = _heard();
       it.car
         ..rpm = 0.0
         ..velocity.setZero();
@@ -127,7 +127,7 @@ void main() {
     });
 
     test('rises with the revs', () {
-      final it = heard();
+      final it = _heard();
 
       // Read from the mix rather than from the voices: at nine tenths of the
       // revs the low band is mixed to nothing and has no voice to ask.
@@ -143,7 +143,7 @@ void main() {
     });
 
     test('moves with the car', () {
-      final it = heard();
+      final it = _heard();
       it.car.position.setValues(40.0, 0.0, -12.0);
 
       it.voice.update(offRoad: false);
@@ -166,7 +166,7 @@ void main() {
       // where the tyres squeal down the straight is a racing game nobody
       // believes, and it is the fault most likely to be shipped because it is
       // only wrong by degree.
-      final it = heard();
+      final it = _heard();
 
       it.car.slipAngle = 0.02;
       it.voice.update(offRoad: false);
@@ -180,7 +180,7 @@ void main() {
     });
 
     test('wheelspin squeals too', () {
-      final it = heard();
+      final it = _heard();
       it.car
         ..slipAngle = 0.0
         ..slipRatio = 0.9;
@@ -192,7 +192,7 @@ void main() {
     });
 
     test('a car in the air is silent, however sideways it is', () {
-      final it = heard();
+      final it = _heard();
       it.car
         ..slipAngle = 0.8
         ..isGrounded = false;
@@ -206,7 +206,7 @@ void main() {
     test('a car barely moving is quiet, whatever the angle says', () {
       // Slip angle is an angle, and at a crawl the angle between where a car
       // points and where it is going says nothing about rubber.
-      final it = heard();
+      final it = _heard();
       it.car
         ..slipAngle = 0.9
         ..velocity.setValues(0.0, 0.0, 0.2);
@@ -220,7 +220,7 @@ void main() {
 
   group('off the road', () {
     test('the rumble is heard only out there', () {
-      final it = heard();
+      final it = _heard();
 
       it.voice.update(offRoad: false);
       it.scene.update(AudioListener());

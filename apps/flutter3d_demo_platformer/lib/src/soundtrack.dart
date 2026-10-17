@@ -108,18 +108,18 @@ final class Soundtrack {
     final at = runner.position;
     _at = at;
 
-    if (events.whereType<Jumped>().isNotEmpty) {
+    if (events.any((e) => e is Jumped)) {
       out.add(
         Heard(runner.airJumpsLeft < 1 ? Sounds.airJump : Sounds.jump, at),
       );
     }
-    if (events.whereType<Dashed>().isNotEmpty) out.add(Heard(Sounds.dash, at));
+    if (events.any((e) => e is Dashed)) out.add(Heard(Sounds.dash, at));
     // A long jump is the slide it came out of, launched: it gets the dash's
     // sound because it is the same commitment at a different angle.
-    if (events.whereType<LongJumped>().isNotEmpty) {
+    if (events.any((e) => e is LongJumped)) {
       out.add(Heard(Sounds.dash, at));
     }
-    if (events.whereType<Grabbed>().isNotEmpty) {
+    if (events.any((e) => e is Grabbed)) {
       out.add(Heard(Sounds.checkpoint, at));
     }
 
@@ -130,7 +130,7 @@ final class Soundtrack {
     // two homes for "what does this step sound like" — and the second one was
     // in a widget, so the landing was the one sound in the game no test could
     // ask about. The camera's half stays where it is; only the decision moved.
-    if (events.whereType<Landed>().isNotEmpty) out.add(Heard(Sounds.land, at));
+    if (events.any((e) => e is Landed)) out.add(Heard(Sounds.land, at));
 
     // Once, on the step the run ends. `RunState.finished` stays true for every
     // frame afterwards, and a fanfare restarted sixty times a second is a

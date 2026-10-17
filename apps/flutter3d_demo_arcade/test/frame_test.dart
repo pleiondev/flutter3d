@@ -112,7 +112,6 @@ void main() {
       settings: arcadeRenderSettings,
     );
     final pixels = await it.device.readback(result.frame);
-    expect(pixels, isNotNull, reason: 'the frame could not be read back');
 
     final rgba = pixels.buffer.asUint8List();
     var low = 255;

@@ -194,7 +194,7 @@ final class RenderInspectionDemo extends ShowcaseDemo {
     if (picked['node'] != 'crate') {
       throw StateError('the middle of the frame is ${picked['node']}');
     }
-    final List<int> draws = picked['draws']! as List<int>;
+    final List<int> draws = (picked['draws']! as List<Object?>).cast<int>();
     if (draws.isEmpty) throw StateError('the crate made no draw that frame');
     // The draw it made, opened as a tool opens one, names the crate and the
     // pass it ran in; that pass's output, read at the same pixel, is the

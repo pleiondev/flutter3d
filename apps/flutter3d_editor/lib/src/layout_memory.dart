@@ -42,7 +42,7 @@ final class LayoutMemory {
         const JsonEncoder.withIndent('  ').convert(arrangement.toJson()),
       );
     } on StorageException {
-      return;
+      // The panels open in their default places next launch.
     }
   }
 }

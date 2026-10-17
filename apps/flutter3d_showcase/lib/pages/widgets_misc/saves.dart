@@ -199,10 +199,10 @@ final class SavesDemo extends ShowcaseDemo {
     // #region autosave
     final autosave = Autosave(game);
     final int before = storage.writes;
-    out.autosaves
-      ..add(await autosave.paused(now: false)) // playing: nothing to do
-      ..add(await autosave.paused(now: true)) // into a pause: written
-      ..add(await autosave.paused(now: true)); // still paused: not again
+    // Playing: nothing to do. Into a pause: written. Still paused: not again.
+    for (final bool now in const <bool>[false, true, true]) {
+      out.autosaves.add(await autosave.paused(now: now));
+    }
     out.writesAfter.add(storage.writes - before);
     await autosave.checkpoint(); // the same run: SaveFile skips the write
     out.writesAfter.add(storage.writes - before);

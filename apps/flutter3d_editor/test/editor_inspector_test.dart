@@ -427,9 +427,12 @@ void main() {
     await tester.tap(find.byType(GestureDetector).last);
     await tester.pumpAndSettle();
 
-    expect(written, isA<List<num>>());
-    expect((written! as List<num>).length, 4);
-    expect((written! as List<num>).last, 0.25);
+    expect(
+      written,
+      isA<List<num>>()
+          .having((it) => it.length, 'length', 4)
+          .having((it) => it.last, 'last', 0.25),
+    );
   });
 
   testWidgets('a texture hint offers the files something listed for it', (

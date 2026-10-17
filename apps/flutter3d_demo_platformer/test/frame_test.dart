@@ -249,7 +249,6 @@ final class _Shown {
       settings: const RenderSettings(),
     );
     final pixels = await device.readback(result.frame);
-    expect(pixels, isNotNull, reason: 'the frame could not be read back');
     return pixels.buffer.asUint8List();
   }
 
@@ -280,7 +279,6 @@ final class _Shown {
       settings: RenderSettings(shadows: ShadowSettings(enabled: !shadows)),
     );
     final pixels = await device.readback(result.frame);
-    expect(pixels, isNotNull, reason: 'the frame could not be read back');
     return pixels.buffer.asUint8List();
   }
 
@@ -305,7 +303,6 @@ final class _Shown {
       settings: const RenderSettings(),
     );
     final pixels = await device.readback(result.frame);
-    expect(pixels, isNotNull, reason: 'the frame could not be read back');
     return pixels.buffer.asUint8List();
   }
 }
@@ -475,7 +472,7 @@ void main() {
       it.runner.body.teleport(Vector3(0.0, 20.0, -22.0));
       for (var i = 0; i < 200; i++) {
         it.step();
-        if (it.lastStep.whereType<Landed>().isNotEmpty) break;
+        if (it.lastStep.any((e) => e is Landed)) break;
       }
       final landed = await it.draw();
 

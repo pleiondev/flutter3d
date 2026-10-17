@@ -290,13 +290,20 @@ void main() {
       test('and carries its own normals', () {
         // The loader will invent flat ones for a mesh with none, by de-indexing
         // it — so a generator that forgot them is invisible in the picture and
-        // costs every model its vertex sharing.
-        for (final surface in asset.surfaces) {
-          expect(
-            surface.mesh.layout.floatOffsetOf(VertexLayout.normal.name),
-            isNotNull,
-          );
-        }
+        // costs every model its vertex sharing. Which is also why this reads
+        // the file rather than the loaded layout: that has a normal either way.
+        expect(
+          _gltfJsonOf(bytes),
+          containsPair(
+            'meshes',
+            everyElement(
+              containsPair(
+                'primitives',
+                everyElement(containsPair('attributes', contains('NORMAL'))),
+              ),
+            ),
+          ),
+        );
       });
 
       test('and is not made of metal', () {

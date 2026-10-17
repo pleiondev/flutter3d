@@ -314,7 +314,9 @@ final class Section {
       final double? x = switch (kind) {
         // A jet comes in from off the side and crosses the whole valley.
         TargetKind.jet => -heading * (riverReach + 6.0),
-        _ => _placeOnWater(row, kind.halfLength, random),
+        TargetKind.tanker ||
+        TargetKind.helicopter ||
+        TargetKind.depot => _placeOnWater(row, kind.halfLength, random),
       };
       if (x != null) {
         // **A mover needs water to move across.** One put on a channel

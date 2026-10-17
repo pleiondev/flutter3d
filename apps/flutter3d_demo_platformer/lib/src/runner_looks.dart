@@ -75,11 +75,11 @@ final class RunnerLooks {
   void advance(Runner runner, double dt, List<GameEvent> events) {
     // Events first, because they set the pose; the decay below is what takes it
     // away again.
-    if (events.whereType<Jumped>().isNotEmpty) {
+    if (events.any((e) => e is Jumped)) {
       _squash = -tuning.jumpStretch;
       if (!runner.isGrounded && runner.airJumpsLeft < 1) _flip = 1.0;
     }
-    if (events.whereType<Landed>().isNotEmpty) {
+    if (events.any((e) => e is Landed)) {
       // Proportional to how hard, and clamped: a fall from the top of the level
       // should read as heavier than a hop, and neither should turn the runner
       // inside out.
@@ -94,7 +94,7 @@ final class RunnerLooks {
     if (events.whereType<Landed>().any((Landed e) => e.pounded)) {
       _squash = tuning.poundSquash;
     }
-    if (events.whereType<Slid>().isNotEmpty) _squash = tuning.slideSquash;
+    if (events.any((e) => e is Slid)) _squash = tuning.slideSquash;
 
     // Everything decays back to standing. Exponential rather than linear, and
     // frame-rate independent for the reason the camera's lag is: a pose that

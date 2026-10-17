@@ -47,6 +47,7 @@ class _PageScreenState extends State<PageScreen>
   @override
   void initState() {
     super.initState();
+    // ignore: avoid-inherited-widget-in-initstate, of() only reads
     _findDeviceNotice(DeviceScope.of(context));
   }
 

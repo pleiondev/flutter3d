@@ -42,6 +42,7 @@ final class _LoopbackTransport {
     final a = _LoopbackTransport._(delaySteps, lossRate, random);
     final b = _LoopbackTransport._(delaySteps, lossRate, random);
     a._peer = b;
+    // ignore: avoid-late-final-reassignment, this is b's field, a's was set above
     b._peer = a;
     return (a, b);
   }

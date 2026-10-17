@@ -17,7 +17,7 @@ import 'package:flutter3d_editor_play/attach.dart';
 /// by its VM service address, which is the only Play a browser has; what
 /// needs a process — the device picker — comes in as [picker] from a file
 /// that is allowed one.
-final class PlayScreen extends StatefulWidget {
+final class PlayScreen extends StatelessWidget {
   const PlayScreen({
     super.key,
     required this.session,
@@ -34,17 +34,11 @@ final class PlayScreen extends StatefulWidget {
   /// none for a game somebody else started.
   final Widget Function({required bool enabled})? picker;
 
-  @override
-  State<PlayScreen> createState() => _PlayScreenState();
-}
-
-class _PlayScreenState extends State<PlayScreen> {
   static const Color _background = Color(0xFF14161A);
   static const Color _text = Color(0xFFE6EAF0);
 
   @override
   Widget build(BuildContext context) {
-    final session = widget.session;
     final owns = session.ownsTheGame;
     return StreamBuilder<PlayState>(
       stream: session.state.changes,
@@ -58,7 +52,7 @@ class _PlayScreenState extends State<PlayScreen> {
           appBar: AppBar(
             title: Text(session.title, overflow: TextOverflow.ellipsis),
             actions: <Widget>[
-              ?widget.picker?.call(enabled: !going),
+              ?picker?.call(enabled: !going),
               IconButton(
                 key: const ValueKey<String>('play.start'),
                 icon: Icon(switch ((going, owns)) {
@@ -92,9 +86,7 @@ class _PlayScreenState extends State<PlayScreen> {
                 icon: const Icon(Icons.podcasts),
                 tooltip: 'Timeline',
                 onPressed: switch (state) {
-                  PlayRunning(:final vmService) => () => widget.onTimeline(
-                    vmService,
-                  ),
+                  PlayRunning(:final vmService) => () => onTimeline(vmService),
                   _ => null,
                 },
               ),

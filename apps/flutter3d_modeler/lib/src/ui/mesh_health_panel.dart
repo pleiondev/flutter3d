@@ -120,7 +120,7 @@ class _Row extends StatelessWidget {
     final Color color = switch (issue.severity) {
       Severity.error => theme.colorScheme.error,
       Severity.warning => theme.colorScheme.tertiary,
-      Severity.note => theme.colorScheme.onSurfaceVariant,
+      // A note, and any level added after these three.
       _ => theme.colorScheme.onSurfaceVariant,
     };
     final String? tool = fixToolFor(issue.kind);

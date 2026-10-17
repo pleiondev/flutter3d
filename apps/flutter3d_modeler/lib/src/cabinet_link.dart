@@ -40,7 +40,7 @@ final class CabinetLink {
   /// to know what the link claimed even though it could not be trusted.
   factory CabinetLink.fromQuery(Map<String, String> query) => CabinetLink(
     id: switch (query['id']) {
-      final String raw? => int.tryParse(raw),
+      final String raw => int.tryParse(raw),
       null => null,
     },
     mode: query['mode'],

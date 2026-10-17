@@ -101,7 +101,6 @@ Future<Uint8List> _draw(
     settings: const RenderSettings(tonemap: false, exposure: 1.0),
   );
   final pixels = await device.readback(result.frame);
-  expect(pixels, isNotNull, reason: 'the frame could not be read back');
   return pixels.buffer.asUint8List();
 }
 

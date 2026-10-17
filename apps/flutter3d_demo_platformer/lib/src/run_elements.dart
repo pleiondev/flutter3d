@@ -226,7 +226,7 @@ final class RunElements {
     ];
     for (final mechanism in mechanisms.all) {
       final (name, collider) = switch (mechanism) {
-        Hazard(:final name, :final collider) => (name, collider),
+        Hazard(:final name, :final collider) ||
         Water(:final name, :final collider) => (name, collider),
         _ => (null, null),
       };

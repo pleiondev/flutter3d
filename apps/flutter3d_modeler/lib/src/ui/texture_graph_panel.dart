@@ -531,6 +531,7 @@ final class _LinksPainter extends CustomPainter {
   bool shouldRepaint(covariant _LinksPainter oldDelegate) =>
       !identical(oldDelegate.graph, graph) ||
       oldDelegate.positions.length != positions.length ||
+      // ignore: avoid-collection-equality-checks, the map is built fresh on every build, so identity errs only towards repainting
       oldDelegate.positions != positions ||
       oldDelegate.color != color;
 }

@@ -158,7 +158,6 @@ void main() {
           settings: settings,
         );
         final pixels = await it.device.readback(result.frame);
-        expect(pixels, isNotNull);
         return pixels.buffer.asUint8List();
       }
 

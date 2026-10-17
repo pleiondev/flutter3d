@@ -618,6 +618,7 @@ class _MarkerPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _MarkerPainter oldDelegate) =>
+      // ignore: avoid-collection-equality-checks, the map is built fresh on every build, so identity errs only towards repainting
       oldDelegate.positions != positions ||
       oldDelegate.activeKey != activeKey ||
       oldDelegate.ringColor != ringColor ||

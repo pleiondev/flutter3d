@@ -371,7 +371,7 @@ class _RaceScreenState extends State<RaceScreen>
   /// be the game saying it twice.
   String? get _notice => raceNotice(
     betweenCircuits: switch (_raceCubit.state) {
-      RaceOver(next: final Circuit next) => '${next.title} next',
+      RaceOver(:final Circuit next) => '${next.title} next',
       _ => null,
     },
     justRespawned: _respawnFor > 0.0,
@@ -803,6 +803,7 @@ class _RaceScreenState extends State<RaceScreen>
 
   @override
   void initState() {
+    super.initState();
     // Settings before devices: the bindings a player saved are the ones the
     // keyboard should read from the first key press, not from the first rebind.
     _config = widget.config ?? const GameSettings();
@@ -828,7 +829,6 @@ class _RaceScreenState extends State<RaceScreen>
       apply: _applyConfig,
     );
     _demos = DemoFile(appName: 'racing', onIssue: printIssue);
-    super.initState();
     unawaited(_open());
   }
 
@@ -1065,6 +1065,7 @@ class _RaceScreenState extends State<RaceScreen>
       // as boxes and re-dressed when the model arrived, and on a cold start
       // that is a second or so of four parallelepipeds on the grid. Waiting
       // costs the same second, spent on a loading screen where a wait belongs.
+      // ignore: avoid-uncaught-future-errors, _loadCarModel answers null instead
       final asset = await carModel;
       // One asset, so one measurement of where the bodywork ends; the ride
       // height it is offset against is per car, because tuning is.

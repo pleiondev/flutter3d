@@ -120,8 +120,9 @@ class TransformRows extends StatelessWidget {
                       1 => NumberUnit.degrees,
                       _ => NumberUnit.plain,
                     },
+                    // Degrees step by one; metres and scale factors by a
+                    // hundredth.
                     step: switch (row) {
-                      0 => 0.01,
                       1 => 1,
                       _ => 0.01,
                     },

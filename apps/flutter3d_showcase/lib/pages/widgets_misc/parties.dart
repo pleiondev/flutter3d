@@ -75,7 +75,7 @@ final class _Party {
     // The fifth slot plays no part in the rollback: it only watches.
     watcher = PartyTapeWatcher<List<int>>(
       wire: wire.wire(_players),
-      decode: (encoded) => List<int>.of(encoded! as List<int>),
+      decode: (encoded) => List<int>.from(encoded! as List<Object?>),
       restore: (state) => watched = state,
       applyAndStep: (frames) => watched = _step(watched, frames),
     );

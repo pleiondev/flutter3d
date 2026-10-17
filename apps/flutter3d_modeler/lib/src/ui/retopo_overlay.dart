@@ -124,7 +124,11 @@ class RetopoOverlay extends CustomPainter {
 
   @override
   bool shouldRepaint(RetopoOverlay old) =>
+      // The lists are built fresh on every build, so identity errs only
+      // towards repainting.
+      // ignore: avoid-collection-equality-checks
       old.quads != quads ||
+      // ignore: avoid-collection-equality-checks
       old.active != active ||
       old.sourceAlpha != sourceAlpha ||
       old.ribbon != ribbon;

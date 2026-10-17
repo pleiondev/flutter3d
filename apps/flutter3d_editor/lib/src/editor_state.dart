@@ -89,6 +89,7 @@ final class EditorReady extends EditorState {
 
   static const Object _unset = Object();
 
+  // ignore: avoid-incomplete-copy-with, the document, its asset root and its looks stay what was opened.
   EditorReady copyWith({
     String? said,
     EditorAxis? axis,

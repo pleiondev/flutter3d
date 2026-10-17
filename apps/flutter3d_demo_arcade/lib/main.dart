@@ -146,9 +146,14 @@ class _ArcadeScreenState extends State<ArcadeScreen> {
   @override
   void initState() {
     super.initState();
-    if (defaultTargetPlatform == TargetPlatform.android ||
-        defaultTargetPlatform == TargetPlatform.iOS) {
-      _game.addJoystick();
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.android || TargetPlatform.iOS:
+        _game.addJoystick();
+      case TargetPlatform.fuchsia ||
+          TargetPlatform.linux ||
+          TargetPlatform.macOS ||
+          TargetPlatform.windows:
+        break;
     }
   }
 

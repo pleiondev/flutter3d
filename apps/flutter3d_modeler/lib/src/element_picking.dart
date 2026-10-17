@@ -54,7 +54,10 @@ const double fingerPickSlack = 24.0;
 /// all, which reads as the application being broken.
 double pickSlackFor(PointerDeviceKind pointer) => switch (pointer) {
   PointerDeviceKind.touch || PointerDeviceKind.unknown => fingerPickSlack,
-  _ => cursorPickSlack,
+  PointerDeviceKind.mouse ||
+  PointerDeviceKind.stylus ||
+  PointerDeviceKind.invertedStylus ||
+  PointerDeviceKind.trackpad => cursorPickSlack,
 };
 
 /// A camera and the box it draws into: enough to turn screen coordinates into

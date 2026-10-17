@@ -152,6 +152,7 @@ Set<PropertiesSection> sectionsFor(
       PropertiesSection.materials,
       PropertiesSection.materialWorkspace,
     },
+    // ignore: avoid-wildcard-cases-with-enums, the other modes show no sections in this layout
     _ => const <PropertiesSection>{},
   },
 };

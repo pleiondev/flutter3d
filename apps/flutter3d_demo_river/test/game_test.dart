@@ -274,7 +274,7 @@ void main() {
       // Held in place: only the helicopter's aim is under test here.
       game.jet.position.y = -(gunner.distance - 30.0);
       await _run(game, 1);
-      fired = game.children.whereType<EnemyShotComponent>().isNotEmpty;
+      fired = game.children.any((c) => c is EnemyShotComponent);
     }
     expect(fired, isTrue);
 

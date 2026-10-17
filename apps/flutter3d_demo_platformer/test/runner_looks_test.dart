@@ -105,7 +105,7 @@ void main() {
     var landed = false;
     for (var i = 0; i < 200 && !landed; i++) {
       run.step();
-      landed = run.lastStep.whereType<Landed>().isNotEmpty;
+      landed = run.lastStep.any((e) => e is Landed);
     }
     expect(landed, isTrue);
     expect(run.scale.y, lessThan(0.95), reason: 'a landing should squash');
@@ -140,7 +140,7 @@ void main() {
       run.runner.body.teleport(Vector3(0.0, from, 0.0));
       for (var i = 0; i < 400; i++) {
         run.step();
-        if (run.lastStep.whereType<Landed>().isNotEmpty) {
+        if (run.lastStep.any((e) => e is Landed)) {
           return _distortion(run.scale);
         }
       }
@@ -173,7 +173,7 @@ void main() {
     var landed = false;
     for (var i = 0; i < 200 && !landed; i++) {
       run.step();
-      landed = run.lastStep.whereType<Landed>().isNotEmpty;
+      landed = run.lastStep.any((e) => e is Landed);
     }
     expect(landed, isTrue);
 

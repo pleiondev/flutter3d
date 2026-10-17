@@ -183,8 +183,9 @@ class _GamePreviewScreenState extends State<GamePreviewScreen>
     );
     _lastTick = elapsed;
     widget.onTick?.call(seconds);
-    if (seconds > 0) _fps = 1 / seconds;
-    setState(() {});
+    setState(() {
+      if (seconds > 0) _fps = 1 / seconds;
+    });
   }
 
   @override

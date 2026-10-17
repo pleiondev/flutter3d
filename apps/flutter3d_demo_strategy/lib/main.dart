@@ -645,7 +645,7 @@ class _MapState extends State<_Map> with SingleTickerProviderStateMixin {
       // document with nowhere to be carried out. Doing nothing is the honest
       // answer — in particular the selection is left standing, because a click
       // that cannot be obeyed must not disband the squad the player gathered.
-      case final StrategyUnit _:
+      case StrategyUnit _:
         break;
 
       // Empty ground: an order, for the picked units and nobody else.

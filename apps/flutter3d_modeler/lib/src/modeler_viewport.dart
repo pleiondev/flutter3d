@@ -869,20 +869,20 @@ class _ModelerViewportState extends State<ModelerViewport> {
     Vector3 pivot,
     MeshOverlayView look,
   ) {
-    final Vector3? along = switch (widget.transformAxis) {
-      TransformAxis.x => Vector3(1, 0, 0),
-      TransformAxis.y => Vector3(0, 1, 0),
-      TransformAxis.z => Vector3(0, 0, 1),
+    final (Vector3, int)? line = switch (widget.transformAxis) {
+      TransformAxis.x => (Vector3(1, 0, 0), kGizmoTintX),
+      TransformAxis.y => (Vector3(0, 1, 0), kGizmoTintY),
+      TransformAxis.z => (Vector3(0, 0, 1), kGizmoTintZ),
       // A plane constraint has two axes and no line worth drawing, and `free`
-      // has none at all.
-      _ => null,
+      // or no transform at all has none.
+      null ||
+      TransformAxis.free ||
+      TransformAxis.yz ||
+      TransformAxis.xz ||
+      TransformAxis.xy => null,
     };
-    if (along == null) return;
-    final int tint = switch (widget.transformAxis) {
-      TransformAxis.x => kGizmoTintX,
-      TransformAxis.y => kGizmoTintY,
-      _ => kGizmoTintZ,
-    };
+    if (line == null) return;
+    final (Vector3 along, int tint) = line;
     final Vector4 color = Vector4(
       ((tint >> 16) & 0xFF) / 255.0,
       ((tint >> 8) & 0xFF) / 255.0,
@@ -1289,10 +1289,11 @@ class _ModelerViewportState extends State<ModelerViewport> {
         pointer: event.kind,
         lasso: widget.lassoSelect,
       );
-      box
-        ..dragTo(event.localPosition)
-        ..mode = _boxMode();
-      setState(() {});
+      setState(() {
+        box
+          ..dragTo(event.localPosition)
+          ..mode = _boxMode();
+      });
       return;
     }
 
@@ -1420,8 +1421,7 @@ class _ModelerViewportState extends State<ModelerViewport> {
     final bool travelled = _travelled.remove(event.pointer);
     final SelectionBox? box = _box;
     if (box != null) {
-      _box = null;
-      setState(() {});
+      setState(() => _box = null);
       // Only when it grew into one. A drag of three pixels is a click that
       // wobbled, and answering it with a box that caught nothing would clear
       // the selection somebody was aiming at.
@@ -1697,12 +1697,11 @@ class _ModelerViewportState extends State<ModelerViewport> {
   /// left button to the tools — so it is the safe default for something whose
   /// origin nobody knows.
   static PointerKind _kindOf(PointerDeviceKind kind) => switch (kind) {
-    PointerDeviceKind.mouse => PointerKind.mouse,
+    PointerDeviceKind.mouse || PointerDeviceKind.unknown => PointerKind.mouse,
     PointerDeviceKind.touch => PointerKind.touch,
     PointerDeviceKind.trackpad => PointerKind.trackpad,
     PointerDeviceKind.stylus ||
     PointerDeviceKind.invertedStylus => PointerKind.stylus,
-    PointerDeviceKind.unknown => PointerKind.mouse,
   };
 
   /// Which button began this press.
@@ -1732,7 +1731,8 @@ class _BoxPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final Color color = switch (box.mode) {
       SelectionBoxMode.subtract => const Color(0xFFFF9926),
-      _ => const Color(0xFF62D4E3),
+      SelectionBoxMode.replace ||
+      SelectionBoxMode.add => const Color(0xFF62D4E3),
     };
     final Paint wash = Paint()..color = color.withValues(alpha: 0.12);
     final Paint line = Paint()

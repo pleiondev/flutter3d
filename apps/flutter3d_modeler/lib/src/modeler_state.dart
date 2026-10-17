@@ -205,6 +205,7 @@ final class ModelerReady extends ModelerState {
 
   ProjectSelection get selection => history.selection;
 
+  // ignore: avoid-incomplete-copy-with, the renderer, the history and the document's name are live objects, and a different document is a new state rather than a copy
   ModelerReady copyWith({
     ModelerStage? stage,
     ExportReadiness? readiness,

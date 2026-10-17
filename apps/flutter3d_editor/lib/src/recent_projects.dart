@@ -109,7 +109,7 @@ final class RecentProjects {
     try {
       await storage.write(_name, text);
     } on StorageException {
-      return;
+      // A list that could not be kept is a shortcut lost, see [remember].
     }
   }
 

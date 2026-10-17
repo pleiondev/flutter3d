@@ -480,11 +480,15 @@ final class RiverWater {
     for (final target in _game.targets) {
       final kind = target.plan.kind;
       if (!target.isMounted) continue;
-      if (kind == TargetKind.helicopter) {
-        if (target.down) _falling[target] = target.scenePosition;
-        continue;
+      switch (kind) {
+        case TargetKind.helicopter:
+          if (target.down) _falling[target] = target.scenePosition;
+          continue;
+        case TargetKind.jet:
+          continue;
+        case TargetKind.tanker || TargetKind.depot:
+          break;
       }
-      if (kind != TargetKind.tanker && kind != TargetKind.depot) continue;
       // A tanker going under is let go: balls dragged down with it pushed
       // the water out of a block of cells, which showed as a pale square
       // of river bed under its burning oil long after it had sunk.

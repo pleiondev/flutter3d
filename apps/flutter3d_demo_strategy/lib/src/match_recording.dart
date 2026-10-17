@@ -231,8 +231,8 @@ final class RecordedMatch {
         _ => throw const DemoFormatException('the events are not a document'),
       };
       return RecordedMatch(demo, loopChanges: changes, events: events);
-    } on Flutter3dFormatException catch (error) {
-      throw DemoFormatException(error.message);
+    } on Flutter3dFormatException catch (error, stackTrace) {
+      Error.throwWithStackTrace(DemoFormatException(error.message), stackTrace);
     }
   }
 

@@ -159,7 +159,7 @@ void main() {
           // — so they are not part of this claim.
           if (block is LegalCode) continue;
           final String text = switch (block) {
-            LegalParagraph(:final text) => legalPlainText(text),
+            LegalParagraph(:final text) ||
             LegalHeading(:final text) => legalPlainText(text),
             LegalList(:final items) => items.map(legalPlainText).join(' '),
             LegalTable(:final header, :final rows) => <String>[

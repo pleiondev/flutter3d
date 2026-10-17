@@ -283,7 +283,6 @@ final class _Shown {
       ),
     );
     final pixels = await device.readback(result.frame);
-    expect(pixels, isNotNull, reason: 'the frame could not be read back');
     return pixels.buffer.asUint8List();
   }
 }

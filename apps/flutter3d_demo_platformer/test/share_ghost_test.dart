@@ -187,6 +187,7 @@ void main() {
             StateError(
               'the share server exited ($code) before it listened:\n$said',
             ),
+            StackTrace.current,
           );
         }),
       );

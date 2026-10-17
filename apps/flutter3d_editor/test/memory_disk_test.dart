@@ -103,7 +103,7 @@ void main() {
       final zip = ZipDecoder().decodeBytes(delivered.single.$2);
       expect(
         <String, List<int>>{
-          for (final file in zip.files) file.name: file.content as List<int>,
+          for (final file in zip.files) file.name: file.content,
         },
         <String, List<int>>{
           for (final MapEntry(:key, :value) in files.entries)

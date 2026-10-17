@@ -95,11 +95,11 @@ final class Reactions {
     final jolts = <Felt>[];
     final at = runner.position;
 
-    if (events.whereType<Dashed>().isNotEmpty) {
+    if (events.any((e) => e is Dashed)) {
       bursts.add(Shown(Effects.dash, at));
       jolts.add(const Felt.widen(0.1));
     }
-    if (events.whereType<WallJumped>().isNotEmpty) {
+    if (events.any((e) => e is WallJumped)) {
       bursts.add(Shown(Effects.dust, at));
     }
 
@@ -107,18 +107,18 @@ final class Reactions {
     // is the same shape of gap as the silent coin: the simulation was right and
     // the game said nothing. Each one is a moment a player commits to something
     // and deserves to be told it landed.
-    if (events.whereType<LongJumped>().isNotEmpty) {
+    if (events.any((e) => e is LongJumped)) {
       // A long jump is a commitment — low, far, and no steering. It gets a wide
       // skirt of dust, because it is the slide it came out of, launched.
       bursts.add(Shown(Effects.dust, at));
       jolts.add(const Felt.widen(0.08));
     }
-    if (events.whereType<Grabbed>().isNotEmpty) {
+    if (events.any((e) => e is Grabbed)) {
       // Catching a rope or a ladder: the camera settles rather than kicking,
       // because the runner has just stopped falling.
       bursts.add(Shown(Effects.dust, at));
     }
-    if (events.whereType<Bounced>().isNotEmpty) {
+    if (events.any((e) => e is Bounced)) {
       // The hop off something stomped. `EnemyStomped` says an enemy died;
       // this says the runner was thrown by it, and they are not the same
       // event.
@@ -141,7 +141,7 @@ final class Reactions {
       }
     }
 
-    if (events.whereType<Landed>().isNotEmpty) {
+    if (events.any((e) => e is Landed)) {
       _land(
         runner.landingSpeed,
         at,

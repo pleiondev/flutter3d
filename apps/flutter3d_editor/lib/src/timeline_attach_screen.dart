@@ -254,6 +254,7 @@ final class _TimelineAttachScreenState extends State<TimelineAttachScreen> {
                 Text(switch (_preview) {
                   null => '',
                   (found: false, step: _) => 'not far enough back',
+                  // ignore: avoid-explicit-pattern-field-name, the shorthand is misread as a type test.
                   (found: true, step: final step) => 'at step $step',
                 }),
               ],

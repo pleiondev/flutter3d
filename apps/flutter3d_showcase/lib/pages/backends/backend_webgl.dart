@@ -89,8 +89,9 @@ final class BackendWebglDemo extends ShowcaseDemo {
     if (frame.drawCalls < 1) {
       throw StateError('the ball was not drawn');
     }
-    if (frame.wireframeDeclined !=
-        !_device.features.has(DeviceFeature.wireframe)) {
+    // Declined and supported at once, or neither, is the disagreement.
+    if (frame.wireframeDeclined ==
+        _device.features.has(DeviceFeature.wireframe)) {
       throw StateError(
         'wireframeDeclined disagreed with supportsWireframe for the open '
         'device',

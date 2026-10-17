@@ -102,7 +102,6 @@ final class _Shown {
       settings: const RenderSettings(),
     );
     final pixels = await device.readback(result.frame);
-    expect(pixels, isNotNull, reason: 'the frame could not be read back');
     return pixels.buffer.asUint8List();
   }
 }

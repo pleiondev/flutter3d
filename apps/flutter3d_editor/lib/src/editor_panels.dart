@@ -120,5 +120,6 @@ List<DockPanel> editorPanels({
       builder: (_) => assets,
     ),
   if (plugins != null && panelContext != null)
+    // ignore: prefer-null-aware-spread, the panels also need a context to build in.
     ...plugins.dockPanels(panelContext),
 ];

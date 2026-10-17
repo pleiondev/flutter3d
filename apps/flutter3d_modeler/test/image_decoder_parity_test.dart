@@ -58,7 +58,6 @@ void main() {
         final path = 'test/goldens/$name';
         final fromDartUi = await _decodeWithDartUi(path);
         final ours = decodePng(File(path).readAsBytesSync());
-        expect(ours, isNotNull);
         expect(ours.width, fromDartUi.width);
         expect(ours.height, fromDartUi.height);
         expect(ours.rgba, orderedEquals(fromDartUi.rgba));
@@ -76,7 +75,6 @@ void main() {
           '../../packages/flutter3d_core/test/formats/fixtures/gradient_444.jpg';
       final fromDartUi = await _decodeWithDartUi(path);
       final ours = decodeJpeg(File(path).readAsBytesSync());
-      expect(ours, isNotNull);
       expect(ours.width, fromDartUi.width);
       expect(ours.height, fromDartUi.height);
       expect(_maxDelta(ours.rgba, fromDartUi.rgba), lessThanOrEqualTo(4));
@@ -87,7 +85,6 @@ void main() {
           '../../packages/flutter3d_core/test/formats/fixtures/solid_8x8.jpg';
       final fromDartUi = await _decodeWithDartUi(path);
       final ours = decodeJpeg(File(path).readAsBytesSync());
-      expect(ours, isNotNull);
       expect(_maxDelta(ours.rgba, fromDartUi.rgba), lessThanOrEqualTo(4));
     });
 
@@ -96,7 +93,6 @@ void main() {
           '../../packages/flutter3d_core/test/formats/fixtures/gray_16x16.jpg';
       final fromDartUi = await _decodeWithDartUi(path);
       final ours = decodeJpeg(File(path).readAsBytesSync());
-      expect(ours, isNotNull);
       expect(_maxDelta(ours.rgba, fromDartUi.rgba), lessThanOrEqualTo(4));
     });
 
@@ -114,7 +110,6 @@ void main() {
             '../../packages/flutter3d_core/test/formats/fixtures/gradient_420.jpg';
         final fromDartUi = await _decodeWithDartUi(path);
         final ours = decodeJpeg(File(path).readAsBytesSync());
-        expect(ours, isNotNull);
         expect(ours.width, fromDartUi.width);
         expect(ours.height, fromDartUi.height);
         expect(_maxDelta(ours.rgba, fromDartUi.rgba), lessThanOrEqualTo(20));

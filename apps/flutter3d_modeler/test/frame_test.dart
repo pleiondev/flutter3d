@@ -87,7 +87,6 @@ Future<Uint8List> _drawWith(
     settings: settings,
   );
   final pixels = await device.readback(result.frame);
-  expect(pixels, isNotNull, reason: 'the frame could not be read back');
   return pixels.buffer.asUint8List();
 }
 
@@ -679,7 +678,6 @@ void main() {
           ),
         );
         final pixels = await it.device.readback(result.frame);
-        expect(pixels, isNotNull, reason: 'the frame could not be read back');
         return RenderedFrame(
           pixels: pixels.buffer.asUint8List(),
           width: 240,
@@ -766,7 +764,6 @@ void main() {
         ],
       );
       final pixels = await it.device.readback(result.frame);
-      expect(pixels, isNotNull, reason: 'the frame could not be read back');
       final frame = RenderedFrame(
         pixels: pixels.buffer.asUint8List(),
         width: 240,

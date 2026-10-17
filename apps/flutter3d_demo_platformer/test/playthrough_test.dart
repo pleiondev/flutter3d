@@ -601,7 +601,7 @@ void main() {
       var stomped = false;
       for (var i = 0; i < 200 && !stomped; i++) {
         game.step();
-        stomped = game.published.take().whereType<EnemyStomped>().isNotEmpty;
+        stomped = game.published.take().any((e) => e is EnemyStomped);
       }
 
       expect(stomped, isTrue, reason: 'it landed beside it');

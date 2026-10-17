@@ -103,8 +103,8 @@ final class PartyRunReport {
         );
         return true;
       case pongKind:
-        if (body['to'] == slot) {
-          if (_sentAt[body['id']] case final int sent) {
+        if (body['id'] case final int id when body['to'] == slot) {
+          if (_sentAt[id] case final int sent) {
             _rttMs.add((_clock() - sent) / 1000.0);
           }
         }

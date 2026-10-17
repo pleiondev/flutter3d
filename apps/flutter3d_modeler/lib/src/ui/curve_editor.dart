@@ -51,9 +51,9 @@ String _componentLabel(AnimationPath path, int component) => switch (path) {
   AnimationPath.scale => const <String>['X', 'Y', 'Z'][component],
   AnimationPath.rotation => const <String>['X', 'Y', 'Z', 'W'][component],
   AnimationPath.weights => 'W$component',
-  // A `KHR_animation_pointer` track: a colour, an offset or one number,
-  // whichever property it names, so its lanes are numbered rather than named.
-  AnimationPath.pointer => '#$component',
+  // A `KHR_animation_pointer` track, or a path this list does not know: a
+  // colour, an offset or one number, whichever property it names, so its lanes
+  // are numbered rather than named.
   _ => '#$component',
 };
 
@@ -477,10 +477,13 @@ class _CurveEditorPainter extends CustomPainter {
           _valueToY(handles.outHandle.y, size.height),
         );
         if (drag case final _Drag d when d.keyIndex == i) {
-          if (d.target == _DragTarget.inTangent) {
-            inHandle = Offset(inHandle.dx, d.y);
-          } else if (d.target == _DragTarget.outTangent) {
-            outHandle = Offset(outHandle.dx, d.y);
+          switch (d.target) {
+            case _DragTarget.inTangent:
+              inHandle = Offset(inHandle.dx, d.y);
+            case _DragTarget.outTangent:
+              outHandle = Offset(outHandle.dx, d.y);
+            case _DragTarget.value:
+              break;
           }
         }
         canvas.drawLine(inHandle, keyPoint, handlePaint);

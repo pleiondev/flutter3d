@@ -43,6 +43,7 @@ Future<void> _settle(WidgetTester tester) async {
 /// pending;` here would make this function itself wait for the dialog to
 /// close before ever returning, which is the one thing a test still has to
 /// do (tap `Cancel` or `Add`) after this call comes back.
+// ignore: avoid-one-field-records, the record keeps the pending future from being flattened, as said above
 Future<({Future<LatheChoice?> result})> _open(
   WidgetTester tester,
   Renderer renderer,
@@ -67,6 +68,7 @@ Future<({Future<LatheChoice?> result})> _open(
   );
   await tester.tap(find.text('open'));
   await _settle(tester);
+  // ignore: avoid-one-field-records, see the comment on this function
   return (result: pending!);
 }
 

@@ -44,6 +44,7 @@ class _DemoStageState extends State<DemoStage>
   @override
   void initState() {
     super.initState();
+    // ignore: avoid-inherited-widget-in-initstate, of() only reads
     _start(DeviceScope.of(context));
   }
 

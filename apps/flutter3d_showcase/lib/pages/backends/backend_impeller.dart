@@ -95,8 +95,9 @@ final class BackendImpellerDemo extends ShowcaseDemo {
     // backends. This page asks for it unconditionally; whether the frame
     // actually got it has to match what the device that opened said it
     // could do, whichever backend that turned out to be.
-    if (frame.wireframeDeclined !=
-        !_device.features.has(DeviceFeature.wireframe)) {
+    // Declined and supported at once, or neither, is the disagreement.
+    if (frame.wireframeDeclined ==
+        _device.features.has(DeviceFeature.wireframe)) {
       throw StateError(
         'wireframeDeclined disagreed with supportsWireframe for the open '
         'device',
