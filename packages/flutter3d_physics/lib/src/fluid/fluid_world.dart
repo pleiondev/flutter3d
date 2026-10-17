@@ -14,6 +14,7 @@ import 'liquid_body.dart';
 import 'particle_fluid.dart';
 import 'pipe.dart';
 import 'puddle.dart';
+import 'shape_solves.dart';
 
 /// Liquids in a world: the vessels, the pipes between them, and the streams
 /// running from one to another, stepped together at a fixed step.
@@ -60,8 +61,25 @@ final class FluidWorld {
     WorldProperties? world,
     FluidAir? air,
     this.field,
+    this.shapes = LiquidShapeSolver.immediate,
   }) : solver = solver ?? backend.fluid,
-       air = air ?? (world == null ? FluidAir.standard : FluidAir.of(world));
+       air = air ?? (world == null ? FluidAir.standard : FluidAir.of(world)) {
+    if (profile.isBitExact && !shapes.answersAtOnce) {
+      throw ArgumentError.value(
+        shapes,
+        'shapes',
+        'answers later than it is asked, so when a vessel gets its modes '
+            'depends on the machine; ${profile.name} must replay to the bit',
+      );
+    }
+  }
+
+  /// Where the vessels' menisci and their surfaces' modes are worked out:
+  /// at once by default. A solver that works them out elsewhere keeps a
+  /// cross-section not met before from stopping a frame, and is refused
+  /// under a bit-exact profile, since when an answer arrives is the
+  /// machine's.
+  final LiquidShapeSolver shapes;
 
   /// What the steps promise about their numbers. Under a profile that
   /// allows adaptive steps, what floats is pushed by its own equation
@@ -164,6 +182,9 @@ final class FluidWorld {
   }
 
   void _stepOnce(double dt) {
+    for (final body in bodies) {
+      if (!identical(body.shapes, shapes)) body.shapes = shapes;
+    }
     final receivers = <JetReceiver>[...bodies, ...puddles];
     for (final liquid in bodies) {
       var displaced = 0.0;

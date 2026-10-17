@@ -512,7 +512,7 @@ abstract base class FluidSolver
   void ringModes(ModeRinging ringing)
 
 final class FluidWorld
-  FluidWorld({required this.gravity, this.step = 1.0 / 240.0, this.particleSpacing = 0.002, this.floor, FluidSolver? solver, PhysicsBackend backend = const DartPhysics(), this.profile = SimulationProfile.deterministic, WorldProperties? world, FluidAir? air, this.field})
+  FluidWorld({required this.gravity, this.step = 1.0 / 240.0, this.particleSpacing = 0.002, this.floor, FluidSolver? solver, PhysicsBackend backend = const DartPhysics(), this.profile = SimulationProfile.deterministic, WorldProperties? world, FluidAir? air, this.field, this.shapes = LiquidShapeSolver.immediate})
   Vector3 gravityAt(Vector3 point)
   double get evaporated
   double get time
@@ -520,6 +520,7 @@ final class FluidWorld
   final FluidAir air
   final FluidSolver solver
   final GravityField? field
+  final LiquidShapeSolver shapes
   final List<FloatingBody> floating
   final List<JetObstacle>? floor
   final List<LiquidBody> bodies
@@ -537,6 +538,7 @@ final class FluidWorld
 final class FreeSurface
   FluidMedium medium
   FreeSurface({required this.medium, this.cells = 40, this.modeCount = 12})
+  LiquidShapeSolver shapes
   List<double> get wavenumbers
   Vector3 force(double density)
   Vector3 get up
@@ -670,6 +672,7 @@ final class LiquidBody with JetReceiver
   FluidMedium get medium
   FluidMedium get mediumInState
   LiquidBody({required this.shape, required FluidMedium medium, required double volume, Map<String, double> concentrations = const {}, int surfaceCells = 40, int modes = 12, this.wallThickness = 0.0})
+  LiquidShapeSolver get shapes
   List<LiquidLayer> drain(double amount)
   List<LiquidLayer> drawAt(Vector3 point, double amount)
   List<LiquidLayer> get layers
@@ -695,6 +698,7 @@ final class LiquidBody with JetReceiver
   final Vector3 position
   final VesselShape shape
   final double wallThickness
+  set shapes(LiquidShapeSolver solver)
   void add(LiquidLayer layer)
   void place(Matrix3 turn, Vector3 at, {double? time})
   void pour(double amount, {FluidMedium? medium, Map<String, double> concentrations = const {}, Vector3? where, double knock = 0.0})
@@ -718,6 +722,30 @@ final class LiquidLayer
   final Map<String, double> amounts
   static LiquidLayer at(FluidMedium medium, double volume, Map<String, double> concentrations)
   void add(LiquidLayer other)
+
+final class LiquidShapeCache
+  SurfaceModes keepSurfaceModes(SurfaceModesRequest request, SurfaceModes modes)
+  SurfaceModes? surfaceModes(SurfaceModesRequest request)
+  TubeMeniscus keepMeniscus(MeniscusRequest request, TubeMeniscus meniscus)
+  TubeMeniscus? meniscus(MeniscusRequest request)
+  static const int capacity = 512
+  static final LiquidShapeCache shared
+  void clear()
+
+abstract base class LiquidShapeSolver
+  SurfaceModes? surfaceModes(SurfaceModesRequest request)
+  TubeMeniscus? meniscus(MeniscusRequest request)
+  bool get answersAtOnce
+  const LiquidShapeSolver()
+  static const LiquidShapeSolver immediate = _Immediate()
+
+final class MeniscusRequest
+  bool operator ==(Object other)
+  const MeniscusRequest({required this.medium, required this.radius, required this.g})
+  final FluidMedium medium
+  final double g
+  final double radius
+  int get hashCode
 
 final class MeshVessel implements VesselShape
   MeshVessel({required List<Vector3> positions, required List<int> indices, List<Vector3> rim = const []})
@@ -1105,6 +1133,21 @@ final class StepContact implements Comparable<StepContact>
   final int idB
   int compareTo(StepContact other)
 
+final class SurfaceModes
+  const SurfaceModes(this.shapes, this.k2)
+  final Float64List k2
+  final List<Float64List> shapes
+
+final class SurfaceModesRequest
+  SurfaceModesRequest({required this.columns, required this.rows, required this.cell, required Int32List index, required this.count})
+  bool operator ==(Object other)
+  final Int32List index
+  final double cell
+  final int columns
+  final int count
+  final int rows
+  int get hashCode
+
 final class SweepHit
   Collider? collider
   SweepHit()
@@ -1273,6 +1316,10 @@ const double referenceBodyMass = 73.0
 double restitutionOfLossFactor(double lossFactor)
 
 const double sharpEdgeDischarge = 0.62
+
+TubeMeniscus solveMeniscus(MeniscusRequest request)
+
+SurfaceModes solveSurfaceModes(SurfaceModesRequest request)
 
 double sphereDrag(double re)
 

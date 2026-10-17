@@ -6,6 +6,7 @@ import 'package:vector_math/vector_math.dart';
 
 import 'fluid_medium.dart';
 import 'fluid_solver.dart';
+import 'shape_solves.dart';
 import 'vessel_shape.dart';
 
 /// The waves on a liquid's free surface in a vessel of any shape: how far
@@ -49,6 +50,11 @@ final class FreeSurface {
 
   /// How far the plane may turn, radians, before the modes are found again.
   static const double reuseTurn = 0.05;
+
+  /// Where a cross-section's modes are worked out: at once by default, or
+  /// elsewhere, by a solver that answers null until it has them — the
+  /// surface then keeps the modes it has.
+  LiquidShapeSolver shapes = LiquidShapeSolver.immediate;
 
   _Grid? _grid;
   List<Float64List> _modes = const [];
@@ -109,21 +115,37 @@ final class FreeSurface {
       _field = null;
       return;
     }
+    final grid = _Grid.cut(shape, up, height, cells);
+    final SurfaceModes? solved;
+    if (grid.count < 6) {
+      solved = null;
+    } else {
+      solved = shapes.surfaceModes(
+        SurfaceModesRequest(
+          columns: grid.columns,
+          rows: grid.rows,
+          cell: grid.cell,
+          index: grid.index,
+          count: modeCount,
+        ),
+      );
+      // Not worked out yet: the surface rings on the grid it has until
+      // they are.
+      if (solved == null && old != null && _modes.isNotEmpty) return;
+    }
     final oldHeights = old == null ? null : _heights();
     final oldRates = old == null ? null : _sumModes(_rate);
-    final grid = _Grid.cut(shape, up, height, cells);
     _grid = grid;
     _field = null;
-    if (grid.count < 6) {
+    if (solved == null) {
       _modes = const [];
       _k2 = Float64List(0);
       _amplitude = Float64List(0);
       _rate = Float64List(0);
       return;
     }
-    final (shapes, k2) = _lowestModes(grid, modeCount);
-    _modes = shapes;
-    _k2 = k2;
+    _modes = solved.shapes;
+    _k2 = solved.k2;
     // The liquid stays: what stood off the old plane stands off the new one
     // by that, less how far the new plane is above the old one there.
     final heights = Float64List(grid.count);
@@ -421,49 +443,92 @@ final class FreeSurface {
     return 0.83 * math.sqrt(nu / math.sqrt(g * r * r * r)) * (1.0 + shallow);
   }
 
-  /// The lowest [count] non-flat modes of [grid]'s Laplacian with the wall's
-  /// condition, orthonormal under the area, and their k².
-  static (List<Float64List>, Float64List) _lowestModes(_Grid grid, int count) {
-    final n = grid.count;
-    final inv = 1.0 / grid.cell2;
+  /// The lowest [count] non-flat modes of the grid's Laplacian with the
+  /// wall's condition, orthonormal under the area, and their k²: what
+  /// [solveSurfaceModes] does.
+  static SurfaceModes _lowestModes(SurfaceModesRequest request) {
+    final count = request.count;
+    final columns = request.columns;
+    final rows = request.rows;
+    final index = request.index;
+    final cell2 = request.cell * request.cell;
     // The graph Laplacian: each cell against the neighbours it has inside.
     // A neighbour outside is the wall, and leaving it out is ∂φ/∂n = 0.
-    Float64List apply(Float64List x) {
-      final y = Float64List(n);
-      for (var i = 0; i < n; i++) {
-        var sum = 0.0;
-        for (final j in grid.neighbors[i]) {
-          sum += x[i] - x[j];
-        }
-        y[i] = sum * inv;
+    final neighbors = <List<int>>[];
+    for (var r = 0; r < rows; r++) {
+      for (var c = 0; c < columns; c++) {
+        if (index[r * columns + c] < 0) continue;
+        neighbors.add([
+          for (final (dc, dr) in const [(1, 0), (-1, 0), (0, 1), (0, -1)])
+            if (c + dc >= 0 &&
+                c + dc < columns &&
+                r + dr >= 0 &&
+                r + dr < rows &&
+                index[(r + dr) * columns + c + dc] >= 0)
+              index[(r + dr) * columns + c + dc],
+        ]);
       }
-      return y;
     }
-
+    final n = neighbors.length;
+    final inv = 1.0 / cell2;
     // The lowest of L are the highest of L⁻¹, and well apart there, where
     // near nought they crowd together and Lanczos on L itself would take
-    // hundreds of steps to tell them apart. L⁻¹ is applied by conjugate
-    // gradients, on the flat-free part where L can be inverted.
+    // hundreds of steps to tell them apart.
+    //
+    // **L + σ factored once, as a band, and each solve two sweeps along
+    // it.** The cells are numbered row by row, so a cell's neighbours are
+    // within a row's worth of it and L is a band that wide. The Lanczos
+    // steps all solve against the same L; conjugate gradients went at it
+    // afresh each time, some hundreds of passes over the grid each, and a
+    // cross-section's modes cost seventy milliseconds where the factor costs
+    // a few. L is singular, the flat mode being free, so σ, a millionth of
+    // its scale, makes it definite; the modes are the same and their values
+    // come out σ higher, which is taken off below.
+    final sigma = 1e-6 * inv;
+    var band = 0;
+    for (var i = 0; i < n; i++) {
+      for (final k in neighbors[i]) {
+        band = math.max(band, (i - k).abs());
+      }
+    }
+    final w1 = band + 1;
+    // The lower band: L(i, j) at i·w1 + (i − j).
+    final factor = Float64List(n * w1);
+    for (var i = 0; i < n; i++) {
+      factor[i * w1] = neighbors[i].length * inv + sigma;
+      for (final k in neighbors[i]) {
+        if (k < i) factor[i * w1 + (i - k)] = -inv;
+      }
+    }
+    for (var i = 0; i < n; i++) {
+      final lo = math.max(0, i - band);
+      for (var j = lo; j <= i; j++) {
+        var sum = factor[i * w1 + (i - j)];
+        final from = math.max(lo, j - band);
+        for (var k = from; k < j; k++) {
+          sum -= factor[i * w1 + (i - k)] * factor[j * w1 + (j - k)];
+        }
+        factor[i * w1 + (i - j)] = i == j
+            ? math.sqrt(math.max(sum, 1e-300))
+            : sum / factor[j * w1];
+      }
+    }
     Float64List solve(Float64List b) {
-      final x = Float64List(n);
-      final r = Float64List.fromList(b);
-      _removeMean(r);
-      final p = Float64List.fromList(r);
-      var rr = _dot(r, r);
-      final stop = 1e-24 * math.max(rr, 1e-300);
-      for (var it = 0; it < 4 * n && rr > stop; it++) {
-        final ap = apply(p);
-        final step = rr / _dot(p, ap);
-        for (var i = 0; i < n; i++) {
-          x[i] += step * p[i];
-          r[i] -= step * ap[i];
+      final x = Float64List.fromList(b);
+      _removeMean(x);
+      for (var i = 0; i < n; i++) {
+        var sum = x[i];
+        for (var k = math.max(0, i - band); k < i; k++) {
+          sum -= factor[i * w1 + (i - k)] * x[k];
         }
-        final next = _dot(r, r);
-        final ratio = next / rr;
-        rr = next;
-        for (var i = 0; i < n; i++) {
-          p[i] = r[i] + ratio * p[i];
+        x[i] = sum / factor[i * w1];
+      }
+      for (var i = n - 1; i >= 0; i--) {
+        var sum = x[i];
+        for (var k = i + 1; k <= math.min(n - 1, i + band); k++) {
+          sum -= factor[k * w1 + (k - i)] * x[k];
         }
+        x[i] = sum / factor[i * w1];
       }
       _removeMean(x);
       return x;
@@ -521,10 +586,10 @@ final class FreeSurface {
       ..sort((x, y) => values[y].compareTo(values[x]));
     final modes = <Float64List>[];
     final k2 = <double>[];
-    final scale = 1.0 / math.sqrt(grid.cell2);
+    final scale = 1.0 / math.sqrt(cell2);
     for (final r in order) {
       if (values[r] <= 0.0) continue;
-      final lambda = 1.0 / values[r];
+      final lambda = 1.0 / values[r] - sigma;
       final shape = Float64List(n);
       for (var j = 0; j < size; j++) {
         final weight = vectors[j * size + r];
@@ -541,7 +606,7 @@ final class FreeSurface {
       k2.add(lambda);
       if (modes.length == count) break;
     }
-    return (modes, Float64List.fromList(k2));
+    return SurfaceModes(modes, Float64List.fromList(k2));
   }
 
   static double _dot(Float64List a, Float64List b) {
@@ -876,3 +941,9 @@ final class _Grid {
     return best < 0 ? 0.0 : values[best];
   }
 }
+
+/// The lowest `count` non-flat modes of [request]'s cross-section, worked
+/// out now: what a [LiquidShapeSolver] asks for a cross-section it has not
+/// met, wherever it runs it.
+SurfaceModes solveSurfaceModes(SurfaceModesRequest request) =>
+    FreeSurface._lowestModes(request);

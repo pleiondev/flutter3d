@@ -3289,14 +3289,20 @@ final Map<String, String> facadeGapAllowed = <String, String>{
   ])
     for (final name in <String>[
       'FluidAir',
+      'LiquidShapeSolver',
+      'MeniscusRequest',
       'SolidSurface',
+      'SurfaceModes',
+      'SurfaceModesRequest',
+      'TubeMeniscus',
       if (facade != 'flutter3d_app') ...<String>['Puddle', 'PuddleSurface'],
     ])
       '$facade:$name':
-          'a liquid\'s air, its puddles and what a wall is made of, which a '
-          'bench or a laboratory builds from `flutter3d_physics` itself: a '
-          'game a facade serves hands its world a floor (`PlaneObstacle`) '
-          'and leaves the air its world\'s and the surface the default',
+          'a liquid\'s air, its puddles, what a wall is made of and where '
+          'its shapes are solved, which a bench or a laboratory builds from '
+          '`flutter3d_physics` itself: a game a facade serves hands its '
+          'world a floor (`PlaneObstacle`) and leaves the air its world\'s, '
+          'the surface the default and the shapes solved at once',
   for (final name in _physicsBehindTheView)
     'flutter3d_app:$name':
         'the physics a loaded level\'s collision world is made of, its stock '

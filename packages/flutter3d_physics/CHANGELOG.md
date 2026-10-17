@@ -33,6 +33,16 @@
   lands as `Puddle`s, one body each: a cap at the surface's angle or a
   puddle 2ℓc·sin(θ/2) deep, spreading as Huppert's gravity current,
   running together, evaporating.
+- **A liquid's shapes solved once, for every vessel alike, and faster.**
+  A cross-section's modes and a meniscus depend on their request alone
+  (`SurfaceModesRequest`, `MeniscusRequest`) and are kept in
+  `LiquidShapeCache.shared`, so a bench's tubes solve them once between
+  them. The modes factor the Laplacian once as a band instead of conjugate
+  gradients for every Lanczos step; the meniscus finds its curvature by
+  Illinois false position and shoots two Runge–Kutta steps a sample. Where
+  they are worked out is a `LiquidShapeSolver`'s (`FluidWorld.shapes`): at
+  once by default, or elsewhere by one that answers later, which a world
+  under a bit-exact profile refuses.
 - **Stokes's torque.** A body turning in a liquid is slowed by 8πμR³ω on
   the sphere of its volume, implicitly about its own axes.
 - **Gravity from place to place.** `FluidWorld(field:)` takes a

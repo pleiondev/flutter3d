@@ -12,6 +12,7 @@ import 'free_surface.dart';
 import 'jet.dart';
 import 'liquid_layer.dart';
 import 'outflow.dart';
+import 'shape_solves.dart';
 import 'vessel_shape.dart';
 import 'wetting.dart';
 
@@ -449,6 +450,9 @@ final class LiquidBody with JetReceiver {
   void _maybeSleep(Vector3 gravity, Spill spill) {
     if (spill.flow > 0.0 || !surface.isQuiet) return;
     if (_history.length < 2) return;
+    // Still waiting for the modes of the plane it should lie on: awake, so
+    // it lays itself out when they come.
+    if (1.0 - _up.dot(surface.up) > 2e-5) return;
     for (final h in _history) {
       if (h.at != position) return;
     }
@@ -550,12 +554,29 @@ final class LiquidBody with JetReceiver {
       _menisciG = _g;
     }
     final key = (Portable.log(radius) / 0.01).round();
-    return _menisci[key] ??= TubeMeniscus(
-      medium: medium,
-      radius: Portable.exp(key * 0.01),
-      g: _menisciG,
+    final kept = _menisci[key];
+    if (kept != null) return kept;
+    // **One meniscus for every vessel of the liquid and gravity**, by
+    // [shapes]: the shape depends on nothing else, and a bench's six tubes
+    // worked out the same ones six times over. Gravity to a part in a
+    // thousand, as this vessel's own cache keeps it. Not worked out yet,
+    // the surface goes without one until it is.
+    final solved = shapes.meniscus(
+      MeniscusRequest(
+        medium: medium,
+        radius: Portable.exp(key * 0.01),
+        g: (_menisciG * 1000).roundToDouble() / 1000,
+      ),
     );
+    if (solved != null) _menisci[key] = solved;
+    return solved;
   }
+
+  /// Where this vessel's meniscus and its surface's modes are worked out:
+  /// at once by default; a `FluidWorld` hands its own to every vessel it
+  /// steps.
+  LiquidShapeSolver get shapes => surface.shapes;
+  set shapes(LiquidShapeSolver solver) => surface.shapes = solver;
 
   /// The volume and up the surface's height was last found for, and the
   /// height.

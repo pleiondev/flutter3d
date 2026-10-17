@@ -70,6 +70,7 @@ export 'src/fluid/outflow.dart';
 export 'src/fluid/particle_fluid.dart' hide moveParticlesInDart;
 export 'src/fluid/pipe.dart' hide flowPipesInDart;
 export 'src/fluid/puddle.dart';
+export 'src/fluid/shape_solves.dart';
 export 'src/fluid/vessel_shape.dart';
 export 'src/fluid/wetting.dart';
 export 'src/human_body.dart';
