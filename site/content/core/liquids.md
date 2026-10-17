@@ -116,6 +116,10 @@ Only water has a vapour curve so far; the other media do not evaporate yet.
 
 A cross-section not met before, or a meniscus, is a few milliseconds of solving. Where they are worked out is `FluidWorld.shapes`, a `LiquidShapeSolver`: at once by default. `BackgroundShapeSolver` from `flutter3d_physics_native` sends them to a long-lived isolate instead and keeps the answers where every vessel finds them; until an answer comes, a surface rings on the grid it had and a vessel goes without its meniscus. The answers are the same numbers, only later, so a world under a bit-exact profile refuses it. In the browser it works at once.
 
+## The pair loops as kernels
+
+The particles' loops over pairs of neighbours (density, the colour field, cohesion and curvature, the density constraint and its correction, XSPH) are also written once in the [kernel language](https://github.com/pleiondev/flutter3d/blob/main/docs/kernels.md), over flat buffers and compressed neighbour rows: `liquidPairKernels` and `KernelLiquid` in `flutter3d_physics_native`, a `FluidSolver` whose walls, moves and neighbour rows stay on the host. Where the loops run is the hardware layer's to say (`placeKernelLiquid` in `flutter3d_effects`): under a bit-exact profile on the CPU kernel, the same bytes on every machine. Where the run need not replay, a native executor takes them instead, the same loops in C on the processor's AVX2, AVX-512 or NEON lanes, held to the CPU kernel within a part in ten thousand of a spacing a substep (`KernelLiquid.nativeTolerance`) and refused under a bit-exact profile.
+
 ## Pipes between vessels
 
 A `Pipe` joins two bodies at given points. The column in it has inertia, so two vessels joined by a long pipe swing towards the same level and overshoot, as a U-tube does, and friction is Darcy's for the flow's Reynolds number plus minor losses. Pressure at each end counts every layer above it and the capillary pressure, so a narrow tube joined to a wide one stands higher by the difference of their capillary rises, not at the same height.
