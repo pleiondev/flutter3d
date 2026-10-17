@@ -27,6 +27,9 @@
 #     fails on any frame over 50 ms, which needs a GPU; .github/workflows/ci.yml
 #     runs it in a macOS job of its own, and its report lives in doc/pacing/.
 #     The nightly holds the A55 to p99 ≤ 33.3 ms on three demos.
+#   * The wgpu sidecar on Direct3D 12. Its compute checks need Windows, so
+#     .github/workflows/ci.yml's `wgpu-warp` job runs them on `windows-latest`
+#     through WARP, the software Direct3D 12 adapter, with no GPU.
 #   * Builds of every application. .github/workflows/ci.yml's `build` job
 #     builds what tool/build_apps.sh --matrix prints, one runner a cell.
 #   * The Android and iOS builds. They are compiled, but not by this script:
@@ -229,6 +232,14 @@ step "webgpu shaders" bash -c 'cd packages/flutter3d_webgpu && dart run tool/gen
 # `H6`: the compute stages, from their own manifest, through the same glslang
 # and naga. The same shape of check: regenerate, and fail on any difference.
 step "webgpu compute shaders" bash -c 'cd packages/flutter3d_webgpu && dart run tool/generate_compute_shaders.dart >/dev/null && git diff --exit-code -- lib/src/engine_compute_shaders.dart'
+
+# **The HLSL lint: every engine stage through the road a Direct3D 12 backend
+# would take.** The same glslang and naga as the two steps above, naga writing
+# HLSL this time, then DXC compiling it at shader model 6.0. Nothing reads HLSL
+# yet; this holds that the stages are already text the strictest HLSL compiler
+# accepts. Without DXC the naga half still runs and says DXC was skipped; under
+# CI (`CI` is set) a missing DXC is a failure, because ci.yml installs it.
+step "hlsl lint" in_dir packages/flutter3d_shaders dart run tool/hlsl_lint.dart ${CI:+--require-dxc}
 
 # **Impeller on Linux, through OpenGL ES (D56).** Linux drew nothing through
 # Impeller for as long as the engine's stages read `gl_VertexID`, which GLSL

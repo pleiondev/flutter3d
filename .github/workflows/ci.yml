@@ -124,6 +124,24 @@ jobs:
           command -v naga || cargo install naga-cli --version 30.0.1 --locked
           naga --version
 
+      # The "hlsl lint" step compiles naga's HLSL of every engine stage with
+      # DXC, the compiler a Direct3D 12 backend would ship with. Microsoft's
+      # Linux release archive, pinned for the reason glslang is: a compiler
+      # that updates itself is a step nobody can reproduce a week later. The
+      # archive's layout is found rather than assumed, and its libraries go
+      # on the loader's path for the steps after this one.
+      - name: dxc
+        run: |
+          sudo mkdir -p /opt/dxc
+          curl -fsSL https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.9.2607/linux_dxc_2026_07_29.x86_x64.tar.gz \
+            | sudo tar -xz -C /opt/dxc
+          dxc="$(find /opt/dxc -type f -name dxc | head -n 1)"
+          lib="$(dirname "$(find /opt/dxc -name 'libdxcompiler.so*' | head -n 1)")"
+          sudo chmod +x "$dxc"
+          dirname "$dxc" >> "$GITHUB_PATH"
+          echo "LD_LIBRARY_PATH=$lib" >> "$GITHUB_ENV"
+          LD_LIBRARY_PATH="$lib" "$dxc" --version
+
       # **The browser steps in `tool/ci.sh` drive Chrome**, a dozen of them:
       # the WebGL, WebGPU and pointer-lock suites, the physics core as
       # WebAssembly on one thread and on four workers. The runner image
@@ -479,6 +497,35 @@ jobs:
       - run: flutter pub get
       - run: flutter test
         working-directory: packages/flutter3d_physics_native
+
+  # The wgpu sidecar's compute and sharing checks on Direct3D 12, through
+  # WARP, the software adapter every Windows has: the runner has no GPU, and
+  # WARP is a full Direct3D 12 device, so the kernels go through naga's HLSL
+  # and the Direct3D 12 shader compiler for real. `F3D_WGPU_BACKEND` and
+  # `F3D_WGPU_FALLBACK` are read by test/sidecar_test.dart, which then fails
+  # rather than skips when there is no such adapter, and checks the sidecar
+  # reports the backend it was asked for. The hook builds the sidecar with
+  # MSVC and links the pinned wgpu-native, as on a developer's machine.
+  wgpu-warp:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ilammy/msvc-dev-cmd@v1
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.0'
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+      - run: flutter test test/sidecar_test.dart
+        working-directory: packages/flutter3d_wgpu
+        env:
+          F3D_WGPU_BACKEND: dx12
+          F3D_WGPU_FALLBACK: '1'
 
   godot:
     runs-on: ubuntu-latest
