@@ -55,20 +55,27 @@ final class Puddles {
       for (final e in _amounts.entries) e.key: e.value / volume,
   };
 
-  /// Lays [gone] down where each particle came to rest.
+  /// Lays [gone] down where each particle and each drop came to rest.
   void add(RetiredParticles gone) {
     gone.amounts.forEach((key, amount) {
       _amounts[key] = (_amounts[key] ?? 0.0) + amount;
     });
     for (final p in gone.positions) {
-      if (p.x < minX || p.x > maxX || p.z < minZ || p.z > maxZ) {
-        _off += gone.particleVolume;
-        continue;
-      }
-      final key = _key((p.x / cell).floor(), (p.z / cell).floor());
-      _cells[key] = (_cells[key] ?? 0.0) + gone.particleVolume;
-      _onTop += gone.particleVolume;
+      _lay(p, gone.particleVolume);
     }
+    for (final drop in gone.drops) {
+      _lay(drop.position, drop.volume);
+    }
+  }
+
+  void _lay(Vector3 p, double volume) {
+    if (p.x < minX || p.x > maxX || p.z < minZ || p.z > maxZ) {
+      _off += volume;
+      return;
+    }
+    final key = _key((p.x / cell).floor(), (p.z / cell).floor());
+    _cells[key] = (_cells[key] ?? 0.0) + volume;
+    _onTop += volume;
   }
 
   static const int _span = 1 << 15;

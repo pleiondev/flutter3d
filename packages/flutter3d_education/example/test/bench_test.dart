@@ -231,8 +231,29 @@ void main() {
         bench.step(1 / 60);
         expect(bench.world.jets, isEmpty, reason: 'it ran at frame $i');
       }
-      expect(flask.tilt, closeTo(bench.maxLean(flask), 1e-9));
-      expect(flask.liquid.volume, closeTo(held, held * 1e-9));
+      // All but what the room's air took off its surface, a part in ten
+      // million in two seconds; the furthest lean follows what it holds.
+      expect(flask.tilt, closeTo(bench.maxLean(flask), 1e-6));
+      expect(flask.liquid.volume, closeTo(held, held * 1e-6));
+    });
+
+    test('a glass is lifted alike whichever way it leans', () {
+      // A tube at the end of the row leaning off it has nothing to clear,
+      // and leaning over the row has a neighbour's mouth. Mutation: lift it
+      // by the side it leans to alone, and it lies on the bench one way
+      // and rises over the row the other.
+      double heightLeaning(double angle) {
+        final kit = cpuTestDevice(width: 8, height: 8);
+        final bench = Bench(kit.device);
+        final tube = bench.vessels.last;
+        bench.lean(tube, angle);
+        for (var i = 0; i < 120; i++) {
+          bench.step(1 / 60);
+        }
+        return tube.body.readPosition().y;
+      }
+
+      expect(heightLeaning(0.6), closeTo(heightLeaning(-0.6), 1e-6));
     });
 
     test('a lean is turned at a hand\'s pace, not at once', () {
@@ -306,15 +327,24 @@ void main() {
       expect(seconds, lessThan(5), reason: 'it never went still');
     }
     expect(spill.count, 0);
-    // Every cubic metre spilt lies on the bench or ran off it, and the
-    // bench still holds what it did.
-    expect(bench.puddles.volume, closeTo(spilt, spilt * 1e-9));
+    expect(spill.drops, isEmpty);
+    // Every cubic metre spilt lies on the bench or ran off it, but for what
+    // the drops gave the air on the way, and the bench still holds what it
+    // did.
+    expect(
+      bench.puddles.volume + spill.evaporated,
+      closeTo(spilt, spilt * 1e-9),
+    );
     expect(bench.puddles.onTop, greaterThan(0.5 * spilt));
     expect(bench.world.volume, closeTo(everything + spilt, spilt * 1e-6));
     // A film, not a drop: millimetres deep at most.
     expect(bench.puddles.deepest, lessThan(0.005));
-    // In the colour of what was spilt.
-    expect(bench.puddles.concentrations[dyes], closeTo(1.0, 1e-9));
+    // In the colour of what was spilt: every bit of its dye, a little
+    // stronger by the water the air took.
+    expect(
+      bench.puddles.concentrations[dyes]! * bench.puddles.volume,
+      closeTo(spilt, spilt * 1e-9),
+    );
   });
 
   test('sharing pours half into the clean tube, lip over the rim', () {
@@ -333,7 +363,8 @@ void main() {
       bench.step(1 / 60);
       seconds += 1 / 60;
       expect(seconds, lessThan(30));
-      if (from.liquid.volume < before - 1e-12) {
+      // More than the nanolitre or so the room's air takes now and then.
+      if (from.liquid.volume < before - 1e-10) {
         poured = true;
         // While it runs, its lip is over the clean tube's mouth.
         // Its own matrix: it hangs off the root, and the world's is only
@@ -354,8 +385,13 @@ void main() {
     expect(mine, closeTo(total / 2, total * 0.05));
     expect(theirs, closeTo(total / 2, total * 0.05));
     expect(bench.world.volume, closeTo(everything, everything * 1e-9));
-    // And the clean tube holds the colour poured into it.
-    expect(bench.color(to), bench.color(from));
+    // And the clean tube holds the colour poured into it: to the eye, since
+    // each tube gives the air its own share of water afterwards.
+    final ours = bench.color(from);
+    final shown = bench.color(to);
+    expect(shown.r, closeTo(ours.r, 1 / 255));
+    expect(shown.g, closeTo(ours.g, 1 / 255));
+    expect(shown.b, closeTo(ours.b, 1 / 255));
   });
 
   test('two dyes poured together are the colour light through both is', () {

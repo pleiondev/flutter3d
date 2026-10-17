@@ -15,6 +15,7 @@ import 'package:flutter3d_physics/flutter3d_physics.dart'
         PhysicsBackend,
         PlaneObstacle,
         RevolvedVessel,
+        SolidSurface,
         VesselVolumes,
         fallTime,
         overCircularLip;
@@ -410,7 +411,15 @@ final class Bench {
   late final FluidWorld world = FluidWorld(
     gravity: Vector3(0, -gravity, 0),
     particleSpacing: 0.001,
-    floor: [PlaneObstacle(normal: Vector3(0, 1, 0), offset: 0.0)],
+    // The top is phenolic resin, as a laboratory bench's is: water beads
+    // on it, and its edge holds a drop that lands there.
+    floor: [
+      PlaneObstacle(
+        normal: Vector3(0, 1, 0),
+        offset: 0.0,
+        surface: SolidSurface.benchTop,
+      ),
+    ],
     backend: physics,
   );
 
@@ -588,15 +597,15 @@ final class Bench {
   /// Walked up its axis: wherever the tipped glass is over another vessel's
   /// footprint, its underside there has to clear that vessel's top by a
   /// millimetre. A vessel leaning away from its neighbours is hardly lifted;
-  /// one leaning over a row of tubes goes over their mouths.
-  double _clearance(Vessel vessel) {
-    if (vessel.tilt == 0.0) return 0.0;
+  /// one leaning over a row of tubes goes over their mouths. At [tilt],
+  /// its own lean when not given.
+  double _clearance(Vessel vessel, [double? tilt]) {
+    final at = tilt ?? vessel.tilt;
+    if (at == 0.0) return 0.0;
     final turn = Matrix3.zero()
-      ..setFrom(
-        Quaternion.axisAngle(vessel.leanAxis, vessel.tilt).asRotationMatrix(),
-      );
+      ..setFrom(Quaternion.axisAngle(vessel.leanAxis, at).asRotationMatrix());
     final top = vessel.glass.map((p) => p.y).reduce(math.max);
-    final sideways = math.sin(vessel.tilt).abs();
+    final sideways = math.sin(at).abs();
     var lowest = double.infinity;
     for (final p in [...vessel.glass, ...?vessel.foot]) {
       for (var k = 0; k < 24; k++) {
@@ -679,7 +688,14 @@ final class Bench {
         lowest = math.min(lowest, turned.y);
       }
     }
-    final lift = _ease(vessel.lift) * _clearance(vessel);
+    // **Either way, the same height.** A hand takes a glass up out of the
+    // row whichever way it then tips it: lifted only as far as the side it
+    // leans to needs, a tube at the end of the row leaning off it was not
+    // lifted at all, and leaning one way and the other looked like two
+    // different hands.
+    final lift =
+        _ease(vessel.lift) *
+        math.max(_clearance(vessel), _clearance(vessel, -vessel.tilt));
     final y = vessel.at.y - lowest + lift;
     vessel.body
       ..setRotation(turn)
@@ -1117,15 +1133,21 @@ final class Bench {
         _streams.remove(source)!.removeFromParent();
       }
     }
+    for (final source in _streamMirrors.keys.toList()) {
+      if (!pouring.containsKey(source)) {
+        _streamMirrors.remove(source)!.removeFromParent();
+      }
+    }
     pouring.forEach((source, jet) {
       any = true;
       final mesh = jetMesh(jet);
       final from = vessels.firstWhere((v) => identical(v.liquid, source));
+      final tint = _rgb(color(from));
       final node = _streams.putIfAbsent(source, () {
         final made =
             MeshNode(
                 _upload(mesh),
-                liquid(_rgb(color(from)), depth: 0.002)..doubleSided = true,
+                liquid(tint, depth: 0.002)..doubleSided = true,
                 name: 'stream',
               )
               ..castsShadow = false
@@ -1135,23 +1157,73 @@ final class Bench {
       });
       _swap(node, mesh);
       node.isVisible = mesh.triangleCount > 0;
+      // In the tabletop too, as the liquid it ran from is.
+      final mirrored = _streamMirrors.putIfAbsent(source, () {
+        final made = _mirroredInWorld(_reflection(albedo: null, color: tint));
+        _reflections.add(made);
+        return made;
+      });
+      _swap(mirrored, mesh);
+      mirrored.isVisible = node.isVisible;
     });
     world.particles.forEach((medium, fluid) {
+      // The colour of what is in them: a drop of permanganate is purple.
+      final tint = _mixed(fluid.concentrations);
       final node = _drops.putIfAbsent(medium, () {
         final made = MeshNode(
           _upload(particleMesh(const [], 0.0005)),
-          liquid(Vector3(0.9, 0.95, 1.0), depth: 0.001),
+          liquid(_rgb(tint), depth: 0.001),
           name: 'drops',
         )..castsShadow = false;
         scene.add(made);
         return made;
       });
-      if (fluid.count > 0) any = true;
-      _swap(node, particleMesh(fluid.positions, 0.5 * fluid.spacing));
-      node.isVisible = fluid.count > 0;
+      final mirrored = _dropMirrors.putIfAbsent(medium, () {
+        final made = _mirroredInWorld(
+          _reflection(albedo: null, color: _rgb(tint)),
+        );
+        _reflections.add(made);
+        return made;
+      });
+      if (_dropColors[medium] != tint) {
+        _dropColors[medium] = tint;
+        node.material = liquid(_rgb(tint), depth: 0.001);
+        mirrored.material = _reflection(albedo: null, color: _rgb(tint));
+      }
+      // The particles on the glass and the drops, each one body, in flight
+      // or come to rest and not yet a puddle.
+      final spilt = fluid.count > 0 || fluid.drops.isNotEmpty;
+      if (spilt) any = true;
+      final mesh = particleMesh(fluid.positions, 0.5 * fluid.spacing);
+      _swap(node, mesh);
+      _swap(mirrored, mesh);
+      node.isVisible = spilt;
+      mirrored.isVisible = spilt;
     });
     return any;
   }
+
+  /// What is drawn in the world's own frame — the streams and the drops —
+  /// hung upside down under the tabletop as its reflection.
+  late final SceneNode _reflections = () {
+    final made = SceneNode(name: 'reflections')..setScale(1, -1, 1);
+    scene.add(made);
+    return made;
+  }();
+
+  final Map<LiquidBody, MeshNode> _streamMirrors = {};
+  final Map<String, MeshNode> _dropMirrors = {};
+  final Map<String, Color> _dropColors = {};
+
+  /// A node for [_reflections] drawn with [material], its mesh to come.
+  MeshNode _mirroredInWorld(RenderMaterial material) =>
+      MeshNode(
+          _upload(particleMesh(const [], 0.0005)),
+          material,
+          name: 'reflection',
+        )
+        ..castsShadow = false
+        ..lightChannels = LightChannels.none;
 
   // -------------------------------------------------------------- shadows
 
