@@ -10,7 +10,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_effects/flutter3d_effects.dart';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
-import 'package:vector_math/vector_math.dart';
 
 import 'diver.dart' show squeezeAt;
 import 'looks.dart';

@@ -11,7 +11,6 @@ import 'package:flutter3d_camera/flutter3d_camera.dart'
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/run_physics.dart';
-import 'package:vector_math/vector_math.dart';
 
 // #region tuning
 /// The six numbers `CameraRig` needs to place itself, gathered under a name

@@ -22,7 +22,6 @@ import 'package:flutter3d_core/src/engine/render/renderer.dart'
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// [projection] applied to a point [distance] down the view axis, as NDC z
 /// — in double precision from the matrix's own entries, so what is asked of

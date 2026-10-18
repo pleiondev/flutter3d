@@ -31,7 +31,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_demo_content/map_world.dart' show nearestSeam;
 import 'package:flutter3d_game_strategy/bridge.dart';
 import 'package:flutter3d_game_strategy/flutter3d_game_strategy.dart';
-import 'package:vector_math/vector_math.dart';
 
 import 'ground_paint.dart';
 import 'woods.dart';

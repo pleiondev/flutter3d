@@ -23,7 +23,6 @@ import 'package:flutter3d_sim/flutter3d_sim.dart'
         GameAction,
         InputState,
         Snapshot;
-import 'package:vector_math/vector_math.dart';
 
 import 'diver.dart';
 import 'finds.dart';

@@ -13,7 +13,6 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// Where the sea comes to on her, in her frame: the box floats a little
 /// under a third of its depth, light as she is.

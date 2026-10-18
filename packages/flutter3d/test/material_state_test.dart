@@ -15,7 +15,6 @@ import 'package:flutter3d/flutter3d.dart' as engine show RenderMaterial;
 // ignore: implementation_imports
 import 'package:flutter3d_core/src/engine/render/render_list.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// A material with nothing left at its default, so that a copy which drops a
 /// field drops something visible.

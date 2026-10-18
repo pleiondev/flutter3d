@@ -19,7 +19,6 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// Every kind of pass the renderer holds a pipeline for, in one frame: two
 /// shadowed lights so the map and the cube atlas are both drawn, a skinned and

@@ -21,7 +21,6 @@ import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 import 'package:flutter3d_game_strategy/bridge.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// Every model the generator writes, found by looking rather than by a list
 /// typed here: a model that stops being generated should fail, not vanish.

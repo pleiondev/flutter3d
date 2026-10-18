@@ -17,7 +17,6 @@ import 'package:flutter3d_modeler/src/simulation_collision_draw.dart';
 import 'package:flutter3d_modeler/src/simulation_playback.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 import 'support/simulation_cache_stub.dart';
 

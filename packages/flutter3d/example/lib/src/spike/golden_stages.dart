@@ -14,7 +14,6 @@ import 'package:flutter3d_build/src/impostor_bake.dart';
 // ignore: implementation_imports
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
-import 'package:vector_math/vector_math.dart';
 
 import 'golden_extras.dart';
 import 'golden_scene.dart';

@@ -21,7 +21,6 @@ import 'package:flutter3d_modeler/src/ui/agent_session_panel.dart';
 import 'package:flutter3d_modeler/src/ui/theme.dart';
 import 'package:flutter3d_modeler/src/ui/top_bar_actions.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 import 'support/fake_graphics_backend.dart';
 

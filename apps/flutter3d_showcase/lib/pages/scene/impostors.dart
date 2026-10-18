@@ -9,7 +9,6 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// A ball of the tree: where it is, how big, and its colour as a paint
 /// program shows it.

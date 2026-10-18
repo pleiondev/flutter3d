@@ -33,7 +33,6 @@ import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_level_scene/flutter3d_level_scene.dart'
     show meshDataOf;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart';
 
 import 'src/building.dart';
 import 'src/economy.dart';

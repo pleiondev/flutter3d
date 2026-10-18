@@ -5,7 +5,6 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// A box nine hundred units long, off to one side and above its origin: the
 /// shape of a free model authored in centimetres by somebody who never

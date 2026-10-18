@@ -14,7 +14,6 @@ import 'dart:typed_data';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_effects/flutter3d_effects.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// One piece of a model: geometry, where it sits in the model, and the
 /// colour and picture its file gave it.

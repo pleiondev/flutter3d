@@ -14,7 +14,6 @@ import 'package:flutter3d_app/software.dart' show materialLanguageCompiler;
 import 'package:flutter3d_cpu/flutter3d_cpu.dart'
     show CpuDevice, CpuLoadedShaderLibrary;
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class UserMaterialsDemo extends ShowcaseDemo {
   // #region source

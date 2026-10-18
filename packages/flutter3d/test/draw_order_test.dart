@@ -14,7 +14,6 @@ import 'package:flutter3d/flutter3d.dart' as engine show RenderMaterial;
 import 'package:flutter3d_core/src/engine/render/render_list.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// Boxes in a row along the view axis, nearest first, all of [material],
 /// each named by its order in [orders].

@@ -6,7 +6,6 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class OffAxisProjectionDemo extends ShowcaseDemo {
   double shift = 0.5;

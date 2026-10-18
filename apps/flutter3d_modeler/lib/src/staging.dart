@@ -18,7 +18,6 @@ import 'dart:math' as math;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
-import 'package:vector_math/vector_math.dart';
 
 import 'material_pool.dart';
 import 'scene_sync.dart';

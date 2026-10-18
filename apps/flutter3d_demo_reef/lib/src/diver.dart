@@ -11,7 +11,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_effects/flutter3d_effects.dart';
 import 'package:flutter3d_matter/flutter3d_matter.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
-import 'package:vector_math/vector_math.dart';
 
 import 'looks.dart';
 

@@ -14,7 +14,6 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
-import 'package:vector_math/vector_math.dart';
 
 import 'overlay_ink.dart';
 

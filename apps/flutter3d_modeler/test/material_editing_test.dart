@@ -11,7 +11,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_modeler/src/material_editing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 ModelObject _object({List<int> materialSlots = const <int>[]}) => ModelObject(
   id: 1,

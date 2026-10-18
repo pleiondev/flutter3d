@@ -15,7 +15,6 @@ import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_effects/flutter3d_effects.dart';
-import 'package:vector_math/vector_math.dart';
 
 import 'looks.dart';
 import 'terrain.dart';

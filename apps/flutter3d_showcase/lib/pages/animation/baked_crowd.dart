@@ -16,7 +16,6 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class BakedCrowdDemo extends ShowcaseDemo {
   double _time = 0.0;

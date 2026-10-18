@@ -19,7 +19,6 @@ import 'dart:math' as math;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// A neck link's length and radius, m, and how many there are.
 const double _neckLength = 1.3, _neckRadius = 0.22;

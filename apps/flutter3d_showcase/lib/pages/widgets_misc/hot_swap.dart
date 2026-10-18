@@ -13,7 +13,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class HotSwapDemo extends ShowcaseDemo {
   /// The coordinator every `SceneSurface` registers with. It holds nothing

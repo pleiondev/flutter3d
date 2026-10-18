@@ -6,7 +6,6 @@ import 'package:flutter3d_demo_reef/src/staging.dart';
 import 'package:flutter3d_demo_reef/src/terrain.dart';
 import 'package:flutter3d_demo_reef/src/wreck.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// The hull as the game draws her, read from the file it ships.
 Future<HullRoom> _hull() async {

@@ -13,7 +13,6 @@ import 'package:flutter3d/flutter3d.dart';
 // ignore: implementation_imports
 import 'package:flutter3d_core/src/engine/render/render_list.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class DrawControlDemo extends ShowcaseDemo {
   /// Whether the red panel is drawn first, and so keeps the shared pixels.

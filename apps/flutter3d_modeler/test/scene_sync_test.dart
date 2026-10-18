@@ -25,7 +25,6 @@ import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_modeler/src/scene_sync.dart';
 import 'package:flutter3d_modeler/src/staging.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// A device that refuses the first [refuseFirst] geometry uploads and then
 /// behaves — `ux-02`'s own case, where a real backend answered

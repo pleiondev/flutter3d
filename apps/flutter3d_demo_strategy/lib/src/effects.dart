@@ -20,7 +20,6 @@ import 'package:flutter3d_effects/flutter3d_effects.dart';
 import 'package:flutter3d_elements/flutter3d_elements.dart';
 import 'package:flutter3d_matter/flutter3d_matter.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
-import 'package:vector_math/vector_math.dart';
 
 import 'kit.dart' show pondLevel;
 import 'map_world.dart';

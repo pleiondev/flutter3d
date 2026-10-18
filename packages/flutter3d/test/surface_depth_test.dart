@@ -30,7 +30,6 @@ import 'package:flutter3d/flutter3d.dart';
 // ignore: implementation_imports
 import 'package:flutter3d_cpu/src/cpu_shaders_builtin.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// A camera at [eye] looking at the origin, with [projection].
 CameraNode _camera(Projection projection, Vector3 eye) =>
