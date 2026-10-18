@@ -33,6 +33,7 @@ import 'splat_cloud.dart';
 
 /// Thrown when a file is not a PLY this can read, with the reason in it.
 final class SplatPlyException extends Flutter3dFormatException {
+  /// A refusal whose [message] says what in the file is wrong.
   const SplatPlyException(this.message);
   @override
   final String message;

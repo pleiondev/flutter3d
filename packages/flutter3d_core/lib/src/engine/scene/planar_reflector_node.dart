@@ -26,6 +26,8 @@ import 'scene_node.dart';
 ///
 /// Drawn only while `RenderSettings.planarReflections` is on.
 final class PlanarReflectorNode extends SceneNode {
+  /// A mirror over [surfaces], reflecting fully at half the frame's
+  /// resolution, every layer.
   PlanarReflectorNode({
     Iterable<MeshNode> surfaces = const <MeshNode>[],
     this.reflectance = 1.0,

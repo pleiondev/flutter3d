@@ -58,6 +58,8 @@ import 'package:flutter3d_shaders/kernel.dart' show WorkgroupSize;
 /// language would be a member of that block; it is not written, and the reason
 /// is scope rather than impossibility.
 final class MaterialParameter {
+  /// A parameter [name] of [type] defaulting to [defaultValue]; a `param`
+  /// unless [uniform].
   const MaterialParameter(
     this.name,
     this.type,
@@ -66,7 +68,11 @@ final class MaterialParameter {
     this._block,
   });
 
+  /// The parameter's name as the source declares it, and what a variant
+  /// sets it by.
   final String name;
+
+  /// The parameter's type: a `float` or a vector of up to four.
   final ExpressionType type;
 
   /// As many numbers as [type] has components.
@@ -94,6 +100,7 @@ const String materialParametersBlock = 'MaterialParams';
 /// One texture slot the material samples, by the name the engine binds it
 /// under.
 final class MaterialTextureSlot {
+  /// The slot the source calls [name], bound under [bindingName].
   const MaterialTextureSlot(this.name, this.bindingName);
 
   /// What the source calls it.
@@ -122,9 +129,14 @@ const String materialOwnTexturePrefix = 'material_';
 /// struct written twice — so an input here is a field both already have, never
 /// something one side would have to compute.
 final class MaterialInput {
+  /// An input [name] of [type], read in GLSL by [glsl], present from
+  /// language version [since].
   const MaterialInput(this.name, this.type, this.glsl, {required this.since});
 
+  /// The name a material body reads it by: `uv`, `normal`.
   final String name;
+
+  /// The value's type: a `float` or a vector of up to four.
   final ExpressionType type;
 
   /// The GLSL that reads it, given a `Surface s` in scope.
@@ -366,10 +378,16 @@ const List<MaterialInput> materialComputeInputs = <MaterialInput>[
 final class MaterialStageKind {
   const MaterialStageKind._(this.name);
 
+  /// A surface the engine draws a mesh with, opened by `material`.
   static const MaterialStageKind surface = MaterialStageKind._('material');
+
+  /// One full-screen fragment stage over the picture.
   static const MaterialStageKind fullscreen = MaterialStageKind._('fullscreen');
+
+  /// A kernel run once per texel of a storage texture it writes.
   static const MaterialStageKind compute = MaterialStageKind._('compute');
 
+  /// Every kind this version knows, in declaration order.
   static const List<MaterialStageKind> all = <MaterialStageKind>[
     surface,
     fullscreen,
@@ -393,28 +411,41 @@ final class MaterialStageKind {
 final class MaterialBlend {
   const MaterialBlend._(this.name, {required this.translucent});
 
+  /// Covers what is behind it and writes depth; alpha is ignored.
   static const MaterialBlend opaque = MaterialBlend._(
     'opaque',
     translucent: false,
   );
+
+  /// Cut away where alpha is below the cutoff, opaque elsewhere.
   static const MaterialBlend mask = MaterialBlend._('mask', translucent: false);
+
+  /// Cut away by alpha against a noise threshold anchored to world
+  /// position, so coverage dithers rather than blends; writes depth.
   static const MaterialBlend hashed = MaterialBlend._(
     'hashed',
     translucent: false,
   );
+
+  /// Over what is behind it by alpha, on straight colour.
   static const MaterialBlend alpha = MaterialBlend._(
     'alpha',
     translucent: true,
   );
+
+  /// Adds the colour, times its alpha, to what is behind it.
   static const MaterialBlend additive = MaterialBlend._(
     'additive',
     translucent: true,
   );
+
+  /// Over what is behind it, on a colour already multiplied by its alpha.
   static const MaterialBlend premultiplied = MaterialBlend._(
     'premultiplied',
     translucent: true,
   );
 
+  /// Every blend this version knows, in declaration order.
   static const List<MaterialBlend> all = <MaterialBlend>[
     opaque,
     mask,
@@ -424,6 +455,8 @@ final class MaterialBlend {
     premultiplied,
   ];
 
+  /// Returns the blend a `state` block calls [name], or null for a word
+  /// this version does not know.
   static MaterialBlend? byName(String name) {
     for (final blend in all) {
       if (blend.name == name) return blend;
@@ -487,6 +520,8 @@ const int materialDepthLayerLimit = 16;
 ///
 /// Null is "the file says nothing", which leaves `RenderMaterial`'s own default.
 final class MaterialFileState {
+  /// A `state` block saying only the settings given; the two switches
+  /// default to on.
   const MaterialFileState({
     this.blend,
     this.cutoff,
@@ -504,10 +539,13 @@ final class MaterialFileState {
   /// A file with no `state` block.
   static const MaterialFileState none = MaterialFileState();
 
+  /// How the surface combines with what is behind it.
   final MaterialBlend? blend;
 
   /// The alpha a [MaterialBlend.mask] surface is cut at, nought to one.
   final double? cutoff;
+
+  /// Whether the surface writes depth.
   final bool? depthWrite;
 
   /// `off` is a depth test that always passes — `depthCompare always`.
@@ -518,6 +556,8 @@ final class MaterialFileState {
 
   /// A masked edge as multisample coverage — `RenderMaterial.alphaToCoverage`.
   final bool? alphaToCoverage;
+
+  /// Whether back faces are drawn too.
   final bool? doubleSided;
 
   /// Which of two coplanar surfaces wins — `RenderMaterial.depthLayer`.
@@ -629,11 +669,19 @@ const Map<String, int> materialBuiltinVersions = <String, int>{
 ///
 /// Extendable outside this package, and stays so through 1.x.
 abstract base class MaterialExpressionVisitor<R> extends ExpressionVisitor<R> {
+  /// A const constructor for the visitors that extend this one.
   const MaterialExpressionVisitor();
 
+  /// Answers a read of one of [materialInputs].
   R visitInputRef(MaterialInputRef expression);
+
+  /// Answers a read of a declared parameter not yet folded.
   R visitParamRef(MaterialParamRef expression);
+
+  /// Answers a read of a `let` bound earlier.
   R visitLocalRef(MaterialLocalRef expression);
+
+  /// Answers a `sample(slot, uv)`.
   R visitSample(MaterialSample expression);
 
   /// A variable a material did not bind: none the parser makes.
@@ -652,8 +700,10 @@ abstract base class MaterialExpressionVisitor<R> extends ExpressionVisitor<R> {
 
 /// One of [materialInputs].
 final class MaterialInputRef extends ExpressionVariable {
+  /// A read of [input], named and typed as it is.
   MaterialInputRef(this.input) : super(input.name, input.type);
 
+  /// The input read.
   final MaterialInput input;
 
   @override
@@ -670,8 +720,10 @@ final class MaterialInputRef extends ExpressionVariable {
 /// fold of the same tree, rather than a parse per variant that could differ in
 /// some other way than the numbers.
 final class MaterialParamRef extends ExpressionVariable {
+  /// A read of [parameter], named and typed as it is.
   MaterialParamRef(this.parameter) : super(parameter.name, parameter.type);
 
+  /// The parameter read.
   final MaterialParameter parameter;
 
   @override
@@ -683,6 +735,7 @@ final class MaterialParamRef extends ExpressionVariable {
 
 /// A `let` bound earlier in the body.
 final class MaterialLocalRef extends ExpressionVariable {
+  /// A read of the `let` called `name`, of type `type`.
   const MaterialLocalRef(super.name, super.type);
 
   @override
@@ -700,9 +753,13 @@ final class MaterialLocalRef extends ExpressionVariable {
 /// needs whatever the backend binds textures with. A reader that knows only
 /// the expression language meets it at [ExpressionVisitor.visitUnknown].
 final class MaterialSample extends Expression {
+  /// A sample of [slot] at [uv], a `vec4`.
   const MaterialSample(this.slot, this.uv) : super(ExpressionType.vec4);
 
+  /// The texture sampled.
   final MaterialTextureSlot slot;
+
+  /// Where it is sampled, a `vec2` texture coordinate.
   final Expression uv;
 
   @override
@@ -719,6 +776,7 @@ final class MaterialSample extends Expression {
 /// at [MaterialStatementVisitor.visitUnknown], and a translator written
 /// against 1.0 refuses it by name rather than breaking.
 abstract base class MaterialStatement {
+  /// A const constructor for the statements that extend this one.
   const MaterialStatement();
 
   /// Hands this statement to the [visitor]'s method for its kind;
@@ -733,10 +791,16 @@ abstract base class MaterialStatement {
 ///
 /// Extendable outside this package, and stays so through 1.x.
 abstract base class MaterialStatementVisitor<R> {
+  /// A const constructor for the visitors that extend this one.
   const MaterialStatementVisitor();
 
+  /// Answers a `let`.
   R visitLet(MaterialLet statement);
+
+  /// Answers a `return`.
   R visitReturn(MaterialReturn statement);
+
+  /// Answers an `out`.
   R visitOutput(MaterialOutput statement);
 
   /// What a kind this visitor has no method for answers.
@@ -745,9 +809,13 @@ abstract base class MaterialStatementVisitor<R> {
 
 /// `let name = expr;` — single assignment, so nothing here is a variable.
 final class MaterialLet extends MaterialStatement {
+  /// `let` [name] `=` [value].
   const MaterialLet(this.name, this.value);
 
+  /// The name bound, read later as a [MaterialLocalRef].
   final String name;
+
+  /// What it is bound to; its type is the binding's.
   final Expression value;
 
   @override
@@ -757,8 +825,11 @@ final class MaterialLet extends MaterialStatement {
 /// `return expr;` — a `vec4`, rgb being the light the surface emits and a its
 /// opacity, which is what `WriteSurface` takes.
 final class MaterialReturn extends MaterialStatement {
+  /// `return` [value].
   const MaterialReturn(this.value);
 
+  /// What the block answers: a `vec4` for a fragment body, a `vec3` for a
+  /// `light`, `ambient` or `composite` block.
   final Expression value;
 
   @override
@@ -769,9 +840,13 @@ final class MaterialReturn extends MaterialStatement {
 /// `vertex` block — version 2. Each at most once, and the block's only way
 /// to say anything: it has no `return`.
 final class MaterialOutput extends MaterialStatement {
+  /// `out` [output] `=` [value].
   const MaterialOutput(this.output, this.value);
 
+  /// The output written, one of the block's outputs.
   final MaterialInput output;
+
+  /// What is written to it, of the output's type.
   final Expression value;
 
   @override
@@ -786,6 +861,7 @@ final class MaterialOutput extends MaterialStatement {
 /// do in [apply], so a kind a later minor adds (a unit change, a split of
 /// one parameter into two) needs nothing of a reader but to call it.
 abstract base class MaterialUpdate {
+  /// A step leading to [version].
   const MaterialUpdate(this.version);
 
   /// The material version this step leads to: it applies to a value
@@ -800,9 +876,13 @@ abstract base class MaterialUpdate {
 /// `2: rename ink -> inkColor;` — the value of [from] is [to]'s from
 /// [version] on.
 final class MaterialRenameUpdate extends MaterialUpdate {
+  /// A rename of [from] to [to] at `version`.
   const MaterialRenameUpdate(super.version, this.from, this.to);
 
+  /// The parameter's name before `version`.
   final String from;
+
+  /// The parameter's name from `version` on.
   final String to;
 
   @override
@@ -821,8 +901,10 @@ final class MaterialRenameUpdate extends MaterialUpdate {
 /// changed scale (a roughness that became perceptual, a size in another
 /// unit).
 final class MaterialScaleUpdate extends MaterialUpdate {
+  /// A scale of [name] by [factor] at `version`.
   const MaterialScaleUpdate(super.version, this.name, this.factor);
 
+  /// The parameter whose value is scaled.
   final String name;
 
   /// What the value is multiplied by: a pure number, a fraction or a
@@ -846,8 +928,10 @@ final class MaterialScaleUpdate extends MaterialUpdate {
 /// instance's value for it is dropped rather than kept for a parameter
 /// that a later version may declare again with another meaning.
 final class MaterialRemoveUpdate extends MaterialUpdate {
+  /// A removal of [name] at `version`.
   const MaterialRemoveUpdate(super.version, this.name);
 
+  /// The parameter whose value is dropped.
   final String name;
 
   @override
@@ -876,6 +960,8 @@ const int firstMaterialVersion = 1;
 /// An instance written for a version of a material this build does not
 /// have: a newer one, or none at all.
 final class MaterialVersionException extends Flutter3dFormatException {
+  /// The refusal for an instance of [material] written for [written] when
+  /// the build has [current].
   const MaterialVersionException(this.material, this.written, this.current);
 
   /// The material's name.
@@ -901,6 +987,8 @@ final class MaterialVersionException extends Flutter3dFormatException {
 
 /// A material read from source: its name, what it declares, and its body.
 final class MaterialProgram {
+  /// A program as the parser builds it; every block not given is absent,
+  /// and the program a version 1 surface at material version 1.
   const MaterialProgram({
     required this.name,
     required this.parameters,
@@ -922,6 +1010,8 @@ final class MaterialProgram {
     this.surface,
   });
 
+  /// The material's name as the source declares it: `Glow` for
+  /// `material Glow { … }`.
   final String name;
 
   /// The engine's model the material is lit by — `lighting standard;`,
@@ -1053,8 +1143,14 @@ final class MaterialProgram {
   /// y` or `workgroup x y z` line, eight by eight by one without one.
   final WorkgroupSize workgroupSize;
 
+  /// Each `param` and `uniform` the source declares, in declaration order.
   final List<MaterialParameter> parameters;
+
+  /// Each texture the source samples or declares, in declaration order.
   final List<MaterialTextureSlot> textures;
+
+  /// The fragment body's statements, ending in a [MaterialReturn]; empty
+  /// for a material lit by the standard model.
   final List<MaterialStatement> body;
 
   /// The `light` block, or null for a material that gathers no lights —
@@ -1090,6 +1186,7 @@ final class MaterialProgram {
   /// `vertexShaderName` says.
   String? get vertexStageName => vertex == null ? null : '${name}Vertex';
 
+  /// Returns the parameter declared as [name], or null when there is none.
   MaterialParameter? parameter(String name) {
     for (final parameter in parameters) {
       if (parameter.name == name) return parameter;
@@ -1105,8 +1202,11 @@ final class MaterialProgram {
 /// software backend — which is what they have to be, since a parameter is a
 /// constant folded into the code.
 final class MaterialVariant {
+  /// A variant named [name], setting [values]; none by default.
   const MaterialVariant(this.name, {this.values = const {}});
 
+  /// The entry point the variant compiles to, and what a `LightingModel`
+  /// asks the bundle for.
   final String name;
 
   /// Parameter name to value. Anything not named keeps its default; a

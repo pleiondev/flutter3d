@@ -19,6 +19,7 @@ typedef SkyColor = LinearColor Function(SkyLook look);
 /// one and rewrites it; [direction] is scratch inside scratch. Read it, do not
 /// keep it. `paintSky` is where the one instance lives.
 final class SkyLook {
+  /// A look to be filled by the gradient and rewritten on every ask.
   SkyLook();
 
   /// One look, allocated. For a caller that asks once — a game tinting its fog
@@ -40,6 +41,8 @@ final class SkyLook {
 /// exactly this, and a game that wants to know what colour the air is (to tint
 /// its fog, to pick a light) wants to ask without owning a mesh.
 final class SkyGradient {
+  /// A gradient through [zenith], [horizon] and [nadir], with a sun towards
+  /// [directionToSun] (normalised here; a default high sun when null).
   SkyGradient({
     required this.zenith,
     required this.horizon,
@@ -57,12 +60,19 @@ final class SkyGradient {
   /// looks down at nothing — over the edge of a drop, mostly — which is haze,
   /// and haze is darker.
   final LinearColor zenith;
+
+  /// The sky level with the horizon, in linear light.
   final LinearColor horizon;
+
+  /// The sky straight down, in linear light; haze rather than the ground.
   final LinearColor nadir;
 
   /// A unit vector pointing **at** the sun. A directional light points the
   /// other way, so a scene built from one preset negates this for the light.
   final Vector3 directionToSun;
+
+  /// The colour of the sun's disc and glow, in linear light; a warm white by
+  /// default.
   final LinearColor sunColor;
 
   /// The wide scattering lobe: how tight it is, and how bright.

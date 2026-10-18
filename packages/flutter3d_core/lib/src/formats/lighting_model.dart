@@ -50,6 +50,10 @@ import 'material_language/material_slots.dart';
 /// would use. `usesMaterialParameters` and `usesMetallic` are not about
 /// binding at all: they tell an editor which controls do something.
 final class LightingModel {
+  /// A model shown as [label] and drawn with the fragment stage
+  /// [shaderName]; the flags default to what a lit stage binds. Asserts
+  /// that a model sampling the metallic-roughness map samples the material
+  /// maps.
   const LightingModel(
     this.label,
     this.shaderName, {
@@ -78,6 +82,8 @@ final class LightingModel {
          'in exactly that state until a golden caught it.',
        );
 
+  /// The base colour as it is, with no light: no material maps, no
+  /// parameters.
   static const LightingModel unlit = LightingModel(
     'Unlit',
     'Unlit',
@@ -162,15 +168,21 @@ final class LightingModel {
     vertexStageMorphs: false,
   );
 
+  /// Diffuse light alone, no highlight; samples no metallic-roughness map.
   static const LightingModel lambert = LightingModel(
     'Lambert',
     'Lambert',
     usesMetallicRoughnessMap: false,
   );
+
+  /// Diffuse light and a Blinn-Phong highlight.
   static const LightingModel blinnPhong = LightingModel(
     'Blinn-Phong',
     'BlinnPhong',
   );
+
+  /// glTF's metal-rough model with a GGX highlight, reading metallic and
+  /// the environment light.
   static const LightingModel pbr = LightingModel(
     'PBR (GGX)',
     'Pbr',
@@ -213,6 +225,9 @@ final class LightingModel {
   /// addon: a material asking for it reads and draws with or without the
   /// addon installed. The stages leave the engine bundle with 2.0.
   static const LightingModel toon = LightingModel('Toon', 'Toon');
+
+  /// A debug view: the surface normal drawn as a colour, binding nothing
+  /// of the material.
   static const LightingModel normals = LightingModel(
     'Normals',
     'Normals',
@@ -530,6 +545,7 @@ final class VertexStageVariant {
     'Lightmapped',
   );
 
+  /// Every variant this version names, in declaration order.
   static const List<VertexStageVariant> values = <VertexStageVariant>[
     skinned,
     instanced,

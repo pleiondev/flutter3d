@@ -40,6 +40,8 @@ import 'renderer.dart';
 /// }
 /// ```
 abstract base class RenderStepAddon extends Flutter3dPlugin {
+  /// An addon called [id] providing [provides], and adding or replacing the
+  /// steps and stages named.
   const RenderStepAddon({
     required this.id,
     required this.provides,

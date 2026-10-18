@@ -64,6 +64,7 @@ import 'sky_gradient.dart';
 /// they buy: the colour is per vertex, so a coarse dome gives visible bands
 /// exactly where the gradient changes fastest.
 final class SkyDome extends Shape {
+  /// A dome 10 m in radius, of 24 rings and 32 segments, called `sky`.
   const SkyDome({
     this.radius = 10.0,
     this.rings = 24,
@@ -73,7 +74,12 @@ final class SkyDome extends Shape {
 
   /// In metres.
   final double radius;
+
+  /// Bands from the zenith to the nadir, a count; more makes the gradient
+  /// smoother.
   final int rings;
+
+  /// Slices round the vertical axis, a count.
   final int segments;
 
   @override

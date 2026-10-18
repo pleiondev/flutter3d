@@ -21,6 +21,7 @@ import 'sky_settings.dart';
 ///
 /// The caller owns [texture] and releases it with the device.
 final class EnvironmentCube {
+  /// A cube [texture] of [levels] mip levels, from mirror to rough.
   const EnvironmentCube(this.texture, this.levels);
 
   /// The cube, its levels from mirror to rough.
@@ -588,6 +589,7 @@ List<ByteData> _convolve(
 /// Bytes [EnvironmentMap.fromEncoded] was handed that are neither a Radiance
 /// `.hdr` nor an image its decoder reads.
 final class PanoramaFormatException extends Flutter3dFormatException {
+  /// The exception, saying why in [message].
   const PanoramaFormatException(this.message);
 
   @override

@@ -52,6 +52,8 @@ final class AnimationInterpolation {
   /// writes for this value. Never renamed within a major.
   final String name;
 
+  /// Reads a glTF `sampler.interpolation`: `STEP`, `CUBICSPLINE`, and
+  /// [linear] for `LINEAR`, null or any name glTF does not define.
   static AnimationInterpolation fromGltf(String? name) => switch (name) {
     'STEP' => AnimationInterpolation.step,
     'CUBICSPLINE' => AnimationInterpolation.cubicSpline,
@@ -86,10 +88,13 @@ final class AnimationInterpolation {
 final class AnimationPath {
   const AnimationPath._(this.name, this.componentCount);
 
+  /// The node's position relative to its parent, xyz in metres.
   static const AnimationPath translation = AnimationPath._('translation', 3);
 
+  /// The node's rotation as a unit quaternion, xyzw.
   static const AnimationPath rotation = AnimationPath._('rotation', 4);
 
+  /// The node's scale per axis, xyz factors.
   static const AnimationPath scale = AnimationPath._('scale', 3);
 
   /// Morph target weights. Decoded so the clip is complete, but the player has
@@ -131,6 +136,8 @@ final class AnimationPath {
   /// morph targets", which only the accessor knows.
   final int componentCount;
 
+  /// Reads a glTF `channel.target.path`; null for a path this version does
+  /// not know, or for none.
   static AnimationPath? fromGltf(String? name) => switch (name) {
     'translation' => AnimationPath.translation,
     'rotation' => AnimationPath.rotation,
@@ -162,6 +169,12 @@ final class AnimationPath {
 /// small objects is the shape that turns into GC pressure inside the frame
 /// budget.
 final class AnimationTrack {
+  /// A track of [times] and [values] driving [path] of node [nodeIndex].
+  ///
+  /// Throws an [ArgumentError] when [pointer] is given for a path other
+  /// than [AnimationPath.pointer] or missing for that one, when there are no
+  /// keyframes, or when [values] does not hold [componentCount] floats per
+  /// key and per [AnimationInterpolation.valuesPerKey].
   AnimationTrack({
     required this.nodeIndex,
     required this.path,
@@ -197,7 +210,12 @@ final class AnimationTrack {
   /// every other path.
   final AnimationPointer? pointer;
 
+  /// Which property of the node, or of the pointer's object, the track
+  /// drives.
   final AnimationPath path;
+
+  /// How values between keyframes are found: held, blended in a straight
+  /// line, or along a cubic spline.
   final AnimationInterpolation interpolation;
 
   /// Keyframe times in seconds, ascending.
@@ -220,6 +238,7 @@ final class AnimationTrack {
   /// When the last keyframe is, in seconds.
   double get endTime => times.last;
 
+  /// Count of keyframes, at least one.
   int get keyCount => times.length;
 
   /// Samples the track at [time], writing [componentCount] values into [out].

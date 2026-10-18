@@ -213,11 +213,16 @@ const FormatSpec f3dmatFormat = FormatSpec(
 /// Line and column rather than a byte offset: the author is looking at the
 /// text in an editor, and "at 1:14" is a place they can put a cursor.
 final class MaterialSyntaxException extends Flutter3dFormatException {
+  /// A refusal saying [message] at [line] and [column] of the source.
   const MaterialSyntaxException(this.message, this.line, this.column);
 
   @override
   final String message;
+
+  /// The source line where reading failed, counted from one.
   final int line;
+
+  /// The column on [line] where reading failed, counted from one.
   final int column;
 
   @override

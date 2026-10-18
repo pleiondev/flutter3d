@@ -25,6 +25,7 @@ final class SoftwareOcclusion {
   /// not fit in what is left is skipped rather than drawn in part.
   static const int triangleBudget = 2000;
 
+  /// The depth buffer the occluders are drawn into, at its default size.
   final OcclusionBuffer buffer = OcclusionBuffer();
 
   /// How many meshes the last [prepare] drew into the buffer.

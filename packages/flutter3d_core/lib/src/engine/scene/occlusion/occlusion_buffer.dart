@@ -34,6 +34,8 @@ import 'occlusion_test.dart';
 /// Tiles of 8 × 8 keep the farthest depth under them, so a box behind a
 /// whole tile is rejected in one comparison rather than sixty-four.
 final class OcclusionBuffer with OcclusionTest {
+  /// A buffer of [width] by [height] pixels, cleared to the far plane.
+  /// Asserts that both are multiples of [tileSize].
   OcclusionBuffer({this.width = defaultWidth, this.height = defaultHeight})
     : assert(
         width % tileSize == 0 && height % tileSize == 0,
@@ -47,7 +49,10 @@ final class OcclusionBuffer with OcclusionTest {
     _tileMax.fillRange(0, _tileMax.length, double.infinity);
   }
 
+  /// Width of the buffer in pixels unless one is given: 256.
   static const int defaultWidth = 256;
+
+  /// Height of the buffer in pixels unless one is given: 128.
   static const int defaultHeight = 128;
 
   /// The side of a tile, in pixels.
@@ -64,7 +69,10 @@ final class OcclusionBuffer with OcclusionTest {
   /// plane the software backend clips at.
   static const double _nearW = 1e-5;
 
+  /// Width of the buffer in pixels, a multiple of [tileSize].
   final int width;
+
+  /// Height of the buffer in pixels, a multiple of [tileSize].
   final int height;
 
   final Float64List _depth;

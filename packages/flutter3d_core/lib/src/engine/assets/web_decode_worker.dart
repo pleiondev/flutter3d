@@ -65,12 +65,18 @@ abstract final class WebDecodeWorker {
 /// What [WebDecodeWorker] says and the browser's client of it reads and
 /// writes. Not exported.
 final class WebDecodeWorkerState {
+  /// The script [WebDecodeWorker.use] named, or null.
   Uri? script;
 
   /// Bumped by [WebDecodeWorker.use] and [WebDecodeWorker.stop], so a
   /// running worker for an older choice is stopped.
   int generation = 0;
+
+  /// Why the last decode in the browser ran in place, or null when it ran on
+  /// the worker or none has run.
   String? inPlaceReason;
+
+  /// How many decodes the worker has answered, a count.
   int decoded = 0;
 }
 

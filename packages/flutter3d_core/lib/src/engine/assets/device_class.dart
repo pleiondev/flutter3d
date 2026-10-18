@@ -96,6 +96,7 @@ final class UnknownDeviceClassException extends Flutter3dFormatException {
       '${DeviceClass.values.join(', ')}';
 
   @override
+  /// The exception for the unknown name [text].
   String toString() => 'UnknownDeviceClassException: $message';
 }
 
@@ -130,6 +131,7 @@ final class DeviceTraits {
   factory DeviceTraits.of(GraphicsDevice device, {required bool web}) =>
       DeviceTraits(
         web: web,
+  /// Traits stated directly; [DeviceTraits.of] reads them off a device.
         samplesBc:
             device
                 .textureFormatSupport(TextureFormat.bc1RGBAUNormInt)
@@ -190,6 +192,8 @@ final class DeviceClassSelector {
   final Duration desktopLimit;
 
   /// The class for [traits], given the probe frame took [measuredMicros]
+  /// A selector that takes a probe frame within [desktopLimit] for a
+  /// desktop, 8 ms by default.
   /// (null when nothing was measured, which leaves the flags to decide
   /// alone).
   DeviceClass choose(DeviceTraits traits, {int? measuredMicros}) {
@@ -269,6 +273,8 @@ final class InMemoryDeviceClassMemory extends DeviceClassMemory {
   Future<void> write(String? value) async => _value = value;
 }
 
+  /// A memory holding the given class to begin with, or nothing when it is
+  /// null.
 /// The class this device reads its assets as: picked once, remembered, and
 /// overridable by the player.
 ///
@@ -287,14 +293,21 @@ final class DeviceClassPicker {
   final DeviceClassSelector selector;
 
   static const String _measured = 'measured:';
+  /// A picker for a device with [traits], remembering its answer in [memory]
+  /// (in process memory when null) and measuring with [selector].
   static const String _chosen = 'chosen:';
 
   /// The classes a player may choose between here — see
   /// [DeviceClass.availableOn].
   List<DeviceClass> get choices => DeviceClass.availableOn(web: traits.web);
 
+  /// What the device can do, as the picker was given it.
   /// The remembered class, or — the first time — the one [measure] and the
+
+  /// Where the picked class is remembered between runs.
   /// traits pick, which is then remembered. [measure] is called only when
+
+  /// How a measured probe frame becomes a class.
   /// nothing usable is remembered; null picks from the traits alone.
   ///
   /// A remembered class this device cannot read (a phone's answer carried to

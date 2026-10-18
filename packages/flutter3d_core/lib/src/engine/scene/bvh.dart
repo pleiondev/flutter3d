@@ -100,6 +100,7 @@ final class SceneBvh {
   /// what it did is still enormously better than the linear pass it replaced.
   static const double rebuildAbove = 2.0;
 
+  /// How many tree nodes the tree holds, a count; nought when it is empty.
   int get nodeCount => _nodeCount;
 
   /// How many meshes are in the tree, as against [nodeCount] of tree nodes.
@@ -118,6 +119,7 @@ final class SceneBvh {
   /// the one a scene where things merely move should be taking every frame.
   int get refitCount => _refits;
 
+  /// Whether the tree holds no node, as before its first build.
   bool get isEmpty => _nodeCount == 0;
 
   /// Brings the tree up to date with [spheres] when [stamp] says they moved.

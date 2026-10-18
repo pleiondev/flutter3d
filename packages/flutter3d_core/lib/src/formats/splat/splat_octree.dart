@@ -40,6 +40,8 @@ import 'splat_cloud.dart';
 
 /// One box of the tree.
 final class SplatOctreeNode {
+  /// A node read from the table or built by the tree; [splats] null until
+  /// its page is attached.
   SplatOctreeNode({
     required this.x,
     required this.y,
@@ -62,6 +64,8 @@ final class SplatOctreeNode {
   /// The children are nodes `firstChild .. firstChild + childCount - 1`,
   /// contiguous because the tree is stored breadth first.
   final int firstChild;
+
+  /// Count of children, up to eight; zero for a leaf.
   final int childCount;
 
   /// How many splats this node draws when the cut stops here.
@@ -74,18 +78,24 @@ final class SplatOctreeNode {
   /// — or null while its page has not arrived.
   SplatCloud? splats;
 
+  /// Whether the node has no children, so its splats are the originals.
   bool get isLeaf => childCount == 0;
+
+  /// Whether the node's page has arrived and [splats] is set.
   bool get isLoaded => splats != null;
 }
 
 /// A cloud as a tree of levels of detail. Node 0 is the root.
 final class SplatOctree {
+  /// A tree over [nodes], breadth first, the root at index 0.
   SplatOctree(this.nodes)
     : leafSplatCount = nodes.fold(
         0,
         (int sum, SplatOctreeNode n) => n.isLeaf ? sum + n.splatCount : sum,
       );
 
+  /// Every node, breadth first: each node's children are contiguous and
+  /// come after it.
   final List<SplatOctreeNode> nodes;
 
   /// Every leaf's splats together: the whole original cloud.
@@ -551,6 +561,7 @@ const String splatOctreeExtension = '.f3dsplat';
 
 /// Thrown when bytes are not a splat tree this can read.
 final class SplatOctreeException extends Flutter3dFormatException {
+  /// A refusal whose [message] says what in the bytes is wrong.
   const SplatOctreeException(this.message);
   @override
   final String message;

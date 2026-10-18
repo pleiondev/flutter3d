@@ -32,6 +32,7 @@ import 'pass_contributor.dart' show ContributorFrame;
 /// nothing here can reach. The stencil test compares stencil values, not
 /// depths, and is passed through untouched.
 abstract base class DepthTurningEncoder extends PassEncoder {
+  /// An encoder turning the depth comparisons it passes on to the one given.
   DepthTurningEncoder(this._inner);
 
   final PassEncoder _inner;
@@ -282,6 +283,8 @@ abstract base class DepthTurningEncoder extends PassEncoder {
 /// under reversed depth.
 final class TurnedBundleEncoder extends DepthTurningEncoder
     with RenderBundleEncoder {
+  /// A bundle encoder turning the depth comparisons it passes on to the one
+  /// given.
   TurnedBundleEncoder(RenderBundleEncoder super.inner);
 
   @override

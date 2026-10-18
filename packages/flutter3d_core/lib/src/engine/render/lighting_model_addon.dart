@@ -46,6 +46,8 @@ import 'renderer.dart';
 /// with no renderer installs this as a plugin that does nothing, as a
 /// [RenderStepAddon] does.
 abstract base class LightingModelAddon extends Flutter3dPlugin {
+  /// An addon called [id] providing [models], with the [stages] they are
+  /// drawn with when it brings its own.
   const LightingModelAddon({
     required this.id,
     required this.models,

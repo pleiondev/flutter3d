@@ -94,6 +94,7 @@ abstract base class ModelDecoder {
 /// type, where it came from — without breaking a decoder written against
 /// 1.0.
 final class ModelProbe {
+  /// A probe of the file [fileName] holding [bytes].
   const ModelProbe({required this.fileName, required this.bytes});
 
   /// The file's name, lower case; may be empty.
@@ -107,6 +108,8 @@ final class ModelProbe {
 ///
 /// One object for the reason [ModelProbe] gives.
 final class ModelDecodeContext {
+  /// The [bytes] to decode, the [request] they were read for, and the way
+  /// to [resolveUri] their siblings.
   const ModelDecodeContext({
     required this.bytes,
     required this.request,
@@ -127,6 +130,8 @@ final class ModelDecodeContext {
 
 /// Everything a decode needs, in one sendable object.
 final class ModelLoadRequest {
+  /// A request to read [source], its format found from the file and every
+  /// other choice at the loaders' defaults unless given.
   const ModelLoadRequest({
     required this.source,
     this.format = ModelFormat.auto,
@@ -137,10 +142,20 @@ final class ModelLoadRequest {
     this.lightingModels,
   });
 
+  /// Where the file is read from, and the key its decode is cached under.
   final AssetSource source;
+
+  /// The format to read the file as; [ModelFormat.auto] picks it from the
+  /// extension, then from the bytes.
   final ModelFormat format;
+
+  /// The vertex layout the meshes are decoded into.
   final VertexLayout layout;
+
+  /// What an OBJ with no `vn` records gets for normals.
   final ObjNormals objNormals;
+
+  /// Whether an STL's facet normals are read or recomputed.
   final StlNormals stlNormals;
 
   /// The engine's lighting models, `Renderer.lightingModels`, that a

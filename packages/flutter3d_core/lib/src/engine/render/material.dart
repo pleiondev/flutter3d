@@ -115,6 +115,7 @@ final class RenderMaterial {
     this.albedo,
     this.albedoSampler,
     this.normal,
+  /// The mode's lower-case name, such as `alpha`.
     this.normalSampler,
     this.normalScale = 1.0,
     this.metallicRoughness,
@@ -129,6 +130,8 @@ final class RenderMaterial {
     this.alphaMode = MaterialAlphaMode.opaque,
     this.alphaCutoff = 0.5,
     this.alphaToCoverage = false,
+  /// A material drawn with [lighting], white, dielectric and half rough,
+  /// with no maps; every argument is the field of the same name.
     this.doubleSided = false,
     this.fogged = true,
     this.extensions,
@@ -237,6 +240,7 @@ final class RenderMaterial {
   /// Every uniform in this engine is a float vector, a matrix or an array of
   /// either, so floats are the only value there is. An integer or a boolean
   /// is encoded as a float, the same way the built-in shaders do it.
+  /// A label for logs and tools, or null when the material has none.
   ///
   /// **Values of the material's own, empty by default and open to
   /// additions** — `P8`. A material from `BundledMaterials.material` checks
@@ -314,7 +318,12 @@ final class RenderMaterial {
   /// Ambient occlusion in red.
   TextureHandle? occlusion;
   SamplerDescriptor? occlusionSampler;
+  /// Base colour map, sRGB, multiplied by [baseColor]. Null binds the
+  /// renderer's fallback albedo, white by default.
 
+
+  /// How [albedo] is sampled; null samples with
+  /// `SamplerDescriptor.linearRepeat`.
   /// How much of the occlusion map to apply, from 0 (ignore) to 1 (in full).
   double occlusionStrength;
 
@@ -325,6 +334,9 @@ final class RenderMaterial {
   ///
   /// Only a mesh drawn with `MeshNode.lightmapped` has a second coordinate
   /// to sample at; a material with a map on a mesh without one samples the
+
+  /// How [normal] is sampled; null samples with
+  /// `SamplerDescriptor.linearRepeat`.
   /// map's corner. Null binds a one-texel black, which adds nothing, so every
   /// lit model samples the slot and nothing branches.
   TextureHandle? lightmap;
@@ -332,16 +344,26 @@ final class RenderMaterial {
 
   /// Linear emissive factor, multiplied by the emissive map. Black by default,
   /// so a material with a map but no factor emits nothing — which is what glTF
+
+  /// How [metallicRoughness] is sampled; null samples with
+  /// `SamplerDescriptor.linearRepeat`.
   /// specifies. Alpha is not read.
   LinearColor emissive;
 
   /// How bright [emissive] is, in **nits** (cd/m²) since 1.0: an emissive of
+
+  /// How [occlusion] is sampled; null samples with
+  /// `SamplerDescriptor.linearRepeat`.
   /// white shines at this luminance, and a colour at its share of it.
   ///
   /// [defaultEmissiveStrength] by default.
   double emissiveStrength;
 
+  /// Emissive map, sRGB, multiplied by [emissive]. Null binds white.
   /// The luminance an emissive of white shines at when nothing says
+
+  /// How [emissiveTexture] is sampled; null samples with
+  /// `SamplerDescriptor.linearRepeat`.
   /// otherwise: 1 843.2 nits, candela per square meter.
   ///
   /// The luminance the old default of one stood for, so a glowing surface
@@ -351,6 +373,9 @@ final class RenderMaterial {
   /// hundred nits, a lit sign a few thousand.
   static const double defaultEmissiveStrength = 1843.2;
 
+
+  /// How [lightmap] is sampled; null samples with
+  /// `SamplerDescriptor.linearRepeat`.
   MaterialAlphaMode alphaMode;
 
   /// A 0..1 fraction: in the mask mode, alpha below it is cut away.
@@ -374,6 +399,8 @@ final class RenderMaterial {
   /// everything; false for what is meant to stand beyond the fog: a far
   /// horizon of hills, a moon, a skyline painted on a backdrop.
   ///
+  /// How the material's alpha is used: ignored, cut at [alphaCutoff], or
+  /// blended over what is behind.
   /// **For the layer behind the weather.** Enduro's mountains stay on the
   /// horizon through fog and dusk while the road and the cars fade into it;
   /// with fog on every material they faded first, being furthest away, and
@@ -391,6 +418,9 @@ final class RenderMaterial {
   /// [sheenMap].
   MaterialExtensions? extensions;
 
+
+  /// Whether both faces of a triangle are drawn, whatever
+  /// `RenderSettings.backfaceCulling` says. Off by default.
   /// The coat map: red the clear coat, green its roughness, blue the
   /// transmission and alpha the thickness, each multiplying its factor in
   /// [extensions]. Null binds white, which leaves the factors as they are.
@@ -422,6 +452,9 @@ final class RenderMaterial {
   final Map<MaterialMap, TextureTransform> textureTransforms;
 
   /// Coarse manual ordering: it outranks every other
+
+  /// How [coatMap] is sampled; null samples with
+  /// `SamplerDescriptor.linearRepeat`.
   /// sort term, so a skybox or an overlay can be forced to a fixed position
   /// without touching the sorting policy.
   ///
@@ -429,6 +462,9 @@ final class RenderMaterial {
   /// so the only way to be drawn *before* the scene is to ask for less than it.
   /// The usable range is −128 to 127 and values outside it are clamped.
   /// [MeshNode.drawOrder] adds to it, for an order between nodes that share
+
+  /// How [sheenMap] is sampled; null samples with
+  /// `SamplerDescriptor.linearRepeat`.
   /// this material.
   int drawBucket;
 
@@ -538,6 +574,8 @@ final class RenderMaterial {
           parameterBlock: parameterBlock,
           parameters: parameters.copy(),
           extraTextures: Map<String, TextureHandle>.of(extraTextures),
+  /// Whether the material is blended over what is behind it, and so drawn in
+  /// the sorted transparent pass.
           lighting: lighting,
           baseColor: baseColor,
           metallic: metallic,
@@ -623,6 +661,7 @@ extension BundledMaterialLooks on BundledMaterials {
       name: materialName ?? name,
       lighting: this[name],
       parameters: parameters(name),
+/// Ready-made [RenderMaterial]s for the bundled material library.
       alphaMode: switch (blend) {
         MaterialBlend.mask => MaterialAlphaMode.mask,
         MaterialBlend.hashed => MaterialAlphaMode.hashed,

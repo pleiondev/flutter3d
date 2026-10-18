@@ -41,6 +41,8 @@ import 'material_ast.dart';
 /// [checkMaterialSurface] exists to ask that question once rather than per
 /// draw.
 final class MaterialSurfaceValues {
+  /// A fragment's [inputs] and texture [sample]r, with no uniforms bound
+  /// unless [uniforms] is given.
   const MaterialSurfaceValues({
     required this.inputs,
     required this.sample,

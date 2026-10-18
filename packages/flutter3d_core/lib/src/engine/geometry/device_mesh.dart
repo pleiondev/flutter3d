@@ -61,6 +61,8 @@ abstract base class DrawableGeometry with MeshGeometry {
   /// Interleaved vertex attributes, in the layout the vertex stage declares.
   GeometryBuffer get vertices;
 
+  /// The triangle-list indices into [vertices], at the width [indexType]
+  /// names.
   GeometryBuffer get indices;
 
   /// The width of one index. Chosen at upload from the vertex count.
@@ -83,6 +85,7 @@ abstract base class DrawableGeometry with MeshGeometry {
 /// could never carry the bounds or cone a later culling test wants beside
 /// the table, and a class takes them with a default.
 final class ClusteredIndices {
+  /// Runs of [indices] described by [table].
   const ClusteredIndices({required this.table, required this.indices});
 
   /// The runs, with each one's bounds.

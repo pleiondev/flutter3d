@@ -95,6 +95,10 @@ LightingModel? readLightingJson(
   );
 }
 
+/// Writes [model] as the lighting word a `.fmat` or `.f3d` stores: its name
+/// when the name reads back as this very model in [models] (null is
+/// [LightingModels.shipped]) or belongs to a plugin, and otherwise an object
+/// describing its shader and the flags that differ from the defaults.
 Object writeLightingJson(LightingModel model, {LightingModels? models}) {
   // By name when the name reads back as this very model — built in or
   // registered — and as a description otherwise. A plugin's model is always

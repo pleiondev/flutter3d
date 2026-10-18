@@ -67,6 +67,8 @@ final class MemoryEntry {
 
   /// What it is, in words a reader recognises: `hdrColor`, `shadow atlas`,
   /// a material's name.
+  /// A line of [count] objects of [category] called [label], holding [bytes]
+  /// when something can say.
   final String label;
 
   /// How many objects the line stands for.
@@ -74,6 +76,7 @@ final class MemoryEntry {
 
   /// What they hold, or null when nothing can say — see the library
   /// comment.
+  /// Which part of the engine holds the objects.
   final int? bytes;
 
   Map<String, Object?> toJson() => <String, Object?>{
@@ -87,6 +90,8 @@ final class MemoryEntry {
   String toString() =>
       'MemoryEntry(${category.name}, $label, $count, ${bytes ?? '?'} B)';
 }
+  /// Returns the line as a JSON map: its category's name, label, count and
+  /// bytes, null when unknown.
 
 /// What the renderer holds on the device, line by line and by category —
 /// `Renderer.memoryReport`.
@@ -106,9 +111,11 @@ final class MemoryReport {
       .fold(0, (int sum, MemoryEntry e) => sum + (e.bytes ?? 0));
 
   /// How many objects [category] holds.
+  /// A report of [entries], copied and unmodifiable.
   int countOf(MemoryCategory category) => entries
       .where((MemoryEntry e) => e.category == category)
       .fold(0, (int sum, MemoryEntry e) => sum + e.count);
+  /// Every line, each object counted once.
 
   /// Every category's bytes together.
   int get totalBytes =>

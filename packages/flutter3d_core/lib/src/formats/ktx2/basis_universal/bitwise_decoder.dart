@@ -78,6 +78,7 @@ final class HuffmanDecodingTable {
   List<int> _lookup = const [];
   List<int> _tree = const [];
 
+  /// Whether [init] has built the tables; false for a fresh table.
   bool get isValid => _codeSizes.isNotEmpty;
 
   /// Builds the tables [BitwiseDecoder.decodeHuffman] reads.
@@ -239,6 +240,8 @@ final class HuffmanDecodingTable {
 /// table and every block in the file was written by an encoder that packed
 /// bits this way.
 final class BitwiseDecoder {
+  /// A reader at the first bit of the given bytes. Reading past their end
+  /// reads zero bits rather than throwing.
   BitwiseDecoder(this._buf);
 
   final Uint8List _buf;
@@ -248,6 +251,8 @@ final class BitwiseDecoder {
 
   int _nextByte() => _pos < _buf.length ? _buf[_pos++] : 0;
 
+  /// Returns the next [numBits] bits, low bit first, without consuming
+  /// them.
   int peekBits(int numBits) {
     if (numBits == 0) return 0;
     while (_bitBufSize < numBits) {
@@ -257,11 +262,14 @@ final class BitwiseDecoder {
     return _bitBuf & ((1 << numBits) - 1);
   }
 
+  /// Consumes [numBits] bits, which a [peekBits] of at least as many must
+  /// have buffered.
   void removeBits(int numBits) {
     _bitBuf >>= numBits;
     _bitBufSize -= numBits;
   }
 
+  /// Reads and consumes the next [numBits] bits, low bit first.
   int getBits(int numBits) {
     final bits = peekBits(numBits);
     removeBits(numBits);
@@ -283,6 +291,8 @@ final class BitwiseDecoder {
     return v;
   }
 
+  /// Reads one symbol coded by [table], which [HuffmanDecodingTable.init]
+  /// must have built, and consumes its code.
   int decodeHuffman(HuffmanDecodingTable table) {
     while (_bitBufSize < 16) {
       _bitBuf |= _nextByte() << _bitBufSize;

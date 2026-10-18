@@ -69,6 +69,8 @@ abstract final class FrameResourceIds {
 
   /// The point lights' cube atlases, dynamic and baked.
   static const ResourceId cubeShadow = ResourceId('f3d.cube_shadow');
+
+  /// The atlas of the static point-shadow bake, maintained across frames.
   static const ResourceId cubeShadowStatic = ResourceId(
     'f3d.cube_shadow_static',
   );

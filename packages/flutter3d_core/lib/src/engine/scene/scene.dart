@@ -31,12 +31,15 @@ import 'scene_node.dart';
 /// per node is exactly the shape that produces GC pressure inside the frame
 /// budget.
 final class Scene {
+  /// An empty scene whose [root] is called [name], or `root` when it is null.
   Scene({String? name}) : root = SceneNode(name: name ?? 'root') {
     // The root belongs to this scene from the start, so anything added below it
     // registers itself immediately.
     root.bindToScene(this);
   }
 
+  /// The node every other node of the scene hangs under; bound to this scene
+  /// from the start, so a node added below it registers at once.
   final SceneNode root;
 
   /// How many times something asked for the static shadow atlas to be drawn
@@ -107,6 +110,7 @@ final class Scene {
     _meshes,
   );
 
+  /// Every light attached under [root], as a read-only view of the registry.
   List<LightNode> get lights => _lightsView;
 
   // ------------------------------------------------------- 1.0: the origin
@@ -209,28 +213,36 @@ final class Scene {
     _lights,
   );
 
+  /// Every camera attached under [root], as a read-only view of the registry.
   List<CameraNode> get cameras => _camerasView;
   late final List<CameraNode> _camerasView = UnmodifiableListView<CameraNode>(
     _cameras,
   );
 
+  /// Every LOD group attached under [root], as a read-only view.
   List<LodGroup> get lodGroups => _lodGroupsView;
   late final List<LodGroup> _lodGroupsView = UnmodifiableListView<LodGroup>(
     _lodGroups,
   );
 
+  /// Every reflection probe attached under [root], as a read-only view.
   List<ReflectionProbeNode> get probes => _probesView;
   late final List<ReflectionProbeNode> _probesView =
       UnmodifiableListView<ReflectionProbeNode>(_probes);
 
+  /// Every decal attached under [root], as a read-only view.
   List<DecalNode> get decals => _decalsView;
   late final List<DecalNode> _decalsView = UnmodifiableListView<DecalNode>(
     _decals,
   );
+
+  /// Every planar reflector attached under [root], as a read-only view.
   List<PlanarReflectorNode> get reflectors => _reflectorsView;
   late final List<PlanarReflectorNode> _reflectorsView =
       UnmodifiableListView<PlanarReflectorNode>(_reflectors);
 
+  /// The views drawn into textures before the scene, in the order
+  /// [addTextureView] added them; read-only.
   List<CameraView> get textureViews => _textureViewsView;
   late final List<CameraView> _textureViewsView =
       UnmodifiableListView<CameraView>(_textureViews);
@@ -259,6 +271,8 @@ final class Scene {
   /// `LightNode.defaultIntensity`.
   double ambientIntensity = 347.43501468;
 
+  /// Tint of the ambient light, in linear light, multiplied with
+  /// [ambientIntensity]. White by default.
   LinearColor ambientColor = LinearColor.white;
 
   /// Whether a scene with nothing lighting it gets a key light anyway.
@@ -320,6 +334,8 @@ final class Scene {
     return node;
   }
 
+  /// Detaches [node] from its parent, and with it from this scene's lists.
+  /// Does nothing for a node without a parent.
   void remove(SceneNode node) => node.removeFromParent();
 
   /// Detaches everything under the root and empties the registries.
@@ -521,31 +537,47 @@ final class SceneTurn {
 /// themselves on attach and detach. Not exported by `flutter3d_core.dart`:
 /// a node is added with `Scene.add`, and the lists follow.
 extension SceneRegistry on Scene {
+  /// Adds [node] to [Scene.meshes]; called by the node on attach.
   void registerMesh(MeshNode node) => _meshes.add(node);
 
+  /// Removes [node] from [Scene.meshes]; called by the node on detach.
   void unregisterMesh(MeshNode node) => _meshes.remove(node);
 
+  /// Adds [node] to [Scene.lights]; called by the node on attach.
   void registerLight(LightNode node) => _lights.add(node);
 
+  /// Removes [node] from [Scene.lights]; called by the node on detach.
   void unregisterLight(LightNode node) => _lights.remove(node);
 
+  /// Adds [node] to [Scene.cameras]; called by the node on attach.
   void registerCamera(CameraNode node) => _cameras.add(node);
 
+  /// Removes [node] from [Scene.cameras]; called by the node on detach.
   void unregisterCamera(CameraNode node) => _cameras.remove(node);
 
+  /// Adds [node] to [Scene.lodGroups]; called by the group on attach.
   void registerLodGroup(LodGroup node) => _lodGroups.add(node);
 
+  /// Removes [node] from [Scene.lodGroups]; called by the group on detach.
   void unregisterLodGroup(LodGroup node) => _lodGroups.remove(node);
 
+  /// Adds [node] to [Scene.probes]; called by the probe on attach.
   void registerProbe(ReflectionProbeNode node) => _probes.add(node);
 
+  /// Removes [node] from [Scene.probes]; called by the probe on detach.
   void unregisterProbe(ReflectionProbeNode node) => _probes.remove(node);
 
+  /// Adds [node] to [Scene.decals]; called by the decal on attach.
   void registerDecal(DecalNode node) => _decals.add(node);
 
+  /// Removes [node] from [Scene.decals]; called by the decal on detach.
   void unregisterDecal(DecalNode node) => _decals.remove(node);
+
+  /// Adds [node] to [Scene.reflectors]; called by the reflector on attach.
   void registerReflector(PlanarReflectorNode node) => _reflectors.add(node);
 
+  /// Removes [node] from [Scene.reflectors]; called by the reflector on
+  /// detach.
   void unregisterReflector(PlanarReflectorNode node) =>
       _reflectors.remove(node);
 }

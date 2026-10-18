@@ -38,6 +38,7 @@ const double _tau = math.pi * 2.0;
 /// from 16 rings the error is about 5.6 degrees. Pass [profileNormals] when the
 /// profile has a known analytic normal, as [SphereShape] and [CapsuleShape] do.
 final class LatheShape extends Shape {
+  /// [profile] swept a full turn in 32 segments unless told otherwise.
   const LatheShape({
     required this.profile,
     this.segments = 32,
@@ -48,7 +49,12 @@ final class LatheShape extends Shape {
     this.name = 'lathe',
   });
 
+  /// The polyline swept, `(radius, height)` in metres, radius never
+  /// negative; [build] throws an [ArgumentError] for fewer than two points.
   final List<Vector2> profile;
+
+  /// Count of steps around the axis, at least three; [build] throws an
+  /// [ArgumentError] below that.
   final int segments;
 
   /// In radians.

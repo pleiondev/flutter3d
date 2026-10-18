@@ -65,6 +65,7 @@ final class LightPackContext {
 /// A [LightType.custom] with no hook registered is drawn as its base, as it
 /// always was. Extendable outside this package, and stays so through 1.x.
 abstract base class LightTypeHook {
+  /// Lets a subclass be const.
   const LightTypeHook();
 
   /// The type this hook packs.

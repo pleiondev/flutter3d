@@ -14,6 +14,7 @@ import 'environment_map.dart';
 /// Six faces cut from a panorama and the chain convolved from them: all the
 /// CPU work an environment cube costs, with only the upload left.
 final class PanoramaFaces {
+  /// Faces of [size] pixels a side and the [chain] convolved from them.
   const PanoramaFaces({
     required this.size,
     required this.faces,

@@ -194,8 +194,11 @@ final class Ktx2Texture {
       _readLevels(bytes, view, levelCount, supercompressionScheme),
     );
   }
+
+  /// Width of the base level in pixels, from the header.
   final int pixelWidth;
 
+  /// Height of the base level in pixels, from the header.
   final int pixelHeight;
 
   /// The Khronos `VkFormat` number the mip bytes are in — see [VkFormat] for
@@ -640,6 +643,7 @@ Ktx2Texture _parseUniversal(
 /// What [universalBlockFormat] says of a universal-block file: whether it
 /// [hasAlpha]. An open class rather than a bool, so it can say more later.
 final class UniversalBlockFormat {
+  /// A description of a file that does or does not [hasAlpha].
   const UniversalBlockFormat({required this.hasAlpha});
 
   /// Whether the file carries alpha (RGBA) or not (RGB).

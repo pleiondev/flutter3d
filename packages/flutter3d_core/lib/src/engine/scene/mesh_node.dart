@@ -103,9 +103,14 @@ base class MeshNode extends SceneNode {
   ///
   /// **Per node, over a shared material.** A hundred tankers share one
   /// material; flashing the one that was hit, or fading the one sinking,
+  /// A node drawing [mesh] with [material], called [name].
   /// meant a material of its own made for the moment. The colour is linear,
   /// as a vertex colour and an instance colour are, and is applied on the
+  /// The geometry drawn, held on the CPU side; the renderer uploads it.
+  /// May be replaced.
   /// material's base colour for this node's draw alone.
+
+  /// The appearance the geometry is drawn with. May be replaced.
   ///
   /// **Below one alpha, the node is drawn blended**, in the transparent pass
   /// and sorted with it, whatever its material's own alpha mode. A node at

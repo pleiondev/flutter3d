@@ -82,6 +82,8 @@ const double splatLeanLimit = 1.3;
 /// orthographic, handed in whole by an application — is the one the ellipses
 /// follow.
 final class SplatLens {
+  /// A lens looking down [forward] with [focal], unweighted and unshifted in
+  /// depth, with half-angle tangents of one (a 90-degree view) unless told.
   const SplatLens({
     required this.forward,
     required this.focal,
@@ -144,6 +146,7 @@ final class SplatLens {
 /// checked without a device — the same split `MeshOverlay` makes between
 /// filling a batch and encoding one.
 final class SplatQuads {
+  /// Quads for every splat of one fixed [cloud].
   SplatQuads(SplatCloud cloud) : _cloud = cloud, lod = null;
 
   /// Draws a splat tree at [lod]'s budget instead of one fixed cloud: every
@@ -214,6 +217,8 @@ final class SplatQuads {
   /// How many vertices [vertices] currently holds.
   int vertexCount = 0;
 
+  /// The quad vertices the last [build] wrote; only the first [vertexCount]
+  /// are current, and the list may be replaced when it grows.
   Float32List get vertices => _vertices;
 
   /// Makes the next [build] sort, however little the eye moved — for a
@@ -537,6 +542,8 @@ final class SplatComposite {
 
 /// Draws a cloud into the scene pass.
 final class SplatContributor extends PassContributor {
+  /// A contributor drawing every splat of [cloud], under [node]'s transform
+  /// when one is given.
   SplatContributor(
     SplatCloud cloud, {
     this.node,
@@ -564,6 +571,7 @@ final class SplatContributor extends PassContributor {
 
   final Float32List _projection = Float32List(4);
 
+  /// The quads the contributor builds and draws.
   final SplatQuads quads;
 
   /// Sorted, hashed, or whichever the frame's temporal setting calls for.

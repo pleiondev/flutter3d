@@ -16,6 +16,8 @@ import 'ktx2/encode/rgba8_image.dart';
 /// What a [TextureCodec] is handed for one encoded image: one object that
 /// can gain members, rather than a list of parameters that grows.
 final class TextureDecodeContext {
+  /// The [bytes] of one image, with no size cap and nowhere to report
+  /// unless [maxDimension] and [report] are given.
   const TextureDecodeContext({
     required this.bytes,
     this.maxDimension,
@@ -45,6 +47,7 @@ final class TextureDecodeContext {
 /// application gave. The first codec whose [sniff] claims the bytes decodes
 /// them. Extendable outside this package, and stays so through 1.x.
 abstract base class TextureCodec {
+  /// A const constructor for the codecs that extend this one.
   const TextureCodec();
 
   /// The codec's name, in its plugin's namespace: `acme_dds.dds`.

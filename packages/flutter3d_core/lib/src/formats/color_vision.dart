@@ -67,6 +67,8 @@ final class ColorVisionDeficiency {
     0.7, 0.0, 1.0,
   ];
 
+  /// The deficiency's short name, `protan`, `deutan` or `tritan`; what
+  /// [toString] returns.
   final String name;
 
   /// How this deficiency sees, in linear RGB at full severity: Machado,
@@ -111,6 +113,7 @@ final class ColorVision {
     : corrects = true,
       assert(severity >= 0.0 && severity <= 1.0, 'severity is nought to one');
 
+  /// The missing cone the transform shows or corrects for.
   final ColorVisionDeficiency deficiency;
 
   /// A 0..1 fraction.

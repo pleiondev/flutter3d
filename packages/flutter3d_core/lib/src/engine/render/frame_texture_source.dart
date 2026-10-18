@@ -18,6 +18,7 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 /// member added in a 1.x release arrives with a body and nothing that mixes
 /// it in has to change.
 abstract base mixin class FrameTextureSource {
+  /// Lends a texture matching [spec] for the frame being encoded.
   TextureHandle acquire(RenderTargetDescriptor spec);
 
   /// Gives a texture up. The implementation decides *when* it is safe to reuse.
@@ -29,8 +30,10 @@ abstract base mixin class FrameTextureSource {
 /// For tests and for anything that is not inside a frame in flight. Using this
 /// from a renderer is the bug described on [FrameTextureSource].
 final class ImmediateTextureSource implements FrameTextureSource {
+  /// A source lending from and giving back to [pool] at once.
   const ImmediateTextureSource(this.pool);
 
+  /// The pool every texture is lent from and given back to.
   final RenderTargetPool pool;
 
   @override

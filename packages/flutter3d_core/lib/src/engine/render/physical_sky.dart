@@ -29,6 +29,7 @@ import 'engine_light_units.dart';
 /// [radiance] and [transmittance] are per-channel linear quantities, kept
 /// as vectors for the arithmetic they feed.
 final class PhysicalSkyRay {
+  /// A ray's [radiance], [transmittance] and the [ground] it met.
   const PhysicalSkyRay({
     required this.radiance,
     required this.transmittance,
@@ -83,6 +84,8 @@ final class PhysicalSkyRay {
 /// that is nothing to speak of; on a phone a frame that is mostly sky pays for
 /// it. A precomputed table would make it a texture read, and is not done yet.
 final class PhysicalSky {
+  /// The Earth's atmosphere, seen from 200 m up under a clear sun; every
+  /// number is per metre or in metres unless its field says otherwise.
   const PhysicalSky({
     this.rayleigh,
     this.rayleighScaleHeight = 8000.0,
@@ -105,6 +108,8 @@ final class PhysicalSky {
   /// Null takes [resolvedRayleigh], the Earth's.
   final Vector3? rayleigh;
 
+  /// [rayleigh], or the Earth's molecular scattering when it is null; a new
+  /// vector each call when null.
   Vector3 get resolvedRayleigh => rayleigh ?? _earthRayleigh;
 
   // A getter rather than a `static final`: a `Vector3` is mutable, and a shared
@@ -354,6 +359,8 @@ final class PhysicalSky {
   static double _luminance(Vector3 c) =>
       0.2126 * c.x + 0.7152 * c.y + 0.0722 * c.z;
 
+  /// Returns a copy with the given fields replaced; null leaves a field as
+  /// it is.
   PhysicalSky copyWith({
     Vector3? rayleigh,
     double? rayleighScaleHeight,
@@ -447,6 +454,7 @@ final class PhysicalSky {
 /// cannot convert differently. Not exported: it is the shader's view of the
 /// settings, not a thing to set.
 final class PhysicalSkyKilometres {
+  /// The settings of [sky], converted to kilometres.
   PhysicalSkyKilometres(PhysicalSky sky)
     : rayleigh = sky.resolvedRayleigh * 1000.0,
       rayleighHeight = sky.rayleighScaleHeight / 1000.0,

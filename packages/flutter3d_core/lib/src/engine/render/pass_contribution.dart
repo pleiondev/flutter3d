@@ -20,6 +20,7 @@ typedef ChangedBounds = ({int left, int top, int right, int bottom});
 
 /// The difference between two frames of the same size.
 final class PassContribution {
+  /// A difference of [changedPixels] out of [totalPixels], within [bounds].
   const PassContribution({
     required this.changedPixels,
     required this.totalPixels,

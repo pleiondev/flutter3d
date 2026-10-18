@@ -38,6 +38,7 @@ import 'splat_cloud.dart';
 
 /// Thrown when a file is not an SPZ this can read, with the reason in it.
 final class SplatSpzException extends Flutter3dFormatException {
+  /// A refusal whose [message] says what in the file is wrong.
   const SplatSpzException(this.message);
   @override
   final String message;
@@ -53,6 +54,8 @@ final class SplatSpzException extends Flutter3dFormatException {
 final class SplatAxes {
   const SplatAxes._(this.name, {required this.halfTurnAboutX});
 
+  /// The convention's stable name, as the constant is spelt:
+  /// `rightUpBack`.
   final String name;
 
   /// Whether reaching these axes from the stored ones negates `y` and `z`.

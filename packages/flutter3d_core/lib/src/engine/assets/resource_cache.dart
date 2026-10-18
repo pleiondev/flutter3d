@@ -13,6 +13,7 @@ import 'memory_budget.dart';
 /// constructor for the steps between: a streaming scheduler that ranks by
 /// distance makes its own. Higher matters more.
 final class ResourcePriority implements Comparable<ResourcePriority> {
+  /// A priority of [rank]; higher matters more.
   const ResourcePriority(this.rank);
 
   /// Higher is wanted more.
@@ -61,6 +62,7 @@ final class ResourceHandle<V> {
 
   bool _released = false;
 
+  /// Whether [release] was called on this handle.
   bool get isReleased => _released;
 
   /// How much this holder wants the resource. The entry ranks as the most
@@ -224,6 +226,10 @@ final class _CacheEntry<V> {
 ///    [ResourceRequest.cancel] calls it off; [acquire] is a request whose
 ///    handle is awaited.
 final class ResourceCache<K, V> {
+  /// A cache loading with [load] and freeing with [dispose], evicting over
+  /// [budget] by [sizeOf] when both are given.
+  ///
+  /// Asserts that [maxConcurrentLoads], when given, is at least one.
   ResourceCache({
     required this.load,
     this.dispose,
@@ -280,8 +286,10 @@ final class ResourceCache<K, V> {
   /// Number of entries currently held, loaded, in flight or waiting.
   int get length => _entries.length;
 
+  /// The keys of every entry held, loaded, in flight or waiting.
   Iterable<K> get keys => _entries.keys;
 
+  /// Whether an entry for [key] is held, loaded, in flight or waiting.
   bool contains(K key) => _entries.containsKey(key);
 
   /// How many handles and waiting requests are outstanding for [key].

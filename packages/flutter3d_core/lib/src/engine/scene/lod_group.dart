@@ -13,12 +13,15 @@ import 'scene_node.dart';
 /// One level of detail: a mesh, the screen size below which it takes over,
 /// and — when somebody measured it — how far it is from the full mesh.
 final class LodLevel {
+  /// A level drawing [node] while the group covers at most
+  /// [maxScreenFraction] of the screen, with its measured [error] when known.
   const LodLevel({
     required this.node,
     required this.maxScreenFraction,
     this.error,
   });
 
+  /// The mesh this level draws, a child of the group.
   final MeshNode node;
 
   /// How far this level's surface strays from the finest level's, in the
@@ -54,6 +57,10 @@ final class LodLevel {
 /// Levels are given finest-first and sorted on construction, so declaring them
 /// out of order is not a silent bug.
 final class LodGroup extends SceneNode {
+  /// A group over [levels], sorted finest first here.
+  ///
+  /// Throws an [ArgumentError] for an empty list, and for a negative
+  /// [pixelError], [hysteresis] or [crossFade].
   LodGroup({
     required List<LodLevel> levels,
     this.hysteresis = defaultHysteresis,
@@ -210,6 +217,7 @@ final class LodGroup extends SceneNode {
   @override
   void onDetachedFromScene(Scene scene) => scene.unregisterLodGroup(this);
 
+  /// The levels finest first, as an unmodifiable copy made on each call.
   List<LodLevel> get levels => List<LodLevel>.unmodifiable(_levels);
 
   /// Index of the level currently visible.
@@ -221,6 +229,7 @@ final class LodGroup extends SceneNode {
   /// disagree with it at the boundary.
   int get activeLevel => _active;
 
+  /// The mesh of the level currently visible.
   MeshNode get activeNode => _levels[_active].node;
 
   /// Chooses a level for [camera] and returns its index.

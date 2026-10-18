@@ -53,6 +53,10 @@ import 'mesh_node.dart';
 ///   order within the batch.
 /// * **Picked as a box.** A ray hits the batch's bounds, not the instances.
 final class InstancedMeshNode extends MeshNode {
+  /// A batch of [capacity] instances of [mesh] drawn with [material], each
+  /// slot starting at the node's own transform with a white tint.
+  ///
+  /// Asserts a capacity above nought.
   InstancedMeshNode(
     super.mesh,
     super.material, {

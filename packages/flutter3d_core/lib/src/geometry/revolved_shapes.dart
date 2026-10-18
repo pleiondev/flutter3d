@@ -12,11 +12,19 @@ const double _tau = math.pi * 2.0;
 /// [rings] counts the segments from pole to pole, so the pole rows land exactly
 /// on the axis and [LatheShape] drops the degenerate triangles there.
 final class SphereShape extends DerivedShape {
+  /// A sphere one metre across, 32 segments around and 16 rings tall,
+  /// unless told otherwise.
   const SphereShape({this.radius = 0.5, this.segments = 32, this.rings = 16});
 
   /// In metres.
   final double radius;
+
+  /// Count of steps around the Y axis, at least three; building throws an
+  /// [ArgumentError] below that.
   final int segments;
+
+  /// Count of steps from pole to pole, at least two; [delegate] throws an
+  /// [ArgumentError] below that.
   final int rings;
 
   @override
@@ -52,6 +60,8 @@ final class SphereShape extends DerivedShape {
 /// Caps are part of the profile rather than separate meshes, so the rim stays a
 /// single watertight surface, and the repeated rim points give it a hard edge.
 final class CylinderShape extends DerivedShape {
+  /// A capped cylinder one metre across and one tall in 32 segments, unless
+  /// told otherwise.
   const CylinderShape({
     this.radiusTop = 0.5,
     this.radiusBottom = 0.5,
@@ -68,7 +78,12 @@ final class CylinderShape extends DerivedShape {
 
   /// In metres.
   final double height;
+
+  /// Count of steps around the Y axis, at least three; building throws an
+  /// [ArgumentError] below that.
   final int segments;
+
+  /// Whether each end of non-zero radius is closed by a flat cap.
   final bool capped;
 
   @override
@@ -103,6 +118,8 @@ final class CylinderShape extends DerivedShape {
 
 /// Cone with the apex at +Y: a cylinder whose top radius is zero.
 final class ConeShape extends DerivedShape {
+  /// A capped cone one metre across and one tall in 32 segments, unless
+  /// told otherwise.
   const ConeShape({
     this.radius = 0.5,
     this.height = 1.0,
@@ -115,7 +132,12 @@ final class ConeShape extends DerivedShape {
 
   /// In metres.
   final double height;
+
+  /// Count of steps around the Y axis, at least three; building throws an
+  /// [ArgumentError] below that.
   final int segments;
+
+  /// Whether the base is closed by a flat cap.
   final bool capped;
 
   @override
@@ -133,6 +155,8 @@ final class ConeShape extends DerivedShape {
 
 /// Torus: a closed circular profile revolved around Y.
 final class TorusShape extends DerivedShape {
+  /// A torus one metre across in 48 segments around and 24 around the
+  /// tube, unless told otherwise.
   const TorusShape({
     this.radius = 0.35,
     this.tubeRadius = 0.15,
@@ -148,7 +172,12 @@ final class TorusShape extends DerivedShape {
   /// In metres.
   final double tubeRadius;
 
+  /// Count of steps around the Y axis, at least three; building throws an
+  /// [ArgumentError] below that.
   final int segments;
+
+  /// Count of steps around the tube, at least three; [delegate] throws an
+  /// [ArgumentError] below that.
   final int tubeSegments;
 
   @override
@@ -185,6 +214,8 @@ final class TorusShape extends DerivedShape {
 /// The profile has no repeated points, so the hemisphere-to-wall junction stays
 /// smooth.
 final class CapsuleShape extends DerivedShape {
+  /// A capsule 1.1 metres tall overall in 32 segments and eight rings per
+  /// hemisphere, unless told otherwise.
   const CapsuleShape({
     this.radius = 0.3,
     this.height = 0.5,
@@ -197,7 +228,13 @@ final class CapsuleShape extends DerivedShape {
 
   /// In metres.
   final double height;
+
+  /// Count of steps around the Y axis, at least three; building throws an
+  /// [ArgumentError] below that.
   final int segments;
+
+  /// Count of steps from each hemisphere's rim to its pole, at least one;
+  /// [delegate] throws an [ArgumentError] below that.
   final int rings;
 
   @override
@@ -245,6 +282,7 @@ final class CapsuleShape extends DerivedShape {
 /// the winding, so reversing it is all that is needed to face the surface the
 /// other way.
 final class DiscShape extends DerivedShape {
+  /// A full disc one metre across in 32 segments, unless told otherwise.
   const DiscShape({
     this.radius = 0.5,
     this.innerRadius = 0.0,
@@ -256,6 +294,9 @@ final class DiscShape extends DerivedShape {
 
   /// In metres; nought is a full disc.
   final double innerRadius;
+
+  /// Count of steps around the Y axis, at least three; building throws an
+  /// [ArgumentError] below that.
   final int segments;
 
   @override

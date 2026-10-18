@@ -39,6 +39,7 @@ typedef HdrImage = ({int width, int height, Float32List rgb});
 /// and "a scanline runs off the end" are three different things for somebody
 /// to do something about, and a null flattens them into one.
 final class HdrFormatException extends Flutter3dFormatException {
+  /// A refusal whose [message] says what in the file is wrong.
   const HdrFormatException(this.message);
 
   @override

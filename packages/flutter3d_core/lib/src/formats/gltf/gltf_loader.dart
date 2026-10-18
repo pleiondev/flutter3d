@@ -66,6 +66,9 @@ part 'gltf_loader_splats.dart';
 /// so one bad primitive — or a file that merely *offers* a compressed variant
 /// beside an uncompressed one — still loads.
 final class GltfLoader extends ModelDecoder {
+  /// A loader decoding into [layout], or [skinnedLayout] for a skinned
+  /// primitive, generating flat normals where a primitive has none unless
+  /// told not to.
   GltfLoader({
     this.layout = VertexLayout.standard,
     this.skinnedLayout = VertexLayout.skinned,
@@ -116,6 +119,12 @@ final class GltfLoader extends ModelDecoder {
     return load(bytes, resolveUri: resolveUri);
   }
 
+  /// Decodes [bytes], a `.glb` or `.gltf`, into a [GltfAsset], fetching
+  /// external buffers and images through [resolveUri].
+  ///
+  /// Throws a [GltfFormatException] for a container that does not parse or
+  /// a required extension this loader does not support; a gap it can load
+  /// past goes into [GltfAsset.warnings] instead.
   Future<GltfAsset> load(
     Uint8List bytes, {
     AssetUriResolver? resolveUri,

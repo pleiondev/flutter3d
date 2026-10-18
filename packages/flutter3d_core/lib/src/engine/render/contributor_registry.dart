@@ -17,6 +17,7 @@ import 'render_view.dart';
 /// that wanted its own pass was never a contributor at all — it is a
 /// `RenderNode`, and the weapon view model has moved.
 abstract base class PassContributor {
+  /// Lets a subclass be const.
   const PassContributor();
 
   /// Lower encodes first. Ties keep registration order.
@@ -49,6 +50,8 @@ abstract base class PassContributor {
   /// through `PassState` without a scissor of its own needs nothing else.
   bool get isOverlay => false;
 
+  /// Encodes this contributor's draws into the scene's open pass for
+  /// [frame].
   void encode(ContributorFrame frame);
 
   /// Where [encode] will draw in [view] this frame, in scene space (float32,
@@ -100,20 +103,25 @@ final class ContributorRegistry {
   /// Registration order, which is not drawing order — see [active].
   List<PassContributor> get all => List<PassContributor>.unmodifiable(_plugins);
 
+  /// How many contributors are registered, a count.
   int get length => _plugins.length;
 
+  /// Registers [plugin], re-sorts the drawing order and returns [plugin].
   T add<T extends PassContributor>(T plugin) {
     _plugins.add(plugin);
     _reorder();
     return plugin;
   }
 
+  /// Unregisters [plugin] and re-sorts the drawing order; returns false when
+  /// it was not registered.
   bool remove(PassContributor plugin) {
     final removed = _plugins.remove(plugin);
     if (removed) _reorder();
     return removed;
   }
 
+  /// Unregisters every contributor.
   void clear() {
     _plugins.clear();
     _ordered = const <PassContributor>[];

@@ -59,5 +59,7 @@ final class OcclusionMode {
 /// member added in a 1.x release arrives with a body and nothing that mixes
 /// it in has to change.
 abstract base mixin class OcclusionTest {
+  /// Returns whether anything of [box] may be in view; false only when the
+  /// box is certainly hidden.
   bool mayBeVisible(Aabb3 box);
 }

@@ -12,18 +12,35 @@ import '../format_exceptions.dart';
 /// glTF 2.0. No member can be added without changing what the type means, so it
 /// stays an enum and a `switch` over it may name every case.
 enum GltfPrimitiveMode {
+  /// Each index a point; makes no triangles.
   points(0),
+
+  /// Each pair of indices a line; makes no triangles.
   lines(1),
+
+  /// A closed polyline through the indices; makes no triangles.
   lineLoop(2),
+
+  /// An open polyline through the indices; makes no triangles.
   lineStrip(3),
+
+  /// Each three indices a triangle, the default.
   triangles(4),
+
+  /// A triangle for each index after the first two, sharing an edge with
+  /// the one before.
   triangleStrip(5),
+
+  /// A triangle for each index after the first two, all sharing the first.
   triangleFan(6);
 
   const GltfPrimitiveMode(this.code);
 
+  /// The number glTF's `primitive.mode` writes for this topology.
   final int code;
 
+  /// Returns the mode glTF numbers [code]. Throws a [GltfFormatException]
+  /// for a number outside nought to six.
   static GltfPrimitiveMode fromCode(int code) {
     for (final value in values) {
       if (value.code == code) return value;

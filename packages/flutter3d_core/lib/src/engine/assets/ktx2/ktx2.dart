@@ -79,9 +79,14 @@ final class Ktx2Texture {
       texture.levels,
     );
   }
+
+  /// Width of the base level in pixels.
   final int pixelWidth;
+
+  /// Height of the base level in pixels.
   final int pixelHeight;
 
+  /// The engine format the levels are uploaded as.
   final TextureFormat format;
 
   /// Level 0 (the base, largest image) first.

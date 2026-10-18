@@ -19,8 +19,10 @@ export 'hub_asset_source.dart';
 /// A model on the filesystem. Unavailable on web, which is why it is a separate
 /// source rather than a flag.
 final class FileAssetSource extends AssetSource {
+  /// A source reading the file at [path].
   const FileAssetSource(this.path);
 
+  /// The file's path, as the platform's file API takes it.
   final String path;
 
   @override

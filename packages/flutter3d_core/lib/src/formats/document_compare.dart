@@ -24,6 +24,7 @@ import 'model_document.dart';
 
 /// One thing a round trip did not preserve.
 final class DocumentDifference {
+  /// A difference described by the sentence [said].
   const DocumentDifference(this.said);
 
   /// A sentence naming what changed and both values, so that whoever reads it

@@ -57,7 +57,10 @@ final class MeshOverlay extends PassContributor {
 
   final LineInfoBlock _lineInfo = LineInfoBlock();
 
+  /// The line pipeline's vertex stage, `debugLineVertexShader`.
   final ShaderHandle vertexShader;
+
+  /// The line pipeline's fragment stage, `debugLineFragmentShader`.
   final ShaderHandle fragmentShader;
 
   /// position.xyz + colour.rgba, which is [VertexLayout.positionColor] and what
@@ -91,6 +94,9 @@ final class MeshOverlay extends PassContributor {
   /// model covers it, only the ghost is there, and the handle reads as being
   /// behind something without disappearing into it.
   final OverlayBatch linesThrough = OverlayBatch();
+
+  /// Solid triangles drawn through the model as a faint ghost and then
+  /// depth-tested at full strength, as [linesThrough] is for lines.
   final OverlayBatch handlesThrough = OverlayBatch();
 
   /// How much of a through-drawn colour survives. A ghost, not a second
@@ -469,6 +475,8 @@ final class MeshOverlay extends PassContributor {
 /// `Float32List` per rebuild on a mesh with two hundred thousand edges is five
 /// megabytes a frame of garbage for numbers that are overwritten immediately.
 final class OverlayBatch {
+  /// An empty batch with room for [reserveVertices] vertices, at least one,
+  /// before it has to grow.
   OverlayBatch({int reserveVertices = 256})
     : _data = Float32List(
         math.max(1, reserveVertices) * MeshOverlay.floatsPerVertex,
@@ -477,14 +485,17 @@ final class OverlayBatch {
   Float32List _data;
   int _floats = 0;
 
+  /// How many vertices the batch holds.
   int get vertexCount => _floats ~/ MeshOverlay.floatsPerVertex;
 
+  /// Whether the batch holds no vertex.
   bool get isEmpty => _floats == 0;
 
   /// The used part of the buffer, ready to upload.
   ByteData get vertexBytes =>
       _data.buffer.asByteData(_data.offsetInBytes, _floats * 4);
 
+  /// Empties the batch, keeping its storage for the next rebuild.
   void clear() => _floats = 0;
 
   /// Widens [min] and [max] to every position this batch holds.

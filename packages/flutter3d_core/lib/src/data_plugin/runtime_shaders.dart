@@ -47,6 +47,7 @@ import 'material_wgsl.dart';
 /// so it never can. The registry that meets this records it as the reason
 /// the material or the step is off, and the rest of the plugin installs.
 final class RuntimeShadersException extends CapabilityException {
+  /// A refusal that says, in [message], why and what to do instead.
   const RuntimeShadersException(this.message);
 
   @override
@@ -430,6 +431,8 @@ ShaderBundle runtimeMaterialBundle(
 /// A render step a plugin brought as data: a full-screen fragment stage at
 /// an anchor, switched like the engine's own steps.
 final class RuntimeRenderStep {
+  /// A step named [name] at [anchor], drawn by [shaders]; by default over
+  /// the scene's light every frame, with no needs and no ordering.
   const RuntimeRenderStep({
     required this.name,
     required this.anchor,
@@ -482,8 +485,10 @@ final class RuntimeRenderStep {
   /// Built-in steps it cannot run without, by name: `bloom`.
   final List<String> needs;
 
-  /// Other nodes at [anchor] it goes after and before.
+  /// Other nodes at [anchor] it goes after, by name.
   final List<String> after;
+
+  /// Other nodes at [anchor] it goes before, by name.
   final List<String> before;
 }
 
@@ -529,6 +534,16 @@ final class RuntimeRenderStep {
 /// bundle for is off with a [MissingShaderStageException] in [refusals]
 /// naming the stage and the plugin.
 final class RuntimeShaders extends PluginRegistry {
+  /// A registry building shaders for [backend] (normalised, see
+  /// [RuntimeBackends.normalize]), loading each with [loadShaders] and
+  /// adding the materials to the renderer with [addMaterials].
+  ///
+  /// [engineSources], [webGpuHost], [webGpuFullscreenUvLocation] and
+  /// [compilers] are what [runtimeMaterialBundle] takes for WebGL2, WebGPU
+  /// and a backend's own compiler; a build that needs one and lacks it
+  /// switches the material off with the reason. [prebuilt] finds the
+  /// bundle the build compiled for a material on Impeller, null where the
+  /// build made none.
   RuntimeShaders({
     required String? backend,
     required Future<LoadedShaderLibrary> Function(ByteData bundle) loadShaders,

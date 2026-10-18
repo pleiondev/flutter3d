@@ -41,6 +41,8 @@ import '../../formats/splat/splat_paged.dart';
 /// Draws a splat tree at a budget — what `SplatQuads.lod` takes in place of
 /// a single cloud.
 final class SplatLod {
+  /// A draw of [tree] within [budget] splats, asking [pages] for missing
+  /// pages when given; asserts [pages] is a pager over [tree].
   SplatLod(this.tree, {required this.budget, this.pages})
     : assert(pages == null || identical(pages.tree, tree));
 
@@ -48,6 +50,7 @@ final class SplatLod {
   SplatLod.paged(PagedSplatOctree pages, {required int budget})
     : this(pages.tree, budget: budget, pages: pages);
 
+  /// The splat octree drawn.
   final SplatOctree tree;
 
   /// Where missing pages are asked for; null when every page is loaded.

@@ -42,6 +42,8 @@ final class SceneColorChain {
 
   /// The scene's size, and the base level's.
   final int width;
+
+  /// Height of the scene and of the base level, in pixels.
   final int height;
 
   /// How many levels this chain has, its base included: fewer than
@@ -50,6 +52,8 @@ final class SceneColorChain {
 
   /// The texture's size: the base, and the column of the rest beside it.
   int get atlasWidth => width + math.max(1, width >> 1);
+
+  /// Height of the texture in pixels: the base level's.
   int get atlasHeight => height;
 
   /// Where [level] sits in the texture, counted from its top left, as every

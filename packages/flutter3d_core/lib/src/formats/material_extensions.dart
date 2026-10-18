@@ -30,6 +30,8 @@ import 'surface_material.dart';
 /// textures are kept here so a round trip loses nothing, and not drawn — a
 /// loader says so.
 final class MaterialExtensions {
+  /// The layers given, every other one at the default that changes
+  /// nothing.
   MaterialExtensions({
     this.ior = 1.5,
     this.specular = 1.0,
@@ -77,21 +79,31 @@ final class MaterialExtensions {
   /// head-on and at grazing both. Its texture is read from alpha.
   /// A unitless multiplier.
   final double specular;
+
+  /// Multiplies [specular] by its alpha; null for none. Carried, not drawn.
   final TextureBinding? specularTexture;
 
   /// `KHR_materials_specular`'s colour, linear: tints the head-on reflection
   /// of the dielectric part only. Its texture is sRGB.
   final LinearColor specularColor;
+
+  /// Multiplies [specularColor], sRGB; null for none. Carried, not drawn.
   final TextureBinding? specularColorTexture;
 
   /// `KHR_materials_clearcoat`: how much of a second, colourless GGX layer
   /// lies over the surface. Its texture is read from red.
   final double clearcoat;
+
+  /// Multiplies [clearcoat] by its red; null for none. Packed into the
+  /// coat map.
   final TextureBinding? clearcoatTexture;
 
   /// The coat's own perceptual roughness. Its texture is read from green.
   /// A 0..1 fraction.
   final double clearcoatRoughness;
+
+  /// Multiplies [clearcoatRoughness] by its green; null for none. Packed
+  /// into the coat map.
   final TextureBinding? clearcoatRoughnessTexture;
 
   /// The coat's own normal map. Carried, not drawn: the coat is lit on the
@@ -105,11 +117,17 @@ final class MaterialExtensions {
   /// that makes velvet bright at its edges. Black is no sheen. Its texture is
   /// sRGB, read from red, green and blue — `M2`.
   final LinearColor sheenColor;
+
+  /// Multiplies [sheenColor] by its RGB; null for none. Packed into the
+  /// sheen map.
   final TextureBinding? sheenColorTexture;
 
   /// The sheen's own perceptual roughness. Its texture is read from alpha.
   /// A 0..1 fraction.
   final double sheenRoughness;
+
+  /// Multiplies [sheenRoughness] by its alpha; null for none. Packed into
+  /// the sheen map.
   final TextureBinding? sheenRoughnessTexture;
 
   /// `KHR_materials_anisotropy`: how far the highlight stretches along the
@@ -128,6 +146,9 @@ final class MaterialExtensions {
   /// reflected passes through the surface instead of scattering off it —
   /// glass, water, a thin film — `M3`. Its texture is read from red.
   final double transmission;
+
+  /// Multiplies [transmission] by its red; null for none. Packed into the
+  /// coat map.
   final TextureBinding? transmissionTexture;
 
   /// `KHR_materials_volume`'s thickness, in the mesh's own units, over which
@@ -135,12 +156,18 @@ final class MaterialExtensions {
   /// The renderer scales it by the node's own scale (the geometric mean of
   /// its axes), as glTF says a node's transform applies to it.
   final double thickness;
+
+  /// Multiplies [thickness] by its green; null for none. Packed into the
+  /// coat map.
   final TextureBinding? thicknessTexture;
 
   /// How far light travels in the medium before it is [attenuationColor]:
   /// infinite, the default, is a medium that takes nothing away.
   /// In metres.
   final double attenuationDistance;
+
+  /// The colour white light becomes after [attenuationDistance] in the
+  /// medium, linear; white takes nothing away.
   final LinearColor attenuationColor;
 
   /// Whether the volume is a closed, convex body — a ball of glass, a column
@@ -169,6 +196,9 @@ final class MaterialExtensions {
   /// [iridescenceThicknessMaximum] thick everywhere, which is what the
   /// extension says a film without a thickness texture is.
   final double iridescence;
+
+  /// Multiplies [iridescence] by its red; null for none. Carried, not
+  /// drawn.
   final TextureBinding? iridescenceTexture;
 
   /// The thin film's index of refraction, a unitless ratio.
@@ -181,6 +211,9 @@ final class MaterialExtensions {
   /// The film's thickness where its texture reads one, in nanometres
   /// (billionths of a metre).
   final double iridescenceThicknessMaximum;
+
+  /// Picks the film's thickness between the minimum and maximum by its
+  /// green; null for none. Carried, not drawn.
   final TextureBinding? iridescenceThicknessTexture;
 
   /// Whether any of this changes how the surface is shaded.

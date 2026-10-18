@@ -93,12 +93,18 @@ bool looksLikeAsciiStl(Uint8List bytes) {
 /// `texcoord`/`tangent`/`color` slots, when requested, get [MeshBuilder]'s own
 /// neutral values, since the format carries none of the three.
 final class StlLoader extends ModelDecoder {
+  /// A loader into [layout] that keeps the file's facet normals, unless
+  /// told otherwise.
   StlLoader({
     this.layout = VertexLayout.standard,
     this.normals = StlNormals.fromFile,
   });
 
+  /// Target vertex layout; slots STL has no data for get neutral values.
   final VertexLayout layout;
+
+  /// Whether facet normals are taken from the file or recomputed from each
+  /// triangle's winding.
   final StlNormals normals;
 
   @override

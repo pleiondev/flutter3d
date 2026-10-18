@@ -25,10 +25,12 @@ import '../format_exceptions.dart';
 final class AnimationPointerTarget {
   const AnimationPointerTarget._(this.name);
 
+  /// An entry of the document's `materials`.
   static const AnimationPointerTarget material = AnimationPointerTarget._(
     'material',
   );
 
+  /// An entry of `KHR_lights_punctual`'s `lights`.
   static const AnimationPointerTarget light = AnimationPointerTarget._('light');
 
   /// Every value this version names, in declaration order. A later version
@@ -79,12 +81,14 @@ final class AnimationPointerProperty {
         1,
       );
 
+  /// glTF's `roughnessFactor`, one float from nought to one.
   static const AnimationPointerProperty roughness = AnimationPointerProperty._(
     'roughness',
     AnimationPointerTarget.material,
     1,
   );
 
+  /// glTF's `metallicFactor`, one float from nought to one.
   static const AnimationPointerProperty metallic = AnimationPointerProperty._(
     'metallic',
     AnimationPointerTarget.material,
@@ -110,6 +114,8 @@ final class AnimationPointerProperty {
     3,
   );
 
+  /// `KHR_lights_punctual`'s `intensity`, one float: candela for a point or
+  /// spot light, lux for a directional one.
   static const AnimationPointerProperty lightIntensity =
       AnimationPointerProperty._(
         'lightIntensity',
@@ -146,7 +152,11 @@ final class AnimationPointerProperty {
   /// The position in [values]: stable within a major, appended only.
   int get index => values.indexOf(this);
 
+  /// The kind of object the property belongs to.
   final AnimationPointerTarget target;
+
+  /// Count of floats in one sampled value: four for a colour with alpha,
+  /// three for a light colour, two for an offset, one otherwise.
   final int componentCount;
 
   @override
@@ -155,6 +165,8 @@ final class AnimationPointerProperty {
 
 /// One resolved pointer: [property] of the [index]th object of its kind.
 final class AnimationPointer {
+  /// A pointer to [property] of object [index], written as [pointer]; the
+  /// three are not checked against each other.
   const AnimationPointer({
     required this.property,
     required this.index,
@@ -276,6 +288,7 @@ final class AnimationPointer {
     r'/extensions/KHR_texture_transform/offset$',
   );
 
+  /// What is driven, and how many floats a value of it has.
   final AnimationPointerProperty property;
 
   /// Index into the document's materials or lights, by [property]'s target.
@@ -285,6 +298,7 @@ final class AnimationPointer {
   /// back on the texture it came from rather than on a canonical one.
   final String pointer;
 
+  /// The kind of object [index] counts in: [property]'s target.
   AnimationPointerTarget get target => property.target;
 
   @override

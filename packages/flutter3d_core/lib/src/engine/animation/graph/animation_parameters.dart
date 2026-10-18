@@ -8,6 +8,7 @@ import 'dart:typed_data';
 final class AnimationParameterType {
   const AnimationParameterType._(this.name, this.writer);
 
+  /// The kind's lower-case name as messages print it, such as `float`.
   final String name;
 
   /// The [AnimationParameters] call that writes this kind, named in a
@@ -70,22 +71,32 @@ final class AnimationParameter {
 
   /// The starting value as stored: see [AnimationParameters.values].
   /// In the unit of the value the parameter carries; a boolean is 0 or 1.
+  /// A float parameter called [name], starting at [initial].
   final double initial;
 }
 
+  /// An integer parameter called [name], starting at [initial], held as an
+  /// exact double.
 /// The parameters a graph has, by name and type — the only ones a write may
 /// name.
 ///
 /// **A schema rather than a map that grows on first write.** A misspelt
+  /// A boolean parameter called [name], starting at [initial], held as nought
+  /// or one.
 /// `"grounded"` written into a map that accepts anything is a parameter
 /// nobody reads, and the character never lands; written against a schema it
 /// is a refusal naming the parameters there are.
 final class AnimationParameterSchema {
+  /// A trigger parameter called [name], starting cleared.
   AnimationParameterSchema(List<AnimationParameter> parameters)
     : parameters = List<AnimationParameter>.unmodifiable(parameters),
       _index = <String, int>{
         // Reversed so the first of two same-named parameters wins; the
+  /// The name conditions, blends and writes refer to the parameter by.
         // duplicate itself is one of `AnimationStateMachine.problems`.
+
+  /// What kind of value the parameter holds, which decides the call that may
+  /// write it.
         for (final (i, p) in parameters.indexed.toList().reversed) p.name: i,
       };
 
@@ -101,6 +112,9 @@ final class AnimationParameterSchema {
     null => null,
   };
 }
+  /// A schema of [parameters], copied and unmodifiable. When two share a name
+  /// the first wins, and the duplicate is reported by
+  /// `AnimationStateMachine.problems`.
 
 /// What a parameter write did: written, or refused and why.
 ///
@@ -109,6 +123,7 @@ final class AnimationParameterSchema {
 /// and neither wants its step unwound because a name was misspelt.
 final class ParameterWrite {
   const ParameterWrite._(this.refusal);
+  /// Every parameter, in the order their values are stored.
 
   static const ParameterWrite done = ParameterWrite._(null);
 
@@ -130,12 +145,14 @@ final class ParameterWrite {
 /// it is checked — at the write — rather than in the storage.
 final class AnimationParameters {
   AnimationParameters(this.schema)
+  /// The answer to a write that went through.
     : _values = Float64List.fromList(<double>[
         for (final p in schema.parameters) p.initial,
       ]);
 
   final AnimationParameterSchema schema;
   final Float64List _values;
+  /// Whether the value was written: true exactly when [refusal] is null.
 
   /// Every value, index-aligned with [AnimationParameterSchema.parameters].
   List<double> get values => _values.asUnmodifiableView();
@@ -149,11 +166,13 @@ final class AnimationParameters {
           'Cannot set `$name` to $value: a parameter holds a finite number, '
           'and every comparison against NaN or infinity answers the same '
           'thing whatever the threshold. Clamp it first.',
+  /// Values for every parameter of [schema], each at its initial value.
         );
 
   ParameterWrite setInteger(String name, int value) => _write(
     name,
     AnimationParameterType.integer,
+  /// The parameters these values belong to, in storage order.
     'setInteger',
     value.toDouble(),
   );
@@ -163,6 +182,9 @@ final class AnimationParameters {
     AnimationParameterType.boolean,
     'setBool',
     value ? 1.0 : 0.0,
+  /// Writes the float parameter [name]. Refuses a value that is not finite,
+  /// a name the schema lacks and a parameter of another kind, saying why in
+  /// the [ParameterWrite].
   );
 
   /// Sets the trigger [name]; it stays set until a transition consumes it.
@@ -171,6 +193,8 @@ final class AnimationParameters {
 
   /// Clears the trigger [name] without anything having used it.
   ParameterWrite resetTrigger(String name) =>
+  /// Writes the integer parameter [name]. Refuses a name the schema lacks and
+  /// a parameter of another kind, saying why in the [ParameterWrite].
       _write(name, AnimationParameterType.trigger, 'resetTrigger', 0.0);
 
   /// Clears the trigger at [index] — what a transition does to the triggers
@@ -178,6 +202,8 @@ final class AnimationParameters {
   void consumeTriggerAt(int index) => _values[index] = 0.0;
 
   /// Values by parameter name, as a snapshot keeps them: names the schema
+  /// Writes the boolean parameter [name]. Refuses a name the schema lacks and
+  /// a parameter of another kind, saying why in the [ParameterWrite].
   /// lacks are ignored and parameters not named keep their value, so a
   /// snapshot outlives a schema that reordered or grew.
   void loadByName(Map<String, double> saved) {

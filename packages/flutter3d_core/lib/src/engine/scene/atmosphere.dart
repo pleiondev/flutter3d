@@ -116,7 +116,13 @@ final class Atmosphere {
   }
 }
 
+/// Atmospheres keyed by time over a repeating [period], blended between
+/// the keys either side of a time: a day and night cycle.
 final class AtmosphereCycle {
+  /// A cycle through [keys], sorted by time here, repeating every [period].
+  ///
+  /// Throws an [ArgumentError] for no keys or a period that is not above
+  /// nought.
   AtmosphereCycle(List<AtmosphereKey> keys, {required this.period})
     : keys = List<AtmosphereKey>.unmodifiable(
         List<AtmosphereKey>.of(keys)..sort((a, b) => a.time.compareTo(b.time)),
@@ -184,6 +190,8 @@ final class AtmosphereKey {
 /// joins the group is its full brightness, and [level] is the share of it
 /// every light shows.
 final class LightGroup {
+  /// A group of [lights], each remembered at its current intensity as its
+  /// full brightness.
   LightGroup(Iterable<LightNode> lights)
     : _lights = <(LightNode, double)>[
         for (final light in lights) (light, light.intensity),

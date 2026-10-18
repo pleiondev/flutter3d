@@ -63,6 +63,7 @@ final class HitResult {
   /// point needs to know the point is on a box, not on the surface.
   final bool approximate;
 
+  /// The mesh hit; throws when there is none.
   MeshNode get requireNode => node!;
 
   /// Where [point] is in the world: the scene's origin when it was hit plus
@@ -151,6 +152,7 @@ final class _HitScratch {
 /// `MorphState.growth` — so a deformed model is found as a candidate and
 /// culled correctly either way.
 final class Raycaster {
+  /// A raycaster with no ray set yet.
   Raycaster();
 
   /// The ray being cast, in the scene's own space: float32, relative to

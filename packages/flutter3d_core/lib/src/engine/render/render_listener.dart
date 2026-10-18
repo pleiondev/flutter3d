@@ -46,6 +46,8 @@ final class RenderListener {
         frameBudget: frameBudget,
       );
 
+  /// A listener calling whichever of the callbacks are given; every one left
+  /// null is skipped at no cost.
   const RenderListener({
     this.drawn,
     this.skipped,
@@ -135,8 +137,10 @@ final class RenderListener {
 /// A frame was drawn: [RenderListener.drawn], on the bus. About the picture,
 /// never the run.
 final class FrameDrawn extends BusEvent {
+  /// The event for the frame [result] describes.
   const FrameDrawn(this.result);
 
+  /// What the renderer reported for the frame.
   final FrameResult result;
 
   @override
@@ -147,8 +151,10 @@ final class FrameDrawn extends BusEvent {
 /// [RenderListener.held], on the bus. Nothing in the digest, since whether
 /// the GPU fell behind is the machine's, not the run's.
 final class FrameHeld extends BusEvent {
+  /// The event for the held frame [result] describes.
   const FrameHeld(this.result);
 
+  /// What the renderer reported for the held frame.
   final FrameResult result;
 
   @override
@@ -157,8 +163,10 @@ final class FrameHeld extends BusEvent {
 
 /// A pass did not run, with why: [RenderListener.skipped], on the bus.
 final class FramePassSkipped extends BusEvent {
+  /// The event for the skipped [pass].
   const FramePassSkipped(this.pass);
 
+  /// The pass that did not run, and why.
   final SkippedPass pass;
 
   @override
@@ -177,8 +185,11 @@ final class FramePassSkipped extends BusEvent {
 /// gives: whether a driver links a pair is a fact about the machine, and a
 /// replay on another one must not differ by it.
 final class FramePipelineRefused extends BusEvent {
+  /// The event for the pipeline [refusal] names.
   const FramePipelineRefused(this.refusal);
 
+  /// The pipeline the device would not build, with the material and geometry
+  /// that asked for it.
   final PipelineRefusedException refusal;
 
   @override
@@ -188,9 +199,13 @@ final class FramePipelineRefused extends BusEvent {
 /// A frame took longer than its budget on the CPU:
 /// [RenderListener.overTime], on the bus.
 final class FrameOverTime extends BusEvent {
+  /// The event for the frame [result] describes, over [budget].
   const FrameOverTime(this.result, this.budget);
 
+  /// What the renderer reported for the frame that ran over.
   final FrameResult result;
+
+  /// The CPU time the frame was allowed, which it exceeded.
   final Duration budget;
 
   @override

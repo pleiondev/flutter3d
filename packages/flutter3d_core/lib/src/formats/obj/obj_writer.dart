@@ -29,6 +29,8 @@ import '../model_document.dart';
 /// reports it. Refusing would force every caller through a result type to guard
 /// a case the format represents.
 final class ObjWriter {
+  /// A writer for [document] under the base [name], six decimals a number
+  /// and V flipped as `ObjLoader` expects, unless told otherwise.
   ObjWriter(
     this.document, {
     this.name = 'model',
@@ -36,6 +38,7 @@ final class ObjWriter {
     this.flipTexcoordV = true,
   });
 
+  /// The model written; read, never changed.
   final ModelDocument document;
 
   /// The base name, without a suffix: it names the `.mtl` and appears in the

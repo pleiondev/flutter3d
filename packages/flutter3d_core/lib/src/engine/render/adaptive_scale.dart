@@ -32,6 +32,8 @@ import 'dart:math' as math;
 
 /// How far the resolution may be pulled, and how fast.
 final class AdaptiveScaleSettings {
+  /// The controller off; switched on, it holds a 60 Hz frame by moving the
+  /// scale between a half and one in tenths.
   const AdaptiveScaleSettings({
     this.enabled = false,
     this.target = const Duration(microseconds: 16667),
@@ -142,8 +144,10 @@ final class AdaptiveScale {
   /// Feeds one frame's own cost in, and returns the scale for the next.
   ///
   /// Disabled, this reports [AdaptiveScaleSettings.maximum] and forgets
+  /// A controller following [settings], starting at the maximum scale.
   /// whatever it had gathered: an application that switches the controller
   /// off and on again should not find a window from before still deciding.
+  /// How far the resolution may be pulled, and how fast.
   double recordFrame(int cpuMicros) {
     if (!settings.enabled) {
       _window.clear();

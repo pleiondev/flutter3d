@@ -11,6 +11,7 @@ import 'render_node.dart';
 /// What a [PipelineNodeKind] is handed to make one node: one object that
 /// can gain members.
 final class PipelineNodeContext {
+  /// What a kind is handed to make [node].
   const PipelineNodeContext(this.node);
 
   /// The node as the document wrote it: its name, where it stands, what it
@@ -28,6 +29,7 @@ final class PipelineNodeContext {
 /// `RendererSteps.fromDocument` makes it with [create]. Extendable outside
 /// this package, and stays so through 1.x.
 abstract base class PipelineNodeKind {
+  /// Lets a subclass be const.
   const PipelineNodeKind();
 
   /// The kind's name, in its plugin's namespace: `acme_glow.glow`.

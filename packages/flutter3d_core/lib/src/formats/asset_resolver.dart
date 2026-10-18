@@ -22,6 +22,7 @@ typedef AssetUriResolver = Future<Uint8List> Function(AssetRequest request);
 /// resolving an asset is I/O, and one small object beside a file read is not
 /// a cost worth a sentence anywhere but this one.
 final class AssetRequest {
+  /// A request for the file at [uri].
   const AssetRequest(this.uri);
 
   /// What was asked for, relative to whatever the resolver treats as its root.

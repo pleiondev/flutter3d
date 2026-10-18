@@ -70,6 +70,8 @@ final class ObjNormals {
 /// skipped rather than treated as errors. That holds for the `.mtl` half too:
 /// see [parseMtl], which reports its own once each.
 final class ObjLoader extends ModelDecoder {
+  /// A loader into [layout] that smooths missing normals, splits surfaces
+  /// by group and flips V, unless told otherwise.
   ObjLoader({
     this.layout = VertexLayout.standard,
     this.normals = ObjNormals.smooth,
@@ -77,6 +79,8 @@ final class ObjLoader extends ModelDecoder {
     this.flipTexcoordV = true,
   });
 
+  /// Target vertex layout. Attributes the layout does not declare are not
+  /// written.
   final VertexLayout layout;
 
   /// What to do when the file has no `vn` records.
@@ -109,6 +113,11 @@ final class ObjLoader extends ModelDecoder {
     return load(bytes, resolveUri: resolveUri);
   }
 
+  /// Decodes [bytes] as OBJ text, fetching `.mtl` libraries and their
+  /// images through [resolveUri]; null skips them with a warning.
+  ///
+  /// Never throws for an unknown directive or a missing sibling: each goes
+  /// into [ObjDocument.warnings] once.
   Future<ObjDocument> load(
     Uint8List bytes, {
     AssetUriResolver? resolveUri,

@@ -21,22 +21,32 @@ const double noHit = -1.0;
 /// A mutable object with `out`-style methods, because picking runs inside a
 /// pointer-move handler and should not allocate per candidate mesh.
 final class LocalRay {
+  /// A ray from the origin looking down -Z, to be overwritten with
+  /// [setFrom] before use.
   LocalRay.zero()
     : origin = Vector3.zero(),
       direction = Vector3(0.0, 0.0, -1.0);
 
+  /// A ray holding copies of [origin] and [direction]; the direction is
+  /// kept at the length given.
   LocalRay(Vector3 origin, Vector3 direction)
     : origin = origin.clone(),
       direction = direction.clone();
 
+  /// Where the ray starts, in the space it is expressed in.
   final Vector3 origin;
+
+  /// Which way it points, not normalised: a hit distance is counted in
+  /// lengths of this vector.
   final Vector3 direction;
 
+  /// Copies [origin] and [direction] into this ray's own vectors.
   void setFrom(Vector3 origin, Vector3 direction) {
     this.origin.setFrom(origin);
     this.direction.setFrom(direction);
   }
 
+  /// Copies [other]'s origin and direction into this ray.
   void copyFrom(LocalRay other) => setFrom(other.origin, other.direction);
 
   /// Normalizes [direction] **in place** and returns this ray.

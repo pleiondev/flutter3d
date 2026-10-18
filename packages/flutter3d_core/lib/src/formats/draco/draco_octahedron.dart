@@ -22,6 +22,8 @@ import 'dart:typed_data';
 
 /// The quantisation the octahedral coordinates live in.
 final class OctahedronToolBox {
+  /// A tool box at [quantizationBits] bits a coordinate, asserted to be 2
+  /// to 30.
   OctahedronToolBox(int quantizationBits)
     : assert(
         quantizationBits >= 2 && quantizationBits <= 30,
@@ -50,9 +52,17 @@ final class OctahedronToolBox {
     return OctahedronToolBox(bits);
   }
 
+  /// Bits per octahedral coordinate, `b`, from 2 to 30.
   final int quantizationBits;
+
+  /// The largest value `b` bits hold, `2^b − 1`: what the stream stores.
   final int maxQuantizedValue;
+
+  /// The largest coordinate used, `2^b − 2`: even, so the square has a
+  /// centre on a whole step.
   final int maxValue;
+
+  /// The coordinate of the octahedron's centre, half of [maxValue].
   final int centerValue;
 
   /// What one quantized step is across the octahedron's square, whose side runs

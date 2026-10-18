@@ -43,6 +43,8 @@ import 'draco_corner_table.dart';
 
 /// What the connectivity section decodes to.
 final class EdgebreakerConnectivity {
+  /// The decoded section: the mesh's [corners], a seamed table per
+  /// attribute data, and the points the corners name.
   const EdgebreakerConnectivity({
     required this.corners,
     required this.attributeTables,
@@ -50,6 +52,7 @@ final class EdgebreakerConnectivity {
     required this.pointCount,
   });
 
+  /// The mesh's own connectivity over position vertices, with no seams.
   final CornerTable corners;
 
   /// One per *attribute data* the stream declares — a connectivity with seams,
@@ -63,6 +66,8 @@ final class EdgebreakerConnectivity {
   /// a vertex. Where a UV seam runs through a position vertex that one vertex
   /// is two points, and this is where they are told apart.
   final Uint32List cornerToPoint;
+
+  /// Count of points; every entry of [cornerToPoint] is below it.
   final int pointCount;
 }
 

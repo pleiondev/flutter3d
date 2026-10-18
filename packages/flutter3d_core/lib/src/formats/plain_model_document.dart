@@ -24,6 +24,8 @@ import 'model_document.dart';
 /// copying the values rather than wrapping the original loses nothing and
 /// needs no decorator that forwards every current and future getter.
 final class PlainModelDocument extends ModelDocument {
+  /// A document of exactly the fields given; every list not given is empty
+  /// and [asset] null.
   const PlainModelDocument({
     this.surfaces = const <ModelSurface>[],
     this.materials = const <SurfaceMaterial>[],

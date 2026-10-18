@@ -78,6 +78,7 @@ Map<String, Object?> _engineWords(Map<String, Object?> document) {
 
 /// An anchor a pipeline adds: a plugin's own, standing right after another.
 final class PipelineAnchor {
+  /// An anchor called [name] standing right after [after].
   const PipelineAnchor({required this.name, required this.after});
 
   /// The anchor's name, `<namespace>.<name>`.
@@ -87,6 +88,7 @@ final class PipelineAnchor {
   /// added one.
   final String after;
 
+  /// The anchor as written in the document's `anchors` list.
   Map<String, Object?> toJson() => <String, Object?>{
     'name': name,
     'after': after,
@@ -96,6 +98,8 @@ final class PipelineAnchor {
 /// One node of a pipeline: where it stands, what it touches, and — for a
 /// node of a plugin's own — which kind makes it.
 final class PipelineNode {
+  /// A node called [name] at [anchor]; not the engine's, and touching and
+  /// ordered against nothing, unless told otherwise.
   const PipelineNode({
     required this.name,
     required this.anchor,
@@ -161,8 +165,10 @@ final class PipelineNode {
   /// What it maintains across frames.
   final List<String> keeps;
 
-  /// Nodes at the same anchor it runs after and before.
+  /// Nodes at the same anchor it runs after, by name.
   final List<String> after;
+
+  /// Nodes at the same anchor it runs before, by name.
   final List<String> before;
 
   /// What the [kind] is handed to make the node: its own settings, by name.
@@ -174,6 +180,8 @@ final class PipelineNode {
   /// (`FormatDocument.nestedUnknownIn`).
   final Map<String, Object?> unknown;
 
+  /// The node as written in the document's `nodes` list: empty lists and
+  /// unset fields left out, [unknown] written back after.
   Map<String, Object?> toJson() => FormatDocument.writeNested(<String, Object?>{
     'name': name,
     'anchor': anchor,
@@ -200,6 +208,8 @@ final class PipelineNode {
 /// renderer describes it — so a pipeline of one's own is that file edited,
 /// and the two can be compared line by line.
 final class PipelineDocument extends FormatDocument {
+  /// A pipeline adding [anchors] and [nodes] and switching off [stepsOff];
+  /// empty unless given.
   PipelineDocument({
     this.name,
     this.anchors = const <PipelineAnchor>[],

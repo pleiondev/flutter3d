@@ -171,6 +171,8 @@ const int f3dWideMagic = 0x57443346;
 /// free for tools and plugins; the engine skips them unless asked to read one.
 const int f3dVendorKindStart = 0x80000000;
 
+/// The header's size in bytes: magic, version, section count and entry
+/// size, a u32 each. The directory starts right after it.
 const int f3dHeaderBytes = 16;
 
 /// A version-1 directory entry: kind, offset, length, count.
@@ -233,19 +235,54 @@ abstract final class F3dSectionFlags {
 /// outlives the source, and reordering the enum would silently reinterpret every
 /// asset already on disk.
 abstract final class F3dSection {
+  /// Vertex layouts, one [F3dRecord.layout] each, naming a run of
+  /// [attributes].
   static const int layouts = 1;
+
+  /// The attributes the layouts are made of, one [F3dRecord.attribute]
+  /// each.
   static const int attributes = 2;
+
+  /// Meshes, one [F3dRecord.mesh] each, their vertices and indices in the
+  /// [blob].
   static const int meshes = 3;
+
+  /// Drawn pieces, one [F3dRecord.surface] each: a mesh, a material and a
+  /// transform.
   static const int surfaces = 4;
+
+  /// Metal-rough materials, one [F3dRecord.material] each.
   static const int materials = 5;
+
+  /// Encoded images, one [F3dRecord.image] each, their bytes in the
+  /// [blob].
   static const int images = 6;
+
+  /// The node hierarchy, one [F3dRecord.node] each.
   static const int nodes = 7;
+
+  /// The indices of the top-level nodes, an i32 each.
   static const int roots = 8;
+
+  /// Animation clips, one [F3dRecord.animation] each, naming a run of
+  /// [tracks].
   static const int animations = 9;
+
+  /// Node tracks, one [F3dRecord.track] each, their keys in the [blob].
   static const int tracks = 10;
+
+  /// The decoder's warnings, one [F3dRecord.warning] each.
   static const int warnings = 11;
+
+  /// UTF-8 text every name, path and JSON record points into; not a table.
   static const int strings = 12;
+
+  /// Raw bytes the tables point into: vertices, indices, keys, images; not
+  /// a table.
   static const int blob = 13;
+
+  /// Skins, one [F3dRecord.skin] each, their joints and matrices in the
+  /// [blob].
   static const int skins = 14;
 
   /// The shapes a mesh can be blended towards, each naming the mesh it belongs
@@ -454,9 +491,19 @@ abstract final class F3dSection {
 abstract final class F3dExtrasOwner {
   /// The root document's own, `DocumentAsset.extras`; its index is 0.
   static const int document = 0;
+
+  /// A node's, `ModelNode.extras`; its index is into [F3dSection.nodes].
   static const int node = 1;
+
+  /// A material's, `SurfaceMaterial.extras`; its index is into
+  /// [F3dSection.materials].
   static const int material = 2;
+
+  /// A skin's, `ModelSkin.extras`; its index is into [F3dSection.skins].
   static const int skin = 3;
+
+  /// A clip's, `AnimationClip.extras`; its index is into
+  /// [F3dSection.animations].
   static const int animation = 4;
 }
 
@@ -621,18 +668,34 @@ abstract final class F3dRecord {
 /// Bit positions inside a `surfaceAttributes` record — one per name
 /// `VertexLayout`'s own attributes use.
 abstract final class F3dAttributeFlags {
+  /// The source authored `position`.
   static const int position = 1 << 0;
+
+  /// The source authored `normal`.
   static const int normal = 1 << 1;
+
+  /// The source authored `texcoord`.
   static const int texcoord = 1 << 2;
+
+  /// The source authored `tangent`.
   static const int tangent = 1 << 3;
+
+  /// The source authored `color`.
   static const int color = 1 << 4;
+
+  /// The source authored `joints`.
   static const int joints = 1 << 5;
+
+  /// The source authored `weights`.
   static const int weights = 1 << 6;
 }
 
 /// Which optional streams a morph target record carries.
 abstract final class F3dMorphFlags {
+  /// The record's `normalOffset` names a stream of normal deltas.
   static const int hasNormals = 1 << 0;
+
+  /// The record's `tangentOffset` names a stream of tangent deltas.
   static const int hasTangents = 1 << 1;
 }
 
@@ -641,13 +704,22 @@ abstract final class F3dMorphFlags {
 /// Packed rather than one field each because the whole of [TextureSampling] fits
 /// in eight bits, and a material carries five of these.
 abstract final class F3dSamplingFlags {
+  /// [TextureSampling.magLinear].
   static const int magLinear = 1 << 0;
+
+  /// [TextureSampling.minLinear].
   static const int minLinear = 1 << 1;
+
+  /// [TextureSampling.useMipmaps].
   static const int useMipmaps = 1 << 2;
 
   /// Two bits each, holding a `SamplerAddressMode` code (`f3d_wire.dart`).
   static const int wrapSShift = 3;
+
+  /// Where the two bits of [TextureSampling.wrapT]'s code start.
   static const int wrapTShift = 5;
+
+  /// The two bits of a wrap code once shifted down.
   static const int wrapMask = 0x3;
 
   /// Set when the mip level is chosen by nearest rather than interpolated
@@ -668,6 +740,7 @@ abstract final class F3dSamplingFlags {
 /// not our format" from "this is our format and it is broken", and rebuild the
 /// asset in the second case.
 final class F3dFormatException extends Flutter3dFormatException {
+  /// A refusal whose [message] says what in the file is wrong.
   const F3dFormatException(this.message);
 
   @override

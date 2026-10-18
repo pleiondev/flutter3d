@@ -657,6 +657,8 @@ final class Renderer with RenderServices {
   /// binding is skipped and so is the branch that would have used it.
   TextureHandle? _fallbackEnvironment;
 
+  /// Whether the scene pass multisamples: true when the device can
+  /// multisample an offscreen target.
   final bool msaaEnabled;
 
   /// Which slot of the deferred-release ring this frame retires.
@@ -5438,6 +5440,10 @@ final class Renderer with RenderServices {
       ),
   ];
 
+  /// Draws [scene] through each of [views] into a [width] by [height] frame
+  /// with [settings], and returns what the frame did.
+  ///
+  /// Throws an [ArgumentError] when [views] is empty.
   FrameResult render({
     required int width,
     required int height,

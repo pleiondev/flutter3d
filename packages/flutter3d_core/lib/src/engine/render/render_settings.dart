@@ -63,6 +63,8 @@ part 'settings_slots.dart';
 /// chrome from plastic: a polished metal floor seen head-on reflects the same
 /// 4% a plastic one does, where a real one would reflect most of the light.
 final class ReflectionSettings {
+  /// Reflections off, 32 steps of 0.1 m with a 0.12 m thickness, at 0.7
+  /// intensity.
   const ReflectionSettings({
     this.enabled = false,
     this.steps = 32,
@@ -72,6 +74,7 @@ final class ReflectionSettings {
     this.debugOnly = false,
   });
 
+  /// Whether the screen-space reflection pass runs. Off by default.
   final bool enabled;
 
   /// March steps. The shader's loop is bounded at 64 whatever this says,
@@ -109,6 +112,8 @@ final class ReflectionSettings {
   /// contributing nothing at all.
   final bool debugOnly;
 
+  /// Returns a copy with the given fields replaced; null leaves a field as
+  /// it is.
   ReflectionSettings copyWith({
     bool? enabled,
     int? steps,
@@ -159,6 +164,7 @@ final class ContactShadowSettings {
   ///
   /// A quarter of a metre: the gap a shadow map leaves is the first few
   /// centimetres, and a march long enough to replace the map would be a march
+  /// Contact shadows off, a 0.25 m march in 8 steps, at full [strength].
   /// whose cost is the map's without its coverage.
   final double length;
 
@@ -168,6 +174,7 @@ final class ContactShadowSettings {
 
   /// How thick an occluder is assumed to be, in metres.
   ///
+  /// Whether the contact-shadow march runs. Off by default.
   /// A surface nearer to the eye than the ray by more than this is something
   /// else standing in front rather than the thing casting. Without it a wall
   /// four metres nearer than the floor shadows everything the ray crosses,
@@ -201,6 +208,8 @@ final class ContactShadowSettings {
     bias: bias ?? this.bias,
     strength: strength ?? this.strength,
   );
+  /// Returns a copy with the given fields replaced; null leaves a field as
+  /// it is.
 }
 
 /// Screen-space ambient occlusion.
@@ -265,6 +274,7 @@ final class AmbientOcclusionSettings {
   /// How far, in world metres, a surface looks for things blocking its sky.
   ///
   /// The one setting that has to suit the scene rather than the renderer: half
+  /// Occlusion off, the hemisphere kernel of 12 samples over 0.5 m, unblurred.
   /// a metre is a room, and on a level built in centimetres it is the whole
   /// level.
   final double radius;
@@ -277,6 +287,7 @@ final class AmbientOcclusionSettings {
   /// How dark a fully enclosed corner goes, where 1 is black.
   /// A 0..1 fraction.
   final double strength;
+  /// Whether the occlusion pass runs. Off by default.
 
   /// Taps to each side in the depth-aware blur over the occlusion buffer,
   /// 0 for no blur — `gfx-32n`. Bounded at eight whatever this says.
@@ -346,6 +357,8 @@ final class AmbientOcclusionSettings {
 final class AmbientOcclusionMethod {
   const AmbientOcclusionMethod._(this.name, this.code);
 
+  /// Returns a copy with the given fields replaced; null leaves a field as
+  /// it is.
   final String name;
 
   /// What goes into `SsaoInfo.screen.z`. Part of the shader contract.
@@ -403,6 +416,7 @@ final class AmbientOcclusionMethod {
 /// where the shape comes from. A scene with no caster gets nothing, silently:
 /// that is the honest answer rather than an error, since a light being added
 /// later is the ordinary case.
+  /// The method's lower-case name: `ssao`, `gtao` or `ssil`.
 ///
 /// **Single scattering since 0.7.4, and that is what took the white veil
 /// away.** It used to add `strength × color` to every pixel in proportion to
@@ -542,6 +556,7 @@ final class SpatialUpscaleSettings {
 
 final class LightShaftSettings {
   const LightShaftSettings({
+  /// Local exposure off, at 0.7 strength with two stops either way.
     this.enabled = false,
     this.steps = 16,
     this.distance = 40.0,
@@ -562,6 +577,7 @@ final class LightShaftSettings {
   /// Sixteen reads as a beam because each pixel starts a fraction of a step
   /// further along, from an ordered cell; without that offset sixteen steps
   /// read as sixteen bands.
+  /// Whether the local exposure shift is applied. Off by default.
   final int steps;
 
   /// How far along the ray to march, in world metres. Shorter spends the
@@ -599,6 +615,7 @@ final class LightShaftSettings {
     double? distance,
     double? strength,
     LinearColor? color,
+  /// The upscale off, with a sharpening of 0.2 when it is switched on.
     double? anisotropy,
     bool clearColor = false,
   }) => LightShaftSettings(
@@ -608,6 +625,8 @@ final class LightShaftSettings {
     strength: strength ?? this.strength,
     color: clearColor ? null : (color ?? this.color),
     anisotropy: anisotropy ?? this.anisotropy,
+  /// Whether a frame rendered below full size is upscaled by the edge-adaptive
+  /// filter. Off by default; see [runsFor] for when it actually runs.
   );
 }
 
@@ -632,7 +651,16 @@ final class LightShaftSettings {
 /// [RenderSettings.clusteredLights] is on and the scene has more lights than
 /// a draw's eight slots — the case the cells are built for. Otherwise the fog
 /// is lit by the sun and [ambient] alone. A point or spot light that holds a
+/// Shafts of sunlight through the air, marched through the directional
+/// shadow map: the sun's in-scatter added over the scene, which is left
+/// untouched behind it.
+///
+/// Off by default. [VolumetricFogSettings] is the alternative that also
+/// dims the scene and is lit by the torches; with both on the sun is
+/// scattered twice.
 /// row of the cube atlas is shadowed in the air through it, one tap a step,
+  /// Shafts off, 16 steps over 40 m of a clear day's haze, scattering
+  /// forward with g 0.6.
 /// so a torch's glow stops at the wall beside it; a light without a row —
 /// `castsShadow` off, or past the atlas's six — still reaches through.
 ///
@@ -752,6 +780,8 @@ final class ThinLens {
 /// **Every number here is one a photographer already knows.** A focus
 /// distance, a focal length and an f-number are what a lens is described by,
 /// and the circle of confusion that follows from them is the thin-lens
+  /// Fog off, 0.02 per metre thick at every height, marched in 24 steps over
+  /// 40 m.
 /// formula rather than a curve chosen because it looked right. Open
 /// [aperture] and the background softens by an amount somebody can predict
 /// from the three numbers, which a strength slider between zero and one
@@ -859,6 +889,7 @@ final class DepthOfFieldSettings {
     if (fovY == null || fovY <= 0.0 || aspect <= 0.0) {
       return ThinLens(focalLength: given ?? 0.05, sensorWidth: sensorWidth);
     }
+  /// A lens of [focalLength] over a sensor [sensorWidth] wide, both in metres.
     final across = 2.0 * aspect * math.tan(fovY / 2.0);
     return given == null
         ? ThinLens(focalLength: sensorWidth / across, sensorWidth: sensorWidth)
@@ -901,6 +932,8 @@ final class DepthOfFieldSettings {
 /// default half; [maxRadius] bounds the streak in pixels, which is also the
 /// width of the tiles the pass finds each neighbourhood's motion in.
 ///
+  /// Depth of field off, focused at 10 m at f/8 over a full-frame sensor,
+  /// the focal length taken from the camera.
 /// Off by default: a scene in motion comes out softer, and every recorded
 /// frame is sharp.
 final class MotionBlurSettings {
@@ -1061,12 +1094,14 @@ final class ViewportShading {
 /// view built by walking the subject and swapping every material has to
 /// remember what it swapped and put it back; the modeller's own docstring
 /// documents what happens when the remembering fails. The scene pass already
+  /// Motion blur off, a 180° shutter, streaks bounded at 20 pixels.
 /// wrote a world normal and a view-axis depth into its second attachment, so
 /// every mode here is arithmetic on a buffer that exists — nothing is
 /// modified and there is nothing to restore.
 ///
 /// **It costs the frame its multisampling**, and that is said here rather
 /// than found later: reading the surface buffer attaches the second colour
+  /// Whether the motion-blur pass runs. Off by default.
 /// attachment, attachments in one target must agree on sample count, so a
 /// frame with a mode on is a frame the scene pass did not multisample.
 /// `FrameResult.antiAliasing.msaaDeclined` reports it.
@@ -1083,6 +1118,8 @@ final class ViewportShadingSettings {
     this.lightDirection,
   });
 
+  /// Returns a copy with the given fields replaced; null leaves a field as
+  /// it is.
   /// Which mode. [ViewportShading.off] is the default and an exact no-op.
   final ViewportShading mode;
 
@@ -1116,12 +1153,14 @@ final class ViewportShadingSettings {
 
   /// How wide the outline's neighbour taps reach, in pixels.
   final double outlineWidth;
+  /// Decals off, sixteen decals and four pictures a draw.
 
   /// The gain on the curvature estimate, which is a screen-space divergence
   /// and therefore a small number before it is scaled.
   final double curvatureGain;
 
   /// How much of the concave half is darkened, 0 to 1 — the cavity in a
+  /// Whether a frame with visible decals paints them. Off by default.
   /// cavity map.
   final double cavity;
 
@@ -1146,6 +1185,8 @@ final class ViewportShadingSettings {
     bool clearLightDirection = false,
   }) => ViewportShadingSettings(
     mode: mode ?? this.mode,
+  /// Returns a copy with the given fields replaced; null leaves a field as
+  /// it is.
     amount: amount ?? this.amount,
     ambient: ambient ?? this.ambient,
     depthEdge: depthEdge ?? this.depthEdge,
@@ -1177,10 +1218,14 @@ final class ViewportShadingSettings {
 /// detail it was meant to remove is exactly what it keeps. Asking the surface
 /// buffer instead, a neighbour is averaged in when it is on the same surface —
 /// near the same depth, facing the same way — and left out when it is not.
+  /// Planar reflections off unless [enabled] says otherwise.
 /// Texture lives within a surface and shape between surfaces, so a cross
 /// bilateral filter guided this way keeps the second and drops the first, for
+  /// Whether a frame with a reflector in it draws the mirrored scene. Off by
+  /// default.
 /// twenty-five taps of two textures and no threshold on colour at all.
 ///
+  /// Returns a copy with [enabled] replaced; null leaves it as it is.
 /// **Off by default**, and switched on by a game rather than by this engine:
 /// it is an accommodation a player asks for, and `flutter3d_game`'s
 /// `highContrastOf` is where the asking is read — the platform's own
@@ -1269,6 +1314,8 @@ final class HighContrastSettings {
   HighContrastSettings copyWith({
     bool? enabled,
     double? flatten,
+  /// Viewport shading off; the other defaults are what a mode switched on
+  /// starts from.
     double? flattenSpacing,
     double? contrast,
     double? saturation,
@@ -1416,6 +1463,8 @@ final class XraySettings {
   /// A copy with the given fields replaced. A `clear…` flag resets that
   /// nullable field to null, which passing null cannot say.
   XraySettings copyWith({
+  /// The look off; the other defaults are what it starts from when
+  /// [enabled] is switched on.
     LinearColor? color,
     int? layerMask,
     bool clearColor = false,
@@ -1568,6 +1617,8 @@ final class RenderSettings {
     this.look = const LookSettings(),
     this.shadows = const ShadowSettings(),
     this.surfaceBuffer = false,
+  /// Fog of [density] per metre at [baseHeight], thinning upwards by
+  /// [heightFalloff]. The default density of nought is no fog.
     this.showSurfaceBuffer = false,
     this.showShadowMap = false,
     this.showStaticShadowMap = false,
@@ -1586,11 +1637,13 @@ final class RenderSettings {
     this.spatialUpscale = const SpatialUpscaleSettings(),
     this.localExposure = const LocalExposureSettings(),
     this.outputTransform = OutputTransform.sdr,
+  /// [color], or the neutral dark grey default when it is null.
     this.frameWorkBudget = Duration.zero,
     this.energyCompensation = false,
     this.diffuseModel = DiffuseModel.lambert,
     this.clusteredLights = true,
     this.aliasTargets = false,
+  /// Whether any fog is drawn: true when [density] is above nought.
     this.occlusion = OcclusionMode.none,
     this.lightShafts = const LightShaftSettings(),
     this.volumetricFog = const VolumetricFogSettings(),
@@ -1679,6 +1732,7 @@ final class RenderSettings {
   /// is on the composite multiplies this by [camera]'s `exposureScale` as
   /// well ([cameraExposure]), which is one for the default camera; a camera
   /// given both ways counts twice. [autoExposure] derives the exposure from
+  /// X-ray off: a [layerMask] of nought meets no node.
   /// the frame instead, and while that is on this is only where the meter
   /// starts from.
   final double exposure;
@@ -1701,8 +1755,10 @@ final class RenderSettings {
   ///
   /// **Two of the three backends decline it**, which is the one thing a caller
   /// has to know before reaching for it. It is a polygon
+  /// [color], or the default orange when it is null.
   /// mode, and OpenGL ES has no `glPolygonMode` — so the WebGL backend and the
   /// software rasteriser both answer false to
+  /// Whether the stage draws: true when [layerMask] names any layer.
   /// `GraphicsDevice.supportsWireframe`, and the engine declines the setting on
   /// their behalf rather than sending a request they would refuse mid-frame.
   /// Only Impeller draws it.
@@ -1842,6 +1898,11 @@ final class RenderSettings {
   /// drawn, and the nodes a game marked ringed in their role colours.
   final HighContrastSettings highContrast;
 
+  /// Settings for one frame; every default is the plain frame, with each
+  /// effect that costs a pass off.
+  ///
+  /// Asserts that [anisotropy] is one or more and [lightFadeBand] is not
+  /// negative.
   /// `P6`'s material channels in place of the light, over all or part of the
   /// frame.
   final DebugViewSettings debugView;
@@ -2004,6 +2065,9 @@ final class RenderSettings {
   /// shows its bake.
   final bool irradianceUpdates;
 
+
+  /// Whether back faces are culled, on by default. A double-sided material is
+  /// drawn from both sides either way.
   /// Whether the view's depth runs the other way round — near at one, far at
   /// nought — on a device where that gains precision, with the near plane
   /// moved out to what is drawn. On by default since 1.0; false is the
@@ -2065,12 +2129,14 @@ final class RenderSettings {
   /// Whether [camera] takes part in the exposure. On by default since 1.0;
   /// `false` is the flag back to the multiplier alone, [exposure] as every
   /// earlier version used it, whatever [camera] says.
+  /// The glow bright light spills into — see [BloomSettings]. On by default.
   final bool physicalCamera;
 
   /// The exposure the composite uses while [autoExposure] is off: [exposure],
   /// through [camera] while [physicalCamera] is on.
   /// A linear multiplier, as [exposure] is.
   double get cameraExposure =>
+  /// How the lights cast shadows — see [ShadowSettings].
       physicalCamera ? exposure * camera.exposureScale : exposure;
 
   /// The settings of slots that are not fields of this class — an addon's
@@ -2094,6 +2160,8 @@ final class RenderSettings {
   /// nothing was.
   ///
   /// ```dart
+  /// Screen-space reflections, read from the surface buffer — see
+  /// [ReflectionSettings]. Off by default.
   /// final glow = settings.extension(SettingsSlot.bloom); // settings.bloom
   /// final frost = settings.extension(frostSlot);         // an addon's
   /// ```
@@ -2135,6 +2203,7 @@ final class RenderSettings {
   /// renderer has registered as [also] — `renderer.renderSteps.added` — and
   /// those that need one of [steps] are switched off and recorded with it.
   /// Left out, they are still off in the frame, which takes them down with
+  /// Distance and height fog, applied in the scene pass — see [FogSettings].
   /// what they need and reports them.
   RenderSettings without(
     Set<RenderStep> steps, {
@@ -3069,6 +3138,7 @@ final class EdgeSmoothing {
 /// **The scene is drawn a fraction of a pixel off each frame**, along a
 /// Halton(2, 3) sequence of [sequenceLength] offsets, and a resolve pass
 /// blends each frame into the history of the ones before it, reprojected
+  /// A transform baked into [texture], a strip of [size] slices.
 /// through the motion the velocity passes measured. Sixteen frames of a still
 /// picture are sixteen samples of every pixel, which is what multisampling
 /// buys with memory and this buys with time.
@@ -3096,6 +3166,8 @@ final class TemporalSettings {
   /// resolve has always used, is the default.
   final TemporalClip clip;
 
+  /// A neutral look: every adjustment at the value that leaves the picture as
+  /// the tone map made it, apart from the default dither of one 8-bit step.
   /// How many offsets the jitter cycles through before it repeats. Sixteen
   /// covers a pixel evenly enough that a still frame converges to within a
   /// grey level of its 16× supersampled self.
@@ -3425,6 +3497,8 @@ final class BloomSettings {
 /// chain has already found what is bright and spread it; reading it again at
 /// positions mirrored through the middle of the frame is what puts each ghost
 /// where the light's reflection between two lens elements would land. A
+  /// Edge smoothing off, FXAA when it is switched on, with no temporal
+  /// resolve.
 /// frame with nothing over the bloom threshold has no flare, which is the
 /// right answer, and a frame with the bloom off has none at all.
 ///
@@ -3434,6 +3508,7 @@ final class BloomSettings {
 /// light at [haloRadius] from the middle landing on the far side of it.
 ///
 /// Added into the glow, so the composite scales it by the bloom's own
+  /// Whether the edge-smoothing pass runs. Off by default.
 /// intensity and tone maps it with the rest of the light.
 ///
 /// **A ghost is as soft as the glow it is drawn from.** Five levels at full
@@ -3484,6 +3559,8 @@ final class LensFlareSettings {
     double? intensity,
     int? ghosts,
     double? ghostSpacing,
+  /// Returns a copy with the given fields replaced; null leaves a field as
+  /// it is.
     double? haloRadius,
     double? halo,
     double? fringe,
@@ -3497,3 +3574,20 @@ final class LensFlareSettings {
     fringe: fringe ?? this.fringe,
   );
 }
+  /// The temporal resolve off, over a 16-frame jitter sequence with 0.9 of
+  /// the history kept.
+  /// Whether frames are jittered and resolved against their history. Off by
+  /// default.
+  /// Returns a copy with the given fields replaced; null leaves a field as
+  /// it is.
+  /// Bloom on, starting at a luminance of one over five levels at 0.06
+  /// intensity, with no flare.
+  /// Whether the bloom chain runs. On by default.
+  /// Returns a copy with the given fields replaced; null leaves a field as
+  /// it is.
+  /// The flare off; when switched on, four ghosts at full intensity and a
+  /// halo at half.
+  /// Whether a flare is drawn from the glow. Off by default, and off
+  /// whenever the bloom is.
+  /// Returns a copy with the given fields replaced; null leaves a field as
+  /// it is.

@@ -410,6 +410,7 @@ final class FrameWindow {
   @override
   int get hashCode => Object.hash(width, height, left, top);
 
+  /// A window at [left], [top] of a [width] by [height] frame, in pixels.
   @override
   String toString() => 'FrameWindow(${width}x$height at $left, $top)';
 }

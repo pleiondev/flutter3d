@@ -21,6 +21,8 @@ library;
 /// smoothness, one item at a time, rather than nothing ever. An allowance of
 /// [Duration.zero] means no limit, which is what a frame had before this existed.
 final class FrameWorkBudget {
+  /// A budget of [allowance] per frame, no limit when zero, timed by [clock]
+  /// in microseconds or by a stopwatch when it is null.
   FrameWorkBudget({this.allowance = Duration.zero, int Function()? clock})
     : _microseconds = allowance.inMicroseconds,
       _clock = clock ?? _stopwatchClock();

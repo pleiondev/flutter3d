@@ -13,6 +13,8 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
 /// unit conversion of its own; a caller feeding it to a renderer with a
 /// different convention does that conversion at the seam, not here.
 final class ModelLight {
+  /// A light of [type]; every other field defaults to the extension's own
+  /// default, the outer cone to a quarter of a half turn.
   ModelLight({
     required this.type,
     this.color = LinearColor.white,
@@ -23,6 +25,7 @@ final class ModelLight {
     this.name,
   }) : outerConeAngle = outerConeAngle ?? math.pi / 4;
 
+  /// The light's shape: directional, point or spot.
   final LightType type;
 
   /// Linear RGB, the same convention every other colour in the engine uses.
@@ -52,6 +55,7 @@ final class ModelLight {
   /// 45 degrees.
   final double outerConeAngle;
 
+  /// The light's `name` in the file; null when it has none.
   final String? name;
 
   @override

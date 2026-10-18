@@ -27,8 +27,10 @@ import 'usdz_zip.dart';
 /// itself to and for the same reason: a diff that is all whitespace noise
 /// hides the diff that matters.
 final class UsdzWriter {
+  /// A writer for [document], its entry and root prim named after [name].
   UsdzWriter(this.document, {this.name = 'model'});
 
+  /// The model written; read, never changed.
   final ModelDocument document;
 
   /// The `.usda` entry's own name inside the archive, and the root `Xform`

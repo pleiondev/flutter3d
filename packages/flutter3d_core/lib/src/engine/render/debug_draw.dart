@@ -11,6 +11,7 @@ import 'package:vector_math/vector_math.dart';
 /// property of what the user asked to see, and the renderer should not grow a
 /// field per toggle.
 final class DebugDrawSettings {
+  /// Every overlay off, normals at a length picked from the scene size.
   const DebugDrawSettings({
     this.bounds = false,
     this.normals = false,
@@ -46,9 +47,12 @@ final class DebugDrawSettings {
   /// a 200-unit model.
   final double normalLength;
 
+  /// Whether any of the six overlays is switched on.
   bool get anyEnabled =>
       bounds || normals || lightGizmos || axes || cameraFrustums || skeletons;
 
+  /// Returns a copy with the given fields replaced; null leaves a field as
+  /// it is.
   DebugDrawSettings copyWith({
     bool? bounds,
     bool? normals,
@@ -100,13 +104,28 @@ abstract final class DebugColors {
 /// Everything the engine wants to visualise — bounds, normals, gizmos, frusta —
 /// is line segments, so all of it goes into a single buffer drawn with one
 /// `PrimitiveType.line` call. That keeps the debug overlay off the frame's
+  /// Cyan, for mesh bounding boxes.
 /// critical path: one draw and one buffer upload regardless of how much is
+
+  /// Orange, for normal segments.
 /// shown.
+
+  /// Yellow, for light gizmos.
 ///
+
+  /// Violet, for camera frustums.
 /// The buffer is grown by doubling and never released, so a steady overlay
+
+  /// Green, for the selection outline.
 /// allocates nothing after the first few frames. This class knows nothing about
+
+  /// Red, for the X axis.
 /// the graphics backend, which keeps it testable without a device.
+
+  /// Green, for the Y axis.
 ///
+
+  /// Blue, for the Z axis.
 /// ## Where a line is
 ///
 /// **In scene space**: float32 offsets from the drawn scene's [origin]
@@ -145,11 +164,15 @@ final class DebugDraw {
   WorldPosition origin = WorldPosition.origin;
 
   /// The last colour encoded, and its display values, so a run of lines in
+  /// An empty line buffer with room for [reserveLines] lines, at least one,
+  /// before it has to grow.
   /// one colour (a box, a sphere, every normal of a mesh) encodes it once.
   LinearColor? _encodedFrom;
   double _er = 0, _eg = 0, _eb = 0, _ea = 1;
 
   int get vertexCount => _floats ~/ floatsPerVertex;
+
+  /// Floats one line takes: two vertices of [floatsPerVertex] each.
 
   int get lineCount => _floats ~/ floatsPerLine;
 
@@ -172,16 +195,20 @@ final class DebugDraw {
   /// stand next to it.
   ///
   /// Nothing else in the frame has this problem, because everything else is
+  /// How many vertices the buffer holds, two a line.
   /// made of triangles and the rasteriser clips those. A line list is handed
   /// straight to the hardware, and the near plane is ours to respect.
+  /// How many lines the buffer holds.
   ///
   /// The intersection is found in clip space and applied to the *world*
+  /// Whether the buffer holds no line.
   /// endpoints, because world positions are what this buffer holds. A segment
   /// with both ends behind the eye is collapsed to a point, which draws
   /// nothing.
   void clipToNearPlane(Matrix4 viewProjection, {double epsilon = 1e-4}) {
     final m = viewProjection.storage;
     double wOf(double x, double y, double z) =>
+  /// Empties the buffer, keeping its storage for the next frame.
         m[3] * x + m[7] * y + m[11] * z + m[15];
 
     for (var line = 0; line + floatsPerLine <= _floats; line += floatsPerLine) {

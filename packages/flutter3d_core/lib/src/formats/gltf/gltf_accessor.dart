@@ -19,6 +19,8 @@ export 'gltf_accessor_type.dart';
 /// subset of elements after the fact, and an accessor may have no buffer view at
 /// all (meaning all zeros, which is legal and used by sparse accessors).
 final class GltfAccessorReader {
+  /// A reader over the document [json]'s accessors and buffer views, and
+  /// the resolved [buffers].
   GltfAccessorReader({
     required Map<String, Object?> json,
     required List<Uint8List> buffers,
@@ -50,10 +52,16 @@ final class GltfAccessorReader {
   int countOf(int accessorIndex) =>
       _requireInt(_accessor(accessorIndex), 'count', accessorIndex);
 
+  /// Returns the element shape of an accessor, from its `type`. Throws a
+  /// [GltfFormatException] when the accessor or its `type` is missing or
+  /// the type is not one glTF defines.
   GltfAccessorType typeOf(int accessorIndex) => GltfAccessorType.fromName(
     _requireString(_accessor(accessorIndex), 'type', accessorIndex),
   );
 
+  /// Returns the scalar type of an accessor's components, from its
+  /// `componentType`. Throws a [GltfFormatException] when the accessor or
+  /// its `componentType` is missing or the code is not one glTF defines.
   GltfComponentType componentTypeOf(int accessorIndex) =>
       GltfComponentType.fromCode(
         _requireInt(_accessor(accessorIndex), 'componentType', accessorIndex),

@@ -41,6 +41,7 @@ import 'draco_traversal.dart';
 
 /// What a decoded primitive carries.
 final class DracoMesh {
+  /// A decoded primitive of [indices] over [pointCount] points.
   const DracoMesh({
     required this.indices,
     required this.pointCount,
@@ -64,6 +65,8 @@ final class DracoMesh {
 
 /// One decoded attribute.
 final class DracoAttribute {
+  /// An attribute of [type] with [components] floats a point in [values],
+  /// and the stored integers when it was stored as integers.
   const DracoAttribute({
     required this.type,
     required this.components,
@@ -75,6 +78,8 @@ final class DracoAttribute {
   /// 4 generic.
   final int type;
 
+  /// Count of components in one point's value: three for a position, two
+  /// for a texture coordinate.
   final int components;
 
   /// `count * components` floats, one run per point: dequantised where the
@@ -95,10 +100,19 @@ final class DracoAttribute {
 
 /// Draco's `GeometryAttribute::Type`.
 abstract final class DracoAttributeType {
+  /// A vertex position.
   static const int position = 0;
+
+  /// A vertex normal, which may be stored octahedrally.
   static const int normal = 1;
+
+  /// A vertex colour.
   static const int color = 2;
+
+  /// A texture coordinate.
   static const int texCoord = 3;
+
+  /// Anything else: joints, weights, a tool's own data.
   static const int generic = 4;
 }
 

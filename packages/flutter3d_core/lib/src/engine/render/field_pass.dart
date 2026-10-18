@@ -19,10 +19,12 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 /// Two targets, a current one, and the kernels that step between them.
 final class FieldPass {
+  /// Two targets of [spec] created on [device], the first current.
   FieldPass(this.device, this.spec)
     : _current = device.createTexture(spec),
       _next = device.createTexture(spec);
 
+  /// The device the targets live on and the kernels run on.
   final GraphicsDevice device;
 
   /// Both targets' size, format and storage. A field worth stepping is

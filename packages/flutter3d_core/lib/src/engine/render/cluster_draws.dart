@@ -95,6 +95,8 @@ Vector3? clusterEye(Matrix4 viewProjection, Matrix4 world) {
 /// given back to the device, so a node that left the scene, or a view that
 /// went away, leaves nothing behind for long.
 final class ClusterDraws {
+  /// Index slots on the given device, freed once unused for longer than
+  /// [framesInFlight] frames.
   ClusterDraws(this._device, {this.framesInFlight = 3});
 
   final GraphicsDevice _device;
@@ -202,6 +204,7 @@ final class ClusterDraws {
 /// not all in view: the index [buffer] to bind and how many of its indices
 /// to draw, nought when no cluster is in view.
 final class ClusterIndices {
+  /// [count] indices of [buffer] to draw.
   const ClusterIndices(this.buffer, this.count);
 
   /// The indices to bind in place of the mesh's own.

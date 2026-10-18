@@ -24,6 +24,10 @@ import 'package:flutter3d_core/geometry.dart';
 /// paused animation, or a rig that has settled, costs one comparison a call
 /// rather than a pass over every vertex.
 final class SkinBlend {
+  /// A blend of [mesh], starting from its unskinned vertices.
+  ///
+  /// Throws an [ArgumentError] when the mesh's layout carries no joints and
+  /// weights.
   SkinBlend(this.mesh) : _blended = Float32List.fromList(mesh.vertices) {
     if (!mesh.layout.isSkinned) {
       throw ArgumentError(
@@ -33,6 +37,7 @@ final class SkinBlend {
     }
   }
 
+  /// The skinned mesh's source data: bind-pose vertices, joints and weights.
   final MeshData mesh;
 
   /// The skinned vertices, in the mesh's own layout and stride.

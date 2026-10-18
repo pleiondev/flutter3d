@@ -14,6 +14,8 @@ import 'vertex_layout.dart';
 /// using `List<double>` so the data already sits in the form that goes to the
 /// GPU.
 final class MeshBuilder {
+  /// An empty builder for [layout], with room for [reserveVertices] vertices
+  /// and [reserveIndices] indices before it first grows.
   MeshBuilder(this.layout, {int reserveVertices = 64, int reserveIndices = 128})
     : _floatsPerVertex = layout.floatsPerVertex,
       _positionOffset = layout.floatOffsetOf(VertexLayout.position.name),
@@ -29,6 +31,7 @@ final class MeshBuilder {
     _indices = Uint32List(math.max(3, reserveIndices));
   }
 
+  /// The attributes each vertex is written with, and in which order.
   final VertexLayout layout;
   final int _floatsPerVertex;
   final int _positionOffset;
@@ -44,7 +47,10 @@ final class MeshBuilder {
   int _vertexFloats = 0;
   int _indexCount = 0;
 
+  /// Count of vertices added so far; the index the next one gets.
   int get vertexCount => _vertexFloats ~/ _floatsPerVertex;
+
+  /// Count of indices added so far, three per triangle.
   int get indexCount => _indexCount;
 
   /// Appends a vertex and returns its index.
@@ -122,6 +128,8 @@ final class MeshBuilder {
     return base ~/ _floatsPerVertex;
   }
 
+  /// Appends the triangle of vertices [a], [b] and [c], counter-clockwise
+  /// from the front. The indices are not checked against [vertexCount].
   void addTriangle(int a, int b, int c) {
     if (_indexCount + 3 > _indices.length) {
       _indices = _growIndices(_indices, _indexCount + 3);
@@ -137,6 +145,8 @@ final class MeshBuilder {
     addTriangle(a, c, d);
   }
 
+  /// Returns what was added as a [MeshData] whose arrays are views of the
+  /// builder's own, not copies.
   MeshData build() => MeshData(
     layout: layout,
     vertices: Float32List.sublistView(_vertices, 0, _vertexFloats),

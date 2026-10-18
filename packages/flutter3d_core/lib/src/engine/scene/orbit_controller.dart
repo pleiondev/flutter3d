@@ -14,6 +14,8 @@ import 'scene_node.dart';
 ///
 /// Holds no Flutter types; the gesture bridge lives in the app layer.
 final class OrbitController {
+  /// An orbit placing [node] [distance] metres from [target] (the origin when
+  /// null) at [yaw] and [pitch] radians, applied at once.
   OrbitController(
     this.node, {
     Vector3? target,
@@ -28,6 +30,7 @@ final class OrbitController {
     apply();
   }
 
+  /// The node the controller places, usually a camera.
   SceneNode node;
 
   /// Point being orbited, in world space.
@@ -77,6 +80,9 @@ final class OrbitController {
   /// Radians per pixel of drag.
   double rotateSensitivity = 0.008;
 
+  /// Turns the orbit by a drag of [deltaYaw] and [deltaPitch] pixels, scaled
+  /// by [rotateSensitivity], with the pitch clamped short of straight up and
+  /// down. Cancels a turn that is still playing.
   void rotate(double deltaYaw, double deltaPitch) {
     // A hand on the mouse outranks a turn that is still playing: an animation
     // that kept running would drag the view out from under the drag.

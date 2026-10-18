@@ -47,6 +47,8 @@ import 'shadow_settings.dart' show ShadowSettings;
 
 /// What the sky looks like, and whether there is one.
 final class SkySettings {
+  /// No sky until [enabled] is set; every colour left null takes its
+  /// default.
   const SkySettings({
     this.enabled = false,
     this.zenith,
@@ -101,11 +103,21 @@ final class SkySettings {
   /// colours its own sun.
   final LinearColor? sunColor;
 
+  /// [zenith], or a mid blue when it is null.
   LinearColor get resolvedZenith => zenith ?? _defaultZenith;
+
+  /// [horizon], or a pale blue-grey when it is null.
   LinearColor get resolvedHorizon => horizon ?? _defaultHorizon;
+
+  /// [nadir], or a near-black haze when it is null.
   LinearColor get resolvedNadir => nadir ?? _defaultNadir;
+
+  /// [directionToSun], or a fresh vector towards a sun high in the sky when
+  /// it is null; a new vector each call, so a caller may change it.
   Vector3 get resolvedDirectionToSun =>
       directionToSun ?? _defaultDirectionToSun;
+
+  /// [sunColor], or a warm white when it is null.
   LinearColor get resolvedSunColor => sunColor ?? _defaultSunColor;
 
   static const LinearColor _defaultZenith = LinearColor(0.10, 0.22, 0.52);
@@ -167,6 +179,8 @@ final class SkySettings {
   /// hour of the day. Ignored when there is no [cubemap].
   final LinearColor? tint;
 
+  /// [tint], or white, which leaves the cube's colour as it is, when it is
+  /// null.
   LinearColor get resolvedTint => tint ?? LinearColor.white;
 
   /// The air to scatter the sun through instead of evaluating the gradient —

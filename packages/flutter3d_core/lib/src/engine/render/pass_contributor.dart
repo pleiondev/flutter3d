@@ -32,9 +32,20 @@ export 'contributor_registry.dart';
 /// pipeline tracker describing a pipeline it replaced makes the next node
 /// skip a bind it needed.
 final class FramePassState {
+  /// The lighting model of the mesh pipeline bound now, or null when the
+  /// bound pipeline is not one of the lit ones and the next draw must bind.
   LightingModel? boundPipeline;
+
+  /// Whether the bound mesh pipeline is the skinned variant; null when
+  /// nothing known is bound.
   bool? boundSkinned;
+
+  /// Whether the bound mesh pipeline is the instanced variant; null when
+  /// nothing known is bound.
   bool? boundInstanced;
+
+  /// Whether the bound mesh pipeline is the lightmapped variant; null when
+  /// nothing known is bound.
   bool? boundLightmapped;
 
   /// Whether the bound mesh pipeline is its lighting model's opaque variant —
@@ -66,8 +77,15 @@ final class FramePassState {
   /// Whether a material asked for alpha to coverage this frame and was drawn
   /// with its hard cutoff instead — `FrameResult.alphaToCoverageDeclined`.
   bool coverageDeclined = false;
+
+  /// Draw calls issued into the pass so far, a count. A plugin that draws
+  /// adds its own.
   int drawCalls = 0;
+
+  /// How many times a mesh pipeline was bound, a count.
   int pipelineSwitches = 0;
+
+  /// Draws of skinned meshes this frame, a count.
   int skinnedDraws = 0;
 
   /// Triangles actually drawn this frame — `view-17`'s own row: a batch's
@@ -116,6 +134,7 @@ final class FramePassState {
 /// shadows a draw gets is therefore a decision at the call site, where it can be
 /// read, rather than a field lookup two thousand lines away.
 final class SceneShadows {
+  /// Shadow textures to sample; each null one samples as unoccluded.
   const SceneShadows({
     this.directional,
     this.directionalMoments,
@@ -190,6 +209,9 @@ final class SceneShadows {
   /// `FrameGraphNode.keeps` — so a texture here may hold pixels an earlier
   /// frame drew, deliberately, and is exactly as valid to sample for it.
   final TextureHandle? point;
+
+  /// The atlas of the static point-shadow bake, or null when none is bound.
+  /// Maintained across frames, as [point] is.
   final TextureHandle? pointStatic;
 }
 
@@ -208,6 +230,8 @@ final class SceneShadows {
 /// A description rather than a builder, because everything here is a fact about
 /// one draw and none of it is a decision made in stages.
 final class FullscreenDraw {
+  /// A draw of [fragment] over the whole of [target], with the given
+  /// [textures] and [uniforms] bound, linear-clamp sampling by default.
   const FullscreenDraw({
     required this.target,
     required this.fragment,
@@ -529,6 +553,8 @@ final class ReactiveFrame {
   /// The pass, open on the velocity target with the view's viewport set.
   final PassEncoder encoder;
 
+  /// The device the pass runs on, for what the contributor creates or
+  /// uploads.
   final GraphicsDevice device;
 
   /// The view the velocity belongs to.
@@ -621,6 +647,8 @@ abstract base mixin class ContributorLights {
 /// it, and a frame allocates nothing for it; the renderer reads it during
 /// the call and does not keep it.
 final class LightBindRequest {
+  /// A request to bind the lights near the sphere at [center] with [radius]
+  /// into [stage] on [encoder].
   LightBindRequest({
     required this.encoder,
     required this.stage,
@@ -653,6 +681,8 @@ final class LightBindRequest {
 /// [cameraPosition] is the eye in that space (what the camera node's
 /// `worldMatrix` says), not a world position.
 final class SceneEncodeRequest {
+  /// A request to encode [scene] into [encoder] for [frame], seen through
+  /// [viewProjection] from [cameraPosition].
   const SceneEncodeRequest({
     required this.frame,
     required this.encoder,

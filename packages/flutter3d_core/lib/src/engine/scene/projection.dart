@@ -40,6 +40,7 @@ import 'package:vector_math/vector_math.dart';
 /// member added here later is inherited rather than missing — the same choice
 /// the geometry layer's `Shape` makes.
 abstract base class Projection {
+  /// Lets a subclass be const.
   const Projection();
 
   /// Builds the projection matrix for a given viewport aspect ratio.
@@ -101,6 +102,11 @@ abstract base class Projection {
 /// clusters, the depth pyramid — takes the renderer's own stand-in for an
 /// infinite one; see `withDepthPlanes`.
 final class PerspectiveProjection extends Projection {
+  /// A perspective of [fovY] radians, 45 degrees by default, between
+  /// [near] and [far] metres.
+  ///
+  /// Asserts that [fovY] lies strictly between nought and pi; a value like
+  /// 60 is degrees and fails.
   const PerspectiveProjection({
     this.fovY = math.pi / 4,
     this.near = 0.1,
@@ -171,6 +177,8 @@ final class PerspectiveProjection extends Projection {
     return m;
   }
 
+  /// Returns a copy with the given fields replaced; null leaves a field as
+  /// it is.
   PerspectiveProjection copyWith({double? fovY, double? near, double? far}) =>
       PerspectiveProjection(
         fovY: fovY ?? this.fovY,
@@ -179,7 +187,10 @@ final class PerspectiveProjection extends Projection {
       );
 }
 
+/// A parallel projection: a view volume [height] world units tall whose
+/// width follows the aspect, with no foreshortening.
 final class OrthographicProjection extends Projection {
+  /// A view [height] world units tall between [near] and [far] metres.
   const OrthographicProjection({
     this.height = 2.0,
     this.near = 0.1,
@@ -221,6 +232,8 @@ final class OrthographicProjection extends Projection {
     return m;
   }
 
+  /// Returns a copy with the given fields replaced; null leaves a field as
+  /// it is.
   OrthographicProjection copyWith({
     double? height,
     double? near,
@@ -257,6 +270,8 @@ final class OrthographicProjection extends Projection {
 /// own aspect and the viewport's, and a fraction of a degree of that is enough
 /// for the two eyes to fight.
 final class OffAxisProjection extends Projection {
+  /// A frustum with edges at the tangents [tanLeft], [tanRight], [tanDown]
+  /// and [tanUp], between [near] and [far] metres.
   const OffAxisProjection({
     required this.tanLeft,
     required this.tanRight,
@@ -371,6 +386,8 @@ final class OffAxisProjection extends Projection {
     return m;
   }
 
+  /// Returns a copy with the given fields replaced; null leaves a field as
+  /// it is.
   OffAxisProjection copyWith({
     double? tanLeft,
     double? tanRight,
@@ -410,6 +427,7 @@ final class OffAxisProjection extends Projection {
 /// height` each passes `(width * tilesX) / (height * tilesY)` here for
 /// every one of them.
 final class TiledProjection extends Projection {
+  /// Tile [tileX], [tileY] of a [tilesX] by [tilesY] grid cut from [base].
   const TiledProjection(
     this.base, {
     required this.tileX,
@@ -418,14 +436,19 @@ final class TiledProjection extends Projection {
     required this.tilesY,
   });
 
+  /// The projection of the whole picture the tile is cut from.
   final Projection base;
 
   /// Which tile this is, zero-based: `tileX` across, `tileY` down.
   final int tileX;
+
+  /// Which row of the grid this tile is, zero-based from the top.
   final int tileY;
 
   /// The grid this tile is one square of.
   final int tilesX;
+
+  /// How many tiles down the grid has, a count.
   final int tilesY;
 
   /// [base]'s near clip distance, in metres.
@@ -491,6 +514,8 @@ final class TiledProjection extends Projection {
 /// frame. [TiledProjection] asks its caller to pass the frame's aspect
 /// instead, which the renderer has no way to do.
 final class CropProjection extends Projection {
+  /// The rectangle [left], [top], [right], [bottom] cut from [base] for a
+  /// frame whose aspect is [frameAspect].
   const CropProjection(
     this.base, {
     required this.frameAspect,
@@ -500,6 +525,7 @@ final class CropProjection extends Projection {
     required this.bottom,
   });
 
+  /// The projection of the whole frame the rectangle is cut from.
   final Projection base;
 
   /// Width over height of the whole frame the rectangle is a piece of.
@@ -563,6 +589,7 @@ final class CropProjection extends Projection {
 /// offset is in NDC units, where a pixel of a frame `width` wide is
 /// `2 / width`; [JitteredProjection.frame] does that conversion.
 final class JitteredProjection extends Projection {
+  /// [base] shifted on screen by [dx] and [dy], in NDC units.
   const JitteredProjection(this.base, {required this.dx, required this.dy});
 
   /// Frame [frame]'s offset from a Halton(2, 3) sequence of [length], for a
@@ -578,6 +605,7 @@ final class JitteredProjection extends Projection {
     return JitteredProjection(base, dx: 2.0 * x / width, dy: 2.0 * y / height);
   }
 
+  /// The projection being jittered.
   final Projection base;
 
   /// The offset in NDC units.

@@ -32,6 +32,7 @@ import 'render_node.dart';
 /// A field held in a storage buffer on a compute device, its cells in the
 /// order a `HostField` keeps them, one float each value.
 final class BufferField extends FieldStorage {
+  /// A field of [declaration] held in [buffer], stepped at [site].
   BufferField(this.declaration, this.buffer, this.site);
 
   @override
@@ -55,6 +56,7 @@ final class BufferField extends FieldStorage {
 /// A field held in a 3D texture on the device that draws: one texel a
 /// cell, in a float format of as many channels as a cell has values.
 final class Texture3DField extends FieldStorage {
+  /// A field of [declaration] held in the 3D [texture].
   Texture3DField(this.declaration, this.texture);
 
   @override

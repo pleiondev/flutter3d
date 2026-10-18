@@ -10,6 +10,9 @@ import 'dart:typed_data';
 /// `ktx2_loader.dart` — bytes in, bytes in a GPU format out — and neither
 /// half needs the Flutter SDK to do it.
 final class Rgba8Image {
+  /// An image of [width] by [height] pixels over [pixels], not copied.
+  /// Throws an [ArgumentError] unless [pixels] is `width * height * 4`
+  /// bytes.
   Rgba8Image({
     required this.width,
     required this.height,
@@ -23,7 +26,10 @@ final class Rgba8Image {
     }
   }
 
+  /// Width in pixels.
   final int width;
+
+  /// Height in pixels.
   final int height;
 
   /// Row-major, four bytes per pixel, top row first.
@@ -31,9 +37,17 @@ final class Rgba8Image {
 
   int _at(int x, int y) => (y * width + x) * 4;
 
+  /// Returns the red byte, 0 to 255, of pixel ([x], [y]); unchecked.
   int red(int x, int y) => pixels[_at(x, y)];
+
+  /// Returns the green byte, 0 to 255, of pixel ([x], [y]); unchecked.
   int green(int x, int y) => pixels[_at(x, y) + 1];
+
+  /// Returns the blue byte, 0 to 255, of pixel ([x], [y]); unchecked.
   int blue(int x, int y) => pixels[_at(x, y) + 2];
+
+  /// Returns the alpha byte, 0 to 255, of pixel ([x], [y]), straight and
+  /// not premultiplied; unchecked.
   int alpha(int x, int y) => pixels[_at(x, y) + 3];
 }
 

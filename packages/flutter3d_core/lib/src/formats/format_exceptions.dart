@@ -20,6 +20,7 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
 /// accessor that runs past its buffer, a component type or mode the
 /// specification does not define.
 final class GltfFormatException extends Flutter3dFormatException {
+  /// A refusal whose [message] says what in the file is wrong.
   const GltfFormatException(this.message);
 
   @override
@@ -32,6 +33,7 @@ final class GltfFormatException extends Flutter3dFormatException {
 /// A `.fmat` material file that is not one: not a JSON object, no version
 /// key, or a version newer than this build reads.
 final class FmatFormatException extends Flutter3dFormatException {
+  /// A refusal whose [message] says what in the file is wrong.
   const FmatFormatException(this.message);
 
   @override
@@ -43,6 +45,7 @@ final class FmatFormatException extends Flutter3dFormatException {
 
 /// A `.cube` colour lookup table the reader cannot read, naming the line.
 final class CubeLutFormatException extends Flutter3dFormatException {
+  /// A refusal whose [message] names the line and what is wrong with it.
   const CubeLutFormatException(this.message);
 
   @override
@@ -55,6 +58,7 @@ final class CubeLutFormatException extends Flutter3dFormatException {
 /// A meshopt-compressed buffer (`EXT_meshopt_compression`) that does not
 /// decode: truncated, an unknown header, or a count that does not match.
 final class MeshoptFormatException extends Flutter3dFormatException {
+  /// A refusal whose [message] says what in the buffer is wrong.
   const MeshoptFormatException(this.message);
 
   @override
@@ -66,6 +70,7 @@ final class MeshoptFormatException extends Flutter3dFormatException {
 
 /// An FBX file, which this build recognises and does not read yet.
 final class FbxFormatException extends Flutter3dFormatException {
+  /// A refusal whose [message] says why the file is not read.
   const FbxFormatException(this.message);
 
   @override
@@ -79,6 +84,7 @@ final class FbxFormatException extends Flutter3dFormatException {
 /// apart from another. Syntax errors inside a material are
 /// `MaterialSyntaxException`.
 final class MaterialBundleException extends Flutter3dFormatException {
+  /// A refusal whose [message] says what in the bundle is wrong.
   const MaterialBundleException(this.message);
 
   @override
@@ -91,6 +97,7 @@ final class MaterialBundleException extends Flutter3dFormatException {
 /// An animation graph's JSON (a model's `extras`) in a shape the reader does
 /// not know, naming where in the document it went wrong.
 final class AnimationGraphFormatException extends Flutter3dFormatException {
+  /// A refusal whose [message] says where in the document it went wrong.
   const AnimationGraphFormatException(this.message);
 
   @override
@@ -103,6 +110,7 @@ final class AnimationGraphFormatException extends Flutter3dFormatException {
 /// A frame capture (`FrameCapture.fromJson`) that is not one, or is from a
 /// newer build: the message says which, and what to do about it.
 final class FrameCaptureFormatException extends Flutter3dFormatException {
+  /// A refusal whose [message] says what is wrong and what to do about it.
   const FrameCaptureFormatException(this.message);
 
   @override
@@ -116,6 +124,7 @@ final class FrameCaptureFormatException extends Flutter3dFormatException {
 /// not the format's, a chunk that runs past the end, a feature the decoder
 /// does not implement.
 final class ImageFormatException extends Flutter3dFormatException {
+  /// A refusal whose [message] says what in the image is wrong.
   const ImageFormatException(this.message);
 
   @override
@@ -128,6 +137,7 @@ final class ImageFormatException extends Flutter3dFormatException {
 /// An animation pointer (`KHR_animation_pointer`) whose path this build
 /// does not know how to resolve.
 final class AnimationPointerFormatException extends Flutter3dFormatException {
+  /// A refusal whose [message] names the pointer that resolves to nothing.
   const AnimationPointerFormatException(this.message);
 
   @override

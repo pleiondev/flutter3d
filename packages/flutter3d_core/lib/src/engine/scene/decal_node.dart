@@ -27,6 +27,11 @@ import 'scene_node.dart';
 /// renderer needs the scene's surface and albedo buffers. Reading those turns
 /// multisampling off for the frame.
 final class DecalNode extends SceneNode {
+  /// A decal of [texture] (or [color] alone when null) over the whole of the
+  /// picture, cut off past 1.3 radians from the surface normal.
+  ///
+  /// Asserts that the angle limit and fades are not negative, and the depth
+  /// fade at most one.
   DecalNode({
     this.texture,
     this.color = LinearColor.white,

@@ -19,6 +19,7 @@ import 'shadow_settings.dart';
 /// engine fitted, the atlas rows a cube light holds — rather than a list of
 /// parameters that grows.
 final class ShadowProducerContext {
+  /// What a shadow producer is told for one frame, under [settings].
   const ShadowProducerContext({
     required this.settings,
     this.camera,
@@ -64,6 +65,7 @@ final class ShadowProducerContext {
 /// stages read beside this one, taking the nearer of the two; a producer
 /// draws what moves, or everything, and the picture is the same.
 final class ShadowCubeAtlas {
+  /// The cube atlas [atlas] with its [depth], as a producer is handed it.
   const ShadowCubeAtlas({
     required this.atlas,
     required this.depth,
@@ -91,6 +93,7 @@ final class ShadowCubeAtlas {
 
 /// One light's row of a [ShadowCubeAtlas].
 final class ShadowCubeLight {
+  /// Row [row] of the cube atlas, for the light at [position].
   const ShadowCubeLight({
     required this.row,
     required this.position,
@@ -130,6 +133,7 @@ final class ShadowCubeLight {
 /// alike. It clears what it does not draw: nothing of an earlier frame is
 /// kept for it.
 final class ShadowCascades {
+  /// The cascade atlas [atlas] with its [depth], as a producer is handed it.
   const ShadowCascades({
     required this.atlas,
     required this.depth,
@@ -258,6 +262,8 @@ final class ShadowKernel {
 /// material language cannot be one yet, since a full-screen `.f3dmat` stage
 /// binds `scene` and its own parameters rather than this block.
 final class ShadowPrefilter {
+  /// A prefilter run by the fragment stage [stage], reaching [radius]
+  /// texels to each side, two by default.
   const ShadowPrefilter({required this.stage, this.radius = 2});
 
   /// The fragment stage's name in `Renderer.shaders`.
@@ -323,6 +329,7 @@ final class ShadowPrefilter {
 /// keeps compiling. Keep it immutable and give it a `const` constructor, so
 /// a `ShadowFilter.custom` that names it stays `const`.
 abstract base class ShadowTechnique {
+  /// Lets a subclass be const.
   const ShadowTechnique();
 
   /// The name it is written down as, in a trace or an error.

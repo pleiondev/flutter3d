@@ -17,6 +17,8 @@ import 'tables/smaa_area.dart' as tables;
 
 export 'engine_table.dart';
 
+/// The engine's data tables on one device, each uploaded the first time it
+/// is asked for and kept while the device lives.
 final class EngineTables {
   EngineTables._(this._device);
 

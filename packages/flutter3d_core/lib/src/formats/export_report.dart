@@ -22,6 +22,8 @@ import 'model_writer.dart';
 
 /// One write, read back and checked against what went in.
 final class ExportReport {
+  /// The [files] a write produced, its [writerWarnings] and the
+  /// [differences] reading them back found.
   const ExportReport({
     required this.files,
     required this.writerWarnings,

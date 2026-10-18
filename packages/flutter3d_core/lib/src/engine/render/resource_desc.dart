@@ -14,6 +14,7 @@ import 'frame_graph.dart';
 ///
 /// Extendable outside this package, and stays so through 1.x.
 abstract base class ResourceSize {
+  /// Lets a subclass be const.
   const ResourceSize();
 
   /// The size in pixels, given the frame's.
@@ -31,9 +32,13 @@ abstract base class ResourceSize {
 /// a default body that hands it to [visitUnknown], as
 /// `MaterialExpressionVisitor` explains for the material language.
 abstract base class ResourceSizeVisitor<R> {
+  /// Lets a subclass be const.
   const ResourceSizeVisitor();
 
+  /// Returns what this visitor answers for a [FrameFraction].
   R visitFrameFraction(FrameFraction size);
+
+  /// Returns what this visitor answers for an [AbsolutePixels].
   R visitAbsolutePixels(AbsolutePixels size);
 
   /// What a kind this visitor has no method for answers.
@@ -46,8 +51,12 @@ abstract base class ResourceSizeVisitor<R> {
 /// actually is, and because integer division is the only thing that gives the
 /// same answer on every frame at every window size.
 final class FrameFraction extends ResourceSize {
+  /// The frame divided by [divisor], one or more; the default of one is the
+  /// frame's own size.
   const FrameFraction([this.divisor = 1]) : assert(divisor >= 1);
 
+  /// What the frame's width and height are divided by, one or more. The
+  /// result is never below one pixel.
   final int divisor;
 
   @override
@@ -68,9 +77,13 @@ final class FrameFraction extends ResourceSize {
 /// A fixed size, for anything whose extent is its own business — a shadow
 /// atlas is the same size whatever the window is doing.
 final class AbsolutePixels extends ResourceSize {
+  /// A fixed [width] by [height] in pixels.
   const AbsolutePixels(this.width, this.height);
 
+  /// Width in pixels.
   final int width;
+
+  /// Height in pixels.
   final int height;
 
   @override
@@ -128,6 +141,8 @@ final class ResourceOrigin {
 
 /// What a node is asking for when it writes a resource.
 final class ResourceDesc {
+  /// A request for the resource [id] in [format], frame-sized,
+  /// single-sampled and device-private unless told otherwise.
   const ResourceDesc({
     required this.id,
     required this.format,
@@ -136,9 +151,17 @@ final class ResourceDesc {
     this.storageMode = StorageMode.devicePrivate,
   });
 
+  /// The frame-graph name the resource is declared and read under.
   final ResourceId id;
+
+  /// The texture format the resource is allocated in.
   final TextureFormat format;
+
+  /// How big the resource is, against the frame's size; the frame's own size
+  /// by default.
   final ResourceSize size;
+
+  /// Samples per pixel, a count; one is no multisampling.
   final int sampleCount;
 
   /// `deviceTransient` is tile memory: cheaper, and unreadable afterwards. A
@@ -146,6 +169,8 @@ final class ResourceDesc {
   /// `FrameResources.declare` now refuses one that is.
   final StorageMode storageMode;
 
+  /// Returns the render-target descriptor this asks for, for a frame
+  /// [frameWidth] by [frameHeight] pixels.
   RenderTargetDescriptor resolve(int frameWidth, int frameHeight) {
     final PixelExtent(:width, :height) = size.resolve(frameWidth, frameHeight);
     return RenderTargetDescriptor(

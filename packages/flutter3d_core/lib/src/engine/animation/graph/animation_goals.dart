@@ -90,6 +90,8 @@ abstract final class AnimationGoal {
 /// one, the chain's joints are turned that share of the way from where the
 /// graph had them.
 final class ReachGoal extends AnimationGoal {
+  /// A reach from [root] through [mid] to [tip], towards [target] (the origin
+  /// when null), bending towards [pole] (+Z when null).
   ReachGoal({
     required this.root,
     required this.mid,
@@ -100,6 +102,8 @@ final class ReachGoal extends AnimationGoal {
   }) : target = target ?? Vector3.zero(),
        pole = pole ?? Vector3(0.0, 0.0, 1.0);
 
+  /// Joint indices of the chain: the upper joint, the one that bends, and
+  /// the end that reaches [target].
   final int root, mid, tip;
 
   /// Where [tip] reaches, in the pose's space; moved by the game in place.
@@ -148,6 +152,8 @@ final class ReachGoal extends AnimationGoal {
 /// that it turns as far as it may and no further, which is a monster
 /// glancing over its shoulder rather than wringing its neck.
 final class LookGoal extends AnimationGoal {
+  /// A look turning [joint] from [forward], normalised here, towards
+  /// [target] (the origin when null).
   LookGoal({
     required this.joint,
     required Vector3 forward,
@@ -157,6 +163,7 @@ final class LookGoal extends AnimationGoal {
   }) : forward = forward.normalized(),
        target = target ?? Vector3.zero();
 
+  /// Index of the joint turned, in the skeleton's joint list.
   final int joint;
 
   /// The direction [joint] faced at rest, in the pose's space.
@@ -226,6 +233,8 @@ final class LookGoal extends AnimationGoal {
 /// Quaternius characters', `Foot.L` on `Root` — has the clip put the foot
 /// where the leg ends, and the plant moves it with the ankle.
 final class FootLeg {
+  /// A leg from [root] through [mid] to [tip], its knee bent towards [pole]
+  /// (+Z when null) unless [poleJoint] places it.
   FootLeg({
     required this.root,
     required this.mid,
@@ -235,7 +244,11 @@ final class FootLeg {
     Vector3? pole,
   }) : pole = pole ?? Vector3(0.0, 0.0, 1.0);
 
+  /// Joint indices of the leg: the hip, the knee and the ankle.
   final int root, mid, tip;
+
+  /// The joint the foot is skinned to when it is not under [tip], or null
+  /// when it is.
   final int? foot;
 
   /// A joint whose place is the knee's pole — `PoleTarget.L` — read each
@@ -262,10 +275,13 @@ final class FootLeg {
 /// character on a stair stands with one knee bent rather than one leg
 /// hanging in the air. Below a weight of one, every shift is that share.
 final class FootPlantGoal extends AnimationGoal {
+  /// A plant that lowers [hips] and moves each of [legs] onto the ground.
   FootPlantGoal({required this.hips, required this.legs, super.weight});
 
   /// The joint the legs hang from, lowered when a foot must go down.
   final int hips;
+
+  /// The legs planted, each with its own chain of joints.
   final List<FootLeg> legs;
 
   @override

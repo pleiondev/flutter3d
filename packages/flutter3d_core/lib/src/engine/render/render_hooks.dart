@@ -64,6 +64,7 @@ final class DrawListContext {
 /// the occlusion — so a hook only ever narrows what is drawn. Extendable
 /// outside this package, and stays so through 1.x.
 abstract base class DrawListHook {
+  /// Lets a subclass be const.
   const DrawListHook();
 
   /// Whether [context]'s mesh is drawn in its view. Every hook must keep a
@@ -79,6 +80,8 @@ abstract base class DrawListHook {
 
 /// What a [LodPolicy] is asked about one group for one view.
 final class LodContext {
+  /// What [group] is asked for in [camera]'s view, with the engine's own
+  /// [choice] and the viewport's height when it is known.
   const LodContext({
     required this.group,
     required this.camera,
@@ -105,6 +108,7 @@ final class LodContext {
 ///
 /// Extendable outside this package, and stays so through 1.x.
 abstract base class LodPolicy {
+  /// Lets a subclass be const.
   const LodPolicy();
 
   /// The level [context]'s group shows, by index (clamped to its levels),
@@ -120,6 +124,8 @@ abstract base class LodPolicy {
 /// compiling. [claims](SkinningHook.claims) is asked with [node] and
 /// [jointMatrices] alone; [record](SkinningHook.record) with the rest too.
 final class SkinningContext {
+  /// What a skinning hook is asked about [node] posed by [jointMatrices]; the
+  /// rest is given only when the hook records.
   const SkinningContext({
     required this.node,
     required this.jointMatrices,
@@ -177,6 +183,7 @@ final class SkinningContext {
 /// added later arrives with a default, and every method takes the one
 /// growing context.
 abstract base class SkinningHook {
+  /// Lets a subclass be const.
   const SkinningHook();
 
   /// Whether this hook skins [context]'s mesh. False by default.
@@ -203,6 +210,7 @@ abstract base class SkinningHook {
 /// the drawing device — an upload, never a readback. It has no kernels and
 /// needs no placement.
 abstract base class HostSkinningHook extends SkinningHook {
+  /// Lets a subclass be const.
   const HostSkinningHook();
 
   /// The skinned vertices of [context]'s mesh, in its own layout and
@@ -267,6 +275,7 @@ Float32List standardVertices(
 /// mesh whose source data was kept, skinned on the host and drawn from the
 /// uploaded buffer.
 final class LinearBlendSkinning extends HostSkinningHook {
+  /// A hook keeping one CPU blend per mesh, made on first use.
   LinearBlendSkinning();
 
   final Expando<SkinBlend> _blends = Expando<SkinBlend>();
@@ -287,6 +296,7 @@ final class LinearBlendSkinning extends HostSkinningHook {
 
 /// What a [PacingPolicy] is asked before a frame is drawn.
 final class PacingContext {
+  /// What a pacing policy is asked about frame [frameIndex].
   const PacingContext({
     required this.frameIndex,
     required this.unfinishedFrames,
@@ -314,6 +324,7 @@ final class PacingContext {
 ///
 /// Extendable outside this package, and stays so through 1.x.
 abstract base class PacingPolicy {
+  /// Lets a subclass be const.
   const PacingPolicy();
 
   /// True to hold [context]'s frame, false to draw it, null for the
@@ -324,6 +335,8 @@ abstract base class PacingPolicy {
 
 /// What a [QualityPolicy] is asked once a frame's time is recorded.
 final class QualityContext {
+  /// What a quality policy is asked once a frame's time, [micros], is
+  /// recorded against [table].
   const QualityContext({
     required this.table,
     required this.micros,
@@ -353,6 +366,7 @@ final class QualityContext {
 ///
 /// Extendable outside this package, and stays so through 1.x.
 abstract base class QualityPolicy {
+  /// Lets a subclass be const.
   const QualityPolicy();
 
   /// The row [context]'s next frame is drawn at, by index (clamped to the

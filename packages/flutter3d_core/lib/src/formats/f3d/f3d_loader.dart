@@ -664,6 +664,7 @@ final class _Section {
 /// formats come through, so every built-in reader is one: see
 /// `builtInModelDecoder`.
 final class F3dDecoder extends ModelDecoder {
+  /// The decoder; it holds no state, so one const instance serves.
   const F3dDecoder();
 
   @override

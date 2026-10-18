@@ -39,13 +39,17 @@ import 'frame_graph.dart';
 /// A small copy of a [CapturedImage] — `A5.23`: what a capture file keeps
 /// of an image when it does not keep the image.
 final class CaptureThumbnail {
+  /// A thumbnail [width] by [height] pixels holding [pixels].
   const CaptureThumbnail({
     required this.width,
     required this.height,
     required this.pixels,
   });
 
+  /// Width of the thumbnail in pixels.
   final int width;
+
+  /// Height of the thumbnail in pixels.
   final int height;
 
   /// RGBA8 as the image's own pixels are — premultiplied, rows from the
@@ -55,6 +59,9 @@ final class CaptureThumbnail {
 
 /// One resource as one pass left it.
 final class CapturedImage {
+  /// The image of [resource] at [width] by [height] pixels in [format], with
+  /// [pixels] or [floats] when they were read and [refused] when they were
+  /// not.
   const CapturedImage({
     required this.resource,
     required this.width,
@@ -161,8 +168,14 @@ final class CapturedImage {
   /// The frame-graph name, as the pass declared it.
   final String resource;
 
+  /// Width of the resource in pixels, as the pass allocated it.
   final int width;
+
+  /// Height of the resource in pixels, as the pass allocated it.
   final int height;
+
+  /// The texture format the resource was allocated in, which may hold more
+  /// than the RGBA8 [pixels] keep.
   final TextureFormat format;
 
   /// Premultiplied RGBA8, rows from the top, or null when [refused] says why
@@ -234,6 +247,8 @@ final class CapturedImage {
 
 /// One pass of a captured frame.
 final class CapturedPass {
+  /// The pass called [name], with the resources it declared and the [images]
+  /// it left; its cost defaults to nought.
   const CapturedPass({
     required this.name,
     required this.active,
@@ -247,12 +262,17 @@ final class CapturedPass {
     this.triangles = 0,
   });
 
+  /// The frame-graph node's name.
   final String name;
 
   /// What the pass cost, as `FrameResult.passes` reported it — `P12`, so a
   /// capture answers "how big was this frame" on its own.
   final int micros;
+
+  /// How many draw calls the pass issued, a count.
   final int drawCalls;
+
+  /// How many triangles the pass drew, a count.
   final int triangles;
 
   /// Whether the node said it had anything to do.
@@ -262,9 +282,18 @@ final class CapturedPass {
   /// missing one.
   final bool active;
 
+  /// The resource names the pass needs this frame; a missing one culls it.
   final List<String> reads;
+
+  /// The resource names the pass reads when they are there and does without
+  /// when they are not.
   final List<String> optionalReads;
+
+  /// The resource names the pass produces fresh this frame.
   final List<String> writes;
+
+  /// The resource names the pass maintains across frames rather than
+  /// producing fresh, such as the point-shadow atlas.
   final List<String> keeps;
 
   /// One entry per resource this pass wrote or maintained.
@@ -351,6 +380,8 @@ final class CapturedPass {
 /// **A [FormatDocument]**: written in the format envelope, and a key this
 /// build does not read is kept in [unknown] and written back.
 final class FrameCapture extends FormatDocument {
+  /// A capture of a [width] by [height] frame from its [passes], with the
+  /// [draws] when they were journalled.
   FrameCapture({
     required this.width,
     required this.height,
@@ -364,8 +395,13 @@ final class FrameCapture extends FormatDocument {
   @override
   FormatSpec get spec => format;
 
+  /// Width of the frame in pixels.
   final int width;
+
+  /// Height of the frame in pixels.
   final int height;
+
+  /// Every pass in the order the graph ran them, inactive ones included.
   final List<CapturedPass> passes;
 
   /// Every draw the frame described, when the capture asked for them — `P12`.
@@ -555,6 +591,8 @@ final class FrameCapture extends FormatDocument {
 /// queued at the pass boundary and answered afterwards — and a caller should
 /// not be handed a half-filled capture.
 final class FrameCaptureBuilder {
+  /// A builder for a [width] by [height] frame, journalling draws into
+  /// [journal] and reading floats through [readFloats] when they are given.
   FrameCaptureBuilder({
     required this.width,
     required this.height,
@@ -562,7 +600,10 @@ final class FrameCaptureBuilder {
     this.readFloats,
   });
 
+  /// Width of the frame being captured, in pixels.
   final int width;
+
+  /// Height of the frame being captured, in pixels.
   final int height;
 
   /// Where the frame's draws are written down, or null when nobody asked.

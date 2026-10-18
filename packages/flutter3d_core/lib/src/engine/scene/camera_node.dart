@@ -10,9 +10,12 @@ import 'scene_node.dart';
 /// hierarchy rather than a special "follow" feature, and the view matrix is just
 /// the inverse of the node's world transform.
 final class CameraNode extends SceneNode {
+  /// A camera seeing through [projection], a default perspective when null.
   CameraNode({Projection? projection, super.name})
     : projection = projection ?? const PerspectiveProjection();
 
+  /// How the camera maps eye space to clip space; may be replaced at any
+  /// time.
   Projection projection;
 
   /// World-to-eye transform, recomputed only when the node moves.

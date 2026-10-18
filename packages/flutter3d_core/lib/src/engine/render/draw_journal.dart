@@ -26,6 +26,7 @@ import 'capture_json.dart';
 
 /// One draw, as the encoder saw it.
 final class DrawRecord {
+  /// A record of draw [index], encoded by the pass [pass].
   const DrawRecord({
     required this.index,
     required this.passIndex,
@@ -48,6 +49,8 @@ final class DrawRecord {
 
   /// The graph node that encoded it, by position and by name.
   final int passIndex;
+
+  /// The name of the graph node that encoded it.
   final String pass;
 
   /// `mesh` for the scene's own encoder, `shadow` for a caster.
@@ -55,14 +58,23 @@ final class DrawRecord {
 
   /// The node's name — a mesh has none of its own — or null when unnamed.
   final String? mesh;
+
+  /// The material's name, or null when it has none.
   final String? material;
 
   /// The lighting model's label: which pipeline drew it.
   final String lighting;
 
+  /// Vertices the draw read, a count.
   final int vertices;
+
+  /// Indices the draw read, a count; nought for a non-indexed draw.
   final int indices;
+
+  /// Instances drawn, a count; one for an ordinary draw.
   final int instances;
+
+  /// Triangles drawn, a count, across every instance.
   final int triangles;
 
   /// Pipeline state the draw was encoded with: cull, blend, depth, winding,
@@ -182,6 +194,7 @@ final class DrawJournal {
   String _pass = '';
   int _passStart = 0;
 
+  /// Every draw recorded so far, in encoding order, as an unmodifiable copy.
   List<DrawRecord> get records => List<DrawRecord>.unmodifiable(_records);
 
   /// Draws a pass counted and did not describe, by pass name; passes that

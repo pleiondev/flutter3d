@@ -19,10 +19,14 @@ export 'material_extensions.dart';
 final class SurfaceAlphaMode {
   const SurfaceAlphaMode._(this.name);
 
+  /// Alpha is ignored: the surface is drawn fully covering.
   static const SurfaceAlphaMode opaque = SurfaceAlphaMode._('opaque');
 
+  /// Alpha below the cutoff is cut away, the rest drawn opaque.
   static const SurfaceAlphaMode mask = SurfaceAlphaMode._('mask');
 
+  /// Alpha blends the surface over what is behind it, drawn after the
+  /// opaque surfaces.
   static const SurfaceAlphaMode blend = SurfaceAlphaMode._('blend');
 
   /// Every value this version names, in declaration order. A later version
@@ -60,6 +64,7 @@ final class SurfaceAlphaMode {
 /// give back, and its defaults are a file's (linear, repeating), where a
 /// sampler's are the device's (nearest, clamped).
 final class TextureSampling {
+  /// A file's defaults: linear, mipmapped trilinearly, repeating both ways.
   const TextureSampling({
     this.magLinear = true,
     this.minLinear = true,
@@ -69,7 +74,10 @@ final class TextureSampling {
     this.wrapT = SamplerAddressMode.repeat,
   });
 
+  /// Whether magnification blends texels rather than taking the nearest.
   final bool magLinear;
+
+  /// Whether minification blends texels rather than taking the nearest.
   final bool minLinear;
 
   /// Assets almost always request mipmapped minification, and this is now
@@ -95,7 +103,10 @@ final class TextureSampling {
   /// a decoder and a writer agree the file said.
   final bool mipLinear;
 
+  /// What a coordinate outside nought to one does along U.
   final SamplerAddressMode wrapS;
+
+  /// What a coordinate outside nought to one does along V.
   final SamplerAddressMode wrapT;
 }
 
@@ -105,6 +116,8 @@ final class TextureSampling {
 /// relative filenames, and normalizing to an index in the decoder is what lets
 /// consumers upload images without knowing which format they came from.
 final class TextureBinding {
+  /// A binding of image [imageIndex], sampled with set 0 at a file's
+  /// defaults and untransformed unless told otherwise.
   const TextureBinding({
     required this.imageIndex,
     this.texCoordSet = 0,
@@ -112,11 +125,13 @@ final class TextureBinding {
     this.transform,
   });
 
+  /// Index into the document's images.
   final int imageIndex;
 
   /// Which texcoord set to sample with. Only set 0 is decoded today.
   final int texCoordSet;
 
+  /// The filtering and wrapping the file asked for.
   final TextureSampling sampling;
 
   /// `KHR_texture_transform`'s own offset/scale/rotation, when the source
@@ -144,16 +159,21 @@ final class TextureBinding {
 final class MaterialMap {
   const MaterialMap._(this.name);
 
+  /// [SurfaceMaterial.baseColorTexture].
   static const MaterialMap baseColor = MaterialMap._('baseColor');
 
+  /// [SurfaceMaterial.metallicRoughnessTexture].
   static const MaterialMap metallicRoughness = MaterialMap._(
     'metallicRoughness',
   );
 
+  /// [SurfaceMaterial.normalTexture].
   static const MaterialMap normal = MaterialMap._('normal');
 
+  /// [SurfaceMaterial.occlusionTexture].
   static const MaterialMap occlusion = MaterialMap._('occlusion');
 
+  /// [SurfaceMaterial.emissiveTexture].
   static const MaterialMap emissive = MaterialMap._('emissive');
 
   /// Every value this version names, in declaration order. A later version
@@ -198,6 +218,8 @@ final class MaterialMap {
 
 /// `KHR_texture_transform`'s three fields — see [TextureBinding.transform].
 final class TextureTransform {
+  /// A transform of the given fields; a null [offset] is zero and a null
+  /// [scale] is one on both axes.
   TextureTransform({Vector2? offset, Vector2? scale, this.rotation = 0.0})
     : offset = offset ?? Vector2.zero(),
       scale = scale ?? Vector2(1.0, 1.0);
@@ -206,6 +228,7 @@ final class TextureTransform {
   /// a coordinate is scaled, then turned, then moved by this.
   final Vector2 offset;
 
+  /// UV scale factor per axis, applied first.
   final Vector2 scale;
 
   /// Radians, counter-clockwise as the image is seen, about the origin. `v`
@@ -252,6 +275,7 @@ final class TextureTransform {
 /// out of the decoders is what lets the whole asset layer be unit tested with no
 /// Flutter binding.
 final class EncodedImage {
+  /// An image of [bytes]; the rest null where the file did not say.
   const EncodedImage({
     required this.bytes,
     this.name,
@@ -259,8 +283,14 @@ final class EncodedImage {
     this.sourceUri,
   });
 
+  /// The encoded file, whole: PNG, JPEG, KTX2 or a codec's own format.
   final Uint8List bytes;
+
+  /// The image's name in the file, or its path; null when it has none.
   final String? name;
+
+  /// The media type the file declared, `image/png`; null when it declared
+  /// none and the bytes are sniffed.
   final String? mimeType;
 
   /// Where the source file pointed to find this image, relative to the file
@@ -272,6 +302,7 @@ final class EncodedImage {
   /// original relative path or invent a new one; nothing here resolves it.
   final String? sourceUri;
 
+  /// Whether there are no bytes, as for an image that failed to load.
   bool get isEmpty => bytes.isEmpty;
 }
 
@@ -282,6 +313,8 @@ final class EncodedImage {
 /// that predate it (OBJ's Phong parameters) are approximated at decode time, with
 /// the approximation documented where it happens rather than hidden.
 final class SurfaceMaterial {
+  /// A material of the given fields, the rest at glTF's defaults: white,
+  /// dielectric, half rough, opaque, single-sided, with no textures.
   SurfaceMaterial({
     this.name,
     this.baseColor = LinearColor.white,
@@ -307,6 +340,7 @@ final class SurfaceMaterial {
     this.materialVersion,
   });
 
+  /// The material's name in the file; null when it has none.
   final String? name;
 
   /// RGBA tint, linear with straight alpha, as every colour the engine
@@ -320,16 +354,26 @@ final class SurfaceMaterial {
   /// Perceptual roughness, a 0..1 fraction.
   final double roughness;
 
+  /// Multiplies [baseColor], sRGB with alpha; null for none.
   final TextureBinding? baseColorTexture;
+
+  /// Roughness in green and metallic in blue, multiplying [roughness] and
+  /// [metallic]; null for none.
   final TextureBinding? metallicRoughnessTexture;
+
+  /// Tangent-space normals, scaled by [normalScale]; null for none.
   final TextureBinding? normalTexture;
 
   /// A unitless multiplier on the normal map's X and Y.
   final double normalScale;
+
+  /// Ambient occlusion in red, by [occlusionStrength]; null for none.
   final TextureBinding? occlusionTexture;
 
   /// A 0..1 fraction of the occlusion texture applied.
   final double occlusionStrength;
+
+  /// Multiplies [emissive], sRGB; null for none.
   final TextureBinding? emissiveTexture;
 
   /// Linear; alpha is not read.
@@ -340,10 +384,13 @@ final class SurfaceMaterial {
   /// material is made.
   final double emissiveStrength;
 
+  /// How alpha is treated: ignored, cut at [alphaCutoff], or blended.
   final SurfaceAlphaMode alphaMode;
 
   /// A 0..1 fraction: in the mask mode, alpha below it is cut away.
   final double alphaCutoff;
+
+  /// Whether back faces are drawn too, lit with the normal turned round.
   final bool doubleSided;
 
   /// Shade with albedo only, from glTF's `KHR_materials_unlit` or an OBJ material

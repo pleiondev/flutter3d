@@ -29,6 +29,7 @@ import 'render_settings.dart' show RenderSettings;
 /// `RenderSettings.telemetry` records nodes; [micros] and [gpuMicros] are
 /// read only while it records times.
 final class FramePass {
+  /// The timing and counts of the node [name], as the renderer filled them.
   const FramePass({
     required this.name,
     required this.active,
@@ -81,6 +82,7 @@ final class FramePass {
 /// Typed, so a profiler or a capture tool reads the id and the size rather
 /// than parsing a label.
 final class FrameResourceUse {
+  /// The use of the resource [id] over the frame, as the renderer filled it.
   const FrameResourceUse({
     required this.id,
     required this.versions,
@@ -99,7 +101,11 @@ final class FrameResourceUse {
 
   /// The size and format of the texture its last version stood on.
   final int width;
+
+  /// Height in pixels of the texture its last version stood on.
   final int height;
+
+  /// Format of the texture its last version stood on.
   final TextureFormat format;
 
   /// What that texture holds, by `FrameResources`' own account of a
@@ -127,6 +133,8 @@ final class FrameResourceUse {
 /// rather than leaving a caller to compare a sample count against a setting
 /// and guess.
 final class EffectiveAntiAliasing {
+  /// What the frame's anti-aliasing turned out to be, as the renderer
+  /// filled it.
   const EffectiveAntiAliasing({
     required this.msaaSamples,
     required this.fxaa,
@@ -168,6 +176,7 @@ final class EffectiveAntiAliasing {
 
 /// One rendered frame.
 final class FrameResult {
+  /// The result of frame [frame], as the renderer filled it.
   const FrameResult({
     required this.frame,
     required this.cpuMicros,
@@ -392,6 +401,7 @@ final class FrameResult {
   /// no backend here exposes one — but enough to notice a regression.
   final int submitMicros;
 
+  /// Draw calls the frame issued, across every pass, a count.
   final int drawCalls;
 
   /// Triangles actually drawn this frame — `view-17`'s own row. A batch's
@@ -512,6 +522,7 @@ final class FrameResult {
 /// with zeros would read as "nothing was shaded" rather than "there was
 /// never anything to shade".
 final class PostFrameResult {
+  /// The result of post-processing frame [frame], as the renderer filled it.
   const PostFrameResult({
     required this.frame,
     required this.cpuMicros,

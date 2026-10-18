@@ -19,6 +19,8 @@ import '../animation/morph_sink.dart';
 /// a weight is set by an animation clip, by a game, or by nobody, and the cost
 /// of a face holding an expression is the same as the cost of one at rest.
 final class MorphState with MorphSink {
+  /// The state of [targetCount] morph targets packed in [texture], every
+  /// weight at nought, with each target's [reaches] when known.
   MorphState({
     required this.texture,
     required int targetCount,
@@ -44,6 +46,7 @@ final class MorphState with MorphSink {
 
   int get targetCount => weights.length;
 
+  /// How many morph targets the mesh has, a count.
   /// The box each target's deltas span, in the mesh's own space,
   /// index-aligned with [weights]. Empty when the caller did not say.
   final List<Aabb3> _reaches;

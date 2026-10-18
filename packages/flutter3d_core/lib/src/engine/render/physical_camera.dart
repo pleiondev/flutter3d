@@ -46,6 +46,10 @@ import 'physical_sky.dart';
 /// answer replaces the camera's, as a camera on automatic chooses its own
 /// shutter, and `FrameResult.ev100` reports what it chose in these units.
 final class PhysicalCamera {
+  /// A camera at the reference aperture, shutter and sensitivity, with no
+  /// compensation.
+  ///
+  /// Asserts that all three are above nought.
   const PhysicalCamera({
     this.aperture = referenceAperture,
     this.shutter = referenceShutter,
@@ -178,6 +182,8 @@ final class PhysicalCamera {
   PhysicalCamera stopIso(int thirds) =>
       copyWith(iso: iso * math.pow(2.0, thirds / 3.0));
 
+  /// Returns a copy with the given fields replaced; null leaves a field as
+  /// it is.
   PhysicalCamera copyWith({
     double? aperture,
     double? shutter,

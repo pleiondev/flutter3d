@@ -29,6 +29,7 @@ import 'orbit_controller.dart';
 /// Holds no Flutter types and no clock; a caller hands [walk] the seconds
 /// that passed, which is what makes it steppable by hand in a test.
 final class FreeLook {
+  /// A free look moving the camera [orbit] places.
   FreeLook(this.orbit);
 
   /// The camera this moves. Both cameras drive the same state on purpose —

@@ -24,6 +24,7 @@ import 'render_node.dart';
 /// is what puts it reliably in front, and that is the whole reason the stage
 /// exists.
 final class ViewModelNode extends RenderNode {
+  /// A stage drawing [scene], what is in the player's hands, through [camera].
   ViewModelNode({required this.scene, required this.camera});
 
   /// Holds only what is in the player's hands. Kept apart from the world so

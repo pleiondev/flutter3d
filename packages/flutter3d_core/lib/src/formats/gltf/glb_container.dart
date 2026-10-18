@@ -6,6 +6,7 @@ import '../format_exceptions.dart';
 
 /// A parsed glTF container: the JSON document plus the optional binary chunk.
 final class GlbContainer {
+  /// A container of the parsed [json] and, for a `.glb`, its [binaryChunk].
   const GlbContainer({required this.json, this.binaryChunk});
 
   /// Detects the container form and parses it.
@@ -103,6 +104,9 @@ final class GlbContainer {
     }
     return GlbContainer(json: json, binaryChunk: binary);
   }
+
+  /// The glTF JSON document, decoded: the `JSON` chunk of a `.glb`, or the
+  /// whole of a `.gltf`.
   final Map<String, Object?> json;
 
   /// The GLB `BIN` chunk. Buffers with no `uri` refer to this.

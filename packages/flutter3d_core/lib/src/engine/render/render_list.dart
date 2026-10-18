@@ -21,14 +21,19 @@ import 'render_view.dart';
 /// than in JS — a fresh object per visible mesh per frame is exactly the
 /// allocation pattern that turns into GC pauses inside the frame budget.
 final class DrawItem {
+  /// The mesh this entry draws, or null while the entry sits unused in the
+  /// pool.
   MeshNode? node;
 
   /// Distance from the camera along its forward axis, used by every depth sort.
   /// In metres.
   double viewDepth = 0.0;
 
+  /// The mesh this entry draws; throws when the entry is unused.
   MeshNode get requireNode => node!;
 
+  /// The material of the mesh this entry draws; throws when the entry is
+  /// unused.
   RenderMaterial get material => node!.material;
 }
 
@@ -135,17 +140,26 @@ final class RenderList {
   final List<DrawItem> _pool = <DrawItem>[];
   int _used = 0;
 
+  /// Indices, for [itemAt], of the opaque draws, sorted by the view's opaque
+  /// order once collected.
   final List<int> opaque = <int>[];
+
+  /// Indices, for [itemAt], of the blended draws, sorted by the view's
+  /// transparent order once collected.
   final List<int> transparent = <int>[];
 
   /// Packed key-plus-index entries, and the alternate buffer radix passes need.
   /// Reused between frames so sorting allocates nothing.
   final PackedKeys _keys = PackedKeys();
 
+  /// How many entries of the pool are in use this frame, a count.
   int get length => _used;
 
+  /// The entry at [index] of the pool, below [length] for one in use.
   DrawItem itemAt(int index) => _pool[index];
 
+  /// Empties the list for the next view, keeping the pooled entries and
+  /// zeroing the counters.
   void reset() {
     _used = 0;
     considered = 0;

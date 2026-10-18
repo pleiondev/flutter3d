@@ -172,6 +172,7 @@ Uint32List optimizeTriangleOrder(
 /// each old vertex its new index in [oldToNew], for reordering the vertex
 /// data and anything held per vertex to match.
 final class VertexFetchOrder {
+  /// The renumbered [indices] and the [oldToNew] map that made them.
   const VertexFetchOrder({required this.indices, required this.oldToNew});
 
   /// The index buffer, every vertex renumbered by its first use.

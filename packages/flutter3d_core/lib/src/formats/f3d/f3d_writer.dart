@@ -32,6 +32,11 @@ part 'f3d_writer_scene.dart';
 /// Nothing here is on a frame path, so it favours being obviously correct
 /// over being quick.
 final class F3dWriter {
+  /// A writer for [document] carrying the bundle given beside it.
+  ///
+  /// Throws an [ArgumentError] when a key of [physicalMaterials] is not the
+  /// `id` its document names, or when an extra section takes one of the
+  /// engine's kinds ([F3dSection.known]).
   F3dWriter(
     this.document, {
     List<F3dExtraSection> extraSections = const <F3dExtraSection>[],
@@ -107,6 +112,7 @@ final class F3dWriter {
     );
   }
 
+  /// The model written; read, never changed.
   final ModelDocument document;
 
   /// Material language (`.f3dmat`) sources to carry, by the name a material's
@@ -407,6 +413,7 @@ final class F3dWriter {
 /// engine's kinds ([F3dSection.known]), which the writer checks; a tool's own
 /// data takes a kind from [f3dVendorKindStart] up.
 final class F3dExtraSection {
+  /// A section of [kind] holding [bytes]; raw and unflagged by default.
   F3dExtraSection({
     required this.kind,
     required this.bytes,
@@ -414,7 +421,10 @@ final class F3dExtraSection {
     this.flags = 0,
   });
 
+  /// The directory's kind code: a tool's own from [f3dVendorKindStart] up.
   final int kind;
+
+  /// The section's payload as stored, uninterpreted.
   final Uint8List bytes;
 
   /// Records in [bytes], for a table; 0 for raw bytes.

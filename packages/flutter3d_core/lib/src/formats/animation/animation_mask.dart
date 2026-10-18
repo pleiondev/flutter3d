@@ -65,6 +65,7 @@ final class AnimationMask {
   /// covers all — see [covers].
   int get length => _indices.length;
 
+  /// Whether the mask covers no joint at all; false for [everything].
   bool get isEmpty => !_all && _indices.isEmpty;
 
   @override

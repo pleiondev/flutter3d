@@ -155,6 +155,8 @@ const DataSection renderStepsSection = _RenderStepsSection();
 /// A material in the material language, as a file of the plugin's or as
 /// text written into the document.
 final class DataMaterial {
+  /// A material read from [source] or written as [text]; exactly one of the
+  /// two is given, asserted.
   const DataMaterial({this.source, this.text})
     : assert(
         (source == null) != (text == null),
@@ -167,6 +169,8 @@ final class DataMaterial {
   /// The material written out in the document.
   final String? text;
 
+  /// The entry as written in the document's `materials` list: whichever of
+  /// `source` and `text` is set.
   Map<String, Object?> toJson() => <String, Object?>{
     'source': ?source,
     'text': ?text,
@@ -176,6 +180,8 @@ final class DataMaterial {
 /// A render step a data plugin adds: a full-screen stage per backend at an
 /// anchor. See [RuntimeRenderStep], which it becomes.
 final class DataRenderStep {
+  /// A step named [name] at [anchor], drawn by [shaders]; by default over
+  /// the scene's light, with no needs and no ordering.
   const DataRenderStep({
     required this.name,
     required this.anchor,
@@ -199,11 +205,23 @@ final class DataRenderStep {
 
   /// The stage's source file, by backend.
   final Map<String, String> shaders;
+
+  /// Whether the step draws over the finished picture, after tone mapping,
+  /// rather than over the scene's light before it. False by default.
   final bool present;
+
+  /// Built-in steps it cannot run without, by name: `bloom`. Empty by
+  /// default.
   final List<String> needs;
+
+  /// Other nodes at [anchor] it goes after, by name.
   final List<String> after;
+
+  /// Other nodes at [anchor] it goes before, by name.
   final List<String> before;
 
+  /// The entry as written in the document's `renderSteps` list; `present`
+  /// and the empty lists are left out.
   Map<String, Object?> toJson() => <String, Object?>{
     'name': name,
     'anchor': anchor,
@@ -658,6 +676,7 @@ String _ownName(Object? written, String what) => switch (written) {
 
 /// A data plugin's light type, as read: its name, its base, its numbers.
 final class DataLightType {
+  /// A light type named [name], packed as [base] with up to four [params].
   const DataLightType({
     required this.name,
     required this.base,
@@ -673,6 +692,8 @@ final class DataLightType {
   /// Up to four numbers, written into floats 12–15 of its row.
   final List<double> params;
 
+  /// The entry as written in the document's `lightTypes` list; empty
+  /// `params` are left out.
   Map<String, Object?> toJson() => <String, Object?>{
     'name': name,
     'base': base.name,
@@ -767,6 +788,7 @@ final class _LightTypesSection extends DataSection {
 /// A data plugin's vertex layout, as read: its name and its attributes, in
 /// order.
 final class DataVertexLayout {
+  /// A layout named [name] made of the engine's [attributes], in order.
   const DataVertexLayout({required this.name, required this.attributes});
 
   /// The name without the plugin's prefix.
@@ -780,6 +802,7 @@ final class DataVertexLayout {
     for (final attribute in attributes) _vertexAttributes[attribute]!,
   ]);
 
+  /// The entry as written in the document's `vertexLayouts` list.
   Map<String, Object?> toJson() => <String, Object?>{
     'name': name,
     'attributes': attributes,
@@ -855,6 +878,7 @@ final class _VertexLayoutsSection extends DataSection {
 
 /// A data plugin's level-of-detail table, as read.
 final class DataLodTable {
+  /// A table named [name] switching levels at [distances], in metres.
   const DataLodTable({required this.name, required this.distances});
 
   /// The name without the plugin's prefix: the groups it chooses for are
@@ -865,6 +889,7 @@ final class DataLodTable {
   /// ascending.
   final List<double> distances;
 
+  /// The entry as written in the document's `lodTables` list.
   Map<String, Object?> toJson() => <String, Object?>{
     'name': name,
     'distances': distances,

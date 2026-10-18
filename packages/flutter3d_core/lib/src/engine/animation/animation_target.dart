@@ -14,8 +14,13 @@ import 'package:vector_math/vector_math.dart';
 /// member added in a 1.x release arrives with a body and nothing that mixes
 /// it in has to change.
 abstract base mixin class AnimationTarget {
+  /// Sets the local position to [x], [y] and [z], in the parent's space.
   void setPosition(double x, double y, double z);
+
+  /// Sets the local rotation to [value].
   void setRotation(Quaternion value);
+
+  /// Sets the local scale factors along [x], [y] and [z].
   void setScale(double x, double y, double z);
 }
 

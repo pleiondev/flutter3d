@@ -31,8 +31,11 @@ import 'scene.dart';
 ///  * [worldVersion] doubles as a cheap invalidation key for anything derived
 ///    from the transform — world bounds, view matrices, normal matrices.
 base class SceneNode with AnimationTarget {
+  /// A detached node called [name], at the origin with no rotation and unit
+  /// scale.
   SceneNode({this.name});
 
+  /// A label for lookups, logs and tools, or null; need not be unique.
   String? name;
 
   /// Monotonic source of version stamps, shared by every node.
@@ -151,11 +154,14 @@ base class SceneNode with AnimationTarget {
     return null;
   }
 
+  /// The node this one hangs under, or null for a root or a detached node.
   SceneNode? get parent => _parent;
 
   /// The scene this node currently belongs to, if any.
   Scene? get scene => _scene;
 
+  /// The direct children, in the order they were added, as an unmodifiable
+  /// copy made on each call; see [childrenView] for a hot loop.
   List<SceneNode> get children => List<SceneNode>.unmodifiable(_children);
 
   /// Direct access for internal traversal, avoiding the unmodifiable copy.
@@ -176,8 +182,11 @@ base class SceneNode with AnimationTarget {
     _markLocalDirty();
   }
 
+  /// Sets the local position from [value], in the parent's space.
   void setPositionFrom(Vector3 value) => setPosition(value.x, value.y, value.z);
 
+  /// Moves the local position by [dx], [dy] and [dz], in the parent's
+  /// space.
   void translate(double dx, double dy, double dz) {
     _position.setValues(_position.x + dx, _position.y + dy, _position.z + dz);
     _markLocalDirty();
@@ -203,6 +212,7 @@ base class SceneNode with AnimationTarget {
     _markLocalDirty();
   }
 
+  /// Sets the same local scale factor, [value], on all three axes.
   void setUniformScale(double value) => setScale(value, value, value);
 
   /// Replaces the local transform by decomposing a matrix.
@@ -235,9 +245,13 @@ base class SceneNode with AnimationTarget {
   Vector3 readPosition([Vector3? out]) =>
       (out ?? Vector3.zero())..setFrom(_position);
 
+  /// Reads the local rotation into [out], or a new quaternion when it is
+  /// null, and returns it.
   Quaternion readRotation([Quaternion? out]) =>
       (out ?? Quaternion.identity())..setFrom(_rotation);
 
+  /// Reads the local scale into [out], or a new vector when it is null, and
+  /// returns it.
   Vector3 readScale([Vector3? out]) => (out ?? Vector3.zero())..setFrom(_scale);
 
   /// Where this node is in the world, in double precision: its scene's
@@ -486,6 +500,8 @@ base class SceneNode with AnimationTarget {
     child.setLocalMatrix(parentInverse * childWorld);
   }
 
+  /// Detaches [child] from this node and from the scene with it. Does nothing
+  /// when [child] is not a child of this node.
   void remove(SceneNode child) {
     if (child._parent != this) return;
     // The last child without a search: `Scene.clear` empties a root from the
@@ -657,6 +673,8 @@ base class SceneNode with AnimationTarget {
   /// what lets the renderer iterate contiguous lists.
   void onAttachedToScene(Scene scene) {}
 
+  /// Hook for subclasses to leave the scene's flat registries, called when
+  /// the node leaves [scene]; the counterpart of [onAttachedToScene].
   void onDetachedFromScene(Scene scene) {}
 
   @override

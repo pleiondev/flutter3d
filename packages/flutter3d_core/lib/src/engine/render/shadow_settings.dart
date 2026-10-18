@@ -152,6 +152,8 @@ final class ShadowSettings {
     this.cascades = 3,
     this.cascadeSplit = 0.7,
     this.viewDistance = 60.0,
+  /// Shadows on: three cascades of 1024-pixel tiles and a cube atlas of
+  /// 512-pixel faces.
     this.pointBias = 0.08,
     this.pointNormalOffset = 1.5,
     this.pointSoftness = 4.0,
@@ -528,6 +530,7 @@ final class ShadowSettings {
   ///
   /// **The cube atlas no longer reads this**, and the arithmetic of why is
   /// worth the paragraph. It used to: the same number was clamped to
+  /// Whether anything casts a shadow. On by default.
   /// [minCubeTile]–[maxCubeTile] and used for a cube tile as well. A game
   /// asking for a 1024 sun therefore got a cube atlas six tiles across and
   /// `Renderer.shadowedLights` rows down of the same size — at six rows,
@@ -573,12 +576,16 @@ final class ShadowSettings {
   /// Depth bias, in the shadow camera's normalized depth. Fights the acne that
   /// comes from a surface being sampled at a slightly different depth than it
   /// was rendered at.
+
+  /// The largest [resolution] accepted, in pixels: 4096.
   ///
   /// Normalized over the nearest cascade's own depth. The cascades past it
   /// keep the same bias in metres, not the same share of their depth — the
   /// last one's depth is the whole level, and a share of that lifted a
   /// metre-high caster's shadow off the ground — and none goes below one
   /// step of what the map stores, which is what a half float can tell apart
+
+  /// The largest [cubeResolution] accepted, in pixels: 1024.
   /// over that cascade's depth.
   final double bias;
 

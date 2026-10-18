@@ -52,6 +52,8 @@ const String rootMotionExtra = 'flutter3dRootMotion';
 /// What is missing above this is a state machine that decides *which* clip —
 /// that belongs to the game layer, not here.
 final class AnimationPlayer {
+  /// A player over [clips], writing into [targets] and, where given, [morphs]
+  /// and [pointers]. Nothing plays until [play] is called.
   AnimationPlayer({
     required this.clips,
     required this.targets,
@@ -64,6 +66,7 @@ final class AnimationPlayer {
   /// nodes only, and a pointer track then plays and writes nothing.
   final AnimationPointerSink? pointers;
 
+  /// The clips this player can play, addressed by index.
   final List<AnimationClip> clips;
 
   /// Node for each index a track can address, null where the instance created
@@ -119,6 +122,7 @@ final class AnimationPlayer {
   /// A unitless multiplier on clip time.
   double speed = 1.0;
 
+  /// What happens when the base clip runs past its end; loops by default.
   AnimationWrap wrap = AnimationWrap.loop;
 
   /// Clips playing over the base, in the order they are written.
@@ -181,6 +185,8 @@ final class AnimationPlayer {
 
   final Quaternion _quaternion = Quaternion.identity();
 
+  /// Whether the base clip is advancing; false before a clip is chosen and
+  /// after [pause] or [stop].
   bool get isPlaying => _playing;
 
   /// Whether a crossfade is in progress.
@@ -276,10 +282,13 @@ final class AnimationPlayer {
   /// One copy, shared with the layers — see [animationTrackKey].
   static int _trackKey(AnimationTrack track) => animationTrackKey(track);
 
+  /// Whether the player has any clip to play.
   bool get hasClips => clips.isNotEmpty;
 
+  /// Index of the base clip in [clips], or -1 before one is chosen.
   int get clipIndex => _clipIndex;
 
+  /// The base clip, or null before one is chosen.
   AnimationClip? get clip =>
       _clipIndex >= 0 && _clipIndex < clips.length ? clips[_clipIndex] : null;
 
@@ -408,6 +417,7 @@ final class AnimationPlayer {
     return false;
   }
 
+  /// Stops the clock where it is, leaving the current pose applied.
   void pause() => _playing = false;
 
   /// Stops and rewinds, leaving the first pose applied.

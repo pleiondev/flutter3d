@@ -388,6 +388,7 @@ final class DebugViewSettings {
 
   /// Which side of the wipe the overlays draw on — [DebugWipeSide.both], the
   /// whole frame, by default.
+  /// No channel on either side of the wipe; every default is an exact no-op.
   final DebugWipeSide overlays;
 
   /// Whether the right of the wipe shows a channel.
@@ -411,3 +412,5 @@ final class DebugViewSettings {
     overlays: overlays ?? this.overlays,
   );
 }
+  /// Returns a copy with the given fields replaced; null leaves a field as
+  /// it is.

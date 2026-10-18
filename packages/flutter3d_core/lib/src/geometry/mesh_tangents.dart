@@ -49,6 +49,7 @@ final class TangentMethod {
 /// tangents, and for each vertex it appended at a mirrored seam, the vertex
 /// it [copiedFrom].
 final class GeneratedTangents {
+  /// The result of one generation: [mesh] and the seam copies' sources.
   const GeneratedTangents({required this.mesh, required this.copiedFrom});
 
   /// The mesh with a tangent per vertex, longer than the input where a seam

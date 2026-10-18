@@ -51,6 +51,8 @@ export 'resource_desc.dart';
 /// read produces a second texture under the same name; keyed on the name, the
 /// first one is simply forgotten and never handed back.
 final class FrameResources {
+  /// The resources of one [frameWidth] by [frameHeight] frame of [graph],
+  /// borrowed from [source]; the graph's created resources are declared here.
   FrameResources({
     required this.source,
     required this.graph,
@@ -66,9 +68,16 @@ final class FrameResources {
     graph.created.forEach(declare);
   }
 
+  /// Where the textures are borrowed from and given back to.
   final FrameTextureSource source;
+
+  /// The compiled graph whose resources these are.
   final CompiledFrameGraph graph;
+
+  /// Width of the frame in pixels, which frame-relative sizes divide.
   final int frameWidth;
+
+  /// Height of the frame in pixels, which frame-relative sizes divide.
   final int frameHeight;
 
   /// Whether a texture whose lifetime has ended is lent again within this

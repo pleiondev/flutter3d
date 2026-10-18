@@ -45,6 +45,8 @@ final class HiZOcclusion {
 
   /// The reading's size in cells, which is the `DepthPyramid` target's size.
   static const int width = 256;
+
+  /// Height of the reading in cells, the `DepthPyramid` target's height.
   static const int height = 128;
 
   /// How far the eye may have moved since the reading, in metres, before the
@@ -69,6 +71,7 @@ final class HiZOcclusion {
   /// camera's far plane.
   static const int depthSteps = 0xFFFFFF;
 
+  /// The reading, rasterised as a software occlusion buffer is.
   final OcclusionBuffer buffer = OcclusionBuffer(width: width, height: height);
 
   /// Each cell's depth in metres, NaN where it holds no occluder.

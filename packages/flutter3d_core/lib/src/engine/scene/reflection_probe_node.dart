@@ -35,6 +35,11 @@ import 'scene_node.dart';
 /// that cannot is not given a probe at all, and the material reads what it
 /// read before.
 final class ReflectionProbeNode extends SceneNode {
+  /// A probe of 64-pixel faces with four levels, refreshed once rather than
+  /// every frame.
+  ///
+  /// Asserts a face of at least four pixels, at least one level,
+  /// `0 < near < far` and an intensity of nought or more.
   ReflectionProbeNode({
     this.radius = 0.0,
     this.intensity = 1.0,
@@ -105,6 +110,8 @@ final class ReflectionProbeNode extends SceneNode {
   /// moment.
   void invalidate() => _generation++;
 
+  /// Bumped by [invalidate]; a renderer redraws the probe when it differs
+  /// from the one it last drew at.
   int get generation => _generation;
   int _generation = 0;
 

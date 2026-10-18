@@ -15,6 +15,7 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
 /// it is the same one, and it is why a texture added to this contract later
 /// costs nobody a recompile.
 abstract base class ProceduralTexture {
+  /// Lets a subclass be const.
   const ProceduralTexture();
 
   /// Edge length in pixels; procedural textures here are square.
@@ -132,6 +133,7 @@ final class SolidColorTexture extends ProceduralTexture {
 /// plain RGBA8 with a single level. Without mips, minification aliases: visible
 /// as shimmer on faces seen at a grazing angle.
 final class CheckerboardTexture extends ProceduralTexture {
+  /// A 64-pixel board of 8-pixel squares in a pale and a mid-grey tone.
   const CheckerboardTexture({
     this.size = 64,
     this.cell = 8,
@@ -148,6 +150,8 @@ final class CheckerboardTexture extends ProceduralTexture {
   /// 0xRRGGBB. The dark tone is mid-grey rather than near-black so that shading
   /// stays readable on it once the scene is lit.
   final int light;
+
+  /// The dark squares' colour, 0xRRGGBB.
   final int dark;
 
   @override

@@ -8,6 +8,8 @@ import 'material_ast.dart';
 
 /// One member of a uniform block of a material's own, where std140 puts it.
 final class MaterialBlockMember {
+  /// A member [name] of [type] at [offset] bytes, with no default unless
+  /// [defaultValue] is given.
   const MaterialBlockMember({
     required this.name,
     required this.type,
@@ -15,7 +17,10 @@ final class MaterialBlockMember {
     this.defaultValue = const <double>[],
   });
 
+  /// The member's name in the block, as the source declares it.
   final String name;
+
+  /// The member's type: a `float` or a vector of up to four.
   final ExpressionType type;
 
   /// What the member is when a material sets nothing for it: the value its
@@ -36,6 +41,8 @@ final class MaterialBlockMember {
   /// The bytes the member takes: four a component.
   int get size => type.components * 4;
 
+  /// The member as a binding plan writes it: name, type and offset, not
+  /// the default.
   Map<String, Object?> toJson() => <String, Object?>{
     'name': name,
     'type': type.name,
@@ -66,11 +73,13 @@ final class MaterialBlockMember {
 /// One uniform block a material binds: `MaterialParams`, or a block of its
 /// own (`uniform(Hair) …`), with its members in declaration order.
 final class MaterialBlockSlot {
+  /// The block [name] holding [members], laid out by std140.
   const MaterialBlockSlot({required this.name, required this.members});
 
   /// The block's name in the stage, and what it is bound by.
   final String name;
 
+  /// The block's members in declaration order, each at its std140 offset.
   final List<MaterialBlockMember> members;
 
   /// The block's size, rounded up to sixteen bytes as std140 does.
@@ -80,6 +89,8 @@ final class MaterialBlockSlot {
     return (end + 15) ~/ 16 * 16;
   }
 
+  /// The block as a binding plan writes it: name, size in bytes and
+  /// members.
   Map<String, Object?> toJson() => <String, Object?>{
     'name': name,
     'size': size,
@@ -91,6 +102,7 @@ final class MaterialBlockSlot {
 /// it is bound under. A material that names none for it is drawn with a
 /// white texel in its place, as an engine texture slot nobody filled is.
 final class MaterialTextureSlotEntry {
+  /// The texture the source calls [name], bound under [binding].
   const MaterialTextureSlotEntry({required this.name, required this.binding});
 
   /// What the source calls it: `fur`.
@@ -100,6 +112,7 @@ final class MaterialTextureSlotEntry {
   /// `material_fur`.
   final String binding;
 
+  /// The entry as a binding plan writes it: name and binding.
   Map<String, Object?> toJson() => <String, Object?>{
     'name': name,
     'binding': binding,
@@ -131,6 +144,8 @@ final class MaterialTextureSlotEntry {
 /// first when the material has a uniform of its own, and is part of the
 /// contract: a backend that numbers bindings numbers them in it.
 final class MaterialSlotTable {
+  /// A table of [blocks] and [textures], in binding order; empty unless
+  /// given.
   const MaterialSlotTable({
     this.blocks = const <MaterialBlockSlot>[],
     this.textures = const <MaterialTextureSlotEntry>[],
@@ -166,7 +181,11 @@ final class MaterialSlotTable {
   /// A material that binds nothing beyond the engine's own.
   static const MaterialSlotTable none = MaterialSlotTable();
 
+  /// The material's uniform blocks, `MaterialParams` first when it has
+  /// one, then in declaration order.
   final List<MaterialBlockSlot> blocks;
+
+  /// The material's own textures, in declaration order.
   final List<MaterialTextureSlotEntry> textures;
 
   /// Whether the material binds nothing of its own.

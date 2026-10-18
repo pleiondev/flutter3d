@@ -161,6 +161,7 @@ final class UniversalTarget {
     encodeBlock: null,
   );
 
+  /// Every target this version names, in declaration order.
   static const List<UniversalTarget> values = <UniversalTarget>[
     bc1,
     bc3,
@@ -169,6 +170,7 @@ final class UniversalTarget {
     rgba8,
   ];
 
+  /// The target's stable name, as the constant is spelt: `bc1`, `rgba8`.
   final String name;
 
   /// What the level's bytes are once this target has them — the number a
@@ -178,6 +180,8 @@ final class UniversalTarget {
   /// Zero for [rgba8], which is not blocks at all.
   final int bytesPerBlock;
 
+  /// Whether the target keeps the alpha channel; a target that does not
+  /// drops it.
   final bool carriesAlpha;
 
   /// One block of [blocks] as this target, or null for [rgba8], which is a

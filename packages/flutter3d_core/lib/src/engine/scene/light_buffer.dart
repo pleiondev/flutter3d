@@ -30,6 +30,7 @@ abstract final class ShaderLightType {
   /// A code the shader compares, not a quantity: it has no unit.
   static const double area = 3.0;
 
+  /// Returns the code the shader compares for [type]'s base kind.
   static double of(LightType type) => switch (type.base) {
     LightType.directional => directional,
     LightType.point => point,
@@ -230,9 +231,19 @@ final class LightBuffer {
     return evicted;
   }
 
+  /// Four floats a slot, laid out in the class doc: the position, then the
+  /// kind code.
   final Float32List positions = Float32List(maxLights * 4);
+
+  /// Four floats a slot: the linear colour, then the intensity.
   final Float32List colors = Float32List(maxLights * 4);
+
+  /// Four floats a slot: the direction the light points, or a rectangle's
+  /// half-width, then the range in metres, nought for unbounded.
   final Float32List directions = Float32List(maxLights * 4);
+
+  /// Four floats a slot: a spot's inner and outer cone cosines, or a
+  /// rectangle's negated half-height.
   final Float32List cones = Float32List(maxLights * 4);
 
   /// The nodes behind the packed slots, in slot order.

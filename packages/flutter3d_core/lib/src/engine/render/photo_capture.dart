@@ -46,6 +46,8 @@ import 'renderer.dart';
 /// lift replaces the game's because two lifts do not compose into anything a
 /// person chose.
 final class PhotoFilter {
+  /// A filter called [name]; every adjustment left at its default changes
+  /// nothing in the game's own look.
   const PhotoFilter({
     required this.name,
     this.contrast = 1.0,
@@ -89,22 +91,31 @@ final class PhotoFilter {
   /// game's own.
   final LinearColor? gain;
 
+  /// No filter: the game's look as it is.
   static const PhotoFilter none = PhotoFilter(name: 'none');
+
+  /// More contrast and much more saturation.
   static const PhotoFilter vivid = PhotoFilter(
     name: 'vivid',
     contrast: 1.15,
     saturation: 1.35,
   );
+
+  /// Warmer colour temperature, a touch more saturated.
   static const PhotoFilter warm = PhotoFilter(
     name: 'warm',
     temperature: 0.35,
     saturation: 1.05,
   );
+
+  /// Cooler colour temperature, with a slight green tint.
   static const PhotoFilter cool = PhotoFilter(
     name: 'cool',
     temperature: -0.35,
     tint: -0.05,
   );
+
+  /// Black and white, slightly harder.
   static const PhotoFilter mono = PhotoFilter(
     name: 'mono',
     saturation: 0.0,
@@ -120,6 +131,8 @@ final class PhotoFilter {
     lift: LinearColor(0.03, 0.02, 0.0),
     vignette: 0.25,
   );
+
+  /// Hard black and white with a heavy vignette and grain.
   static const PhotoFilter noir = PhotoFilter(
     name: 'noir',
     saturation: 0.0,
@@ -127,6 +140,8 @@ final class PhotoFilter {
     vignette: 0.55,
     grain: 0.04,
   );
+
+  /// Washed out: lower contrast and saturation, blacks lifted to grey.
   static const PhotoFilter faded = PhotoFilter(
     name: 'faded',
     contrast: 0.85,
@@ -202,6 +217,8 @@ final class PhotoFinish {
   /// How far the corners are pulled down, a 0..1 fraction.
   final double vignette;
 
+  /// A finish for a [width] by [height] picture with the given [vignette],
+  /// [roundness] and [grain]; see [PhotoFinish.of] to take them from a look.
   /// A 0..1 fraction: one keeps the falloff circular, nought follows the frame.
   final double roundness;
 
@@ -220,7 +237,10 @@ final class PhotoFinish {
     final aspect = width / height;
     final stretch = 1.0 + (aspect - 1.0) * roundness;
     for (var row = 0; row < rows; row++) {
+  /// Width of the whole picture in pixels.
       final y = top + row;
+
+  /// Height of the whole picture in pixels.
       final fy = (y + 0.5) / height - 0.5;
       for (var x = 0; x < width; x++) {
         final at = (row * width + x) * 4;
@@ -232,6 +252,7 @@ final class PhotoFinish {
             : (_hash(x + 0.5, y + 0.5) - 0.5) * grain;
         for (var c = 0; c < 3; c++) {
           final encoded = vignette == 0.0
+  /// Whether the finish changes nothing: no vignette and no grain.
               ? rgba[at + c] / 255.0
               : linearToSrgb(_decode[rgba[at + c]] * keep);
           rgba[at + c] = ((encoded + noise).clamp(0.0, 1.0) * 255.0).round();
@@ -277,6 +298,8 @@ final class PhotoCaptureReport {
   /// One sentence per setting the capture could not carry over.
   final List<String> setAside;
 }
+  /// A report on a [width] by [height] photo drawn as [tilesX] by [tilesY]
+  /// tiles.
 
 const String _noTemporal =
     'temporal anti-aliasing is off: it resolves over frames a still tile '
@@ -287,9 +310,16 @@ const String _noMotionBlur =
 const String _noAberration =
     'chromatic aberration is left out: it is centred on each tile, and no '
     'whole-frame version is written yet';
+  /// Width of the saved picture in pixels.
 const String _noScale =
+
+  /// Height of the saved picture in pixels.
     'render scale and upscaling are off: the picture is drawn at its own size';
+
+  /// How many tiles across the picture was drawn in, a count.
 const String _noExtended =
+
+  /// How many tiles down the picture was drawn in, a count.
     'the extended-range output is written as standard range';
 
 /// What [photoSettings] works out for a photo: the settings each [tile] is
@@ -320,6 +350,7 @@ final class PhotoPlan {
 PhotoPlan photoSettings(
   RenderSettings settings,
   PhotoFilter filter,
+  /// A plan drawing each tile with [tile] and finishing with [look].
   double exposure,
 ) {
   final look = filter.applyTo(settings.look);

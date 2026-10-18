@@ -100,6 +100,9 @@ final class _ViewHistory {
   double originZ = 0.0;
 }
 
+/// What each view's previous frame looked like: every moving mesh's world
+/// matrix, joint palette, morph weights and instance bytes, and the view's
+/// unjittered view-projection, kept while [tracking] is on.
 final class FrameHistory {
   FrameHistory._();
 

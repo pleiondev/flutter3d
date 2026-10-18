@@ -936,6 +936,8 @@ MaterialBindings describeMaterial(MaterialProgram program) {
 /// application's to choose — and because this package would otherwise decide
 /// how a material is shown in a picker.
 final class MaterialBindings {
+  /// The answer for the material [name]; every flag and table not given is
+  /// off or empty, and the stage a surface.
   const MaterialBindings({
     required this.name,
     required this.usesAlbedoTexture,
@@ -965,6 +967,8 @@ final class MaterialBindings {
   /// older one, whose instanced and lightmapped draws keep the engine's.
   final Set<VertexStageVariant> vertexVariants;
 
+  /// The material's name as its source declares it: `Glow` for
+  /// `material Glow { … }`.
   final String name;
 
   /// The binding name of each texture the source declares, in declaration
@@ -996,9 +1000,22 @@ final class MaterialBindings {
   /// The vertex stage the source's `vertex` block becomes, `<name>Vertex`,
   /// or null for a material that keeps the engine's — version 2.
   final String? vertexShaderName;
+
+  /// Whether the stage samples the base colour map; true for every
+  /// material, since reading the surface samples it.
   final bool usesAlbedoTexture;
+
+  /// Whether the stage samples the material maps: true for a lit material
+  /// and for one that samples the normal, occlusion, emissive or
+  /// metallic-roughness map.
   final bool usesMaterialMaps;
+
+  /// Whether the stage samples the metallic-roughness map: true for the
+  /// standard model and for a source that samples it.
   final bool usesMetallicRoughnessMap;
+
+  /// Whether metallic changes the picture, so an editor shows its control:
+  /// true for the standard model and for a source that reads `metallic`.
   final bool usesMetallic;
 
   /// Each `uniform` the program declares, with its default, in declaration

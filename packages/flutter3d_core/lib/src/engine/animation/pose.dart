@@ -31,6 +31,12 @@ import 'animation_target.dart';
 /// `BoxAnimated.glb`, sampled through the ordinary scene-graph pipeline and
 /// through this one, at several times across the clip.
 final class AnimationPose {
+  /// A pose of the nodes whose parents are [parents], starting at the rest
+  /// transforms given: three floats a node for translations and scales, four
+  /// for rotations.
+  ///
+  /// Throws an [ArgumentError] when a rest list's length does not match the
+  /// node count.
   AnimationPose({
     required List<int> parents,
     required Float32List restTranslations,
@@ -123,6 +129,7 @@ final class AnimationPose {
 
   final List<int> _chain = <int>[];
 
+  /// How many nodes the pose holds, a count.
   int get nodeCount => parents.length;
 
   /// Puts every node back at its rest transform.

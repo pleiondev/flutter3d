@@ -46,8 +46,11 @@ part 'gltf_writer_scene.dart';
 /// image bytes alike — so [writeGlb] always produces one self-contained file,
 /// never a `.gltf` with siblings to lose track of.
 final class GltfWriter {
+  /// A writer for [document], leaving the geometry as it is unless
+  /// [compressGeometry] is set.
   GltfWriter(this.document, {this.compressGeometry = false});
 
+  /// The model written; read, never changed.
   final ModelDocument document;
 
   /// `fmt-30n`'s own row: when true, this writer does two independent things

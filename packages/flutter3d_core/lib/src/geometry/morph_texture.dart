@@ -106,7 +106,10 @@ final class MorphTexture {
     }
   }
 
+  /// Width in texels: one column per vertex of the mesh.
   final int width;
+
+  /// Height in texels: [rowsPerTarget] rows per packed target.
   final int height;
 
   /// The texels, four floats each, ready for `createTextureFromPixels`.
@@ -122,6 +125,7 @@ final class MorphTexture {
   /// How many the mesh had that did not fit.
   int dropped(MeshData mesh) => mesh.morphTargets.length - targetCount;
 
+  /// [pixels] as bytes for upload, a view rather than a copy.
   ByteData get bytes =>
       pixels.buffer.asByteData(pixels.offsetInBytes, pixels.lengthInBytes);
 

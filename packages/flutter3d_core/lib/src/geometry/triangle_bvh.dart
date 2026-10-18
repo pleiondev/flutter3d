@@ -10,6 +10,7 @@ import 'vertex_layout.dart';
 /// [triangle], in the mesh's own index order, how far along the ray, and
 /// the [point].
 final class TriangleHit {
+  /// A hit on [triangle] at [distance] along the ray, at [point].
   const TriangleHit({
     required this.triangle,
     required this.distance,

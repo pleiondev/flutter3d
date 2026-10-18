@@ -102,6 +102,7 @@ final class AnimationGraph {
     _sample();
   }
 
+  /// The definition the graph runs, checked when the graph was built.
   final AnimationStateMachine machine;
 
   /// The values the transitions test; written by the game between steps.
@@ -699,6 +700,8 @@ final class AnimationGraph {
 /// [weight] moves when told to by [fadeTo], on the same steps, so a layer
 /// comes in and goes out without a pop.
 final class AnimationGraphLayer {
+  /// A layer playing [graph] over [mask] (the whole skeleton when null),
+  /// blended by [blend] at [weight], clamped to nought to one.
   AnimationGraphLayer({
     required this.graph,
     AnimationMask? mask,
@@ -708,8 +711,14 @@ final class AnimationGraphLayer {
        _weight = weight.clamp(0.0, 1.0),
        _target = weight.clamp(0.0, 1.0);
 
+  /// The graph whose pose this layer adds.
   final AnimationGraph graph;
+
+  /// Which joints the layer writes; the rest keep the pose beneath.
   AnimationMask mask;
+
+  /// How the layer's pose meets the one beneath: replacing it or adding to
+  /// it.
   AnimationBlend blend;
 
   double _weight;

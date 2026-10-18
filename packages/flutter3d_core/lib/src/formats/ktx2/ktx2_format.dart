@@ -101,11 +101,24 @@ const List<int> ktx2Identifier = [
   0x0A,
 ];
 
+/// Where the header starts, in bytes from the start of the file: right
+/// after the twelve-byte identifier.
 const int ktx2HeaderOffset = 12;
+
+/// The header's size in bytes: nine u32 fields, see [Ktx2HeaderField].
 const int ktx2HeaderBytes = 36;
+
+/// Where the index starts, in bytes from the start of the file: 48.
 const int ktx2IndexOffset = ktx2HeaderOffset + ktx2HeaderBytes; // 48
+
+/// The index's size in bytes: see [Ktx2IndexField].
 const int ktx2IndexBytes = 32;
+
+/// Where the level index starts, in bytes from the start of the file: 80.
 const int ktx2LevelIndexOffset = ktx2IndexOffset + ktx2IndexBytes; // 80
+
+/// The size of one level index entry in bytes: u64 byte offset, u64 byte
+/// length and u64 uncompressed byte length.
 const int ktx2LevelIndexEntryBytes = 24;
 
 /// Byte offsets of the Index section's fields, relative to
@@ -124,9 +137,18 @@ abstract final class Ktx2IndexField {
 
   /// How long it is; for the caller [dfdByteOffset] names.
   static const int dfdByteLength = 4;
+
+  /// Where the key/value data is, a u32 from the start of the file.
   static const int kvdByteOffset = 8;
+
+  /// How long the key/value data is, a u32 in bytes.
   static const int kvdByteLength = 12;
+
+  /// Where the supercompression global data is, a u64 from the start of
+  /// the file; zero when there is none.
   static const int sgdByteOffset = 16; // u64
+
+  /// How long the supercompression global data is, a u64 in bytes.
   static const int sgdByteLength = 24; // u64
 }
 
@@ -164,10 +186,19 @@ abstract final class Ktx2IndexField {
 /// this section — confirmed on the real file: `rgbSliceByteOffset` was `0`
 /// and the level's own bytes started elsewhere in the file entirely.
 abstract final class Ktx2GlobalDataField {
+  /// Count of entries in the endpoint codebook, a u16.
   static const int endpointCount = 0; // u16
+
+  /// Count of entries in the selector codebook, a u16.
   static const int selectorCount = 2; // u16
+
+  /// Length of the endpoint codebook's data, a u32 in bytes.
   static const int endpointsByteLength = 4;
+
+  /// Length of the selector codebook's data, a u32 in bytes.
   static const int selectorsByteLength = 8;
+
+  /// Length of the Huffman tables, a u32 in bytes.
   static const int tablesByteLength = 12;
 
   /// Where the extended data the transcoder does not use begins.
@@ -176,9 +207,13 @@ abstract final class Ktx2GlobalDataField {
   /// caller reading a UASTC file's global data, where the field is the only way
   /// to find the end of the part that is understood.
   static const int extendedByteLength = 16;
+
+  /// The global data header's size in bytes; the image descriptors follow.
   static const int headerBytes = 20;
 }
 
+/// Byte offsets of an `ImageDesc`'s fields, relative to its own start; see
+/// [Ktx2GlobalDataField] for the layout.
 abstract final class Ktx2ImageDescField {
   /// Per-image flags — whether the slice is an I-frame, and the rest.
   ///
@@ -186,23 +221,53 @@ abstract final class Ktx2ImageDescField {
   /// It is for a caller transcoding a video-like sequence, where an image that
   /// is not a key frame cannot be decoded on its own and this is what says so.
   static const int imageFlags = 0;
+
+  /// Where the RGB slice starts, a u32 in bytes from the level's start.
   static const int rgbSliceByteOffset = 4;
+
+  /// How long the RGB slice is, a u32 in bytes.
   static const int rgbSliceByteLength = 8;
+
+  /// Where the alpha slice starts, a u32 in bytes from the level's start.
   static const int alphaSliceByteOffset = 12;
+
+  /// How long the alpha slice is, a u32 in bytes; zero for no alpha.
   static const int alphaSliceByteLength = 16;
+
+  /// One descriptor's size in bytes.
   static const int bytes = 20;
 }
 
 /// Byte offsets of the header fields, relative to [ktx2HeaderOffset].
 abstract final class Ktx2HeaderField {
+  /// The pixels' `VkFormat` number, a u32; [VkFormat.undefined] for Basis
+  /// Universal.
   static const int vkFormat = 0;
+
+  /// The size of the format's data type in bytes, a u32: one for a block
+  /// format.
   static const int typeSize = 4;
+
+  /// The base level's width in pixels, a u32.
   static const int pixelWidth = 8;
+
+  /// The base level's height in pixels, a u32; zero for a 1D texture.
   static const int pixelHeight = 12;
+
+  /// The base level's depth in pixels, a u32; zero for a 2D texture.
   static const int pixelDepth = 16;
+
+  /// Count of array layers, a u32; zero for a texture that is not an
+  /// array.
   static const int layerCount = 20;
+
+  /// Count of faces, a u32: six for a cube map, one otherwise.
   static const int faceCount = 24;
+
+  /// Count of mip levels, a u32; zero asks the loader to make them.
   static const int levelCount = 28;
+
+  /// The [Ktx2SupercompressionScheme] the levels are stored with, a u32.
   static const int supercompressionScheme = 32;
 }
 
@@ -213,9 +278,17 @@ abstract final class Ktx2HeaderField {
 /// predates rather than somebody's extension. [Ktx2Texture.parse] reports the
 /// raw number either way, and says which of the two it is.
 abstract final class Ktx2SupercompressionScheme {
+  /// The levels are stored as they are.
   static const int none = 0;
+
+  /// Basis Universal ETC1S: the levels need the global data's codebooks
+  /// to transcode.
   static const int basisLZ = 1;
+
+  /// Each level is a Zstandard frame.
   static const int zstandard = 2;
+
+  /// Each level is a zlib stream.
   static const int zlib = 3;
 }
 
@@ -227,7 +300,10 @@ abstract final class Ktx2SupercompressionScheme {
 /// `KHR_DF_MODEL_*`, as the reference transcoder's `basisu_transcoder.h` lists
 /// them.
 abstract final class Ktx2ColorModel {
+  /// `KHR_DF_MODEL_ETC1S`: Basis Universal ETC1S, which this reads.
   static const int etc1s = 163;
+
+  /// `KHR_DF_MODEL_UASTC`: Basis Universal UASTC LDR 4×4.
   static const int uastc = 166;
 
   /// What to call a colour model in a refusal, including the ones a current
@@ -258,30 +334,80 @@ abstract final class Ktx2ColorModel {
 /// flutter_gpu mirror — a wrong number here compiles, runs, and renders wrong
 /// only for the value a scene happens to use.
 abstract final class VkFormat {
+  /// No Vulkan format: the pixels are Basis Universal, and the data format
+  /// descriptor's [Ktx2ColorModel] says which.
   static const int undefined = 0;
+
+  /// Four bytes a pixel, RGBA, linear.
   static const int r8g8b8a8UNorm = 37;
+
+  /// Four bytes a pixel, RGBA, sRGB-encoded colour.
   static const int r8g8b8a8Srgb = 43;
+
+  /// Four bytes a pixel, BGRA, linear.
   static const int b8g8r8a8UNorm = 44;
+
+  /// Four bytes a pixel, BGRA, sRGB-encoded colour.
   static const int b8g8r8a8Srgb = 50;
+
+  /// Four half floats a pixel, RGBA: eight bytes.
   static const int r16g16b16a16Sfloat = 97;
+
+  /// One 32-bit float a pixel.
   static const int r32Sfloat = 100;
+
+  /// Four 32-bit floats a pixel, RGBA: sixteen bytes.
   static const int r32g32b32a32Sfloat = 109;
+
+  /// BC1 with one-bit alpha, eight bytes a 4×4 block, linear.
   static const int bc1RgbaUNormBlock = 133;
+
+  /// BC1 with one-bit alpha, eight bytes a 4×4 block, sRGB.
   static const int bc1RgbaSrgbBlock = 134;
+
+  /// BC3, sixteen bytes a 4×4 block, linear.
   static const int bc3UNormBlock = 137;
+
+  /// BC3, sixteen bytes a 4×4 block, sRGB.
   static const int bc3SrgbBlock = 138;
+
+  /// BC5, two channels, sixteen bytes a 4×4 block: normal maps.
   static const int bc5UNormBlock = 141;
+
+  /// BC7, sixteen bytes a 4×4 block, linear.
   static const int bc7UNormBlock = 145;
+
+  /// BC7, sixteen bytes a 4×4 block, sRGB.
   static const int bc7SrgbBlock = 146;
+
+  /// ETC2 RGB, eight bytes a 4×4 block, linear.
   static const int etc2R8g8b8UNormBlock = 147;
+
+  /// ETC2 RGB, eight bytes a 4×4 block, sRGB.
   static const int etc2R8g8b8SrgbBlock = 148;
+
+  /// ETC2 RGBA, sixteen bytes a 4×4 block, linear.
   static const int etc2R8g8b8a8UNormBlock = 151;
+
+  /// ETC2 RGBA, sixteen bytes a 4×4 block, sRGB.
   static const int etc2R8g8b8a8SrgbBlock = 152;
+
+  /// ASTC 4×4 LDR, sixteen bytes a block, linear.
   static const int astc4x4UNormBlock = 157;
+
+  /// ASTC 4×4 LDR, sixteen bytes a block, sRGB.
   static const int astc4x4SrgbBlock = 158;
+
+  /// ASTC 8×8 LDR, sixteen bytes a block, linear.
   static const int astc8x8UNormBlock = 171;
+
+  /// ASTC 8×8 LDR, sixteen bytes a block, sRGB.
   static const int astc8x8SrgbBlock = 172;
+
+  /// ASTC 4×4 HDR, sixteen bytes a block, floating point.
   static const int astc4x4SfloatBlock = 1000066000;
+
+  /// ASTC 8×8 HDR, sixteen bytes a block, floating point.
   static const int astc8x8SfloatBlock = 1000066007;
 }
 
@@ -293,6 +419,8 @@ abstract final class VkFormat {
 /// our format" from "our format, and a feature we have not built" — the
 /// second is a roadmap item, not a broken file.
 final class Ktx2FormatException extends Flutter3dFormatException {
+  /// A refusal whose [message] says what in the file is wrong or not yet
+  /// read.
   const Ktx2FormatException(this.message);
 
   @override

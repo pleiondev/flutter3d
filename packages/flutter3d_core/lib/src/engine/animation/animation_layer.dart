@@ -104,6 +104,8 @@ final class AnimationLayer {
 
   /// Index into the player's clips.
   int clip;
+  /// A layer playing [clip] over [mask] (the whole skeleton when null) at
+  /// full weight, looping at normal speed and replacing the pose beneath.
 
   /// Whether this layer replaces the base's pose or adds to it — `gfx-10n`.
   ///
@@ -145,6 +147,8 @@ final class AnimationLayer {
 
   /// Whether the layer has finished a `once` clip and gone quiet.
   bool get isFinished => !_playing && wrap == AnimationWrap.once;
+  /// Whether the layer's playhead is advancing; true until a clip that does
+  /// not loop reaches its end.
 
   /// Rewinds to the start and plays again.
   void restart() {
@@ -235,6 +239,8 @@ final class PlayheadStep {
 
   /// Whether it now runs backwards: a ping-pong turned it, or it already
   /// did.
+  /// A step that left the playhead at [time] seconds, running backwards when
+  /// [reversing], and at an end when [stopped].
   final bool reversing;
 
   /// Whether a clip played once reached its end and stopped there.

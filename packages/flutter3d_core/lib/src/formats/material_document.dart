@@ -23,6 +23,8 @@ export 'material_hint.dart';
 /// instead of by index into a container, a shader of the application's own, and
 /// the parameters that shader reads.
 final class MaterialDocument {
+  /// A material of [surface]; by default it names no images, takes the
+  /// scene's lighting model, and binds no parameters.
   const MaterialDocument({
     required this.surface,
     this.images = const <String>[],

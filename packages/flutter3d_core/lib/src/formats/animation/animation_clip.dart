@@ -3,10 +3,13 @@ import 'animation_track.dart';
 /// A named moment in an animation: [at] seconds into a clip, or a share of
 /// a state's cycle — see where it is held.
 final class AnimationMarker {
+  /// A marker called [name] at [at].
   const AnimationMarker(this.at, this.name);
 
   /// Seconds into a clip, or a 0..1 share of a state's cycle.
   final double at;
+
+  /// What the moment is called, as the file wrote it: `step`, `hit`.
   final String name;
 
   @override
@@ -15,6 +18,7 @@ final class AnimationMarker {
 
 /// A named set of tracks that play together.
 final class AnimationClip {
+  /// A clip of [tracks], its [duration] taken from their last keyframes.
   AnimationClip({
     required this.tracks,
     this.name,
@@ -22,7 +26,10 @@ final class AnimationClip {
     this.referenceTime,
   }) : duration = _durationOf(tracks);
 
+  /// The animation's name in the file; null when it has none.
   final String? name;
+
+  /// The channels the clip drives, each with its own keyframes.
   final List<AnimationTrack> tracks;
 
   /// The moment in this clip that an additive layer measures its delta from —
@@ -57,6 +64,7 @@ final class AnimationClip {
   /// `ModelNode.extras` for what that means and why.
   final Map<String, Object?>? extras;
 
+  /// Whether the clip has no tracks, and so moves nothing.
   bool get isEmpty => tracks.isEmpty;
 
   /// The moments named in this clip — a foot down, a blow landing — read

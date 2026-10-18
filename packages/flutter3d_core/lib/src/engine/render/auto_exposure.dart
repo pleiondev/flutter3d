@@ -19,6 +19,11 @@ import 'dart:typed_data';
 
 /// How the frame's own brightness decides its exposure.
 final class AutoExposureSettings {
+  /// Auto exposure off; switched on, it holds the exposure between 0.25 and
+  /// 8 and meters the 80th to 98th percentile towards 0.18.
+  ///
+  /// Asserts a positive range and percentiles in order between nought and
+  /// one.
   const AutoExposureSettings({
     this.enabled = false,
     this.minExposure = 0.25,
@@ -36,6 +41,8 @@ final class AutoExposureSettings {
              lowPercentile < highPercentile,
        );
 
+  /// Whether the exposure follows the frame. Off by default, which leaves
+  /// `RenderSettings.exposure` as it is.
   final bool enabled;
 
   /// Where the exposure stops, whatever the frame says.
@@ -115,6 +122,8 @@ final class AutoExposureSettings {
   /// always was.
   final bool perView;
 
+  /// Returns a copy with the given fields replaced; null leaves a field as
+  /// it is.
   AutoExposureSettings copyWith({
     bool? enabled,
     double? minExposure,
@@ -313,6 +322,7 @@ final class ExposureAdapter {
       luminance,
       lowPercentile: settings.lowPercentile,
       highPercentile: settings.highPercentile,
+  /// An adapter starting at the exposure [initial].
       within: within,
     );
     _target = ExposureMeter.exposureFor(

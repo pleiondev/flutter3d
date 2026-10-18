@@ -40,9 +40,14 @@ extension type const ResourceId(String name) {}
 /// Zero is what the engine handed in: an external resource, or nothing at all.
 /// The first write produces one.
 final class ResourceVersion {
+  /// Version [version] of the resource [id].
   const ResourceVersion(this.id, this.version);
 
+  /// The resource this is a version of.
   final ResourceId id;
+
+  /// Which write produced it: nought for what the engine handed in, one for
+  /// the first write in the frame, and up from there.
   final int version;
 
   @override
@@ -73,6 +78,7 @@ final class _NodeBindings {
 
 /// A pass, and the only thing an extension has to implement to become one.
 abstract base class FrameGraphNode {
+  /// Lets a subclass be const.
   const FrameGraphNode();
 
   /// Shown in errors and in the profiler. Unique within a graph.
@@ -308,11 +314,18 @@ final class NodeDeclarations {
     return builder._declarations();
   }
 
+  /// The resources the node needs; a missing one culls it.
   final List<ResourceId> reads;
+
+  /// The resources the node reads when they are there and does without when
+  /// they are not.
   final List<ResourceId> optionalReads;
 
   /// Every write, the created resources' among them.
   final List<ResourceId> writes;
+
+  /// The resources the node maintains across frames rather than producing
+  /// fresh.
   final List<ResourceId> keeps;
 
   /// The resources the node makes, each also among [writes].
@@ -330,6 +343,7 @@ final class NodeDeclarations {
 /// graph only carries a request from [FrameGraphBuilder.place] to the
 /// [FramePlacer] and the answer to [CompiledFrameGraph.placementOf].
 abstract base class PlacementRequest {
+  /// Lets a subclass be const.
   const PlacementRequest();
 
   /// What the request is called in a report or an error.
@@ -357,6 +371,7 @@ final class FramePlacementContext {
 /// with [CompiledFrameGraph.placementOf], or null when nothing this frame can
 /// run the node — which drops it as [PassSkip.unsupported].
 abstract base class FramePlacer {
+  /// Lets a subclass be const.
   const FramePlacer();
 
   /// What [place] answers for a node whose placement is still being
@@ -557,6 +572,8 @@ final class PassSkip {
 /// A class rather than a record, so it can later say more (what it would
 /// have read) without breaking a reader.
 final class SkippedPass {
+  /// A skip of the pass [name] for [reason], with the [failure] that caused
+  /// it when there was one.
   const SkippedPass({required this.name, required this.reason, this.failure});
 
   /// The pass's name.
@@ -587,7 +604,10 @@ final class SkippedPass {
 
 /// A graph that failed to compile, with the reason a person can act on.
 final class FrameGraphError extends Error {
+  /// An error carrying [message].
   FrameGraphError(this.message);
+
+  /// What went wrong, worded for a person to act on.
   final String message;
   @override
   String toString() => 'FrameGraphError: $message';

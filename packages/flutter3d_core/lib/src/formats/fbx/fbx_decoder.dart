@@ -23,6 +23,7 @@ const List<int> _binaryMagic = <int>[
 /// `pubspec.yaml` describes: recognises the format, and says plainly that
 /// reading one is not built here yet.
 final class FbxDecoder extends ModelDecoder {
+  /// The decoder; it holds no state, so one const instance serves.
   const FbxDecoder();
 
   @override

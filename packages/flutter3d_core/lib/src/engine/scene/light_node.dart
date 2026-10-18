@@ -51,6 +51,8 @@ final class LightNode extends SceneNode {
   /// `lightChannels` mask): the test every pass applies before lighting it.
   bool reaches(int lightChannels) => LightBuffer.reaches(this, lightChannels);
 
+  /// A white light of [type] at [defaultIntensity]; it casts shadows by
+  /// default only when it is directional.
   LightNode({
     this.type = LightType.directional,
     this.color = LinearColor.white,
@@ -89,6 +91,8 @@ final class LightNode extends SceneNode {
          name: name,
        );
 
+  /// What kind of light this is: directional, point, spot, area or a custom
+  /// kind built on one of them.
   LightType type;
 
   /// The light's colour, in linear light — `LinearColor` since 1.0 (it was a

@@ -35,6 +35,7 @@ export 'surface_material.dart';
 /// glTF's required schema `version` is not here: it is the format's, not
 /// the file's.
 final class DocumentAsset {
+  /// What a file said about itself; every field it did not say is null.
   const DocumentAsset({
     this.generator,
     this.extras,
@@ -152,10 +153,17 @@ bool _jsonEquals(Object? a, Object? b) {
 /// produce one of these, so uploading, instancing and material conversion are
 /// written once instead of per format.
 abstract base class ModelDocument {
+  /// A const constructor for the documents that extend this one.
   const ModelDocument();
 
+  /// Every drawable piece of the model: a mesh, its material index and its
+  /// transform.
   List<ModelSurface> get surfaces;
+
+  /// The materials [surfaces] refer to by index.
   List<SurfaceMaterial> get materials;
+
+  /// The encoded images the materials' texture bindings refer to by index.
   List<EncodedImage> get images;
 
   /// What the source file said about itself. Null for a format that carries
@@ -277,6 +285,7 @@ abstract base class ModelDocument {
   /// whether to care.
   List<String> get warnings;
 
+  /// Count of vertices across every surface's mesh.
   int get vertexCount {
     var total = 0;
     for (final surface in surfaces) {
@@ -285,6 +294,7 @@ abstract base class ModelDocument {
     return total;
   }
 
+  /// Count of triangles across every surface's mesh.
   int get triangleCount {
     var total = 0;
     for (final surface in surfaces) {

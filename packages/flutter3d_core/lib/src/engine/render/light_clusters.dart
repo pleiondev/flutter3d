@@ -35,9 +35,16 @@ import '../scene/light_buffer.dart';
 /// Directional lights are not entered: they have no range to place, and the
 /// per-draw slots take them first.
 final class LightClusters {
+  /// Screen tiles across, a count.
   static const int tilesX = 16;
+
+  /// Screen tiles down, a count.
   static const int tilesY = 9;
+
+  /// Depth slices from the near plane to the far, a count.
   static const int slices = 24;
+
+  /// Clusters in the whole grid, a count: tiles across, down and deep.
   static const int count = tilesX * tilesY * slices;
 
   /// Floats in one texel and one row of the light list texture.
@@ -47,6 +54,8 @@ final class LightClusters {
   /// Clusters, then index entries, per row of the texture: one texel a
   /// cluster's header, one float an entry.
   static const int headersPerRow = _row ~/ _texel;
+
+  /// Index entries in one row of the light list texture, one float each.
   static const int entriesPerRow = _row;
 
   final Int32List _counts = Int32List(count);

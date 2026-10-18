@@ -69,14 +69,17 @@ final class MeshClusters {
   /// [floatsPerCluster] floats per cluster.
   final Float32List data;
 
+  /// Count of clusters: one fewer than [firstIndices].
   int get length => firstIndices.length - 1;
 
   /// The index count the runs tile: the mesh this table belongs to has
   /// exactly this many indices.
   int get indexCount => firstIndices.last;
 
+  /// Returns where [cluster]'s run starts in the index buffer, in indices.
   int firstIndex(int cluster) => firstIndices[cluster];
 
+  /// Returns the count of indices in [cluster]'s run, three per triangle.
   int indexCountOf(int cluster) =>
       firstIndices[cluster + 1] - firstIndices[cluster];
 

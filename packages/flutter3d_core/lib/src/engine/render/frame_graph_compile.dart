@@ -31,6 +31,8 @@ final class FrameGraph {
   /// colour target, the scene depth, the swapchain image.
   void addExternal(ResourceId id) => _external.add(id.name);
 
+  /// Adds [node] to the graph. Throws a [FrameGraphError] when a node of the
+  /// same name is already in it.
   void addNode(FrameGraphNode node) {
     for (final existing in _nodes) {
       if (existing.name == node.name) {
@@ -43,11 +45,13 @@ final class FrameGraph {
     _nodes.add(node);
   }
 
+  /// Removes every node and every external resource.
   void clear() {
     _nodes.clear();
     _external.clear();
   }
 
+  /// How many nodes the graph holds, a count.
   int get length => _nodes.length;
 
   /// Node names this graph refuses to switch off, and why each one.

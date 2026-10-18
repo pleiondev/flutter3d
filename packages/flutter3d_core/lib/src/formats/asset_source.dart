@@ -40,6 +40,7 @@ import 'asset_resolver.dart';
 /// two sources naming the same file must agree on it and two naming different
 /// files must not collide — prefix it the way the engine's two do.
 abstract base class AssetSource {
+  /// A const constructor for the sources that extend this one.
   const AssetSource();
 
   /// Stable identity, used as the cache key.
@@ -98,6 +99,8 @@ abstract base class AssetSource {
 /// loaders read a model's file where they were called and send only its
 /// bytes, so [onProgress] may close over anything.
 final class AssetRead {
+  /// A read of [range] (null for the whole file), told to [onProgress] and
+  /// stopped by [cancel] when they are given.
   const AssetRead({this.onProgress, this.cancel, this.range});
 
   /// Nothing asked: the whole file, nobody listening, never canceled.
@@ -146,6 +149,7 @@ final class AssetRead {
 
 /// How far a read has come: [received] bytes of [total].
 final class AssetProgress {
+  /// [received] bytes so far of [total], null when the length is unknown.
   const AssetProgress({required this.received, this.total});
 
   /// Bytes arrived so far.
@@ -173,6 +177,7 @@ final class AssetProgress {
 /// seen by every source and loader it was handed to. Canceling twice is
 /// canceling once.
 final class AssetCancel {
+  /// A signal not yet called off.
   AssetCancel();
 
   final Completer<void> _canceled = Completer<void>();
@@ -201,6 +206,8 @@ final class AssetCancel {
 /// The bytes from [start] up to [end] of a file, [end] not included; to
 /// the end of the file when [end] is null.
 final class AssetByteRange {
+  /// The bytes from [start], asserted not negative, up to [end]. An [end]
+  /// before [start] is not checked here; [length] throws for it.
   const AssetByteRange(this.start, {this.end})
     : assert(start >= 0, 'a range starts at byte 0 or after');
 
@@ -243,6 +250,7 @@ final class AssetByteRange {
 /// was handed over: what [AssetCancel] throws and what
 /// `ResourceRequest.handle` completes with after `ResourceRequest.cancel`.
 final class ResourceLoadCanceledException extends ResourceException {
+  /// The refusal for a request for [key] that was called off.
   const ResourceLoadCanceledException(this.key);
 
   /// The key that was asked for.

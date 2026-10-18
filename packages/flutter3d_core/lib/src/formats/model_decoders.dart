@@ -117,6 +117,7 @@ final class AssetSources {
 /// `flutter3d_plugin_api` until 1.0.0-rc.1, which named a slot nothing in
 /// the contract used.
 abstract base class DecoderRegistry extends PluginRegistry {
+  /// A const constructor for the registries that extend this one.
   const DecoderRegistry();
 }
 

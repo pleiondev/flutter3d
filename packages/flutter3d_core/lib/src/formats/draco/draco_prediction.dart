@@ -66,6 +66,9 @@ abstract interface class PredictionTransform {
 /// correction that would overshoot be written as a small number going the
 /// other way round.
 final class WrapTransform implements PredictionTransform {
+  /// Reads the range from [buffer] for values of [components] integers.
+  /// Throws a [DracoException] for a range that is inverted or wider than
+  /// 32 bits.
   WrapTransform(DracoBuffer buffer, this.components)
     : minValue = buffer.readInt32(),
       maxValue = buffer.readInt32() {
@@ -75,8 +78,13 @@ final class WrapTransform implements PredictionTransform {
     }
   }
 
+  /// Count of integers in one value.
   final int components;
+
+  /// The smallest value the encoder saw, inclusive.
   final int minValue;
+
+  /// The largest value the encoder saw, inclusive.
   final int maxValue;
   late final int _span = maxValue - minValue + 1;
 
@@ -104,6 +112,8 @@ final class WrapTransform implements PredictionTransform {
 /// `PredictionSchemeNormalOctahedronCanonicalizedDecodingTransform`: the sum
 /// happens in a frame the guess itself picks — see `draco_octahedron.dart`.
 final class OctahedronTransform implements PredictionTransform {
+  /// Reads the quantisation from [buffer]. Throws a [DracoException] for a
+  /// maximum that is not `2^b − 1` with `b` from 2 to 30.
   OctahedronTransform(DracoBuffer buffer) : box = _boxFrom(buffer.readInt32()) {
     // The centre, read and discarded exactly as the reference does: it is
     // derived from the maximum, and the stored copy is not consulted.
@@ -120,6 +130,7 @@ final class OctahedronTransform implements PredictionTransform {
     return OctahedronToolBox.fromMaxQuantized(maxQuantized);
   }
 
+  /// The octahedral quantisation the stream declared.
   final OctahedronToolBox box;
 
   @override
@@ -144,6 +155,7 @@ final class OctahedronTransform implements PredictionTransform {
 /// *position* attribute, which was sequenced by its own walk; and that value is
 /// three quantised integers. `GetPositionForEntryId` in the reference.
 final class ParentPositions {
+  /// The three hops from a stored value to its position's integers.
   const ParentPositions({
     required this.portable,
     required this.pointToValue,
@@ -160,6 +172,8 @@ final class ParentPositions {
   /// The point each stored value of the predicted attribute belongs to.
   final Int32List entryToPoint;
 
+  /// Returns where in [portable] the position of stored value [entry]
+  /// starts: three integers from there.
   int offsetOf(int entry) {
     final point = entryToPoint[entry];
     return (pointToValue?[point] ?? point) * 3;
@@ -264,6 +278,11 @@ final class ConstrainedMultiParallelogram {
 
   final List<List<bool>> _isCrease;
 
+  /// Restores every value of [sequence] in [data], [components] integers
+  /// each, in place: the average of the uncreased parallelograms round
+  /// each vertex, or the previous value where there are none, plus the
+  /// stored correction through [transform]. Throws a [DracoException] when
+  /// the crease flags run out first.
   void predict(
     WrapTransform transform,
     AttributeSequence sequence,
@@ -352,6 +371,8 @@ final class ConstrainedMultiParallelogram {
 /// wide enough to push the *other* products past 2^53 is refused by name
 /// rather than decoded approximately.
 final class TexCoordsPortable {
+  /// Reads the orientation bits from [buffer]. Throws a [DracoException]
+  /// for a count that is negative or more than the stream could hold.
   TexCoordsPortable(DracoBuffer buffer) : _orientations = _read(buffer);
 
   /// Run-length of a sort: each stored bit says "same as the last one", which
@@ -373,6 +394,10 @@ final class TexCoordsPortable {
   /// reference pops.
   final List<bool> _orientations;
 
+  /// Restores every texture coordinate of [sequence] in [data], two
+  /// integers each, in place: guessed from the triangle's [positions] and
+  /// its other two coordinates, plus the stored correction through
+  /// [transform].
   void predict(
     WrapTransform transform,
     AttributeSequence sequence,
@@ -542,9 +567,14 @@ final class GeometricNormal {
     : transform = OctahedronTransform(buffer),
       _flips = RAnsBitDecoder(buffer);
 
+  /// How a correction is added to the octahedral guess.
   final OctahedronTransform transform;
   final RAnsBitDecoder _flips;
 
+  /// Restores every normal of [sequence] in [data], two octahedral
+  /// integers each, in place: the area-weighted normal of the faces round
+  /// the vertex from [positions], flipped where a stored bit says, plus the
+  /// stored correction.
   void predict(
     AttributeSequence sequence,
     ParentPositions positions,

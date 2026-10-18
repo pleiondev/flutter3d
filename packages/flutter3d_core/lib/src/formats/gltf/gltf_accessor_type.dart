@@ -12,18 +12,34 @@ import '../format_exceptions.dart';
 /// without changing what the type means, so it stays an enum and a `switch`
 /// over it may name every case.
 enum GltfComponentType {
+  /// A signed 8-bit integer; normalised by 127, clamped at -1.
   byte(5120, 1),
+
+  /// An unsigned 8-bit integer; normalised by 255.
   unsignedByte(5121, 1),
+
+  /// A signed 16-bit integer; normalised by 32767, clamped at -1.
   short(5122, 2),
+
+  /// An unsigned 16-bit integer; normalised by 65535.
   unsignedShort(5123, 2),
+
+  /// An unsigned 32-bit integer, for indices; normalised by `2^32 − 1`.
   unsignedInt(5125, 4),
+
+  /// A 32-bit float, read as it is.
   float(5126, 4);
 
   const GltfComponentType(this.code, this.sizeInBytes);
 
+  /// The number glTF's `componentType` writes for this type.
   final int code;
+
+  /// Size of one component in bytes.
   final int sizeInBytes;
 
+  /// Returns the type glTF numbers [code]. Throws a [GltfFormatException]
+  /// for a number glTF does not define.
   static GltfComponentType fromCode(int code) {
     for (final value in values) {
       if (value.code == code) return value;
@@ -83,19 +99,37 @@ enum GltfComponentType {
 /// without changing what the type means, so it stays an enum and a `switch`
 /// over it may name every case.
 enum GltfAccessorType {
+  /// One component an element.
   scalar('SCALAR', 1),
+
+  /// Two components an element.
   vec2('VEC2', 2),
+
+  /// Three components an element.
   vec3('VEC3', 3),
+
+  /// Four components an element.
   vec4('VEC4', 4),
+
+  /// A 2×2 matrix, four components, column-major.
   mat2('MAT2', 4),
+
+  /// A 3×3 matrix, nine components, column-major.
   mat3('MAT3', 9),
+
+  /// A 4×4 matrix, sixteen components, column-major.
   mat4('MAT4', 16);
 
   const GltfAccessorType(this.name, this.componentCount);
 
+  /// The string glTF's accessor `type` writes: `VEC3`.
   final String name;
+
+  /// Count of components in one element.
   final int componentCount;
 
+  /// Returns the type glTF spells [name]. Throws a [GltfFormatException]
+  /// for a name glTF does not define.
   static GltfAccessorType fromName(String name) {
     for (final value in values) {
       if (value.name == name) return value;

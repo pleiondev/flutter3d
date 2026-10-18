@@ -16,6 +16,8 @@ abstract final class ModelCameraProjection {
 /// `camera.perspective` — a field of view and a near plane, an aspect ratio
 /// and a far plane that both may be absent.
 final class ModelPerspectiveCamera extends ModelCameraProjection {
+  /// A perspective of [yfov] radians from [znear]; a null [aspectRatio]
+  /// follows the viewport and a null [zfar] is infinite.
   const ModelPerspectiveCamera({
     required this.yfov,
     this.aspectRatio,
@@ -53,6 +55,7 @@ final class ModelPerspectiveCamera extends ModelCameraProjection {
 /// `camera.orthographic` — a view volume's own half-extents, both planes
 /// required.
 final class ModelOrthographicCamera extends ModelCameraProjection {
+  /// A view volume [xmag] by [ymag] half-extents, from [znear] to [zfar].
   const ModelOrthographicCamera({
     required this.xmag,
     required this.ymag,
@@ -78,9 +81,15 @@ final class ModelOrthographicCamera extends ModelCameraProjection {
 /// encode into it — `fmt-28`'s own row, the other half beside
 /// [ModelLight].
 final class ModelCamera {
+  /// A camera projecting by [projection], named [name] when the file named
+  /// it.
   const ModelCamera({required this.projection, this.name});
 
+  /// How the camera projects: a [ModelPerspectiveCamera] or a
+  /// [ModelOrthographicCamera].
   final ModelCameraProjection projection;
+
+  /// The camera's `name` in the file; null when it has none.
   final String? name;
 
   @override

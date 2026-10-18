@@ -33,8 +33,10 @@ abstract base mixin class MeshGeometry {
   /// Object-space bounds.
   Aabb3 get bounds;
 
+  /// Count of vertices in the mesh.
   int get vertexCount;
 
+  /// Count of indices in the mesh, three per triangle.
   int get indexCount;
 
   /// The CPU-side geometry, when it is still around.
@@ -54,6 +56,7 @@ abstract base mixin class MeshGeometry {
 /// meshes, a headless scene under test — and for the tests of everything that
 /// consumes [MeshGeometry].
 final class CpuMesh implements MeshGeometry {
+  /// A mesh over [source], its bounds computed once here.
   CpuMesh(this.source) : bounds = source.computeBounds();
 
   @override

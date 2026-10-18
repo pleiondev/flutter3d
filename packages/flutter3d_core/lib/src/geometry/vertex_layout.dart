@@ -6,6 +6,7 @@
 /// between shader and CPU-side geometry that nothing validates for us.
 /// [VertexLayout] at least makes it explicit and keeps it in one place.
 final class VertexAttribute {
+  /// An attribute named [name] of [componentCount] floats.
   const VertexAttribute(this.name, this.componentCount);
 
   /// Must match the name of the `in` variable in the shader.
@@ -20,12 +21,19 @@ final class VertexAttribute {
 
 /// An ordered set of attributes making up an interleaved vertex.
 final class VertexLayout {
+  /// A layout of [attributes], interleaved in the order given.
   const VertexLayout(this.attributes);
 
+  /// The attributes of one vertex, in the order they sit in its floats.
   final List<VertexAttribute> attributes;
 
+  /// Object-space position, xyz in metres. First in every engine layout.
   static const VertexAttribute position = VertexAttribute('position', 3);
+
+  /// Object-space normal, xyz, unit length.
   static const VertexAttribute normal = VertexAttribute('normal', 3);
+
+  /// Texture coordinate, UV, as glTF's `TEXCOORD_0` carries it.
   static const VertexAttribute texcoord = VertexAttribute('texcoord', 2);
 
   /// xyz is the direction, w is the bitangent sign (glTF convention).
@@ -47,6 +55,8 @@ final class VertexLayout {
   /// Influence of each of the four joints; the shader normalizes the sum.
   static const VertexAttribute weights = VertexAttribute('weights', 4);
 
+  /// Position alone, three floats a vertex: geometry that is only queried,
+  /// never lit. No engine stage reads it as it is.
   static const VertexLayout positionOnly = VertexLayout([position]);
 
   /// The debug line layout, matching shaders/debug_line.vert.
@@ -57,6 +67,8 @@ final class VertexLayout {
   /// line shader will accept, said once rather than guessed at.
   static const VertexLayout positionColor = VertexLayout([position, color]);
 
+  /// Position and normal, six floats a vertex: lit geometry with no UVs.
+  /// No engine stage reads it as it is.
   static const VertexLayout positionNormal = VertexLayout([position, normal]);
 
   /// What a particle quad carries: where it is, what colour, and where in the
@@ -75,6 +87,9 @@ final class VertexLayout {
     color,
     texcoord,
   ]);
+
+  /// Position, normal and UV, eight floats a vertex: a UV-mapped mesh
+  /// before tangents are generated.
   static const VertexLayout positionNormalTexcoord = VertexLayout([
     position,
     normal,
@@ -136,6 +151,7 @@ final class VertexLayout {
   /// Whether this layout carries skinning attributes.
   bool get isSkinned => has(joints) && has(weights);
 
+  /// Count of floats in one vertex: the sum of the attributes' components.
   int get floatsPerVertex {
     var total = 0;
     for (final a in attributes) {
@@ -144,6 +160,7 @@ final class VertexLayout {
     return total;
   }
 
+  /// Size of one vertex in bytes, four per float.
   int get strideInBytes => floatsPerVertex * 4;
 
   bool has(VertexAttribute attribute) => floatOffsetOf(attribute.name) >= 0;

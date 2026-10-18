@@ -20,6 +20,8 @@ import 'scene_node.dart';
 /// that can gain members — the entity's other components, the view — rather
 /// than a list of parameters that grows.
 final class SceneBindingContext {
+  /// What a kind is told about [entity]'s component under [binding], with
+  /// its [fields], at full [alpha] unless an interpolation says otherwise.
   const SceneBindingContext({
     required this.binding,
     required this.entity,
@@ -71,6 +73,7 @@ final class SceneBindingContext {
 /// The set is open, and stays so: a kind is a name in [SceneBindings], not
 /// a value of a type. Extendable outside this package through 1.x.
 abstract base class SceneNodeKind {
+  /// Lets a subclass be const.
   const SceneNodeKind();
 
   /// The kind's name, as a binding names it.
@@ -89,9 +92,14 @@ abstract base class SceneNodeKind {
 /// A binding as the renderer holds it: its spec, and the kind of node its
 /// spec names.
 final class SceneBinding {
+  /// The binding of [spec], drawn as nodes of [kind].
   const SceneBinding(this.spec, this.kind);
 
+  /// The spec as the game declared it: the component, and how its fields map
+  /// to the node's parameters.
   final SceneBindingSpec spec;
+
+  /// The kind of node the spec names, which makes and updates the nodes.
   final SceneNodeKind kind;
 
   /// Sets [parameters] from [context]'s fields as [spec] maps them, field to

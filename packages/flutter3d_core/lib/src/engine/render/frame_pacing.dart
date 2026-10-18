@@ -32,6 +32,10 @@ import 'render_hooks.dart';
 /// A synchronous backend — the software rasteriser, WebGL — reports each
 /// frame complete as it is submitted, and never holds.
 final class FramePacing {
+  /// Pacing with three frames in flight, holding a frame when the GPU is
+  /// behind and reporting builds over 8 ms.
+  ///
+  /// Asserts that [framesInFlight] is one to three.
   const FramePacing({
     this.framesInFlight = _maxFramesInFlight,
     this.holdWhenBehind = true,
@@ -68,6 +72,8 @@ final class FramePacing {
   static int get maxFramesInFlight => _maxFramesInFlight;
   static const int _maxFramesInFlight = 3;
 
+  /// Returns a copy with the given fields replaced; null leaves a field as
+  /// it is.
   FramePacing copyWith({
     int? framesInFlight,
     bool? holdWhenBehind,
@@ -142,6 +148,8 @@ final class PipelineStall {
 
   /// The lighting model's shader name — `LightingModel.shaderName`.
   final String material;
+  /// A stall of [micros] building the pipeline for [material] over
+  /// [geometry], in frame [frame].
 
   /// The vertex stage a material brought, or null for the engine's own.
   final String? vertexShader;
@@ -157,6 +165,8 @@ final class PipelineStall {
   /// `Renderer.frameIndex` of the frame that paid for it.
   final int frame;
 
+  /// What kind of mesh the pipeline was built for: plain, skinned,
+  /// instanced or lightmapped.
   @override
   String toString() =>
       'PipelineStall($material${opaque ? ' (opaque)' : ''}, ${geometry.name}'
@@ -178,3 +188,5 @@ final class FramePipelineStall extends BusEvent {
   @override
   String get name => 'render.pipelineStall';
 }
+  /// The event for [stall].
+  /// The pipeline build that ran over the threshold.

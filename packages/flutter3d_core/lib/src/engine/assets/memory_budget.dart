@@ -10,6 +10,8 @@ import '../render/memory_report.dart' show MemoryCategory;
 /// A category, or the whole budget, crossing its limit one way or the
 /// other — what [MemoryBudget.onCrossed] hears.
 final class MemoryBudgetCrossing {
+  /// A crossing of [category] (the total when null), now [used] bytes
+  /// against [limit], over it when [isOver].
   const MemoryBudgetCrossing({
     required this.category,
     required this.used,
@@ -53,6 +55,8 @@ final class MemoryBudgetCrossing {
 /// One budget may be shared by several caches: the models and the textures
 /// of a level against one limit for the level.
 final class MemoryBudget {
+  /// A budget with a limit per category in [limits], in bytes, and a
+  /// [total] over all of them; a category without a limit has none.
   MemoryBudget({Map<MemoryCategory, int> limits = const {}, this.total})
     : _limits = Map<MemoryCategory, int>.unmodifiable(limits);
 

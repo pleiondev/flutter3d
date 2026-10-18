@@ -25,11 +25,13 @@ import 'usdz/usdz_writer.dart';
 
 /// One file a write produced.
 final class WrittenFile {
+  /// The file [name] holding [bytes].
   const WrittenFile(this.name, this.bytes);
 
   /// The name to give it, suffix and all — `table.obj`, `table.mtl`.
   final String name;
 
+  /// The file's contents, whole.
   final Uint8List bytes;
 
   @override
@@ -38,6 +40,7 @@ final class WrittenFile {
 
 /// What one write produced.
 final class ModelWrite {
+  /// A write that produced [files], with no [warnings] unless given.
   const ModelWrite(this.files, {this.warnings = const <String>[]});
 
   /// In the order they should be written: the file that names the others
@@ -85,6 +88,7 @@ abstract base class ModelWriter {
 /// **One object, so a minor can hand a writer more** — compression, a
 /// target profile — without breaking a writer written against 1.0.
 final class ModelWriteContext {
+  /// A request to write [document] as files named from [baseName].
   const ModelWriteContext({required this.document, this.baseName = 'model'});
 
   /// What is written.
@@ -122,6 +126,7 @@ abstract base class CheckedModelWriter extends ModelWriter {
 
 /// `.f3d`, the engine's own container.
 final class F3dModelWriter extends CheckedModelWriter {
+  /// The writer; it holds no state, so one const instance serves.
   const F3dModelWriter();
 
   @override
@@ -156,6 +161,7 @@ final class F3dModelWriter extends CheckedModelWriter {
 
 /// A self-contained glTF binary.
 final class GlbModelWriter extends CheckedModelWriter {
+  /// A writer that leaves the geometry as it is unless [compressGeometry].
   const GlbModelWriter({this.compressGeometry = false});
 
   /// See [GltfWriter.compressGeometry].
@@ -193,6 +199,7 @@ final class GlbModelWriter extends CheckedModelWriter {
 /// Wavefront OBJ, with its `.mtl` beside it when the document names a
 /// material.
 final class ObjModelWriter extends CheckedModelWriter {
+  /// The writer; it holds no state, so one const instance serves.
   const ObjModelWriter();
 
   @override
@@ -241,6 +248,7 @@ final class ObjModelWriter extends CheckedModelWriter {
 
 /// STL, binary or ASCII.
 final class StlModelWriter extends CheckedModelWriter {
+  /// A writer of binary STL, or of text when [ascii].
   const StlModelWriter({this.ascii = false});
 
   /// Whether to write `solid … endsolid` text rather than the binary form.
@@ -282,6 +290,7 @@ final class StlModelWriter extends CheckedModelWriter {
 /// `.usdz` — geometry only, the spike [UsdzWriter] describes. Not a
 /// [CheckedModelWriter]: nothing here reads a `.usdz`.
 final class UsdzModelWriter extends ModelWriter {
+  /// The writer; it holds no state, so one const instance serves.
   const UsdzModelWriter();
 
   @override

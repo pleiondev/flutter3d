@@ -51,6 +51,8 @@ import 'render_settings.dart';
 
 /// What the controller aims at, and how cautiously.
 final class AdaptiveQualitySettings {
+  /// The controller off; switched on, it aims at a 60 Hz frame with a tenth
+  /// to spare.
   const AdaptiveQualitySettings({
     this.enabled = false,
     this.budget = const Duration(microseconds: 16667),
@@ -160,6 +162,9 @@ final class AdaptiveQuality {
 
   /// Microseconds per unit of cost, or null before the first frame.
   double? _load;
+  /// A controller choosing rows of [table] under [settings].
+  ///
+  /// Asserts a budget above nought.
   final List<double> _correction;
   int _index = 0;
   int _climbCount = 0;
@@ -182,7 +187,10 @@ final class AdaptiveQuality {
     return load == null ? null : load * table.rows[i].cost * _correction[i];
   }
 
+  /// The measured rows the controller chooses between.
   /// Feeds in the time the last frame took at [row] and returns the row for
+
+  /// What the controller aims at, and how cautiously.
   /// the next. [motion] is how fast the picture moves, see [screenMotion].
   ///
   /// Disabled, this sits at full quality and forgets what it measured.

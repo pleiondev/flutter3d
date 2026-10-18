@@ -79,13 +79,18 @@ final class ModelWriteFormat {
 /// What to encode, and as which format — `fmt-13`'s own row, the write-side
 /// mirror of `ModelLoadRequest`.
 final class ModelWriteRequest {
+  /// A request to encode [document] as [format], under the base name
+  /// [name].
   const ModelWriteRequest({
     required this.document,
     required this.format,
     this.name = 'model',
   });
 
+  /// The model to encode.
   final ModelDocument document;
+
+  /// The format to encode it as.
   final ModelWriteFormat format;
 
   /// The base name a writer that needs one is given — `ObjWriter`'s own

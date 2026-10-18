@@ -85,6 +85,7 @@ Vector3 decodeOctahedral(double u, double v, [Vector3? out]) {
 /// floats in [texels], the irradiance tiles in a grid [columns] across and
 /// the depth tiles below them from row [momentsTop].
 final class IrradianceAtlas {
+  /// An atlas of [width] by [height] texels holding [texels].
   const IrradianceAtlas({
     required this.width,
     required this.height,
@@ -111,6 +112,11 @@ final class IrradianceAtlas {
 
 /// A grid of probes over a box.
 final class IrradianceField {
+  /// A field of [countX] by [countY] by [countZ] probes from [origin],
+  /// [spacing] apart, every probe active and dark.
+  ///
+  /// Asserts at least two probes on each axis and tiles of at least two
+  /// texels.
   IrradianceField({
     required this.origin,
     required this.spacing,
@@ -133,8 +139,13 @@ final class IrradianceField {
   /// How far apart neighbouring probes are, per axis.
   final Vector3 spacing;
 
+  /// Probes along X, at least two.
   final int countX;
+
+  /// Probes along Y, at least two.
   final int countY;
+
+  /// Probes along Z, at least two.
   final int countZ;
 
   /// The interior of one probe's octahedral tile, in texels a side. The stored
@@ -180,6 +191,7 @@ final class IrradianceField {
 
   /// Bumped whenever the field's contents change — `L3`: by every write here
   /// and by [fillGutters], which is how a bake finishes. The renderer uploads
+  /// How many probes the field holds, a count.
   /// the atlas again when this moved and not otherwise. Anything that writes
   /// [irradiance], [depth] or [active] directly calls [markChanged].
   int get version => _version;

@@ -36,6 +36,11 @@ const double splatShC0 = 0.28209479177387814;
 
 /// A fitted cloud, in the units the file stored.
 final class SplatCloud {
+  /// A cloud of as many splats as [centers] holds triples.
+  ///
+  /// Throws an [ArgumentError] when the other arrays do not hold as many
+  /// splats at their own strides, when [shDegree] is outside 0 to 4, or
+  /// when [shRest] (null for none) does not match the degree.
   SplatCloud({
     required this.centers,
     required this.colors,

@@ -20,13 +20,17 @@ import '../scene/light_node.dart';
 /// is candela, or lux for a directional light, in the file and in
 /// [LightNode.intensity] alike since 1.0, so it passes through unchanged.
 final class PointerTargets with AnimationPointerSink {
+  /// Targets over [materials] and [lights], each empty when null.
   PointerTargets({
     Map<int, RenderMaterial>? materials,
     Map<int, LightNode>? lights,
   }) : materials = materials ?? <int, RenderMaterial>{},
        lights = lights ?? <int, LightNode>{};
 
+  /// The materials a pointer track can address, by their glTF index.
   final Map<int, RenderMaterial> materials;
+
+  /// The lights a pointer track can address, by their glTF index.
   final Map<int, LightNode> lights;
 
   @override

@@ -30,14 +30,20 @@ import 'inflate.dart';
 /// A PNG decoded down to plain RGBA8 — top row first, four bytes a pixel,
 /// `width * height * 4` bytes long.
 final class DecodedImage {
+  /// An image of [width] by [height] pixels held in [rgba].
   const DecodedImage({
     required this.width,
     required this.height,
     required this.rgba,
   });
 
+  /// Width in pixels.
   final int width;
+
+  /// Height in pixels.
   final int height;
+
+  /// The pixels, RGBA8, top row first: `width * height * 4` bytes.
   final Uint8List rgba;
 }
 

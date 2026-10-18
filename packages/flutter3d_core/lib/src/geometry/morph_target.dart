@@ -24,6 +24,9 @@ import 'package:vector_math/vector_math.dart';
 /// `vec4` whose w is the bitangent sign — a handedness, not a direction — and
 /// glTF morphs only the xyz. Blending the sign would be blending a decision.
 final class MorphTarget {
+  /// A target over [vertexCount] vertices. Throws an [ArgumentError] when
+  /// [positions], [normals] or [tangents] does not hold exactly three floats
+  /// per vertex.
   MorphTarget({
     required this.vertexCount,
     required this.positions,

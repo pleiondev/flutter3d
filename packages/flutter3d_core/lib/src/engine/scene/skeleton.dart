@@ -17,6 +17,10 @@ import 'scene_node.dart';
 /// joint count is not on the table. The spike behind that decision is recorded
 /// in ARCHITECTURE.md §2.
 final class Skeleton {
+  /// A skeleton following [joints], with one inverse bind matrix each.
+  ///
+  /// Throws an [ArgumentError] when the two lists differ in length or there
+  /// are more joints than [maxJoints].
   Skeleton({
     required List<SceneNode> joints,
     required List<Matrix4> inverseBindMatrices,
@@ -51,6 +55,7 @@ final class Skeleton {
   static int get maxJoints => _maxJoints;
   static const int _maxJoints = 64;
 
+  /// The skin's name from the source file, or null; used in error messages.
   final String? name;
 
   /// The nodes being followed, in the order the vertex attribute indexes them.
@@ -68,6 +73,7 @@ final class Skeleton {
   /// render list was shaped to avoid.
   final Float32List matrices = Float32List(maxJoints * 16);
 
+  /// How many joints the skeleton follows, a count, at most [maxJoints].
   int get jointCount => joints.length;
 
   /// Joint [index] in its bind pose, in the skinned mesh's own space: the
