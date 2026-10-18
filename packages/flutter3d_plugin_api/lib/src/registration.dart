@@ -58,8 +58,11 @@ final class NameTakenException extends PluginException {
 ///
 /// Made by the plugin host, never by a plugin.
 abstract base class PluginScope {
+  /// For the plugin host's own class, which extends this.
   const PluginScope();
 
+  /// The manifest of the plugin the registry is called for, which the
+  /// registry holds it to.
   PluginManifest get manifest;
 
   /// The plugin's position in the install order, from 0. Registrations made
@@ -67,6 +70,8 @@ abstract base class PluginScope {
   /// come first among ties.
   int get rank;
 
+  /// Hands [registration] to the host, which cancels it when the plugin is
+  /// switched off.
   void track(Registration registration);
 }
 
@@ -83,6 +88,7 @@ abstract base class PluginScope {
 /// is keyed by a stable name — a phase's, a system's, an event's, a
 /// plugin's id — and never by a runtime type, which is minified on the web.
 abstract base class PluginRegistry {
+  /// For a registry class, which supplies [forPlugin].
   const PluginRegistry();
 
   /// This registry as [scope]'s plugin sees it: everything registered

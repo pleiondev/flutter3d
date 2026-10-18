@@ -24,6 +24,7 @@ import 'simulation_version.dart';
 /// it reaches [PublishedState.positions] in double precision, and the view
 /// subtracts its camera's position before narrowing to float32.
 final class WorldPositionCodec extends ComponentCodec<WorldPosition> {
+  /// The codec; one instance serves every world.
   const WorldPositionCodec();
 
   /// The id positions are written under.
@@ -54,6 +55,8 @@ final class WorldPositionCodec extends ComponentCodec<WorldPosition> {
 /// [decode] reads it back with the codec the event was declared with — the
 /// genre's `codec` beside the event class.
 final class PublishedEvent {
+  /// One event as the publish phase encodes it for the view; made by the
+  /// engine's loop.
   const PublishedEvent({
     required this.name,
     required this.version,
@@ -106,6 +109,9 @@ final class PublishedEvent {
 /// [origin] is the floating origin the simulation's float32 work is
 /// relative to (see [OriginShifted]).
 final class PublishedState {
+  /// What step [step] left, at [seconds] seconds of simulated time. The
+  /// collections are copied unmodifiable; what is not given is empty, the
+  /// origin is [WorldPosition.origin] and [simulation] is the engine's alone.
   PublishedState({
     required this.step,
     required this.seconds,
@@ -345,6 +351,7 @@ final class PublishedState {
 /// their bodies and particles; the view moves its lights and its camera's
 /// local frame. A position held as a [WorldPosition] does not change.
 final class OriginShifted extends BusEvent {
+  /// The shift of the origin from [from] to [to].
   const OriginShifted({required this.from, required this.to});
 
   /// The origin before.

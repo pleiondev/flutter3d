@@ -15,6 +15,8 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 /// `base`, so a member added later arrives with a default: an application
 /// extends it over whatever its world keeps the numbers in.
 abstract base class WorldField {
+  /// For an application's field, which supplies [name], [length] and the
+  /// two index operators.
   const WorldField();
 
   /// The name a plugin's declaration uses: `heat`, `water`, `wind.x`.
@@ -32,6 +34,8 @@ abstract base class WorldField {
 
 /// A [WorldField] over a list the application owns.
 final class ListWorldField extends WorldField {
+  /// A field named [name] over [values], shared rather than copied: a write
+  /// through the field changes the list.
   ListWorldField(this.name, this.values);
 
   @override

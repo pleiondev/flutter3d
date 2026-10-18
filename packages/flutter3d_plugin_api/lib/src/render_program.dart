@@ -17,6 +17,7 @@ import 'dart:typed_data';
 /// Extendable outside this package, and stays so through 1.x: a member
 /// added in a minor arrives with a body.
 abstract base class RenderProgram {
+  /// For a program class, which supplies [parameters] and [run].
   const RenderProgram();
 
   /// The parameters the program sets, by the index its commands name them
@@ -40,6 +41,7 @@ abstract base class RenderProgram {
 /// command or a fact about the frame, without a program written against
 /// 1.0 breaking.
 abstract base class RenderProgramFrame {
+  /// For the renderer's frame, which extends this.
   const RenderProgramFrame();
 
   /// The frame being drawn, counted by the renderer from nought.

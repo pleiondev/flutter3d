@@ -135,6 +135,8 @@ final class ProjectRoot {
 /// What [ProjectRoot.tryResolve] answers: the resolved path inside the
 /// root, or the sentence that refuses it. Exactly one of the two is set.
 final class ResolvedPath {
+  /// A resolution: give [path] for a path inside the root, [refused] for
+  /// one that is not, never both.
   const ResolvedPath({this.path, this.refused});
 
   /// The absolute path inside the root, links followed; null when refused.
@@ -158,6 +160,8 @@ final class ResolvedPath {
 
 /// A path a file tool was handed that lies outside its [ProjectRoot].
 final class PathOutsideRootException extends ResourceException {
+  /// The refusal of [requested], which lies outside [root], with [why] when
+  /// there is more to say than that.
   const PathOutsideRootException(
     this.requested, {
     required this.root,

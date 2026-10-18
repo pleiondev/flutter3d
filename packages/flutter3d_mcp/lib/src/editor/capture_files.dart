@@ -18,9 +18,13 @@ import 'package:flutter3d_cpu/flutter3d_cpu.dart' show encodePng;
 
 /// The capture the editor has open, and where it came from.
 final class OpenCapture {
+  /// The [capture] read from [path].
   OpenCapture(this.path, this.capture);
 
+  /// The file the capture was read from, as the tool was handed it.
   final String path;
+
+  /// The capture as it was parsed: its passes, draws and images.
   final FrameCapture capture;
 
   /// The pass table with its draws and images, as a tool lists it.

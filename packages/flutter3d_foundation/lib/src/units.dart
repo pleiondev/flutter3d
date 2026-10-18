@@ -692,6 +692,7 @@ final class Quantity implements Comparable<Quantity> {
 /// Text that is not a unit, or a document's unit or quantity that is not
 /// one.
 final class UnitFormatException extends Flutter3dFormatException {
+  /// The refusal of [text], for [reason].
   const UnitFormatException(this.text, this.reason);
 
   /// What was read, as it was given.
@@ -713,6 +714,7 @@ final class UnitFormatException extends Flutter3dFormatException {
 /// **A format exception**, because the units a correct program meets come
 /// from its documents: a schema says pascals and the value says meters.
 final class UnitMismatchException extends Flutter3dFormatException {
+  /// The refusal to convert a value in [from] into [to].
   const UnitMismatchException(this.from, this.to);
 
   /// The unit the value is in.

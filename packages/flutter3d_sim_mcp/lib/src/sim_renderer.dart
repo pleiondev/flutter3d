@@ -20,9 +20,15 @@ final class SimRenderer {
 
   final DiagnosticRenderer _frames;
 
+  /// The width of every picture, in pixels: the diagnostic renderer's.
   static const int width = DiagnosticRenderer.width;
+
+  /// The height of every picture, in pixels: the diagnostic renderer's.
   static const int height = DiagnosticRenderer.height;
 
+  /// Loads the level at [levelPath] to draw, spawning what [registry]
+  /// spawns, and reading every file it names inside [root], or inside the
+  /// project around the level when [root] is null.
   static Future<SimRenderer> open(
     String levelPath, {
     required EntityRegistry registry,

@@ -10,6 +10,7 @@ library;
 /// which would break every tool written against 1.0. `ProjectToolRun` and
 /// `OfferedTool.run` take one.
 final class ToolCall {
+  /// A call of the tool published as [name] with [arguments].
   const ToolCall({required this.name, required this.arguments});
 
   /// The name the tool was called by, as published: `wind.gust` for a
@@ -23,6 +24,7 @@ final class ToolCall {
 /// One call of a server's own tool: a [ToolCall] with the session the
 /// server runs it against.
 final class SessionToolCall<S> extends ToolCall {
+  /// A call of a server's own tool against [session].
   const SessionToolCall({
     required super.name,
     required super.arguments,

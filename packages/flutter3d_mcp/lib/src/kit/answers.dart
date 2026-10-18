@@ -19,6 +19,8 @@ import 'package:flutter3d_plugin_api/tools.dart';
 /// a second record type beside it, and every tool a plugin writes returns
 /// one of these. A field added here, with a default, breaks nobody.
 final class Answer {
+  /// An answer that did, or refused, what it was asked, saying [says], with
+  /// a picture as [png] when there is one.
   const Answer({required this.did, required this.says, this.png});
 
   /// Whether the call did what it was asked; false is a refusal.

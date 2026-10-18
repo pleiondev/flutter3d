@@ -22,6 +22,7 @@ import 'registration.dart';
 /// `base`, so this can grow: an `extends` inherits a member added here, an
 /// `implements` would stop compiling.
 abstract base class BusEvent {
+  /// For an event class, which supplies [name].
   const BusEvent();
 
   /// A stable name: `'runner.landed'`, `'time.lost'`.
@@ -37,8 +38,12 @@ abstract base class BusEvent {
 
 /// Where an event writes its identifying fields. Made by the engine.
 abstract base class EventDigestSink {
+  /// For the engine's sink, which extends this.
   const EventDigestSink();
 
+  /// Writes [value] into the digest, after what was added before it. Plain
+  /// values only: numbers, strings, booleans, null, and lists and maps of
+  /// those.
   void add(Object? value);
 }
 
@@ -59,6 +64,8 @@ final class BusChannel {
   /// not shown twice.
   static const BusChannel frame = BusChannel._('frame');
 
+  /// The channel's name, `step` or `frame`, as a declaration and a tool list
+  /// write it.
   final String name;
 
   @override
@@ -67,6 +74,8 @@ final class BusChannel {
 
 /// One event as a subscriber receives it.
 final class Delivered<T extends BusEvent> {
+  /// One delivery of [event] on [channel], as the bus hands it to a
+  /// subscriber. Made by the bus.
   const Delivered({
     required this.event,
     required this.channel,
@@ -75,7 +84,11 @@ final class Delivered<T extends BusEvent> {
     required this.resimulated,
   });
 
+  /// The event that was published.
   final T event;
+
+  /// The channel it arrived on: an event published on the step channel is
+  /// delivered on [BusChannel.step] and again on [BusChannel.frame].
   final BusChannel channel;
 
   /// The step that published it. A frame-channel event published outside a
@@ -98,6 +111,7 @@ final class Delivered<T extends BusEvent> {
       '${resimulated ? ' (resimulated)' : ''}';
 }
 
+/// A subscriber to events of type [T], handed each delivery of one.
 typedef EventHandler<T extends BusEvent> = void Function(Delivered<T> event);
 
 /// How one event type is written down and read back: for a digest, a run
@@ -115,6 +129,8 @@ typedef EventHandler<T extends BusEvent> = void Function(Delivered<T> event);
 /// `base`, so a member added later arrives with a default: extend this, or
 /// use [EventCodec.of].
 abstract base class EventCodec<T extends BusEvent> {
+  /// For a codec class, which supplies [encode] and [decode], and [version]
+  /// once its shape has changed.
   const EventCodec();
 
   /// A codec made of two functions.
@@ -166,6 +182,8 @@ final class _FunctionEventCodec<T extends BusEvent> extends EventCodec<T> {
 /// was published at, the plugin that declared it — without breaking a codec
 /// written against 1.0.
 final class EventDecodeContext {
+  /// What the bus hands [EventCodec.decode]: the event's [data] written at
+  /// [version].
   const EventDecodeContext(this.data, {required this.version});
 
   /// The event as [EventCodec.encode] wrote it: plain values.
@@ -177,6 +195,8 @@ final class EventDecodeContext {
 
 /// An event type, declared so tools can list what a game says.
 final class EventDeclaration {
+  /// One declared event type; made by [EventRegistry.declare], not by a
+  /// plugin.
   const EventDeclaration({
     required this.name,
     required this.type,
@@ -186,12 +206,22 @@ final class EventDeclaration {
     this.codec,
   });
 
+  /// The name the event is published under, its identity in a digest:
+  /// `runner.landed`.
   final String name;
+
+  /// The event's Dart class, for this process only: a runtime type is
+  /// minified on the web, so nothing written down names it.
   final Type type;
+
+  /// The channel the event is published on.
   final BusChannel channel;
 
   /// The plugin id that declared it, or `'app'`.
   final String declaredBy;
+
+  /// What the event means, for a tool's list; null when the declaration gave
+  /// none.
   final String? description;
 
   /// How it is written down; null for an event declared without one, which
@@ -208,6 +238,8 @@ final class EventDeclaration {
 /// matching subscriber before the next event is handed out. Nothing is
 /// ordered by a hash map.
 abstract base class EventRegistry extends PluginRegistry {
+  /// For the engine's bus, which extends this; a plugin is handed one
+  /// through its host.
   const EventRegistry();
 
   /// Says that events of type [T] are published under [name], so a tool can

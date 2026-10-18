@@ -135,6 +135,9 @@ const Map<String, ToolName> editorToolNames = <String, ToolName>{
 /// name in the history, and are undone by the same key. What a server is beyond
 /// its tools is `flutter3d_mcp/kit.dart`'s [ToolTableServer].
 base class EditorMcpServer extends ToolTableServer<EditorSession, Answer> {
+  /// A server for [session] over [channel], offering every editor tool, each
+  /// answering in [editorAnswerSchema], and the project's own tools when
+  /// [projectTools] is given.
   // `session` is a plain parameter, as `ModelMcpServer`'s is: `toResult`
   // closes over it, and a super parameter cannot be named in the initializer
   // list that forwards it.

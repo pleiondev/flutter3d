@@ -12,8 +12,11 @@ final class Registration {
   final void Function() _onCancel;
   bool _cancelled = false;
 
+  /// Whether [cancel] has been called.
   bool get isCanceled => _cancelled;
 
+  /// Takes the registered thing out again, the first time; a second call
+  /// does nothing.
   void cancel() {
     if (_cancelled) return;
     _cancelled = true;

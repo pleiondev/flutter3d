@@ -15,6 +15,8 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 /// world only through the fields it [reads] and [writes], and publishes only
 /// the [events] its plugin declares: the rules a Wasm system keeps.
 final class ExpressionSystemSpec {
+  /// A system named [system] in the step phase [phase]. Asserts that
+  /// exactly one of [source] and [text] is given.
   const ExpressionSystemSpec({
     required this.system,
     required this.phase,
@@ -84,13 +86,17 @@ final class ExpressionSystemSpec {
 
   /// A step phase.
   final String phase;
+
+  /// Systems it runs after, as `addSystem` takes them.
   final List<String> after;
 
+  /// Systems it runs before, as `addSystem` takes them.
   final List<String> before;
 
   /// World fields it reads, and those it may also write.
   final List<String> reads;
 
+  /// World fields it may also write.
   final List<String> writes;
 
   /// Events it may publish, without the plugin's prefix.
@@ -115,6 +121,8 @@ final class ExpressionSystemSpec {
   /// (`FormatDocument.nestedUnknownIn`).
   final Map<String, Object?> unknown;
 
+  /// The declaration as a document writes it, an empty list left out and
+  /// [unknown] written back after its own keys.
   Map<String, Object?> toJson() => FormatDocument.writeNested(<String, Object?>{
     'system': system,
     'phase': phase,

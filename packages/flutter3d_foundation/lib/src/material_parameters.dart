@@ -22,6 +22,7 @@ import 'units.dart' show Quantity, Unit;
 /// shader when it was compiled, or a value [MaterialParameters.setNamed]
 /// cannot read as numbers.
 final class MaterialParameterException extends Flutter3dFormatException {
+  /// A refusal that [message] explains, naming the parameter.
   const MaterialParameterException(this.message);
 
   @override
@@ -36,6 +37,8 @@ final class MaterialParameterException extends Flutter3dFormatException {
 /// **An open set**: the engine's own are the constants here, and a plugin
 /// whose shader reads something else extends this with its own layout.
 abstract base class ParameterType<T extends Object> {
+  /// For a layout class, which supplies [write] and [read] for a value of
+  /// [name] that takes [components] floats.
   const ParameterType(this.name, this.components);
 
   /// The type's name, as a schema or a tool writes it: `float`, `vec3`,
@@ -170,6 +173,8 @@ final class _ColorAlphaType extends ParameterType<LinearColor> {
 /// parameters.set(WaterParameters.waveHeight, 0.4);
 /// ```
 final class ParameterKey<T extends Object> {
+  /// A key for the parameter [name], laid out as [type]; a null [unit] takes
+  /// the one the material declares.
   const ParameterKey(this.name, this.type, {this.unit});
 
   /// The parameter's name in the material's source and in the uniform
@@ -203,6 +208,8 @@ final class ParameterKey<T extends Object> {
 /// its default, whether a draw can set it, and the unit its numbers are in
 /// when the source says.
 final class ParameterDeclaration {
+  /// The declaration of [name], [components] floats wide and drawn with
+  /// [defaultValue] until set; a `uniform` unless [isUniform] is false.
   const ParameterDeclaration(
     this.name, {
     required this.components,
@@ -236,6 +243,8 @@ final class ParameterDeclaration {
 
 /// What a material declares it takes, in the order its source declares it.
 final class MaterialParameterSchema {
+  /// A schema of [declarations] in the order given. A second declaration of
+  /// one name replaces the first and keeps its place.
   MaterialParameterSchema(Iterable<ParameterDeclaration> declarations)
     : _byName = LinkedHashMap<String, ParameterDeclaration>.fromIterable(
         declarations,

@@ -72,6 +72,8 @@ final class PluginGrants {
 /// A run-time plugin reached for something it was not allowed, with the
 /// sentence that says what and why.
 final class PermissionException extends PluginException {
+  /// A refusal that [message] explains, naming the plugin, the permission
+  /// and the path.
   const PermissionException(super.message);
 
   @override

@@ -70,6 +70,10 @@ String get _hostTarget => Platform.isMacOS
 /// one project, and a second run of it would be a second window of the same
 /// game that nothing here could tell apart from the first.
 final class PlaySession {
+  /// A play session for the project of [levelPath], which waits [waitFor],
+  /// three minutes by default, for a game to come up. Every other parameter
+  /// is a door to the outside (the disk, `flutter`, the running game) that a
+  /// test replaces; each defaults to the real one.
   PlaySession({
     required this.levelPath,
     this.projectRootOf = projectRootOnDisk,
@@ -90,9 +94,19 @@ final class PlaySession {
   /// The level being edited; its project is what [start] runs.
   final String levelPath;
 
+  /// Finds the project a level belongs to; null when the level is in none,
+  /// which [start] refuses.
   final String? Function(String levelPath) projectRootOf;
+
+  /// Makes the `flutter run` of a project on a device, or on the tool's own
+  /// choice when the device is null.
   final NewRun newRun;
+
+  /// Lists the devices `flutter run -d` can take.
   final Future<List<FlutterDevice>> Function() devices;
+
+  /// Sends a saved level document to the game at a VM service address, and
+  /// answers what the game said about it.
   final Future<Map<String, Object?>> Function(String vmService, String level)
   push;
 
@@ -339,6 +353,7 @@ final class PlaySession {
     return null;
   }
 
+  /// Stops the running game, if any, and lets go of it.
   Future<void> dispose() async => _run?.dispose();
 
   /// The last seconds the running game kept, as a `.f3drun` in its

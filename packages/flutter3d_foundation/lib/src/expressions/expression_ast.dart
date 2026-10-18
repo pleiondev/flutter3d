@@ -196,6 +196,9 @@ final class ExpressionBuiltin {
   // says of them — a float beside a vector is not spread: GLSL has no
   // `dot(vec3, float)`, and accepting one here parsed a material whose shader
   // then failed to compile.
+  /// `dot(a, b)`: the dot product of two vectors of one width, a float;
+  /// measures the product of their dimensions. A float beside a vector is
+  /// refused, as GLSL refuses it.
   static const ExpressionBuiltin dot = ExpressionBuiltin(
     'dot',
     arity: 2,
@@ -205,6 +208,8 @@ final class ExpressionBuiltin {
     componentWise: false,
     resultComponents: 1,
   );
+
+  /// `length(v)`: the Euclidean length of `v`, a float in `v`'s dimension.
   static const ExpressionBuiltin length = ExpressionBuiltin(
     'length',
     arity: 1,
@@ -214,6 +219,9 @@ final class ExpressionBuiltin {
     componentWise: false,
     resultComponents: 1,
   );
+
+  /// `normalize(v)`: `v` scaled to length one, a pure direction; a vector of
+  /// length nought answers nought in every component rather than NaN.
   static const ExpressionBuiltin normalize = ExpressionBuiltin(
     'normalize',
     arity: 1,
@@ -222,6 +230,9 @@ final class ExpressionBuiltin {
     units: 'takes any dimension, and answers a pure direction',
     componentWise: false,
   );
+
+  /// `mix(a, b, t)`: `a + (b - a) * t`, component by component, between two
+  /// ends of one dimension by a pure fraction `t`.
   static const ExpressionBuiltin mix = ExpressionBuiltin(
     'mix',
     arity: 3,
@@ -229,6 +240,9 @@ final class ExpressionBuiltin {
     dimension: _mixDimension,
     units: 'takes two ends of one dimension and a pure number between them',
   );
+
+  /// `clamp(x, low, high)`: `x` held between `low` and `high`, all of one
+  /// dimension; `low` wins when the two cross.
   static const ExpressionBuiltin clamp = ExpressionBuiltin(
     'clamp',
     arity: 3,
@@ -236,6 +250,10 @@ final class ExpressionBuiltin {
     dimension: _same,
     units: 'takes arguments of one dimension',
   );
+
+  /// `smoothstep(edge0, edge1, x)`: a Hermite ramp from nought at `edge0` to
+  /// one at `edge1`, all of one dimension; a pure number, and a step where
+  /// the edges meet.
   static const ExpressionBuiltin smoothstep = ExpressionBuiltin(
     'smoothstep',
     arity: 3,
@@ -243,6 +261,9 @@ final class ExpressionBuiltin {
     dimension: _sameToPure,
     units: 'takes arguments of one dimension',
   );
+
+  /// `step(edge, x)`: nought where `x` is below `edge`, one from it; both of
+  /// one dimension, the result a pure number.
   static const ExpressionBuiltin step = ExpressionBuiltin(
     'step',
     arity: 2,
@@ -250,6 +271,11 @@ final class ExpressionBuiltin {
     dimension: _sameToPure,
     units: 'takes arguments of one dimension',
   );
+
+  /// `pow(x, y)`: `x` to the power `y`. A pure number takes any pure power;
+  /// a quantity takes only a constant whole power of at most
+  /// [expressionPowerLimit] either way, and measures its dimension raised to
+  /// it.
   static const ExpressionBuiltin pow = ExpressionBuiltin(
     'pow',
     arity: 2,
@@ -259,6 +285,9 @@ final class ExpressionBuiltin {
         'takes a pure number to a pure power, or a quantity to a constant '
         'whole power',
   );
+
+  /// `min(a, b)`: the smaller of two values of one dimension, component by
+  /// component; the first when they are equal.
   static const ExpressionBuiltin min = ExpressionBuiltin(
     'min',
     arity: 2,
@@ -266,6 +295,9 @@ final class ExpressionBuiltin {
     dimension: _same,
     units: 'takes arguments of one dimension',
   );
+
+  /// `max(a, b)`: the larger of two values of one dimension, component by
+  /// component; the second when they are equal.
   static const ExpressionBuiltin max = ExpressionBuiltin(
     'max',
     arity: 2,
@@ -273,6 +305,8 @@ final class ExpressionBuiltin {
     dimension: _same,
     units: 'takes arguments of one dimension',
   );
+
+  /// `abs(x)`: the magnitude of each component, in `x`'s dimension.
   static const ExpressionBuiltin abs = ExpressionBuiltin(
     'abs',
     arity: 1,
@@ -280,6 +314,10 @@ final class ExpressionBuiltin {
     dimension: _first,
     units: 'takes any dimension',
   );
+
+  /// `sqrt(x)`: the square root of each component. Takes only a dimension
+  /// whose exponents are all even, and halves them: the root of an area is a
+  /// length.
   static const ExpressionBuiltin sqrt = ExpressionBuiltin(
     'sqrt',
     arity: 1,
@@ -287,6 +325,9 @@ final class ExpressionBuiltin {
     dimension: _sqrtDimension,
     units: 'takes a dimension whose exponents are even',
   );
+
+  /// `floor(x)`: each component rounded down to a whole number, in `x`'s
+  /// dimension.
   static const ExpressionBuiltin floor = ExpressionBuiltin(
     'floor',
     arity: 1,
@@ -294,6 +335,9 @@ final class ExpressionBuiltin {
     dimension: _first,
     units: 'takes any dimension',
   );
+
+  /// `fract(x)`: what each component is above its [floor], from nought up to
+  /// one, in `x`'s dimension.
   static const ExpressionBuiltin fract = ExpressionBuiltin(
     'fract',
     arity: 1,
@@ -301,6 +345,9 @@ final class ExpressionBuiltin {
     dimension: _first,
     units: 'takes any dimension',
   );
+
+  /// `sin(a)`: the sine of an angle in radians or of a pure number; a pure
+  /// number.
   static const ExpressionBuiltin sin = ExpressionBuiltin(
     'sin',
     arity: 1,
@@ -308,6 +355,9 @@ final class ExpressionBuiltin {
     dimension: _angleToPure,
     units: 'takes an angle or a pure number',
   );
+
+  /// `cos(a)`: the cosine of an angle in radians or of a pure number; a pure
+  /// number.
   static const ExpressionBuiltin cos = ExpressionBuiltin(
     'cos',
     arity: 1,
@@ -315,6 +365,9 @@ final class ExpressionBuiltin {
     dimension: _angleToPure,
     units: 'takes an angle or a pure number',
   );
+
+  /// `tan(a)`: the tangent of an angle in radians or of a pure number; a
+  /// pure number.
   static const ExpressionBuiltin tan = ExpressionBuiltin(
     'tan',
     arity: 1,
@@ -322,6 +375,8 @@ final class ExpressionBuiltin {
     dimension: _angleToPure,
     units: 'takes an angle or a pure number',
   );
+
+  /// `asin(x)`: the arcsine of a pure number, in radians as a pure number.
   static const ExpressionBuiltin asin = ExpressionBuiltin(
     'asin',
     arity: 1,
@@ -329,6 +384,8 @@ final class ExpressionBuiltin {
     dimension: _pureOnly,
     units: 'takes a pure number',
   );
+
+  /// `acos(x)`: the arccosine of a pure number, in radians as a pure number.
   static const ExpressionBuiltin acos = ExpressionBuiltin(
     'acos',
     arity: 1,
@@ -336,6 +393,9 @@ final class ExpressionBuiltin {
     dimension: _pureOnly,
     units: 'takes a pure number',
   );
+
+  /// `atan(x)`: the arctangent of a pure number, in radians as a pure
+  /// number.
   static const ExpressionBuiltin atan = ExpressionBuiltin(
     'atan',
     arity: 1,
@@ -343,6 +403,9 @@ final class ExpressionBuiltin {
     dimension: _pureOnly,
     units: 'takes a pure number',
   );
+
+  /// `atan2(y, x)`: the angle of the point (`x`, `y`) in radians, from minus
+  /// pi to pi, as a pure number; both of one dimension.
   static const ExpressionBuiltin atan2 = ExpressionBuiltin(
     'atan2',
     arity: 2,
@@ -350,6 +413,8 @@ final class ExpressionBuiltin {
     dimension: _sameToPure,
     units: 'takes arguments of one dimension',
   );
+
+  /// `exp(x)`: e to the power `x`, of a pure number.
   static const ExpressionBuiltin exp = ExpressionBuiltin(
     'exp',
     arity: 1,
@@ -357,6 +422,8 @@ final class ExpressionBuiltin {
     dimension: _pureOnly,
     units: 'takes a pure number',
   );
+
+  /// `log(x)`: the natural logarithm of a pure number.
   static const ExpressionBuiltin log = ExpressionBuiltin(
     'log',
     arity: 1,
@@ -364,6 +431,9 @@ final class ExpressionBuiltin {
     dimension: _pureOnly,
     units: 'takes a pure number',
   );
+
+  /// `sign(x)`: one, nought or minus one by the sign of each component, a
+  /// pure number; NaN stays NaN.
   static const ExpressionBuiltin sign = ExpressionBuiltin(
     'sign',
     arity: 1,
@@ -420,6 +490,7 @@ final class ExpressionBuiltin {
 /// [ExpressionVisitor.visitUnknown], so a translator written against 1.0
 /// keeps compiling and refuses the node by name instead of breaking.
 abstract base class Expression {
+  /// For a kind of expression, typed [type] by whoever built it.
   const Expression(this.type);
 
   /// What the parser worked out the value is.
@@ -444,16 +515,34 @@ abstract base class Expression {
 ///
 /// Extendable outside this package, and stays so through 1.x.
 abstract base class ExpressionVisitor<R> {
+  /// For a reader, which supplies a method for every kind.
   const ExpressionVisitor();
 
+  /// Answers a literal or a folded constant.
   R visitConstant(ExpressionConstant expression);
+
+  /// Answers a name the host binds.
   R visitVariable(ExpressionVariable expression);
+
+  /// Answers a vector constructor whose arguments are not all constant.
   R visitConstruct(ExpressionConstruct expression);
+
+  /// Answers a selection of components.
   R visitSwizzle(ExpressionSwizzle expression);
+
+  /// Answers a unary minus.
   R visitNegate(ExpressionNegate expression);
+
+  /// Answers a `!` of a truth value.
   R visitNot(ExpressionNot expression);
+
+  /// Answers a binary operator.
   R visitBinary(ExpressionBinary expression);
+
+  /// Answers a call of a builtin.
   R visitCall(ExpressionCall expression);
+
+  /// Answers a `?:` choice between two values.
   R visitConditional(ExpressionConditional expression);
 
   /// What a kind this visitor has no method for answers: one a later minor
@@ -465,6 +554,7 @@ abstract base class ExpressionVisitor<R> {
 /// 0.0)` that is entirely constant ends up: the parser folds a constructor,
 /// a swizzle and a negation whose operands are all literals.
 final class ExpressionConstant extends Expression {
+  /// The constant [value] of [type], unchecked: the parser makes these.
   const ExpressionConstant(this.value, ExpressionType type) : super(type);
 
   /// As many numbers as [type] has components; one or nought for a
@@ -482,6 +572,7 @@ final class ExpressionConstant extends Expression {
 /// language's inputs, parameters and `let`s are each one — while a reader
 /// that knows only this language sees them all as variables.
 base class ExpressionVariable extends Expression {
+  /// The name [name], bound by the host, of [type].
   const ExpressionVariable(this.name, ExpressionType type) : super(type);
 
   /// The name as the source writes it.
@@ -498,8 +589,11 @@ base class ExpressionVariable extends Expression {
 /// must add up to the result's width, so `vec4(rgb, a)` works and `vec4(rgb)`
 /// does not; one float fills every component.
 final class ExpressionConstruct extends Expression {
+  /// A [type] built from [arguments], unchecked: the parser makes these
+  /// once their widths add up.
   const ExpressionConstruct(this.arguments, ExpressionType type) : super(type);
 
+  /// The arguments, whose components are laid end to end in this order.
   final List<Expression> arguments;
 
   @override
@@ -508,9 +602,12 @@ final class ExpressionConstruct extends Expression {
 
 /// `.x`, `.rgb`, `.xy` — component indices into the target.
 final class ExpressionSwizzle extends Expression {
+  /// The [components] of [target], making a value of [type]; unchecked, the
+  /// parser makes these.
   const ExpressionSwizzle(this.target, this.components, ExpressionType type)
     : super(type);
 
+  /// The value the components are taken from.
   final Expression target;
 
   /// Zero-based, in the order written.
@@ -522,8 +619,10 @@ final class ExpressionSwizzle extends Expression {
 
 /// Unary minus.
 final class ExpressionNegate extends Expression {
+  /// Minus [operand], of [operand]'s type.
   ExpressionNegate(this.operand) : super(operand.type);
 
+  /// The value negated.
   final Expression operand;
 
   @override
@@ -532,8 +631,10 @@ final class ExpressionNegate extends Expression {
 
 /// `!`, the negation of a truth value.
 final class ExpressionNot extends Expression {
+  /// The negation of [operand], a truth value.
   const ExpressionNot(this.operand) : super(ExpressionType.boolean);
 
+  /// The truth value negated.
   final Expression operand;
 
   @override
@@ -544,12 +645,17 @@ final class ExpressionNot extends Expression {
 /// vector spreads), the comparisons `< <= > >= == !=` of two numbers of one
 /// dimension, and `&&` and `||` of two truth values.
 final class ExpressionBinary extends Expression {
+  /// [left] [op] [right], of [type]; unchecked, the parser makes these.
   const ExpressionBinary(this.op, this.left, this.right, ExpressionType type)
     : super(type);
 
   /// The operator as written, one of [expressionOperators].
   final String op;
+
+  /// The operand before the operator.
   final Expression left;
+
+  /// The operand after the operator.
   final Expression right;
 
   @override
@@ -574,10 +680,16 @@ const List<String> expressionOperators = <String>[
 
 /// A call to an [ExpressionBuiltin].
 final class ExpressionCall extends Expression {
+  /// A call of [builtin] with [arguments], of [type]; unchecked, the parser
+  /// makes these once the builtin accepts the arguments.
   const ExpressionCall(this.builtin, this.arguments, ExpressionType type)
     : super(type);
 
+  /// The function called.
   final ExpressionBuiltin builtin;
+
+  /// The arguments, as many as [ExpressionBuiltin.arity], in the order
+  /// written.
   final List<Expression> arguments;
 
   @override
@@ -587,11 +699,18 @@ final class ExpressionCall extends Expression {
 /// `condition ? then : otherwise`: one of two values of one type, by a
 /// truth value. Only the chosen one is computed.
 final class ExpressionConditional extends Expression {
+  /// [then] where [condition] holds and [otherwise] where it does not,
+  /// typed as [then].
   ExpressionConditional(this.condition, this.then, this.otherwise)
     : super(then.type);
 
+  /// The truth value that chooses.
   final Expression condition;
+
+  /// The value when [condition] holds.
   final Expression then;
+
+  /// The value when [condition] does not hold, of the same type as [then].
   final Expression otherwise;
 
   @override

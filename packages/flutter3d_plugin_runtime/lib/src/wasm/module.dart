@@ -9,49 +9,147 @@ import 'abi.dart';
 // a `return`. An `f32` is held as its bit pattern in an `i32` slot, so
 // `f32.load`, `f32.store` and `f32.const` are the `i32` ones, and the two
 // reinterpretations are nothing at all.
+/// `unreachable`: traps with a [WasmTrapException].
 const int opUnreachable = 0x00;
+
+/// `if`: pops a condition and, where it is nought, jumps to the slot in
+/// `a` (past the `else`, or past the end).
 const int opIf = 0x04;
+
+/// `else`, reached from the end of the true arm: jumps to the slot in `a`,
+/// past the false arm.
 const int opElse = 0x05;
+
+/// `br`: takes the branch whose target entry is `a`.
 const int opBr = 0x0C;
+
+/// `br_if`: pops a condition and takes the branch at target entry `a`
+/// where it is not nought.
 const int opBrIf = 0x0D;
+
+/// `br_table`: pops an index and takes target entry `a + index`, or
+/// `a + b`, the default, for an index of `b` or more.
 const int opBrTable = 0x0E;
+
+/// `return`, and a function's last `end`: answers the top of the stack,
+/// or nought for a function with no result.
 const int opReturn = 0x0F;
+
+/// `call`: calls the function at index `a`, imports first, with its
+/// parameters popped and its result pushed.
 const int opCall = 0x10;
+
+/// `drop`: pops one value.
 const int opDrop = 0x1A;
+
+/// `select`: pops a condition and two values, and keeps the first where
+/// the condition is not nought, the second otherwise.
 const int opSelect = 0x1B;
+
+/// `local.get`: pushes local `a`.
 const int opLocalGet = 0x20;
+
+/// `local.set`: pops into local `a`.
 const int opLocalSet = 0x21;
+
+/// `local.tee`: copies the top of the stack into local `a`, leaving it.
 const int opLocalTee = 0x22;
+
+/// `global.get`: pushes global `a`.
 const int opGlobalGet = 0x23;
+
+/// `global.set`: pops into global `a`.
 const int opGlobalSet = 0x24;
+
+/// `i32.load`, and `f32.load` as its bits: four bytes, little-endian, at
+/// the popped address plus the offset `a`.
 const int opLoad = 0x28;
+
+/// `i32.load8_s`: one byte at the address plus `a`, sign-extended.
 const int opLoad8S = 0x2C;
+
+/// `i32.load8_u`: one byte at the address plus `a`, zero-extended.
 const int opLoad8U = 0x2D;
+
+/// `i32.load16_s`: two bytes, little-endian, at the address plus `a`,
+/// sign-extended.
 const int opLoad16S = 0x2E;
+
+/// `i32.load16_u`: two bytes, little-endian, at the address plus `a`,
+/// zero-extended.
 const int opLoad16U = 0x2F;
+
+/// `i32.store`, and `f32.store` as its bits: pops a value and an address
+/// and writes four bytes, little-endian, at the address plus `a`.
 const int opStore = 0x36;
+
+/// `i32.store8`: writes the value's low byte at the address plus `a`.
 const int opStore8 = 0x3A;
+
+/// `i32.store16`: writes the value's low two bytes, little-endian, at the
+/// address plus `a`.
 const int opStore16 = 0x3B;
+
+/// `memory.size`: pushes the memory's size in 64 KiB pages.
 const int opMemorySize = 0x3F;
+
+/// `memory.grow`: grows the memory by the popped count of pages and pushes
+/// the size before, or minus one where [WasmLimits.memoryPages] would be
+/// passed.
 const int opMemoryGrow = 0x40;
+
+/// `i32.const`, and `f32.const` as its bits: pushes `a`.
 const int opConst = 0x41;
 
 // The value types a module may name: `i32` in every module, `f32` in a
 // render module (ABI 3).
+/// The `i32` value type, which every module may name.
 const int typeI32 = 0x7F;
+
+/// The `f32` value type, which only a render module (ABI 3) may name.
 const int typeF32 = 0x7D;
 
 // The host functions an import may name, by what the interpreter calls.
+/// The host function `field_len(field)`: how many values a field holds.
 const int hostFieldLen = 0;
+
+/// The host function `field_get(field, index)`: one value, in Q16.16
+/// unless the field says otherwise.
 const int hostFieldGet = 1;
+
+/// The host function `field_set(field, index, value)`, for a writable
+/// field.
 const int hostFieldSet = 2;
+
+/// The host function `publish(event, a, b)`: publishes a declared event
+/// with two values.
 const int hostPublish = 3;
+
+/// The host function `field_frac(field)` (ABI 2): how many fraction bits a
+/// field's values cross with.
 const int hostFieldFrac = 4;
+
+/// The render host function `param(index, component, value)`: sets one
+/// float of a parameter of the step's stage.
 const int hostParam = 5;
+
+/// The render host function `param_floats(parameter, ptr, len)`: sets a
+/// parameter from `len` floats in the module's memory at `ptr`.
 const int hostParamFloats = 6;
+
+/// The render host function `draw()`: says the step draws this frame.
 const int hostDraw = 7;
+
+/// The render host function `time()`: the frame's time in seconds, an
+/// `f32`.
 const int hostTime = 8;
+
+/// The render host function `view_size(axis)`: the view's size along one
+/// axis, in pixels.
 const int hostViewSize = 9;
+
+/// The render host function `light_code(light)`: the code of one of the
+/// declaration's light types.
 const int hostLightCode = 10;
 
 /// One host function: what the interpreter calls, and its signature.
@@ -89,6 +187,8 @@ const Map<String, _HostImport> _renderImports = <String, _HostImport>{
 
 /// A function's signature: the type of each parameter and of its result.
 final class FunctionType {
+  /// A signature taking [paramTypes] and returning [resultTypes], each a
+  /// [typeI32] or [typeF32].
   const FunctionType(this.paramTypes, this.resultTypes);
 
   /// A signature of [params] `i32`s returning [results] of them.
@@ -102,7 +202,10 @@ final class FunctionType {
           : const <int>[typeI32, typeI32, typeI32],
       resultTypes = results == 0 ? const <int>[] : const <int>[typeI32];
 
+  /// The value type of each parameter, in order.
   final List<int> paramTypes;
+
+  /// The value type of the result, or empty for none: never more than one.
   final List<int> resultTypes;
 
   /// How many values it takes.
@@ -145,6 +248,7 @@ String _typeName(int type) => type == typeF32 ? 'f32' : 'i32';
 /// after it — all worked out at decode, so a branch at run time is two
 /// assignments.
 final class CompiledFunction {
+  /// A body made by decode, already validated; nothing is checked here.
   const CompiledFunction({
     required this.type,
     required this.localCount,
@@ -155,6 +259,7 @@ final class CompiledFunction {
     required this.targets,
   });
 
+  /// The function's signature.
   final FunctionType type;
 
   /// Parameters and declared locals together.
@@ -163,22 +268,35 @@ final class CompiledFunction {
   /// The deepest the operand stack gets.
   final int maxHeight;
 
+  /// One instruction per slot: an `op…` constant or another Wasm opcode.
   final List<int> ops;
+
+  /// Each slot's first immediate: an index, an offset, a constant or a jump.
   final List<int> a;
+
+  /// Each slot's second immediate, where an instruction has one: a
+  /// `br_table`'s count of labels.
   final List<int> b;
+
+  /// The branch targets, three numbers each: the slot, the count of values
+  /// carried and the stack height after.
   final List<int> targets;
 }
 
 /// A global's starting value — an `f32`'s as its bits — and whether it may
 /// change.
 final class ModuleGlobal {
+  /// A global starting at [init], of [type], an `i32` by default.
   const ModuleGlobal({
     required this.mutable,
     required this.init,
     this.type = typeI32,
   });
 
+  /// Whether `global.set` may change it.
   final bool mutable;
+
+  /// Its starting value, an `f32`'s as its bits.
   final int init;
 
   /// `i32`, or `f32` in a render module.
@@ -187,9 +305,13 @@ final class ModuleGlobal {
 
 /// Bytes copied into memory at instantiation.
 final class DataSegment {
+  /// The [bytes] to copy into memory at [offset].
   const DataSegment(this.offset, this.bytes);
 
+  /// Where in memory the bytes go, in bytes from the start.
   final int offset;
+
+  /// The bytes copied.
   final Uint8List bytes;
 }
 

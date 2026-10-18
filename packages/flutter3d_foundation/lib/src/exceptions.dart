@@ -29,6 +29,7 @@ import 'formats.dart' show DocumentFormatException;
 /// packages' types. Extend a family rather than this: [Flutter3dFormatException],
 /// [CapabilityException], [PluginException] or [ResourceException].
 abstract base class Flutter3dException implements Exception {
+  /// For a family's class, which supplies [message].
   const Flutter3dException();
 
   /// What went wrong, as a sentence that names the thing it went wrong with.
@@ -52,6 +53,8 @@ abstract base class Flutter3dException implements Exception {
 /// means ours and `on FormatException` always means the SDK's.
 abstract base class Flutter3dFormatException extends Flutter3dException
     implements FormatException {
+  /// For a format exception, which supplies [message], and [source] and
+  /// [offset] where it knows them.
   const Flutter3dFormatException();
 
   /// **A `FormatException` too**, because that is what the engine threw for
@@ -75,6 +78,7 @@ abstract base class Flutter3dFormatException extends Flutter3dException
 /// A capability can be asked about before the call (`GraphicsDevice.features`
 /// and its limits); this is what the call says when nobody asked.
 abstract base class CapabilityException extends Flutter3dException {
+  /// For a refusal of a capability, which supplies [message].
   const CapabilityException();
 }
 
@@ -86,6 +90,7 @@ abstract base class CapabilityException extends Flutter3dException {
 /// a sentence naming the plugins involved, and plugins written against the
 /// first plugin API throw it too. The run-time plugins' refusals extend it.
 base class PluginException extends Flutter3dException {
+  /// A refusal that [message] explains, naming the plugins involved.
   const PluginException(this.message);
 
   @override
@@ -99,6 +104,7 @@ base class PluginException extends Flutter3dException {
 /// file, an external tool, a GPU device, a network service, a build artefact
 /// that does not match the code reading it.
 abstract base class ResourceException extends Flutter3dException {
+  /// For a missing resource's exception, which supplies [message].
   const ResourceException();
 }
 
@@ -111,6 +117,7 @@ abstract base class ResourceException extends Flutter3dException {
 /// platforms refused what they lacked with a bare [UnsupportedError]. A
 /// capability of any layer extends this and is refused the same way.
 abstract base class Capability {
+  /// For a layer's capability, which supplies [name].
   const Capability();
 
   /// The stable identifier, used in reports, snapshots and refusals.
@@ -136,6 +143,8 @@ abstract base class Capability {
 /// fact about the hardware, not a mistake in the code that asked. A caller
 /// who asks first ([Capability.askedBy]) never sees it.
 final class UnsupportedCapabilityException extends CapabilityException {
+  /// The refusal of [feature] by [backend], with the [reason] when the
+  /// backend can give one.
   const UnsupportedCapabilityException(
     this.feature, {
     required this.backend,
@@ -177,6 +186,11 @@ final class UnsupportedCapabilityException extends CapabilityException {
 /// the compiler gave as [diagnostics]. All of them are optional, because a
 /// driver that says nothing usable still refuses.
 final class ShaderCompileException extends Flutter3dFormatException {
+  /// The refusal of [shader] by [backend], with the compiler's [log].
+  ///
+  /// A line, column or excerpt given here is the first error's; left null,
+  /// [line], [column] and [excerpt] come from the first of [diagnostics]
+  /// that has a line.
   const ShaderCompileException({
     required this.shader,
     required this.backend,
@@ -271,6 +285,8 @@ final class ShaderCompileException extends Flutter3dFormatException {
 
 /// One error a shader compiler gave, and where: what a tool underlines.
 final class ShaderDiagnostic {
+  /// One compiler error, [message], with its place when the compiler gave
+  /// one.
   const ShaderDiagnostic(
     this.message, {
     this.stage,
@@ -415,6 +431,8 @@ final class ShaderDiagnostic {
 /// asset it was from [key] rather than from the text of somebody else's
 /// message.
 final class AssetNotFoundException extends ResourceException {
+  /// The refusal to load the asset [key], with the platform's own failure as
+  /// [cause] when there was one.
   const AssetNotFoundException(this.key, {this.detail, this.cause});
 
   /// The asset as the caller named it: a bundle key or a path.

@@ -95,7 +95,10 @@ final class LevelView {
     );
   }
 
+  /// The frame's width in pixels, for every picture and piece report.
   static const int width = 320;
+
+  /// The frame's height in pixels, for every picture and piece report.
   static const int height = 200;
 
   /// The side of the box drawn for a light, or for an entity that states no
@@ -353,6 +356,7 @@ extension on ListedPiece {
 
 /// What one piece of the level looks like from a camera.
 final class PieceReport {
+  /// The report of the piece [label] from one camera; made by the view.
   const PieceReport({
     required this.label,
     required this.pixels,
@@ -445,6 +449,8 @@ bool _sameCovers(List<PieceCover> a, List<PieceCover> b) {
 /// A box of whole pixels on the frame, from the top left, every edge
 /// inclusive.
 final class PixelBox {
+  /// The box from column [left] and row [top] to column [right] and row
+  /// [bottom], every edge inclusive.
   const PixelBox({
     required this.left,
     required this.top,
@@ -481,6 +487,7 @@ final class PixelBox {
 
 /// How far in front of the eye something reaches, nearest and farthest.
 final class DepthSpan {
+  /// The span from [near] to [far] metres ahead of the eye.
   const DepthSpan({required this.near, required this.far});
 
   /// The nearest distance ahead of the eye, in metres; never below zero.
@@ -502,6 +509,7 @@ final class DepthSpan {
 
 /// One piece in front of another, and how much of the other it hides.
 final class PieceCover {
+  /// The piece [who] covering a [share] of another.
   const PieceCover({required this.who, required this.share});
 
   /// The covering piece's label, as [PieceReport.label] prints it.

@@ -32,12 +32,18 @@ final class LightType {
     : _base = base, // ignore: prefer_initializing_formals
       _index = -1;
 
+  /// Light from one direction, with no position and no falloff: the sun.
   static const LightType directional = LightType._(0, 'directional');
 
+  /// Light from one point in every direction, falling off with distance.
   static const LightType point = LightType._(1, 'point');
 
+  /// Light from one point within a cone, falling off with distance and
+  /// towards the cone's edge.
   static const LightType spot = LightType._(2, 'spot');
 
+  /// Light from a rectangle, integrated over its extent rather than taken
+  /// from one point: a window, a panel.
   static const LightType area = LightType._(3, 'area');
 
   /// Every built-in value this version names, in the order of [index].

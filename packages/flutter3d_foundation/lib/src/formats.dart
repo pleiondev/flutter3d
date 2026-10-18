@@ -63,6 +63,9 @@ typedef FormatRefusal = Flutter3dFormatException Function(String message);
 /// a version has no fixture, so a bump without a file minted at it does not
 /// get in.
 final class FormatSpec {
+  /// The declaration of the format [id], written at [version] and read from
+  /// [since] up; asserts that [version] is at least [since]. Without
+  /// [suffixes] no file is recognised as the format by its name.
   const FormatSpec({
     required this.id,
     required this.version,
@@ -349,6 +352,8 @@ final class FormatSpecs {
 /// envelope first, then the body, then whatever was not understood, in the
 /// order it arrived.
 abstract base class FormatDocument {
+  /// For a document type, which hands up the keys its reader did not
+  /// understand as [unknown], copied unmodifiable; none by default.
   FormatDocument({Map<String, Object?> unknown = const <String, Object?>{}})
     : unknown = Map<String, Object?>.unmodifiable(unknown);
 
@@ -421,6 +426,7 @@ abstract base class FormatDocument {
 /// own: another format's document, a version from the future, a `requires`
 /// this build does not understand.
 final class DocumentFormatException extends Flutter3dFormatException {
+  /// A refusal that [message] explains.
   const DocumentFormatException(this.message);
 
   @override

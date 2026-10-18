@@ -21,6 +21,7 @@ import 'argument_check.dart';
 /// nothing notices because both halves compile. Here a tool that is offered is
 /// a tool that has a body, because they are the same object.
 final class OfferedTool<S, A> {
+  /// A tool offered as [spec] and answered by [run].
   const OfferedTool(this.spec, this.run);
 
   /// What `tools/list` hands the agent: a name, a sentence and a schema.
@@ -34,6 +35,7 @@ final class OfferedTool<S, A> {
   /// written against 1.0.
   final FutureOr<A> Function(SessionToolCall<S> call) run;
 
+  /// The name the tool is offered under, from its [spec].
   String get name => spec.name;
 
   /// Runs this tool on [session] with [arguments], as a server runs a call
@@ -56,13 +58,19 @@ final class OfferedTool<S, A> {
 /// and that is one paragraph that takes no arguments. A prompt with arguments
 /// would be a tool, and there are a hundred and fifty of those already.
 final class OfferedPrompt {
+  /// A prompt offered as [name], described by [description], whose [text]
+  /// the host hands the model.
   const OfferedPrompt({
     required this.name,
     required this.description,
     required this.text,
   });
 
+  /// The name `prompts/list` offers it under, and `prompts/get` asks for.
   final String name;
+
+  /// What the prompt is for, as `prompts/list` shows it to a person picking
+  /// one.
   final String description;
 
   /// What the host puts in front of the model, as one user message.
@@ -81,6 +89,7 @@ final class OfferedPrompt {
 /// written name stays answerable as an alias until the next major release,
 /// so a host config or a prompt that named it keeps working.
 final class ToolName {
+  /// A tool published as [name] with [hints], [ToolHints.writes] by default.
   const ToolName(this.name, {this.hints = ToolHints.writes});
 
   /// The published name, `area.verb`.
@@ -117,6 +126,8 @@ const String schemaToolName = 'flutter3d.schema';
 /// client called, whether the call was refused) would have broken every
 /// watcher; a field added here does not.
 final class AnsweredCall<A> {
+  /// One call of [toolName] with [arguments], answered with [answer] after
+  /// [elapsed]; made by the server for its watchers.
   const AnsweredCall({
     required this.toolName,
     required this.arguments,
@@ -150,6 +161,14 @@ final class AnsweredCall<A> {
 /// JSON lines, offers [ToolSpec]s and answers [ToolResult]s, and the wire
 /// underneath is this class's business.
 base class ToolTableServer<S, A> {
+  /// A server offering [tools] over [session] on [channel], answering each
+  /// tool's result through [toResult].
+  ///
+  /// Each tool is published under the name [names] gives it, the name it was
+  /// written under staying answerable as an alias, and [aliases] adds old
+  /// names of its own. Throws an [ArgumentError] for a published name that
+  /// is not `area.verb` or that two tools share, and for an alias that names
+  /// no tool or is itself a tool's name.
   ToolTableServer(
     StreamChannel<String> channel, {
     required this.session,

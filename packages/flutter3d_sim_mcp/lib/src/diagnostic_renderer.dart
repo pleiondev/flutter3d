@@ -31,12 +31,19 @@ import 'package:flutter3d_mcp/kit.dart' show ProjectRoot;
 final class DiagnosticView {
   const DiagnosticView._(this.name);
 
+  /// The ordinary frame, lit and composited as a game draws it.
   static const DiagnosticView lit = DiagnosticView._('lit');
 
+  /// The surface buffer: an octahedral normal in the first two channels,
+  /// roughness in the third and view depth in metres in the fourth.
   static const DiagnosticView normals = DiagnosticView._('normals');
 
+  /// The shadow cube atlas the moving things are redrawn into every frame,
+  /// or the directional shadow map when there is no cube.
   static const DiagnosticView shadowMap = DiagnosticView._('shadowMap');
 
+  /// The shadow cube atlas of the things that never move, drawn once at
+  /// load.
   static const DiagnosticView staticShadowMap = DiagnosticView._(
     'staticShadowMap',
   );
@@ -90,6 +97,8 @@ RenderSettings _settingsFor(DiagnosticView view) => switch (view) {
 /// texture, before [CpuDevice.readPixels]'s clamp to 8 bits throws away
 /// everything a depth or a NaN needed.
 final class DiagnosticFrame {
+  /// One frame of [view], [width] by [height] pixels, as [png] and as
+  /// [raw]; made by the renderer.
   const DiagnosticFrame({
     required this.view,
     required this.width,
@@ -99,9 +108,17 @@ final class DiagnosticFrame {
     required this.passes,
   });
 
+  /// Which of the renderer's outputs the frame shows.
   final DiagnosticView view;
+
+  /// The frame's width in pixels.
   final int width;
+
+  /// The frame's height in pixels.
   final int height;
+
+  /// The frame as a PNG, clamped to 8 bits a channel: what a person or a
+  /// model looks at.
   final Uint8List png;
 
   /// RGBA floats, row-major from the top — [CpuDevice.readHdrPixels]'s own
@@ -146,6 +163,7 @@ final class DiagnosticFrame {
 /// A pixel of a [DiagnosticFrame] with a channel that is not finite: what
 /// [DiagnosticFrame.firstNonFinite] answers.
 final class NonFinitePixel {
+  /// The pixel at column [x] and row [y] whose [channel] is not finite.
   const NonFinitePixel({
     required this.x,
     required this.y,
@@ -217,7 +235,10 @@ final class DiagnosticRenderer {
   final Renderer _renderer;
   final Scene _scene;
 
+  /// The width of every frame drawn, in pixels.
   static const int width = 320;
+
+  /// The height of every frame drawn, in pixels.
   static const int height = 200;
 
   ///

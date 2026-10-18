@@ -13,6 +13,7 @@ import 'expressions.dart';
 /// A `.f3dplugin` document that cannot be read, with the sentence that says
 /// why.
 final class DataPluginFormatException extends Flutter3dFormatException {
+  /// A refusal that [message] explains.
   const DataPluginFormatException(this.message);
 
   @override
@@ -24,6 +25,8 @@ final class DataPluginFormatException extends Flutter3dFormatException {
 
 /// A loop phase a data plugin adds.
 final class DataPhase {
+  /// A phase named [name] of [kind], ordered by [after] and [before]; none
+  /// of either by default.
   const DataPhase({
     required this.name,
     required this.kind,
@@ -35,6 +38,8 @@ final class DataPhase {
   /// The keys a phase is written with.
   static const Set<String> keys = <String>{'name', 'kind', 'after', 'before'};
 
+  /// The phase's name without the plugin's prefix, which install files it
+  /// under: `weather` becomes `<plugin id>.weather`.
   final String name;
 
   /// [PhaseKind.step] or [PhaseKind.frame].
@@ -42,6 +47,8 @@ final class DataPhase {
 
   /// Phases of the same kind it goes after and before.
   final List<String> after;
+
+  /// Phases of the same kind it goes before.
   final List<String> before;
 
   /// The keys this build does not read, as the document had them: written
@@ -50,9 +57,12 @@ final class DataPhase {
   /// (`FormatDocument.nestedUnknownIn`).
   final Map<String, Object?> unknown;
 
+  /// The [LoopPhase] of [name] and [kind], as the document names it.
   LoopPhase get phase =>
       kind == PhaseKind.frame ? LoopPhase.frame(name) : LoopPhase.step(name);
 
+  /// The phase as a document writes it: an empty [after] or [before] left
+  /// out, and [unknown] written back after its own keys.
   Map<String, Object?> toJson() => FormatDocument.writeNested(<String, Object?>{
     'name': name,
     'kind': kind.name,
@@ -64,6 +74,8 @@ final class DataPhase {
 /// An event a data plugin publishes, declared on the bus as
 /// `<plugin id>.<name>`.
 final class DataEventDeclaration {
+  /// An event named [name], with what it means as [description] when the
+  /// document says.
   const DataEventDeclaration({
     required this.name,
     this.description,
@@ -75,6 +87,9 @@ final class DataEventDeclaration {
 
   /// The name without the plugin's prefix.
   final String name;
+
+  /// What the event means, for a tool's list; null when the document does
+  /// not say.
   final String? description;
 
   /// The keys this build does not read, as the document had them: written
@@ -83,6 +98,8 @@ final class DataEventDeclaration {
   /// (`FormatDocument.nestedUnknownIn`).
   final Map<String, Object?> unknown;
 
+  /// The declaration as a document writes it, with [unknown] written back
+  /// after its own keys.
   Map<String, Object?> toJson() => FormatDocument.writeNested(<String, Object?>{
     'name': name,
     if (description != null) 'description': description,
@@ -96,6 +113,7 @@ final class DataEventDeclaration {
 /// section — where in the document it was, what it required — without
 /// breaking the code that reads [reader] and [section].
 final class DataPluginSection {
+  /// The [section] that [reader] read.
   const DataPluginSection({required this.reader, required this.section});
 
   /// The subsystem's reader that took the section.
@@ -164,6 +182,8 @@ final class DataPluginSection {
 /// package that reads it runs in a browser and on a server; a YAML front end
 /// can come later without the format changing.
 final class DataPluginDocument {
+  /// A document of [manifest] and what it brings; every list and map is
+  /// empty unless given.
   const DataPluginDocument({
     required this.manifest,
     this.phases = const <DataPhase>[],
@@ -290,15 +310,24 @@ final class DataPluginDocument {
     legacyVersionKey: 'f3dplugin',
   );
 
+  /// The plugin's manifest, under `manifest`.
   final PluginManifest manifest;
 
+  /// The loop phases the plugin adds, in the order the document lists them.
   final List<DataPhase> phases;
 
+  /// The events the plugin publishes, each declared on the bus as
+  /// `<plugin id>.<name>` at install.
   final List<DataEventDeclaration> events;
+
+  /// The Wasm step systems, each one module in one step phase.
   final List<WasmSystemSpec> wasm;
 
   /// The render modules, each driving one of the document's render steps.
   final List<WasmRenderSpec> wasmRender;
+
+  /// The expression systems, each a rule over declared world fields in one
+  /// step phase.
   final List<ExpressionSystemSpec> expressions;
 
   /// The sections a registered reader read, by name: each with the
@@ -579,6 +608,10 @@ final class DataPluginDocument {
     );
   }
 
+  /// The document as a `.f3dplugin` file writes it: the envelope, with a
+  /// `requires` for each read section that asks for one, then [extra], then
+  /// its own keys, an empty list left out, then each section as its reader
+  /// writes it back.
   Map<String, Object?> toJson() => <String, Object?>{
     ...format.envelope(
       requires: <String>{
@@ -613,6 +646,7 @@ final class DataPluginDocument {
 /// not read here at all; it goes through the doors [DataPluginLoader] holds,
 /// and only for a plugin that declares the permission and is granted it.
 abstract base class PluginSource {
+  /// For an application's source, which supplies [read].
   const PluginSource();
 
   /// The bytes of [path], relative to the plugin's own directory. Throws
@@ -623,6 +657,9 @@ abstract base class PluginSource {
 /// A [PluginSource] over files already in memory: a test, or a plugin an
 /// application unpacked itself.
 final class MemoryPluginSource extends PluginSource {
+  /// A source of [files], keyed by path relative to the plugin's directory
+  /// and copied unmodifiable. [read] throws a [DataPluginFormatException]
+  /// for a path not among them.
   MemoryPluginSource(Map<String, Uint8List> files)
     : _files = Map<String, Uint8List>.unmodifiable(files);
 
@@ -657,6 +694,9 @@ final class MemoryPluginSource extends PluginSource {
 /// an expression has none to name, so what is checked here is all the reach
 /// a data plugin has.
 final class DataPluginLoader {
+  /// A loader that grants nothing unless [grants] says so, has no door to
+  /// the network or the files unless [fetch] or [readFile] is given, and
+  /// steps Wasm on the interpreter unless [wasmRuntime] says otherwise.
   const DataPluginLoader({
     this.grants = PluginGrants.none,
     this.fetch,

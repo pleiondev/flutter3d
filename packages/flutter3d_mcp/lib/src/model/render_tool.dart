@@ -27,6 +27,8 @@ import 'package:vector_math/vector_math.dart';
 import 'mcp_tool.dart';
 import 'model_session.dart';
 
+/// A modeller tool that may answer with a picture: a body over the
+/// [ModelSession] that answers an [Answer].
 typedef ModelPictureTool = OfferedTool<ModelSession, Answer>;
 
 /// A [ModelPictureTool] whose body reads the session and the arguments as two values,

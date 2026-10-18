@@ -23,12 +23,17 @@ abstract base class PluginChange {
   /// where [step] steps had run.
   final int step;
 
+  /// Whether a plugin the change involves touches the simulation
+  /// (`PluginTouches.simulation`). True makes it part of what a replay must
+  /// repeat; false keeps it in a run file for the record only.
   final bool affectsSimulation;
 
   /// The same change at another step — a run file counts from its own
   /// start, the loop from its own.
   PluginChange at(int step);
 
+  /// The change as a run file writes it, with its `kind`, `step` and
+  /// `simulation`; [fromJson] reads it back.
   Map<String, Object?> toJson();
 
   /// Reads a change back, or throws a [PluginFormatException] saying why not.
@@ -86,12 +91,14 @@ abstract base class PluginChange {
 
 /// [plugin] was switched on and installed.
 final class PluginEnabled extends PluginChange {
+  /// The change that switches [plugin] on at [step].
   const PluginEnabled({
     required super.step,
     required this.plugin,
     required super.affectsSimulation,
   }) : super._();
 
+  /// The id of the plugin switched on.
   final String plugin;
 
   @override
@@ -122,12 +129,14 @@ final class PluginEnabled extends PluginChange {
 
 /// [plugin] was switched off and everything it registered withdrawn.
 final class PluginDisabled extends PluginChange {
+  /// The change that switches [plugin] off at [step].
   const PluginDisabled({
     required super.step,
     required this.plugin,
     required super.affectsSimulation,
   }) : super._();
 
+  /// The id of the plugin switched off.
   final String plugin;
 
   @override
@@ -159,12 +168,15 @@ final class PluginDisabled extends PluginChange {
 /// The install order became [order]: what breaks ties between plugins'
 /// systems and subscribers.
 final class PluginsReordered extends PluginChange {
+  /// The change that makes [order] the preferred install order at [step].
   const PluginsReordered({
     required super.step,
     required this.order,
     required super.affectsSimulation,
   }) : super._();
 
+  /// The plugin ids in the order asked for. Dependencies still come first, and
+  /// plugins it leaves out keep their places after the ones it names.
   final List<String> order;
 
   @override
@@ -192,6 +204,8 @@ final class PluginsReordered extends PluginChange {
 /// may have been switched since the engine started and a replay begins
 /// from the engine's defaults.
 final class PluginsSet extends PluginChange {
+  /// The whole plugin state at [step]: every plugin in [order], the ones in
+  /// [enabled] switched on.
   const PluginsSet({
     required super.step,
     required this.order,
@@ -199,7 +213,11 @@ final class PluginsSet extends PluginChange {
     required super.affectsSimulation,
   }) : super._();
 
+  /// Every plugin id the manager knows, in install order.
   final List<String> order;
+
+  /// The ids of the plugins switched on, in install order; every plugin of
+  /// [order] not named here is off.
   final List<String> enabled;
 
   @override

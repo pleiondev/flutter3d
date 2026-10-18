@@ -33,6 +33,7 @@ import 'render_program.dart';
 /// What a step returns is the section's own business and is handed to the
 /// next one as it was returned.
 abstract base class DataSection {
+  /// For a subsystem's section, which extends this.
   const DataSection();
 
   /// The key the section has in a document: `effects`.
@@ -77,6 +78,8 @@ abstract base class DataSection {
 /// breaking a section written against 1.0; what every step shares is
 /// [context].
 final class DataSectionRead {
+  /// What the runtime hands [DataSection.read]: the document's [written]
+  /// value for the plugin [context] describes.
   const DataSectionRead(this.written, {required this.context});
 
   /// What the document has under the section's name, as JSON decoded it.
@@ -89,6 +92,8 @@ final class DataSectionRead {
 /// What [DataSection.load] is handed, for the reason [DataSectionRead]
 /// gives.
 final class DataSectionLoad {
+  /// What the runtime hands [DataSection.load]: the [section] that
+  /// [DataSection.read] returned.
   const DataSectionLoad(this.section, {required this.context});
 
   /// What [DataSection.read] returned.
@@ -101,6 +106,8 @@ final class DataSectionLoad {
 /// What [DataSection.install] is handed, for the reason [DataSectionRead]
 /// gives.
 final class DataSectionInstall {
+  /// What the runtime hands [DataSection.install]: the loaded [section] and
+  /// the [host] of the plugin being installed.
   const DataSectionInstall(
     this.section, {
     required this.host,
@@ -122,6 +129,10 @@ final class DataSectionInstall {
 ///
 /// Made by the runtime that reads the document, never by a section.
 final class DataSectionContext {
+  /// Made by the runtime that reads the document. A callback left null makes
+  /// its method answer as for a plugin without it: [textOf] throws,
+  /// [eventName] returns the name as written, [numbersOf] and
+  /// [renderProgram] return null, and [note] drops the note.
   const DataSectionContext({
     required this.plugin,
     this._textOf,
@@ -180,6 +191,7 @@ final class DataSectionContext {
 /// and a compiled plugin may teach the engine a section of its own in
 /// `install`, which goes again when the plugin is switched off.
 abstract base class DataSectionRegistry extends PluginRegistry {
+  /// For the registry the application's assembly provides, which extends this.
   const DataSectionRegistry();
 
   /// Reads [section] from every data plugin read after this. Throws a

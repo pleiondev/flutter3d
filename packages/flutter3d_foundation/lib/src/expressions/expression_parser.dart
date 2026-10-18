@@ -41,6 +41,8 @@ import 'expression_ast.dart';
 /// Line and column rather than a byte offset: the author is looking at the
 /// text in an editor, and "at 1:14" is a place they can put a cursor.
 final class ExpressionSyntaxException extends Flutter3dFormatException {
+  /// A refusal that [message] explains, at [line] and [column], both counted
+  /// from 1.
   const ExpressionSyntaxException(this.message, this.line, this.column);
 
   @override
@@ -64,6 +66,8 @@ final class ExpressionSyntaxException extends Flutter3dFormatException {
 /// punctuation: '{}=;')`, so a character those versions did not know is
 /// refused as it always was.
 final class ExpressionSyntax {
+  /// A syntax that takes units, exponents and truth values unless told
+  /// otherwise, and no punctuation of a host's own.
   const ExpressionSyntax({
     this.units = true,
     this.exponents = true,
@@ -95,6 +99,8 @@ final class ExpressionSyntax {
 /// (`(`, `<=`, `&&`): a parser compares against literals it writes out
 /// anyway, and a kind enum would be a second spelling of the same set.
 final class ExpressionToken {
+  /// A token of [kind] written as [text] at [line] and [column]; [number] is
+  /// its value for a `number` token and null for any other.
   const ExpressionToken(
     this.kind,
     this.text,
@@ -103,6 +109,8 @@ final class ExpressionToken {
     this.number,
   });
 
+  /// What the token is: `name`, `number`, `unit`, `end`, or the punctuation
+  /// itself (`(`, `<=`, `&&`).
   final String kind;
 
   /// As written; a unit's text without its brackets.
@@ -265,6 +273,8 @@ bool _isNamePart(String ch) => _isNameStart(ch) || _isDigit(ch);
 /// What the names in a source mean: the variables the host binds, the
 /// builtins it may call and the units it may write.
 final class ExpressionScope {
+  /// A scope binding [variables], allowing [builtins] (every one by default)
+  /// and the host's own [units]; none of either by default.
   const ExpressionScope({
     this.variables = const <String, ExpressionType>{},
     this.builtins = ExpressionBuiltin.all,
@@ -327,6 +337,8 @@ Expression parseExpression(
 /// A `base class`: the material language extends it with its declarations
 /// and blocks and reads every expression through [parseExpression].
 base class ExpressionParser {
+  /// A parser at the first of [tokens], which must end with a token of kind
+  /// `end`, reading names in [scope] and tokens by [syntax].
   ExpressionParser(
     this.tokens, {
     this.scope = const ExpressionScope(),
@@ -441,6 +453,8 @@ base class ExpressionParser {
     return ExpressionConditional(condition, then, otherwise);
   }
 
+  /// Reads `||` chains, left to right, over [parseAnd]. Throws an
+  /// [ExpressionSyntaxException] for an operand that is not a truth value.
   Expression parseOr() {
     var left = parseAnd();
     while (current.kind == '||') {
@@ -450,6 +464,8 @@ base class ExpressionParser {
     return left;
   }
 
+  /// Reads `&&` chains, left to right, over [parseComparison]. Throws an
+  /// [ExpressionSyntaxException] for an operand that is not a truth value.
   Expression parseAnd() {
     var left = parseComparison();
     while (current.kind == '&&') {
@@ -459,6 +475,11 @@ base class ExpressionParser {
     return left;
   }
 
+  /// Reads one comparison of two sums, or a sum alone. Throws an
+  /// [ExpressionSyntaxException] for a second comparison after the first
+  /// (`a < b < c`), for a side that is not one number (two truth values may
+  /// be compared with `==` and `!=` only), and for two sides of different
+  /// dimensions.
   Expression parseComparison() {
     final left = parseSum();
     const comparisons = <String>{'<', '<=', '>', '>=', '==', '!='};

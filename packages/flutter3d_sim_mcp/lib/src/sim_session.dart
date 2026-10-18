@@ -33,6 +33,8 @@ Answer _refuse(String says) => Answer(did: false, says: says);
 /// has anything worth keeping is the only time it is allowed to replace
 /// what came before.
 final class SimSession {
+  /// A session of [game] with no level open, reading and writing files
+  /// inside [root], or inside the working directory when it is null.
   SimSession({required this.game, this.entities, ProjectRoot? root})
     : root = root ?? ProjectRoot.around(null);
 
@@ -71,8 +73,14 @@ final class SimSession {
   static const double _dt = 1.0 / 60.0;
   static const int _every = 25;
 
+  /// Whether a level is open and running.
   bool get isOpen => _run != null;
 
+  /// Opens the level at [path] and starts a run of [game] on it from step
+  /// nought, with a fresh tape and digest trace, in place of any run before.
+  ///
+  /// Refuses, keeping what was open, a path outside [root] or a file that
+  /// is not a level.
   Answer open(String path) {
     final Level level;
     try {
@@ -531,6 +539,8 @@ final class SimSession {
     return _ok(jsonEncode(<String, Object?>{'step': _step, ...run.reading}));
   }
 
+  /// Says the latest checkpoint's step and digest; a checkpoint is taken
+  /// every 25 steps. Refuses before a level is open.
   Answer digest() {
     final digests = _digests;
     if (digests == null) return _refuse('no level open');
@@ -547,6 +557,9 @@ final class SimSession {
   String _readInside(String path) =>
       File(root.resolve(path)).readAsStringSync();
 
+  /// Writes the run so far to [path] as a `.f3drun`: the level, its start,
+  /// the input tape and the checkpoints. Refuses before a level is open, a
+  /// path outside [root], and a file that cannot be written.
   Answer writeRun(String path) {
     final recorder = _recorder;
     final digests = _digests;

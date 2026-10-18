@@ -131,6 +131,7 @@ final class ModelSession {
     'faces': 'face',
   };
 
+  /// The project with its undo stack, shared with a person in the modeller.
   ModelHistory get history => _history;
 
   /// Points this session at the document a host has just put on screen in
@@ -150,6 +151,7 @@ final class ModelSession {
     _document = ProjectModelDocument();
   }
 
+  /// The project as it stands now, at the top of [history].
   ModelProject get project => history.project;
 
   /// Everything in the project, one line each, and what is selected.
@@ -755,6 +757,8 @@ final class ModelSession {
     return Answer(did: true, says: 'undid $says — $selection');
   }
 
+  /// Puts back the step last undone and says which; refuses when there is
+  /// nothing to redo. Unlike [undo], it does not ask whose step it was.
   Answer redo() {
     final says = history.redoSays;
     if (says == null) return Answer(did: false, says: 'nothing to redo');

@@ -384,6 +384,8 @@ final class ProbeField {
   /// The unit of every value.
   final Unit unit;
 
+  /// The field as plain values: its [shape], its [values] and its [unit].
+  /// [ProbeField.fromJson] reads it back.
   Map<String, Object?> toJson() => <String, Object?>{
     'shape': shape,
     // ignore: avoid-not-encodable-in-to-json, a Float32List is a List<double>, which jsonEncode writes.
@@ -481,6 +483,9 @@ final class ProbeReading {
           'probe $probe read ${value.length} components, not one quantity',
         );
 
+  /// The reading as plain values. [kind] is left out when it is
+  /// [ReadingKind.simulated], and [quality] and [field] when they are null;
+  /// [ProbeReading.fromJson] reads it back.
   Map<String, Object?> toJson() => <String, Object?>{
     'step': step,
     'probe': probe,

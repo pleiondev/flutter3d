@@ -53,6 +53,8 @@ final class PluginTouches {
     _ => PluginTouches._(name),
   };
 
+  /// The kind's name, as a manifest's `touches` writes it. A name this build
+  /// does not know is kept as written ([isKnown] is false then).
   final String name;
 
   /// Whether this build knows the kind: [simulation], [view] or [tooling].
@@ -84,6 +86,7 @@ final class PluginTouches {
 /// installing a plugin reads what it asks for. Open, like `GameAction`: a
 /// host may name its own.
 final class PluginPermission {
+  /// A permission named [name]: one of the constants here, or a host's own.
   const PluginPermission(this.name);
 
   /// Talks to the network.
@@ -108,6 +111,8 @@ final class PluginPermission {
   /// everything else it adds stays in its namespace.
   static const PluginPermission replace = PluginPermission('replace');
 
+  /// The permission's name, as a manifest's `permissions` writes it and a
+  /// person installing the plugin reads it.
   final String name;
 
   @override
@@ -134,6 +139,12 @@ final class PluginPermission {
 /// they were and [toJson] writes them back, so a tool that reads and writes
 /// a manifest does not strip what it did not understand.
 final class PluginManifest {
+  /// A manifest for the plugin [id] written against [apiVersion].
+  ///
+  /// Checks nothing here: a malformed id is refused when the plugin is
+  /// installed ([idProblem]). Without [version] the plugin is
+  /// [PluginVersion.none]; without [touches] it is held to every rule of
+  /// [PluginTouches.simulation].
   const PluginManifest({
     required this.id,
     required this.apiVersion,
@@ -518,6 +529,9 @@ final class PluginManifest {
     return whole;
   }
 
+  /// The manifest as a document writes it, with [extra] first and its own
+  /// keys over them. A field at its default is left out; [fromJson] reads it
+  /// back.
   Map<String, Object?> toJson() => <String, Object?>{
     ...extra,
     'id': id,
@@ -571,8 +585,11 @@ final class PluginManifest {
 /// default and every plugin keeps compiling: a plugin `extends` this and
 /// is itself `final` or `base`.
 abstract base class Flutter3dPlugin {
+  /// For a plugin class, which supplies [manifest] and [install].
   const Flutter3dPlugin();
 
+  /// What the plugin is and needs, read before it is installed: its id, the
+  /// API it was written against, its dependencies and what it touches.
   PluginManifest get manifest;
 
   /// Registers this plugin's phases, systems, subscriptions and the rest.

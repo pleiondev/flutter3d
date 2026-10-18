@@ -13,6 +13,8 @@ import 'version.dart';
 
 /// Where one plugin stands.
 final class PluginStatus {
+  /// The standing of the plugin [manifest] describes; made by the
+  /// [PluginManager], not by a plugin.
   const PluginStatus({
     required this.manifest,
     required this.enabled,
@@ -20,7 +22,10 @@ final class PluginStatus {
     this.error,
   });
 
+  /// The plugin's manifest, as it declared it.
   final PluginManifest manifest;
+
+  /// Whether the plugin is installed and on now.
   final bool enabled;
 
   /// Why it is off when the engine switched it off itself — a backend it
@@ -33,6 +38,7 @@ final class PluginStatus {
   /// otherwise.
   final Object? error;
 
+  /// The plugin's id, from its [manifest].
   String get id => manifest.id;
 
   @override
@@ -73,6 +79,13 @@ final class PluginStatus {
 /// [schedule] hands a replay the journal of a recorded run, and the same
 /// changes are made at the same steps.
 final class PluginManager {
+  /// A manager for one engine's plugins, registering through [loop],
+  /// [events] and the rest of [registries], which a plugin finds by type.
+  ///
+  /// A null [backend] lets every plugin run whatever `backends` its manifest
+  /// names. [apiVersion]
+  /// is the plugin API this engine provides, and every plugin is held to it;
+  /// [profile] is handed to each plugin as `PluginHost.profile`.
   PluginManager({
     required this.loop,
     required this.events,
@@ -86,7 +99,11 @@ final class PluginManager {
   /// every plugin as `PluginHost.profile`.
   final SimulationProfile profile;
 
+  /// The engine's loop: its phases, systems and assimilations, through which
+  /// each plugin's view is made.
   final LoopRegistry loop;
+
+  /// The engine's event bus, through which each plugin's view is made.
   final EventRegistry events;
 
   /// The engine's registries beyond the loop and the bus, found by type.

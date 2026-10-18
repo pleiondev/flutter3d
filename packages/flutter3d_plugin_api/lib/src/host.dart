@@ -32,6 +32,8 @@ import 'version.dart';
 /// Made by the plugin host: `base`, so a member added in a later minor
 /// arrives with a default.
 abstract base class PluginHost {
+  /// For the plugin host's own class, which extends this; a plugin is handed
+  /// one in `install` and never makes its own.
   const PluginHost();
 
   /// The manifest of the plugin being installed.
@@ -97,6 +99,7 @@ abstract base class PluginHost {
 /// An engine gets one by handing its renderer's registry to the plugin host
 /// among its registries: `EngineLoop(registries: [renderer.renderSteps])`.
 abstract base class RenderStepRegistry extends PluginRegistry {
+  /// For the renderer's registry, which extends this.
   const RenderStepRegistry();
 
   /// Where a plugin's node may go, in the order the frame meets them —

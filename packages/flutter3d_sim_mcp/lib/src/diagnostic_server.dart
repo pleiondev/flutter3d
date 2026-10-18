@@ -39,6 +39,8 @@ const Map<String, ToolName> diagnosticToolNames = <String, ToolName>{
 /// settled on, and the same [ToolTableServer] underneath it.
 base class DiagnosticMcpServer
     extends ToolTableServer<DiagnosticSession, Answer> {
+  /// A server for [session] over [channel] offering the diagnostic tools,
+  /// and the project's own tools when [projectTools] is given.
   DiagnosticMcpServer(
     super.channel, {
     required super.session,

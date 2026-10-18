@@ -38,6 +38,8 @@ String describePass(DiagnosticView view) => switch (view) {
 /// redrawing one of their own, so three calls describing "the same picture"
 /// are guaranteed to mean it.
 final class DiagnosticSession {
+  /// A session with no level open, reading files inside [root], or inside
+  /// the working directory when it is null.
   DiagnosticSession({ProjectRoot? root})
     : root = root ?? ProjectRoot.around(null);
 
@@ -48,6 +50,11 @@ final class DiagnosticSession {
   DiagnosticRenderer? _renderer;
   DiagnosticFrame? _last;
 
+  /// Opens the level at [path] for diagnosis, in place of any open one, and
+  /// says what the loader let go of: a texture refused or missing.
+  ///
+  /// Refuses, keeping what was open, a path outside [root] or a level that
+  /// does not load.
   Future<Answer> open(String path) async {
     try {
       // No genre vocabulary: a frame's own normals, depth and NaNs are not a
@@ -76,6 +83,12 @@ final class DiagnosticSession {
     }
   }
 
+  /// Draws a frame of [view] from the eye at ([atX], [atY], [atZ]), in
+  /// metres in the scene's own space, looking along the direction ([aimX],
+  /// [aimY], [aimZ]), and answers it as a PNG; the frame is what [pixel]
+  /// and [passes] read next.
+  ///
+  /// Refuses before a level is open, and when the frame cannot be drawn.
   Future<Answer> frame({
     required double atX,
     required double atY,

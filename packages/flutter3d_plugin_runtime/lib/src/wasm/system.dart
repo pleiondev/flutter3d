@@ -22,6 +22,8 @@ import 'module.dart';
 /// for ABI 2, which can ask `f3d.field_frac` what it was given; an ABI-1
 /// module assumes 16 and is refused such a field at install.
 final class WasmFieldSpec {
+  /// The field [name], read only and in Q16.16 unless told otherwise.
+  /// Asserts that [fractionBits] is from 0 to 30.
   const WasmFieldSpec(
     this.name, {
     this.writable = false,
@@ -83,6 +85,8 @@ final class WasmFieldSpec {
   /// How many fraction bits a value crosses with: 16 is Q16.16.
   final int fractionBits;
 
+  /// The field as a declaration writes it: `{"name": …}` alone when
+  /// everything else is at its default, and the keys that differ otherwise.
   Object toJson() =>
       !writable && unit == null && fractionBits == defaultFractionBits
       ? <String, Object?>{'name': name}
@@ -102,6 +106,10 @@ final class WasmFieldSpec {
 /// [events]; the names live here, in the declaration a person reads, and
 /// never inside the module.
 final class WasmSystemSpec {
+  /// A system named [system] in the step phase [phase] running [module],
+  /// with no fields or events, the default [WasmLimits] and no checksum
+  /// unless given. A null [sha256] is allowed only for a module in the
+  /// plugin's own files.
   const WasmSystemSpec({
     required this.module,
     required this.system,
@@ -186,6 +194,8 @@ final class WasmSystemSpec {
 
   /// Systems it runs after and before, as `addSystem` takes them.
   final List<String> after;
+
+  /// Systems it runs before, as `addSystem` takes them.
   final List<String> before;
 
   /// The fields it reaches, by ABI index.
@@ -195,6 +205,7 @@ final class WasmSystemSpec {
   /// `<plugin id>.<event>`.
   final List<String> events;
 
+  /// The fuel, call depth and memory the module is held to.
   final WasmLimits limits;
 
   /// The keys this build does not read, as the document had them: written
@@ -203,6 +214,8 @@ final class WasmSystemSpec {
   /// (`FormatDocument.nestedUnknownIn`).
   final Map<String, Object?> unknown;
 
+  /// The declaration as a document writes it, with [unknown] written back
+  /// after its own keys.
   Map<String, Object?> toJson() => FormatDocument.writeNested(<String, Object?>{
     'module': module,
     'system': system,
@@ -273,6 +286,7 @@ String? wasmIntegrityRefusal(
 /// so a module that runs out does so at the same instruction in every replay
 /// and this event lands at the same step in each.
 final class WasmTrapped extends BusEvent {
+  /// The trap of [system] of [plugin] at [step], described by [message].
   const WasmTrapped({
     required this.plugin,
     required this.system,
@@ -286,6 +300,7 @@ final class WasmTrapped extends BusEvent {
   /// The system's name in the loop.
   final String system;
 
+  /// The simulation step the module trapped in.
   final int step;
 
   /// What the module did.
@@ -638,6 +653,11 @@ final class _RuntimeScope extends PluginScope {
 /// A module is never the engine's: a [manifest] in one of the engine's
 /// namespaces is refused with a [PluginException].
 final class WasmPlugin extends Flutter3dPlugin {
+  /// A plugin of [manifest] running [spec] over [bytes], decoded here, on
+  /// [runtime], the interpreter by default.
+  ///
+  /// Throws a [WasmException] for bytes that are not a step module, and a
+  /// [PluginException] for a [manifest] in one of the engine's namespaces.
   WasmPlugin({
     required this.manifest,
     required this.spec,
@@ -656,11 +676,14 @@ final class WasmPlugin extends Flutter3dPlugin {
   @override
   final PluginManifest manifest;
 
+  /// The system's declaration: its phase, fields, events and limits.
   final WasmSystemSpec spec;
 
   /// The decoded module.
   final WasmModule module;
 
+  /// What steps the module: the interpreter unless the caller chose
+  /// another.
   final WasmRuntime runtime;
 
   WasmSystem? _system;

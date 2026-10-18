@@ -24,6 +24,8 @@ final class PhaseKind {
   /// camera, drawing, interface.
   static const PhaseKind frame = PhaseKind._('frame');
 
+  /// The kind's name, `step` or `frame`, as a manifest and a tool list write
+  /// it.
   final String name;
 
   @override
@@ -38,7 +40,10 @@ final class PhaseKind {
 /// A name is unique across both kinds — a step phase and a frame phase may
 /// not share one, since a constraint names a phase without its kind.
 final class LoopPhase {
+  /// A phase named [name] that runs inside every fixed step.
   const LoopPhase.step(this.name) : kind = PhaseKind.step;
+
+  /// A phase named [name] that runs once a displayed frame.
   const LoopPhase.frame(this.name) : kind = PhaseKind.frame;
 
   // The engine's step phases, in the order they run.
@@ -128,7 +133,11 @@ final class LoopPhase {
       kind == PhaseKind.frame ? LoopPhase.frame(now) : LoopPhase.step(now),
   };
 
+  /// The phase's name, unique across both kinds: what a system, a constraint
+  /// and a data plugin name it by.
   final String name;
+
+  /// Whether the phase runs inside the fixed step or once a frame.
   final PhaseKind kind;
 
   @override
@@ -154,6 +163,8 @@ final class LoopPhase {
 /// genre's phase, ordered against `<genre>.step` by name
 /// (`LoopRegistry.addSystem`), and reads this.
 abstract base class LoopContext {
+  /// For the engine's loop, which extends this; a system is handed one, and
+  /// never makes its own.
   const LoopContext();
 
   /// The step being run, counted from the start of the run — or, in a frame
@@ -236,6 +247,8 @@ typedef LoopSystem = void Function(LoopContext context);
 /// A constraint naming a system that is not registered is ignored: "before
 /// fire" from a plugin that works with or without the fire plugin.
 abstract base class LoopRegistry extends PluginRegistry {
+  /// For the engine's loop, which extends this; a plugin is handed one
+  /// through its host.
   const LoopRegistry();
 
   /// Adds a phase of its own kind, ordered against the others by
@@ -306,6 +319,7 @@ abstract base class LoopRegistry extends PluginRegistry {
 /// does. Made by the engine: `base`, so a member added later arrives with
 /// a default.
 abstract base class AssimilationContext {
+  /// For the engine's loop, which extends this.
   const AssimilationContext();
 
   /// The step being run, counted from the start of the run.
@@ -351,6 +365,7 @@ abstract base class AssimilationContext {
 /// `base`, so a member added later arrives with a default; [assimilate]
 /// takes one growing context, never a list of parameters.
 abstract base class Assimilation {
+  /// For an assimilation class, which supplies [assimilate].
   const Assimilation();
 
   /// An assimilation that calls [assimilate].

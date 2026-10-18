@@ -73,6 +73,8 @@ final class LogLevel implements Comparable<LogLevel> {
 
 /// One thing an [EngineLog] was told.
 final class LogRecord {
+  /// A record of [message] at [level], at place [sequence] in its log.
+  /// Without [source] nobody is named; without [time] the log had no clock.
   const LogRecord({
     required this.level,
     required this.message,
@@ -130,6 +132,8 @@ typedef CrashReporter = void Function(CrashContext crash);
 /// error came out of, the plugin that threw it — without breaking a
 /// reporter written against 1.0.
 final class CrashContext {
+  /// What a crash reporter is told of [error], thrown at [stackTrace], with
+  /// the [record] the log kept. Made by [EngineLog.reportCrash].
   const CrashContext({
     required this.error,
     required this.stackTrace,

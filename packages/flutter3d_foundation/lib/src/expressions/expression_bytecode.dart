@@ -75,47 +75,147 @@ const List<int> expressionBytecodeMagic = <int>[0x46, 0x33, 0x44, 0x58];
 
 /// The operation codes. Numbers, not an enum: they are the format.
 abstract final class ExpressionOp {
+  /// Copies `width` constants from pool index `a` into lanes from `dst`.
   static const int loadConstant = 1;
+
+  /// Copies `width` lanes from `a` to `dst`.
   static const int move = 2;
+
+  /// Writes `width` lanes picked from the register at `a`: lane `i` takes the
+  /// component in bits `2i` and `2i + 1` of `b`.
   static const int swizzle = 3;
+
+  /// Writes minus each of `width` lanes from `a`.
   static const int negate = 4;
+
+  /// Writes one lane: one where lane `a` is nought, nought otherwise.
   static const int not = 5;
+
+  /// Writes `a + b` lane by lane, either operand spread by its flag.
   static const int add = 6;
+
+  /// Writes `a - b` lane by lane, either operand spread by its flag.
   static const int subtract = 7;
+
+  /// Writes `a * b` lane by lane, either operand spread by its flag.
   static const int multiply = 8;
+
+  /// Writes `a / b` lane by lane, either operand spread by its flag.
   static const int divide = 9;
+
+  /// Writes one lane: one where lane `a` is below lane `b`, nought otherwise.
   static const int less = 10;
+
+  /// Writes one lane: one where lane `a` is at most lane `b`, nought
+  /// otherwise.
   static const int lessEqual = 11;
+
+  /// Writes one lane: one where lane `a` is above lane `b`, nought otherwise.
   static const int greater = 12;
+
+  /// Writes one lane: one where lane `a` is at least lane `b`, nought
+  /// otherwise.
   static const int greaterEqual = 13;
+
+  /// Writes one lane: one where lanes `a` and `b` are equal, nought
+  /// otherwise.
   static const int equal = 14;
+
+  /// Writes one lane: one where lanes `a` and `b` differ, nought otherwise.
   static const int notEqual = 15;
+
+  /// Writes one lane: one where lanes `a` and `b` are both not nought.
   static const int and = 16;
+
+  /// Writes one lane: one where lane `a` or lane `b` is not nought.
   static const int or = 17;
+
+  /// Copies `width` lanes from `b` where lane `a` is not nought, from `c`
+  /// otherwise: the `? :` of the language, both sides computed.
   static const int select = 18;
+
+  /// Writes one lane: the sum of the products of `width` lanes from `a` and
+  /// `b`, from nought and lane 0 first.
   static const int dot = 20;
+
+  /// Writes one lane: the square root of the sum of the squares of `width`
+  /// lanes from `a`.
   static const int length = 21;
+
+  /// Writes `width` lanes from `a` divided by their length; nought in every
+  /// lane for a length of nought.
   static const int normalize = 22;
+
+  /// Writes `a + (b - a) * c` lane by lane, each operand spread by its flag.
   static const int mix = 23;
+
+  /// Writes `a` held between `b` and `c` lane by lane, `b` winning when they
+  /// cross; each operand spread by its flag.
   static const int clamp = 24;
+
+  /// Writes the Hermite ramp of `c` between the edges `a` and `b`, lane by
+  /// lane, each operand spread by its flag.
   static const int smoothstep = 25;
+
+  /// Writes nought where `b` is below the edge `a` and one from it, lane by
+  /// lane.
   static const int step = 26;
+
+  /// Writes `a` to the power `b` lane by lane, by `Portable.pow`.
   static const int pow = 27;
+
+  /// Writes the smaller of `a` and `b` lane by lane, `a` when they are equal.
   static const int min = 28;
+
+  /// Writes the larger of `a` and `b` lane by lane, `b` when they are equal.
   static const int max = 29;
+
+  /// Writes the magnitude of each of `width` lanes from `a`.
   static const int abs = 30;
+
+  /// Writes the correctly rounded square root of each lane from `a`.
   static const int sqrt = 31;
+
+  /// Writes each lane from `a` rounded down to a whole number.
   static const int floor = 32;
+
+  /// Writes what each lane from `a` is above its floor.
   static const int fract = 33;
+
+  /// Writes the sine of each lane from `a`, in radians, by `Portable.sin`.
   static const int sin = 34;
+
+  /// Writes the cosine of each lane from `a`, in radians, by `Portable.cos`.
   static const int cos = 35;
+
+  /// Writes the tangent of each lane from `a`, in radians, by
+  /// `Portable.tan`.
   static const int tan = 36;
+
+  /// Writes the arcsine of each lane from `a`, in radians, by
+  /// `Portable.asin`.
   static const int asin = 37;
+
+  /// Writes the arccosine of each lane from `a`, in radians, by
+  /// `Portable.acos`.
   static const int acos = 38;
+
+  /// Writes the arctangent of each lane from `a`, in radians, by
+  /// `Portable.atan`.
   static const int atan = 39;
+
+  /// Writes the angle of (`b`, `a`) lane by lane, in radians, by
+  /// `Portable.atan2`.
   static const int atan2 = 40;
+
+  /// Writes e to the power of each lane from `a`, by `Portable.exp`.
   static const int exp = 41;
+
+  /// Writes the natural logarithm of each lane from `a`, by `Portable.log`.
   static const int log = 42;
+
+  /// Writes one, nought or minus one by the sign of each lane from `a`; NaN
+  /// stays NaN.
   static const int sign = 43;
 
   /// The binary operators' codes, by the operator.
@@ -219,10 +319,17 @@ final class _Dim {
 /// One input of a program: a variable's name, the lanes the host writes it
 /// into, and its type.
 final class ExpressionBytecodeInput {
+  /// The input [name], written into [width] lanes from [lane], of the
+  /// dimension at index `_dim` of the program's table.
   const ExpressionBytecodeInput(this.name, this.lane, this.width, this._dim);
 
+  /// The variable's name, as [ExpressionBytecode.runNamed] looks it up.
   final String name;
+
+  /// The first lane the host writes the value into.
   final int lane;
+
+  /// How many lanes the value takes: its count of components.
   final int width;
   final int _dim;
 }
@@ -231,6 +338,7 @@ final class ExpressionBytecodeInput {
 /// for a program that is not well formed, or whose units do not add up: bytes
 /// that are not what they claim to be, so a [Flutter3dFormatException].
 final class ExpressionBytecodeException extends Flutter3dFormatException {
+  /// A refusal that [message] explains.
   const ExpressionBytecodeException(this.message);
 
   @override
@@ -289,8 +397,13 @@ final class ExpressionBytecode {
   /// The instructions, eight `u16` each.
   final Uint16List code;
 
+  /// The first lane of the value a run answers.
   final int resultLane;
+
+  /// How many lanes the answer takes: its count of components.
   final int resultWidth;
+
+  /// The index in the dimension table of what the answer measures.
   final int resultDimension;
 
   /// How many instructions there are.

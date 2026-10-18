@@ -17,6 +17,7 @@ import 'plugin_version.dart';
 ///   registry or a member this engine does not have, and is refused;
 /// * an older minor installs.
 final class PluginApiVersion implements Comparable<PluginApiVersion> {
+  /// The version `major.minor`. Asserts that both are at least nought.
   const PluginApiVersion(this.major, this.minor)
     : assert(major >= 0 && minor >= 0, 'a version is two whole numbers');
 
@@ -51,8 +52,12 @@ final class PluginApiVersion implements Comparable<PluginApiVersion> {
   /// engine it is compiled with provides, so it always passes and says
   /// nothing about what the plugin calls.
   static const PluginApiVersion current = PluginApiVersion(1, 0);
+
+  /// The first number: plugins and engines of different majors never meet.
   final int major;
 
+  /// The second number: an engine provides every minor up to its own, and
+  /// refuses a plugin that needs a newer one.
   final int minor;
 
   /// Why a plugin needing this version cannot install on an engine that

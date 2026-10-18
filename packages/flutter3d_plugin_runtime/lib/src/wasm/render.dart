@@ -24,6 +24,9 @@ import 'system.dart' show wasmSha256Of;
 /// compute in `f32`, needs no `f3d_step`, and is refused a step module's
 /// import, at load.
 final class WasmRenderSpec {
+  /// A render module [module] driving the plugin's render step [step], with
+  /// no parameters or lights and the default [WasmLimits] unless given. A
+  /// null [sha256] is allowed only for a module in the plugin's own files.
   const WasmRenderSpec({
     required this.module,
     required this.step,
@@ -101,6 +104,8 @@ final class WasmRenderSpec {
   /// back after its own (`FormatDocument.nestedUnknownIn`).
   final Map<String, Object?> unknown;
 
+  /// The declaration as a document writes it, with [unknown] written back
+  /// after its own keys.
   Map<String, Object?> toJson() => FormatDocument.writeNested(<String, Object?>{
     'module': module,
     'step': step,

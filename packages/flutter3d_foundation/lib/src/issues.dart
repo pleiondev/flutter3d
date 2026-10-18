@@ -15,6 +15,7 @@ library;
 /// spoke, means widening `void Function(String)` and breaking every sink
 /// anybody has written. Adding a field here does not.
 final class Issue {
+  /// An issue saying [message], a warning unless [severity] says otherwise.
   const Issue(this.message, {this.severity = Severity.warning});
 
   /// What went wrong, in a sentence a person can read.

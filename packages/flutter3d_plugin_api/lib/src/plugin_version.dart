@@ -10,6 +10,8 @@ import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 /// a document, a version in a hello, a range in `dependsOn`. [source] is the
 /// text or the map that was refused, for the report.
 final class PluginFormatException extends Flutter3dFormatException {
+  /// A refusal that [message] explains, with the text or map that was
+  /// refused as [source] when there is one.
   const PluginFormatException(this.message, [this.source]);
 
   @override
@@ -32,6 +34,9 @@ final class PluginFormatException extends Flutter3dFormatException {
 /// plugin's `dependsOn` range is held to and which `SimulationVersion` names
 /// beside the plugin's simulation number.
 final class PluginVersion implements Comparable<PluginVersion> {
+  /// The version `major.minor.patch`, with `-preRelease` after it when
+  /// [preRelease] is given. Asserts that all three numbers are at least
+  /// nought.
   const PluginVersion(this.major, this.minor, this.patch, {this.preRelease})
     : assert(major >= 0 && minor >= 0 && patch >= 0, 'whole numbers');
 
@@ -56,9 +61,17 @@ final class PluginVersion implements Comparable<PluginVersion> {
   /// What a manifest that names no version is read as: before any release,
   /// which every range from `any` and `>=0.0.0` accepts.
   static const PluginVersion none = PluginVersion(0, 0, 0);
+
+  /// The first number, at least nought: a change here breaks callers, and a
+  /// caret range stops before the next one.
   final int major;
+
+  /// The second number, at least nought: what a release that adds without
+  /// breaking raises. Below 1.0.0 it is the breaking number instead.
   final int minor;
 
+  /// The third number, at least nought: what a release of fixes alone
+  /// raises.
   final int patch;
 
   /// The part after `-`, or null for a release.
@@ -90,9 +103,16 @@ final class PluginVersion implements Comparable<PluginVersion> {
     return a.compareTo(b);
   }
 
+  /// Whether this version comes before [other], as [compareTo] orders them.
   bool operator <(PluginVersion other) => compareTo(other) < 0;
+
+  /// Whether this version comes before [other] or equals it.
   bool operator <=(PluginVersion other) => compareTo(other) <= 0;
+
+  /// Whether this version comes after [other], as [compareTo] orders them.
   bool operator >(PluginVersion other) => compareTo(other) > 0;
+
+  /// Whether this version comes after [other] or equals it.
   bool operator >=(PluginVersion other) => compareTo(other) >= 0;
 
   @override
@@ -113,6 +133,9 @@ final class PluginVersion implements Comparable<PluginVersion> {
 /// The pub syntax, cut to what a plugin dependency needs: a lower bound that
 /// is inclusive, an upper bound that is exclusive, either may be missing.
 final class VersionRange {
+  /// A range from [min], inclusive, up to [max], exclusive unless
+  /// [includeMax]. A null bound leaves that side open; with neither, the
+  /// range is [any].
   const VersionRange({this.min, this.max, this.includeMax = false});
 
   /// Exactly [version].
@@ -175,6 +198,8 @@ final class VersionRange {
   /// [includeMax]; null for no upper bound.
   final PluginVersion? max;
 
+  /// Whether [max] itself is accepted: true for `<=` and an exact version,
+  /// false for `<` and a caret range.
   final bool includeMax;
 
   /// Whether [version] is in the range.
@@ -223,6 +248,8 @@ final class VersionRange {
 /// Written as one string, so a manifest stays a list of names: `'heat'`
 /// accepts any version, `'heat ^1.2.0'` and `'heat >=1.0.0 <3.0.0'` a range.
 final class PluginDependency {
+  /// A dependency on the plugin [id] at a version in [range], any version by
+  /// default.
   const PluginDependency(this.id, [this.range = VersionRange.any]);
 
   /// Reads `'id'` or `'id <range>'`. Throws a [PluginFormatException] when

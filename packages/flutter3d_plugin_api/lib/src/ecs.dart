@@ -89,6 +89,8 @@ extension type const Entity._(int packed) {
 /// `base`, so a member added later arrives with a default: extend this, or
 /// use [ComponentCodec.of].
 abstract base class ComponentCodec<T extends Object> {
+  /// For a codec class, which supplies [id], [encode] and [decode], and
+  /// [version] once its shape has changed.
   const ComponentCodec();
 
   /// A codec made of two functions.
@@ -180,6 +182,8 @@ final class _FunctionCodec<T extends Object> extends ComponentCodec<T> {
 /// belongs to, the plugin that wrote it — without breaking a codec written
 /// against 1.0.
 final class ComponentDecodeContext {
+  /// What the world hands [ComponentCodec.decode]: the row [data] written at
+  /// [version].
   const ComponentDecodeContext(this.data, {required this.version});
 
   /// The row as [ComponentCodec.encode] wrote it: plain values.
@@ -194,6 +198,8 @@ final class ComponentDecodeContext {
 ///
 /// One object, for the reason [ComponentDecodeContext] gives.
 final class ComponentRestoreContext<T extends Object> {
+  /// What the world hands [InPlaceCodec.restoreInto]: the component [value]
+  /// already on the entity, and the row [data] written at [version].
   const ComponentRestoreContext(this.value, this.data, {required this.version});
 
   /// The component on the entity, which the row is written into.
@@ -214,6 +220,8 @@ final class ComponentRestoreContext<T extends Object> {
 /// component of this type is not there is skipped on restore, which is the
 /// documented edge of what a snapshot restores.
 abstract base class InPlaceCodec<T extends Object> extends ComponentCodec<T> {
+  /// For a codec class, which supplies [restoreInto] besides what a
+  /// [ComponentCodec] supplies.
   const InPlaceCodec();
 
   /// A codec of this kind made of two functions.
@@ -270,6 +278,8 @@ final class _FunctionInPlaceCodec<T extends Object> extends InPlaceCodec<T> {
 
 /// One registered component type, as a tool lists it.
 final class ComponentInfo {
+  /// One registered component type as the registry lists it; made by the
+  /// registry, not by a plugin.
   const ComponentInfo({
     required this.type,
     required this.id,
@@ -317,6 +327,8 @@ final class ComponentInfo {
 /// (`register(name, encode:, decode:)`, `registerInPlace`, `exclude`) are
 /// gone, and the migration guide shows each caller its codec.
 abstract base class ComponentRegistry extends PluginRegistry {
+  /// For the engine's world, which extends this; a plugin is handed one
+  /// through its host.
   const ComponentRegistry();
 
   /// Says how components of type [T] are written down. Throws an
@@ -354,6 +366,8 @@ abstract base class ComponentRegistry extends PluginRegistry {
 /// then find, makes the walk depend on the storage; queued here, it happens
 /// after the phase, the same way on every run.
 abstract base class SimCommands {
+  /// For the engine's world, which extends this; a system reaches it through
+  /// `SimWorld.commands`.
   const SimCommands();
 
   /// Spawns an entity at the end of the phase and hands it to [build], with
@@ -383,6 +397,8 @@ abstract base class SimCommands {
 /// spawned at, the system that asked — without breaking a builder written
 /// against 1.0.
 final class SimSpawned {
+  /// What a deferred spawn hands its builder: the new [entity] and the
+  /// [world] it is in. Made by the world.
   const SimSpawned(this.world, this.entity);
 
   /// The world the entity was spawned in.
@@ -403,6 +419,7 @@ final class SimSpawned {
 ///
 /// `having` rather than `with`, which is a word Dart keeps for itself.
 abstract base class SimQuery {
+  /// For the engine's world, which extends this.
   const SimQuery();
 
   /// Only entities carrying a [T].
@@ -435,6 +452,8 @@ abstract base class SimQuery {
 /// a hash map's order; spawn reuses indices in the order they were freed; a
 /// deferred command runs in the order it was asked.
 abstract base class SimWorld {
+  /// For the engine's world, which extends this; a system is handed one, and
+  /// never makes its own.
   const SimWorld();
 
   /// How many entities exist right now.
@@ -501,6 +520,7 @@ abstract base class SimWorld {
 /// wrote at; the registry refuses data from a newer version than this part
 /// reads, naming the part.
 abstract base class SnapshotPart {
+  /// For a part class, which supplies [id], [capture] and [restore].
   const SnapshotPart();
 
   /// A part made of functions.
@@ -573,6 +593,8 @@ final class _FunctionPart extends SnapshotPart {
 ///
 /// One object, for the reason [ComponentDecodeContext] gives.
 final class SnapshotRestoreContext {
+  /// What the registry hands [SnapshotPart.restore]: the part's [data] as
+  /// captured at [version].
   const SnapshotRestoreContext(this.data, {required this.version});
 
   /// What [SnapshotPart.capture] wrote: plain values.
@@ -595,6 +617,7 @@ final class SnapshotRestoreContext {
 /// cover every part anybody registered, so a part added later is covered by
 /// every use at once.
 abstract base class SnapshotRegistry extends PluginRegistry {
+  /// For the engine's registry, which extends this.
   const SnapshotRegistry();
 
   /// Adds [part]. Throws an [ArgumentError] when its id is taken.

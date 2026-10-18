@@ -32,6 +32,9 @@ export 'package:flutter3d_mcp/kit.dart' show Answer;
 /// sixty-four snapshots behind it would quietly become sixty-four snapshots of
 /// somebody else's work.
 final class EditorSession {
+  /// A session on [editing]. Without [play] it runs the project around the
+  /// level's path, without [pieces] it has the editor's own pieces alone,
+  /// and without [root] file tools stay inside the project around the level.
   EditorSession(
     this.editing, {
     PlaySession? play,
@@ -51,6 +54,7 @@ final class EditorSession {
   factory EditorSession.open(String path) =>
       EditorSession(Editing.parse(File(path).readAsStringSync(), path: path));
 
+  /// The open document, with its undo history: what every tool changes.
   final Editing editing;
 
   /// The directory every path a tool hands this session must lie inside —
@@ -345,12 +349,6 @@ final class EditorSession {
     );
   }
 
-  /// Adds a recipe to the level — a room, a corridor or a scatter, built by a
-  /// seeded kit — and says what it builds.
-  ///
-  /// The document keeps the recipe rather than its brushes, which is why the
-  /// answer counts them: `list` shows what the document holds, and a recipe
-  /// is expanded only where the level is used. Undoable like any change.
   /// A whole level made by `generateLevel` from [rules] and [seed], in
   /// place of the open one — one step of undo — and what it is made of.
   /// Off this thread, since a big grid of rooms is a bake and a route.
@@ -373,6 +371,14 @@ final class EditorSession {
     );
   }
 
+  /// Adds [recipe] to the level — a room, a corridor or a scatter, built by a
+  /// seeded kit — and says what it builds: brushes, entities and lights,
+  /// counted.
+  ///
+  /// The document keeps the recipe rather than its brushes, which is why the
+  /// answer counts them: `list` shows what the document holds, and a recipe
+  /// is expanded only where the level is used. One step of undo. Refuses,
+  /// changing nothing, a recipe the level format does not take.
   Answer generate(LevelRecipe recipe) {
     try {
       final built = editing.addRecipe(recipe);

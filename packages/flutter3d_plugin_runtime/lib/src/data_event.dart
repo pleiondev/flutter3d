@@ -10,6 +10,8 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 /// module, whatever a script chose. Subscribe to `PluginDataEvent` and match
 /// on [name].
 final class PluginDataEvent extends BusEvent {
+  /// An event published as [name], `<plugin id>.<event>`, carrying
+  /// [values].
   const PluginDataEvent(this.name, this.values);
 
   @override

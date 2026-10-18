@@ -23,6 +23,8 @@ const int _pageBytes = 65536;
 /// decode has already resolved every branch to a jump and checked every
 /// type, so what is left here is a loop over flat instructions.
 final class WasmInterpreter extends WasmRuntime {
+  /// The interpreter; it holds no state, so one instance serves every
+  /// module.
   const WasmInterpreter();
 
   @override

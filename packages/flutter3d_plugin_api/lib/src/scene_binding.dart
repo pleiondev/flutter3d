@@ -18,6 +18,7 @@ final class BindingInterpolation {
   /// frame is between them — what a rendered body wants at a fixed step.
   static const BindingInterpolation linear = BindingInterpolation._('linear');
 
+  /// Every interpolation this build knows, in the order a tool lists them.
   static const List<BindingInterpolation> values = <BindingInterpolation>[
     step,
     linear,
@@ -53,6 +54,7 @@ final class BindingLifetime {
   /// status effect) and a node that is costly to make.
   static const BindingLifetime entity = BindingLifetime._('entity');
 
+  /// Every lifetime this build knows, in the order a tool lists them.
   static const List<BindingLifetime> values = <BindingLifetime>[
     component,
     entity,
@@ -89,6 +91,9 @@ final class BindingLifetime {
 /// the engine's `SceneBindings` knows, or `<namespace>.<kind>` for a kind a
 /// plugin adds there.
 final class SceneBindingSpec {
+  /// A binding of [component] to a node of [nodeKind]: blended between steps
+  /// ([BindingInterpolation.linear]) and made and dropped with the component
+  /// ([BindingLifetime.component]) unless told otherwise.
   const SceneBindingSpec({
     required this.component,
     required this.nodeKind,
@@ -214,6 +219,7 @@ final class SceneBindingSpec {
 /// Made by the engine: `base`, so a member added in a later minor arrives
 /// with a default.
 abstract base class SceneBindingRegistry extends PluginRegistry {
+  /// For the engine's registry, which extends this.
   const SceneBindingRegistry();
 
   /// Makes [spec] how its component is shown, until the result is

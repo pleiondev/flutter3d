@@ -515,6 +515,9 @@ String _named(Map<Object?, Object?> json, String name, String what) =>
 /// entity of one of [entityTypes] shows the section; empty shows it on
 /// every entity.
 final class ComponentHints {
+  /// Hints for the component whose codec id is [id], shown under [title];
+  /// with no [fields] the heading has nothing under it, and with no
+  /// [entityTypes] it shows on every entity.
   const ComponentHints({
     required this.id,
     required this.title,
@@ -575,6 +578,8 @@ final class ComponentHints {
 /// a type is read by every genre that speaks it, as `EntityKinds` keys its
 /// kinds.
 final class EntityKindHints {
+  /// Hints for the entity type [type]; a null [label] shows the type itself
+  /// and a null [tint] lets the type's name pick the colour.
   const EntityKindHints({
     required this.type,
     this.label,
@@ -665,6 +670,8 @@ final class EntityKindHints {
 /// `acme.velvet`): what a material file's `shader` names, the model's
 /// `shaderName`.
 final class MaterialHints {
+  /// Hints for the lighting model [model], with one [FieldHint] per uniform
+  /// the material panel shows; none by default.
   const MaterialHints({required this.model, this.fields = const <FieldHint>[]});
 
   /// The lighting model's stage name.
@@ -722,6 +729,8 @@ final class MaterialHints {
 /// Extended by the editor, called by plugins: `base`, so a member added in
 /// a minor arrives with a default.
 abstract base class EditorHintRegistry extends PluginRegistry {
+  /// For the editor's registry, which extends this; a plugin is handed one
+  /// through `maybeRegistry` and never makes its own.
   const EditorHintRegistry();
 
   /// Shows [hints] in the inspector of every entity they belong on. Throws
@@ -766,6 +775,7 @@ abstract base class EditorHintRegistry extends PluginRegistry {
 ///
 /// `base`, so a member added here in a 1.x release arrives with a body.
 abstract base class EditorCommandValue {
+  /// For a command class, which supplies [name] and [arguments].
   const EditorCommandValue();
 
   /// What the command is called: `<namespace>.<name>` for a plugin's, one

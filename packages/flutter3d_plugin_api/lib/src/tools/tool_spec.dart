@@ -19,6 +19,8 @@ import 'dart:typed_data';
 /// what to do with them. Ours are kept honest by the snapshot, which prints
 /// them, so a tool that starts deleting things shows up in review.
 final class ToolHints {
+  /// Hints that are all false unless given. Asserts that a tool is not both
+  /// [readOnly] and [destructive].
   const ToolHints({
     this.readOnly = false,
     this.destructive = false,
@@ -50,8 +52,12 @@ final class ToolHints {
   /// Removes or overwrites something that may not come back: a file
   /// written over, a document replaced, a process stopped.
   static const ToolHints destroys = ToolHints(destructive: true);
+
+  /// Whether the tool reads and changes nothing; written as `readOnlyHint`.
   final bool readOnly;
 
+  /// Whether the tool may remove or overwrite something that does not come
+  /// back; written as `destructiveHint`, and never true with [readOnly].
   final bool destructive;
 
   /// Calling it twice with the same arguments does what calling it once did.
@@ -93,6 +99,9 @@ final class ToolHints {
 /// **Schemas are JSON**, the maps the protocol sends, so a tool can be
 /// written with any schema builder or by hand, and nothing here pins one.
 final class ToolSpec {
+  /// A tool called [name]. Its schemas and [meta] are copied unmodifiable;
+  /// without [inputSchema] it takes an object of any shape, and without
+  /// [hints] it is [ToolHints.writes].
   ToolSpec({
     required this.name,
     this.description,
@@ -141,6 +150,7 @@ final class ToolSpec {
   /// it may act on before it calls.
   final Map<String, Object?>? outputSchema;
 
+  /// What the tool says about its effects, as the protocol's `annotations`.
   final ToolHints hints;
 
   /// The protocol's `_meta`, for what a server says about the tool beyond
@@ -200,6 +210,7 @@ final class ToolSpec {
 /// it came, so a result read and written again keeps it rather than turning
 /// it into empty words.
 abstract base class ToolContent {
+  /// For a content class, which supplies [toJson].
   const ToolContent();
 
   /// Reads one of the protocol's content objects: `text`, `image`, `audio`,
@@ -245,8 +256,10 @@ abstract base class ToolContent {
 
 /// Words a tool answers with.
 final class ToolText extends ToolContent {
+  /// Words, as a `text` content object carries them.
   const ToolText(this.text);
 
+  /// The words, as a model reads them.
   final String text;
 
   @override
@@ -258,9 +271,13 @@ final class ToolText extends ToolContent {
 
 /// A picture a tool answers with: the encoded bytes and their media type.
 final class ToolImage extends ToolContent {
+  /// A picture of [bytes] encoded as [mimeType], PNG by default.
   const ToolImage(this.bytes, {this.mimeType = 'image/png'});
 
+  /// The encoded picture, written base64 as the content's `data`.
   final Uint8List bytes;
+
+  /// The media type of [bytes]: `image/png` unless told otherwise.
   final String mimeType;
 
   @override
@@ -274,9 +291,13 @@ final class ToolImage extends ToolContent {
 /// A sound a tool answers with: the encoded bytes and their media type
 /// (`audio/wav`, `audio/ogg`).
 final class ToolAudio extends ToolContent {
+  /// A sound of [bytes] encoded as [mimeType].
   const ToolAudio(this.bytes, {required this.mimeType});
 
+  /// The encoded sound, written base64 as the content's `data`.
   final Uint8List bytes;
+
+  /// The media type of [bytes]: `audio/wav`, `audio/ogg`.
   final String mimeType;
 
   @override
@@ -290,15 +311,24 @@ final class ToolAudio extends ToolContent {
 /// A resource carried inside the answer: its [uri], and its contents as
 /// [text] or as bytes ([blob]).
 final class ToolResource extends ToolContent {
+  /// The resource at [uri] with its contents. Asserts that exactly one of
+  /// [text] and [blob] is given.
   const ToolResource({required this.uri, this.mimeType, this.text, this.blob})
     : assert(
         (text == null) != (blob == null),
         'a resource carries text or bytes, one of them',
       );
 
+  /// Where the resource lives, as the client names it.
   final String uri;
+
+  /// The media type of the contents; null when the server names none.
   final String? mimeType;
+
+  /// The contents as text; null when they are bytes in [blob].
   final String? text;
+
+  /// The contents as bytes, written base64; null when they are [text].
   final Uint8List? blob;
 
   @override
@@ -315,6 +345,7 @@ final class ToolResource extends ToolContent {
 
 /// A link to a resource the client may read, rather than its contents.
 final class ToolResourceLink extends ToolContent {
+  /// A link to the resource at [uri] called [name].
   const ToolResourceLink({
     required this.uri,
     required this.name,
@@ -322,9 +353,16 @@ final class ToolResourceLink extends ToolContent {
     this.mimeType,
   });
 
+  /// Where the resource lives, for the client to read.
   final String uri;
+
+  /// The resource's name, which a client shows for the link.
   final String name;
+
+  /// What the resource holds, for a model to read; null when not said.
   final String? description;
+
+  /// The media type of the resource; null when not said.
   final String? mimeType;
 
   @override
@@ -340,6 +378,7 @@ final class ToolResourceLink extends ToolContent {
 /// Content of a kind this build has no class for, kept as the JSON it came
 /// as and written back unchanged.
 final class ToolOtherContent extends ToolContent {
+  /// Content kept as [json], copied unmodifiable.
   ToolOtherContent(Map<String, Object?> json)
     : json = Map<String, Object?>.unmodifiable(json);
 
@@ -361,6 +400,9 @@ final class ToolOtherContent extends ToolContent {
 /// something else. An exception is the server failing, which is reported
 /// to the host as that.
 final class ToolResult {
+  /// An answer of [content] and, when the tool declares an output schema,
+  /// [structuredContent], both copied unmodifiable. [isError] marks a
+  /// refusal.
   ToolResult({
     List<ToolContent> content = const <ToolContent>[],
     Map<String, Object?>? structuredContent,
@@ -385,8 +427,15 @@ final class ToolResult {
     isError: json['isError'] == true,
   );
 
+  /// What a model reads, in order: words, pictures, sounds, resources.
   final List<ToolContent> content;
+
+  /// The machine-readable answer, which fits the tool's `outputSchema`; null
+  /// for a tool that answers in [content] alone.
   final Map<String, Object?>? structuredContent;
+
+  /// Whether the answer is a refusal, which tells the agent to try something
+  /// else, rather than a result.
   final bool isError;
 
   /// The words of every [ToolText], one per line.

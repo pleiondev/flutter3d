@@ -18,6 +18,8 @@ import 'registration.dart';
 /// application's own list — data a correct program can be handed — and a
 /// plugin manager reports it as the install that failed.
 final class FormatRegistrationException extends PluginException {
+  /// A refusal that [message] explains: the id, alias or suffix already
+  /// taken and by whom, or a format with no version.
   const FormatRegistrationException(super.message);
 
   @override

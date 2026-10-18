@@ -37,6 +37,7 @@ final class ProjectTool {
   /// name, `<namespace>.<name>`.
   final ToolSpec spec;
 
+  /// What answers a call of the tool, handed the call with its arguments.
   final ProjectToolRun run;
 
   /// The plugin's namespace (`PluginManifest.namespace`), or the namespace
@@ -69,6 +70,7 @@ final class ProjectTool {
 /// them are `flutter3d_mcp`'s, which re-exports it, and a game that ships
 /// the plugin never resolves them.
 abstract base class McpToolRegistry extends PluginRegistry {
+  /// For the registry a project fills, which extends this.
   const McpToolRegistry();
 }
 

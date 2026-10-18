@@ -75,6 +75,8 @@ typedef _PlaytestArgs = ({
 /// One playthrough, played to an ending rather than to a snapshot —
 /// [Playtest.run] asks for many of these at once.
 final class PlaytestRun {
+  /// One playthrough of [seed] that ended in [outcome] after [steps] steps;
+  /// made by [Playtest.run].
   const PlaytestRun({
     required this.seed,
     required this.steps,
@@ -82,8 +84,15 @@ final class PlaytestRun {
     required this.positions,
   });
 
+  /// The seed of the random policy that played it: the run's index in its
+  /// batch.
   final int seed;
+
+  /// How many fixed steps it ran before it ended, at most
+  /// [Playtest.maxSteps].
   final int steps;
+
+  /// How it ended: died, exited, stuck or out of steps.
   final PlaytestOutcome outcome;
 
   /// Sampled every [Playtest.sampleEvery] steps — the trail
@@ -109,6 +118,9 @@ final class PlaytestRun {
 /// [maxSteps] rather than by a timeout on the isolate, since a killed
 /// isolate would report nothing about why.
 final class Playtest {
+  /// Playthroughs of [game], each capped at [maxSteps] steps, a minute at
+  /// sixty a second; a position kept every [sampleEvery] steps; and stuck
+  /// when it moves less than [stuckStride] metres in [stuckAfter] steps.
   const Playtest({
     required this.game,
     this.maxSteps = 3600,

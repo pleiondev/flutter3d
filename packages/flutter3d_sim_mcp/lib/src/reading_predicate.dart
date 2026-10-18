@@ -21,6 +21,7 @@ import 'package:flutter3d_sim/flutter3d_sim.dart' show HeadlessRun;
 /// Thrown when a claim cannot be read, or names somebody the reading does not
 /// have.
 final class ReadingPredicateException extends Flutter3dFormatException {
+  /// A refusal that [message] explains.
   const ReadingPredicateException(this.message);
 
   @override
@@ -113,8 +114,10 @@ abstract final class ReadingPredicate {
 
 /// [who] stands within [within] metres of [point].
 final class NearPredicate extends ReadingPredicate {
+  /// The claim that [who] stands within [within] metres of [point].
   const NearPredicate(super.who, {required this.point, required this.within});
 
+  /// The place, three coordinates in metres in the level's space.
   final List<double> point;
 
   /// How near [who] has to stand to [point], in metres.
@@ -137,9 +140,13 @@ final class NearPredicate extends ReadingPredicate {
 
 /// [who] stands inside the box from [min] to [max], edges included.
 final class InsidePredicate extends ReadingPredicate {
+  /// The claim that [who] stands inside the box from [min] to [max].
   const InsidePredicate(super.who, {required this.min, required this.max});
 
+  /// The box's lowest corner, three coordinates in metres.
   final List<double> min;
+
+  /// The box's highest corner, three coordinates in metres.
   final List<double> max;
 
   @override
@@ -155,8 +162,10 @@ final class InsidePredicate extends ReadingPredicate {
 
 /// [who] is up when [alive] is true, and down when it is false.
 final class AlivePredicate extends ReadingPredicate {
+  /// The claim that [who] is alive, or with [alive] false, that it is not.
   const AlivePredicate(super.who, {required this.alive});
 
+  /// Whether the claim is that [who] is up (true) or down (false).
   final bool alive;
 
   @override
@@ -169,6 +178,8 @@ final class AlivePredicate extends ReadingPredicate {
 /// [who]'s health is under [below] and at least [atLeast], whichever of the
 /// two are given.
 final class HealthPredicate extends ReadingPredicate {
+  /// The claim about [who]'s health. Throws a [ReadingPredicateException]
+  /// when neither [below] nor [atLeast] is given.
   HealthPredicate(super.who, {this.below, this.atLeast}) {
     if (below == null && atLeast == null) {
       throw const ReadingPredicateException(

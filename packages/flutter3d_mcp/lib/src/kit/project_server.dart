@@ -41,6 +41,9 @@ const String projectMcpSchemaVersion = '1.0.0';
 /// Every tool it lists is `<namespace>.<name>`, kept in step as plugins are
 /// switched on and off.
 base class ProjectMcpServer extends ToolTableServer<McpTools, ToolResult> {
+  /// A server over [channel] offering [tools], the project's MCP tools,
+  /// under the name `flutter3d.project`. It has no tools of its own, so what
+  /// it lists changes as plugins are switched on and off.
   ProjectMcpServer(
     super.channel, {
     required McpTools tools,

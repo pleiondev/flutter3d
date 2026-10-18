@@ -12,6 +12,9 @@ import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 /// handed — so a caller that installs plugins catches this as it catches
 /// any other refusal to install, rather than treating it as a bug.
 final class ConstraintCycleException extends PluginException {
+  /// A refusal naming what was being ordered, [what], and the members of
+  /// [cycle]. An empty [cycle] throws a [StateError] while the message is
+  /// built.
   ConstraintCycleException({required this.what, required this.cycle})
     : super(
         'the $what are ordered in a circle: '

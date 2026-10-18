@@ -194,6 +194,10 @@ const Map<String, int> wasmExportSince = <String, int>{
 /// ([fuelPerFrame]), so a render node that runs away stops at the same
 /// instruction on every device rather than taking a slow one's frame.
 final class WasmLimits {
+  /// Limits of 16 pages of memory (1 MiB), a million instructions a step, a
+  /// call depth of 64 and [defaultFuelPerFrame] instructions a frame,
+  /// unless given. Takes any number; [WasmLimits.fromJson] is what refuses
+  /// one that is not above nought.
   const WasmLimits({
     this.memoryPages = 16,
     this.fuelPerStep = 1000000,
@@ -251,6 +255,7 @@ final class WasmLimits {
 /// A Wasm system's declaration, or a module's saved state, that cannot be
 /// read: the sentence names the key.
 final class WasmFormatException extends Flutter3dFormatException {
+  /// A refusal that [message] explains, naming the key.
   const WasmFormatException(this.message);
 
   @override
@@ -264,6 +269,8 @@ final class WasmFormatException extends Flutter3dFormatException {
 /// than it may have. The message names the section, the opcode or the
 /// import.
 final class WasmException extends PluginException {
+  /// A refusal to load that [message] explains, naming the section, the
+  /// opcode or the import.
   const WasmException(super.message);
 
   @override
@@ -273,6 +280,7 @@ final class WasmException extends PluginException {
 /// A module that stopped while running: an `unreachable`, a division by
 /// nought, a read past its memory, a budget spent.
 final class WasmTrapException extends PluginException {
+  /// A trap that [message] describes.
   const WasmTrapException(super.message);
 
   @override
@@ -286,6 +294,8 @@ final class WasmTrapException extends PluginException {
 /// fields; a test implements it to hand a module numbers of its own. A
 /// method throws [WasmTrapException] to stop the module.
 abstract base class WasmImports {
+  /// For a host's imports, which supplies [fieldLength], [fieldGet],
+  /// [fieldSet] and [publish].
   const WasmImports();
 
   /// `field_len(field)`: how many values field [field] holds.
@@ -457,6 +467,7 @@ final class WasmRenderImports {
 /// Two ship: [interpreter], plain Dart on every platform and metered, and
 /// `browserWasmRuntime()`, the browser's own WebAssembly, which is not.
 abstract base class WasmRuntime {
+  /// For a runtime, which supplies [name], [isMetered] and [instantiate].
   const WasmRuntime();
 
   /// The interpreter: the default, and the runtime a replay is held to.
@@ -481,6 +492,8 @@ abstract base class WasmRuntime {
 /// declared fields, a debug hook — without breaking a runtime written
 /// against 1.0.
 final class WasmInstantiation {
+  /// A step module ([WasmModuleKind.step]) whose imports call [imports],
+  /// held to [limits]; [render] is null.
   const WasmInstantiation(
     this.module, {
     required this.imports,
@@ -510,6 +523,7 @@ final class WasmInstantiation {
 
 /// One running module.
 abstract base class WasmInstance {
+  /// For a runtime's instance, which supplies [step] and [save] at least.
   const WasmInstance();
 
   /// Calls the module's `f3d_step(step, dt)` with the step's
@@ -558,6 +572,8 @@ abstract base class WasmInstance {
 /// nothing; an instance reads it during [WasmInstance.step] and does not
 /// keep it.
 final class WasmStep {
+  /// A step call at step nought with a length of nought, for the owner to
+  /// set before each step.
   WasmStep({this.step = 0, this.dtFixed = 0});
 
   /// The simulation step being run.
@@ -573,6 +589,8 @@ final class WasmStep {
 /// [WasmInstantiation] gives. **Reused**, as [WasmStep] is: the render
 /// node that calls a module owns one and sets it before every frame.
 final class WasmRenderCall {
+  /// A render call for frame nought and view nought, for the owner to set
+  /// before each frame.
   WasmRenderCall({this.frame = 0, this.view = 0});
 
   /// The frame being drawn, counted by the renderer from nought.

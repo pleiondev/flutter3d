@@ -35,6 +35,9 @@ import 'simulation_profile.dart';
 /// its own (`PluginManifest.simulationVersion`) and a network hello in a
 /// package with no engine dependency carries the whole of it.
 final class SimulationVersion {
+  /// The simulation an engine runs: this build's [engine] number unless
+  /// given, no genre, no plugins, no subsystems and the deterministic
+  /// profile by default. [genreVersion] counts only when [genre] is given.
   const SimulationVersion({
     this.engine = engineVersion,
     this.genre,
@@ -350,6 +353,10 @@ final class SimulationVersion {
     if (profile != SimulationProfile.deterministic) '${profile.name} profile',
   ].join(', ');
 
+  /// The version as plain values, its maps in key order so two equal
+  /// versions write the same text. The genre, the profile and an empty map
+  /// are left out at their defaults, and [extra] is written back after the
+  /// known keys; [fromJson] reads it back.
   Map<String, Object?> toJson() => <String, Object?>{
     'engine': engine,
     if (genre != null) 'genre': genre,
