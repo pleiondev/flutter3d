@@ -5,7 +5,7 @@ description: Move a project written against flutter3d 0.8 to 1.0.0-rc.1, with on
 # Migrating from 0.8 to 1.0
 
 1.0 is the release the engine promises to keep: from it on, a break comes
-only in a major version. To get there, and on to this release, the API changed in 2368 places,
+only in a major version. To get there, and on to this release, the API changed in 2369 places,
 316 of them left to you; 380 are backend internals no application called.
 The rest a program carries out for you, and three
 tools share the work. All three read the same tables,
@@ -225,7 +225,7 @@ carried out:
 
 <!-- migration-table:start -->
 
-*Generated from `flutter3d_build/lib/migrations/` — 273 entries from 1.0.0-rc.1 to the release after 1.0.0-rc.1, 15 by hand: 23 `dart fix`, 161 `migrate`, 15 by hand, 74 nothing to do.*
+*Generated from `flutter3d_build/lib/migrations/` — 274 entries from 1.0.0-rc.1 to the release after 1.0.0-rc.1, 15 by hand: 23 `dart fix`, 161 `migrate`, 15 by hand, 75 nothing to do.*
 
 ### `flame_flutter3d`
 
@@ -558,6 +558,7 @@ carried out:
 
 ### `flutter3d_plugin_api`
 
+- <a id="plugin_api-LoopRegistry-addSystem-access"></a>**`LoopRegistry.addSystem`** (nothing to do). `addSystem` takes optional `reads:` and `writes:`, empty by default, so every call compiles as it did. A class of your own that extends `LoopRegistry` adds the two named parameters to its `addSystem`.
 - <a id="plugin_api-OriginShifted-offset-record"></a>**`OriginShifted.offset`** (`migrate`). `OriginShifted` is a class: `.x` is `.x`, `.y` is `.y`, `.z` is `.z`; a destructuring pattern is yours to rewrite. `offset` is a `WorldOffset` with `x`, `y` and `z`, in metres, where it was a record; field reads are unchanged.
 - <a id="plugin_api-RenderAnchor-f3d"></a>**`RenderAnchor`** (nothing to do). Each engine anchor is named `f3d.<name>` (`f3d.after_bloom` where it was `after bloom`); `RenderAnchor.named` still finds one by its old word. Code that compared an anchor's name with a string uses the new word.
 
