@@ -1,0 +1,18 @@
+# **The applications' options: the root's, less the doc-comment rule.**
+#
+# `public_member_api_docs` is an error in every package, because a package's
+# public member is somebody else's API and its doc comment is the only place
+# that says what it takes, in which unit, and what it refuses. An app, a demo,
+# a package's `example/` or a tool under `tool/` has no such reader: nothing
+# imports its `lib/`, and a class being public there is Dart's default rather
+# than a promise. So the apps, the demos and the tools include this file
+# instead of the root one, and every other rule still holds for them.
+#
+# `examples/flutter3d_backend_null` and `examples/outside_plugin` stay on the
+# root file: they are the templates an outside author copies, and what they
+# show is read as API.
+include: analysis_options.yaml
+
+analyzer:
+  errors:
+    public_member_api_docs: ignore

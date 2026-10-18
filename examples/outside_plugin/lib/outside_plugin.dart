@@ -81,6 +81,8 @@ const FieldDeclaration heatField = FieldDeclaration(
 /// Float32 values and `+`, `-`, `*` alone, so a field stepped from one
 /// state on two machines holds the same bits on both.
 final class Warming extends Subsystem {
+  /// A solver with an empty field; it starts holding heat when contacts
+  /// leave some.
   Warming();
 
   /// Its id, and its system's name in the loop.
@@ -173,6 +175,8 @@ final class Warming extends Subsystem {
 /// The plugin: declares the field, registers the solver and, where the
 /// profile runs it, listens to the contacts.
 final class OutsidePlugin extends Flutter3dPlugin {
+  /// The plugin, installed through the plugin manager like any other; it
+  /// holds nothing until it is.
   OutsidePlugin();
 
   /// The plugin's id, and its namespace.

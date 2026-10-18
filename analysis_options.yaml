@@ -41,6 +41,8 @@ analyzer:
     # The same for each automatic migration kind: a `before/` written against
     # the old shape and an `after/` the kind's test compares byte for byte.
     - packages/flutter3d_build/test/fixtures/migrate_kinds/**
+  errors:
+    public_member_api_docs: error
 include: package:flutter_lints/flutter.yaml
 
 linter:
@@ -74,6 +76,7 @@ linter:
     - no_adjacent_strings_in_list
     - only_throw_errors
     - prefer_final_locals
+    - public_member_api_docs
     - throw_in_finally
     - unawaited_futures
     - unnecessary_await_in_return
