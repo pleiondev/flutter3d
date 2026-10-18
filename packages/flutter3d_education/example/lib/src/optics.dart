@@ -38,15 +38,28 @@ typedef _Layer = ({
 /// blue, in units of the light that would have fallen with nothing there, over
 /// lateral positions from −[halfWidth] to +[halfWidth] metres.
 final class OpticsCut {
+  /// An empty cut of [bins] values a channel, over a width of twice
+  /// [halfWidth] metres.
   OpticsCut(this.bins, this.halfWidth)
     : red = Float64List(bins),
       green = Float64List(bins),
       blue = Float64List(bins);
 
+  /// How many values each channel holds, evenly spaced across the cut.
   final int bins;
+
+  /// Half the cut's width, in metres: the bins run from −[halfWidth] to
+  /// +[halfWidth].
   final double halfWidth;
+
+  /// The red light that fell in each bin, as a share of what would have
+  /// fallen with nothing in the way.
   final Float64List red;
+
+  /// The green light in each bin, in the same units as [red].
   final Float64List green;
+
+  /// The blue light in each bin, in the same units as [red].
   final Float64List blue;
 }
 

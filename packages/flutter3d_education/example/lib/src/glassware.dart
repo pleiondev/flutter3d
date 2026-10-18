@@ -127,7 +127,12 @@ RenderMaterial footPlastic() => RenderMaterial(
 
 /// Where a tube's label starts and ends, and how much of the turn it covers.
 const double labelFrom = 0.052;
+
+/// Where a tube's label ends, in metres up from its base. See [labelFrom].
 const double labelTo = 0.066;
+
+/// How much of the tube's turn a label covers, in radians: about 195
+/// degrees.
 const double labelWrap = 3.4; // about 195 degrees
 
 /// Width over height of the label as it sits on the glass: the arc it covers

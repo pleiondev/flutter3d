@@ -21,8 +21,10 @@ const Color _ink = Color(0xFF1B1B1F);
 /// ones flutter_math_fork carries, which keeps the picture the same on every
 /// machine that renders it.
 class LabelCard extends StatelessWidget {
+  /// The label for [solution].
   const LabelCard(this.solution, {super.key});
 
+  /// The solution the label names: its formula, its name and its band colour.
   final Solution solution;
 
   /// The card has the label strip's own proportions, so it lands on the
@@ -91,12 +93,16 @@ Future<Rgba8Image> capture(RenderRepaintBoundary boundary) async {
 /// they are ordinary widgets: off screen, ignored by the pointer, gone once
 /// [onPrinted] has had every picture.
 class LabelPrinter extends StatefulWidget {
+  /// A printer drawing one label for each of [solutions] and handing each
+  /// picture to [onPrinted].
   const LabelPrinter({
     required this.solutions,
     required this.onPrinted,
     super.key,
   });
 
+  /// The solutions to print a label for, in order; [onPrinted]'s index counts
+  /// them.
   final List<Solution> solutions;
 
   /// Called once for each label, with its picture turned for the lathe.

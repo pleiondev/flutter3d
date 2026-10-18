@@ -27,6 +27,8 @@ import 'puddle.dart';
 
 /// One piece of glass on the bench and what is in it.
 final class Vessel {
+  /// A vessel called [name] standing at [at], shaped by [glass] and
+  /// [inside], its liquid coloured [dye] and filled to [startLevel].
   Vessel({
     required this.name,
     required this.at,
@@ -48,6 +50,9 @@ final class Vessel {
 
   /// Its outline, swept into the glass, and the inside the liquid fills.
   final List<Vector2> glass;
+
+  /// The inside's profile, from the floor up to the mouth, in metres: what
+  /// [shape] revolves and the liquid fills.
   final List<Vector2> inside;
 
   /// A plastic foot it stands on, swept with six segments; null for none.
@@ -60,7 +65,11 @@ final class Vessel {
   /// How full it starts, and how far it may be filled, in metres up from
   /// its base.
   final double startLevel;
+
+  /// The lowest the liquid may be poured down to, in metres up from the base.
   final double lowest;
+
+  /// The highest it may be filled to, in metres up from the base.
   final double highest;
 
   /// What its label says; null for glass that wears none.
@@ -68,6 +77,9 @@ final class Vessel {
 
   /// How far it leans, in radians, and about which horizontal axis. State.
   double tilt = 0.0;
+
+  /// The horizontal axis it leans about, of unit length; [Bench.lean] sets it
+  /// from the way the camera looks while the glass stands upright. State.
   Vector3 leanAxis = Vector3(1, 0, 0);
 
   /// How far it was asked to lean: [Bench.step] turns [tilt] towards it at
@@ -96,12 +108,19 @@ final class Vessel {
   /// The glass and all it carries, which tilts as one; and the same hung
   /// upside down under the tabletop, for the reflections.
   late final SceneNode body;
+
+  /// The reflection of [body] in the tabletop.
   late final SceneNode mirror;
 
   /// One node per layer of liquid, and its reflection.
   final List<({MeshNode node, MeshNode reflection, Color color})> layers = [];
 
+  /// The label wrapped round the glass, under [body]; null until
+  /// [Bench.dress] puts one on, and replaced each time it does.
   MeshNode? label;
+
+  /// The label's reflection in the tabletop, under [mirror]; set with
+  /// [label].
   MeshNode? labelReflection;
 
   /// The card on the bench that carries where its light went; see [Bench].
@@ -259,6 +278,10 @@ List<Vessel> standardVessels() {
 /// it at a twelfth of its strength and only where it is behind it.
 
 final class Bench {
+  /// A bench on [device] with [vessels] on it, the standard row when it is
+  /// null, its liquids stepped by [physics]. With [photons], the shadows are
+  /// the engine's photons through the liquid rather than the cuts of
+  /// `optics.dart`.
   Bench(
     this.device, {
     List<Vessel>? vessels,
@@ -389,7 +412,11 @@ final class Bench {
       );
   }
 
+  /// The device the bench's meshes and label pictures are uploaded to.
   final GraphicsDevice device;
+
+  /// The bench's scene: every vessel, its liquid, its reflection and its
+  /// shadow card.
   final Scene scene = Scene();
 
   /// How hard the bench's world pulls down, m/s²: the Earth's. [world] is
@@ -454,6 +481,8 @@ final class Bench {
 
   /// How this bench is drawn.
   RenderSettings get settings => photons ? photonSettings : benchSettings;
+
+  /// The glass on the bench, in the order the controls list it.
   final List<Vessel> vessels;
 
   /// How a replaced mesh is let go of: after the frames still drawing it

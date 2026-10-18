@@ -30,10 +30,10 @@ import 'package:flutter3d_sim/flutter3d_sim.dart'
 
 import 'src/pendulum_lab.dart';
 
-void main() => runApp(const PendulumApp());
+void main() => runApp(const _PendulumApp());
 
-class PendulumApp extends StatelessWidget {
-  const PendulumApp({super.key});
+class _PendulumApp extends StatelessWidget {
+  const _PendulumApp();
 
   @override
   Widget build(BuildContext context) => MaterialApp(
@@ -51,6 +51,8 @@ class PendulumApp extends StatelessWidget {
 
 /// The pendulum, the readings over it and the clock under it.
 class PendulumScreen extends StatefulWidget {
+  /// A screen drawing with [device] and running the laboratory where
+  /// [simulation] places it.
   const PendulumScreen({
     super.key,
     this.device = const DeviceSettings(),

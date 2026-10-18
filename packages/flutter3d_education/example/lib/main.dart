@@ -29,11 +29,11 @@ Future<void> main() async {
   // which the browser fetches as WebAssembly, or the reference where it
   // will not start. The bench's liquids are stepped on it.
   await preparePhysics();
-  runApp(const ChemLabApp());
+  runApp(const _ChemLabApp());
 }
 
-class ChemLabApp extends StatelessWidget {
-  const ChemLabApp({super.key});
+class _ChemLabApp extends StatelessWidget {
+  const _ChemLabApp();
 
   @override
   Widget build(BuildContext context) => MaterialApp(
@@ -49,7 +49,10 @@ class ChemLabApp extends StatelessWidget {
   );
 }
 
+/// The bench and its controls: the glass to pick, and the pour, lean and tap
+/// that act on it.
 class BenchScreen extends StatefulWidget {
+  /// The screen; it takes nothing, and builds its own [Bench].
   const BenchScreen({super.key});
 
   @override

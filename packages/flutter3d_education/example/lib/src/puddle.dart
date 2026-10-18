@@ -14,6 +14,8 @@ import 'package:flutter3d_physics/flutter3d_physics.dart' show RetiredParticles;
 /// [volume] is every cubic metre retired here, and the bench's world still
 /// counts the same.
 final class Puddles {
+  /// Puddles over a top from [minX] to [maxX] and [minZ] to [maxZ], in cells
+  /// [cell] metres a side.
   Puddles({
     required this.cell,
     required this.minX,
@@ -27,8 +29,14 @@ final class Puddles {
 
   /// The top's extent: what comes to rest outside it has run off.
   final double minX;
+
+  /// The top's far edge along x, in metres. See [minX].
   final double maxX;
+
+  /// The top's near edge along z, in metres.
   final double minZ;
+
+  /// The top's far edge along z, in metres.
   final double maxZ;
 
   final Map<int, double> _cells = {};
