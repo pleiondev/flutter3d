@@ -19,16 +19,16 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_webgl/engine_shaders.dart';
 import 'package:flutter3d_webgl/flutter3d_webgl.dart';
 
-void main() => runApp(const SceneApp());
+void main() => runApp(const _SceneApp());
 
-class SceneApp extends StatefulWidget {
-  const SceneApp({super.key});
+class _SceneApp extends StatefulWidget {
+  const _SceneApp();
 
   @override
-  State<SceneApp> createState() => _SceneAppState();
+  State<_SceneApp> createState() => _SceneAppState();
 }
 
-class _SceneAppState extends State<SceneApp>
+class _SceneAppState extends State<_SceneApp>
     with SingleTickerProviderStateMixin {
   static const int _width = 480;
   static const int _height = 360;

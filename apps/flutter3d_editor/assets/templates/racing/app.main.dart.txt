@@ -32,7 +32,10 @@ const String levelAsset = String.fromEnvironment(
 
 void main() => runApp(const TemplateApp());
 
+/// The project as an application: [LevelScreen] in a [MaterialApp] that
+/// carries the game layer's localisations.
 class TemplateApp extends StatelessWidget {
+  /// The application; it takes nothing, and opens [levelAsset].
   const TemplateApp({super.key});
 
   @override
@@ -54,6 +57,7 @@ class TemplateApp extends StatelessWidget {
 /// run's event digest folds in what it carries; a screen hears it on the
 /// frame channel.
 final class Landed extends BusEvent {
+  /// A landing at [speed] metres a second.
   const Landed(this.speed);
 
   /// The name it is declared under, prefixed with the genre's.
@@ -90,6 +94,7 @@ final class Landed extends BusEvent {
 /// Its run is the walk of the level that is up, set as levels come and go;
 /// its input is the loop's, written by the keyboard through the [ActionMap].
 final class WalkGenre extends GenrePlugin<LevelWalk> {
+  /// The genre reading [input]; its run is set once a level is up.
   WalkGenre({required this.input});
 
   /// The plugin's id.
@@ -162,9 +167,14 @@ final class WalkGenre extends GenrePlugin<LevelWalk> {
 
 /// A level that is up: what was loaded, and the walk through it.
 final class WalkableLevel {
+  /// A level up as [loaded], walked by [walk].
   const WalkableLevel(this.loaded, this.walk);
 
+  /// The level as the loader built it: its scene, its collision and its
+  /// entities.
   final LoadedLevel loaded;
+
+  /// The body walking through [loaded], which [WalkGenre] steps each frame.
   final LevelWalk walk;
 }
 
@@ -238,7 +248,10 @@ void _addParts(Level level, LoadedLevel loaded, GraphicsDevice device) {
   }
 }
 
+/// The project's one screen: the level in a [Flutter3dView], with the
+/// keyboard driving [WalkGenre].
 class LevelScreen extends StatefulWidget {
+  /// The screen; it takes nothing, and loads [levelAsset] itself.
   const LevelScreen({super.key});
 
   @override

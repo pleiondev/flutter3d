@@ -25,7 +25,10 @@ import 'package:pad_input/pad_input.dart';
 
 void main() => runApp(const GamepadExampleApp());
 
+/// The example as an application: [home] in a dark [MaterialApp].
 class GamepadExampleApp extends StatelessWidget {
+  /// The application on [home], which is the shared pad's screen unless a test
+  /// hands in another.
   const GamepadExampleApp({super.key, this.home = const PadScreen()});
 
   /// The screen to show. An argument only so a test can hand in a screen wired
@@ -40,7 +43,10 @@ class GamepadExampleApp extends StatelessWidget {
   );
 }
 
+/// The state of one gamepad, as the platform reports it: its sticks,
+/// triggers and buttons.
 class PadScreen extends StatefulWidget {
+  /// A screen watching [pad], or the shared gamepad when it is null.
   const PadScreen({super.key, this.pad});
 
   /// The pad to watch. Injected by the test; the app uses the shared one.

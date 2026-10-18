@@ -22,17 +22,17 @@ import 'package:flutter3d_plugin_runtime_example/acme_sample.dart';
 
 import 'plugin_render_harness.dart';
 
-void main() => runApp(const RenderConformanceApp());
+void main() => runApp(const _RenderConformanceApp());
 
 /// Runs the checks once the first frame is up, and shows what they said.
-class RenderConformanceApp extends StatefulWidget {
-  const RenderConformanceApp({super.key});
+class _RenderConformanceApp extends StatefulWidget {
+  const _RenderConformanceApp();
 
   @override
-  State<RenderConformanceApp> createState() => _RenderConformanceAppState();
+  State<_RenderConformanceApp> createState() => _RenderConformanceAppState();
 }
 
-class _RenderConformanceAppState extends State<RenderConformanceApp> {
+class _RenderConformanceAppState extends State<_RenderConformanceApp> {
   String _report = 'running…';
 
   @override

@@ -11,17 +11,17 @@ import 'package:flutter3d_pointer_lock/flutter3d_pointer_lock.dart';
 /// the window loses focus — and telling those apart inside a 3D game means
 /// debugging two things at once. Here the numbers are the whole product.
 void main() {
-  runApp(const PointerLockExample());
+  runApp(const _PointerLockExample());
 }
 
-class PointerLockExample extends StatefulWidget {
-  const PointerLockExample({super.key});
+class _PointerLockExample extends StatefulWidget {
+  const _PointerLockExample();
 
   @override
-  State<PointerLockExample> createState() => _PointerLockExampleState();
+  State<_PointerLockExample> createState() => _PointerLockExampleState();
 }
 
-class _PointerLockExampleState extends State<PointerLockExample>
+class _PointerLockExampleState extends State<_PointerLockExample>
     with SingleTickerProviderStateMixin {
   final PointerLock _capture = PointerLock.instance;
 

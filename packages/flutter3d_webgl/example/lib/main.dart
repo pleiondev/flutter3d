@@ -34,7 +34,11 @@ import 'package:flutter3d_webgl/flutter3d_webgl.dart';
 // ignore: implementation_imports
 import 'package:flutter3d_webgl/src/webgl_types.dart';
 
+/// The width of the target the harness draws into and reads back, in pixels.
 const int kWidth = 256;
+
+/// The height of the target, in pixels; the fragment gradient runs along it,
+/// so a frame read upside down differs in every row.
 const int kHeight = 192;
 
 /// Position (xyz) then texcoord (uv), interleaved — the engine's own shape.
@@ -47,6 +51,8 @@ final Float32List kVertices = Float32List.fromList(<double>[
   -1.0, 3.0, 0.0, 0.0, 2.0, //
 ]);
 
+/// The one triangle's indices, uploaded as the index buffer it is drawn
+/// through.
 final Uint32List kIndices = Uint32List.fromList(<int>[0, 1, 2]);
 
 /// Locations are explicit and ascending, which is what lets the backend read
@@ -62,6 +68,9 @@ void main() {
 }
 ''';
 
+/// The fragment stage: the texture times the `FragInfo` block's
+/// `base_color`, fading in Y, so the read-back checks the flip, the uniform
+/// block and the sampler at once.
 const String kFragmentSource = '''#version 300 es
 precision highp float;
 in vec2 v_uv;
@@ -79,16 +88,16 @@ void main() {
 }
 ''';
 
-void main() => runApp(const HarnessApp());
+void main() => runApp(const _HarnessApp());
 
-class HarnessApp extends StatefulWidget {
-  const HarnessApp({super.key});
+class _HarnessApp extends StatefulWidget {
+  const _HarnessApp();
 
   @override
-  State<HarnessApp> createState() => _HarnessAppState();
+  State<_HarnessApp> createState() => _HarnessAppState();
 }
 
-class _HarnessAppState extends State<HarnessApp> {
+class _HarnessAppState extends State<_HarnessApp> {
   final List<String> _log = <String>[];
   Widget? _frame;
   bool _failed = false;
