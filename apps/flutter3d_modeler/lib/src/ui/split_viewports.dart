@@ -22,6 +22,7 @@ import 'package:multi_split_view/multi_split_view.dart';
 
 import '../modeler_viewport.dart';
 import '../staging.dart';
+import 'dock_layout.dart';
 
 /// The smallest either view may be dragged to, in logical pixels — below
 /// this a viewport is a stripe nobody can judge a model in.
@@ -105,7 +106,9 @@ class _SplitViewportsState extends State<SplitViewports> {
     final double second = areas[1].flex ?? 1;
     final double total = first + second;
     if (total <= 0) return;
-    widget.onSplit((first / total).clamp(0.15, 0.85));
+    widget.onSplit(
+      (first / total).clamp(DockLayout.smallestSplit, DockLayout.largestSplit),
+    );
   }
 
   @override
