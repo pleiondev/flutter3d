@@ -827,11 +827,19 @@ List<Finding> _everyTreeHeldToDocs() {
       ),
   ];
   final optionsFile = RegExp(r'^analysis_options(\.[^/]+)?\.yaml$');
-  final skipped = RegExp(r'/(build|\.dart_tool|node_modules|Pods)/');
+  // What `pub get` and a platform build leave behind: a desktop runner's
+  // `ephemeral/` holds links to every plugin's own sources, options and all,
+  // and those are the plugins' trees, not ours.
+  final skipped = RegExp(
+    r'/(build|\.dart_tool|node_modules|Pods|ephemeral|\.symlinks)/',
+  );
   for (final where in const <String>['packages', 'apps', 'examples', 'tool']) {
     final dir = Directory('${repositoryRoot.path}/$where');
     if (!dir.existsSync()) continue;
-    for (final file in dir.listSync(recursive: true).whereType<File>()) {
+    for (final file
+        in dir
+            .listSync(recursive: true, followLinks: false)
+            .whereType<File>()) {
       if (skipped.hasMatch(file.path)) continue;
       if (!optionsFile.hasMatch(file.uri.pathSegments.last)) continue;
       final problem = _docRuleProblem(file, rootOptions);
