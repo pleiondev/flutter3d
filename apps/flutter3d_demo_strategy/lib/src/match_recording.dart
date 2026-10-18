@@ -75,6 +75,9 @@ final class MatchRecording {
 
   /// The map's asset, and its document's digest.
   final String level;
+
+  /// The digest of the map's document, written into the demo beside
+  /// [level].
   final String levelHash;
 
   /// The state the tape starts from.
@@ -207,6 +210,8 @@ final class MatchRecording {
 /// A [MatchDemo] and the loop's record of the match: the changes the loop
 /// journalled and each step's event digest, as a `Demo` carries them.
 final class RecordedMatch {
+  /// A match as [demo], with the loop's [loopChanges] and per-step [events]
+  /// when they were kept.
   const RecordedMatch(
     this.demo, {
     this.loopChanges = const <LoopChange>[],

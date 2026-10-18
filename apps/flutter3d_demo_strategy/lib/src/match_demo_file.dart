@@ -20,6 +20,9 @@ import 'match_recording.dart' show RecordedMatch;
 /// `.f3drun` on disk holds before it could read it, and `MatchDemo.fromJson`
 /// already refuses to guess. One document, one reader.
 final class MatchDemoFile {
+  /// The demo of [appName], kept in [storage], or in the app's default storage
+  /// when it is null; [onIssue] hears what could not be read and prints it
+  /// when none is given.
   MatchDemoFile({required this.appName, Storage? storage, IssueSink? onIssue})
     : onIssue = onIssue ?? printIssue,
       storage = storage ?? defaultStorage(appName, onIssue: onIssue);

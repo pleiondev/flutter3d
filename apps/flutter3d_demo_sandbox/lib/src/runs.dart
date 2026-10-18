@@ -21,6 +21,8 @@ import 'staging.dart';
 /// is another thing: the edits and where the body stood, kept between
 /// launches; this is the play that made them.
 final class SandboxRuns {
+  /// Runs over [loop] and [run], kept in [file]; [run] is registered with the
+  /// loop's snapshots as [runPart], so a replay and a rewind both restore it.
   SandboxRuns({
     required this.loop,
     required this.run,
@@ -46,7 +48,11 @@ final class SandboxRuns {
   /// The id of the run's part of the loop's snapshots.
   static const String runPart = 'sandbox.run';
 
+  /// The loop the runs are recorded from and replayed into.
   final EngineLoop loop;
+
+  /// The play being recorded: what is captured at a run's start and restored
+  /// when one is replayed.
   final SandboxRun run;
 
   /// Where a kept run goes, and where [replay] reads it from.

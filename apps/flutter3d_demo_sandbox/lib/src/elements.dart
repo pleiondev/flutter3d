@@ -31,6 +31,9 @@ final class _Falling {
 /// The elements over [blocks]: [elements] holds the water, the fires and
 /// the falling blocks, and this keeps them to the blocks.
 final class BlockElements {
+  /// The elements over [blocks], with water laid over the blocks' tops and
+  /// running off every edge of the world. [surfaces] says how each block
+  /// looks once an element has moved it; flat colours when it is null.
   BlockElements({
     required this.blocks,
     required this.elements,
@@ -65,6 +68,8 @@ final class BlockElements {
     }
   }
 
+  /// The block world the elements read their ground from and write their
+  /// burns and falls back into, through [setBlock].
   final VoxelWorld blocks;
 
   /// The water, the fires and the falling blocks.
@@ -91,7 +96,12 @@ final class BlockElements {
   /// and what falls changes the world through this.
   final bool Function(int x, int y, int z, int material) setBlock;
 
+  /// The physics world the falling blocks and the water's floating bodies
+  /// move in: [elements]' own.
   NativeWorld get world => elements.world;
+
+  /// The water over the blocks: one heightfield on the blocks' tops, a metre
+  /// a cell, open at every edge.
   late final WaterBody pool;
   final GraphicsDevice _device;
   final BlockSurfaces _surfaces;
@@ -370,5 +380,6 @@ final class BlockElements {
       ),
   ];
 
+  /// Lets go of [elements], and with it the water, the fires and the bodies.
   void dispose() => elements.dispose();
 }

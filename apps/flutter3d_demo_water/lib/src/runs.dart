@@ -19,6 +19,8 @@ import 'staging.dart';
 /// run is whatever was played since the last [keep] or [replay], and keeping
 /// it begins the next one from where the valley stands.
 final class WaterRuns {
+  /// Runs over [loop] and [run], kept in [file]; [run] is registered with the
+  /// loop's snapshots as [runPart], so a replay and a rewind both restore it.
   WaterRuns({
     required this.loop,
     required this.run,
@@ -44,7 +46,11 @@ final class WaterRuns {
   /// The id of the run's part of the loop's snapshots.
   static const String runPart = 'water.run';
 
+  /// The loop the runs are recorded from and replayed into.
   final EngineLoop loop;
+
+  /// The valley being recorded: what is captured at a run's start and
+  /// restored when one is replayed.
   final WaterRun run;
 
   /// Where a kept run goes, and where [replay] reads it from.

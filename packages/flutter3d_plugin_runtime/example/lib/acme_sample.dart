@@ -23,6 +23,7 @@ const LightType tubeLight = LightType.custom(
 
 /// The tube's hook: its length into the row's free component.
 final class TubeHook extends LightTypeHook {
+  /// A hook for tubes [length] metres long.
   const TubeHook({this.length = 1.5});
 
   /// How long the tube is, in metres.
@@ -123,6 +124,8 @@ final class SmearNode extends RenderNode {
 
 /// A shadow technique with a producer of its own for the directional map.
 final class SoftSun extends ShadowTechnique {
+  /// The technique; it holds nothing, and makes its producers when a frame
+  /// asks for them.
   const SoftSun();
 
   @override
@@ -158,6 +161,7 @@ final class SunMapNode extends RenderNode {
 /// moving caster, every tile cleared to nothing in the way, so the lamps
 /// cast only what the engine baked of the casters that never move.
 final class LampAtlasNode extends RenderNode {
+  /// A node clearing [atlas] for this frame.
   LampAtlasNode(this.atlas);
 
   /// The rows the engine laid out and fitted this frame.
@@ -188,6 +192,7 @@ final class LampAtlasNode extends RenderNode {
 /// Leaves out of every view a mesh whose name starts `acme_sample.hidden`,
 /// and draws the rest nearest first.
 final class HideHook extends DrawListHook {
+  /// The hook; it holds nothing.
   const HideHook();
 
   @override
@@ -201,6 +206,7 @@ final class HideHook extends DrawListHook {
 
 /// Shows every group at its coarsest level.
 final class CoarsePolicy extends LodPolicy {
+  /// The policy; it holds nothing.
   const CoarsePolicy();
 
   @override
@@ -210,6 +216,7 @@ final class CoarsePolicy extends LodPolicy {
 /// An image format of the plugin's own: `PIX!`, a width and a height of a
 /// byte each, then grey.
 final class PixCodec extends TextureCodec {
+  /// The codec; it holds nothing.
   const PixCodec();
 
   @override
@@ -240,6 +247,7 @@ const ResourceId sparksResource = ResourceId('acme_sample.sparks');
 /// computes it. It dispatches nothing; what it holds a frame to is where
 /// the step is placed and that the frame runs it there.
 final class SparksStep extends ComputeStep {
+  /// The step; it holds nothing, and is placed by the frame that runs it.
   SparksStep();
 
   @override
@@ -266,6 +274,7 @@ compute Sparks {
 /// scene's colour on: the reader that keeps [SparksStep] in the frame,
 /// which culls a step whose output nothing reads.
 final class SparksNode extends RenderNode {
+  /// The node; it holds nothing.
   const SparksNode();
 
   @override
@@ -289,6 +298,7 @@ final class SparksNode extends RenderNode {
 
 /// The kind of node the plugin's components are shown as.
 final class EmberKind extends SceneNodeKind {
+  /// The kind; it holds nothing.
   const EmberKind();
 
   @override
@@ -308,6 +318,8 @@ const SceneBindingSpec heatBinding = SceneBindingSpec(
 
 /// A kind of pipeline node: a streak of the length a document gives.
 final class StreakKind extends PipelineNodeKind {
+  /// The kind; it holds nothing, and reads each streak's length from the
+  /// document that places it.
   const StreakKind();
 
   @override
@@ -322,6 +334,7 @@ final class StreakKind extends PipelineNodeKind {
 
 /// What [StreakKind] makes.
 final class StreakNode extends RenderNode {
+  /// A streak called [name], [length] long as the document gives it.
   StreakNode(this.name, this.length);
 
   @override
@@ -362,6 +375,8 @@ final PipelineDocument glowPipeline = PipelineDocument(
 /// The plugin: every extension point above, registered in `install`, all
 /// taken back when it is switched off.
 final class AcmeSamplePlugin extends Flutter3dPlugin {
+  /// The plugin, placing [smear] as its post effect, or a fresh one when it
+  /// is null.
   AcmeSamplePlugin({this.smear});
 
   /// The post effect it places; a fresh one when none is given.

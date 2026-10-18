@@ -86,6 +86,9 @@ String get waterLevelHash => StateDigest.of(<String, Object?>{
 
 /// The valley, stepped and drawn.
 final class WaterRun {
+  /// The valley in [scene] and [elements]: the ground, the pond filled to its
+  /// lip, the spring, the sun the water glints with along [sun], and the
+  /// bonfire. [input] is what steers the eye; a fresh one when it is null.
   WaterRun(
     this._device,
     this.scene,
@@ -140,11 +143,16 @@ final class WaterRun {
   }
 
   final GraphicsDevice _device;
+
+  /// What the valley's ground, stones and logs are drawn in.
   final Scene scene;
 
   /// The water, the fire and what is thrown in, drawn.
   final Elements elements;
   NativeWorld get _world => elements.world;
+
+  /// The pond, the stream and the falls: one heightfield over the valley's
+  /// ground, a quarter metre a cell, open at every edge.
   late final WaterBody water;
   late final List<double> _ground;
   late final DeviceMesh _stoneMesh, _logMesh;
@@ -174,6 +182,8 @@ final class WaterRun {
   /// How many pieces of falling water are in the air, and how many clouds
   /// of bubbles are in the water.
   int get sprayInFlight => elements.viewOf(water).sprayInFlight;
+
+  /// How many clouds of bubbles are in the water. See [sprayInFlight].
   int get bubbleClouds => elements.viewOf(water).bubbleClouds;
 
   /// The pond's surface above the valley's origin, m.
@@ -480,6 +490,8 @@ final class WaterRun {
       ..update(dt, eye: eye);
   }
 
+  /// Lets go of [elements], and with it the water, the fire and what is in
+  /// it.
   void dispose() => elements.dispose();
 }
 

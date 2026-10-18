@@ -50,30 +50,30 @@ const String _buildStamp = String.fromEnvironment(
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await preparePhysics();
-  runApp(const WaterApp());
+  runApp(const _WaterApp());
 }
 
 /// The application: one screen.
-class WaterApp extends StatelessWidget {
-  const WaterApp({super.key});
+class _WaterApp extends StatelessWidget {
+  const _WaterApp();
 
   @override
   Widget build(BuildContext context) => const MaterialApp(
     title: 'Water',
     debugShowCheckedModeBanner: false,
-    home: WaterScreen(),
+    home: _WaterScreen(),
   );
 }
 
 /// Opens the device and runs the valley.
-class WaterScreen extends StatefulWidget {
-  const WaterScreen({super.key});
+class _WaterScreen extends StatefulWidget {
+  const _WaterScreen();
 
   @override
-  State<WaterScreen> createState() => _WaterScreenState();
+  State<_WaterScreen> createState() => _WaterScreenState();
 }
 
-class _WaterScreenState extends State<WaterScreen>
+class _WaterScreenState extends State<_WaterScreen>
     with SingleTickerProviderStateMixin {
   /// Where the sun shines along.
   static Vector3 get _sunAlong => Vector3(0.35, -0.7, -0.6);

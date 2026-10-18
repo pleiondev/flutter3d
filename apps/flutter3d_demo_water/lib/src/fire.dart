@@ -26,6 +26,8 @@ const double _logRadius = 0.15, _logHalf = 0.7;
 
 /// The bonfire: its logs, lit and doused.
 final class Bonfire {
+  /// The bonfire's logs in [_elements]' fire view, their mesh uploaded to
+  /// [device].
   Bonfire(this._elements, GraphicsDevice device) {
     final mesh = DeviceMesh.upload(
       device,

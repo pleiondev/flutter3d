@@ -77,6 +77,7 @@ const MaterialHints hairHints = MaterialHints(
 
 /// Raises the heat of every ember by [by] kelvin: one step of undo.
 final class StokeEmbers extends PluginCommand {
+  /// A command raising every ember by [by] kelvin.
   const StokeEmbers(this.by);
 
   /// Reads one back from a call's arguments; `by` defaults to 100 K.
@@ -86,6 +87,8 @@ final class StokeEmbers extends PluginCommand {
         _ => null,
       };
 
+  /// How much hotter each ember gets, in kelvin; undoing the command takes the
+  /// same amount off again.
   final double by;
 
   /// The published name: the plugin's namespace and the name it registers
@@ -121,6 +124,8 @@ final class StokeEmbers extends PluginCommand {
 
 /// Rings an ember with its reach; the ring's handle sets the reach.
 final class EmberReach extends EditorGizmo {
+  /// The gizmo; it holds nothing, and reads the ember it rings from the
+  /// context it is handed.
   const EmberReach();
 
   @override
@@ -144,6 +149,7 @@ final class EmberReach extends EditorGizmo {
 /// Brings in a `.embers` file: one ember a line, `x y z heat`, placed in
 /// the level, and the file kept under `assets/embers/`.
 final class EmberImporter extends EditorImporter {
+  /// The importer; it holds nothing.
   const EmberImporter();
 
   @override

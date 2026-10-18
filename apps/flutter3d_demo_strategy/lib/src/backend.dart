@@ -24,6 +24,9 @@ export 'package:flutter3d_app/flutter3d_app.dart';
 /// Read only when [fixedResolution]; a desktop build draws at whatever size the
 /// widget was laid out at.
 const int kRenderWidth = 960;
+
+/// The height of the frame a browser build draws, in pixels. See
+/// [kRenderWidth].
 const int kRenderHeight = 540;
 
 /// The shadow atlas this build can afford.
@@ -50,4 +53,7 @@ const int kRenderHeight = 540;
 /// fill rate is worth economising. Asking `kIsWeb` would be asking a second
 /// question that has to keep agreeing with the first.
 const int kShadowCascades = fixedResolution ? 2 : 3;
+
+/// The side of each shadow tile, in texels: 1024 in a browser and 2048 on a
+/// desktop. See [kShadowCascades].
 const int kShadowResolution = fixedResolution ? 1024 : 2048;

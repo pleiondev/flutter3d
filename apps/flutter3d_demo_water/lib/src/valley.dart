@@ -13,6 +13,8 @@ import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 
 /// How many cells the valley has a side, and how wide each is, m.
 const int valleyCells = 128;
+
+/// How wide each of the valley's cells is, in metres. See [valleyCells].
 const double valleyCell = 0.25;
 
 /// The valley's side, m.
@@ -24,6 +26,9 @@ const double valleySize = valleyCells * valleyCell;
 /// cell of the face was a lip of its own, and the falls came down a stair
 /// of short sheets each landing on the step below.
 const double cliffTop = 13.0;
+
+/// Where the cliff's foot is along z, in metres: half a cell past
+/// [cliffTop], so the falls go over one lip as one sheet.
 const double cliffFoot = cliffTop + 0.5 * valleyCell;
 
 /// The pond's middle, and its radius.
@@ -34,6 +39,8 @@ double streamX(double z) => 16.0 + 3.0 * Portable.sin(0.4 * z);
 
 /// Where the spring wells up.
 double get springX => streamX(springZ);
+
+/// How far along the stream the spring wells up, in metres. See [springX].
 const double springZ = 2.0;
 
 double _smoothstep(double a, double b, double x) {
