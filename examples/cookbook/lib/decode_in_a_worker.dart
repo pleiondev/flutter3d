@@ -19,7 +19,11 @@ void main() {
   runApp(const MaterialApp(home: DecodeInAWorker()));
 }
 
+/// The robot on an orbit camera, written exactly as it would be without a
+/// worker: whether the decoding happens off the page is decided once, in
+/// `main`, and nothing in the scene changes for it.
 class DecodeInAWorker extends StatelessWidget {
+  /// Takes nothing: the model and the camera are fixed in [build].
   const DecodeInAWorker({super.key});
 
   @override

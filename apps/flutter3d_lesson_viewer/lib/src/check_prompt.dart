@@ -19,6 +19,8 @@ import 'lesson_theme.dart';
 
 /// A `check` object, read once from a step's own properties.
 final class CheckSpec {
+  /// A check asking [question], accepting any of [answers], over
+  /// [attempts] tries; [fromStep] is how a lesson builds one.
   const CheckSpec({
     required this.question,
     required this.answers,
@@ -49,8 +51,16 @@ final class CheckSpec {
     );
   }
 
+  /// What the student is asked, as the lesson wrote it.
   final String question;
+
+  /// Every spelling the check takes as right; never empty. The first is the
+  /// one shown when the attempts run out.
   final List<String> answers;
+
+  /// How many tries the student gets; the answer is revealed once this many
+  /// have been wrong. At least one, which is also what a check that names
+  /// none gets.
   final int attempts;
 
   /// Case- and surrounding-whitespace-insensitive, the comparison `edu-00`
@@ -66,7 +76,17 @@ final class CheckSpec {
 
 /// Where a [CheckPrompt] stands: asking, answered correctly, or out of
 /// attempts and shown the answer.
-enum CheckOutcome { asking, correct, revealed }
+enum CheckOutcome {
+  /// Still waiting for a right answer, with attempts left.
+  asking,
+
+  /// Answered with one of [CheckSpec.answers].
+  correct,
+
+  /// Every attempt answered wrong; the text field is gone and the first of
+  /// [CheckSpec.answers] is shown in its place.
+  revealed,
+}
 
 /// A `check` widget: the question, a text field, and the attempts
 /// `edu-00` §10 allows before revealing an accepted answer.
@@ -79,8 +99,10 @@ enum CheckOutcome { asking, correct, revealed }
 /// state when something outside it changes" rather than a second field here
 /// to keep in step with the step index.
 class CheckPrompt extends StatefulWidget {
+  /// A prompt for [spec], starting with all of its attempts.
   const CheckPrompt({super.key, required this.spec});
 
+  /// The question, its answers and how many tries it allows.
   final CheckSpec spec;
 
   @override

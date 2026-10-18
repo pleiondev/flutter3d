@@ -7,7 +7,11 @@ import 'package:flutter3d_app/flutter3d_app.dart';
 
 void main() => runApp(const MaterialApp(home: MaterialLadder()));
 
+/// Ten spheres of the same red: roughness from zero to one along each row, the
+/// bottom row a dielectric and the top row a metal, so the two numbers can be
+/// read side by side.
 class MaterialLadder extends StatelessWidget {
+  /// Takes nothing: the grid of materials is fixed in [build].
   const MaterialLadder({super.key});
 
   @override

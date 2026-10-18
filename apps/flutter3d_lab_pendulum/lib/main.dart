@@ -25,30 +25,30 @@ import 'src/pendulum_lab_controls.dart';
 import 'src/pendulum_lab_panel.dart';
 
 void main() {
-  runApp(const PendulumLabDemoApp());
+  runApp(const _PendulumLabDemoApp());
 }
 
-class PendulumLabDemoApp extends StatelessWidget {
-  const PendulumLabDemoApp({super.key});
+class _PendulumLabDemoApp extends StatelessWidget {
+  const _PendulumLabDemoApp();
 
   @override
   Widget build(BuildContext context) {
     return const MaterialApp(
       title: 'edu-04: pendulum lab',
       debugShowCheckedModeBanner: false,
-      home: PendulumLabScreen(),
+      home: _PendulumLabScreen(),
     );
   }
 }
 
-class PendulumLabScreen extends StatefulWidget {
-  const PendulumLabScreen({super.key});
+class _PendulumLabScreen extends StatefulWidget {
+  const _PendulumLabScreen();
 
   @override
-  State<PendulumLabScreen> createState() => _PendulumLabScreenState();
+  State<_PendulumLabScreen> createState() => _PendulumLabScreenState();
 }
 
-class _PendulumLabScreenState extends State<PendulumLabScreen>
+class _PendulumLabScreenState extends State<_PendulumLabScreen>
     with SingleTickerProviderStateMixin {
   // A getter, not a `static final` — a shared `Vector3` instance is mutable,
   // and `tool/structure.dart`'s own rule against that is not theoretical: the

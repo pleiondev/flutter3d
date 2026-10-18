@@ -7,7 +7,10 @@ import 'package:flutter3d_app/flutter3d_app.dart';
 
 void main() => runApp(const MaterialApp(home: SunAndShadow()));
 
+/// A box and a cylinder on a floor under a sun from the upper left, with no
+/// shadow settings at all: a sun casts shadows by default.
 class SunAndShadow extends StatelessWidget {
+  /// Takes nothing: the sun, the floor and the two shapes are fixed in [build].
   const SunAndShadow({super.key});
 
   @override

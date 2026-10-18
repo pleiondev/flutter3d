@@ -7,7 +7,10 @@ import 'package:flutter3d_app/flutter3d_app.dart';
 
 void main() => runApp(const MaterialApp(home: TapToPick()));
 
+/// Three boxes in a row; tapping one turns it orange. Each box answers its own
+/// `onTap`, and only the nearest surface under the finger hears it.
 class TapToPick extends StatefulWidget {
+  /// Takes nothing: no box is picked to begin with.
   const TapToPick({super.key});
 
   @override

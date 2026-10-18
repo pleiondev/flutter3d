@@ -10,6 +10,8 @@ import 'lab_theme.dart';
 /// `flutter3d_app`'s still [LoadingScreen], which says it in words; either
 /// way a screen reader hears that the lab is loading.
 class LabLoadingScreen extends StatelessWidget {
+  /// The loading screen; it takes nothing, and reads the motion flag from
+  /// the context it is built in.
   const LabLoadingScreen({super.key});
 
   static const String _label = 'Loading the lab';

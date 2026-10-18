@@ -8,7 +8,11 @@ import 'package:flutter3d_physics/flutter3d_physics.dart';
 
 void main() => runApp(const MaterialApp(home: FallingCrates()));
 
+/// Three crates dropped from different heights onto a ten-metre floor. The
+/// bodies step in the engine loop's physics phase at the fixed step, and each
+/// frame only redraws where they have got to.
 class FallingCrates extends StatefulWidget {
+  /// Takes nothing: the world and the three crates are built by its state.
   const FallingCrates({super.key});
 
   @override

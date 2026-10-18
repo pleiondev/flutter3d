@@ -20,6 +20,8 @@ import 'lab_theme.dart';
 /// motion that starts by itself, and a student who asked for less of it
 /// starts the swing when ready.
 class PendulumLabControls extends StatefulWidget {
+  /// Controls wrapped around [child], the scene, moving the same length the
+  /// panel in it does.
   const PendulumLabControls({
     super.key,
     required this.lengthMeters,
@@ -32,7 +34,12 @@ class PendulumLabControls extends StatefulWidget {
     this.maxLength = 3.0,
   });
 
+  /// The pendulum's length in metres, as the lab holds it; read to show the
+  /// readout, never written here.
   final ValueListenable<double> lengthMeters;
+
+  /// Called with the new length in metres, already clamped to
+  /// [minLength]..[maxLength]; the lab sets the simulation from it.
   final ValueChanged<double> onChangeLength;
 
   /// Whether the pendulum swings; the controls write it, the lab's ticker
@@ -46,8 +53,13 @@ class PendulumLabControls extends StatefulWidget {
   /// the panel there; null for none.
   final PointerDownEventListener? onScenePointerDown;
 
+  /// How far one press or key moves the length, in metres.
   final double step;
+
+  /// The shortest length a press or key can reach, in metres.
   final double minLength;
+
+  /// The longest length a press or key can reach, in metres.
   final double maxLength;
 
   /// The ring drawn around the scene while it has keyboard focus.

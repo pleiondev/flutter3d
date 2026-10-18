@@ -8,7 +8,10 @@ import 'package:flutter3d_app/flutter3d_app.dart';
 
 void main() => runApp(const MaterialApp(home: LoadAndOrbit()));
 
+/// The robot from `assets_src/` under the sun, on an orbit camera the person
+/// turns with a drag and moves in and out with a pinch or the wheel.
 class LoadAndOrbit extends StatelessWidget {
+  /// Takes nothing: the model path and the camera are fixed in [build].
   const LoadAndOrbit({super.key});
 
   @override

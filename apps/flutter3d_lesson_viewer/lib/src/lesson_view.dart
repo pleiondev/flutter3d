@@ -44,6 +44,8 @@ import 'orbit_cubit.dart';
 /// button pair driving it and the current step's `caption` shown beside
 /// them — the flat counterpart of `flutter3d_stereo`'s `LessonStereoView`.
 class LessonView extends StatefulWidget {
+  /// A view drawing [scene] through [renderer] from [camera], stepped by
+  /// [player].
   const LessonView({
     super.key,
     required this.renderer,
@@ -54,9 +56,16 @@ class LessonView extends StatefulWidget {
     this.restPositions = const <String, Vector3>{},
   });
 
+  /// What draws the frames; the screen opened it and disposes of it.
   final Renderer renderer;
+
+  /// The lesson's scene, as [LessonCubit] built it.
   final Scene scene;
+
+  /// The eye each step places and the turntable then orbits.
   final CameraNode camera;
+
+  /// The steps the two buttons walk; its current step is the one shown.
   final LessonPlayer player;
 
   /// Named scene nodes a step's `visible`/`hidden` list can reach — empty

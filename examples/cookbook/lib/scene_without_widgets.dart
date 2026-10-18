@@ -11,7 +11,10 @@ void main() => runApp(const MaterialApp(home: SceneWithoutWidgets()));
 /// How far the box has turned, in radians.
 double turned = 0.0;
 
+/// A view with no 3D widgets in it: a box node added to the engine's scene once
+/// the device is open, and turned by [turned] before every frame.
 class SceneWithoutWidgets extends StatelessWidget {
+  /// Takes nothing: the box is built once the view has opened its device.
   const SceneWithoutWidgets({super.key});
 
   @override

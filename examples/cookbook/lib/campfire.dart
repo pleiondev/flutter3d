@@ -21,7 +21,11 @@ const ParticleEffect flame = ParticleEffect(
   ],
 );
 
+/// A dark scene with a camera on the fire and [flame] emitted a hundred and
+/// twenty times a second at the origin.
 class Campfire extends StatelessWidget {
+  /// Takes nothing: the effect is the constant [flame], and the rate is fixed
+  /// in [build].
   const Campfire({super.key});
 
   @override

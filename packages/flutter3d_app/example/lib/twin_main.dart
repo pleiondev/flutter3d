@@ -50,10 +50,10 @@ final double _longitude = double.parse(
   const String.fromEnvironment('longitude', defaultValue: '13.41'),
 );
 
-void main() => runApp(const TwinApp());
+void main() => runApp(const _TwinApp());
 
-class TwinApp extends StatelessWidget {
-  const TwinApp({super.key});
+class _TwinApp extends StatelessWidget {
+  const _TwinApp();
 
   @override
   Widget build(BuildContext context) => MaterialApp(

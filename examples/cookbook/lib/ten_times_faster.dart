@@ -7,7 +7,12 @@ import 'package:flutter3d_app/flutter3d_app.dart';
 
 void main() => runApp(MaterialApp(home: TenTimesFaster()));
 
+/// The robot walking at ten times the speed, because the scene runs on
+/// [tenfold]: one time source for the clips, the particles, the loop and
+/// `onFrame` alike.
 class TenTimesFaster extends StatelessWidget {
+  /// Not const, because the time source is made with the widget: it has to
+  /// carry on from where it was rather than start again on every rebuild.
   TenTimesFaster({super.key});
 
   /// Made once: a time source carries on from where it was.

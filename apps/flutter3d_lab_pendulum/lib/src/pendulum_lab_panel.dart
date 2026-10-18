@@ -12,6 +12,7 @@ import 'lab_theme.dart';
 /// field, `wg-01`'s own honest limit: only a tap is proven to reach a widget
 /// hosted on a `WidgetSurface`, not a drag or a keystroke.
 final class PendulumLabPanel extends StatelessWidget {
+  /// The panel for the length [lengthMeters] holds, nudged by [step] a tap.
   const PendulumLabPanel({
     super.key,
     required this.lengthMeters,
@@ -21,10 +22,21 @@ final class PendulumLabPanel extends StatelessWidget {
     this.maxLength = 3.0,
   });
 
+  /// The pendulum's length in metres, as the lab holds it; read to show the
+  /// readout, never written here.
   final ValueListenable<double> lengthMeters;
+
+  /// Called with the new length in metres, already clamped to
+  /// [minLength]..[maxLength]; the lab sets the simulation from it.
   final ValueChanged<double> onChangeLength;
+
+  /// How far one tap moves the length, in metres.
   final double step;
+
+  /// The shortest length a tap can reach, in metres.
   final double minLength;
+
+  /// The longest length a tap can reach, in metres.
   final double maxLength;
 
   void _nudge(double by) {

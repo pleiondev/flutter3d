@@ -27,28 +27,28 @@ import 'src/incident_panel.dart';
 import 'src/incident_scenario.dart';
 
 void main() {
-  runApp(const IncidentReplayApp());
+  runApp(const _IncidentReplayApp());
 }
 
-class IncidentReplayApp extends StatelessWidget {
-  const IncidentReplayApp({super.key});
+class _IncidentReplayApp extends StatelessWidget {
+  const _IncidentReplayApp();
 
   @override
   Widget build(BuildContext context) => const MaterialApp(
     title: 'ls-i-02: incident replay',
     debugShowCheckedModeBanner: false,
-    home: IncidentScreen(),
+    home: _IncidentScreen(),
   );
 }
 
-class IncidentScreen extends StatefulWidget {
-  const IncidentScreen({super.key});
+class _IncidentScreen extends StatefulWidget {
+  const _IncidentScreen();
 
   @override
-  State<IncidentScreen> createState() => _IncidentScreenState();
+  State<_IncidentScreen> createState() => _IncidentScreenState();
 }
 
-class _IncidentScreenState extends State<IncidentScreen>
+class _IncidentScreenState extends State<_IncidentScreen>
     with SingleTickerProviderStateMixin {
   static Vector3 get _machineAt => Vector3(0.0, 0.5, 0.0);
 

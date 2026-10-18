@@ -38,14 +38,12 @@ import 'src/lesson_view.dart';
 
 /// The lesson this build opens, as a bundled asset path.
 ///
-/// Overridable two ways: `--dart-define=level=` for a local run, and
-/// `?level=` in the page's own URL for a build served from the cloud
-/// (`edu-02`'s own service picks a lesson this way, the same query-param
-/// door `flutter3d_modeler` opens for `?model=`). Unlike that door, this one
-/// needs no same-origin check: `rootBundle.loadString` only ever reads a
-/// path bundled into this build, never a URL, so a `?level=` naming
-/// something outside `assets/levels/` fails to load rather than fetching
-/// anything.
+/// Chosen at build time with `--dart-define=level=`; nothing reads the
+/// page's URL, so a build opens the one lesson it was built for. No
+/// same-origin check is needed either way: `rootBundle.loadString` only
+/// ever reads a path bundled into this build, never a URL, so a `level`
+/// naming something outside `assets/levels/` fails to load rather than
+/// fetching anything.
 const String kLevel = String.fromEnvironment(
   'level',
   defaultValue: 'assets/levels/tour.json',
@@ -53,7 +51,9 @@ const String kLevel = String.fromEnvironment(
 
 void main() => runApp(const LessonViewerApp());
 
+/// The viewer as an application: [LessonScreen] in a bare [MaterialApp].
 class LessonViewerApp extends StatelessWidget {
+  /// The viewer on [kLevel].
   const LessonViewerApp({super.key});
 
   @override
@@ -70,6 +70,7 @@ class LessonViewerApp extends StatelessWidget {
 /// import, because this viewer stands on `flutter3d_app` and not on the game
 /// layer.
 final class OpenKind extends EntityKind {
+  /// A kind that accepts entities of [type] and gives them no behaviour.
   const OpenKind(super.type);
 }
 
@@ -158,15 +159,23 @@ void _addParts(Level level, LoadedLevel loaded, GraphicsDevice device) {
   }
 }
 
+/// Where [LessonCubit] stands: loading, ready to play, or failed.
 sealed class LessonState {
+  /// Shared by the three states; holds nothing.
   const LessonState();
 }
 
+/// The lesson is still being read and built; the screen shows its loading
+/// screen.
 final class LessonLoading extends LessonState {
+  /// The state the cubit starts in.
   const LessonLoading();
 }
 
+/// The lesson is built: a scene with the camera in it, and the player that
+/// walks its steps.
 final class LessonReady extends LessonState {
+  /// A ready lesson; [nodes] is empty for a level that names no parts.
   const LessonReady(
     this.scene,
     this.camera,
@@ -175,9 +184,19 @@ final class LessonReady extends LessonState {
     this.nodes = const <String, SceneNode>{},
   });
 
+  /// The level's scene, with [camera] already added to it.
   final Scene scene;
+
+  /// The eye every step moves; the same node the screen handed to
+  /// [LessonCubit.open].
   final CameraNode camera;
+
+  /// The steps of the level's first `edu_sequence`, in order; empty when it
+  /// names none.
   final LessonPlayer player;
+
+  /// The `widget_surface` panels the level placed, drawn each frame; the
+  /// cubit disposes of them when it closes.
   final WidgetSurfaceVisuals? widgetSurfaces;
 
   /// Every fixture the level placed, by the name its own entity carries —
@@ -186,9 +205,13 @@ final class LessonReady extends LessonState {
   final Map<String, SceneNode> nodes;
 }
 
+/// The lesson could not be opened; the screen says why.
 final class LessonFailed extends LessonState {
+  /// A failure carrying what was thrown.
   const LessonFailed(this.error);
 
+  /// What reading or building the level threw: a missing asset, JSON that
+  /// does not parse, or a level the loader refused.
   final Object error;
 }
 
@@ -198,8 +221,13 @@ final class LessonFailed extends LessonState {
 /// than a thrown error, since a level with no sequence is a level this
 /// screen can still show, just with nothing for its buttons to do.
 class LessonCubit extends Cubit<LessonState> {
+  /// A cubit in [LessonLoading] until [open] is called.
   LessonCubit() : super(const LessonLoading());
 
+  /// Reads [asset] on [device], builds its scene around [camera] with the
+  /// level's widget surfaces resolved through [widgetRegistry], and emits
+  /// [LessonReady]; anything thrown on the way is emitted as
+  /// [LessonFailed]. Emits nothing once the cubit is closed.
   Future<void> open(
     GraphicsDevice device, {
     required CameraNode camera,
@@ -284,7 +312,10 @@ class LessonCubit extends Cubit<LessonState> {
   }
 }
 
+/// The viewer's one screen: opens the device, loads [kLevel], and shows the
+/// lesson once it is ready.
 class LessonScreen extends StatefulWidget {
+  /// The screen; it takes nothing, and reads the lesson to open itself.
   const LessonScreen({super.key});
 
   @override

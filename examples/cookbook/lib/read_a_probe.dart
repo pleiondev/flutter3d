@@ -11,7 +11,12 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 void main() => runApp(const MaterialApp(home: ReadAProbe()));
 
+/// A temperature read off the simulation the way an application should read
+/// one: a probe on an entity, a sampler answering it, and a text widget built
+/// from the published copy rather than from the world the loop is stepping.
 class ReadAProbe extends StatefulWidget {
+  /// Takes nothing: the probe and its sampler are installed once the view has
+  /// opened its engine.
   const ReadAProbe({super.key});
 
   @override

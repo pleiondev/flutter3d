@@ -8,7 +8,11 @@ import 'package:flutter3d_app/flutter3d_app.dart';
 
 void main() => runApp(const MaterialApp(home: ScenesInAList()));
 
+/// Twelve cards in a scrolling list, each its own scene with a sphere of a
+/// different colour. Nothing in them moves, so each draws a frame when it is
+/// built and none on the refreshes after.
 class ScenesInAList extends StatelessWidget {
+  /// Takes nothing: the twelve cards are fixed in [build].
   const ScenesInAList({super.key});
 
   @override

@@ -7,7 +7,11 @@ import 'package:flutter3d_app/flutter3d_app.dart';
 
 void main() => runApp(const MaterialApp(home: PlaceholderWhileLoading()));
 
+/// The robot, with a grey capsule standing where it will be until it has
+/// loaded, and a debug line counting its meshes once it has.
 class PlaceholderWhileLoading extends StatelessWidget {
+  /// Takes nothing: the model, the placeholder and the callback are fixed in
+  /// [build].
   const PlaceholderWhileLoading({super.key});
 
   @override

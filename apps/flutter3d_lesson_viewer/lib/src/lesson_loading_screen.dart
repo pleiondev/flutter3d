@@ -10,6 +10,8 @@ import 'lesson_theme.dart';
 /// `flutter3d_app`'s still [LoadingScreen], which says it in words; either
 /// way a screen reader hears that the lesson is loading.
 class LessonLoadingScreen extends StatelessWidget {
+  /// The loading screen; it takes nothing, and reads the motion flag from
+  /// the context it is built in.
   const LessonLoadingScreen({super.key});
 
   static const String _label = 'Loading the lesson';

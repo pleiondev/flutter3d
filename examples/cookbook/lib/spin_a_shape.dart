@@ -7,7 +7,10 @@ import 'package:flutter3d_app/flutter3d_app.dart';
 
 void main() => runApp(const MaterialApp(home: SpinAShape()));
 
+/// A gold torus turned a little before every frame, by the seconds the frame
+/// says have passed, so it turns at the same speed whatever the refresh rate.
 class SpinAShape extends StatefulWidget {
+  /// Takes nothing: the torus turns at 0.8 radians a second.
   const SpinAShape({super.key});
 
   @override

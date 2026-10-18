@@ -7,6 +7,7 @@ import 'package:flutter3d_education/lab.dart';
 /// another `WidgetSurface`, since this is a teacher's own screen, not
 /// something the student in the 3D scene taps.
 final class LabReviewPanel extends StatelessWidget {
+  /// A review of one recorded run against the length it was assigned.
   const LabReviewPanel({
     super.key,
     required this.assignedLength,
@@ -54,8 +55,10 @@ final class LabReviewPanel extends StatelessWidget {
 /// The button that opens [LabReviewPanel] — kept apart from the dialog
 /// itself so `main.dart` decides where it sits without this file caring.
 final class LabReviewButton extends StatelessWidget {
+  /// A button that calls [onPressed]; opening the panel is the caller's.
   const LabReviewButton({super.key, required this.onPressed});
 
+  /// What a press does: in the lab, show [LabReviewPanel] in a dialog.
   final VoidCallback onPressed;
 
   @override

@@ -30,7 +30,12 @@ Stream<num?> readings() async* {
   }
 }
 
+/// A tank coloured by the air temperature a weather service reports for [site],
+/// blue at 0 °C and red at 30 °C. It keeps the colour it last had when the
+/// service does not answer.
 class TwinOverRest extends StatelessWidget {
+  /// Not const, because it starts listening to [readings] when it is made, and
+  /// a rebuild has to keep listening to the same stream.
   TwinOverRest({super.key});
 
   /// Made with the widget, so a rebuild listens to the same readings.

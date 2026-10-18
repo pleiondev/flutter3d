@@ -14,14 +14,21 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 /// One thing wrong with the document: an error stops it being drawn, a
 /// warning is said beside a level that is drawn anyway.
 final class Problem {
+  /// A problem saying [message], at [line] and [column] where the text is
+  /// to blame, and an error unless [isError] says it is only a warning.
   const Problem(this.message, {this.line, this.column, this.isError = true});
 
+  /// What is wrong, in the reader's words, as it is shown under the text.
   final String message;
 
   /// Where, counted from one, when the text itself is at fault.
   final int? line;
+
+  /// The column on [line], counted from one; null exactly when [line] is.
   final int? column;
 
+  /// Whether this stops the document being drawn; false for a warning said
+  /// beside a level that is drawn anyway.
   final bool isError;
 
   @override

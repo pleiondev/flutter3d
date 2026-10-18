@@ -29,6 +29,12 @@ typedef ReadAnswer =
 /// and the twin should not hear it as news; a reading whose source time is
 /// the last one's is dropped.
 final class RestPoller {
+  /// A poller that has not asked yet: nothing goes out until [start].
+  ///
+  /// [client] is for a test that answers the requests itself; without one
+  /// the poller makes its own and closes it in [dispose]. [clock] stamps
+  /// each reading's receive time, in seconds, and is the wall clock unless
+  /// a test fixes it.
   RestPoller({
     required this.uri,
     required this.read,

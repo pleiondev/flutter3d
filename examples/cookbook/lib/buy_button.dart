@@ -6,7 +6,11 @@ import 'package:flutter3d_app/flutter3d_app.dart';
 
 void main() => runApp(const MaterialApp(home: BuyButton()));
 
+/// The product page: the robot on an orbit camera filling the space above, and
+/// a buy button below it that answers with a snack bar. The scene is one widget
+/// in an ordinary column, laid out like any other.
 class BuyButton extends StatelessWidget {
+  /// Takes nothing: the model, the camera and the button are fixed in [build].
   const BuyButton({super.key});
 
   @override

@@ -8,7 +8,11 @@ import 'package:flutter3d_app/flutter3d_app.dart';
 
 void main() => runApp(const MaterialApp(home: RunnerAt60()));
 
+/// A capsule running down an endless track with the camera behind it, under a
+/// frame rate cap of 60 and three quarters of the pixels: the settings a phone
+/// game starts from.
 class RunnerAt60 extends StatefulWidget {
+  /// Takes nothing: the runner moves at six metres a second.
   const RunnerAt60({super.key});
 
   @override

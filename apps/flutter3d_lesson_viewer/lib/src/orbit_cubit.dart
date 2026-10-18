@@ -22,14 +22,20 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 /// A snapshot of [OrbitController]'s own numbers.
 final class OrbitPose {
+  /// A pose of [distance] metres, [yaw] and [pitch] radians.
   const OrbitPose({
     required this.distance,
     required this.yaw,
     required this.pitch,
   });
 
+  /// From the orbited point to the camera, in metres.
   final double distance;
+
+  /// Turn about the world's vertical, in radians.
   final double yaw;
+
+  /// Elevation above the horizon, in radians.
   final double pitch;
 
   @override
@@ -47,6 +53,7 @@ final class OrbitPose {
 /// after every mutation, so a `BlocBuilder` around the scene surface knows
 /// to ask `SceneSurface` for a fresh frame.
 class OrbitCubit extends Cubit<OrbitPose> {
+  /// A cubit for [orbit], starting from the pose it already holds.
   OrbitCubit(this.orbit) : super(_poseOf(orbit));
 
   /// The live turntable. Held rather than rebuilt each time so [rotate]/
@@ -58,16 +65,22 @@ class OrbitCubit extends Cubit<OrbitPose> {
 
   void _sync() => emit(_poseOf(orbit));
 
+  /// Turns the orbit by a drag of [dx] and [dy] pixels and emits the new
+  /// pose.
   void rotate(double dx, double dy) {
     orbit.rotate(dx, dy);
     _sync();
   }
 
+  /// Slides the orbited point by a drag of [dx] and [dy] pixels on a view
+  /// [viewportHeight] pixels tall, and emits the new pose.
   void pan(double dx, double dy, {required double viewportHeight}) {
     orbit.pan(dx, dy, viewportHeight: viewportHeight);
     _sync();
   }
 
+  /// Multiplies the distance by [factor], below one moving closer, and emits
+  /// the new pose.
   void zoom(double factor) {
     orbit.zoom(factor);
     _sync();

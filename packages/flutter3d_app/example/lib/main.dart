@@ -22,14 +22,17 @@ import 'package:flutter3d_app/flutter3d_app.dart';
 
 void main() => runApp(const CubeApp());
 
+/// The application: the cube's screen in a bare [MaterialApp]. Public so the
+/// widget test can pump it whole.
 class CubeApp extends StatelessWidget {
+  /// The application; it takes nothing.
   const CubeApp({super.key});
 
   @override
   Widget build(BuildContext context) => const MaterialApp(
     title: 'A cube',
     debugShowCheckedModeBanner: false,
-    home: CubeScreen(),
+    home: _CubeScreen(),
   );
 }
 
@@ -55,14 +58,14 @@ Scene buildScene(GraphicsDevice device) => Scene()
       ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
   );
 
-class CubeScreen extends StatefulWidget {
-  const CubeScreen({super.key});
+class _CubeScreen extends StatefulWidget {
+  const _CubeScreen();
 
   @override
-  State<CubeScreen> createState() => _CubeScreenState();
+  State<_CubeScreen> createState() => _CubeScreenState();
 }
 
-class _CubeScreenState extends State<CubeScreen> {
+class _CubeScreenState extends State<_CubeScreen> {
   final CameraNode _camera = CameraNode(name: 'eye');
   late final OrbitController _orbit = OrbitController(
     _camera,

@@ -27,7 +27,10 @@ export 'src/scene.dart';
 
 void main() => runApp(const PlaygroundApp());
 
+/// The application around the playground: a dark theme seeded from the
+/// site's blue, and the playground as its only screen.
 class PlaygroundApp extends StatelessWidget {
+  /// The app on the sample level, which is what the site's page opens on.
   const PlaygroundApp({super.key});
 
   @override
@@ -44,7 +47,11 @@ class PlaygroundApp extends StatelessWidget {
   );
 }
 
+/// The editor and the view side by side: the text on one side, the level it
+/// reads as on the other, redrawn a moment after the typing stops.
 class Playground extends StatefulWidget {
+  /// A playground opened on [document], the sample level unless a test or a
+  /// link hands it another.
   const Playground({super.key, this.document = sampleLevel});
 
   /// What the editor opens on.
@@ -56,7 +63,7 @@ class Playground extends StatefulWidget {
 
 /// Public so a test can read what the playground made of its text.
 class PlaygroundState extends State<Playground> {
-  late final TextEditingController text = TextEditingController(
+  late final TextEditingController _text = TextEditingController(
     text: widget.document,
   );
 
@@ -88,13 +95,13 @@ class PlaygroundState extends State<Playground> {
   @override
   void initState() {
     super.initState();
-    reading = readDocument(text.text);
+    reading = readDocument(_text.text);
   }
 
   @override
   void dispose() {
     _typing?.cancel();
-    text.dispose();
+    _text.dispose();
     super.dispose();
   }
 
@@ -106,13 +113,13 @@ class PlaygroundState extends State<Playground> {
   }
 
   void _load(String document) {
-    text.text = document;
+    _text.text = document;
     _framed = false;
     _read();
   }
 
   void _read() {
-    setState(() => reading = readDocument(text.text));
+    setState(() => reading = readDocument(_text.text));
     _draw();
   }
 
@@ -250,7 +257,7 @@ class PlaygroundState extends State<Playground> {
               padding: const EdgeInsets.all(12.0),
               child: TextField(
                 key: const ValueKey<String>('document'),
-                controller: text,
+                controller: _text,
                 onChanged: _edited,
                 expands: true,
                 maxLines: null,

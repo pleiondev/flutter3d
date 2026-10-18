@@ -30,11 +30,11 @@ void main() {
   // Landscape and nothing else on screen: a phone in a holder has no room for
   // a status bar, and a picture that reflows halfway through a turn of the head
   // is worse than one that never rotates.
-  unawaitedChrome();
-  runApp(const StereoExampleApp());
+  _unawaitedChrome();
+  runApp(const _StereoExampleApp());
 }
 
-void unawaitedChrome() {
+void _unawaitedChrome() {
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
   SystemChrome.setPreferredOrientations(<DeviceOrientation>[
     DeviceOrientation.landscapeLeft,
@@ -42,25 +42,25 @@ void unawaitedChrome() {
   ]);
 }
 
-class StereoExampleApp extends StatelessWidget {
-  const StereoExampleApp({super.key});
+class _StereoExampleApp extends StatelessWidget {
+  const _StereoExampleApp();
 
   @override
   Widget build(BuildContext context) => const MaterialApp(
     title: 'flutter3d in stereo',
     debugShowCheckedModeBanner: false,
-    home: StereoScreen(),
+    home: _StereoScreen(),
   );
 }
 
-class StereoScreen extends StatefulWidget {
-  const StereoScreen({super.key});
+class _StereoScreen extends StatefulWidget {
+  const _StereoScreen();
 
   @override
-  State<StereoScreen> createState() => _StereoScreenState();
+  State<_StereoScreen> createState() => _StereoScreenState();
 }
 
-class _StereoScreenState extends State<StereoScreen>
+class _StereoScreenState extends State<_StereoScreen>
     with SingleTickerProviderStateMixin {
   final StereoRig _rig = StereoRig();
   final SensorHeadTracker _tracker = SensorHeadTracker();
@@ -129,7 +129,7 @@ class _StereoScreenState extends State<StereoScreen>
         ..reset()
         ..start();
     }
-    // ignore: avoid-empty-setstate, the frame was drawn outside the widget.
+    // Nothing to set: the frame was drawn outside the widget.
     setState(() {});
   }
 

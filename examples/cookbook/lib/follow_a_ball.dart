@@ -8,7 +8,11 @@ import 'package:flutter3d_app/flutter3d_app.dart';
 
 void main() => runApp(const MaterialApp(home: FollowABall()));
 
+/// A ball bouncing along a floor under gravity, with an orbit camera whose
+/// target is the ball. Each rebuild moves the target; the distance and the
+/// angle a drag has set are kept.
 class FollowABall extends StatefulWidget {
+  /// Takes nothing: the ball starts three metres up and rolls along x.
   const FollowABall({super.key});
 
   @override

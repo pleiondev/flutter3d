@@ -10,7 +10,12 @@ import 'package:flutter3d_app/flutter3d_app.dart';
 
 void main() => runApp(const MaterialApp(home: PendulumSlider()));
 
+/// A pendulum bob swung by its own integration every frame, with a slider that
+/// changes its length while it swings. A longer pendulum swings slower, by the
+/// square root of its length.
 class PendulumSlider extends StatefulWidget {
+  /// Takes nothing: the pendulum starts a metre and a half long, half a radian
+  /// out.
   const PendulumSlider({super.key});
 
   @override

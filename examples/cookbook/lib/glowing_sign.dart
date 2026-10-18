@@ -8,7 +8,12 @@ import 'package:flutter3d_app/flutter3d_app.dart';
 
 void main() => runApp(const MaterialApp(home: GlowingSign()));
 
+/// A bar that emits three thousand nits of pink against a near-black
+/// background, with bloom on so the light spills past its edges and reads as
+/// bright.
 class GlowingSign extends StatelessWidget {
+  /// Takes nothing: the sign, its brightness and the bloom are fixed in
+  /// [build].
   const GlowingSign({super.key});
 
   @override
