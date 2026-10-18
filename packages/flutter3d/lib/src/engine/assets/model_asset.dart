@@ -554,6 +554,9 @@ final class ModelAsset {
     }
     for (final part in parts) {
       meshes.add(part.mesh);
+      // The packed morph deltas. Surfaces that share a mesh share them too,
+      // so they go into the identity set with the rest.
+      if (part.morphTexture case final deltas?) textures.add(deltas);
       // A variant's material holds textures the default one may not.
       for (final material in <RenderMaterial>[
         part.material,

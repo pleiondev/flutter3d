@@ -67,6 +67,22 @@ void main() {
       expect(part.morphTargetCount, 2);
     });
 
+    test('gives the deltas back when the asset is disposed', () async {
+      // Its own load: disposing the shared one would pull the texture out
+      // from under the tests after this one.
+      final device = FakeBackend();
+      final own = await ModelAsset.fromDocument(
+        document,
+        device: device,
+        lighting: LightingModel.unlit,
+      );
+      final deltas = own.parts.single.morphTexture!;
+
+      own.dispose();
+
+      expect(device.releasedTextures, contains(same(deltas)));
+    });
+
     test('hands the uploaded deltas to the node it builds', () {
       final instance = asset.instantiate(Scene());
       final morph = instance.meshes.single.morph;
