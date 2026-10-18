@@ -23,3 +23,4 @@ export 'src/plugin_discovery.dart';
 export 'src/plugin_template.dart';
 export 'src/shader_build.dart';
 export 'src/texture_encode.dart';
+export 'src/uniform_blocks.dart';

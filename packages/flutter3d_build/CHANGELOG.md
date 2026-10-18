@@ -1,5 +1,15 @@
 ## 1.0.0-rc.1
 
+- **Typed uniform blocks, checked at build time.** The material build
+  reflects each material's fragment stage with `impellerc`, holds the
+  material language's layout of its blocks to the compiler's, and writes
+  `lib/uniform_blocks.g.dart`: a `UniformBlock` class per block, a field per
+  member, its layout as a constant. A committed file that names a member
+  the stage no longer has fails the build with the member and the closest
+  one the stage has, instead of a bind that draws nothing. The pieces are
+  public: `uniformBlocksFromReflection`, `reflectStageBlocks`,
+  `declaredMaterialBlocks`, `generateUniformBlocks`, `uniformBlocksInSource`
+  and `uniformBlockProblems`.
 - **Breaking: five more plugin kinds.** `flutter3d create plugin --kind`
   and `plugin.create` take `material` (also `lit-model`), `compute`,
   `codec`, `editor` and `data` (also `wasm`) beside the five before, and

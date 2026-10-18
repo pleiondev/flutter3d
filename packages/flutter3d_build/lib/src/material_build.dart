@@ -42,6 +42,7 @@ import 'package:flutter3d_shaders/compile.dart';
 
 import 'layout.dart';
 import 'pipeline_version.dart';
+import 'uniform_blocks.dart';
 
 /// What one call to [runMaterialBuild] did.
 final class MaterialBuildReport {
@@ -206,6 +207,14 @@ MaterialBuildReport runMaterialBuild(
 
   _writeCache(cachePath, next);
   _writeAccessors(projectRoot, plan, sink);
+  _writeUniformBlocks(
+    projectRoot,
+    plan,
+    sink,
+    compilers: tools,
+    engine: shaders,
+    changed: built.isNotEmpty,
+  );
   return MaterialBuildReport(
     built: built,
     skipped: skipped,
@@ -257,6 +266,120 @@ void _writeAccessors(Directory projectRoot, List<AssetPlan> plan, IOSink sink) {
     return;
   }
   final text = generateMaterialAccessors(programs, from: from);
+  if (file.existsSync() && file.readAsStringSync() == text) return;
+  file
+    ..parent.createSync(recursive: true)
+    ..writeAsStringSync(text);
+}
+
+/// The project's typed uniform blocks, `lib/uniform_blocks.g.dart`: a
+/// `UniformBlock` class per block of each material's fragment stage, from
+/// `impellerc`'s reflection of it ([generateUniformBlocks]).
+///
+/// **And the check, which fails the build.** Each material's own blocks,
+/// as the material language lays them out and the engine fills them, are
+/// held to the reflection ([uniformBlockProblems]); so is the file already
+/// there, read back ([uniformBlocksInSource]), whose classes a project's
+/// code is compiled against: a member it names that the stage no longer
+/// has is named with the stage's closest one, and the build stops rather
+/// than writing over the file and leaving the code that used the old name
+/// to fail somewhere else. Delete the file to have it written afresh.
+///
+/// Run when a material was built or the file is missing, in a package
+/// whose pubspec names `flutter3d`, which the classes import. A compiler
+/// that writes no reflection (a test's stub) skips it, saying so.
+void _writeUniformBlocks(
+  Directory projectRoot,
+  List<AssetPlan> plan,
+  IOSink sink, {
+  required MaterialCompilers compilers,
+  required ShaderSet engine,
+  required bool changed,
+}) {
+  final pubspec = File('${projectRoot.path}/pubspec.yaml');
+  if (!pubspec.existsSync()) return;
+  final file = File('${projectRoot.path}/lib/uniform_blocks.g.dart');
+  if (!changed && file.existsSync()) return;
+  if (!RegExp(
+    r'^\s+flutter3d:',
+    multiLine: true,
+  ).hasMatch(pubspec.readAsStringSync())) {
+    return;
+  }
+  final scratch = Directory(
+    '${projectRoot.path}/.dart_tool/flutter3d_build/materials',
+  );
+  final stages = <String, UniformBlockLayouts>{};
+  final from = <String, String>{};
+  for (final job in plan) {
+    final MaterialProgram program;
+    try {
+      program = parseMaterial(File(job.source).readAsStringSync());
+    } on MaterialSyntaxException {
+      continue;
+    }
+    if (program.kind == MaterialStageKind.compute) continue;
+    final declared = declaredMaterialBlocks(program);
+    if (declared.isEmpty) continue;
+    final reflected = reflectStageBlocks(
+      emitMaterialFragment(
+        specializeMaterial(program, MaterialVariant(program.name)),
+      ),
+      name: program.name,
+      fragment: true,
+      source: job.source,
+      compilers: compilers,
+      engine: engine,
+      scratch: scratch,
+    );
+    if (reflected == null) {
+      sink.writeln(
+        'flutter3d_build: no lib/uniform_blocks.g.dart — impellerc wrote no '
+        'reflection for "${program.name}"',
+      );
+      return;
+    }
+    final problems = uniformBlockProblems(
+      declared,
+      reflected,
+      stage: program.name,
+      against: 'the material source',
+    );
+    if (problems.isNotEmpty) {
+      throw MaterialBuildException(problems.join('\n'), source: job.source);
+    }
+    stages[program.name] = {
+      for (final block in declared.keys) block: reflected[block]!,
+    };
+    from[program.name] = job.source.substring(projectRoot.path.length + 1);
+  }
+  if (file.existsSync()) {
+    final committed = uniformBlocksInSource(file.readAsStringSync());
+    final problems = <String>[
+      for (final MapEntry(key: stage, value: blocks) in committed.entries)
+        if (stages[stage] case final reflected?)
+          ...uniformBlockProblems(
+            blocks,
+            reflected,
+            stage: stage,
+            against: 'lib/uniform_blocks.g.dart',
+          ),
+    ];
+    if (problems.isNotEmpty) {
+      throw MaterialBuildException(
+        '${problems.join('\n')}\nThe code compiled against '
+        'lib/uniform_blocks.g.dart names what the stage no longer has: '
+        'change the shader or the code, and delete the file to have it '
+        'written afresh.',
+        source: file.path,
+      );
+    }
+  }
+  if (stages.isEmpty) {
+    if (file.existsSync()) file.deleteSync();
+    return;
+  }
+  final text = generateUniformBlocks(stages, from: from);
   if (file.existsSync() && file.readAsStringSync() == text) return;
   file
     ..parent.createSync(recursive: true)

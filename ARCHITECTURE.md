@@ -1923,7 +1923,13 @@ its bundle must be written against the GLSL.
 
 Member names are the sharp edge and fail silently in both directions: a shader
 asking for a member nobody wrote gets zeros, and a caller naming a member the
-block lacks is an error.
+block lacks is an error. The engine's own stages bind through classes generated
+from `impellerc`'s reflection (`typed_blocks.dart`), and a project's materials
+get the same at build time: `flutter3d_build` reflects each material's fragment
+stage, holds the material language's std140 layout of its blocks to the
+compiler's, and writes `lib/uniform_blocks.g.dart`, a `UniformBlock` class per
+block. A committed copy that names a member the stage no longer has fails the
+build with the member and the closest one the stage has.
 
 This is also the limit on extensions. An application that builds its own bundle
 can add a lighting model, because `LightingModel` is a value class — and since
