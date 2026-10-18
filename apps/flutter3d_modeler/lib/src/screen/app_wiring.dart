@@ -36,7 +36,11 @@ final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 /// `_kAutosaveSessionId`'s own doc comment already relies on.
 _ModelerScreenState? _liveCrashScreen;
 
+/// The whole application: the theme, the two languages, the root navigator
+/// a crash dialog is shown over, and [ModelerScreen] as its one page.
 class ModelerApp extends StatelessWidget {
+  /// The application. It takes nothing but a key: what a build varies comes
+  /// from its defines, read where they are used.
   const ModelerApp({super.key});
 
   @override
@@ -55,9 +59,12 @@ class ModelerApp extends StatelessWidget {
   );
 }
 
-/// What the screen is doing. Three states, and no more until there is a
-/// document to have states about.
+/// The editor's one screen: it opens the device and the document, and
+/// builds whichever of the [ModelerState]s the cubit is in, the viewport and
+/// every panel around it included.
 class ModelerScreen extends StatefulWidget {
+  /// The screen as a real build runs it, with every argument null. A test
+  /// hands in its own storage, port and senders instead.
   const ModelerScreen({
     super.key,
     this.autosaveStorage,

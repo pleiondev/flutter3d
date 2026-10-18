@@ -274,11 +274,22 @@ final class GroundGrid {
 /// different kind of dial. The rule that refuses enums applies to published
 /// packages, and an application's own closed list is closed against nobody.
 enum ViewAxis {
+  /// Faces down `+X`: the eye on the `−X` side, looking across.
   xPositive,
+
+  /// Faces down `−X`: the eye on `+X`, looking back.
   xNegative,
+
+  /// Faces down `+Y`: looking up from below.
   yPositive,
+
+  /// Faces down `−Y`: looking down from above.
   yNegative,
+
+  /// Faces down `+Z`: the eye on the `−Z` side, looking across.
   zPositive,
+
+  /// Faces down `−Z`: the eye on `+Z`, looking back.
   zNegative;
 
   /// The unit vector this button faces the camera down.
@@ -302,6 +313,7 @@ enum ViewAxis {
 /// hit test in the same offsets is a hit test that works wherever the corner
 /// the dial lives in ends up.
 final class GizmoButton {
+  /// A button for [axis], [dx] and [dy] from the dial's centre.
   const GizmoButton({
     required this.axis,
     required this.dx,
@@ -309,6 +321,7 @@ final class GizmoButton {
     required this.facing,
   });
 
+  /// Which way the camera faces once this button is pressed.
   final ViewAxis axis;
 
   /// Pixels right of the dial's centre.
@@ -339,6 +352,8 @@ final class OrientationGizmo {
   /// for is a radius of about 22 with room for a ball at each end.
   const OrientationGizmo({this.radius = 22.0, this.handleRadius = 9.0});
 
+  /// The radius, in logical pixels, of the circle the buttons' centres sit
+  /// on; a button facing straight at the viewer lands in its middle.
   final double radius;
 
   /// How far from a button's centre a press still counts.

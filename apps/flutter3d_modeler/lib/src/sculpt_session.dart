@@ -61,8 +61,12 @@ String sculptToolOf(BrushKind kind) => 'sculpt.${kind.name}';
 /// One sculpting drag: the surface it hit-tests against, the object it is
 /// sculpting, and the transaction it opened.
 class SculptSession {
+  /// A session that writes through [cubit] into the document [history]
+  /// answers with.
   SculptSession({required this.cubit, required this.history});
 
+  /// The editor each sample's commands run through, inside the one
+  /// transaction a drag opens.
   final ModelerCubit cubit;
 
   /// The current document — a callback rather than a held reference, the

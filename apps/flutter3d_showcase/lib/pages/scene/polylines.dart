@@ -4,6 +4,9 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `polylines` page: coloured routes drawn as joined lines a fixed
+/// number of pixels wide. Its check is that the routes are drawn with their
+/// viewport set.
 final class PolylinesDemo extends ShowcaseDemo {
   static const double _viewportWidth = 1280;
   static const double _viewportHeight = 720;
@@ -107,6 +110,9 @@ final class PolylinesDemo extends ShowcaseDemo {
   }
 
   // #region resize
+  /// Tells every route's material that the view is [width] by [height]
+  /// pixels, which their widths are measured against. The page starts them at
+  /// 1280 by 720.
   void setViewport(double width, double height) {
     for (final RenderMaterial material in _materials) {
       final viewport = material.polylineViewport!;

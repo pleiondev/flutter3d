@@ -27,8 +27,11 @@ typedef _Built = ({engine.RenderMaterial material, int version});
 
 /// Materials a scene can draw with, built from a project's table.
 final class MaterialPool {
+  /// An empty pool for [device]; nothing is built until it is filled.
   MaterialPool({required this.device});
 
+  /// The device materials and their images are uploaded to: the one the
+  /// scene draws on.
   final GraphicsDevice device;
 
   final Map<int, _Built> _built = <int, _Built>{};

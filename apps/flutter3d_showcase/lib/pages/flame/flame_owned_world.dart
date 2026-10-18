@@ -16,6 +16,9 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/flame_layer.dart';
 
+/// The `flame-owned-world` page: crates on a floor in a world the Flame game
+/// owns through `HasFlutter3d`. Its check is that a tap where a crate is
+/// drawn finds it.
 final class FlameOwnedWorldDemo extends ShowcaseDemo {
   late final DemoContext _context;
   late final Scene _scene;

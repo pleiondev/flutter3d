@@ -67,6 +67,9 @@ List<FlameInputBridge> seatNewcomers(PlayerSeats seats) => <FlameInputBridge>[
 ];
 // #endregion claim
 
+/// The `flame-seats` page: two keyboard layouts over one floor, a player
+/// taking a seat when its join key is pressed. Its check is that the layout
+/// that pressed first became player one.
 final class FlameSeatsDemo extends ShowcaseDemo {
   late final DemoContext _context;
   late final Scene _scene;

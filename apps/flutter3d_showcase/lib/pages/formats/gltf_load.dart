@@ -6,6 +6,9 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `gltf-load` page: the meshes of a GLB fixture, loaded and drawn. Its
+/// check is the number of surfaces, that they have vertices, and that both
+/// are drawn.
 final class GltfLoadDemo extends ShowcaseDemo {
   late final GltfAsset _asset;
 

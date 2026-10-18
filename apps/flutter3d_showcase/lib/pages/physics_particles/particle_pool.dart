@@ -8,6 +8,8 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `particle-pool` page: several effects bursting out of one pool, drawn
+/// in one call. Its check is the number of live particles.
 final class ParticlePoolDemo extends ShowcaseDemo {
   late final ParticleSystem _particles;
   late final ParticleEffect _sprayEffect;

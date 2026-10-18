@@ -46,6 +46,8 @@ enum NavigationScheme {
   /// comes from the Select tool or `B`; the right button held is free-look.
   leftDragOrbit;
 
+  /// What a settings file stores for the scheme. Never changes, whatever the
+  /// label says.
   String get id => switch (this) {
     NavigationScheme.middleMouseOrbit => 'middle-mouse-orbit',
     NavigationScheme.leftDragOrbit => 'left-drag-orbit',
@@ -59,6 +61,7 @@ enum NavigationScheme {
     NavigationScheme.leftDragOrbit => 'Left-drag orbit',
   };
 
+  /// The scheme stored as [id], or null for one this build does not know.
   static NavigationScheme? byId(String? id) {
     for (final NavigationScheme it in NavigationScheme.values) {
       if (it.id == id) return it;
@@ -80,18 +83,22 @@ enum KeymapPreset {
   /// navigate.
   toolKeys;
 
+  /// What a settings file stores for the preset.
   String get id => switch (this) {
     KeymapPreset.standard => 'standard',
     KeymapPreset.modalKeys => 'modal-keys',
     KeymapPreset.toolKeys => 'tool-keys',
   };
 
+  /// What the Settings screen shows, in English, as [NavigationScheme.label]
+  /// is.
   String get label => switch (this) {
     KeymapPreset.standard => 'Default',
     KeymapPreset.modalKeys => 'Modal keys',
     KeymapPreset.toolKeys => 'Tool keys',
   };
 
+  /// The preset stored as [id], or null for one this build does not know.
   static KeymapPreset? byId(String? id) {
     for (final KeymapPreset it in KeymapPreset.values) {
       if (it.id == id) return it;
@@ -110,16 +117,20 @@ enum TransformStart {
   /// what this application did before there was a choice.
   armThenDrag;
 
+  /// What a settings file stores for the choice.
   String get id => switch (this) {
     TransformStart.modalOnPress => 'modal-on-press',
     TransformStart.armThenDrag => 'arm-then-drag',
   };
 
+  /// What the Settings screen shows, in English, as [NavigationScheme.label]
+  /// is.
   String get label => switch (this) {
     TransformStart.modalOnPress => 'Modal on press',
     TransformStart.armThenDrag => 'Arm, then drag',
   };
 
+  /// The choice stored as [id], or null for one this build does not know.
   static TransformStart? byId(String? id) {
     for (final TransformStart it in TransformStart.values) {
       if (it.id == id) return it;
@@ -130,23 +141,27 @@ enum TransformStart {
 
 /// Which set of screens the mode switcher offers — `ux-37`'s own workspaces.
 enum Workspace {
-  /// Object, RenderMaterial and Scene: what "open a model, paint it, export it"
+  /// Object, Material and Scene: what "open a model, paint it, export it"
   /// needs and nothing past it. The default.
   essential,
 
   /// Everything the application has, Mesh and Animation included.
   full;
 
+  /// What a settings file stores for the workspace.
   String get id => switch (this) {
     Workspace.essential => 'essential',
     Workspace.full => 'full',
   };
 
+  /// What the Settings screen shows, in English, as [NavigationScheme.label]
+  /// is.
   String get label => switch (this) {
     Workspace.essential => 'Essential',
     Workspace.full => 'Full',
   };
 
+  /// The workspace stored as [id], or null for one this build does not know.
   static Workspace? byId(String? id) {
     for (final Workspace it in Workspace.values) {
       if (it.id == id) return it;
@@ -162,6 +177,8 @@ enum Workspace {
 /// readers can never disagree about what the settings are halfway through a
 /// write.
 final class ModelerSettings {
+  /// The settings of a first launch, with any choice given replacing its
+  /// default.
   const ModelerSettings({
     this.navigation = NavigationScheme.middleMouseOrbit,
     this.keymap = KeymapPreset.standard,
@@ -287,6 +304,8 @@ final class ModelerSettings {
   /// radians and the conversion happens where the two meet.
   final double snapTurnDegrees;
 
+  /// The step a held snap modifier scales by, as a fraction: 0.1 is ten per
+  /// cent a step.
   final double snapScale;
 
   /// How wide the properties panel is, in logical pixels — `ux-27`.
@@ -307,6 +326,8 @@ final class ModelerSettings {
   /// before it.
   final DockLayouts layouts;
 
+  /// These settings with the given ones replaced; [clearLanguage] goes back
+  /// to following the system, which a null [language] cannot say.
   ModelerSettings copyWith({
     NavigationScheme? navigation,
     KeymapPreset? keymap,
@@ -343,6 +364,8 @@ final class ModelerSettings {
   DockLayout layoutOf(Workspace workspace) =>
       layouts[workspace.id] ?? DockLayout(propertiesWidth: propertiesWidth);
 
+  /// The document [ModelerSettings.fromJson] reads back, with each choice
+  /// written as its stable id.
   Map<String, Object?> toJson() => <String, Object?>{
     'navigation': navigation.id,
     'keymap': keymap.id,
@@ -426,6 +449,7 @@ final class SettingsStore {
   /// Beside `recent.json`, in the same per-platform directory.
   static const String name = 'settings.json';
 
+  /// Where the document is read from and written to.
   final Storage storage;
 
   /// What is stored, or the defaults on a first launch — and on a document

@@ -12,6 +12,9 @@ import 'package:flutter3d_physics/flutter3d_physics.dart'
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `ragdoll` page: eleven capsules on ten joints pushed down a flight of
+/// stairs. Its check is that it goes down, comes to rest with its joints
+/// closed, and leaves no bone in the floor.
 final class RagdollDemo extends ShowcaseDemo {
   NativeWorld? _world;
   NativeRagdoll? _doll;

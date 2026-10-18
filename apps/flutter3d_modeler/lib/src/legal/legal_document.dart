@@ -32,44 +32,64 @@ sealed class LegalBlock {
 
 /// `#`, `##` or `###`, by [level].
 final class LegalHeading extends LegalBlock {
+  /// A heading at [level], 1 to 3.
   const LegalHeading({required this.level, required this.text});
 
+  /// How many `#` it was written with, clamped to 1 to 3: a `####` reads as
+  /// a third-level heading.
   final int level;
+
+  /// The heading's words, with their marks.
   final List<LegalSpan> text;
 }
 
+/// A paragraph: consecutive lines of prose, joined, with their marks.
 final class LegalParagraph extends LegalBlock {
+  /// A paragraph of [text].
   const LegalParagraph(this.text);
 
+  /// The paragraph's spans, in order, the line breaks of the source undone.
   final List<LegalSpan> text;
 }
 
 /// A run of `-` items, or of `1.` items when [numbered].
 final class LegalList extends LegalBlock {
+  /// A list of [items], numbered or bulleted.
   const LegalList({required this.items, required this.numbered});
 
+  /// One entry per item, each its own run of spans.
   final List<List<LegalSpan>> items;
+
+  /// Whether the items were written `1.` rather than `-`, and are drawn with
+  /// their numbers.
   final bool numbered;
 }
 
 /// A fenced block, kept exactly as written — the MIT licence text is one, and
 /// re-wrapping a licence is not this application's business.
 final class LegalCode extends LegalBlock {
+  /// A fenced block holding [text].
   const LegalCode(this.text);
 
+  /// The lines between the fences, exactly as written, without the fences.
   final String text;
 }
 
 /// A pipe table: one header row and the rows under it.
 final class LegalTable extends LegalBlock {
+  /// A table of [header] over [rows].
   const LegalTable({required this.header, required this.rows});
 
+  /// The header row, one cell after another.
   final List<List<LegalSpan>> header;
+
+  /// The body rows under the separator, each a list of cells as [header] is.
   final List<List<List<LegalSpan>>> rows;
 }
 
 /// A whole document: what the front matter says about it, and its blocks.
 final class LegalDocument {
+  /// A document as [parseLegalDocument] builds it from a file.
   const LegalDocument({
     required this.name,
     required this.title,
@@ -83,7 +103,12 @@ final class LegalDocument {
   /// what the asset path is built from.
   final String name;
 
+  /// The front matter's `title`, or [name] when there is none: the page's
+  /// heading.
   final String title;
+
+  /// The front matter's `description`, or null: a line under the title saying
+  /// what the document covers.
   final String? description;
 
   /// The `version` and `effective` lines of the front matter, shown together
@@ -91,8 +116,12 @@ final class LegalDocument {
   /// no document here does but which must not crash the screen if one ever
   /// does.
   final String version;
+
+  /// The `effective` line of the front matter: the day the version took
+  /// effect, shown beside [version].
   final String effective;
 
+  /// Everything below the front matter, in order.
   final List<LegalBlock> blocks;
 }
 

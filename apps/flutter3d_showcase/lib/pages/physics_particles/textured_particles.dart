@@ -11,6 +11,8 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `textured-particles` page: sparks drawn with a painted sprite. Its
+/// check is that the contributor draws the sprite.
 final class TexturedParticlesDemo extends ShowcaseDemo {
   late final ParticleSystem _particles;
   late final ParticleEffect _sparksEffect;

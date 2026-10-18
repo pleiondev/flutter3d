@@ -81,6 +81,8 @@ final class _Tracked {
 
 /// The scene, following a project.
 final class SceneSync {
+  /// A sync that builds the project's objects under [root] in [scene], on
+  /// [device]. Nothing is built until the first [apply].
   SceneSync({
     required this.device,
     required this.scene,
@@ -88,7 +90,10 @@ final class SceneSync {
     this.materials,
   });
 
+  /// The device every mesh and texture of the project is uploaded to.
   final GraphicsDevice device;
+
+  /// The scene the objects are drawn in; they hang under [root] inside it.
   final Scene scene;
 
   /// The project's materials, uploaded. Null for the measurement stands, which

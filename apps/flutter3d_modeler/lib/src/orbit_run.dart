@@ -30,6 +30,7 @@ typedef OrbitReport = ({
 
 /// Turns the camera a full circle over [frames] frames and times each one.
 final class OrbitRun {
+  /// A run of [frames] frames over [stage]'s camera.
   OrbitRun({required this.frames, required this.stage});
 
   /// How many frames the arc is spread over. 600 is ten seconds at sixty,
@@ -37,6 +38,7 @@ final class OrbitRun {
   /// walks away from it.
   final int frames;
 
+  /// The stage whose orbit is turned; its camera is what each step moves.
   final ModelerStage stage;
 
   int _frame = 0;
@@ -44,6 +46,7 @@ final class OrbitRun {
   final List<double> _wall = <double>[];
   final List<double> _render = <double>[];
 
+  /// Whether every frame has been stepped, after which [step] does nothing.
   bool get done => _frame >= frames;
 
   /// Advances the camera one step and records what the previous frame cost.

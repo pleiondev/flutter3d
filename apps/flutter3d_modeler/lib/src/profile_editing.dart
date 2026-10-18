@@ -20,8 +20,11 @@ import 'package:vector_math/vector_math.dart';
 /// One authored point on a profile, in the (radius, height) half-plane
 /// [AddLathe.profile] is already drawn in.
 final class ProfilePoint {
+  /// A point at [position].
   const ProfilePoint(this.position);
 
+  /// Where the point sits: x the radius from the lathe's axis, y the height
+  /// along it, in metres.
   final Vector2 position;
 }
 
@@ -38,13 +41,16 @@ sealed class ProfileSegment {
 
 /// A straight line to the next point.
 final class LineSegment extends ProfileSegment {
+  /// The one straight segment; it carries nothing.
   const LineSegment();
 }
 
 /// A quadratic Bezier to the next point, pulled toward [control].
 final class QuadraticSegment extends ProfileSegment {
+  /// A quadratic pulled toward [control].
   const QuadraticSegment(this.control);
 
+  /// The control point, in the same (radius, height) plane as the points.
   final Vector2 control;
 }
 
@@ -52,9 +58,13 @@ final class QuadraticSegment extends ProfileSegment {
 /// [control1]'s own pull and arriving at the point after under
 /// [control2]'s.
 final class CubicSegment extends ProfileSegment {
+  /// A cubic under [control1] and [control2].
   const CubicSegment(this.control1, this.control2);
 
+  /// The control point nearer the segment's start.
   final Vector2 control1;
+
+  /// The control point nearer the segment's end.
   final Vector2 control2;
 }
 
@@ -62,6 +72,11 @@ final class CubicSegment extends ProfileSegment {
 /// [points.length] - 1 of them, or [points.length] when [closed] joins the
 /// last point back to the first the way a torus's profile does.
 final class ProfileCurve {
+  /// A curve through [points], joined by [segments], both copied.
+  ///
+  /// Throws an [ArgumentError] when the number of segments does not match:
+  /// one fewer than the points when open, as many when [closed], and none for
+  /// fewer than two points.
   ProfileCurve({
     required List<ProfilePoint> points,
     required List<ProfileSegment> segments,
@@ -79,8 +94,15 @@ final class ProfileCurve {
     }
   }
 
+  /// The authored points, in order. Unmodifiable.
   final List<ProfilePoint> points;
+
+  /// How each point joins the next: `segments[i]` runs from `points[i]` to
+  /// `points[i + 1]`, or back to the first for the last of a closed curve.
+  /// Unmodifiable.
   final List<ProfileSegment> segments;
+
+  /// Whether the last point joins back to the first.
   final bool closed;
 
   /// [points], flattened through every curved [segments] entry into the

@@ -23,6 +23,9 @@ final class _Lane {
   final MeshNode trail;
 }
 
+/// The `continuous-collision` page: three fast balls fired at a thin wall
+/// on the physics core. Its check is that the speculative ball and the
+/// bullet stop and the unprotected one goes through.
 final class ContinuousCollisionDemo extends ShowcaseDemo {
   /// Speculative contacts on: the world a new `NativeWorld` is.
   NativeWorld? _soft;

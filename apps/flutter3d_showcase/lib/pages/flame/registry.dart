@@ -18,6 +18,8 @@ import 'flame_physics_bridge.dart';
 import 'flame_seats.dart';
 import 'flame_transform_bridge.dart';
 
+/// How to build each page of the category, by page id; joined into the app's
+/// `kDemos`.
 final Map<String, DemoBuilder> flameDemos = <String, DemoBuilder>{
   'flame-overview': FlameOverviewDemo.new,
   'flame-transform-bridge': FlameTransformBridgeDemo.new,

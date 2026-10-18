@@ -18,8 +18,14 @@ typedef _Ball = ({Vector3 center, double radius, Vector3 color});
 /// colour of the part it hit.
 typedef _Hit = ({double t, Vector3 normal, Vector3 color});
 
+/// The `impostors` page: a row of trees on grass, the near ones meshes and
+/// the far ones octahedral cards. Its check is that the row starts in meshes
+/// and ends in cards.
 final class ImpostorsDemo extends ShowcaseDemo {
+  /// Whether the cards are tinted blue, to show where the meshes end.
   bool markCards = false;
+
+  /// The sun's direction around the vertical, in radians, -π to π.
   double sunYaw = 0.6;
 
   late final Scene _scene;

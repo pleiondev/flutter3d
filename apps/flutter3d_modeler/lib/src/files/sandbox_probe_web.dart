@@ -10,6 +10,8 @@ import 'sandbox_probe_io.dart' show ProbeLine;
 
 export 'sandbox_probe_io.dart' show ProbeLine, describeProbe;
 
+/// The probe as a browser answers it: one line saying the question is the
+/// macOS sandbox's, not a page's.
 Future<List<ProbeLine>> probeSandbox() async => <ProbeLine>[
   (
     what: 'the macOS sandbox',

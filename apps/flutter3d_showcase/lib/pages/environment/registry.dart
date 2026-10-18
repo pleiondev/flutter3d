@@ -17,6 +17,8 @@ import 'package:flutter3d_showcase/pages/environment/reflection_probes.dart';
 import 'package:flutter3d_showcase/pages/environment/volumetric_fog.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// How to build each page of the category, by page id; joined into the app's
+/// `kDemos`.
 final Map<String, DemoBuilder> environmentDemos = <String, DemoBuilder>{
   'procedural-sky': ProceduralSkyDemo.new,
   'physical-sky': PhysicalSkyDemo.new,

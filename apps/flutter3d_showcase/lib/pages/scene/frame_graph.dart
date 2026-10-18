@@ -4,8 +4,14 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `frame-graph` page: an emissive torus and bright metal, the frame
+/// planned dry before it is drawn. Its check is that the plan names the same
+/// passes the frame ran.
 final class FrameGraphDemo extends ShowcaseDemo {
+  /// Whether the bloom pass runs, at an intensity of 0.65; off sets it to 0.
   bool bloom = true;
+
+  /// Whether the antialias pass runs.
   bool antiAlias = true;
 
   late final Scene _scene;

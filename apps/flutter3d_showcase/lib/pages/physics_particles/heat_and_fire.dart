@@ -19,6 +19,9 @@ import 'package:flutter3d_matter/flutter3d_matter.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `heat-and-fire` page: wood and steel boards beside a hot stone on
+/// the physics core. Its check is that the wood catches, burns mass and
+/// keeps burning, and that the steel warms.
 final class HeatAndFireDemo extends ShowcaseDemo {
   NativeWorld? _world;
   Elements? _elements;

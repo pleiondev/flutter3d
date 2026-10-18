@@ -16,11 +16,16 @@ typedef _SplatRow = ({
   double scale,
 });
 
+/// The `gaussian-splats` page: a small Gaussian cloud written to binary PLY,
+/// read back and drawn. Its check is that the cloud is drawn, in GPU order
+/// exactly when the GPU sort is asked for and available.
 final class GaussianSplatsDemo extends ShowcaseDemo {
   late final SplatCloud _cloud;
   late final SplatContributor _contributor;
   late final GraphicsDevice _device;
 
+  /// Whether the splats are sorted on the GPU where the device can; the CPU
+  /// sorts them otherwise.
   bool gpuSort = true;
 
   static const int _count = 35;

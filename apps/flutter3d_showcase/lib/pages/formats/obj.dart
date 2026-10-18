@@ -11,6 +11,9 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `obj` page: a tetrahedron read from OBJ text with no normals and
+/// written back. Its check is four triangles, generated normals, and a
+/// writer that produced output.
 final class ObjDemo extends ShowcaseDemo {
   late final ModelDocument _decoded;
   late final Uint8List _written;

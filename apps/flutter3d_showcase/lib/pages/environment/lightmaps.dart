@@ -11,7 +11,12 @@ import 'package:flutter3d_showcase/src/demo/demo.dart';
 
 const int _lightmapSize = 4;
 
+/// The `lightmaps` page: a floor whose indirect light comes from a small
+/// baked texture. Its check is that the floor is marked lightmapped, its
+/// vertex colours carry lightmap coordinates, and the map has a bright corner.
 final class LightmapsDemo extends ShowcaseDemo {
+  /// Whether the floor reads its lightmap; off draws it with direct light
+  /// alone.
   bool baked = true;
 
   late final MeshData _floorMesh;

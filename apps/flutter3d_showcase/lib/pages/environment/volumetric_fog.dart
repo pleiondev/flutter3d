@@ -9,10 +9,20 @@ import 'dart:math' as math;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `volumetric-fog` page: a grid of torches over a floor in air that
+/// glows around each of them. Its check is that the fog pass ran.
 final class VolumetricFogDemo extends ShowcaseDemo {
+  /// Whether the volumetric fog pass runs.
   bool fog = true;
+
+  /// Whether the frame clusters its lights, which is how the fog finds the
+  /// torches; off, the air does not glow around them.
   bool litByLamps = true;
+
+  /// The air's density per metre, 0 to 0.8.
   double density = 0.3;
+
+  /// How fast the air thins with height, per metre, 0 to 3.
   double heightFalloff = 1.0;
 
   @override

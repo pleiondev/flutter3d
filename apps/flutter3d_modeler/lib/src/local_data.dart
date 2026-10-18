@@ -31,7 +31,9 @@ import 'settings.dart';
 /// first is true is a dialog nobody believes the next time.
 typedef ClearedLocalData = ({bool settings, bool recentFiles, bool autosave});
 
+/// Sums a [ClearedLocalData] up for the sentence a person is shown.
 extension ClearedLocalDataCount on ClearedLocalData {
+  /// How many of the three kinds were found and removed, 0 to 3.
   int get count =>
       (settings ? 1 : 0) + (recentFiles ? 1 : 0) + (autosave ? 1 : 0);
 

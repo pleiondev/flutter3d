@@ -8,6 +8,8 @@ import 'dart:convert';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `draco` page: a mesh decoded from a Draco fixture. Its check is that
+/// it comes out as 60 triangles, with points, and is drawn.
 final class DracoDemo extends ShowcaseDemo {
   late final DracoMesh _mesh;
   late final MeshData _upload;

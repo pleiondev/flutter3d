@@ -90,6 +90,8 @@ final class PickingView {
     }
   }
 
+  /// The camera the pointer looks through: its projection and placement turn
+  /// a point on the viewport into the ray that is picked along.
   final CameraNode camera;
 
   /// The viewport, in logical pixels — the same units the pointer arrives in.

@@ -9,7 +9,10 @@ import 'dart:math' as math;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `render-textures` page: a monitor showing what a watcher camera in
+/// the room sees. Its check is that the pass ran and drew into the texture.
 final class RenderTexturesDemo extends ShowcaseDemo {
+  /// Whether the watcher redraws its texture every frame rather than once.
   bool everyFrame = true;
   bool _retakeAsked = false;
 

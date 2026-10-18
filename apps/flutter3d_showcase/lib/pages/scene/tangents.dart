@@ -5,6 +5,9 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `tangents` page: two tori under one tilted normal map, one with a
+/// constant tangent and one with tangents from its UVs. Its check is that
+/// the generated tangents follow the surface.
 final class TangentsDemo extends ShowcaseDemo {
   late final MeshData _flatMesh;
   late final MeshData _generatedMesh;

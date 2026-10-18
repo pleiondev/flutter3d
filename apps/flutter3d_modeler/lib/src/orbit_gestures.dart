@@ -75,6 +75,7 @@ enum GestureButton {
 /// aim. So [OrbitGestures.pointerDown] takes these and [OrbitGestures.pointerMove]
 /// does not.
 final class GestureModifiers {
+  /// The modifiers held at the press; any not given were up.
   const GestureModifiers({
     this.shift = false,
     this.control = false,
@@ -117,6 +118,7 @@ final class GestureModifiers {
 /// a record rather than a class was rejected only because a named type is what
 /// makes the y-down convention documentable in one place.
 final class GesturePoint {
+  /// The point [x] from the left edge and [y] down from the top.
   const GesturePoint(this.x, this.y);
 
   /// Distance from the left edge of the viewport.
@@ -142,6 +144,7 @@ final class GesturePoint {
 /// `panUp` and having it mean "down" was the alternative, and it is the kind of
 /// thing that is read wrongly once and then debugged for an hour.
 final class CameraIntent {
+  /// An intent; every field not given is at rest.
   const CameraIntent({
     this.deltaYaw = 0.0,
     this.deltaPitch = 0.0,
@@ -242,6 +245,7 @@ final class CameraIntent {
 /// trackpad's scale gesture. It keeps only what it needs to compute a delta,
 /// so dropping it on the floor mid-drag costs nothing.
 final class OrbitGestures {
+  /// A classifier under [scheme], with no pointers down yet.
   OrbitGestures({
     this.zoomPerScrollPixel = 0.0015,
     this.scheme = NavigationScheme.middleMouseOrbit,

@@ -10,9 +10,19 @@ import 'dart:math' as math;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `occlusion-culling` page: a wall in front of a yard of crates, seen
+/// from a lookout. Its check is that the wall reached the occlusion buffer
+/// and hid some crates from the lookout but not all.
 final class OcclusionCullingDemo extends ShowcaseDemo {
+  /// The wall's x, in metres, -2.5 to 2.5: sliding it changes which crates it
+  /// hides.
   double wallX = 0.0;
+
+  /// Whether the wall is marked an occluder; off, it hides nothing from the
+  /// culling.
   bool wallOccludes = true;
+
+  /// How this view culls: 0 none, 1 software, 2 hiZ.
   int mode = 1;
 
   static const List<OcclusionMode> _modes = <OcclusionMode>[

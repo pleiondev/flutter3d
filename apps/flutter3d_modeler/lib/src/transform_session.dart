@@ -40,13 +40,19 @@ typedef OverlayView = ({
   bool perspective,
 });
 
+/// The transform in progress, from the key or the gizmo arm that opened it
+/// to the command it lands as, with the geometry snap and the value drags
+/// beside it.
 class TransformSession {
+  /// A session over [cubit], asking [history] and [editMesh] for the current
+  /// document and mesh each time rather than holding them.
   TransformSession({
     required this.cubit,
     required this.history,
     required this.editMesh,
   });
 
+  /// The editor the transform's commands run through.
   final ModelerCubit cubit;
 
   /// The current document — a callback, not a held reference, because the
@@ -113,6 +119,8 @@ class TransformSession {
   /// answers to what a move of the mouse means.
   ValueDrag? _value;
 
+  /// The extrusion, bevel, inset or slide whose one number is following the
+  /// pointer, or null.
   ValueDrag? get valueDrag => _value;
 
   /// Opens one: runs [tool]'s own command at whatever `commandFor` guessed,
@@ -580,6 +588,9 @@ class TransformSession {
   /// nothing to jump, because the amount dragged so far is re-applied from
   /// scratch on every frame anyway.
   TransformPivot Function()? pivot;
+
+  /// Whose axes the transform goes along, read the same way as [pivot]; null
+  /// means global.
   TransformSpace Function()? space;
 
   TransformPivot get _pivot => pivot?.call() ?? TransformPivot.median;

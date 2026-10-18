@@ -6,6 +6,8 @@ import 'dart:math' as math;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `lathe-shape` page: three clay vessels, each a profile swept around
+/// Y. Its check is that all three are drawn.
 final class LatheShapeDemo extends ShowcaseDemo {
   final List<MeshNode> _vessels = <MeshNode>[];
 

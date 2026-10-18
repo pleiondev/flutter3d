@@ -7,6 +7,8 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `f3d` page: a ball written to `.f3d` and read back. Its check is that
+/// the round trip changed nothing.
 final class F3dDemo extends ShowcaseDemo {
   late final F3dDocument _decoded;
   late final int _fileBytes;

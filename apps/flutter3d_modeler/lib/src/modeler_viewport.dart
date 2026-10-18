@@ -64,6 +64,7 @@ enum StrokePhase {
 /// [ModelerViewport.onStroke] rather than to the camera — `S5`'s own
 /// `ModelerViewport.onStroke(StrokeEvent{phase, at, view, kind, force})`.
 final class StrokeEvent {
+  /// A stroke event; [erase] is false unless the pen is the wrong way up.
   const StrokeEvent({
     required this.phase,
     required this.at,
@@ -73,6 +74,7 @@ final class StrokeEvent {
     this.erase = false,
   });
 
+  /// Which part of the drag this is: the press, a move, or the release.
   final StrokePhase phase;
 
   /// Where the pointer is, in the same logical pixels every other viewport
@@ -84,6 +86,8 @@ final class StrokeEvent {
   /// ray through it rather than this widget knowing what a brush hits.
   final PickingView view;
 
+  /// What made the event: a stylus or a mouse, since a finger stays with
+  /// the camera.
   final PointerKind kind;
 
   /// 0 at no pressure, 1 at the device's own maximum, already resolved by
@@ -103,7 +107,6 @@ final class StrokeEvent {
   final bool erase;
 }
 
-/// Draws [stage] through [renderer], and orbits it under the pointer.
 /// What one arrow press stands for, in the pixels of drag
 /// [OrbitController.rotate] measures a turn in — `ux-33`.
 ///
@@ -120,7 +123,11 @@ const double kOrbitKeyStep = 12.0;
 /// [OrbitController.pan] measures in.
 const double kOrbitKeyPan = 24.0;
 
+/// Draws [stage] through [renderer], and orbits it under the pointer.
 class ModelerViewport extends StatefulWidget {
+  /// A viewport over [stage]. Every callback is optional except [onFrame];
+  /// a caller that leaves the pick callbacks out gets a picture that orbits
+  /// and nothing else.
   const ModelerViewport({
     super.key,
     required this.renderer,
@@ -169,7 +176,11 @@ class ModelerViewport extends StatefulWidget {
     this.overlay = true,
   });
 
+  /// What draws the frames; it holds the device, and the frame loop mutates
+  /// it.
   final Renderer renderer;
+
+  /// The scene, its camera and the orbit that moves it.
   final ModelerStage stage;
 
   /// Whether this viewport builds the mesh-overlay furniture at all — the
@@ -204,7 +215,13 @@ class ModelerViewport extends StatefulWidget {
   /// and a widget's default argument has to be a constant. The state below
   /// picks the level a viewport comes up in.
   final Selection? elements;
+
+  /// Changes whenever the mesh does, edits and undos alike; the wireframe is
+  /// rebuilt when it moves.
   final int meshVersion;
+
+  /// Changes whenever [elements] does; the highlight is rebuilt when it
+  /// moves.
   final int elementsVersion;
 
   /// What a screen reader is told is in the viewport — `gfx-79n`.
@@ -257,6 +274,8 @@ class ModelerViewport extends StatefulWidget {
   /// `ux-11`'s own "Move · X · 0.35 m" — and the keys named under it. Null
   /// for both draws nothing.
   final String? transformReadout;
+
+  /// The keys named under [transformReadout], or null for none.
   final String? transformHints;
 
   /// Which world axis the transform in progress is confined to, drawn as a
@@ -475,6 +494,8 @@ class ModelerViewport extends StatefulWidget {
   /// always hands over the real ones, converted from `ui/theme.dart`'s own
   /// `kModelerScheme`.
   final Vector4? shapeMarkerColour;
+
+  /// The colour of the shape marker [ShapeMarker.active] picks out.
   final Vector4? shapeMarkerActiveColour;
 
   /// `pro-uv-07`: one half-edge of [editMesh] per UV seam, drawn over the

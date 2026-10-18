@@ -9,6 +9,10 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `variants-and-pointers` page: a model with named material variants
+/// and a clip that animates a material and the sun, through a GLB. Its check
+/// is that each surface wears its variant's material and that the intensity
+/// track moved the sun.
 final class VariantsAndPointersDemo extends ShowcaseDemo {
   /// 0 is the default look, then one option for each of the file's variants.
   int variant = 1;

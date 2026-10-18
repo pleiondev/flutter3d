@@ -30,6 +30,9 @@ final class _Row {
   ];
 }
 
+/// The `joints-and-motors` page: a hinge, a motor-driven slider, a ball
+/// joint in a cone and a distance joint as rod, spring and rope, stepped on
+/// the physics core.
 final class JointsAndMotorsDemo extends ShowcaseDemo {
   _Row? _row;
 

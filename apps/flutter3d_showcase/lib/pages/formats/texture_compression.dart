@@ -20,6 +20,9 @@ import 'package:flutter3d_core/formats.dart'
         writeKtx2;
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `texture-compression` page: a block wearing a texture run through the
+/// block encoders and packed into KTX2. Its check is that a compressed block
+/// is smaller than the raw one and that a KTX2 file came out.
 final class TextureCompressionDemo extends ShowcaseDemo {
   late final Rgba8Image _source;
   late final Uint8List _bc1;

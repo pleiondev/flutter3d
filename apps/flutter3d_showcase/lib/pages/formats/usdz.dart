@@ -11,6 +11,9 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `usdz` page: a cube written as `.usdz`, its text layer read back out
+/// of the ZIP. Its check is the ZIP signature, a USD ASCII layer, and a mesh
+/// prim in it.
 final class UsdzDemo extends ShowcaseDemo {
   late final Uint8List _archive;
   late final String _usda;

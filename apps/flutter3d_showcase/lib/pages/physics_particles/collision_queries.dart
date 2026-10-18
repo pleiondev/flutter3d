@@ -11,6 +11,10 @@ import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/run_physics.dart';
 
+/// The `collision-queries` page: a ray, a sweep and an overlap asked of one
+/// small level and answered as text. Its check is that the ray meets the
+/// wall 4.8 m out, the sweep stops on it, and the overlap finds only the
+/// pickup.
 final class CollisionQueriesDemo extends ShowcaseDemo {
   late final CollisionWorld _world;
   late final Collider _pickup;

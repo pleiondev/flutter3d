@@ -122,6 +122,8 @@ final class PlaySession {
   /// the `SceneSync` that keeps the document's own objects in it.
   final ModelerStage stage;
 
+  /// Which game the document is walked through: the controls, the body and
+  /// the camera it brings.
   final PlayTemplate template;
 
   final CollisionWorld _world;

@@ -17,10 +17,14 @@ import 'package:flutter/widgets.dart';
 /// name and its bytes — the same shape a picker hands back, so a drop and a
 /// pick end at the same call.
 class FileDropZone extends StatelessWidget {
+  /// A drop zone over [child], handing every dropped file to [onDropped].
   const FileDropZone({super.key, required this.child, required this.onDropped});
 
+  /// What the zone covers; a file dropped anywhere over it counts.
   final Widget child;
 
+  /// Called once per dropped file, with its name and its bytes, after the
+  /// bytes have been read.
   final void Function(String name, Uint8List bytes) onDropped;
 
   @override

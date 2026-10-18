@@ -22,6 +22,8 @@ import 'app_config.dart';
 /// in the first place, so it does not dangle an action in front of somebody
 /// that cannot possibly succeed.
 final class CabinetLink {
+  /// A link with every field given. Most callers read one out of the page's
+  /// query string with [CabinetLink.fromQuery] instead.
   const CabinetLink({
     required this.id,
     required this.mode,

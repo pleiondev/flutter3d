@@ -18,6 +18,9 @@ import 'package:flutter3d_showcase/src/demo/flame_layer.dart';
 /// Seconds on each level before the party moves on.
 const double _stay = 6.0;
 
+/// The `flame-level-scene` page: a party walking across a level of rocks
+/// that Flame swaps for the next with `replaceScene3d`. Its check is that
+/// the page opens on the first level and draws it.
 final class FlameLevelSceneDemo extends ShowcaseDemo {
   late final _Tour _game;
   late final Widget _body = Flutter3dFlameWidget(

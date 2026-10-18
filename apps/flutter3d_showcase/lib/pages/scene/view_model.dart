@@ -6,7 +6,11 @@ import 'dart:math' as math;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `view-model` page: a held tool drawn in its own pass over a room of
+/// pillars. Its check is that the view model pass drew over the world.
 final class ViewModelDemo extends ShowcaseDemo {
+  /// The hand camera's vertical field of view in degrees, 25 to 90, set apart
+  /// from the world camera's.
   double fovDegrees = 48.0;
   double _bob = 0.0;
 

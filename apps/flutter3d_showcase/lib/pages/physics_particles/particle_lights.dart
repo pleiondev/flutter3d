@@ -15,6 +15,8 @@ import 'package:flutter3d_showcase/src/demo/demo.dart';
 /// the particle system will measure. It carries no fields of its own.
 final class _Torch with LightEmitter {}
 
+/// The `particle-lights` page: a torch flame that lights the room from its
+/// own particles. Its check is that the torch is lit by its flame.
 final class ParticleLightsDemo extends ShowcaseDemo {
   late final ParticleSystem _particles;
   late final LightNode _glow;

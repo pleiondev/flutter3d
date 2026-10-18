@@ -12,6 +12,9 @@ import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/run_physics.dart';
 
+/// The `heightfield-collision` page: a walker landing on hilly ground and
+/// walking across it. Its check is that it landed on the slope and crossed
+/// the hills.
 final class HeightfieldCollisionDemo extends ShowcaseDemo {
   late final CollisionWorld _world;
   late final CollisionHeightfield _field;

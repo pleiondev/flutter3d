@@ -27,6 +27,8 @@ const int kSceneShadowCap = 6;
 
 /// What the status line says, and whether it should read as a warning.
 final class SceneStatus {
+  /// A status of [lightCount] lights, [shadowedCount] of them shadowing out
+  /// of [shadowCap].
   const SceneStatus({
     required this.lightCount,
     required this.shadowedCount,

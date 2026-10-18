@@ -50,6 +50,7 @@ const UvReading kNoUvReading = (
 /// `pro-uv-07`: the panel's three settings, the lit island, and the last
 /// reading of the mesh.
 final class UvPanelState {
+  /// Which unwrap the panel runs: LSCM unless a person picks another.
   UnwrapMethod method = UnwrapMethod.lscm;
 
   /// [UnwrapCommand.margin]'s own default, so a person who never touches the

@@ -35,6 +35,12 @@ import 'modeler_cubit.dart';
 /// handful of `DateTime` comparisons, and the write itself only happens when
 /// it answers yes.
 final class AutosaveController {
+  /// Starts watching [cubit] at once: the subscription and the poll timer both
+  /// begin here, and run until [dispose].
+  ///
+  /// [pollEvery] is how often `shouldSave` is asked; it should stay shorter
+  /// than the policy's debounce, or a save waits for the poll rather than for
+  /// the policy.
   AutosaveController({
     required this.cubit,
     required this.storage,
@@ -50,13 +56,19 @@ final class AutosaveController {
     _timer = Timer.periodic(pollEvery, (_) => _check());
   }
 
+  /// The editor whose open document is copied, and whose edits restart the
+  /// debounce.
   final ModelerCubit cubit;
+
+  /// Where the recovery copies are written, one slot per [sessionId].
   final BinaryStorage storage;
 
   /// Minted once per ununsaved session — see the library doc comment on why
   /// there is no path to key this on instead.
   final String sessionId;
 
+  /// When a write is due: how long the document must sit unedited, and the
+  /// shortest gap allowed between two writes.
   final AutosavePolicy policy;
 
   /// Where [storage] reports *why* a write failed.
@@ -162,6 +174,8 @@ final class AutosaveController {
     return last.startsWith(prefix) ? last.substring(prefix.length) : last;
   }
 
+  /// Stops the poll and the subscription. Nothing is written on the way out;
+  /// a save wanted at close is the caller's to make first.
   void dispose() {
     _timer.cancel();
     unawaited(_subscription.cancel());

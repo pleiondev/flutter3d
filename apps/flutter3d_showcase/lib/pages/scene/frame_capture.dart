@@ -4,6 +4,8 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `frame-capture` page: a torus and a probe cube recorded pass by pass.
+/// Its check is that the capture holds a lit scene pass.
 final class FrameCaptureDemo extends ShowcaseDemo {
   late final FrameCapture _capture;
 

@@ -7,6 +7,8 @@ import 'dart:ui' as ui;
 
 import 'ui/paint_panel.dart' show kPaintCursorDiameter;
 
+/// The texture brush as the paint panel shows it and a stroke reads it:
+/// which layer, what colour, how wide, how hard, and through what mask.
 final class PaintBrush {
   /// Which layer a stroke lands on.
   int layer = 0;

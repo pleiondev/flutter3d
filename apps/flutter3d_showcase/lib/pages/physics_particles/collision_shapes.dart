@@ -11,6 +11,9 @@ import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/run_physics.dart';
 
+/// The `collision-shapes` page: a box, a sphere, a capsule, a wedge and a
+/// height field in a row, each beside the mesh that draws it. Its check is
+/// that a probe finds only the sphere and that all five are drawn.
 final class CollisionShapesDemo extends ShowcaseDemo {
   late final CollisionWorld _world;
   late final Collider _sphereCollider;

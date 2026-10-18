@@ -34,6 +34,9 @@ final class _Chase extends Brain {
 }
 // #endregion brain
 
+/// The `flame-horde` page: a horde of monster actors closing on two players,
+/// drawn as slots of one instanced batch. Its check is that the horde is a
+/// single batch.
 final class FlameHordeDemo extends ShowcaseDemo {
   late final DemoContext _context;
   late final Scene _scene;

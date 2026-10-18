@@ -9,10 +9,24 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `image-based-lighting` page: five spheres from roughness 0.05 to 1.0
+/// with no direct light at all, lit only by an environment cube. Its check is
+/// that the cube was built and bound.
 final class ImageBasedLightingDemo extends ShowcaseDemo {
+  /// Whether the environment cube lights the scene; off leaves the spheres
+  /// with nothing but the ambient term.
   bool lit = true;
+
+  /// Which cube lights the spheres: 0 for the one made from the procedural
+  /// sky, 1 for the one made from the studio panorama.
   int source = 0;
+
+  /// The scene's ambient intensity as a multiple of
+  /// `LightNode.defaultIntensity`, 0 to 2 on the "Strength" slider.
   double strength = 1.0;
+
+  /// How metallic every sphere is, 0 to 1; a metal shows the environment in
+  /// its reflection, a dielectric mostly in its diffuse colour.
   double metallic = 1.0;
 
   EnvironmentCube? _fromSky;

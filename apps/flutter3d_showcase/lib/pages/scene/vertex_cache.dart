@@ -7,6 +7,8 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `vertex-cache` page: a sphere whose triangles were scrambled and then
+/// reordered. Its check is that the reorder improved cache locality.
 final class VertexCacheDemo extends ShowcaseDemo {
   double _beforeRatio = 0.0;
   double _afterRatio = 0.0;

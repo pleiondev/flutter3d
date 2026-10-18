@@ -21,6 +21,9 @@ typedef _Bodies = ({
   Vector3 rockOffset,
 });
 
+/// The `convex-shapes` page: a cylinder, a cone, a six-point hull and a
+/// rounded box on a triangle-mesh floor. Its check is where each comes to
+/// rest: the cylinder off its ramp and on its side, the cone upright.
 final class ConvexShapesDemo extends ShowcaseDemo {
   _Bodies? _bodies;
 

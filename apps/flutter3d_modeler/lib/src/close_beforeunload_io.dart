@@ -4,4 +4,6 @@
 /// listener, both of which can actually stop the close from happening.
 library;
 
+/// Does nothing: off the web there is no tab close to ask about, and the
+/// dialogs that guard leaving already run.
 void installBeforeUnloadGuard(bool Function() isDirty) {}

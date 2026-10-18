@@ -9,6 +9,9 @@ import 'dart:convert';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `meshopt` page: a ball written with `EXT_meshopt_compression` and
+/// read back. Its check is that meshopt was used, the triangles came back
+/// the same, and the file is smaller.
 final class MeshoptDemo extends ShowcaseDemo {
   late final bool _usedMeshopt;
   late final List<DocumentDifference> _differences;

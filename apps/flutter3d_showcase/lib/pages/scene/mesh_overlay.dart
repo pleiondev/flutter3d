@@ -6,6 +6,9 @@ import 'dart:math' as math;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `mesh-overlay` page: an editable cube with a modeller's overlay drawn
+/// against the scene's depth. Its check is that the overlay batches reached
+/// the frame.
 final class MeshOverlayDemo extends ShowcaseDemo {
   static const double _viewportHeight = 720;
 

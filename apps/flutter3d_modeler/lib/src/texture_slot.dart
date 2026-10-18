@@ -36,6 +36,7 @@ const int textureSlotTexCoordSet = 0;
 /// What a texture slot's row needs to draw, computed once from an image's
 /// encoded bytes.
 final class TextureSlotDisplay {
+  /// A row's words and picture, worked out by the caller once per image.
   const TextureSlotDisplay({
     required this.name,
     required this.dimensionsText,
@@ -115,6 +116,7 @@ String? formatBadgeFor(TextureFileFormat format) => switch (format) {
 /// parameter row shows rather than the booleans and enum this repository's
 /// [TextureSampling] itself is stored as.
 final class TextureSamplingDisplay {
+  /// The four labels, as [textureSamplingDisplay] words them.
   const TextureSamplingDisplay({
     required this.magFilterLabel,
     required this.minFilterLabel,
@@ -122,9 +124,18 @@ final class TextureSamplingDisplay {
     required this.wrapTLabel,
   });
 
+  /// How the texture is magnified: `Linear` or `Nearest`.
   final String magFilterLabel;
+
+  /// How it is minified, with whether and how it reads its mips folded in:
+  /// `Linear, mipmapped`, for one.
   final String minFilterLabel;
+
+  /// What happens past the edge across: `Repeat`, `Clamp to edge` or
+  /// `Mirrored repeat`.
   final String wrapSLabel;
+
+  /// What happens past the edge up and down, worded as [wrapSLabel] is.
   final String wrapTLabel;
 }
 

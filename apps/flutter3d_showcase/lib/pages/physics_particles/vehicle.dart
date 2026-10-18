@@ -13,6 +13,9 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `vehicle` page: a raycast car driving a loop over a plank on tarmac
+/// or ice, on the physics core. Its check rests the car and drives it
+/// straight.
 final class VehicleDemo extends ShowcaseDemo {
   NativeWorld? _world;
   NativeBody? _chassis;
@@ -24,7 +27,12 @@ final class VehicleDemo extends ShowcaseDemo {
   /// What the driver asks for: the steering angle along the car's middle,
   /// radians to the left, and the speed to hold, m/s.
   double steer = 0.25;
+
+  /// The speed the driver holds, in m/s, -4 to 12 on the "Speed" slider; the
+  /// engine pushes in proportion to how far the chassis is below it.
   double speed = 6.0;
+
+  /// Whether all four wheels brake; the engine stops pushing while they do.
   bool braking = false;
 
   /// Tarmac or ice: the tyres' grip.

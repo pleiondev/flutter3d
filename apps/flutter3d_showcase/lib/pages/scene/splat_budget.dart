@@ -10,11 +10,16 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `splat-budget` page: a generated Gaussian cloud cut into a tree of
+/// levels and drawn under a budget. Its check is that what is drawn is a cut
+/// of the tree within it.
 final class SplatBudgetDemo extends ShowcaseDemo {
   /// Splats around the ring, and around the tube at each step of the ring.
   static const int _around = 60;
   static const int _tube = 40;
 
+  /// How many splats the cut may draw, from the root's count to every leaf's;
+  /// rounded into the `SplatLod`'s budget.
   double budget = 300.0;
 
   late final SplatOctree _tree;

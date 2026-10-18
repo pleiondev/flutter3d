@@ -11,10 +11,23 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `six-way-smoke` page: three smoke puffs between a red light and a
+/// blue one. Its check is that the puffs are alive and drawn.
 final class SixWaySmokeDemo extends ShowcaseDemo {
+  /// Whether the puffs are lit through the six-way sheet; off draws them with
+  /// the plain contributor, the same from every side.
   bool sixWay = true;
+
+  /// Where the two lights stand around the puffs, in radians, 0 to 2π: they
+  /// circle at a radius of 3 m, opposite each other.
   double angle = 0.0;
+
+  /// Each light's intensity as a multiple of `LightNode.defaultIntensity`,
+  /// 0 to 24.
   double intensity = 12.0;
+
+  /// The sheet's ambient grey, 0 to 0.3, the light a puff takes from no side
+  /// at all.
   double ambient = 0.0;
 
   late final ParticleSystem _particles;

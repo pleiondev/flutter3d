@@ -15,6 +15,9 @@ import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/run_physics.dart';
 
+/// The `character-controller` page: the robot standing on a
+/// `CharacterController`, dropped onto a floor and pushed towards +x. Its
+/// check is that it landed on a flat ground normal and moved along +x.
 final class CharacterControllerDemo extends ShowcaseDemo {
   late final CollisionWorld _world;
   late final CharacterController _controller;

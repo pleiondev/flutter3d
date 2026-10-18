@@ -8,6 +8,9 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `particle-curves` page: smoke whose size and colour follow curves
+/// over its life. Its check is a size curve that rises then falls and a
+/// gradient that fades to nothing.
 final class ParticleCurvesDemo extends ShowcaseDemo {
   late final ParticleSystem _particles;
   late final ParticleEffect _smokeEffect;

@@ -99,6 +99,8 @@ sealed class PickResult {
 /// that compared nodes would hold the same object twice, highlight it twice
 /// and offer two transform gizmos for it.
 final class PickedObject extends PickResult {
+  /// A pick of [node], mapped to the document's [id] when a document was
+  /// asked.
   const PickedObject(this.node, {this.id});
 
   /// The node the renderer answered with: the leaf that was rasterised.
@@ -137,6 +139,7 @@ final class PickedObject extends PickResult {
 /// to whatever happens to be behind it. So the click is refused, and the
 /// selection it did not describe is left exactly as it was.
 final class PickedService extends PickResult {
+  /// A refused pick, naming the [node] that was drawn there.
   const PickedService(this.node);
 
   /// The node that was drawn there. The tag that got it refused may be on this

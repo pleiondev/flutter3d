@@ -14,9 +14,16 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_core/src/engine/render/render_list.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `draw-control` page: two panels in one place drawn in a set order, a
+/// masked grille, and faces drawn from parts of one index buffer. Its check
+/// is the draw order, a declined coverage that the frame reports, and an
+/// index window past the binding refused.
 final class DrawControlDemo extends ShowcaseDemo {
   /// Whether the red panel is drawn first, and so keeps the shared pixels.
   bool redFirst = true;
+
+  /// Whether the grille cuts its masked edge with alpha to coverage rather
+  /// than a hard test; a device without it declines and the frame says so.
   bool coverage = true;
 
   late final MeshNode _red;

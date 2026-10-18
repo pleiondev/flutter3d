@@ -23,6 +23,9 @@ final class _Pile {
   final List<RigidBody> crates;
 }
 
+/// The `physics-core` page: the same pile of crates stepped by the Dart
+/// reference on the left and the physics core on the right. Its check is
+/// that both piles rest on their floors and agree.
 final class PhysicsCoreDemo extends ShowcaseDemo {
   late _Pile _left;
   late _Pile _right;

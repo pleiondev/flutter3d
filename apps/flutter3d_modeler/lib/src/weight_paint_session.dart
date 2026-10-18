@@ -39,12 +39,16 @@ PaintWeightsMode paintWeightsModeOf(String? tool) =>
 /// One brush drag's own state: the posed surface it hit-tests against, and
 /// which object/skeleton/joint the stroke it opened is for.
 class WeightPaintSession {
+  /// A session over [cubit], asking [history] for the current document and
+  /// posing the surface from [stage].
   WeightPaintSession({
     required this.cubit,
     required this.history,
     required this.stage,
   });
 
+  /// The editor each sample's commands run through, inside the one
+  /// transaction a drag opens.
   final ModelerCubit cubit;
 
   /// The current document — a callback, not a held reference, for the same

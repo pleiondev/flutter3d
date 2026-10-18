@@ -18,6 +18,9 @@ import 'package:flutter3d_showcase/src/demo/flame_layer.dart';
 /// How many sparks circle the brazier.
 const int _sparks = 80;
 
+/// The `flame-crowd` page: a swarm of Flame spark components over a floor,
+/// drawn as one instanced batch, with fire and smoke from particle pools.
+/// Its check is that the sparks reach the frame as a single batch.
 final class FlameCrowdDemo extends ShowcaseDemo {
   late final DemoContext _context;
   late final Scene _scene;

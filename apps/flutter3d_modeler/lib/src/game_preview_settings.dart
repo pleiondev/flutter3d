@@ -86,13 +86,13 @@ bool _shadowsForTarget(ProfileTarget target) => target != ProfileTarget.mobile;
 /// from a project's own [ProjectProfile] — "тонмап, тени по профилю" in the
 /// plan's own words.
 final class GamePreviewSettings {
-  const GamePreviewSettings({required this.render, required this.sky});
+  const GamePreviewSettings._({required this.render, required this.sky});
 
   /// Built from [profile] — the only input, since nothing else about the
   /// preview is per-project.
   factory GamePreviewSettings.forProfile(ProjectProfile profile) {
     final bool shadows = _shadowsForTarget(profile.target);
-    return GamePreviewSettings(
+    return GamePreviewSettings._(
       render: const RenderSettings().copyWith(
         tonemap: true,
         shadows: const ShadowSettings().copyWith(enabled: shadows),

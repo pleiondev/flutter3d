@@ -38,8 +38,10 @@ import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
 /// The rectangle one stroke changed, and the one write it costs.
 class PaintUpload {
+  /// An upload to [device], holding nothing until a stroke opens.
   PaintUpload({required this.device});
 
+  /// The device the painted rectangle is written to.
   final GraphicsDevice device;
 
   PaintStack? _before;

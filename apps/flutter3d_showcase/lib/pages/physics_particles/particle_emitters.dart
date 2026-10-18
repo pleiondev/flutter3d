@@ -10,6 +10,8 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `particle-emitters` page: four emitter shapes bursting side by side.
+/// Its check is that all four bursts are alive.
 final class ParticleEmittersDemo extends ShowcaseDemo {
   late final ParticleSystem _particles;
   late final ParticleContributor _contributor;

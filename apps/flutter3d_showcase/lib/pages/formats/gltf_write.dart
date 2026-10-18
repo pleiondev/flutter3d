@@ -7,6 +7,9 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `gltf-write` page: a sphere written as GLB, once plain and once with
+/// `compressGeometry`. Its check is the GLB magic and that compression made
+/// the file smaller.
 final class GltfWriteDemo extends ShowcaseDemo {
   late final int _plainBytes;
   late final int _compressedBytes;

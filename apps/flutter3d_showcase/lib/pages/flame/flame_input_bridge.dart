@@ -18,6 +18,9 @@ import 'package:flutter3d_showcase/src/demo/flame_layer.dart';
 final class _InputGame extends TransparentFlameGame
     with HasKeyboardHandlerComponents {}
 
+/// The `flame-input-bridge` page: a walker on a floor moved by keys that
+/// reach it through Flame. Its check is that a bound key is consumed, that
+/// the flutter3d side reads the same `InputState`, and that the walker moved.
 final class FlameInputBridgeDemo extends ShowcaseDemo {
   late final String _report;
   late final bool _consumed;

@@ -9,10 +9,22 @@ import 'dart:math' as math;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `procedural-sky` page: a ball on the ground under a sky drawn from
+/// numbers. Its check is that the sky costs one draw on top of the meshes.
 final class ProceduralSkyDemo extends ShowcaseDemo {
+  /// The sun's elevation in degrees, 2 to 85; moves the sun light and the
+  /// disc together.
   double sunHeight = 14.0;
+
+  /// How bright the sun disc is drawn in the sky, 0 to 20; the sky's
+  /// `sunIntensity`, not the light's.
   double sunDisc = 6.0;
+
+  /// How strong the glow around the sun is, 0 to 1.
   double glow = 0.4;
+
+  /// Whether a painted dome mesh stands in for the sky; the procedural sky is
+  /// switched off while it shows.
   bool dome = false;
 
   late final LightNode _sun;

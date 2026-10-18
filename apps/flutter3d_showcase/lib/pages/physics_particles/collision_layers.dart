@@ -25,6 +25,8 @@ final class _ZoneListener with CollisionListener {
   }
 }
 
+/// The `collision-layers` page: a trigger zone that listens to one layer.
+/// Its check is that only the player entered it.
 final class CollisionLayersDemo extends ShowcaseDemo {
   late final CollisionWorld _world;
   late final Collider _player;

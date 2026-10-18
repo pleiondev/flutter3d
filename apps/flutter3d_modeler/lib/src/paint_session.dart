@@ -25,8 +25,12 @@ import 'modeler_cubit.dart';
 
 /// One painting drag.
 class PaintSession {
+  /// A session that writes through [cubit] into the document [history]
+  /// answers with.
   PaintSession({required this.cubit, required this.history});
 
+  /// The editor each stroke's commands run through, inside the one
+  /// transaction a drag opens.
   final ModelerCubit cubit;
 
   /// The current document — a callback rather than a held reference, the

@@ -49,6 +49,8 @@ enum ConsoleKind {
 
 /// One line of the console.
 final class ConsoleEntry {
+  /// An entry as said: by [author], at [at], a [ConsoleKind.report] unless
+  /// told otherwise.
   const ConsoleEntry({
     required this.at,
     required this.text,
@@ -61,8 +63,13 @@ final class ConsoleEntry {
   /// test can hand over a fixed one and assert an order rather than a race.
   final DateTime at;
 
+  /// The sentence itself, as the status line showed it.
   final String text;
+
+  /// Whether the person or an agent caused it; the panel filters on this.
   final ConsoleAuthor author;
+
+  /// How loudly it was said, which decides its colour in the panel.
   final ConsoleKind kind;
 
   /// The MCP tool that caused it, when one did. Null for everything a person
@@ -93,6 +100,7 @@ final class ConsoleEntry {
 /// habit would be the habit costing more than it is worth. The cubit hands
 /// out an unmodifiable view of it.
 final class ConsoleLog {
+  /// An empty log that keeps at most [limit] entries.
   ConsoleLog({this.limit = 200});
 
   /// The most entries kept.
@@ -103,6 +111,7 @@ final class ConsoleLog {
   /// Every entry, oldest first.
   List<ConsoleEntry> get entries => List<ConsoleEntry>.unmodifiable(_entries);
 
+  /// How many entries are kept now, never more than [limit].
   int get length => _entries.length;
 
   /// Adds [entry], dropping the oldest if that takes the log over [limit].

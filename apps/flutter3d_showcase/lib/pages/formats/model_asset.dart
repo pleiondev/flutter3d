@@ -7,6 +7,9 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `model-asset` page: a decoded document uploaded as a `ModelAsset` and
+/// placed with `instantiate`. Its check is that the upload carried vertices
+/// and the instance added a mesh that is drawn.
 final class ModelAssetDemo extends ShowcaseDemo {
   late final ModelAsset _asset;
   ModelInstance? _instance;

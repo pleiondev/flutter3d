@@ -10,6 +10,9 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `particle-modifiers` page: one burst under gravity, drag, wind,
+/// turbulence and spin. Its check is that gravity and drag slowed the climb
+/// and spin turned the particles.
 final class ParticleModifiersDemo extends ShowcaseDemo {
   late final ParticleSystem _particles;
   late final ParticleEffect _debrisEffect;

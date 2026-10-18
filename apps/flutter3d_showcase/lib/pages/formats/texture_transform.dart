@@ -9,6 +9,9 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `texture-transform` page: a floor whose texture coordinates went
+/// through `withTextureTransform`. Its check is that U was scaled by four and
+/// the vertex count did not change.
 final class TextureTransformDemo extends ShowcaseDemo {
   late final MeshData _plain;
   late final MeshData _moved;

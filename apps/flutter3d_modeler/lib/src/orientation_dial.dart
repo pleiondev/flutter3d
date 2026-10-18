@@ -15,6 +15,8 @@ import 'ground_grid.dart';
 /// A ⌀60 dial that shows which way the model is turned and turns it when
 /// pressed.
 class OrientationDial extends StatelessWidget {
+  /// A dial for a camera at [yaw] and [pitch]; a press calls [onPressed]
+  /// with the axis of the button under it.
   const OrientationDial({
     super.key,
     required this.yaw,
@@ -27,12 +29,16 @@ class OrientationDial extends StatelessWidget {
   /// because a widget that held the controller would rebuild the dial and the
   /// viewport for the same frame and only one of them needs to.
   final double yaw;
+
+  /// The camera's pitch, in radians, the partner of [yaw].
   final double pitch;
 
   /// What to look down. The caller animates; the dial does not know the camera
   /// exists.
   final void Function(ViewAxis axis) onPressed;
 
+  /// The arithmetic: where the buttons sit and which one a press lands on.
+  /// Its radii also size the dial.
   final OrientationGizmo gizmo;
 
   /// The box the dial lives in: the circle plus a ball's worth of room at each

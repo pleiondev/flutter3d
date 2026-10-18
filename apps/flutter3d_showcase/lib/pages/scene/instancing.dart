@@ -6,9 +6,14 @@ import 'dart:math' as math;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `instancing` page: a field of coloured capsules in one
+/// `InstancedMeshNode`, turning. Its check is that all of them were drawn
+/// from it.
 final class InstancingDemo extends ShowcaseDemo {
+  /// How many capsules the field holds, and its capacity.
   static const int instanceCount = 64;
 
+  /// How fast the field turns, in radians a second, 0 to 1.5.
   double rotationSpeed = 0.25;
   double _angle = 0.0;
 

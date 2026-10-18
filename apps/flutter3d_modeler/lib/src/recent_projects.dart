@@ -27,6 +27,8 @@ import 'package:flutter3d_app/flutter3d_app.dart'
 /// in and which of them have been deleted since are all decided here, which is
 /// why they are tested against a map in memory.
 final class RecentModels {
+  /// The list kept in [storage], or in this application's own directory when
+  /// none is given; a test hands in a map in memory.
   RecentModels({Storage? storage})
     : storage = storage ?? defaultStorage(appName);
 
@@ -48,6 +50,7 @@ final class RecentModels {
   /// dialogue. `ui-15`'s own worked example.
   static const int keep = 8;
 
+  /// Where the list is read from and written to.
   final Storage storage;
 
   /// The paths worth offering, most recent first.

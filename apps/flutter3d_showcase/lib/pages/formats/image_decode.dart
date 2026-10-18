@@ -10,6 +10,9 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `image-decode` page: a block textured from images decoded in Dart.
+/// Its check round-trips a PNG, decodes a JPEG close to its fill, and reads
+/// an HDR pixel.
 final class ImageDecodeDemo extends ShowcaseDemo {
   late final DecodedImage _png;
   late final DecodedImage _jpeg;

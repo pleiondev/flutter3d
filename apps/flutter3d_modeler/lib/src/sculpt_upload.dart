@@ -46,8 +46,11 @@ const int kSculptStride = 12;
 
 /// Keeps a [DeviceMesh] in step with a [SculptMesh] being sculpted.
 final class SculptUpload {
+  /// An upload to [device], holding nothing until the first mesh arrives.
   SculptUpload({required this.device});
 
+  /// The device the sculpted mesh is drawn from, and every changed chunk is
+  /// written to.
   final GraphicsDevice device;
 
   /// The frame number the last upload ran on, so a second call inside one

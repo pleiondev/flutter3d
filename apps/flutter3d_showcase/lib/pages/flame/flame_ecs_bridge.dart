@@ -22,6 +22,10 @@ final class _WalkBrain extends Brain {
 }
 // #endregion brain
 
+/// The `flame-ecs-bridge` page: goblin actors walking on a floor, stepped by
+/// an `ActorSystemComponent`, one of them bridged to a Flame position. Its
+/// check is that the goblin walked forward and that the Flame position
+/// tracks its body exactly.
 final class FlameEcsBridgeDemo extends ShowcaseDemo {
   late final String _report;
   late final double _actorX;

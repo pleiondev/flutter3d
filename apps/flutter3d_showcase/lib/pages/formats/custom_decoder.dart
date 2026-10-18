@@ -63,6 +63,9 @@ final class _BytesSource extends AssetSource {
       (request) async => throw StateError('a .box file has no siblings');
 }
 
+/// The `custom-decoder` page: a crate read from a `.box` file by a decoder
+/// of the page's own. Its check is that the decoder made one surface the size
+/// the file named, and that it is drawn.
 final class CustomDecoderDemo extends ShowcaseDemo {
   late final ModelDocument _decoded;
 

@@ -57,7 +57,16 @@ ModelCommand? lastAttemptedCommand;
 /// .depth`), and this is the feed's equivalent.
 const int _agentCallFeedLimit = 50;
 
+/// The editor's state, and every way it changes: commands run, undone and
+/// redone, the mode and the tool, the status line, background jobs and the
+/// agent's feed.
+///
+/// Commands go through [ran], so the scene, the materials and the export
+/// readiness follow the document in one place, and the screen only ever
+/// rebuilds from what this emits.
 final class ModelerCubit extends Cubit<ModelerState> {
+  /// A cubit in [ModelerOpening]: nothing is open until the device is up and
+  /// a document arrives.
   ModelerCubit() : super(const ModelerOpening());
 
   /// Readiness for the open document, recomputed only where the project moved.
@@ -236,6 +245,7 @@ final class ModelerCubit extends Cubit<ModelerState> {
     _synced(now, said: took == null ? 'undone' : 'undone $took');
   }
 
+  /// Runs again the step [undo] last took back, or says there is none.
   void redo() {
     final ModelerReady? now = _ready;
     if (now == null) return;
@@ -273,20 +283,6 @@ final class ModelerCubit extends Cubit<ModelerState> {
     _synced(now, said: 'undone $took agent ${took == 1 ? 'step' : 'steps'}');
   }
 
-  /// `tut-16`'s own hook: `mcp_bootstrap_io.dart`'s `onToolCall` calls this
-  /// after every MCP tool call answers, whether or not it touched the
-  /// document — the feed wants every call, not only the ones that left a
-  /// [HistoryStep] behind.
-  ///
-  /// **Resyncs the scene, the same half of [_synced] [documentMoved] runs.**
-  /// A document tool call lands straight on the shared [ModelHistory]
-  /// `ModelSession.run` holds, never through this cubit's own [ran] — so
-  /// this is the only place the screen ever learns an agent's own edit
-  /// landed and brings the viewport and the readiness to it. `said` is left
-  /// untouched on purpose: `ui.say` (`mcp-16d`) already writes an important
-  /// sentence to the status line through [say] itself, and clearing it here
-  /// right after — every tool call, including that one — would undo the
-  /// one thing [say]'s own `important` flag exists to protect.
   /// An agent has connected, calling itself [clientName] — `ux-05`.
   ///
   /// Said out loud on the status line, because an agent arriving on a shared
@@ -305,6 +301,20 @@ final class ModelerCubit extends Cubit<ModelerState> {
     );
   }
 
+  /// `tut-16`'s own hook: `mcp_bootstrap_io.dart`'s `onToolCall` calls this
+  /// after every MCP tool call answers, whether or not it touched the
+  /// document — the feed wants every call, not only the ones that left a
+  /// [HistoryStep] behind.
+  ///
+  /// **Resyncs the scene, the same half of [_synced] [documentMoved] runs.**
+  /// A document tool call lands straight on the shared [ModelHistory]
+  /// `ModelSession.run` holds, never through this cubit's own [ran] — so
+  /// this is the only place the screen ever learns an agent's own edit
+  /// landed and brings the viewport and the readiness to it. `said` is left
+  /// untouched on purpose: `ui.say` (`mcp-16d`) already writes an important
+  /// sentence to the status line through [say] itself, and clearing it here
+  /// right after — every tool call, including that one — would undo the
+  /// one thing [say]'s own `important` flag exists to protect.
   void agentToolCalled(AgentToolCall call) {
     final ModelerReady? now = _ready;
     if (now == null) return;
@@ -653,6 +663,8 @@ final class ModelerCubit extends Cubit<ModelerState> {
     emit(now.copyWith(playback: next));
   }
 
+  /// Lights the tool [id] on the rail, or none when [id] is null. Nothing is
+  /// checked against the tool list here; an unknown id simply lights nothing.
   void tool(String? id) {
     final ModelerReady? now = _ready;
     if (now == null) return;

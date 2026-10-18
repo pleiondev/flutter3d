@@ -6,6 +6,9 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `gltf-cameras-lights` page: a camera and a sun written into a GLB
+/// beside a cube and read back. Its check is that both survive, the camera
+/// with its projection.
 final class GltfCamerasLightsDemo extends ShowcaseDemo {
   late final GltfAsset _readBack;
 

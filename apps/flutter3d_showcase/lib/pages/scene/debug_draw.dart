@@ -4,6 +4,9 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `debug-draw` page: a body, a capsule, a three-joint rig and a light
+/// with the renderer's debug overlays switched on for them. Its check is that
+/// the overlays asked for were drawn.
 final class DebugDrawDemo extends ShowcaseDemo {
   bool _bounds = true;
   bool _normals = true;

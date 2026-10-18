@@ -4,7 +4,12 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `multi-view` page: two cubes on different layers, the viewport
+/// cropped to one view and a second view drawn beside it. Its check is that
+/// the two views drew more than one draw.
 final class MultiViewDemo extends ShowcaseDemo {
+  /// Whether the main view shows the left cube's layer (1) rather than the
+  /// right cube's (2).
   bool showLeft = true;
 
   late final Scene _scene;

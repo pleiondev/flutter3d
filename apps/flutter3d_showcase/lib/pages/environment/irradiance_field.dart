@@ -7,8 +7,16 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `irradiance-field` page: a floor between a red wall and a white one
+/// under a sun, lit a second time by a grid of probes. Its check is that the
+/// probe facing the red wall came out redder than the one facing away.
 final class IrradianceFieldDemo extends ShowcaseDemo {
+  /// Whether the scene reads the baked field; off leaves only the flat
+  /// ambient term.
   bool baked = true;
+
+  /// The scene's ambient intensity as a multiple of
+  /// `LightNode.defaultIntensity`, 0 to 2 on the "Ambient strength" slider.
   double ambient = 0.5;
 
   late final IrradianceField _field;

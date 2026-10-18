@@ -23,8 +23,10 @@ const double kLegalMeasure = 680;
 
 /// [document], rendered as a scrolling page.
 class LegalView extends StatefulWidget {
+  /// A page showing [document]; links go to [onOpenLink] when given.
   const LegalView({super.key, required this.document, this.onOpenLink});
 
+  /// The document drawn, already parsed.
   final LegalDocument document;
 
   /// What a link does. Null means the ordinary thing — hand it to the

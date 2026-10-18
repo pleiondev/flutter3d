@@ -9,8 +9,16 @@ import 'dart:math' as math;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `clustered-lights` page: an eight by eight grid of coloured point
+/// lamps over a white floor. Its check is that a per-draw light list would
+/// leave 32 of the 64 out, which is the loss the cells take back.
 final class ClusteredLightsDemo extends ShowcaseDemo {
+  /// Whether the frame sorts lights into clusters; the "Clustered lights"
+  /// switch, read into `RenderSettings.clusteredLights` every frame.
   bool clustered = true;
+
+  /// How far each lamp reaches, in metres, from 0.4 to 3.0 on the "Light
+  /// range" slider; written into every lamp's `range` each frame.
   double range = 0.8;
 
   final List<LightNode> _lights = <LightNode>[];

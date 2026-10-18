@@ -13,6 +13,8 @@ import 'gallery_item.dart';
 
 /// `gal-02`'s own recipes, as gallery items.
 final class RecipeSource implements GallerySource {
+  /// The recipes source. It holds nothing; each item is built when it is
+  /// inserted.
   const RecipeSource();
 
   @override

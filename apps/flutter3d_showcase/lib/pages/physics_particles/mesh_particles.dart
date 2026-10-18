@@ -8,6 +8,8 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `mesh-particles` page: shards drawn as instanced copies of a mesh.
+/// Its check is that they are alive and drawn.
 final class MeshParticlesDemo extends ShowcaseDemo {
   late final ParticleSystem _particles;
   late final ParticleEffect _debrisEffect;

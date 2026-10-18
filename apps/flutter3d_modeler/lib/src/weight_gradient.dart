@@ -47,9 +47,13 @@ import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 /// any other colour on screen is; [weightGradientColor] is what carries the
 /// sRGB→linear step, and only for the mesh's own vertex buffer.
 final class WeightGradientStop {
+  /// A stop of colour [srgb] at [position].
   const WeightGradientStop(this.position, this.srgb);
 
+  /// Where along the weight axis the stop sits, 0 to 1.
   final double position;
+
+  /// The stop's colour as sRGB components, each 0 to 1.
   final Vector3 srgb;
 }
 

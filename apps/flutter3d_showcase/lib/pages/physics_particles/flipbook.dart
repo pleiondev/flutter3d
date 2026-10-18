@@ -12,6 +12,9 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `flipbook` page: sparks that play a sprite sheet across their life.
+/// Its check is that they are drawn and that the sheet plays across a
+/// particle's life.
 final class FlipbookDemo extends ShowcaseDemo {
   late final ParticleSystem _particles;
   late final ParticleEffect _sparksEffect;

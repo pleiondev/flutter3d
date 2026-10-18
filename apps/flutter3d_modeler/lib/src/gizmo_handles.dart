@@ -65,6 +65,7 @@ const double kGizmoHotMix = 0.45;
 /// rather than every call site — and so the numbers below are all in one place
 /// to be read against the design.
 final class GizmoDrawing {
+  /// The design's sizes, in logical pixels, unless a caller asks for others.
   const GizmoDrawing({
     this.shaftPixels = 3.0,
     this.headPixels = 13.0,

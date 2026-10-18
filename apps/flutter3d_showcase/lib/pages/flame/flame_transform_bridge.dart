@@ -13,6 +13,10 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/flame_layer.dart';
 
+/// The `flame-transform-bridge` page: two markers on a floor, one led by its
+/// scene node and one by its Flame position. Its check moves each and reads
+/// the other back, (3, _, 2) as Flame (3, 2) and Flame (4, -1) as x = 4,
+/// z = -1.
 final class FlameTransformBridgeDemo extends ShowcaseDemo {
   late final double _flamePositionX;
   late final double _flamePositionY;

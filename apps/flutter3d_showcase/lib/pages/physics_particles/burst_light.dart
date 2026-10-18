@@ -10,6 +10,8 @@ import 'package:flutter3d_showcase/src/demo/demo.dart';
 
 final class _Flash with LightEmitter {}
 
+/// The `burst-light` page: one particle burst that lights its own flash.
+/// Its check is that the burst made the flash and the frame drew it.
 final class BurstLightDemo extends ShowcaseDemo {
   late final ParticleSystem _particles;
   late final ParticleEffect _flashEffect;

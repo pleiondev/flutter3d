@@ -7,9 +7,18 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `planar-reflections` page: a polished floor with a ball, a block and
+/// a post standing on it. Its check is that the mirrored camera drew the
+/// three meshes above the floor, and that the pass does not run when off.
 final class PlanarReflectionsDemo extends ShowcaseDemo {
+  /// Whether the mirrored pass runs; the "Planar reflections" switch.
   bool reflections = true;
+
+  /// How much of the reflection the floor shows, 0.02 to 1, written into the
+  /// floor's material and the plane's settings.
   double reflectance = 0.3;
+
+  /// The reflection's size as a fraction of the frame's, 0.25 to 1.
   double resolution = 0.5;
 
   late final PlanarReflectorNode _mirror;

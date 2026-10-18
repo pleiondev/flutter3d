@@ -10,8 +10,15 @@ import 'dart:math' as math;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `reflection-probes` page: a mirror ball before a red wall, reflecting the room through a probe's captured cube. Its check is
+/// that the probe finished capturing and its pass drew into the cube.
 final class ReflectionProbesDemo extends ShowcaseDemo {
+  /// How strongly the probe's cube contributes, 0 to 2; written into the
+  /// probe each frame.
   double intensity = 1.0;
+
+  /// The mirror ball's roughness, 0.02 to 1: the higher, the blurrier the
+  /// level of the probe's roughness chain it reads.
   double roughness = 0.06;
 
   late final ReflectionProbeNode _probe;

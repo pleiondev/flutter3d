@@ -14,6 +14,9 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/flame_layer.dart';
 
+/// The `flame-overview` page: a flutter3d cube and a Flame shape drawn
+/// together, neither moving the other. Its check is that each stays where
+/// its own layer put it.
 final class FlameOverviewDemo extends ShowcaseDemo {
   late final double _flameX;
   late final double _cubeX;

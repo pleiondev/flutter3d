@@ -14,8 +14,15 @@ import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
     show usePhysics;
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `xpbd-cloth` page: a sheet pinned along its top, a ball swinging
+/// through it and wind gusting on it. Its check is that the pinned row stays,
+/// the free edge hangs, and no particle ends inside the ball.
 final class XpbdClothDemo extends ShowcaseDemo {
+  /// The peak of the gusting wind along +z, in m/s, 0 to 6; the gust swings
+  /// between half of it and all of it.
   double wind = 1.5;
+
+  /// Whether the ball swings through the sheet.
   bool swingBall = true;
 
   late final ClothMesh _cloth;

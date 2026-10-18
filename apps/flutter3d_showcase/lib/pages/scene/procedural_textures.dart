@@ -6,6 +6,9 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `procedural-textures` page: a solid blue sphere and a checkered torus
+/// wearing textures encoded in Dart. Its check is each texture's byte count
+/// and that both meshes are drawn.
 final class ProceduralTexturesDemo extends ShowcaseDemo {
   final SolidColorTexture _solid = SolidColorTexture(
     LinearColor.fromSrgb(0.12, 0.55, 0.92),

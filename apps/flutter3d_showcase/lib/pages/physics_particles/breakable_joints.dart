@@ -12,6 +12,9 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `breakable-joints` page: a shelf on two breakable brackets, loaded
+/// one crate at a time on the physics core. Its check is that the brackets
+/// hold four crates, let go under five, and report the break.
 final class BreakableJointsDemo extends ShowcaseDemo {
   NativeWorld? _world;
   late NativeBody _wall;

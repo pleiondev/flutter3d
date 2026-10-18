@@ -14,6 +14,10 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/flame_layer.dart';
 
+/// The `flame-camera-bridge` page: an orthographic lens over a floor of
+/// pillars, synced with a Flame viewfinder. Its check drives the sync both
+/// ways: the viewfinder follows the camera to x = 3 with zoom 1 / height, and
+/// the camera follows the viewfinder to x = 1 with height 1 / zoom.
 final class FlameCameraBridgeDemo extends ShowcaseDemo {
   late final String _report;
   late final double _viewfinderX;

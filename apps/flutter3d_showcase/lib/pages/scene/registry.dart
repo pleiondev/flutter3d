@@ -31,6 +31,8 @@ import 'package:flutter3d_showcase/pages/scene/vertex_cache.dart';
 import 'package:flutter3d_showcase/pages/scene/view_model.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// How to build each page of the category, by page id; joined into the app's
+/// `kDemos`.
 final Map<String, DemoBuilder> sceneDemos = <String, DemoBuilder>{
   'culling': CullingDemo.new,
   'debug-draw': DebugDrawDemo.new,

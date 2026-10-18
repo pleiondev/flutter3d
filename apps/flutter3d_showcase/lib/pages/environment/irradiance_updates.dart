@@ -7,9 +7,19 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `irradiance-updates` page: a room with one wall whose colour can be
+/// changed and a lamp, its irradiance field refreshed a few probes a frame.
+/// Its check is that the update pass ran and refreshed at least one probe.
 final class IrradianceUpdatesDemo extends ShowcaseDemo {
+  /// The painted wall's colour: 0 red, 1 green, 2 blue.
   int wallColour = 0;
+
+  /// How many probes the renderer refreshes each frame, 1 to 8 in whole
+  /// steps; rounded into the field's `gpuUpdates`.
   double probesPerFrame = 2;
+
+  /// How much of a probe's old value survives each refresh, 0 to 0.99: higher
+  /// is steadier and slower to follow the wall.
   double hysteresis = 0.9;
 
   late final RenderMaterial _paint;

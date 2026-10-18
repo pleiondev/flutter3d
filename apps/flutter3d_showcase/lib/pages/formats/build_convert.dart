@@ -13,6 +13,9 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `build-convert` page: a tetrahedron that went through the converter's
+/// decode-then-write path in memory. Its check is that the source decoded,
+/// the writer wrote something, and the result is drawn.
 final class BuildConvertDemo extends ShowcaseDemo {
   late final int _sourceBytes;
   late final int _convertedBytes;

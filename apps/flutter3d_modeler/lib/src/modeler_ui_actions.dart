@@ -28,7 +28,12 @@ import 'play/play_control.dart';
 import 'play/play_template.dart';
 import 'ui/tools.dart';
 
+/// The modeller's answer to the MCP `ui.*` tools: each [UiActions] call
+/// lands on [cubit], or on a callback the screen handed in for what only a
+/// live screen can do.
 final class ModelerUiActions implements UiActions {
+  /// Actions over [cubit], with the screen's dialogs and Play handed in.
+  /// The gallery offers the built-in recipes unless given other sources.
   ModelerUiActions({
     required this.cubit,
     required this.openExportDialog,
@@ -42,6 +47,8 @@ final class ModelerUiActions implements UiActions {
     this.captureWindow,
   });
 
+  /// The editor the actions drive: modes, tools, selection and the status
+  /// line all go through it.
   final ModelerCubit cubit;
 
   /// `_ModelerScreenState._showExportDialog`, handed in rather than reached
@@ -63,6 +70,9 @@ final class ModelerUiActions implements UiActions {
   /// has outlived its reason is worse than no tool: a screenshot script
   /// reads it as a thing the application cannot do.
   final Future<void> Function() openAutorigDialog;
+
+  /// `_ModelerScreenState._openGamePreview`, for `ui.openDialog` asking for
+  /// the preview.
   final Future<void> Function() openGamePreview;
 
   /// `ux-50`: `_ModelerScreenState._openPlay` — the document walked in

@@ -41,6 +41,9 @@ final class _Glass {
   Matrix3 get turn => Matrix3.rotationX(tilt);
 }
 
+/// The `liquids` page: a U-tube, a floating block and a pour between test
+/// tubes on the physics core. Its check is that the U-tube levels, the
+/// block floats at its share, and the pour loses no volume.
 final class LiquidsDemo extends ShowcaseDemo {
   /// The U-tube and the basin, at a hundred and twentieth of a second.
   late FluidWorld _vessels;

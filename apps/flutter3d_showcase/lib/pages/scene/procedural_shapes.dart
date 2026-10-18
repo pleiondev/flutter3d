@@ -4,6 +4,8 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `procedural-shapes` page: five meshes made from shape values. Its
+/// check is that all of them are drawn.
 final class ProceduralShapesDemo extends ShowcaseDemo {
   final List<MeshNode> _shapes = <MeshNode>[];
 

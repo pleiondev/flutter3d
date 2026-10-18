@@ -4,7 +4,11 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `frame-stats` page: a cube, a torus and a floor under a sun. Its
+/// check is that the frame's counters describe that scene.
 final class FrameStatsDemo extends ShowcaseDemo {
+  /// Whether the sun casts shadows, which adds the shadow pass to the
+  /// counters.
   bool shadows = true;
 
   late final LightNode _sun;

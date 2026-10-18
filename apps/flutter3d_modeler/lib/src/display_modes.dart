@@ -49,7 +49,26 @@ enum ShadingMode {
 /// orientation gizmo's `−X` label and the `Right` menu item are the same
 /// instruction — stand on `+X` and look back along the axis — and giving the
 /// two of them one name here is what stops the pair drifting apart.
-enum StandardView { front, back, left, right, top, bottom }
+enum StandardView {
+  /// The model's front, with the camera level and not turned.
+  front,
+
+  /// The model's back: the front view turned half round.
+  back,
+
+  /// The camera a quarter turn to the model's left, level.
+  left,
+
+  /// The camera on `+X`, level, looking back along the axis: the same view
+  /// the orientation gizmo's `−X` label asks for.
+  right,
+
+  /// Looking straight down, as near the pole as the orbit allows.
+  top,
+
+  /// Looking straight up from below, the same distance short of the pole.
+  bottom,
+}
 
 /// The transform panel's own pivot options — one more than [TransformPivot]
 /// carries.
@@ -62,7 +81,17 @@ enum StandardView { front, back, left, right, top, bottom }
 /// `ui/properties/pivot_space_chips.dart`), so the panel shows the
 /// three-way choice `ui-35n`'s own row asks for rather than quietly
 /// shrinking it to the two that work.
-enum PivotChip { median, individual, cursor }
+enum PivotChip {
+  /// About the middle of everything selected: [TransformPivot.median].
+  median,
+
+  /// Each object about its own origin: [TransformPivot.individual].
+  individual,
+
+  /// About a 3D cursor the document does not have yet; the chip stays
+  /// disabled and a command given it turns about the median.
+  cursor,
+}
 
 /// What [chip] means to a command that only knows [TransformPivot].
 ///

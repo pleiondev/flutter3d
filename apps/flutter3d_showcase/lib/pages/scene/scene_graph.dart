@@ -4,7 +4,11 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `scene-graph` page: a star, a planet and a moon on nested pivots. Its
+/// check is that the children's transforms follow their parents'.
 final class SceneGraphDemo extends ShowcaseDemo {
+  /// How fast the system pivot turns, in radians a second, 0 to 2; the planet's
+  /// pivot turns 2.7 times as fast.
   double speed = 0.7;
 
   late final SceneNode _systemPivot;

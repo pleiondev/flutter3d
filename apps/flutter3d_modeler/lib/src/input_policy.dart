@@ -54,11 +54,13 @@ sealed class InputIntent {
 /// The pointer should drive the camera. `orbit_gestures.dart` decides what
 /// that means; this only says that it, and not the armed tool, gets it.
 final class CameraInput extends InputIntent {
+  /// The one camera intent; it carries nothing.
   const CameraInput();
 }
 
 /// The pointer is drawing on the model, at a normalised [force].
 final class ToolStroke extends InputIntent {
+  /// A stroke at [force], erasing when [erase] is true.
   const ToolStroke({required this.force, this.erase = false});
 
   /// 0 at no pressure, 1 at the device's own maximum — already resolved by
@@ -79,6 +81,7 @@ final class ToolStroke extends InputIntent {
 /// can open a context menu on it without having first nudged the camera by
 /// the tremor of a finger held still.
 final class LongPressInput extends InputIntent {
+  /// The one long-press intent; it carries nothing.
   const LongPressInput();
 }
 
@@ -89,9 +92,10 @@ final class LongPressInput extends InputIntent {
 /// question without sharing a session's worth of pointer state the way
 /// `OrbitGestures` has to for its multi-finger gestures.
 final class InputPolicy {
+  /// The policy. It keeps no state, so one constant serves every caller.
   const InputPolicy();
 
-  /// The minimum touch target, in logical pixels — RenderMaterial's own 48dp
+  /// The minimum touch target, in logical pixels — Material Design's own 48dp
   /// guideline, `ui-19`'s own "tap target 48 на тач". Kept here rather than
   /// invented again at each call site that lays out a button for touch.
   static const double touchTapTarget = 48.0;

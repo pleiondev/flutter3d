@@ -6,8 +6,15 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `distance-fog` page: a row of stone pillars running away from the
+/// eye into fog. Its check is that every mesh was still drawn, however far
+/// into the fog.
 final class DistanceFogDemo extends ShowcaseDemo {
+  /// The fog's density per metre, 0 to 0.2 on the "Density" slider.
   double density = 0.03;
+
+  /// Whether the fog takes the sky's colour, so the far pillars dissolve into
+  /// it, rather than a colour of its own.
   bool matchSky = true;
 
   // #region sky

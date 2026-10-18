@@ -9,9 +9,19 @@ import 'dart:math' as math;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `physical-sky` page: a stone tower and houses on open ground under a
+/// scattering sky, with height fog. Its check is that the sky is one extra
+/// draw and that a sun twenty degrees up comes out warm.
 final class PhysicalSkyDemo extends ShowcaseDemo {
+  /// The sun's elevation in degrees, -15 to 85; the sky's colours and the sun
+  /// light's both follow it.
   double sunHeight = 20.0;
+
+  /// The fog's density per metre at the ground, 0 to 0.1.
   double fogDensity = 0.03;
+
+  /// How fast the fog thins with height, per metre, 0 to 0.3; starts at
+  /// `FogSettings.defaultHeightFalloff`.
   double heightFalloff = FogSettings.defaultHeightFalloff;
 
   late final LightNode _sun;

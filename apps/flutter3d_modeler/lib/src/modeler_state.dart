@@ -34,12 +34,15 @@ import 'staging.dart';
 import 'timeline_playback.dart';
 import 'ui/tools.dart';
 
+/// What the editor is doing: opening, choosing a document, editing one, or
+/// failed. The screen switches on it to decide what to build.
 sealed class ModelerState {
   const ModelerState();
 }
 
 /// Before the device is up: no renderer, nothing to draw with yet.
 final class ModelerOpening extends ModelerState {
+  /// The state the cubit starts in.
   const ModelerOpening();
 }
 
@@ -51,6 +54,7 @@ final class ModelerOpening extends ModelerState {
 /// a class and stops the start screen from being a reason to reshape everything
 /// else later.
 final class ModelerChoosing extends ModelerState {
+  /// Choosing, with [said] above the choices.
   const ModelerChoosing({required this.said});
 
   /// What to say above the choices: usually why they are showing.
@@ -59,6 +63,9 @@ final class ModelerChoosing extends ModelerState {
 
 /// A document is open and being edited.
 final class ModelerReady extends ModelerState {
+  /// An open document. Only [renderer], [stage], [history] and [readiness]
+  /// are required; everything else starts where a freshly opened document
+  /// does: object mode, the select tool, nothing said.
   const ModelerReady({
     required this.renderer,
     required this.stage,
@@ -120,6 +127,8 @@ final class ModelerReady extends ModelerState {
   /// existed.
   final String documentName;
 
+  /// Which mode the editor is in, of those [workspace] offers. Decides the
+  /// rail, the panels and what a click picks.
   final ModelerMode mode;
 
   /// Which element level the mesh mode is picking at. Kept while the object
@@ -203,8 +212,16 @@ final class ModelerReady extends ModelerState {
   /// The project, which is what nearly every reader actually wants.
   ModelProject get project => history.project;
 
+  /// What is selected in the document, objects and elements both: the
+  /// history's own selection, which travels with every step.
   ProjectSelection get selection => history.selection;
 
+  /// This state with the given fields replaced.
+  ///
+  /// [clearTool], [clearSaid] and [clearAutosaveTrouble] set their field to
+  /// null, which a plain null argument cannot. A new [said] takes
+  /// [saidIsImportant] and [saidIsRefusal] with it; with no new sentence the
+  /// old flags stay.
   // ignore: avoid-incomplete-copy-with, the renderer, the history and the document's name are live objects, and a different document is a new state rather than a copy
   ModelerReady copyWith({
     ModelerStage? stage,
@@ -265,6 +282,7 @@ final class ModelerReady extends ModelerState {
 /// closure and a mutable cancel flag, neither of which belongs in a value a
 /// screen compares with `==` to decide whether to rebuild.
 final class ActiveJob {
+  /// The job [key] at [progress].
   const ActiveJob({required this.key, required this.progress});
 
   /// Which job this answers for — the same value `ModelerCubit.cancelJob`
@@ -324,7 +342,9 @@ sealed class JobKey {
   int? get objectId;
 }
 
+/// The key of a modifier-stack bake for one object: [JobKey.object].
 final class JobKeyObject extends JobKey {
+  /// A key for object [objectId]'s bake.
   const JobKeyObject(this.objectId);
 
   @override
@@ -341,9 +361,13 @@ final class JobKeyObject extends JobKey {
   String toString() => 'JobKey.object($objectId)';
 }
 
+/// The key of a retarget onto one clip: [JobKey.clip].
 final class JobKeyClip extends JobKey {
+  /// A key for the clip at [index].
   const JobKeyClip(this.index);
 
+  /// The index of the clip the retarget writes: the one it replaces, or the
+  /// one an append will land at.
   final int index;
 
   @override
@@ -359,7 +383,9 @@ final class JobKeyClip extends JobKey {
   String toString() => 'JobKey.clip($index)';
 }
 
+/// The key of a weight bind for one object's mesh: [JobKey.rig].
 final class JobKeyRig extends JobKey {
+  /// A key for object [objectId]'s bind.
   const JobKeyRig(this.objectId);
 
   @override
@@ -389,6 +415,7 @@ final class JobKeyRig extends JobKey {
 /// rather than editing anything. The feed wants all of them; only
 /// `ModelHistory.steps` wants the narrower set.
 final class AgentToolCall {
+  /// A call as `onToolCall` reports it; [png] only for a call that drew.
   const AgentToolCall({
     required this.tool,
     required this.arguments,
@@ -428,7 +455,9 @@ final class AgentToolCall {
 /// Nothing to draw with, or nothing that would open, and the sentence saying
 /// why.
 final class ModelerFailed extends ModelerState {
+  /// A failure saying [said].
   const ModelerFailed(this.said);
 
+  /// Why: the sentence the failure screen shows.
   final String said;
 }

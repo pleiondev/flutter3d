@@ -54,6 +54,7 @@ sealed class FileOpened {
 /// A model that has been opened: the document a person now edits, and the
 /// scene that draws it.
 final class OpenedModel extends FileOpened {
+  /// An opened [project], drawn by [stage].
   const OpenedModel(this.project, this.stage);
 
   /// The objects the file became. What the outliner lists, what a click
@@ -71,8 +72,11 @@ final class OpenedModel extends FileOpened {
 
 /// The file, and one sentence saying what is wrong with it.
 final class OpenRefused extends FileOpened {
+  /// A refusal saying [because].
   const OpenRefused(this.because);
 
+  /// The sentence for the status line: what is wrong with the file, said so
+  /// a person knows whether to try another.
   final String because;
 
   @override

@@ -25,6 +25,8 @@ import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 /// thing a source can name, and an enum would make every one of those a
 /// case somebody has to add here before the item can be listed at all.
 final class GalleryLicence {
+  /// A licence as a source names it. The common ones are the constants below;
+  /// a source with another builds its own.
   const GalleryLicence({
     required this.id,
     required this.name,
@@ -97,16 +99,21 @@ sealed class GalleryModel {
 
 /// A model this build makes — `gal-02`'s own recipes.
 final class BuiltModel extends GalleryModel {
+  /// A model built here, ready to insert.
   const BuiltModel(this.mesh);
 
+  /// The mesh, already in the editor's own form, so inserting it needs no
+  /// import.
   final EditMesh mesh;
 }
 
 /// A model that arrived as a file, which the import path decodes the same
 /// way it decodes one a person dropped on the window.
 final class FetchedModel extends GalleryModel {
+  /// A file's [bytes], decoded by the format [name]'s extension says.
   const FetchedModel({required this.bytes, required this.name});
 
+  /// The file's contents as fetched, undecoded.
   final Uint8List bytes;
 
   /// The file's own name, extension included — what tells the decoder
@@ -116,6 +123,7 @@ final class FetchedModel extends GalleryModel {
 
 /// One thing a gallery can offer.
 final class GalleryItem {
+  /// An item a source lists; [open] is not called until somebody inserts it.
   const GalleryItem({
     required this.id,
     required this.name,
@@ -131,6 +139,7 @@ final class GalleryItem {
   /// catalogues cannot collide over "chair".
   final String id;
 
+  /// What the card shows as its title.
   final String name;
 
   /// One sentence about what it is. The same rule `ux-18` gives a tool: a

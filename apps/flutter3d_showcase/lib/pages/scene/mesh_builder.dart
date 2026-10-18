@@ -4,6 +4,8 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `mesh-builder` page: a pyramid written vertex by vertex. Its check is
+/// that it reached the frame.
 final class MeshBuilderDemo extends ShowcaseDemo {
   late final MeshData _pyramid;
 

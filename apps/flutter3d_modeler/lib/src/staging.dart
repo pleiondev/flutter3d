@@ -35,15 +35,6 @@ final class ModelerStage {
     this.lighting,
   );
 
-  /// A stage with one object in it.
-  ///
-  /// [asset] is a model that has been opened and uploaded; with none, the
-  /// subject is the cube `flutter3d_mesh` builds — which is also what a new
-  /// project starts as, so the empty case and the first primitive are one path
-  /// rather than two.
-  /// [stressTriangles] replaces the subject with a mesh of about that many
-  /// triangles, split across [stressObjects] draws — the stand `p0-01` asks
-  /// for. Zero, which is the default, builds the cube.
   /// A stage whose contents follow [project].
   ///
   /// **The one door a document comes through.** Everything else here builds a
@@ -89,6 +80,15 @@ final class ModelerStage {
     );
   }
 
+  /// A stage with one object in it.
+  ///
+  /// [asset] is a model that has been opened and uploaded; with none, the
+  /// subject is the cube `flutter3d_mesh` builds — which is also what a new
+  /// project starts as, so the empty case and the first primitive are one path
+  /// rather than two.
+  /// [stressTriangles] replaces the subject with a mesh of about that many
+  /// triangles, split across [stressObjects] draws — the stand `p0-01` asks
+  /// for. Zero, which is the default, builds the cube.
   factory ModelerStage.build({
     required GraphicsDevice device,
     ModelAsset? asset,
@@ -197,10 +197,15 @@ final class ModelerStage {
   /// be a second document with no undo, no version and no owner.
   final EditMesh? editMesh;
 
+  /// Everything drawn: the objects under [subject] or the sync's root, the
+  /// lights, and [camera].
   final Scene scene;
 
+  /// The camera the viewport draws through; [orbit] is what moves it.
   final CameraNode camera;
 
+  /// Turns, pans and zooms [camera] about a target, from the gestures, the
+  /// keys and the named views.
   final OrbitController orbit;
 
   /// What keeps [scene] in step with the project, when the stage was built from

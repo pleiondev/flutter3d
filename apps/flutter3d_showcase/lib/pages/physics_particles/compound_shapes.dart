@@ -27,6 +27,9 @@ final class _Thing {
   final List<_Piece> pieces;
 }
 
+/// The `compound-shapes` page: a table, a dumbbell and a hammer, each one
+/// body of several shapes, dropped on the physics core. Its check is that
+/// each comes to rest on the parts it should.
 final class CompoundShapesDemo extends ShowcaseDemo {
   NativeWorld? _world;
   List<_Thing> _things = const <_Thing>[];

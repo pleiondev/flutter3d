@@ -34,6 +34,8 @@ import 'package:flutter3d_showcase/pages/physics_particles/vehicle.dart';
 import 'package:flutter3d_showcase/pages/physics_particles/xpbd_cloth.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// How to build each page of the category, by page id; joined into the app's
+/// `kDemos`.
 final Map<String, DemoBuilder> physicsParticlesDemos = <String, DemoBuilder>{
   'particle-pool': ParticlePoolDemo.new,
   'particle-emitters': ParticleEmittersDemo.new,

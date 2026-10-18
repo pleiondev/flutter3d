@@ -49,11 +49,16 @@ final class _TrackingRigidBodyComponent extends RigidBodyComponent {
   }
 }
 
+/// The `flame-physics-bridge` page: a crate dropped onto the ground by the
+/// physics and followed by a Flame component. Its check is that the crate
+/// settles at y = 0.3 and that `CollisionBridge` relays the landing.
 final class FlamePhysicsBridgeDemo extends ShowcaseDemo {
   late final String _report;
   late final double _crateHeight;
   late final bool _collided;
 
+  /// Where the crate starts above the ground, in metres, 0.5 to 4.0 on the
+  /// "Drop height" slider; read again each time it is dropped.
   double dropHeight = 2.5;
 
   late final DemoContext _context;

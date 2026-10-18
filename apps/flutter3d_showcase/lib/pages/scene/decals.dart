@@ -10,10 +10,22 @@ import 'dart:math' as math;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `decals` page: a red stain and a blue puddle on a floor and a sign on
+/// a wall, all box decals. Its check is that the scene holds three decals and
+/// the decal pass ran.
 final class DecalsDemo extends ShowcaseDemo {
+  /// Whether the decal pass runs.
   bool decals = true;
+
+  /// Whether the blue puddle is drawn over the red stain where they overlap,
+  /// by giving it the higher `order`.
   bool blueOnTop = true;
+
+  /// The alpha of the stain and the puddle, 0 to 1.
   double opacity = 0.9;
+
+  /// The stain's angle limit in degrees, 10 to 110: a surface turned further
+  /// than this from the decal's projection is left unpainted.
   double angleLimitDegrees = 75.0;
 
   late final DecalNode _stain;

@@ -11,6 +11,10 @@ import 'dart:js_interop';
 
 import 'package:web/web.dart' as web;
 
+/// Makes the browser ask before the tab closes while [isDirty] answers true.
+///
+/// [isDirty] is asked at the moment of closing, not once here, so the
+/// answer follows every edit and save made after this was installed.
 void installBeforeUnloadGuard(bool Function() isDirty) {
   web.window.onbeforeunload = ((web.Event event) {
     if (!isDirty()) return;
