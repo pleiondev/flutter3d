@@ -17,7 +17,9 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter3d/flutter3d.dart' show FrameResult, FramePass;
 
+/// The last frame the viewport drew, pass by pass.
 final class RenderGraphView extends StatelessWidget {
+  /// A view of [frame].
   const RenderGraphView({super.key, required this.frame});
 
   /// The frame to show, or null before the viewport has drawn one.

@@ -18,7 +18,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 
+/// The level as a tree, every row of it a way to select what it names.
 final class Outliner extends StatefulWidget {
+  /// An outliner over [editing], telling [onSelect] what was clicked.
   const Outliner({
     super.key,
     required this.editing,
@@ -27,6 +29,7 @@ final class Outliner extends StatefulWidget {
     this.adding,
   });
 
+  /// The document listed, whose selection the rows show and change.
   final Editing editing;
 
   /// A row was clicked: [picked] is the row, and [add] whether it joins the

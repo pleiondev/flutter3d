@@ -14,6 +14,7 @@ import 'telemetry_fetch.dart';
 /// N7 draws real players here too: the same report, fetched from a telemetry
 /// server that played their runs again.
 final class PlaytestReportScreen extends StatefulWidget {
+  /// The report screen, opened on [initialReport] when there is one.
   const PlaytestReportScreen({
     super.key,
     this.initialReport,
@@ -30,6 +31,7 @@ final class PlaytestReportScreen extends StatefulWidget {
   /// heatmap.
   final String? levelHash;
 
+  /// How a telemetry server is asked for a heatmap.
   final TextGet get;
 
   @override

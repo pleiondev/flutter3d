@@ -16,13 +16,18 @@ import 'recent_projects.dart';
 /// that could not be written costs somebody a drag next time, so neither is
 /// ever reported as a failure.
 final class LayoutMemory {
+  /// A memory kept in [storage], the editor's own directory unless a test
+  /// hands in another.
   LayoutMemory({Storage? storage})
     : storage = storage ?? defaultStorage(RecentProjects.appName);
 
   static const String _name = 'layout.json';
 
+  /// Where the layout is kept, as `layout.json`.
   final Storage storage;
 
+  /// The layout kept last time, or the default when none was kept or it does
+  /// not read.
   Future<DockArrangement> read() async {
     final text = await storage.read(_name);
     if (text == null) return const DockArrangement();

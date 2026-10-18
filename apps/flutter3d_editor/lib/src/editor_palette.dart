@@ -12,6 +12,8 @@ import 'editor_cubit.dart';
 /// have. The count beside each is worth its space: a level with no exit and a
 /// level with three are both worth noticing before playing it.
 final class EditorPalette extends StatelessWidget {
+  /// A palette over [state], [width] pixels wide, offering the installed
+  /// [pieces] beside the level's own.
   const EditorPalette({
     super.key,
     required this.state,
@@ -19,6 +21,7 @@ final class EditorPalette extends StatelessWidget {
     this.pieces,
   });
 
+  /// The open level, whose types the palette lists and counts.
   final EditorReady state;
 
   /// What the installed plugins offer to place, beside what the level and its
@@ -108,6 +111,7 @@ final class EditorPalette extends StatelessWidget {
 
 /// One row of the palette: a swatch, a word, and how many the level has.
 final class PaletteRow extends StatelessWidget {
+  /// A row for [it], calling [onTap] to hold it and [onHide] to hide its type.
   const PaletteRow({
     super.key,
     required this.it,
@@ -117,6 +121,7 @@ final class PaletteRow extends StatelessWidget {
     required this.onHide,
   });
 
+  /// What the row offers to place.
   final Placeable it;
 
   /// Whether this is what the next click will put down.
@@ -125,7 +130,11 @@ final class PaletteRow extends StatelessWidget {
   /// Whether this type is currently not drawn.
   final bool hidden;
 
+  /// Called when the row is clicked: the next click puts [it] down.
   final VoidCallback onTap;
+
+  /// Called when the row's eye is clicked: its type stops being drawn, or
+  /// starts again.
   final VoidCallback onHide;
 
   @override

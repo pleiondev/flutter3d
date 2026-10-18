@@ -42,6 +42,7 @@ Future<String?> askForLevel({EditorDisk? disk}) => (disk ?? editorDisk).choose(
 /// given. Everything a row here does ends in the same place a template does,
 /// which is `_openAt` in `main.dart`.
 final class EditorChooser extends StatelessWidget {
+  /// A chooser over [state], making a new project's level at [levelPath].
   const EditorChooser({
     super.key,
     required this.state,
@@ -55,6 +56,7 @@ final class EditorChooser extends StatelessWidget {
   /// Where the documents are; this build's own when null.
   final EditorDisk? disk;
 
+  /// The templates on offer, and what to say under them.
   final EditorChoosing state;
 
   /// Where a new project's level will land — see [kLevelPath] in `main.dart`.

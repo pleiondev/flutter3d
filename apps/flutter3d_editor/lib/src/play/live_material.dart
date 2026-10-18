@@ -19,6 +19,7 @@ import 'package:vm_service/vm_service.dart';
 /// field, and whatever is left when it ends goes then. The last value is
 /// never dropped, which is the one somebody let go of the slider on.
 final class ThrottledMaterials {
+  /// A throttle passing values to [send] at most once every [interval].
   ThrottledMaterials({
     required this.send,
     this.interval = const Duration(milliseconds: 33),
@@ -35,6 +36,8 @@ final class ThrottledMaterials {
       <String, Map<String, Object?>>{};
   Timer? _quiet;
 
+  /// Queues [fields] of [material], merged over what is already queued for
+  /// it; sent at once when nothing has gone in the last [interval].
   void push(String material, Map<String, Object?> fields) {
     (_pending[material] ??= <String, Object?>{}).addAll(fields);
     if (_quiet == null) _flush();
@@ -68,8 +71,11 @@ final class ThrottledMaterials {
 /// which is fine for one call a save; thirty a second would spend most of
 /// each on a handshake.
 final class GameMaterials {
+  /// A sender to the game at [vmService], telling [onError] when a send
+  /// fails.
   GameMaterials(this.vmService, {this.onError});
 
+  /// The running game's VM service address.
   final String vmService;
 
   /// Told when a send fails, once per connection: the game has gone, or
@@ -77,11 +83,14 @@ final class GameMaterials {
   /// drag would say the same thing.
   final void Function(Object error)? onError;
 
+  /// The service extension a running game sets a material's fields through.
   static const String method = 'ext.flutter3d.material.set';
 
   Future<({VmService service, String isolate})>? _link;
   bool _told = false;
 
+  /// Sets [fields] of [material] in the running game, connecting the first
+  /// time; a failure goes to [onError], once a connection.
   Future<void> set(String material, Map<String, Object?> fields) async {
     try {
       final (:service, :isolate) = await (_link ??= _connect());
@@ -114,6 +123,7 @@ final class GameMaterials {
     );
   }
 
+  /// Closes the connection, if one was made.
   Future<void> dispose() async {
     final link = _link;
     _link = null;

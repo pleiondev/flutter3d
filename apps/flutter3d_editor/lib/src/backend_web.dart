@@ -11,6 +11,9 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 /// `backend_web.dart`. 720p, as in the crypt, because the editor's viewport
 /// is the crypt's picture with panels over it.
 const int kEditorFrameWidth = 1280;
+
+/// The height of the frame the web build draws, in pixels. See
+/// [kEditorFrameWidth].
 const int kEditorFrameHeight = 720;
 
 /// Opens WebGPU, or WebGL2 where WebGPU will not start, or throws with

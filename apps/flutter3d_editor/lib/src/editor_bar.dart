@@ -12,6 +12,8 @@ import 'editor_cubit.dart';
 /// whole screen, and a second subscription here would be a second place to
 /// keep in step with the first.
 final class EditorBar extends StatelessWidget {
+  /// A bar over [state], with buttons for the callbacks given and [actions]
+  /// after them.
   const EditorBar({
     super.key,
     required this.state,
@@ -21,6 +23,7 @@ final class EditorBar extends StatelessWidget {
     this.actions = const <Widget>[],
   });
 
+  /// The open level: the document the bar reads and the last thing said.
   final EditorReady state;
 
   /// Runs the light optimizer; the button is left out when null, and

@@ -12,9 +12,12 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 /// pushed itself out of geometry would be a camera that cannot be flown to the
 /// brush somebody wants to move.
 final class FlyCamera {
+  /// A camera at [at], or a little above and behind the origin when null,
+  /// looking [yaw] and [pitch] radians.
   FlyCamera({Vector3? at, this.yaw = 0.0, this.pitch = 0.0})
     : position = at?.clone() ?? Vector3(0.0, 1.7, 8.0);
 
+  /// Where the camera is, in metres; moved in place.
   final Vector3 position;
 
   /// Where it is looking, about the vertical.
@@ -29,6 +32,8 @@ final class FlyCamera {
   /// metres across and a brush is two, so one speed is either a crawl across
   /// the level or an overshoot at the brush.
   double speed = 12.0;
+
+  /// Metres per second while the fast key is held. See [speed].
   double fastSpeed = 48.0;
 
   /// Radians per pixel of mouse movement.
@@ -48,7 +53,11 @@ final class FlyCamera {
 
   /// Which way it is facing, with the tilt taken out.
   Vector3 get ground => _ground;
+
+  /// Which way is to its right, level. Recomputed by [step].
   Vector3 get right => _right;
+
+  /// Which way is up for it: the world's up. What the fly-up key moves along.
   Vector3 get up => _up;
 
   /// Turns by a mouse movement in pixels.

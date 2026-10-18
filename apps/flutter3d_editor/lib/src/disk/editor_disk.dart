@@ -50,7 +50,10 @@ abstract interface class EditorDisk {
   /// data plugins are found.
   List<String> filesUnder(String path);
 
+  /// The text of the file at [path], as UTF-8.
   Future<String> readText(String path);
+
+  /// The bytes of the file at [path].
   Future<Uint8List> readBytes(String path);
 
   /// Writes a level document at [path], and answers what the bar should say.

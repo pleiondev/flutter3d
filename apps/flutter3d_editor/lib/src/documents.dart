@@ -20,14 +20,17 @@
 /// Its own type rather than `dart:io`'s `FileSystemException`, because a
 /// browser build reaches this too and has no `dart:io` to throw one with.
 final class DocumentNotFound implements Exception {
+  /// A refusal saying [message].
   const DocumentNotFound(this.message);
 
+  /// Which document was looked for and where.
   final String message;
 
   @override
   String toString() => message;
 }
 
+/// Where a level document is, and where the assets it names are relative to.
 abstract final class Documents {
   /// The absolute path [path] means, or null if it is nowhere.
   ///

@@ -18,6 +18,8 @@ import 'package:flutter3d_editor_play/attach.dart';
 /// needs a process — the device picker — comes in as [picker] from a file
 /// that is allowed one.
 final class PlayScreen extends StatelessWidget {
+  /// The Play screen for [session], with [picker] where this build can list
+  /// devices.
   const PlayScreen({
     super.key,
     required this.session,
@@ -25,6 +27,8 @@ final class PlayScreen extends StatelessWidget {
     this.picker,
   });
 
+  /// The game being played or attached to: its console, its events and its
+  /// VM service.
   final PlayedGame session;
 
   /// Opens the timeline panel on the running game's VM service.

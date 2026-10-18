@@ -39,6 +39,9 @@ typedef PickedBytes = ({String name, Uint8List bytes});
 /// No `package:web` here, so all of that is tested on the VM; the few lines
 /// that touch a browser are `disk_web.dart`.
 final class MemoryDisk implements EditorDisk {
+  /// A disk that starts with the [restored] files, hands saved bytes to
+  /// [deliver], keeps each write through [persist] when given, and opens a
+  /// document through [pick], the platform's file selector by default.
   MemoryDisk({
     required this.deliver,
     this.persist,

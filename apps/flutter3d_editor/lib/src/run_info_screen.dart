@@ -13,8 +13,11 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 /// knows no genre, so it says what the file claims — level, hash, build,
 /// how long, how many checkpoints — rather than pretending to play it.
 final class RunInfoScreen extends StatelessWidget {
+  /// A screen describing [run], under [sourceDescription] when one is given.
   const RunInfoScreen({super.key, required this.run, this.sourceDescription});
 
+  /// The recorded run: its level, its hash, its build, its length and its
+  /// checkpoints.
   final Demo run;
 
   /// Where this file came from — a path, "dropped file", whatever the

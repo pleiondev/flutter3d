@@ -17,6 +17,7 @@ import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart'
 /// answers. A file no entry matches is not listed: the browser shows what
 /// the editor and its plugins can say something about.
 final class AssetBrowser extends StatelessWidget {
+  /// A browser over [files] under [root], placing a file through [onPlace].
   const AssetBrowser({
     super.key,
     required this.root,
@@ -31,6 +32,8 @@ final class AssetBrowser extends StatelessWidget {
   /// The files under the project's `assets/`, relative to it.
   final List<String> files;
 
+  /// What the installed plugins brought: the entries that say which files can
+  /// be placed.
   final EditorPieces pieces;
 
   /// Places the file at a path relative to `assets/`.
@@ -116,6 +119,8 @@ final class AssetBrowser extends StatelessWidget {
 /// A row of tabs over the picture: the level, and each plugin's
 /// main-screen panel.
 final class MainScreenTabs extends StatelessWidget {
+  /// Tabs for the level and each of [panels], calling [onChoose] with the one
+  /// picked.
   const MainScreenTabs({
     super.key,
     required this.panels,
@@ -123,6 +128,7 @@ final class MainScreenTabs extends StatelessWidget {
     required this.onChoose,
   });
 
+  /// The plugins' main-screen panels, each a tab after the level's.
   final List<EditorPanel> panels;
 
   /// The panel shown, by id, or null for the level.

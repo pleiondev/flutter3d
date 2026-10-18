@@ -43,9 +43,12 @@ EntityDef? _findSequence(Level level, {String? name}) {
   return null;
 }
 
+/// The selected step's fields, edited in place.
 final class StepPanel extends StatelessWidget {
+  /// A panel over [editing], telling [onChanged] what each edit did.
   const StepPanel({super.key, required this.editing, required this.onChanged});
 
+  /// The document whose selected step is shown.
   final Editing editing;
 
   /// Told what happened, the same shape `EditorInspector.onChanged` takes —

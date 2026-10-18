@@ -20,11 +20,24 @@ import 'package:flutter3d_editor_play/attach.dart';
 import 'editor_log.dart';
 
 /// Which of the three the console shows.
-enum ConsoleSource { editor, game, events }
+enum ConsoleSource {
+  /// What the editor said, each line with its time.
+  editor,
 
+  /// What the game being played printed.
+  game,
+
+  /// The events the game posted.
+  events,
+}
+
+/// The bottom panel's console, switching between what the editor said, what
+/// the game printed and what it posted.
 final class ConsolePanel extends StatefulWidget {
+  /// A console over [log] and, when there is one, [game].
   const ConsolePanel({super.key, required this.log, required this.game});
 
+  /// What the editor said, shown under [ConsoleSource.editor].
   final EditorLog log;
 
   /// The game being played or attached to, or null when there is none.

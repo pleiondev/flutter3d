@@ -12,10 +12,13 @@ import 'package:flutter3d_editor_core/flutter3d_editor_core.dart'
 import '../documents.dart';
 import 'editor_disk.dart';
 
+/// The disk this build reads and writes: the file system, through
+/// `dart:io`.
 EditorDisk platformDisk() => const IoDisk();
 
 /// `dart:io`, and nothing cleverer.
 final class IoDisk implements EditorDisk {
+  /// The file system; it holds nothing.
   const IoDisk();
 
   @override

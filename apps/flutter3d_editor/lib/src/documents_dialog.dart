@@ -81,6 +81,8 @@ Future<bool> _show(BuildContext context, DocumentsDialog dialog) async =>
 /// is changed. Every write goes through `Editing`, so each is one step of
 /// undo, named after what it wrote.
 final class DocumentsDialog extends StatefulWidget {
+  /// A dialog titled [title] over [documents], writing through [write] and
+  /// [remove], with [fresh] as the text of a new one.
   const DocumentsDialog({
     super.key,
     required this.title,
@@ -92,6 +94,7 @@ final class DocumentsDialog extends StatefulWidget {
     this.preview,
   });
 
+  /// What the dialog says at its top.
   final String title;
 
   /// What the dialog's widgets are keyed by, `<prefix>:<what>`.

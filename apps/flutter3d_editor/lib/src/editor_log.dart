@@ -2,9 +2,13 @@ import 'package:flutter/foundation.dart';
 
 /// One thing the editor said, and when.
 final class LogEntry {
+  /// An entry saying [text] at [time]; [error] marks a failure.
   const LogEntry(this.time, this.text, {this.error = false});
 
+  /// When it was said, by the log's clock.
   final DateTime time;
+
+  /// What was said; never empty.
   final String text;
 
   /// Whether it was a failure — a document that would not open, a save that
@@ -29,15 +33,21 @@ final class LogEntry {
 /// Capped like a game's console, dropping the oldest, so an afternoon of
 /// arrow keys is a few hundred kilobytes rather than a leak.
 final class EditorLog extends ChangeNotifier {
+  /// An empty log stamping each entry with [clock], the wall clock unless a
+  /// test fixes it.
   EditorLog({DateTime Function()? clock}) : _clock = clock ?? DateTime.now;
 
+  /// The most entries kept; past it, the oldest goes.
   static const int limit = 1000;
 
   final DateTime Function() _clock;
   final List<LogEntry> _entries = <LogEntry>[];
 
+  /// Every entry kept, oldest first.
   List<LogEntry> get entries => List<LogEntry>.unmodifiable(_entries);
 
+  /// Adds [text] as an entry, a failure when [error] is set, and tells the
+  /// listeners. An empty text adds nothing.
   void add(String text, {bool error = false}) {
     if (text.isEmpty) return;
     _entries.add(LogEntry(_clock(), text, error: error));
@@ -45,6 +55,7 @@ final class EditorLog extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Forgets every entry and tells the listeners.
   void clear() {
     _entries.clear();
     notifyListeners();

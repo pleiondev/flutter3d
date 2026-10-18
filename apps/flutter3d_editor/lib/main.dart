@@ -118,7 +118,9 @@ const String kAuthor = 'apps/flutter3d_editor';
 
 void main() => runApp(const EditorApp());
 
+/// The editor as an application: [EditorScreen] under the editor's theme.
 class EditorApp extends StatelessWidget {
+  /// The editor with [plugins] installed, or the discovered ones when null.
   const EditorApp({super.key, this.plugins});
 
   /// The plugins to install in place of the ones `lib/plugins.g.dart`
@@ -148,7 +150,10 @@ abstract final class _Fly {
   static const GameAction fast = GameAction('flyFast');
 }
 
+/// The editor's one screen: the chooser, the level with its panels, or why
+/// nothing opened, as [EditorCubit] says.
 class EditorScreen extends StatefulWidget {
+  /// A screen installing [plugins], or the discovered ones when null.
   const EditorScreen({super.key, this.plugins});
 
   /// See [EditorApp.plugins].

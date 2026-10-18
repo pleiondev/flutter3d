@@ -12,6 +12,8 @@ import 'package:web/web.dart' as web;
 import 'editor_disk.dart';
 import 'memory_disk.dart';
 
+/// The disk this build reads and writes: files in memory, kept in the tab's
+/// [SessionFiles], with a save delivered as a download.
 EditorDisk platformDisk() => MemoryDisk(
   deliver: download,
   persist: SessionFiles.keep,
@@ -33,8 +35,12 @@ EditorDisk platformDisk() => MemoryDisk(
 /// level, so each is swallowed here and the page simply forgets more on a
 /// reload.
 abstract final class SessionFiles {
+  /// What every key this keeps in `sessionStorage` starts with, ahead of the
+  /// file's path.
   static const String prefix = 'flutter3d/flutter3d_editor/file:';
 
+  /// Keeps [bytes] as the file at [path] for the rest of the session; a
+  /// storage that is missing or full keeps nothing, and says nothing.
   static void keep(String path, Uint8List bytes) {
     try {
       web.window.sessionStorage.setItem('$prefix$path', base64.encode(bytes));
@@ -43,6 +49,7 @@ abstract final class SessionFiles {
     }
   }
 
+  /// Every file kept this session, by path; empty when storage cannot be read.
   static Map<String, Uint8List> read() {
     final files = <String, Uint8List>{};
     try {

@@ -11,6 +11,8 @@ import 'package:flutter3d_editor_play/flutter3d_editor_play.dart';
 /// because `flutterDevices` runs a process, and `PlayScreen` has to build
 /// where there is none.
 final class DevicePicker extends StatefulWidget {
+  /// A picker for [run]'s device, offering what [devices] lists; disabled
+  /// unless [enabled].
   const DevicePicker({
     super.key,
     required this.run,
@@ -18,7 +20,10 @@ final class DevicePicker extends StatefulWidget {
     this.devices = flutterDevices,
   });
 
+  /// The run whose device is picked; changing it means a new run.
   final FlutterRun run;
+
+  /// Whether a device can be picked now; false while a run is under way.
   final bool enabled;
 
   /// What the picker offers; `flutter devices --machine` by default.

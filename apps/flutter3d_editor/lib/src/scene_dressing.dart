@@ -17,7 +17,13 @@ import 'editor_state.dart' show EditorAxis;
 ///    emit them: a handle the document calls a light, and an entity the game
 ///    described a silhouette for.
 const String _only = String.fromEnvironment('only');
+
+/// Whether `only=level` was given: nothing drawn besides the level's
+/// surfaces, and none of its lights.
 const bool kLevelOnly = _only == 'level';
+
+/// Whether `only=lights` was given: the lights, and marks for what emits
+/// them.
 const bool kLightsOnly = _only == 'lights';
 
 /// Draws everything about a level that the renderer does not: the selection
@@ -32,8 +38,10 @@ const bool kLightsOnly = _only == 'lights';
 /// hidden set every time something changes; it owns the nodes it puts into the
 /// scene and nothing about why they changed.
 final class SceneDressing {
+  /// Dressing uploaded to [device], reading models through [decoders].
   SceneDressing(this.device, {this.decoders});
 
+  /// What the dressing's meshes and models are uploaded to.
   final GraphicsDevice device;
 
   /// The decoders and asset sources the installed plugins brought; every
@@ -61,6 +69,8 @@ final class SceneDressing {
   /// the handler that asked. Empty whenever nothing is selected.
   final List<GizmoBar> bars = <GizmoBar>[];
 
+  /// The drawn handles of the selection's gizmo, put in the scene and taken
+  /// out again on each rebuild. Empty whenever nothing is selected.
   final List<SceneNode> gizmos = <SceneNode>[];
 
   /// Which handle each drawn mark, silhouette or model stands for.
@@ -666,12 +676,16 @@ List<CageEdge> edgesOf(Vector3 size) {
 /// the whole of what a drag needs to know: the box says whether the pointer is
 /// on it, and the direction says which way the thing being dragged may go.
 final class GizmoBar {
+  /// A bar along [axis] filling the box from [min] to [max].
   const GizmoBar({required this.axis, required this.min, required this.max});
 
   /// Which way this bar runs, and so which way grabbing it moves things.
   final EditorAxis axis;
 
+  /// The box's least corner, in the world, in metres.
   final Vector3 min;
+
+  /// The box's greatest corner, in the world, in metres.
   final Vector3 max;
 }
 

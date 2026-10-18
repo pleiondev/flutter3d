@@ -35,6 +35,8 @@ import 'outliner.dart';
 import 'render_graph_view.dart';
 import 'step_panel.dart';
 
+/// The editor's docked panels for [state], each on its side; see the
+/// library's doc for which goes where.
 List<DockPanel> editorPanels({
   required EditorReady state,
   required EditorLog log,

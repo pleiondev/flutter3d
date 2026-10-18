@@ -23,6 +23,8 @@ import 'package:flutter3d_app/flutter3d_app.dart'
 /// order the paths go in and which of them have been deleted since are all
 /// decided here, which is why they are tested against a map in memory.
 final class RecentProjects {
+  /// A list kept in [storage], the editor's own directory unless a test hands
+  /// in another.
   RecentProjects({Storage? storage})
     : storage = storage ?? defaultStorage(appName);
 
@@ -70,6 +72,7 @@ final class RecentProjects {
   /// searching has stopped being a shortcut and become a second file dialogue.
   static const int keep = 8;
 
+  /// Where the list is kept.
   final Storage storage;
 
   /// The paths worth offering, most recent first.

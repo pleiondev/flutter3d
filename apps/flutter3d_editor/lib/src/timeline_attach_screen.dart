@@ -19,9 +19,12 @@ import 'timeline_client.dart';
 /// somebody drags a slider. Every button here refreshes [_paused] and
 /// [_history] itself when it has reason to think either changed.
 final class TimelineAttachScreen extends StatefulWidget {
+  /// A screen driving [client], saving bug reports to [disk], or this build's
+  /// own when it is null.
   TimelineAttachScreen({super.key, required this.client, EditorDisk? disk})
     : disk = disk ?? editorDisk;
 
+  /// The running game's timeline, as this screen talks to it.
   final TimelineClient client;
 
   /// Where a bug report is saved.

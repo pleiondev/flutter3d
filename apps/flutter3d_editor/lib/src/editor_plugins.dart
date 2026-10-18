@@ -48,6 +48,9 @@ import '../plugins.g.dart';
 /// registries empty. A data plugin that does not read is left out alone,
 /// and [notes] says why.
 final class EditorPlugins {
+  /// The registries of [plugins], or of the discovered ones when null, with
+  /// the [project]'s data plugins after them; [notes] are said about data
+  /// plugins that did not read.
   factory EditorPlugins({
     List<Flutter3dPlugin>? plugins,
     List<Flutter3dPlugin> project = const <Flutter3dPlugin>[],

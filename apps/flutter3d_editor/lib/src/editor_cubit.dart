@@ -30,6 +30,8 @@ export 'editor_state.dart';
 /// wrapper: what a document is doing and how a screen watches it are two
 /// different questions, and this file only answers the second one.
 final class EditorCubit extends Cubit<EditorState> {
+  /// A cubit opening nothing yet, saying what happens into [log], or a fresh
+  /// one when it is null.
   EditorCubit({EditorLog? log})
     : log = log ?? EditorLog(),
       super(const EditorOpening());

@@ -196,6 +196,8 @@ Map<String, Object?>? liveParameterFields(String key, Object? value) =>
 
 /// The materials of a level, and the fields of the one that is open.
 final class MaterialPanel extends StatefulWidget {
+  /// A panel over [editing]'s materials, telling [onChanged] what each edit
+  /// did.
   const MaterialPanel({
     super.key,
     required this.editing,
@@ -207,6 +209,7 @@ final class MaterialPanel extends StatefulWidget {
     this.pieces,
   });
 
+  /// The document whose materials are listed and edited.
   final Editing editing;
 
   /// What the installed plugins brought: a material whose lit model is a

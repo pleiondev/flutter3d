@@ -36,7 +36,10 @@ abstract interface class TimelineClient {
   /// Whether the timeline is currently paused.
   Future<bool> status();
 
+  /// Pauses the timeline.
   Future<void> pause();
+
+  /// Lets a paused timeline run again.
   Future<void> resume();
 
   /// Throws if the remote timeline refuses — see `RunTimeline.stepOnce`,

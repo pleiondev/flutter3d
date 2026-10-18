@@ -12,10 +12,12 @@ import 'package:vector_math/vector_math.dart';
 /// open in the editor has no actors running; the path is what an author
 /// cannot see by reading the document.
 final class CutscenePreview {
+  /// A preview of [sequence], which must have a camera.
   CutscenePreview(this.sequence)
     : assert(sequence.hasCamera, 'a scene with no camera has nothing to show'),
       _view = SequenceView(sequence);
 
+  /// The cutscene being previewed, as the document holds it.
   final Sequence sequence;
 
   /// The camera's path, read off the keys as the game reads it.

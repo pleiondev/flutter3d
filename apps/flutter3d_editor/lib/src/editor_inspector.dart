@@ -85,7 +85,9 @@ List<InspectorSection> sectionsOf(
   EditorPieces? pieces,
 }) => inspectorSections(kind, keys, type: type, pieces: pieces);
 
+/// The selected thing's fields, in sections, each one editable in place.
 final class EditorInspector extends StatelessWidget {
+  /// An inspector over [state], telling [onChanged] what each edit did.
   const EditorInspector({
     super.key,
     required this.state,
@@ -94,6 +96,7 @@ final class EditorInspector extends StatelessWidget {
     this.pieces,
   });
 
+  /// The open level, whose selection is inspected.
   final EditorReady state;
 
   /// What the installed plugins add: their components, as sections of their

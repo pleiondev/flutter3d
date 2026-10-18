@@ -9,8 +9,10 @@ import 'editor_cubit.dart';
 /// so the one thing somebody needs before they can do anything at all was the
 /// one thing they could not read.
 final class EditorLegend extends StatelessWidget {
+  /// The legend for [state].
   const EditorLegend({super.key, required this.state});
 
+  /// The open level, whose axis, grid and lamp the legend says.
   final EditorReady state;
 
   @override

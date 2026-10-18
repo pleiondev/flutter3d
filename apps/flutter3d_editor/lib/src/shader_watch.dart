@@ -33,7 +33,11 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
+/// A shader bundle kept reading, so an edited shader shows without a
+/// restart; see the library's doc.
 final class ShaderWatch {
+  /// A watch over [library], polling [modifiedAt] every [every] and reading
+  /// [readBytes] when it moves.
   ShaderWatch({
     required this.library,
     required this._seen,
@@ -124,6 +128,7 @@ final class ShaderWatch {
     }
   }
 
+  /// Stops polling.
   void dispose() {
     _timer?.cancel();
     _timer = null;
