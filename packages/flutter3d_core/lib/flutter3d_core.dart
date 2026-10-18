@@ -98,6 +98,7 @@ export 'src/engine/render/compute_step.dart'
         prepareForThisFrame;
 export 'src/engine/render/debug_draw.dart';
 export 'src/engine/render/debug_draw_gizmos.dart';
+export 'src/engine/render/device_resources.dart';
 export 'src/engine/render/draw_journal.dart' hide engineDrawJournal;
 export 'src/engine/render/empty_frame.dart';
 export 'src/engine/render/environment_map.dart';

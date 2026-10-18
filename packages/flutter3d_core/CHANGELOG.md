@@ -1,5 +1,14 @@
 ## 1.0.0-rc.1
 
+- **A restored device is answered by the same renderer.**
+  `Renderer.deviceResources` is a `DeviceResources` registry: each of the
+  renderer's stages and fallback textures with the recipe that makes it,
+  ids never reused. `Renderer.recoverFromLoss()` drops every handle the
+  lost device spent without giving it back, runs the recipes again and
+  leaves the caches to the next frame, so the steps, settings, history
+  and listener stay. A plugin that uploads something once registers it
+  there and holds the `DeviceResource`. `targetPool` is a getter now, a
+  new pool after a recovery.
 - **A frame graph can be written down.** `CompiledFrameGraph.snapshot()`
   gives a `FrameGraphSnapshot`: every pass that ran, in order, with the
   version of each resource it read and wrote; every pass left out, with its

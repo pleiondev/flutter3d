@@ -60,6 +60,7 @@ import 'compute_step.dart';
 import 'debug_draw.dart';
 import 'debug_draw_gizmos.dart';
 import 'depth_turn.dart';
+import 'device_resources.dart';
 import 'draw_journal.dart';
 import 'empty_frame.dart';
 import 'engine_light_units.dart';
@@ -199,52 +200,53 @@ const String _kContactShadowTextureSlot = 'contact_shadow_texture';
 final class Renderer with RenderServices {
   Renderer._({
     required this.device,
-    required ShaderHandle Function(String name) require,
+    required DeviceResource<ShaderHandle> Function(String name) require,
+    required this.deviceResources,
     required TextureHandle fallbackAlbedo,
     required TextureHandle fallbackNormal,
     required TextureHandle fallbackBlack,
     required this.msaaEnabled,
     RendererSteps? steps,
   }) : renderSteps = steps ?? RendererSteps._(),
-       targetPool = RenderTargetPool(device),
-       _vertexShader = require('MeshVertex'),
-       _skinnedVertexShader = require('MeshSkinnedVertex'),
-       _instancedVertexShader = require('MeshInstancedVertex'),
-       _lightmappedVertexShader = require('MeshLightmappedVertex'),
-       _debugLineVertexShader = require('DebugLineVertex'),
-       _debugLineFragmentShader = require('DebugLine'),
-       _fullscreenVertexShader = require('FullscreenVertex'),
-       _bloomThresholdShader = require('BloomThreshold'),
-       _bloomDownsampleShader = require('BloomDownsample'),
-       _bloomUpsampleShader = require('BloomUpsample'),
-       _compositeShader = require('Composite'),
-       _fxaaShader = require('Fxaa'),
-       _reflectionShader = require('Reflections'),
-       _ssaoShader = require('Ssao'),
-       _contactShadowShader = require('ContactShadow'),
-       _contactShadowResolveShader = require('ContactShadowResolve'),
-       _cameraVelocityShader = require('CameraVelocity'),
-       _velocityShader = require('Velocity'),
-       _velocityVertexShader = require('VelocityVertex'),
-       _velocitySkinnedVertexShader = require('VelocitySkinnedVertex'),
-       _velocityInstancedVertexShader = require('VelocityInstancedVertex'),
-       _reactiveShader = require('Reactive'),
-       _temporalResolveShader = require('TemporalResolve'),
-       _temporalAccumulateShader = require('TemporalAccumulate'),
-       _ssaoBlurShader = require('SsaoBlur'),
-       _lightShaftsShader = require('LightShafts'),
-       _volumetricFogShader = require('VolumetricFog'),
-       _volumetricFogUpsampleShader = require('VolumetricFogUpsample'),
-       _depthOfFieldShader = require('DepthOfField'),
-       _velocityTileMaxShader = require('VelocityTileMax'),
-       _velocityNeighborMaxShader = require('VelocityNeighborMax'),
-       _motionBlurShader = require('MotionBlur'),
-       _viewportShadeShader = require('ViewportShade'),
-       _outlineMaskShader = require('OutlineMask'),
-       _highContrastShader = require('HighContrast'),
-       _decalShader = require('Decal'),
-       _wboitResolveShader = require('WboitResolve'),
-       _sceneColorCopyShader = require('SceneColorCopy'),
+       _targetPool = RenderTargetPool(device),
+       _vertexShaderStage = require('MeshVertex'),
+       _skinnedVertexShaderStage = require('MeshSkinnedVertex'),
+       _instancedVertexShaderStage = require('MeshInstancedVertex'),
+       _lightmappedVertexShaderStage = require('MeshLightmappedVertex'),
+       _debugLineVertexShaderStage = require('DebugLineVertex'),
+       _debugLineFragmentShaderStage = require('DebugLine'),
+       _fullscreenVertexShaderStage = require('FullscreenVertex'),
+       _bloomThresholdShaderStage = require('BloomThreshold'),
+       _bloomDownsampleShaderStage = require('BloomDownsample'),
+       _bloomUpsampleShaderStage = require('BloomUpsample'),
+       _compositeShaderStage = require('Composite'),
+       _fxaaShaderStage = require('Fxaa'),
+       _reflectionShaderStage = require('Reflections'),
+       _ssaoShaderStage = require('Ssao'),
+       _contactShadowShaderStage = require('ContactShadow'),
+       _contactShadowResolveShaderStage = require('ContactShadowResolve'),
+       _cameraVelocityShaderStage = require('CameraVelocity'),
+       _velocityShaderStage = require('Velocity'),
+       _velocityVertexShaderStage = require('VelocityVertex'),
+       _velocitySkinnedVertexShaderStage = require('VelocitySkinnedVertex'),
+       _velocityInstancedVertexShaderStage = require('VelocityInstancedVertex'),
+       _reactiveShaderStage = require('Reactive'),
+       _temporalResolveShaderStage = require('TemporalResolve'),
+       _temporalAccumulateShaderStage = require('TemporalAccumulate'),
+       _ssaoBlurShaderStage = require('SsaoBlur'),
+       _lightShaftsShaderStage = require('LightShafts'),
+       _volumetricFogShaderStage = require('VolumetricFog'),
+       _volumetricFogUpsampleShaderStage = require('VolumetricFogUpsample'),
+       _depthOfFieldShaderStage = require('DepthOfField'),
+       _velocityTileMaxShaderStage = require('VelocityTileMax'),
+       _velocityNeighborMaxShaderStage = require('VelocityNeighborMax'),
+       _motionBlurShaderStage = require('MotionBlur'),
+       _viewportShadeShaderStage = require('ViewportShade'),
+       _outlineMaskShaderStage = require('OutlineMask'),
+       _highContrastShaderStage = require('HighContrast'),
+       _decalShaderStage = require('Decal'),
+       _wboitResolveShaderStage = require('WboitResolve'),
+       _sceneColorCopyShaderStage = require('SceneColorCopy'),
        // `prefer_initializing_formals` wants `this._fallbackAlbedo` here and
        // Dart will not have it: a named parameter may not be private, so the
        // only way to satisfy the lint is to make the fields public — which is
@@ -298,42 +300,83 @@ final class Renderer with RenderServices {
   }) {
     // Consulted before the backend's, so an application can replace a stage as
     // well as add one — see [LayeredShaderLibrary] for why that order.
-    final library = materials == null
-        ? device.shaders
-        : LayeredShaderLibrary(materials, device.shaders);
-    ShaderHandle require(String name) {
-      final shader = library[name];
+    ShaderLibrary libraryOn(GraphicsDevice on) => materials == null
+        ? on.shaders
+        : LayeredShaderLibrary(materials, on.shaders);
+    final library = libraryOn(device);
+    ShaderHandle stage(GraphicsDevice on, String name) {
+      final shader = (identical(on, device) ? library : libraryOn(on))[name];
       if (shader == null) {
         // D15: every stage asked for here is one every bundle carries, so
         // the refusal says the bundle was not built by this flutter3d.
         throw MissingShaderStageException.forStage(
           name,
-          backend: device.backendName,
+          backend: on.backendName,
         );
       }
       return shader;
     }
 
-    return Renderer._(
-        device: device,
-        require: require,
-        fallbackAlbedo:
-            fallbackAlbedo ?? SolidColorTexture.white.upload(device),
-        fallbackNormal:
-            fallbackNormal ?? SolidColorTexture.flatNormal.upload(device),
-        fallbackBlack: const SolidColorTexture.texel(
-          0.0,
-          0.0,
-          0.0,
-        ).upload(device),
-        msaaEnabled: device.features.has(DeviceFeature.offscreenMultisample),
-        steps: replacing?.renderSteps,
+    // Each stage and each fallback with how to make it again, so a restored
+    // device is answered by `recoverFromLoss` rather than a new renderer.
+    final resources = DeviceResources();
+    final renderer = Renderer._(
+      device: device,
+      deviceResources: resources,
+      require: (String name) => resources.add(
+        'the stage "$name"',
+        device,
+        (GraphicsDevice on) => stage(on, name),
+      ),
+      fallbackAlbedo: fallbackAlbedo ?? SolidColorTexture.white.upload(device),
+      fallbackNormal:
+          fallbackNormal ?? SolidColorTexture.flatNormal.upload(device),
+      fallbackBlack: const SolidColorTexture.texel(
+        0.0,
+        0.0,
+        0.0,
+      ).upload(device),
+      msaaEnabled: device.features.has(DeviceFeature.offscreenMultisample),
+      steps: replacing?.renderSteps,
+    );
+    // A fallback an application handed in went with the device; the
+    // engine's own stands in for it after a restore, unless
+    // `recoverFromLoss` is handed another.
+    resources
+      ..adopt(
+        'the albedo fallback',
+        renderer._fallbackAlbedo!,
+        SolidColorTexture.white.upload,
+        onMade: (TextureHandle made) => renderer._fallbackAlbedo = made,
       )
+      ..adopt(
+        'the normal fallback',
+        renderer._fallbackNormal!,
+        SolidColorTexture.flatNormal.upload,
+        onMade: (TextureHandle made) => renderer._fallbackNormal = made,
+      )
+      ..adopt(
+        'the black fallback',
+        renderer._fallbackBlack!,
+        const SolidColorTexture.texel(0.0, 0.0, 0.0).upload,
+        onMade: (TextureHandle made) => renderer._fallbackBlack = made,
+      );
+    return renderer
       .._baseShaders = library
       .._shaders = library
       .._attachSteps()
       .._listenForGpuTimings();
   }
+
+  /// What this renderer made on [device] that nothing would ask for again,
+  /// each with how to make it again: its stages and its fallback textures.
+  ///
+  /// [recoverFromLoss] runs every recipe here after a `DeviceLoss.restored`.
+  /// A plugin that uploads something once — a lookup table at install — and
+  /// wants it back after a restore registers it here with
+  /// [DeviceResources.add], and holds the [DeviceResource] rather than the
+  /// handle.
+  final DeviceResources deviceResources;
 
   /// Seconds since this renderer was made — `FrameContext.time`.
   double get _seconds => _age.elapsedMicroseconds / 1e6;
@@ -390,81 +433,112 @@ final class Renderer with RenderServices {
   /// hands it on.
   QualitySetting? quality;
 
-  final ShaderHandle _vertexShader;
+  final DeviceResource<ShaderHandle> _vertexShaderStage;
+  ShaderHandle get _vertexShader => _vertexShaderStage.value;
 
   /// The skinned vertex stage. A separate shader because joints and weights are
   /// vertex attributes, and the layout is taken from the `in`
   /// declarations — so a skinned mesh cannot share a shader with a static one
   /// however similar the body is.
-  final ShaderHandle _skinnedVertexShader;
+  final DeviceResource<ShaderHandle> _skinnedVertexShaderStage;
+  ShaderHandle get _skinnedVertexShader => _skinnedVertexShaderStage.value;
 
   /// The instanced vertex stage: the standard layout in slot 0 and a
   /// per-instance transform and colour in slot 1. The same varyings and the
   /// same `FrameInfo` as [_vertexShader], so every fragment shader and both
   /// shadow passes draw from it unchanged — see `mesh_instanced.vert`.
-  final ShaderHandle _instancedVertexShader;
+  final DeviceResource<ShaderHandle> _instancedVertexShaderStage;
+  ShaderHandle get _instancedVertexShader => _instancedVertexShaderStage.value;
 
   /// The lightmapped vertex stage: the standard layout with the colour read
   /// as the vertex's place in the level's lightmap and the tint held at
   /// white. The same varyings as [_vertexShader] plus the coordinate, which
   /// the other three stages leave at zero — see `mesh_lightmapped.vert`.
-  final ShaderHandle _lightmappedVertexShader;
+  final DeviceResource<ShaderHandle> _lightmappedVertexShaderStage;
+  ShaderHandle get _lightmappedVertexShader =>
+      _lightmappedVertexShaderStage.value;
 
   /// The debug overlay's own stage pair. Separate from the mesh shaders because
   /// the line buffer has a different vertex layout, and a backend takes the
   /// layout from the shader's `in` declarations.
-  final ShaderHandle _debugLineVertexShader;
+  final DeviceResource<ShaderHandle> _debugLineVertexShaderStage;
+  ShaderHandle get _debugLineVertexShader => _debugLineVertexShaderStage.value;
 
-  final ShaderHandle _debugLineFragmentShader;
+  final DeviceResource<ShaderHandle> _debugLineFragmentShaderStage;
+  ShaderHandle get _debugLineFragmentShader =>
+      _debugLineFragmentShaderStage.value;
 
   /// The post-processing stages. All of them share one vertex shader, because a
   /// full-screen pass differs only in its fragment work.
-  final ShaderHandle _fullscreenVertexShader;
+  final DeviceResource<ShaderHandle> _fullscreenVertexShaderStage;
+  ShaderHandle get _fullscreenVertexShader =>
+      _fullscreenVertexShaderStage.value;
 
-  final ShaderHandle _bloomThresholdShader;
+  final DeviceResource<ShaderHandle> _bloomThresholdShaderStage;
+  ShaderHandle get _bloomThresholdShader => _bloomThresholdShaderStage.value;
 
-  final ShaderHandle _bloomDownsampleShader;
+  final DeviceResource<ShaderHandle> _bloomDownsampleShaderStage;
+  ShaderHandle get _bloomDownsampleShader => _bloomDownsampleShaderStage.value;
 
-  final ShaderHandle _bloomUpsampleShader;
+  final DeviceResource<ShaderHandle> _bloomUpsampleShaderStage;
+  ShaderHandle get _bloomUpsampleShader => _bloomUpsampleShaderStage.value;
 
-  final ShaderHandle _compositeShader;
+  final DeviceResource<ShaderHandle> _compositeShaderStage;
+  ShaderHandle get _compositeShader => _compositeShaderStage.value;
 
   /// `gfx-04n`: edges smoothed on the composited picture.
-  final ShaderHandle _fxaaShader;
+  final DeviceResource<ShaderHandle> _fxaaShaderStage;
+  ShaderHandle get _fxaaShader => _fxaaShaderStage.value;
 
   /// The screen-space reflection pass.
-  final ShaderHandle _reflectionShader;
+  final DeviceResource<ShaderHandle> _reflectionShaderStage;
+  ShaderHandle get _reflectionShader => _reflectionShaderStage.value;
 
   /// The ambient occlusion pass.
-  final ShaderHandle _ssaoShader;
+  final DeviceResource<ShaderHandle> _ssaoShaderStage;
+  ShaderHandle get _ssaoShader => _ssaoShaderStage.value;
 
   /// The short march toward the light — `gfx-76n`. See `post/contact_shadow.frag`.
-  final ShaderHandle _contactShadowShader;
+  final DeviceResource<ShaderHandle> _contactShadowShaderStage;
+  ShaderHandle get _contactShadowShader => _contactShadowShaderStage.value;
 
   /// `post/contact_shadow_resolve.frag`: the march averaged over one window of
   /// its dither pattern, for a frame no temporal resolve smooths.
-  final ShaderHandle _contactShadowResolveShader;
+  final DeviceResource<ShaderHandle> _contactShadowResolveShaderStage;
+  ShaderHandle get _contactShadowResolveShader =>
+      _contactShadowResolveShaderStage.value;
 
   /// `post/camera_velocity.frag` — `R1`.
-  final ShaderHandle _cameraVelocityShader;
+  final DeviceResource<ShaderHandle> _cameraVelocityShaderStage;
+  ShaderHandle get _cameraVelocityShader => _cameraVelocityShaderStage.value;
 
   /// `post/velocity.frag` and the three vertex stages that feed it, for
   /// nodes that moved — `R1`.
-  final ShaderHandle _velocityShader;
-  final ShaderHandle _velocityVertexShader;
-  final ShaderHandle _velocitySkinnedVertexShader;
+  final DeviceResource<ShaderHandle> _velocityShaderStage;
+  ShaderHandle get _velocityShader => _velocityShaderStage.value;
+  final DeviceResource<ShaderHandle> _velocityVertexShaderStage;
+  ShaderHandle get _velocityVertexShader => _velocityVertexShaderStage.value;
+  final DeviceResource<ShaderHandle> _velocitySkinnedVertexShaderStage;
+  ShaderHandle get _velocitySkinnedVertexShader =>
+      _velocitySkinnedVertexShaderStage.value;
 
-  final ShaderHandle _velocityInstancedVertexShader;
+  final DeviceResource<ShaderHandle> _velocityInstancedVertexShaderStage;
+  ShaderHandle get _velocityInstancedVertexShader =>
+      _velocityInstancedVertexShaderStage.value;
 
   /// `post/reactive.frag` — `R4`: a blended surface marked in the velocity's
   /// blue, through the same three vertex stages.
-  final ShaderHandle _reactiveShader;
+  final DeviceResource<ShaderHandle> _reactiveShaderStage;
+  ShaderHandle get _reactiveShader => _reactiveShaderStage.value;
 
   /// `post/temporal_resolve.frag` — `R2`.
-  final ShaderHandle _temporalResolveShader;
+  final DeviceResource<ShaderHandle> _temporalResolveShaderStage;
+  ShaderHandle get _temporalResolveShader => _temporalResolveShaderStage.value;
 
   /// `post/temporal_accumulate.frag` — `R3`.
-  final ShaderHandle _temporalAccumulateShader;
+  final DeviceResource<ShaderHandle> _temporalAccumulateShaderStage;
+  ShaderHandle get _temporalAccumulateShader =>
+      _temporalAccumulateShaderStage.value;
 
   /// What the frame being drawn remembers from the last one: the state of
   /// the first view of the [render] call — item 26. Each [CameraView] keeps
@@ -508,45 +582,61 @@ final class Renderer with RenderServices {
   double _hashedCutoff = -2.0;
 
   /// `gfx-32n`'s depth-aware blur over what that pass produced.
-  final ShaderHandle _ssaoBlurShader;
+  final DeviceResource<ShaderHandle> _ssaoBlurShaderStage;
+  ShaderHandle get _ssaoBlurShader => _ssaoBlurShaderStage.value;
 
   /// `gfx-33n`'s volumetric shafts through the directional shadow map.
-  final ShaderHandle _lightShaftsShader;
+  final DeviceResource<ShaderHandle> _lightShaftsShaderStage;
+  ShaderHandle get _lightShaftsShader => _lightShaftsShaderStage.value;
 
   /// `S4`'s half-resolution march through the air, and the depth-aware pass
   /// that lays it over the scene.
-  final ShaderHandle _volumetricFogShader;
+  final DeviceResource<ShaderHandle> _volumetricFogShaderStage;
+  ShaderHandle get _volumetricFogShader => _volumetricFogShaderStage.value;
 
-  final ShaderHandle _volumetricFogUpsampleShader;
+  final DeviceResource<ShaderHandle> _volumetricFogUpsampleShaderStage;
+  ShaderHandle get _volumetricFogUpsampleShader =>
+      _volumetricFogUpsampleShaderStage.value;
 
   /// `gfx-34n`'s thin lens and its gather.
-  final ShaderHandle _depthOfFieldShader;
+  final DeviceResource<ShaderHandle> _depthOfFieldShaderStage;
+  ShaderHandle get _depthOfFieldShader => _depthOfFieldShaderStage.value;
 
   /// `R6`'s motion blur: the tile search, walked once per axis, the
   /// neighbourhood over the tiles, and the gather.
-  final ShaderHandle _velocityTileMaxShader;
-  final ShaderHandle _velocityNeighborMaxShader;
+  final DeviceResource<ShaderHandle> _velocityTileMaxShaderStage;
+  ShaderHandle get _velocityTileMaxShader => _velocityTileMaxShaderStage.value;
+  final DeviceResource<ShaderHandle> _velocityNeighborMaxShaderStage;
+  ShaderHandle get _velocityNeighborMaxShader =>
+      _velocityNeighborMaxShaderStage.value;
 
-  final ShaderHandle _motionBlurShader;
+  final DeviceResource<ShaderHandle> _motionBlurShaderStage;
+  ShaderHandle get _motionBlurShader => _motionBlurShaderStage.value;
 
   /// `gfx-43n`/`44n`/`45n`'s three branches over the surface buffer.
-  final ShaderHandle _viewportShadeShader;
+  final DeviceResource<ShaderHandle> _viewportShadeShaderStage;
+  ShaderHandle get _viewportShadeShader => _viewportShadeShaderStage.value;
 
   /// `N9`'s marks, drawn through the velocity vertex stages, and the
   /// high-contrast look over the finished picture.
-  final ShaderHandle _outlineMaskShader;
+  final DeviceResource<ShaderHandle> _outlineMaskShaderStage;
+  ShaderHandle get _outlineMaskShader => _outlineMaskShaderStage.value;
 
-  final ShaderHandle _highContrastShader;
+  final DeviceResource<ShaderHandle> _highContrastShaderStage;
+  ShaderHandle get _highContrastShader => _highContrastShaderStage.value;
 
   /// `P3`'s projected decals, read out of the surface and albedo buffers.
-  final ShaderHandle _decalShader;
+  final DeviceResource<ShaderHandle> _decalShaderStage;
+  ShaderHandle get _decalShader => _decalShaderStage.value;
 
   /// `R8`'s resolve: the transparent layers' weighted average, laid over the
   /// scene.
-  final ShaderHandle _wboitResolveShader;
+  final DeviceResource<ShaderHandle> _wboitResolveShaderStage;
+  ShaderHandle get _wboitResolveShader => _wboitResolveShaderStage.value;
 
   /// `M3`'s copy: one level of the scene behind the transmissive draws.
-  final ShaderHandle _sceneColorCopyShader;
+  final DeviceResource<ShaderHandle> _sceneColorCopyShaderStage;
+  ShaderHandle get _sceneColorCopyShader => _sceneColorCopyShaderStage.value;
 
   TextureHandle? _fallbackAlbedo;
 
@@ -894,8 +984,10 @@ final class Renderer with RenderServices {
   /// Textures reused across frames and across bloom levels.
   ///
   /// The device is the allocator: one rule for every texture in the engine,
-  /// and no second way to make one.
-  final RenderTargetPool targetPool;
+  /// and no second way to make one. A new pool after [recoverFromLoss],
+  /// since what the old one kept went with the device.
+  RenderTargetPool get targetPool => _targetPool;
+  RenderTargetPool _targetPool;
 
   /// Called with every pooled target of a [render] frame at the moment its
   /// lifetime in the frame ends — `H7`. Null, and so nothing, by default.
@@ -2479,6 +2571,167 @@ final class Renderer with RenderServices {
       pick.abandon();
     }
     _pendingPicks.clear();
+  }
+
+  /// Makes this renderer draw again on [device] after the device came back
+  /// from a loss (`DeviceLoss.restored`), instead of a new renderer being
+  /// made over it.
+  ///
+  /// **What a restore leaves is the same device, empty.** Every handle this
+  /// renderer held was spent with the context. This drops each of them
+  /// without giving it back (the device has nothing to take), so the caches
+  /// — pipelines, targets, shadow maps, frame textures, histories, probes —
+  /// are made again by the next frame that asks; then it runs every recipe
+  /// in [deviceResources], which makes the stages and the fallback textures
+  /// again, and a plugin's resources registered there with them.
+  ///
+  /// [fallbackAlbedo] and [fallbackNormal] replace the textures an
+  /// application handed to [Renderer.create], which went with the device;
+  /// without them the engine's own white and flat normal stand in.
+  ///
+  /// What stays is everything that is not on the device: [renderSteps] and
+  /// the nodes plugins placed in it, the settings slots, [pacing], the frame
+  /// count, the listener. A plugin node that holds a texture of its own made
+  /// it on the lost device too: its owner switches the plugin off and on, or
+  /// the node registers what it holds in [deviceResources]. The meshes and
+  /// textures of a scene are the scene's, and are loaded again by whoever
+  /// loaded them.
+  ///
+  /// Returns what the recipes did; a recipe that threw is in
+  /// [DeviceRecreation.failed] and leaves its resource as it was, and a
+  /// stage that is gone from the restored device's bundle is one of them.
+  DeviceRecreation recoverFromLoss({
+    TextureHandle? fallbackAlbedo,
+    TextureHandle? fallbackNormal,
+  }) {
+    _forgetDeviceObjects();
+    final made = deviceResources.recreate(device);
+    if (fallbackAlbedo != null) _fallbackAlbedo = fallbackAlbedo;
+    if (fallbackNormal != null) _fallbackNormal = fallbackNormal;
+    return made;
+  }
+
+  /// Drops every handle this renderer holds on [device] without giving any
+  /// back: the half of [dispose] that forgets, for a device that already
+  /// lost them. What [deviceResources] holds is left for its recipes.
+  void _forgetDeviceObjects() {
+    for (final contributor in renderSteps._store.contributors.all) {
+      contributor.relinkShaders();
+    }
+    _forgetPendingLinks();
+    _pipelineCache.clear();
+    _fullscreenPipelines.clear();
+    _fragmentShaders.clear();
+    _opaqueStages.clear();
+    _predrawPipelines.clear();
+    _materialVertexShaders.clear();
+    _debugLinePipeline = null;
+    _shadowPipeline = null;
+    _skinnedShadowPipeline = null;
+    _instancedShadowPipeline = null;
+    _maskedShadowPipeline = null;
+    _skinnedMaskedShadowPipeline = null;
+    _instancedMaskedShadowPipeline = null;
+    _maskedCubeShadowPipeline = null;
+    _skinnedMaskedCubeShadowPipeline = null;
+    _instancedMaskedCubeShadowPipeline = null;
+    _transmittanceShadowPipeline = null;
+    _skinnedTransmittanceShadowPipeline = null;
+    _instancedTransmittanceShadowPipeline = null;
+    _causticSurfacePipeline = null;
+    _causticPhotonPipeline = null;
+    _bloomUpsamplePipeline = null;
+    _wboitResolvePipeline = null;
+    _sceneColorCopyPipeline = null;
+    _compositePipeline = null;
+    _probePrefilterPipeline = null;
+    _skyPipeline = null;
+    _skyCubePipeline = null;
+    _skyPhysicalPipeline = null;
+    _cubeShadowPipeline = null;
+    _skinnedCubeShadowPipeline = null;
+    _instancedCubeShadowPipeline = null;
+    _cubeShadowResetPipeline = null;
+    _shadowCopyPipeline = null;
+    _clusterDraws = null;
+
+    // The rings: nothing in them is the device's to take back any more.
+    // A node waiting to be disposed held what the device spent, so it is
+    // dropped rather than asked to give it back.
+    for (final ring in <List<List<Object>>>[
+      _pendingRelease,
+      _pendingDestroy,
+      _pendingPipelines,
+      _pendingMeshes,
+      _pendingNodes,
+    ]) {
+      for (final slot in ring) {
+        slot.clear();
+      }
+    }
+    _targetPool = RenderTargetPool(device);
+
+    _hdrColor = null;
+    _hdrMsaa = null;
+    _surfaceColor = null;
+    _albedoColor = null;
+    _surfaceMsaa = null;
+    _reflectionColor = null;
+    _depthStencil = null;
+    _depthStencilSingle = null;
+    _wboitAccumulation = null;
+    _wboitRevealage = null;
+    _wboitDepth = null;
+    _sceneDepthRead = null;
+    _fogCells = null;
+    _ldrFrames.clear();
+    _ldrFree.clear();
+    _ldrCurrent = null;
+    _lastResult = null;
+    _lastRequestedSize = null;
+    _targetWidth = 0;
+    _targetHeight = 0;
+    _frameTargetWidth = 0;
+    _frameTargetHeight = 0;
+    for (final state in <_ViewState>{_viewState, ..._allViewStates}) {
+      state.effects.clear();
+      state.history
+        ..[0] = null
+        ..[1] = null;
+      state.historyValid = false;
+    }
+
+    _fallbackEnvironment = null;
+    _shadowMap = null;
+    _shadowMapStatic = null;
+    _shadowMapStaticSpare = null;
+    _shadowDepth = null;
+    _shadowMoments = null;
+    _shadowMomentsScratch = null;
+    _shadowMomentsKey = null;
+    _cubeShadow = null;
+    _cubeShadowStatic = null;
+    _cubeShadowDepth = null;
+    _cubeShadowTile = 0;
+    _staticBakeKey = null;
+    _lightListTexture = null;
+    _lightListUploaded = Float32List(0);
+    _lightListBuiltFrom = null;
+    _probeStates.clear();
+    _planarStates.clear();
+    _planarMaterial.extraTextures.clear();
+    _irradianceAtlas = null;
+    _irradianceField = null;
+    _irradianceVersion = -1;
+    _irradianceGpu = null;
+    _hiZ?.reset();
+
+    _debugIndices.forget();
+    _fullscreenVertices = null;
+    _causticQuad = null;
+    _batchPool.clear();
+    _batchesUsed.clear();
+    _renderList.materialIds.clear();
   }
 
   /// How many frames this renderer has drawn — `G2`.

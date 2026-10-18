@@ -1,5 +1,11 @@
 ## 1.0.0-rc.1
 
+- **A context that comes back keeps its renderer.** On
+  `DeviceLoss.restored` the view calls `Renderer.recoverFromLoss` on the
+  renderer it has instead of making a new one over the device; a device
+  lost for good still gets a new device and a new renderer. The plugins
+  are switched off and on as before, and a resource that cannot be made
+  again is logged by name.
 - **`ext.flutter3d.render.graph`.** The running game's last frame graph,
   as a `FrameGraphSnapshot`'s JSON and its Mermaid text, culled and skipped
   passes included. It takes no capture.

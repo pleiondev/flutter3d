@@ -845,9 +845,10 @@ class _Flutter3dViewState extends State<Flutter3dView>
     if (!mounted) return;
     if (loss.restored) {
       engine.log.info('the device came back', source: _source);
-      // The same device, with every resource it held gone: a renderer over
-      // it again, and the plugins installed again on that.
-      _recover(engine);
+      // The same device, with every resource it held gone: the renderer
+      // makes its own again from its registry, and the plugins are
+      // installed again on it.
+      _recover(engine, sameDevice: true);
       return;
     }
     engine.log.warning(
@@ -887,12 +888,17 @@ class _Flutter3dViewState extends State<Flutter3dView>
     }
   }
 
-  /// A renderer over [engine]'s device as it is now, taking over the old
-  /// one's steps, and the loop's plugins switched off and on again at the
-  /// next step boundary so what they add is made on it. The old renderer is
-  /// dropped rather than disposed: what it held went with the device, and
-  /// giving it back to a device that no longer has it is not a call to make.
-  void _recover(Flutter3dEngine engine) {
+  /// The renderer drawing on [engine]'s device as it is now, and the loop's
+  /// plugins switched off and on again at the next step boundary so what
+  /// they add is made on it.
+  ///
+  /// On the [sameDevice], restored, the renderer stays and makes what it
+  /// held again from its registry (`Renderer.recoverFromLoss`): its steps,
+  /// settings and history are kept. On a new device a new renderer takes
+  /// over the old one's steps; the old one is dropped rather than disposed,
+  /// since what it held went with the device, and giving it back to a
+  /// device that no longer has it is not a call to make.
+  void _recover(Flutter3dEngine engine, {bool sameDevice = false}) {
     if (!engine.ownsRenderer) {
       // A borrowed renderer is its owner's to make again.
       setState(() => _error = engine._loss ?? 'the device was lost');
@@ -906,10 +912,22 @@ class _Flutter3dViewState extends State<Flutter3dView>
     for (final id in enabled.reversed) {
       plugins.disable(id);
     }
-    engine._renderer = Renderer.create(
-      device: engine.device,
-      replacing: engine.renderer,
-    );
+    if (sameDevice) {
+      final made = engine.renderer.recoverFromLoss();
+      for (final failure in made.failed) {
+        engine.log.error(
+          '${failure.resource.what} could not be made again',
+          source: _source,
+          error: failure.error,
+          stackTrace: failure.stackTrace,
+        );
+      }
+    } else {
+      engine._renderer = Renderer.create(
+        device: engine.device,
+        replacing: engine.renderer,
+      );
+    }
     // The stages loaded for the old device went with it.
     _materialsAsked.clear();
     for (final id in enabled) {

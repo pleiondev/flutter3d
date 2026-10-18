@@ -1254,6 +1254,37 @@ final class DeviceMesh extends DrawableGeometry
   void dispose()
   void overwriteVertices(GraphicsDevice device, int firstVertex, ByteData vertexBytes)
 
+final class DeviceRecreation
+  String toString()
+  bool get isComplete
+  const DeviceRecreation({required this.recreated, this.failed = const <DeviceRecreationFailure>[]})
+  final List<DeviceRecreationFailure> failed
+  final int recreated
+
+final class DeviceRecreationFailure
+  String toString()
+  const DeviceRecreationFailure(this.resource, this.error, this.stackTrace)
+  final DeviceResource<Object> resource
+  final Object error
+  final StackTrace stackTrace
+
+final class DeviceResource<T extends Object>
+  String toString()
+  T get value
+  bool get isReleased
+  final String what
+  final int id
+  int get generation
+
+final class DeviceResources
+  DeviceRecreation recreate(GraphicsDevice device)
+  DeviceResource<T> add<T extends Object>(String what, GraphicsDevice device, T Function(GraphicsDevice device) make, {void Function(T value)? onMade})
+  DeviceResource<T> adopt<T extends Object>(String what, T value, T Function(GraphicsDevice device) make, {void Function(T value)? onMade})
+  DeviceResources()
+  List<DeviceResource<Object>> get live
+  int get length
+  void release(DeviceResource<Object> resource)
+
 final class DeviceTraits
   String toString()
   bool operator ==(Object other)
@@ -4519,6 +4550,7 @@ final class RenderStepContext
 final class Renderer with RenderServices
   CompiledFrameGraph planFrame({required Scene scene, required List<CameraView> views, RenderSettings settings = const RenderSettings()})
   CompiledFrameGraph? get lastFrameGraph
+  DeviceRecreation recoverFromLoss({TextureHandle? fallbackAlbedo, TextureHandle? fallbackNormal})
   FramePacing pacing
   FrameResult render({required int width, required int height, required Scene scene, required List<CameraView> views, RenderSettings settings = const RenderSettings()})
   FrameWorkBudget get frameWorkBudget
@@ -4537,6 +4569,7 @@ final class Renderer with RenderServices
   QualitySetting? quality
   RenderHooks get hooks
   RenderListener? listener
+  RenderTargetPool get targetPool
   SceneBindings get sceneBindings
   ShaderLibrary get shaders
   TextureHandle get fallbackAlbedo
@@ -4547,9 +4580,9 @@ final class Renderer with RenderServices
   double get exposure
   factory Renderer.create({required GraphicsDevice device, TextureHandle? fallbackAlbedo, TextureHandle? fallbackNormal, ShaderLibrary? materials, Renderer? replacing})
   final DebugDraw debugDraw
+  final DeviceResources deviceResources
   final FrameHistory frameHistory
   final GraphicsDevice device
-  final RenderTargetPool targetPool
   final RendererSteps renderSteps
   final bool msaaEnabled
   int get frameIndex

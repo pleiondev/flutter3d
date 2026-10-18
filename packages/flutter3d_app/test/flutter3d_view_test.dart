@@ -209,11 +209,13 @@ void main() {
     expect(engine!.scene.origin, WorldPosition.origin);
   });
 
-  testWidgets('a lost context that comes back gets a renderer of its own', (
+  testWidgets('a lost context that comes back has its renderer remade', (
     tester,
   ) async {
     // Mutation: leave `_recover` out of the restored branch. The view then
-    // waits for ever on a loss that is over, and draws nothing again.
+    // waits for ever on a loss that is over, and draws nothing again. Make
+    // a new renderer instead of `recoverFromLoss`, and the renderer is not
+    // the one the view had.
     final device = FakeBackend();
     Flutter3dEngine? engine;
     final lost = <DeviceLoss>[];
@@ -228,6 +230,7 @@ void main() {
     );
     await tester.pump();
     final before = engine!.renderer;
+    final albedo = before.fallbackAlbedo;
 
     device.lose(
       const DeviceLoss(reason: DeviceLossReason.unknown, isRecoverable: true),
@@ -247,9 +250,11 @@ void main() {
     await tester.pump();
     expect(restored, 1);
     expect(engine!.loss, isNull);
-    expect(engine!.renderer, isNot(same(before)));
-    // The steps the plugins were handed are the ones the new renderer reads.
+    // The same renderer, its resources made again on the device that came
+    // back from its registry.
+    expect(engine!.renderer, same(before));
     expect(engine!.renderer.renderSteps, same(before.renderSteps));
+    expect(identical(engine!.renderer.fallbackAlbedo, albedo), isFalse);
   });
 
   testWidgets('a borrowed device lost for good is shown as a failure', (

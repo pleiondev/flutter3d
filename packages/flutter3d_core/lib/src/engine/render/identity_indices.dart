@@ -58,4 +58,12 @@ final class IdentityIndices {
     _buffer = null;
     _capacity = 0;
   }
+
+  /// Drops the current buffer and every one it outgrew without giving them
+  /// back, for a device that lost them; the next [view] uploads afresh.
+  void forget() {
+    _outgrown.clear();
+    _buffer = null;
+    _capacity = 0;
+  }
 }
