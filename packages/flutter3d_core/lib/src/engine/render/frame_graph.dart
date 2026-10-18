@@ -15,6 +15,7 @@ library;
 import 'resource_desc.dart';
 
 part 'frame_graph_compile.dart';
+part 'frame_graph_snapshot.dart';
 
 /// Something a node reads or writes, addressed by name.
 ///
@@ -648,6 +649,11 @@ final class CompiledFrameGraph {
 
   /// The same passes as [culled], each with why it did not run — `gfx-39n`.
   final List<SkippedPass> skipped;
+
+  /// This graph written down for a tool: the passes that ran with the
+  /// versions they read and wrote, the ones that did not with why, and the
+  /// outputs — as JSON or Mermaid through [FrameGraphSnapshot].
+  FrameGraphSnapshot snapshot() => _snapshotOf(this);
 
   /// Why [name] did not run, or null if it ran or was never registered.
   PassSkip? skipReason(String name) {

@@ -89,6 +89,7 @@ const Map<String, ToolName> editorToolNames = <String, ToolName>{
   'render_debug_views': ToolName('render.debugViews', hints: ToolHints.reads),
   'render_draw': ToolName('render.draw', hints: ToolHints.reads),
   'render_draws': ToolName('render.draws', hints: ToolHints.reads),
+  'render_graph': ToolName('render.graph', hints: ToolHints.reads),
   'render_memory': ToolName('render.memory', hints: ToolHints.reads),
   'render_pass_output': ToolName('render.passOutput', hints: ToolHints.reads),
   'render_passes': ToolName('render.passes', hints: ToolHints.reads),

@@ -65,6 +65,7 @@ void main() {
       'render_scan_nan',
       'render_stats',
       'render_memory',
+      'render_graph',
       'render_debug_views',
       'render_capture_save',
       'capture_open',

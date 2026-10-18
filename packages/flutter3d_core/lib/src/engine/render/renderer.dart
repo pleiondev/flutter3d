@@ -1501,6 +1501,15 @@ final class Renderer with RenderServices {
   /// [describePipeline].
   _FrameSchedule? _lastSchedule;
 
+  CompiledFrameGraph? _lastFrameGraph;
+
+  /// The graph the last drawn frame was compiled to, or null before the
+  /// first: the passes it ran, and through `skipped` the ones it left out
+  /// and why. [CompiledFrameGraph.snapshot] writes it down as JSON or
+  /// Mermaid, for the editor, the MCP server's `render_graph` and a bug
+  /// report. A [planFrame] does not replace it.
+  CompiledFrameGraph? get lastFrameGraph => _lastFrameGraph;
+
   /// Whether a node placed through [renderSteps] declared a read of the
   /// velocity in the last frame compiled: what keeps the velocity passes and
   /// the frame history running for it.
@@ -5752,6 +5761,7 @@ final class Renderer with RenderServices {
           _airLightIn(_frameLights, shadowCaster),
         ),
       );
+      _lastFrameGraph = frameGraph;
 
       // The frame's own resources: the graph names the lit scene and each
       // version of it, this holds the texture behind each. Nothing is handed

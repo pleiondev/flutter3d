@@ -895,6 +895,7 @@ final class CompareCondition extends AnimationCondition
   final num value
 
 final class CompiledFrameGraph
+  FrameGraphSnapshot snapshot()
   Iterable<ResourceDesc> get created
   Iterable<ResourceId> get resources
   Iterable<ResourceId> keptBy(int index)
@@ -1821,6 +1822,26 @@ abstract base class FrameGraphNode
   const FrameGraphNode()
   void dispose()
   void setup(FrameGraphBuilder builder)
+
+final class FrameGraphPassSnapshot
+  String toString()
+  const FrameGraphPassSnapshot({required this.name, this.reads = const <String, int>{}, this.writes = const <String, int>{}, this.keeps = const <String>[]})
+  final List<String> keeps
+  final Map<String, int> reads
+  final Map<String, int> writes
+  final String name
+
+final class FrameGraphSnapshot
+  Map<String, Object?> toJson()
+  String toMermaid()
+  String toString()
+  const FrameGraphSnapshot({this.passes = const <FrameGraphPassSnapshot>[], this.skipped = const <SkippedPassSnapshot>[], this.outputs = const <String>[]})
+  factory FrameGraphSnapshot.fromJson(Map<String, Object?> json)
+  final List<FrameGraphPassSnapshot> passes
+  final List<SkippedPassSnapshot> skipped
+  final List<String> outputs
+  static const String format = 'f3d.frameGraph'
+  static const int version = 1
 
 final class FrameHeld extends BusEvent
   String get name
@@ -4497,6 +4518,7 @@ final class RenderStepContext
 
 final class Renderer with RenderServices
   CompiledFrameGraph planFrame({required Scene scene, required List<CameraView> views, RenderSettings settings = const RenderSettings()})
+  CompiledFrameGraph? get lastFrameGraph
   FramePacing pacing
   FrameResult render({required int width, required int height, required Scene scene, required List<CameraView> views, RenderSettings settings = const RenderSettings()})
   FrameWorkBudget get frameWorkBudget
@@ -5139,6 +5161,16 @@ final class SkippedPass
   final PassSkip reason
   final String name
   int get hashCode
+
+final class SkippedPassSnapshot
+  String toString()
+  const SkippedPassSnapshot({required this.name, required this.reason, this.reads = const <String>[], this.writes = const <String>[], this.owner, this.error})
+  final List<String> reads
+  final List<String> writes
+  final PassSkip reason
+  final String name
+  final String? error
+  final String? owner
 
 typedef SkyColor = LinearColor Function(SkyLook look);
 

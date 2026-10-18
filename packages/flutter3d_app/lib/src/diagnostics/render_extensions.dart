@@ -14,7 +14,7 @@
 ///
 /// ## What a caller sees
 ///
-/// Eleven extensions, each `ext.flutter3d.render.<verb>`, string parameters
+/// Twelve extensions, each `ext.flutter3d.render.<verb>`, string parameters
 /// as the protocol requires:
 ///
 /// * `passes`, `draws`, `stats`, `scanNan` — take a fresh capture unless
@@ -25,6 +25,9 @@
 ///   one. `capture` answers the whole frame as a capture file — `A5.23`.
 /// * `memory` — what the renderer holds on the device, by category, with no
 ///   capture — `A5.24`.
+/// * `graph` — the last drawn frame's graph as a `FrameGraphSnapshot`'s
+///   JSON and its Mermaid text: the passes that ran, the versions they read
+///   and wrote, and the passes left out with why. No capture.
 /// * `debugViews` — the debug views by name, for a tool to pick from —
 ///   `A5.21`.
 /// * `pick` — which draws put the pixel at `x`, `y` on the screen: the
@@ -225,6 +228,27 @@ void registerRenderExtensions(
       jsonEncode(renderMemory(current.memoryReport(scene: _inspector.scene()))),
     );
   }, answers: const <String>{'totalBytes', 'categories', 'entries'});
+  // The last frame's graph, written down: no capture either, since the
+  // renderer keeps the graph of every frame it draws.
+  registerFlutter3dExtension('ext.flutter3d.render.graph', (
+    method,
+    parameters,
+  ) async {
+    final graph = _inspector.renderer()?.lastFrameGraph;
+    if (graph == null) {
+      return developer.ServiceExtensionResponse.error(
+        developer.ServiceExtensionResponse.extensionError,
+        'the game has drawn no frame yet; ask again once it is drawing',
+      );
+    }
+    final snapshot = graph.snapshot();
+    return developer.ServiceExtensionResponse.result(
+      jsonEncode(<String, Object?>{
+        'graph': snapshot.toJson(),
+        'mermaid': snapshot.toMermaid(),
+      }),
+    );
+  }, answers: const <String>{'graph', 'mermaid'});
   registerFlutter3dExtension(
     'ext.flutter3d.render.debugViews',
     (method, parameters) async => developer.ServiceExtensionResponse.result(

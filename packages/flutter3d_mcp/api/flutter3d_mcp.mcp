@@ -37,6 +37,7 @@ server flutter3d.editor
   alias render_debug_views -> render.debugViews
   alias render_draw -> render.draw
   alias render_draws -> render.draws
+  alias render_graph -> render.graph
   alias render_memory -> render.memory
   alias render_pass_output -> render.passOutput
   alias render_passes -> render.passes
@@ -368,6 +369,12 @@ tool render.draws
   arg limit {"type":"integer"}
   arg offset {"type":"integer"}
   arg pass {"type":"string"}
+  arg vmService {"type":"string"}
+  out {"properties":{"did":{"type":"boolean"},"hasPicture":{"type":"boolean"},"says":{"type":"string"},"selection":{"type":"string"}},"required":["did","hasPicture","says","selection"],"type":"object"}
+
+tool render.graph
+  says The running game's last frame graph: every pass that ran, in order, with the version of each resource it read and wrote; every pass left out, with why (settings, starved, unsupported, failed...) and what it declared; the outputs.
+  hints readOnly
   arg vmService {"type":"string"}
   out {"properties":{"did":{"type":"boolean"},"hasPicture":{"type":"boolean"},"says":{"type":"string"},"selection":{"type":"string"}},"required":["did","hasPicture","says","selection"],"type":"object"}
 

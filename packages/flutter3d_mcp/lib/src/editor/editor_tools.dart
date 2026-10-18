@@ -283,6 +283,16 @@ List<EditorTool> get _renderTools {
       <String, Schema>{},
     ),
     tool(
+      'render_graph',
+      'graph',
+      'The running game\'s last frame graph: every pass that ran, in order, '
+          'with the version of each resource it read and wrote; every pass '
+          'left out, with why (settings, starved, unsupported, failed...) '
+          'and what it declared; the outputs. As JSON under graph and as a '
+          'Mermaid flowchart under mermaid. Takes no capture.',
+      <String, Schema>{},
+    ),
+    tool(
       'render_debug_views',
       'debugViews',
       'Every debug view by name, with its kind (material, geometry, '

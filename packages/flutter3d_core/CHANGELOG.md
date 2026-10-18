@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1
 
+- **A frame graph can be written down.** `CompiledFrameGraph.snapshot()`
+  gives a `FrameGraphSnapshot`: every pass that ran, in order, with the
+  version of each resource it read and wrote; every pass left out, with its
+  `PassSkip` reason and what it declared; the outputs. `toJson` and
+  `FrameGraphSnapshot.fromJson` carry it to a tool, `toMermaid` draws it
+  with the skipped passes dashed. `Renderer.lastFrameGraph` is the graph of
+  the last frame drawn.
 - **An orthographic view's near shadow slabs hold still.** Their ends and
   their radii round onto steps a sixteenth of their length's power of two,
   so a camera panning by less than a step, or a caster rising or falling,

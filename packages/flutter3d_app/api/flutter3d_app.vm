@@ -38,6 +38,9 @@ extension ext.flutter3d.render.draws
   pass string
   -> draws frame offset total undetailed
 
+extension ext.flutter3d.render.graph
+  -> graph mermaid
+
 extension ext.flutter3d.render.memory
   -> categories entries totalBytes
 

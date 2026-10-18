@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **`ext.flutter3d.render.graph`.** The running game's last frame graph,
+  as a `FrameGraphSnapshot`'s JSON and its Mermaid text, culled and skipped
+  passes included. It takes no capture.
 - **A widget surface skips the CPU round trip where the device can.**
   `WidgetTexture.draw` and `WidgetSurface.tick` read the rasterised image
   back with `toByteData` and uploaded it again on every backend; on

@@ -1,5 +1,9 @@
 ## 1.0.0-rc.1
 
+- **`render_graph` (`render.graph`) in the level editor's server.** The
+  running game's last frame graph: the passes that ran with the resource
+  versions they read and wrote, the ones left out with why, as JSON and as
+  a Mermaid flowchart.
 - **A plugin's editor command reaches an agent only with the `tools`
   permission, and is never safer than it says.** `shareCommands` offers a
   command as a tool of its own only when its plugin declares
