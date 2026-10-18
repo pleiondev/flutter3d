@@ -21,16 +21,16 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_core/src/engine/render/parity_scene.dart';
 import 'package:flutter3d_impeller/flutter3d_impeller.dart';
 
-void main() => runApp(const ParityApp());
+void main() => runApp(const _ParityApp());
 
-class ParityApp extends StatefulWidget {
-  const ParityApp({super.key});
+class _ParityApp extends StatefulWidget {
+  const _ParityApp();
 
   @override
-  State<ParityApp> createState() => _ParityAppState();
+  State<_ParityApp> createState() => _ParityAppState();
 }
 
-class _ParityAppState extends State<ParityApp> {
+class _ParityAppState extends State<_ParityApp> {
   String _report = 'rendering…';
 
   @override

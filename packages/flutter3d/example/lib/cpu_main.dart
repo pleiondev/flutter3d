@@ -51,16 +51,16 @@ import 'cpu_shapes_scene.dart';
 const int _width = int.fromEnvironment('cpuWidth', defaultValue: 320);
 const int _height = int.fromEnvironment('cpuHeight', defaultValue: 240);
 
-void main() => runApp(const CpuApp());
+void main() => runApp(const _CpuApp());
 
-class CpuApp extends StatefulWidget {
-  const CpuApp({super.key});
+class _CpuApp extends StatefulWidget {
+  const _CpuApp();
 
   @override
-  State<CpuApp> createState() => _CpuAppState();
+  State<_CpuApp> createState() => _CpuAppState();
 }
 
-class _CpuAppState extends State<CpuApp> with SingleTickerProviderStateMixin {
+class _CpuAppState extends State<_CpuApp> with SingleTickerProviderStateMixin {
   late final CpuDevice _device;
   late final Renderer _renderer;
   late final Ticker _ticker;

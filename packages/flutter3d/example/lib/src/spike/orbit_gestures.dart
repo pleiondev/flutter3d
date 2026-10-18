@@ -10,6 +10,7 @@ import 'package:flutter3d/flutter3d.dart';
 /// orbit apart from a two-finger pan and pinch, which `ScaleGestureRecognizer`
 /// reports through the same callbacks.
 class OrbitGestureDetector extends StatefulWidget {
+  /// A detector driving [controller] from gestures over [child].
   const OrbitGestureDetector({
     super.key,
     required this.controller,
@@ -18,6 +19,7 @@ class OrbitGestureDetector extends StatefulWidget {
     this.onTapPoint,
   });
 
+  /// The orbit a drag turns, a two-finger pan slides and a pinch zooms.
   final OrbitController controller;
 
   /// Called after the controller moves, so the host can repaint.
@@ -31,6 +33,7 @@ class OrbitGestureDetector extends StatefulWidget {
   /// position was measured against.
   final void Function(Offset localPosition, Size size)? onTapPoint;
 
+  /// What the gestures are read over: the scene surface.
   final Widget child;
 
   @override

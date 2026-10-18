@@ -30,6 +30,7 @@ final class FrameToPng {
   static const String _pathKey = 'FLUTTER3D_CAPTURE';
   static const String _frameKey = 'FLUTTER3D_CAPTURE_FRAME';
 
+  /// Where the PNG is written, from `FLUTTER3D_CAPTURE`.
   final String path;
 
   /// Which frame to grab. Late enough that the model has loaded and the

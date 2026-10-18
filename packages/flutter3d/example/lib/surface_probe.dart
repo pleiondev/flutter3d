@@ -71,6 +71,8 @@ import 'surface_probe_report.dart';
 /// can reuse at once, and the pool it would report is not the pool a real
 /// frame sees.
 final class ImageSurfaceProbe extends StatefulWidget {
+  /// A probe running each present path for [frames] frames at [width] by
+  /// [height], then calling [onDone].
   const ImageSurfaceProbe({
     super.key,
     required this.onDone,
@@ -79,6 +81,7 @@ final class ImageSurfaceProbe extends StatefulWidget {
     this.height = 800,
   });
 
+  /// Called once with everything the probe measured.
   final void Function(SurfaceProbeReport report) onDone;
 
   /// Frames per path. Two seconds on a 120 Hz display and four at sixty —
@@ -89,6 +92,8 @@ final class ImageSurfaceProbe extends StatefulWidget {
   /// The frame size, in pixels. A window's worth rather than a golden's, so a
   /// texture costs what one costs.
   final int width;
+
+  /// The frame height, in pixels, beside [width].
   final int height;
 
   @override

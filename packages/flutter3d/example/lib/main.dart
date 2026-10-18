@@ -21,10 +21,10 @@ import 'src/spike/orbit_gestures.dart';
 import 'src/spike/sample_sources.dart';
 import 'src/spike/scene_surface.dart';
 
-void main() => runApp(const Flutter3dApp());
+void main() => runApp(const _Flutter3dApp());
 
-class Flutter3dApp extends StatelessWidget {
-  const Flutter3dApp({super.key});
+class _Flutter3dApp extends StatelessWidget {
+  const _Flutter3dApp();
 
   @override
   Widget build(BuildContext context) {
@@ -32,19 +32,19 @@ class Flutter3dApp extends StatelessWidget {
       title: 'flutter3d spike',
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark(useMaterial3: true),
-      home: const SpikePage(),
+      home: const _SpikePage(),
     );
   }
 }
 
-class SpikePage extends StatefulWidget {
-  const SpikePage({super.key});
+class _SpikePage extends StatefulWidget {
+  const _SpikePage();
 
   @override
-  State<SpikePage> createState() => _SpikePageState();
+  State<_SpikePage> createState() => _SpikePageState();
 }
 
-class _SpikePageState extends State<SpikePage>
+class _SpikePageState extends State<_SpikePage>
     with SingleTickerProviderStateMixin {
   Renderer? _renderer;
 

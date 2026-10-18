@@ -109,6 +109,7 @@ abstract final class GoldenExtras {
   /// not the affectors ran.
   static const double warmUp = 0.55;
 
+  /// The particle step during the warm-up, in seconds.
   static const double stepSize = 1.0 / 60.0;
 
   /// A burst that exercises the parts a still frame can show: spread from the

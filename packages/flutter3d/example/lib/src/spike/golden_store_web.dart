@@ -144,4 +144,6 @@ final class _GoldenFinished implements Exception {
   String toString() => 'golden run finished with code $code';
 }
 
+/// Where a reference lives, in words, for a message: the path under the
+/// served page, since a browser has no directory.
 String describe(String directory, String name) => 'goldens/$name.png';

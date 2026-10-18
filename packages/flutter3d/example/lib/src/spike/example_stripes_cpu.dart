@@ -19,7 +19,9 @@ import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_cpu/src/cpu_shaders_builtin.dart';
 import 'package:vector_math/vector_math.dart';
 
+/// The stripes fragment stage, transcribed from `example_stripes.frag`.
 final class ExampleStripesShader extends CpuFragmentShader {
+  /// The stage; it holds nothing.
   const ExampleStripesShader();
 
   @override

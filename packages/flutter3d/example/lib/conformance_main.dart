@@ -20,16 +20,16 @@ import 'package:flutter3d_impeller/flutter3d_impeller.dart';
 import 'package:flutter3d_impeller/src/gpu_loaded_shaders.dart'
     show impellerSectionOf, runningSdk;
 
-void main() => runApp(const ConformanceApp());
+void main() => runApp(const _ConformanceApp());
 
-class ConformanceApp extends StatefulWidget {
-  const ConformanceApp({super.key});
+class _ConformanceApp extends StatefulWidget {
+  const _ConformanceApp();
 
   @override
-  State<ConformanceApp> createState() => _ConformanceAppState();
+  State<_ConformanceApp> createState() => _ConformanceAppState();
 }
 
-class _ConformanceAppState extends State<ConformanceApp> {
+class _ConformanceAppState extends State<_ConformanceApp> {
   String _report = 'running…';
 
   @override

@@ -29,8 +29,15 @@ import 'png.dart';
 final class GoldenRunner {
   GoldenRunner._(this.scene, {required this.update, required this.directory});
 
+  /// The scene this run draws, picked by `FLUTTER3D_GOLDEN`.
   final GoldenScene scene;
+
+  /// Whether the capture is recorded as the reference rather than compared to
+  /// it.
   final bool update;
+
+  /// Where the reference images live, from `FLUTTER3D_GOLDEN_DIR`; empty in a
+  /// browser, where they come over HTTP.
   final String directory;
 
   /// The occlusion method this run draws with — `C2`, `C3`. None unless
@@ -137,6 +144,8 @@ final class GoldenRunner {
   /// "after everything is ready" rather than a specific moment.
   static const int captureFrame = 90;
 
+  /// Hands the runner a drawn frame; the [captureFrame]th is compared or
+  /// recorded, and every other is ignored.
   void offer(GraphicsDevice device, FrameResult frame) {
     if (_done) return;
     if (++_seen < captureFrame) return;

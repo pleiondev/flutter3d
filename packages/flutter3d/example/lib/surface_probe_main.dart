@@ -16,16 +16,16 @@ import 'package:flutter/material.dart';
 import 'surface_probe.dart';
 import 'surface_probe_report.dart';
 
-void main() => runApp(const SurfaceProbeApp());
+void main() => runApp(const _SurfaceProbeApp());
 
-class SurfaceProbeApp extends StatefulWidget {
-  const SurfaceProbeApp({super.key});
+class _SurfaceProbeApp extends StatefulWidget {
+  const _SurfaceProbeApp();
 
   @override
-  State<SurfaceProbeApp> createState() => _SurfaceProbeAppState();
+  State<_SurfaceProbeApp> createState() => _SurfaceProbeAppState();
 }
 
-class _SurfaceProbeAppState extends State<SurfaceProbeApp> {
+class _SurfaceProbeAppState extends State<_SurfaceProbeApp> {
   String? _report;
 
   Future<void> _done(SurfaceProbeReport report) async {

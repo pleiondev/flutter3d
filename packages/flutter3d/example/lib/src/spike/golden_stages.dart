@@ -162,6 +162,8 @@ abstract final class GoldenStages {
     );
   }
 
+  /// `velocity-shapes`' settings: temporal anti-aliasing on, for the velocity
+  /// buffer it needs, and that buffer shown in place of the picture.
   static RenderSettings velocityShapesSettings(RenderSettings settings) =>
       _temporal(settings).copyWith(showVelocity: true);
 
@@ -290,6 +292,7 @@ abstract final class GoldenStages {
     );
   }
 
+  /// `rough-metals`' settings: multiple-scattering energy compensation on.
   static RenderSettings roughMetalsSettings(RenderSettings settings) =>
       settings.copyWith(energyCompensation: true);
 
@@ -326,6 +329,7 @@ abstract final class GoldenStages {
     );
   }
 
+  /// `rough-dielectrics`' settings: the EON diffuse model.
   static RenderSettings roughDielectricsSettings(RenderSettings settings) =>
       settings.copyWith(diffuseModel: DiffuseModel.eon);
 
@@ -376,6 +380,8 @@ abstract final class GoldenStages {
     );
   }
 
+  /// `tonemap-aces2`' settings: the ACES 2 tonemap curve at an exposure of
+  /// one.
   static RenderSettings tonemapAces2(RenderSettings settings) =>
       settings.copyWith(tonemapCurve: TonemapCurve.aces2, exposure: 1.0);
 
@@ -494,6 +500,8 @@ abstract final class GoldenStages {
     );
   }
 
+  /// `ssil-room`' settings: screen-space indirect lighting as the ambient
+  /// occlusion method, over a 0.6-metre radius at full strength.
   static RenderSettings ssilRoomSettings(RenderSettings settings) =>
       settings.copyWith(
         ambientOcclusion: const AmbientOcclusionSettings(
@@ -564,6 +572,7 @@ abstract final class GoldenStages {
     );
   }
 
+  /// `many-lights`' settings: clustered light culling on.
   static RenderSettings manyLightsSettings(RenderSettings settings) =>
       settings.copyWith(clusteredLights: true);
 
@@ -704,6 +713,8 @@ abstract final class GoldenStages {
     );
   }
 
+  /// `evsm-soft`' settings: one shadow cascade over 20 metres, filtered as an
+  /// EVSM with a four-texel blur.
   static RenderSettings evsmSoftSettings(RenderSettings settings) =>
       settings.copyWith(
         shadows: settings.shadows.copyWith(
@@ -745,6 +756,8 @@ abstract final class GoldenStages {
     );
   }
 
+  /// `sun-contact-hardening`' settings: one shadow cascade over 20 metres,
+  /// filtered with PCSS for a sun 0.04 radians wide.
   static RenderSettings sunContactHardeningSettings(RenderSettings settings) =>
       settings.copyWith(
         shadows: settings.shadows.copyWith(
@@ -982,6 +995,8 @@ abstract final class GoldenStages {
     );
   }
 
+  /// `splat-stochastic`' settings: temporal anti-aliasing on, to resolve the
+  /// stochastic splats, and bloom off.
   static RenderSettings splatStochasticSettings(RenderSettings settings) =>
       _temporal(
         settings,
@@ -1145,6 +1160,8 @@ abstract final class GoldenStages {
     );
   }
 
+  /// `taa-embers`' settings: temporal anti-aliasing with a reactive mask at
+  /// full strength, and bloom off.
   static RenderSettings taaEmbersSettings(RenderSettings settings) => _temporal(
     settings,
     temporal: const TemporalSettings(enabled: true, reactive: 1.0),
@@ -1195,6 +1212,8 @@ abstract final class GoldenStages {
     );
   }
 
+  /// `lens-flare`' settings: a three-level bloom at 0.05 intensity with a lens
+  /// flare at 3.
   static RenderSettings lensFlareSettings(RenderSettings settings) =>
       settings.copyWith(
         bloom: settings.bloom.copyWith(
@@ -1307,6 +1326,8 @@ abstract final class GoldenStages {
     );
   }
 
+  /// `orthographic-metal`' settings: the default sky and a light blue-grey fog
+  /// of density 0.03.
   static RenderSettings orthographicMetalSettings(RenderSettings settings) =>
       settings.copyWith(
         sky: const SkySettings(enabled: true),
@@ -1354,6 +1375,7 @@ abstract final class GoldenStages {
     );
   }
 
+  /// `orthographic-shadows`' settings: three shadow cascades.
   static RenderSettings orthographicShadowsSettings(RenderSettings settings) =>
       settings.copyWith(shadows: settings.shadows.copyWith(cascades: 3));
 
@@ -1429,6 +1451,7 @@ abstract final class GoldenStages {
     );
   }
 
+  /// `orthographic-particles`' settings: a dense blue-grey fog, density 0.12.
   static RenderSettings orthographicParticlesSettings(
     RenderSettings settings,
   ) => settings.copyWith(
@@ -1564,6 +1587,7 @@ abstract final class GoldenStages {
     );
   }
 
+  /// `widget-scene`' settings: planar reflections and decals on.
   static RenderSettings widgetSceneSettings(RenderSettings settings) =>
       settings.copyWith(
         planarReflections: const PlanarReflectionSettings(enabled: true),
@@ -1633,6 +1657,8 @@ abstract final class GoldenStages {
     );
   }
 
+  /// `motion-blur-spin`' settings: the surface buffer on, which motion blur
+  /// reads, and a full-frame shutter.
   static RenderSettings motionBlurSpinSettings(RenderSettings settings) =>
       settings.copyWith(
         surfaceBuffer: true,
@@ -1737,6 +1763,8 @@ abstract final class GoldenStages {
     );
   }
 
+  /// `window-interior`' settings: local exposure at full strength, an exposure
+  /// of one and bloom off.
   static RenderSettings windowInteriorSettings(RenderSettings settings) =>
       settings.copyWith(
         exposure: 1.0,
@@ -1795,6 +1823,7 @@ abstract final class GoldenStages {
     );
   }
 
+  /// `glass-stack-oit`' settings: weighted blended transparency.
   static RenderSettings glassStackSettings(RenderSettings settings) =>
       settings.copyWith(transparency: TransparencyMode.weightedBlended);
 
@@ -1982,6 +2011,7 @@ abstract final class GoldenStages {
     );
   }
 
+  /// `scan-chunks`' settings: software occlusion culling.
   static RenderSettings scanChunksSettings(RenderSettings settings) =>
       settings.copyWith(occlusion: OcclusionMode.software);
 
@@ -2141,6 +2171,7 @@ abstract final class GoldenStages {
     );
   }
 
+  /// `decal-floor`' settings: decals on.
   static RenderSettings decalFloorSettings(RenderSettings settings) =>
       settings.copyWith(decals: const DecalSettings(enabled: true));
   // ------------------------------------------------------------------ P4
@@ -2228,6 +2259,7 @@ abstract final class GoldenStages {
     );
   }
 
+  /// `planar-mirror`' settings: planar reflections on.
   static RenderSettings planarMirrorSettings(RenderSettings settings) =>
       settings.copyWith(
         planarReflections: const PlanarReflectionSettings(enabled: true),
@@ -2314,14 +2346,6 @@ abstract final class GoldenStages {
 
   // ------------------------------------------------------------------ N9
 
-  /// `high-contrast`: the P4 props on a paved floor, with the box ringed as a
-  /// monster would be and the ball as a pickup — `high_contrast_test.dart`'s
-  /// claims in one frame.
-  ///
-  /// The paving is the detail the look flattens: stones of different greys
-  /// with a dark joint between them and a speckle on each, drawn here in Dart
-  /// so every backend reads the same texels. The post is not marked, so the
-  /// frame shows a node outlined by its geometry beside two ringed by role.
   /// The grey of `high-contrast`'s paving at texel ([x], [y]): each stone its
   /// own grey from a hash of where it is, a two-texel joint, and a speckle
   /// from a hash of the texel. Dark, so that the sun on it lands in the
@@ -2344,6 +2368,14 @@ abstract final class GoldenStages {
     return joint ? 20 : 45 + (stone * 37) % 40 + speckle;
   }
 
+  /// `high-contrast`: the P4 props on a paved floor, with the box ringed as a
+  /// monster would be and the ball as a pickup — `high_contrast_test.dart`'s
+  /// claims in one frame.
+  ///
+  /// The paving is the detail the look flattens: stones of different greys
+  /// with a dark joint between them and a speckle on each, drawn here in Dart
+  /// so every backend reads the same texels. The post is not marked, so the
+  /// frame shows a node outlined by its geometry beside two ringed by role.
   static Future<GoldenStaged> highContrast(GoldenStage stage) async {
     final device = stage.device;
     stage.sun.setLocalForward(Vector3(-0.6, -1.0, -0.4).normalized());
@@ -2402,6 +2434,7 @@ abstract final class GoldenStages {
     );
   }
 
+  /// `high-contrast`' settings: the high-contrast look on.
   static RenderSettings highContrastSettings(RenderSettings settings) =>
       settings.copyWith(
         highContrast: const HighContrastSettings(enabled: true),
@@ -2462,6 +2495,8 @@ abstract final class GoldenStages {
     );
   }
 
+  /// `sky-physical-dusk`' settings: the physical sky with the sun just above
+  /// the horizon, an exposure of 0.8 and a fog coloured from the horizon.
   static RenderSettings skyPhysicalDuskSettings(RenderSettings settings) {
     final sky = SkySettings(
       enabled: true,
@@ -2518,6 +2553,8 @@ abstract final class GoldenStages {
     );
   }
 
+  /// `sky-physical-night`' settings: the physical sky with the sun below the
+  /// horizon.
   static RenderSettings skyPhysicalNightSettings(RenderSettings settings) =>
       settings.copyWith(
         sky: SkySettings(

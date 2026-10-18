@@ -16,7 +16,10 @@ import 'package:flutter3d_app/flutter3d_app.dart';
 
 void main() => runApp(const WidgetsApp3D());
 
+/// The minimal example's sphere and point light written as `Scene3D`
+/// widgets; a tap swaps the sphere's material.
 class WidgetsApp3D extends StatelessWidget {
+  /// The example; [onCreated] is for the smoke test.
   const WidgetsApp3D({super.key, this.onCreated});
 
   /// Handed the scene once it exists; the smoke test reads the graph here.
@@ -25,20 +28,20 @@ class WidgetsApp3D extends StatelessWidget {
   @override
   Widget build(BuildContext context) => MaterialApp(
     debugShowCheckedModeBanner: false,
-    home: WidgetsPage(onCreated: onCreated),
+    home: _WidgetsPage(onCreated: onCreated),
   );
 }
 
-class WidgetsPage extends StatefulWidget {
-  const WidgetsPage({super.key, this.onCreated});
+class _WidgetsPage extends StatefulWidget {
+  const _WidgetsPage({this.onCreated});
 
   final void Function(Scene3DController controller)? onCreated;
 
   @override
-  State<WidgetsPage> createState() => _WidgetsPageState();
+  State<_WidgetsPage> createState() => _WidgetsPageState();
 }
 
-class _WidgetsPageState extends State<WidgetsPage> {
+class _WidgetsPageState extends State<_WidgetsPage> {
   bool _polished = false;
 
   @override

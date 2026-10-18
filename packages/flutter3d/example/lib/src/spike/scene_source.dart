@@ -7,6 +7,8 @@ sealed class SceneSource {
   /// Shown in the UI and used as the cache key.
   final String label;
 
+  /// Builds the model on [device]; a procedural shape is painted with
+  /// [checkerAlbedo], and a model file brings its own materials.
   Future<ModelAsset> load({
     required GraphicsDevice device,
     required TextureHandle checkerAlbedo,
@@ -19,8 +21,10 @@ sealed class SceneSource {
 /// values: the source can report the shape's own name, and a caller can inspect
 /// or reparameterize it instead of only being able to invoke it.
 final class ProceduralSource extends SceneSource {
+  /// A source labelled `label` that generates [shape].
   const ProceduralSource(super.label, this.shape);
 
+  /// The shape generated, as a value the source can name and inspect.
   final Shape shape;
 
   @override
@@ -48,8 +52,10 @@ final class ProceduralSource extends SceneSource {
 /// decoders produce the same [ModelDocument], so there is nothing format-specific
 /// left at this level.
 final class ModelFileSource extends SceneSource {
+  /// A source labelled `label` that decodes the asset at [assetPath].
   const ModelFileSource(super.label, this.assetPath, {this.objNormals});
 
+  /// The bundled asset decoded, in any format the model decoders read.
   final String assetPath;
 
   /// Only consulted for OBJ, which has no rule about missing normals.

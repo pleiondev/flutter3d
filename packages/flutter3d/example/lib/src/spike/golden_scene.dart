@@ -6,6 +6,7 @@ typedef GoldenStaging = Future<GoldenStaged> Function(GoldenStage stage);
 /// What a [GoldenStaging] is given: the demo's device, renderer, scene and
 /// the two nodes a staged scene most often has to move.
 final class GoldenStage {
+  /// What a staging is handed for one run.
   const GoldenStage({
     required this.device,
     required this.renderer,
@@ -15,6 +16,7 @@ final class GoldenStage {
     required this.sun,
   });
 
+  /// The demo's device, for the meshes and textures a staged scene uploads.
   final GraphicsDevice device;
 
   /// The orbit that framed the loaded model, for the one scene that keeps
@@ -24,7 +26,13 @@ final class GoldenStage {
   /// For the scenes whose content is a contributor rather than a node:
   /// particles and splats.
   final Renderer renderer;
+
+  /// The demo's scene, which a staged scene adds its nodes, lights and
+  /// contributors to.
   final Scene scene;
+
+  /// The demo's camera, which a staged scene may place itself in
+  /// [GoldenStaged.everyFrame].
   final CameraNode camera;
 
   /// The demo's directional light, which casts. A staged scene turns it off
@@ -34,6 +42,8 @@ final class GoldenStage {
 
 /// What a [GoldenStaging] built.
 final class GoldenStaged {
+  /// What a staging built: no nodes, the model replaced and nothing run per
+  /// frame unless given.
   const GoldenStaged({
     this.nodes = const <SceneNode>[],
     this.keepModel = false,
@@ -68,6 +78,8 @@ final class GoldenStaged {
 /// inputs are implicit fails the first time an unrelated default moves, and then
 /// gets updated without anybody reading the diff.
 final class GoldenScene {
+  /// A scene called [name] on the model [source]; every other input has the
+  /// default the demo draws with, and a scene names only what it changes.
   const GoldenScene({
     required this.name,
     required this.source,
@@ -300,8 +312,15 @@ final class GoldenScene {
   /// Matched against a model chip label by substring, as `FLUTTER3D_SOURCE` is.
   final String source;
 
+  /// The lighting model the model's materials are drawn with.
   final LightingModel lighting;
+
+  /// The orbit camera's turn about the vertical, in radians, held for the run
+  /// unless [cameraAt] moves it.
   final double yaw;
+
+  /// The orbit camera's elevation, in radians, held for the run unless
+  /// [cameraAt] moves it.
   final double pitch;
 
   /// Lights switched on, by name. A subset by default, because the shadow is
@@ -322,9 +341,16 @@ final class GoldenScene {
   /// and this decides the shape they carry.
   final List<double> morphWeights;
 
+  /// Whether the shadow pass is on.
   final bool shadows;
+
+  /// Whether bloom is on.
   final bool bloom;
+
+  /// Whether the ground plane is in the scene.
   final bool ground;
+
+  /// Which debug overlays are drawn.
   final DebugDrawSettings debug;
 
   /// Render size, fixed so the result does not depend on the window.
@@ -333,8 +359,13 @@ final class GoldenScene {
   /// to catch a lighting or geometry regression while keeping the reference
   /// images small enough to live in the repository.
   final int width;
+
+  /// Render height in pixels, beside [width].
   final int height;
 
+  /// [base] with this scene's debug overlays, shadows, bloom, x-ray,
+  /// reflections and ambient occlusion, and the tonemap off for the normals
+  /// view.
   RenderSettings settingsFrom(RenderSettings base) => base.copyWith(
     debug: debug,
     shadows: base.shadows.copyWith(enabled: shadows),

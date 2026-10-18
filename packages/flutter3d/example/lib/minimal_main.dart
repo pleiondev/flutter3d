@@ -15,7 +15,9 @@ import 'package:flutter3d_app/flutter3d_app.dart';
 
 void main() => runApp(const MinimalApp());
 
+/// The smallest application: [MinimalPage] in a bare [MaterialApp].
 class MinimalApp extends StatelessWidget {
+  /// The application; it takes nothing.
   const MinimalApp({super.key});
 
   @override
@@ -23,7 +25,9 @@ class MinimalApp extends StatelessWidget {
       const MaterialApp(debugShowCheckedModeBanner: false, home: MinimalPage());
 }
 
+/// The one page: a `Flutter3dView` with a sphere lit by one point light.
 class MinimalPage extends StatelessWidget {
+  /// The page; it takes nothing.
   const MinimalPage({super.key});
 
   @override

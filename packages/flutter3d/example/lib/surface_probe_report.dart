@@ -17,8 +17,10 @@ library;
 /// at the 95th percentile and is exactly the kind of thing a present path is
 /// suspected of.
 final class MicrosSamples {
+  /// Summaries over [samples].
   const MicrosSamples(this.samples);
 
+  /// The measurements, in microseconds, in the order they were taken.
   final List<int> samples;
 
   /// The value [fraction] of the samples sit at or below, by nearest rank.
@@ -33,13 +35,20 @@ final class MicrosSamples {
     return sorted[index.clamp(0, sorted.length - 1)];
   }
 
+  /// What a frame usually costs, in microseconds.
   int get median => percentile(0.5);
+
+  /// What the bad frames cost, in microseconds: the 95th percentile.
   int get p95 => percentile(0.95);
+
+  /// The worst sample, in microseconds; zero with none.
   int get max => samples.isEmpty ? 0 : samples.reduce((a, b) => a > b ? a : b);
 }
 
 /// One way of putting a frame on screen, measured over a run of frames.
 final class PresentPathMeasurement {
+  /// One path's measurements; [note] is empty unless the path has something
+  /// to say.
   const PresentPathMeasurement({
     required this.name,
     required this.stepMicros,
@@ -73,6 +82,8 @@ final class PresentPathMeasurement {
   /// two are the same number, since it never lets one go; a surface's pool
   /// shrinks when the collector runs, so its end can sit below its peak.
   final int texturesPeak;
+
+  /// How many finished-frame textures the path held when the run ended.
   final int texturesAtEnd;
 
   /// What one of them costs, so [texturesPeak] can be read as memory.
@@ -106,6 +117,7 @@ final class PresentPathMeasurement {
 /// be a measurement that cannot come out any other way. That question is
 /// answered by reading the SDK, and `ARCHITECTURE.md` §15 says so.
 final class ResizeOutcome {
+  /// What the resize phase found.
   const ResizeOutcome({
     required this.backingBefore,
     required this.backingJustAfter,
@@ -123,7 +135,11 @@ final class ResizeOutcome {
   /// the surface — a pool that has not shrunk is a pool nothing has collected
   /// yet, which is what every other phase of this probe shows anyway.
   final int backingBefore;
+
+  /// `debugBackingTextureCount` right after the resize.
   final int backingJustAfter;
+
+  /// `debugBackingTextureCount` after thirty more frames at the new size.
   final int backingAfterThirtyFrames;
 
   /// What `resize` did while a frame was acquired: the error's text, or
@@ -140,6 +156,8 @@ final class ResizeOutcome {
 
 /// Everything one run of the probe found.
 final class SurfaceProbeReport {
+  /// A report over [paths] and [resize], each path run for [frames] frames at
+  /// [width] by [height].
   const SurfaceProbeReport({
     required this.width,
     required this.height,
@@ -148,13 +166,19 @@ final class SurfaceProbeReport {
     required this.resize,
   });
 
+  /// The frame width each path drew at, in pixels.
   final int width;
+
+  /// The frame height each path drew at, in pixels.
   final int height;
 
   /// Frames each path was run for.
   final int frames;
 
+  /// One measurement per present path, in the order they ran.
   final List<PresentPathMeasurement> paths;
+
+  /// What resizing the surface between frames did.
   final ResizeOutcome resize;
 
   /// How many of the yes-or-no questions came back no: one readback per
