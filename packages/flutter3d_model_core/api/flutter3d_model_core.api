@@ -282,6 +282,7 @@ final class BakeMapKind
   String toString()
   final String name
   final String? slot
+  static BakeMapKind? byName(String name)
   static BakeMapKind? named(String name)
   static const BakeMapKind ambientOcclusion = BakeMapKind._('ao', 'occlusion')
   static const BakeMapKind curvature = BakeMapKind._('curvature', null)
@@ -549,6 +550,7 @@ final class CompositePass
   final String name
   final bool fixed
   final int at
+  static CompositePass? byName(String name)
   static CompositePass? named(String name)
   static const CompositePass ambientOcclusion = CompositePass._('ssao', 1, fixed: false)
   static const CompositePass bloom = CompositePass._('bloom', 3, fixed: false)
@@ -571,8 +573,8 @@ final class CompressedBlock
 final class CurveSample
   String toString()
   bool operator ==(Object other)
-  const CurveSample({required this.time, required this.value})
-  final double time
+  const CurveSample({required this.timeSeconds, required this.value})
+  final double timeSeconds
   final double value
   int get hashCode
 
@@ -649,9 +651,11 @@ final class DriverAxis
   String toString()
   Vector3 get vector
   final String name
+  static DriverAxis? byName(String name)
   static const DriverAxis x = DriverAxis._('x', 1, 0, 0)
   static const DriverAxis y = DriverAxis._('y', 0, 1, 0)
   static const DriverAxis z = DriverAxis._('z', 0, 0, 1)
+  static const List<DriverAxis> values = <DriverAxis>[x, y, z]
 
 final class DuplicateMaterial extends ModelCommand
   Map<String, Object?> get arguments
@@ -848,9 +852,11 @@ final class ImportReport
 
 final class ImportSettings
   ImportSettings copyWith({double? scale, UpAxis? upAxis})
+  bool operator ==(Object other)
   const ImportSettings({this.scale = 1.0, this.upAxis = UpAxis.y})
   final UpAxis upAxis
   final double scale
+  int get hashCode
 
 final class ImportedGeometry extends Geometry
   const ImportedGeometry(this.data)
@@ -958,8 +964,8 @@ final class KeyShape extends ModelCommand
   Outcome apply(ModelProject project, ProjectSelection selection)
   String get name
   String get says
-  const KeyShape({required this.id, required this.clipIndex, required this.time})
-  final double time
+  const KeyShape({required this.id, required this.clipIndex, required this.timeSeconds})
+  final double timeSeconds
   final int clipIndex
   final int id
 
@@ -968,7 +974,7 @@ final class KeyTable
   AnimationTrack toAnimationTrack({required int nodeIndex, required AnimationPath path})
   KeyTable({required this.componentCount, this.interpolation = AnimationInterpolation.linear, List<Keyframe>? keys})
   List<Keyframe> get keys
-  double get duration
+  double get durationSeconds
   factory KeyTable.fromAnimationTrack(AnimationTrack track)
   final int componentCount
   int get keyCount
@@ -985,11 +991,11 @@ final class KeyTable
 final class Keyframe
   Keyframe withTangents({List<double>? inTangent, List<double>? outTangent})
   Keyframe withTime(double newTime)
-  const Keyframe({required this.time, required this.values, this.inTangent, this.outTangent})
+  const Keyframe({required this.timeSeconds, required this.values, this.inTangent, this.outTangent})
   final List<double> values
   final List<double>? inTangent
   final List<double>? outTangent
-  final double time
+  final double timeSeconds
 
 final class LevelsTextureNode extends TextureNode
   Map<String, MaterialHint> get hints
@@ -1063,9 +1069,11 @@ final class LodMeshCache
 final class LodSettings
   LodSettings copyWith({double? ratio, double? maxScreenFraction})
   String toString()
+  bool operator ==(Object other)
   const LodSettings({required this.ratio, required this.maxScreenFraction})
   final double maxScreenFraction
   final double ratio
+  int get hashCode
 
 final class LookAtConstraint
   String toString()
@@ -1264,9 +1272,9 @@ final class MoveKeys extends ModelCommand
   Outcome apply(ModelProject project, ProjectSelection selection)
   String get name
   String get says
-  const MoveKeys({required this.clipIndex, required this.trackIndex, required this.indices, required this.deltaTime})
+  const MoveKeys({required this.clipIndex, required this.trackIndex, required this.indices, required this.deltaSeconds})
   final List<int> indices
-  final double deltaTime
+  final double deltaSeconds
   final int clipIndex
   final int trackIndex
 
@@ -1357,6 +1365,7 @@ final class PaintBlendMode
   String toString()
   double blendChannel(double top, double bottom)
   final String name
+  static PaintBlendMode? byName(String name)
   static const List<PaintBlendMode> values = <PaintBlendMode>[normal, multiply, add, overlay, screen]
   static const PaintBlendMode add = PaintBlendMode._('add', _add)
   static const PaintBlendMode multiply = PaintBlendMode._('multiply', _multiply)
@@ -1447,6 +1456,8 @@ final class PaintWeights extends ModelCommand
 final class PaintWeightsMode
   String toString()
   final String name
+  static PaintWeightsMode? byName(String name)
+  static const List<PaintWeightsMode> values = <PaintWeightsMode>[paint, assign]
   static const PaintWeightsMode assign = PaintWeightsMode._('assign')
   static const PaintWeightsMode paint = PaintWeightsMode._('paint')
 
@@ -1791,6 +1802,7 @@ final class RenderProjectView
   final String name
   final double pitch
   final double yaw
+  static RenderProjectView? byName(String name)
   static const List<RenderProjectView> values = <RenderProjectView>[front, back, left, right, top, bottom, iso]
   static const RenderProjectView back = RenderProjectView._('back', math.pi, 0.0)
   static const RenderProjectView bottom = RenderProjectView._('bottom', 0.0, -_maxPitch)
@@ -1818,6 +1830,7 @@ final class RenderRequest
 final class RenderShading
   String toString()
   final String name
+  static RenderShading? byName(String name)
   static const List<RenderShading> values = <RenderShading>[material, normals, weights, wireframe]
   static const RenderShading material = RenderShading._('material')
   static const RenderShading normals = RenderShading._('normals')
@@ -1912,6 +1925,7 @@ final class Retopologize extends ModelCommand
 
 final class RigBuildSettings
   RigBuildSettings copyWith({RigMirrorAxis? mirrorAxis, int? spineCount, bool? fingers, bool? toes, bool? faceBones, bool? ikChains, bool? controllers})
+  bool operator ==(Object other)
   const RigBuildSettings({this.mirrorAxis = RigMirrorAxis.x, this.spineCount = 1, this.fingers = false, this.toes = false, this.faceBones = false, this.ikChains = false, this.controllers = false})
   final RigMirrorAxis mirrorAxis
   final bool controllers
@@ -1920,10 +1934,12 @@ final class RigBuildSettings
   final bool ikChains
   final bool toes
   final int spineCount
+  int get hashCode
 
 final class RigMirrorAxis
   String toString()
   final String name
+  static RigMirrorAxis? byName(String name)
   static const List<RigMirrorAxis> values = <RigMirrorAxis>[x, y, z]
   static const RigMirrorAxis x = RigMirrorAxis._('x')
   static const RigMirrorAxis y = RigMirrorAxis._('y')
@@ -1949,6 +1965,7 @@ final class RigPreview
 final class RigTemplate
   String toString()
   final String name
+  static RigTemplate? byName(String name)
   static const List<RigTemplate> values = <RigTemplate>[humanoid, quadruped]
   static const RigTemplate humanoid = RigTemplate._('humanoid')
   static const RigTemplate quadruped = RigTemplate._('quadruped')
@@ -1983,6 +2000,7 @@ final class ScaleBy extends ModelCommand
 final class SceneEnvironmentPreset
   String toString()
   final String name
+  static SceneEnvironmentPreset? byName(String name)
   static const List<SceneEnvironmentPreset> values = <SceneEnvironmentPreset>[none, studio, daylight, sunset]
   static const SceneEnvironmentPreset daylight = SceneEnvironmentPreset._('daylight')
   static const SceneEnvironmentPreset none = SceneEnvironmentPreset._('none')
@@ -2002,8 +2020,10 @@ final class SceneLighting
 
 final class ScenePostSettings
   ScenePostSettings copyWith({bool? bloomEnabled})
+  bool operator ==(Object other)
   const ScenePostSettings({this.bloomEnabled = true})
   final bool bloomEnabled
+  int get hashCode
 
 final class SculptStroke extends ModelCommand
   Map<String, Object?> get arguments
@@ -2142,11 +2162,11 @@ final class SetKey extends ModelCommand
   Outcome apply(ModelProject project, ProjectSelection selection)
   String get name
   String get says
-  const SetKey({required this.clipIndex, required this.trackIndex, required this.time, required this.values, this.inTangent, this.outTangent})
+  const SetKey({required this.clipIndex, required this.trackIndex, required this.timeSeconds, required this.values, this.inTangent, this.outTangent})
   final List<double> values
   final List<double>? inTangent
   final List<double>? outTangent
-  final double time
+  final double timeSeconds
   final int clipIndex
   final int trackIndex
 
@@ -2831,7 +2851,7 @@ Vector3? elementNormal(EditMesh mesh, ElementLevel level, int id)
 
 Vector3 eulerOf(Quaternion q)
 
-List<double> evaluateShapeDriversLive({required ProjectClip clip, required List<ShapeDriver> drivers, required double time, required int shapeCount})
+List<double> evaluateShapeDriversLive({required ProjectClip clip, required List<ShapeDriver> drivers, required double timeSeconds, required int shapeCount})
 
 String formatByteSize(int bytes)
 
@@ -2949,9 +2969,9 @@ List<String> requiredMarkers(RigTemplate template)
 
 Uint8List resizeRgba(Uint8List rgba, int width, int height, int newWidth, int newHeight, {ResizeFilter filter = ResizeFilter.bilinear})
 
-IkSolution resolveIkConstraint({required ModelProject project, required IkConstraint constraint, ProjectClip? clip, double time = 0.0})
+IkSolution resolveIkConstraint({required ModelProject project, required IkConstraint constraint, ProjectClip? clip, double timeSeconds = 0.0})
 
-LookAtSolution resolveLookAtConstraint({required ModelProject project, required LookAtConstraint constraint, ProjectClip? clip, double time = 0.0})
+LookAtSolution resolveLookAtConstraint({required ModelProject project, required LookAtConstraint constraint, ProjectClip? clip, double timeSeconds = 0.0})
 
 ProjectClip retargetClip({required ProjectClip sourceClip, required ModelProject sourceProject, required ProjectSkeleton sourceSkeleton, required ModelProject targetProject, required ProjectSkeleton targetSkeleton, required BoneMap boneMap, bool lockFeet = true, double groundY = 0.0, double footTolerance = 1e-3})
 

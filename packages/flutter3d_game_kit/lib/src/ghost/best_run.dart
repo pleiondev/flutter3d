@@ -64,7 +64,7 @@ final class BestRun {
     required Vector3 position,
     required double yaw,
     Vector3? up,
-  }) => _recorder.tick(seconds, position: position, yaw: yaw, up: up);
+  }) => _recorder.record(seconds, position: position, yaw: yaw, up: up);
 
   /// A run has ended after [seconds]. Keeps it if it beat the record, and
   /// starts the next. Returns whether it was kept, which is worth saying out

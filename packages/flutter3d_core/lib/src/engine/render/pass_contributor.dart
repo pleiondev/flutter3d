@@ -379,7 +379,7 @@ final class ContributorFrame extends FrameContext {
     super.view,
     this.viewProjection,
     super.frameIndex,
-    super.time,
+    super.timeSeconds,
     super.origin,
     super.views,
     super.viewIndex,

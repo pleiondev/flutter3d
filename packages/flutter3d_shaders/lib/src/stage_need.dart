@@ -82,6 +82,16 @@ final class ShaderStageNeed {
     'Impostor',
   ]);
 
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<ShaderStageNeed> values = <ShaderStageNeed>[
+    pbrLayered,
+    blinnPhong,
+    lambert,
+    toon,
+    impostor,
+  ];
+
   /// The engine's needs a project may declare, [base] not among them.
   ///
   /// Only lighting a project chooses: the x-ray look, the normals view and

@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **Breaking: no public `late final` setter.** `SkeletonRagdoll.ragdoll` is
+  a getter over a private field: the setter they had worked once and threw
+  the second time, and every read compiles as it did.
 - **Breaking: results that were records are final classes.** `RagdollPart`
   answered or held a record, which can never gain a field. Each answers a
   final class now, with the record's field names (a positional `$1` has a

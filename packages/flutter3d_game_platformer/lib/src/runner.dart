@@ -276,7 +276,7 @@ final class Runner
   bool get isGrounded => body.isGrounded;
 
   /// How much of the dash is still to cool down, in seconds.
-  double get dashCooldown => _dashCooldown;
+  double get dashCooldownSeconds => _dashCooldown;
 
   /// How many jumps are left before the feet touch down again, a count;
   /// refilled to [RunnerSettings.airJumps] on landing.
@@ -587,7 +587,7 @@ final class Runner
         // be moving. The threshold is a walk, so a sprint always slides and a
         // shuffle never does.
         if (speed > body.tuning.walkSpeed * 0.8) {
-          _sliding = tuning.slideTime;
+          _sliding = tuning.slideSeconds;
           events?.publish(const Slid());
           _shoveInto(tuning.slideSpeed);
         }
@@ -782,21 +782,21 @@ final class Runner
     if (!body.isGrounded) return;
     final under = body.ground;
     if (under == null || under.layer & PlatformerLayers.oneWay == 0) return;
-    _dropping = tuning.dropThroughTime;
+    _dropping = tuning.dropThroughSeconds;
   }
 
   void _tickTimers(double dt, InputState input) {
     _dropping = math.max(0.0, _dropping - dt);
     if (input.pressed(PlatformerActions.dropThrough)) dropThrough();
     if (body.isGrounded) {
-      _coyote = tuning.coyoteTime;
+      _coyote = tuning.coyoteSeconds;
       _airJumpsLeft = tuning.airJumps;
     } else {
       _coyote = math.max(0.0, _coyote - dt);
     }
 
     _buffer = input.pressed(GameAction.jump)
-        ? tuning.jumpBufferTime
+        ? tuning.jumpBufferSeconds
         : math.max(0.0, _buffer - dt);
 
     _dashCooldown = math.max(0.0, _dashCooldown - dt);
@@ -846,7 +846,7 @@ final class Runner
     }
 
     if (_onWall) {
-      _wallCoyote = tuning.wallCoyoteTime;
+      _wallCoyote = tuning.wallCoyoteSeconds;
     } else {
       _wallCoyote = math.max(0.0, _wallCoyote - dt);
       if (_wallCoyote <= 0.0) _wallAway.setZero();
@@ -1030,7 +1030,7 @@ final class Runner
     // did not make. Zeroing the downward speed already ends it in every sense
     // but the one the rest of this file reads.
     _pounding = false;
-    _dashCooldown = tuning.dashCooldown;
+    _dashCooldown = tuning.dashCooldownSeconds;
     events?.publish(const Dashed());
   }
 
@@ -1223,7 +1223,7 @@ final class Runner
   }
 
   void _land() {
-    _coyote = tuning.coyoteTime;
+    _coyote = tuning.coyoteSeconds;
     _airJumpsLeft = tuning.airJumps;
   }
 

@@ -42,6 +42,23 @@ final class PluginTouches {
   /// install it at all: nothing a game draws or steps depends on it.
   static const PluginTouches tooling = PluginTouches._('tooling');
 
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<PluginTouches> values = <PluginTouches>[
+    simulation,
+    view,
+    tooling,
+  ];
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static PluginTouches? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   /// Reads a name back. A name this build does not know is kept as it was
   /// written, so a manifest read and written again says what it said, and
   /// it is treated as [simulation] — the kind held to every rule — until a
@@ -110,6 +127,24 @@ final class PluginPermission {
   /// person installing it sees that it changes what the engine draws, and
   /// everything else it adds stays in its namespace.
   static const PluginPermission replace = PluginPermission('replace');
+
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<PluginPermission> values = <PluginPermission>[
+    network,
+    files,
+    tools,
+    replace,
+  ];
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static PluginPermission? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
 
   /// The permission's name, as a manifest's `permissions` writes it and a
   /// person installing the plugin reads it.

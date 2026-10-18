@@ -104,7 +104,7 @@ Staged stage(
     coins: coins,
     lives: lives,
     deaths: deaths,
-    elapsed: elapsed,
+    elapsedSeconds: elapsed,
     random: random,
     dynamicsFor: dynamicsFor ?? platformerDynamics,
   );

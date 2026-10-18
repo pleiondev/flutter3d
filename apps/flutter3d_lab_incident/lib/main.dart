@@ -147,7 +147,7 @@ class _IncidentScreenState extends State<IncidentScreen>
     final moment = int.tryParse(Uri.base.queryParameters['moment'] ?? '');
     if (moment != null) _incident.jumpTo(moment);
 
-    _ticker = createTicker((_) => unawaited(_panel.tick()))..start();
+    _ticker = createTicker((_) => unawaited(_panel.update()))..start();
     if (mounted) setState(() => _renderer = Renderer.create(device: device));
   }
 

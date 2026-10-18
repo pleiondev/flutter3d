@@ -34,7 +34,7 @@ bool hasShapeKeyAtFrame({
     if (track.track.path != AnimationPath.weights) continue;
     final KeyTable table = KeyTable.fromAnimationTrack(track.track);
     for (final Keyframe key in table.keys) {
-      if (KeyTable.frameOfTime(key.time, fps) == frame) return true;
+      if (KeyTable.frameOfTime(key.timeSeconds, fps) == frame) return true;
     }
     return false;
   }

@@ -74,7 +74,7 @@ void main() {
       player.apply();
       expect(target.position.x, closeTo(0.0, 1e-6));
 
-      player.crossFadeTo(1, duration: 0.2);
+      player.crossFadeTo(1, durationSeconds: 0.2);
       for (var i = 0; i < 6; i++) {
         player.update(1.0 / 60.0);
       }
@@ -90,7 +90,7 @@ void main() {
         targets: <AnimationTarget?>[target],
       )..play(index: 0);
 
-      player.crossFadeTo(1, duration: 0.2);
+      player.crossFadeTo(1, durationSeconds: 0.2);
       for (var i = 0; i < 20; i++) {
         player.update(1.0 / 60.0);
       }
@@ -107,7 +107,7 @@ void main() {
         targets: <AnimationTarget?>[target],
       )..play(index: 0);
 
-      player.crossFadeTo(1, duration: 0.0);
+      player.crossFadeTo(1, durationSeconds: 0.0);
       player.apply();
 
       expect(player.isCrossFading, isFalse);
@@ -123,10 +123,10 @@ void main() {
       )..play(index: 1);
 
       player.update(0.3);
-      final before = player.time;
+      final before = player.timeSeconds;
       player.crossFadeTo(1);
 
-      expect(player.time, before);
+      expect(player.timeSeconds, before);
       expect(player.isCrossFading, isFalse);
     });
 
@@ -136,7 +136,7 @@ void main() {
         targets: <AnimationTarget?>[_Recorder()],
       )..play(index: 0);
 
-      player.crossFadeTo(1, duration: 0.2);
+      player.crossFadeTo(1, durationSeconds: 0.2);
       expect(player.fadeWeight, closeTo(0.0, 1e-9));
 
       player.update(0.1);
@@ -157,9 +157,9 @@ void main() {
         targets: <AnimationTarget?>[target],
       )..play(index: 0);
 
-      player.crossFadeTo(1, duration: 0.2);
+      player.crossFadeTo(1, durationSeconds: 0.2);
       player.update(0.05);
-      player.crossFadeTo(2, duration: 0.2);
+      player.crossFadeTo(2, durationSeconds: 0.2);
       for (var i = 0; i < 20; i++) {
         player.update(1.0 / 60.0);
       }
@@ -190,7 +190,7 @@ void main() {
         targets: <AnimationTarget?>[moved, untouched],
       )..play(index: 0);
 
-      player.crossFadeTo(1, duration: 0.2);
+      player.crossFadeTo(1, durationSeconds: 0.2);
       player.update(1.0 / 60.0);
       player.apply();
 
@@ -208,7 +208,7 @@ void main() {
         targets: <AnimationTarget?>[target],
       )..play(index: 0);
 
-      player.crossFadeTo(1, duration: 0.2);
+      player.crossFadeTo(1, durationSeconds: 0.2);
       player.update(0.1);
       player.apply();
 
@@ -228,7 +228,7 @@ void main() {
         targets: <AnimationTarget?>[target],
       )..play(index: 0);
 
-      player.crossFadeTo(1, duration: 0.2);
+      player.crossFadeTo(1, durationSeconds: 0.2);
       player.update(0.1);
       player.apply();
 
@@ -252,7 +252,7 @@ void main() {
       player.apply();
       final unblended = target.rotation.rotate(Vector3(0.0, 0.0, -1.0));
 
-      player.crossFadeTo(1, duration: 0.2);
+      player.crossFadeTo(1, durationSeconds: 0.2);
       player.update(0.1);
       player.apply();
       final blended = target.rotation.rotate(Vector3(0.0, 0.0, -1.0));

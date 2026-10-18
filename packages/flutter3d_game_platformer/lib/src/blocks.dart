@@ -18,12 +18,12 @@ import 'package:vector_math/vector_math.dart';
 /// countdown is dispatched from inside the collision step and taking a collider
 /// out of the world there is how a broadphase gets corrupted.
 final class Crumbling extends Mechanism with CollisionListener {
-  /// A platform over [collider], holding [delay] seconds of weight and gone
+  /// A platform over [collider], holding [delaySeconds] seconds of weight and gone
   /// for [gone] seconds; [collider] is made static and pointed back here.
   Crumbling({
     super.name,
     required this.collider,
-    this.delay = 0.5,
+    this.delaySeconds = 0.5,
     this.gone = 2.5,
   }) {
     collider
@@ -37,7 +37,7 @@ final class Crumbling extends Mechanism with CollisionListener {
   final Collider collider;
 
   /// How long it holds after somebody steps on it.
-  final double delay;
+  final double delaySeconds;
 
   /// How long it stays away before coming back.
   ///
@@ -79,7 +79,7 @@ final class Crumbling extends Mechanism with CollisionListener {
 
     if (sinceTouched.isInfinite) return;
     sinceTouched += dt;
-    if (sinceTouched < delay) return;
+    if (sinceTouched < delaySeconds) return;
 
     _fallen = true;
     crumbledThisStep = true;
@@ -221,7 +221,7 @@ final class Climbable extends Mechanism {
     required this.collider,
     this.climbSpeed = 4.0,
     this.swing = 0.0,
-    this.period = 2.4,
+    this.periodSeconds = 2.4,
     double phase = 0.0,
   }) : _time = phase {
     collider
@@ -241,7 +241,7 @@ final class Climbable extends Mechanism {
   final double swing;
 
   /// Seconds for a full swing there and back.
-  final double period;
+  final double periodSeconds;
 
   final Vector3 _restingAt = Vector3.zero();
   final Vector3 _at = Vector3.zero();
@@ -281,9 +281,9 @@ final class Climbable extends Mechanism {
 
   @override
   void step(double dt) {
-    if (swing <= 0.0 || period <= 0.0) return;
+    if (swing <= 0.0 || periodSeconds <= 0.0) return;
     _time += dt;
-    final rate = 2.0 * math.pi / period;
+    final rate = 2.0 * math.pi / periodSeconds;
     final phase = Portable.sinCos(rate * _time);
     _at
       ..setFrom(_restingAt)

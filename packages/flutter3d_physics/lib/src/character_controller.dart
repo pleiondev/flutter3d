@@ -38,7 +38,7 @@ final class CharacterController {
     // The body registers itself, so monsters see the player as an obstacle and
     // triggers see them walk in. A controller that only reads the world is a
     // controller nothing else can react to.
-    collider = world.add(
+    _collider = world.add(
       Collider(
         shape: _shape,
         position: this.position,
@@ -64,8 +64,10 @@ final class CharacterController {
   CollisionShape get shape => _shape;
   CollisionShape _shape;
 
+  late final Collider _collider;
+
   /// This body's entry in the world, kept in step with [position].
-  late final Collider collider;
+  Collider get collider => _collider;
 
   /// Which contacts this body's own movement counts, or null for all of them.
   ///
@@ -221,7 +223,7 @@ final class CharacterController {
   ///
   /// Buffered rather than acted on immediately, so the request survives the
   /// fraction of a second before landing.
-  void requestJump() => _jumpBuffer = tuning.jumpBufferTime;
+  void requestJump() => _jumpBuffer = tuning.jumpBufferSeconds;
 
   /// Says that the body is leaving the ground **on purpose**, so the next
   /// ground probe must not pull it back.
@@ -862,7 +864,7 @@ final class CharacterController {
     // noise — true of carrying, and it threw away the answer to every other
     // question about the floor. [groundBody] still narrows it.
     _ground = _hit.collider;
-    _coyote = tuning.coyoteTime;
+    _coyote = tuning.coyoteSeconds;
   }
 
   /// The step's geometry by [mover]: the whole of this step's motion handed
@@ -899,7 +901,7 @@ final class CharacterController {
     _grounded = true;
     _groundNormal.setFrom(moved.groundNormal);
     _ground = moved.ground;
-    _coyote = tuning.coyoteTime;
+    _coyote = tuning.coyoteSeconds;
   }
 
   void _setAirborne() {

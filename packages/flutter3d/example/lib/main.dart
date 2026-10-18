@@ -9,7 +9,6 @@ import 'package:flutter3d/flutter3d.dart' as engine;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:vector_math/vector_math.dart' as vm show Matrix4;
-import 'package:vector_math/vector_math.dart' show Aabb3, Vector3;
 
 import 'src/spike/backend.dart';
 import 'src/spike/control_panel.dart';

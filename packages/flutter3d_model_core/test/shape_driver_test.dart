@@ -114,7 +114,7 @@ void main() {
       final weights = evaluateShapeDriversLive(
         clip: clip,
         drivers: drivers,
-        time: 0.5,
+        timeSeconds: 0.5,
         shapeCount: 1,
       );
       expect(weights[0], closeTo(1.0, 1e-6));
@@ -134,7 +134,7 @@ void main() {
       final weights = evaluateShapeDriversLive(
         clip: clip,
         drivers: drivers,
-        time: 0.5,
+        timeSeconds: 0.5,
         shapeCount: 1,
       );
       expect(weights[0], closeTo(0.0, 1e-6));
@@ -176,7 +176,7 @@ void main() {
           final live = evaluateShapeDriversLive(
             clip: clip,
             drivers: const <ShapeDriver>[driver],
-            time: t,
+            timeSeconds: t,
             shapeCount: 1,
           );
           expect(out[0], closeTo(live[0], 1e-5), reason: 'time $t');

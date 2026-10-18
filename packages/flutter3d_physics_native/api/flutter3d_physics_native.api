@@ -93,6 +93,7 @@ final class DebrisPlane extends DebrisStatic
 final class DebrisSettings
   DebrisSettings copyWith({Vector3? gravity, double? friction, double? restitution, double? linearDamping, double? angularDamping, double? maxSpeed, int? substeps, int? iterations, bool clearGravity = false})
   DebrisSettings({NativeWorld? world, Vector3? gravity, this.friction = MaterialCatalog.defaultFriction, this.restitution = 0.2, this.linearDamping = 0.0, this.angularDamping = 0.5, this.maxSpeed = 50.0, this.substeps = 8, this.iterations = 4})
+  bool operator ==(Object other)
   final Vector3 gravity
   final double angularDamping
   final double friction
@@ -101,6 +102,7 @@ final class DebrisSettings
   final double restitution
   final int iterations
   final int substeps
+  int get hashCode
 
 abstract final class DebrisStatic
   const DebrisStatic()
@@ -147,6 +149,7 @@ final class FluidParticle
 final class FluidSettings
   FluidSettings copyWith({Vector3? tankMin, Vector3? tankMax, Vector3? gravity, double? viscosity, double? relaxation, int? substeps, int? iterations, bool clearGravity = false})
   FluidSettings({required this.tankMin, required this.tankMax, NativeWorld? world, Vector3? gravity, this.viscosity = 0.01, this.relaxation = 10.0, this.substeps = 2, this.iterations = 4})
+  bool operator ==(Object other)
   final Vector3 gravity
   final Vector3 tankMax
   final Vector3 tankMin
@@ -154,6 +157,7 @@ final class FluidSettings
   final double viscosity
   final int iterations
   final int substeps
+  int get hashCode
 
 abstract base mixin class FluidSystem
   FluidSystem()
@@ -174,10 +178,12 @@ final class GridSide
   String toString()
   final String name
   final int code
+  static GridSide? byName(String name)
   static const GridSide east = GridSide._(1, 'east')
   static const GridSide north = GridSide._(3, 'north')
   static const GridSide south = GridSide._(2, 'south')
   static const GridSide west = GridSide._(0, 'west')
+  static const List<GridSide> values = <GridSide>[west, east, south, north]
 
 final class JointDrive
   const JointDrive({required this.target, required this.stiffness, this.damping = 0.0, required this.maxTorque})
@@ -192,12 +198,14 @@ final class JointGroup
   const JointGroup(this.name)
   final String name
   int get hashCode
+  static JointGroup? byName(String name)
   static const JointGroup elbow = JointGroup('elbow')
   static const JointGroup hip = JointGroup('hip')
   static const JointGroup knee = JointGroup('knee')
   static const JointGroup neck = JointGroup('neck')
   static const JointGroup shoulder = JointGroup('shoulder')
   static const JointGroup spine = JointGroup('spine')
+  static const List<JointGroup> values = <JointGroup>[spine, neck, shoulder, elbow, hip, knee]
 
 final class JointGroupStiffness
   const JointGroupStiffness(this.group, {required this.flexion, required this.extension, required this.lateral, double? medial, required this.twist})
@@ -312,6 +320,8 @@ final class NativeBodyType
   String toString()
   final String name
   final int code
+  static NativeBodyType? byName(String name)
+  static const List<NativeBodyType> values = <NativeBodyType>[dynamic, fixed, kinematic]
   static const NativeBodyType dynamic = NativeBodyType._(c.BodyType.dynamic, 'dynamic')
   static const NativeBodyType fixed = NativeBodyType._(c.BodyType.fixed, 'fixed')
   static const NativeBodyType kinematic = NativeBodyType._(c.BodyType.kinematic, 'kinematic')
@@ -471,6 +481,8 @@ final class NativeEventKind
   final int code
   int get hashCode
   static NativeEventKind of(int code)
+  static NativeEventKind? byName(String name)
+  static const List<NativeEventKind> values = <NativeEventKind>[slept, woke, ignited, extinguished, burntOut, contactBegan, contactEnded, jointBroken, wetted, burnerOut]
   static const NativeEventKind burnerOut = NativeEventKind._(c.EventKind.burnerOut, 'burnerOut')
   static const NativeEventKind burntOut = NativeEventKind._(c.EventKind.burntOut, 'burntOut')
   static const NativeEventKind contactBegan = NativeEventKind._(c.EventKind.contactBegan, 'contactBegan')
@@ -579,6 +591,8 @@ final class NativeJointType
   String toString()
   final String name
   final int code
+  static NativeJointType? byName(String name)
+  static const List<NativeJointType> values = <NativeJointType>[fixed, spherical, revolute, prismatic]
   static const NativeJointType fixed = NativeJointType._(c.JointType.fixed, 'fixed')
   static const NativeJointType prismatic = NativeJointType._(c.JointType.prismatic, 'prismatic')
   static const NativeJointType revolute = NativeJointType._(c.JointType.revolute, 'revolute')
@@ -597,6 +611,7 @@ final class NativeLawProperty
   String toString()
   final String name
   final int code
+  static NativeLawProperty? byName(String name)
   static const List<NativeLawProperty> ofBody = <NativeLawProperty>[specificHeat, conductivity, emissivity]
   static const List<NativeLawProperty> ofLiquid = <NativeLawProperty>[density, viscosity, surfaceTension]
   static const List<NativeLawProperty> values = <NativeLawProperty>[specificHeat, conductivity, emissivity, density, viscosity, surfaceTension]
@@ -865,6 +880,7 @@ extension type const NativeVehicle(int id)
 
 final class NativeWheelSettings
   NativeWheelSettings copyWith({Vector3? attach, double? rest, double? radius, double? stiffness, double? damping, double? grip, double? width, double? rollingResistance, bool clearWidth = false})
+  bool operator ==(Object other)
   const NativeWheelSettings({required this.attach, required this.rest, required this.radius, required this.stiffness, required this.damping, required this.grip, this.width, this.rollingResistance = 0.015})
   final Vector3 attach
   final double damping
@@ -874,6 +890,7 @@ final class NativeWheelSettings
   final double rollingResistance
   final double stiffness
   final double? width
+  int get hashCode
 
 final class NativeWheelState
   String toString()
@@ -1066,7 +1083,7 @@ final class NativeWorld
   void setShallowSource(NativeShallowLiquid water, int index, {required double x, required double z, double radius = 0.0, required double rate})
   void setShallowWalls(NativeShallowLiquid water, List<bool> walls)
   void setShape(NativeBody body, NativeShape shape)
-  void setSleep({required double speed, required double time})
+  void setSleep({required double speed, required double timeSeconds})
   void setTemperature(NativeBody body, double kelvin)
   void setVelocity(NativeBody body, Vector3 value)
   void setWaterRest({double energy = 5e-4, double seconds = 1})

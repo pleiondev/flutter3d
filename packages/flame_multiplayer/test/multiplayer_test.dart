@@ -64,8 +64,8 @@ void main() {
       // else is in yet.
       for (var i = 0; i < 60; i++) {
         host.step(1 / 60);
-        wireA.tick();
-        wireB.tick();
+        wireA.step();
+        wireB.step();
       }
       expect(host.hasMet, isFalse);
 
@@ -73,8 +73,8 @@ void main() {
       for (var i = 0; i < 600 && !(host.hasMet && guest.hasMet); i++) {
         host.step(1 / 60);
         guest.step(1 / 60);
-        wireA.tick();
-        wireB.tick();
+        wireA.step();
+        wireB.step();
       }
       expect(host.peer, {'plays': 'wizard'});
       expect(guest.peer, {'plays': 'elf'});
@@ -94,7 +94,7 @@ void main() {
       a.channel('level:one').send(PeerSend(message: {'n': 1}));
       a.channel('level:two').send(PeerSend(message: {'n': 2}));
       a.channel('nobody').send(PeerSend(message: {'n': 3}));
-      wireB.tick();
+      wireB.step();
 
       expect(heardOne, <Object?>[1]);
       expect(heardTwo, <Object?>[2]);
@@ -110,8 +110,8 @@ void main() {
       for (var i = 0; i < 60 && !(a.hasMet && b.hasMet); i++) {
         a.step(1 / 60);
         b.step(1 / 60);
-        wireA.tick();
-        wireB.tick();
+        wireA.step();
+        wireB.step();
       }
       expect(a.hasMet && b.hasMet, isTrue);
       expect(a.refusal, isNull);
@@ -134,8 +134,8 @@ void main() {
       for (var i = 0; i < 300; i++) {
         older.step(1 / 60);
         newer.step(1 / 60);
-        wireA.tick();
-        wireB.tick();
+        wireA.step();
+        wireB.step();
       }
       // Mutation: the simulation version not compared — the two meet and
       // their rollback drifts apart.
@@ -155,7 +155,7 @@ void main() {
       // simulation they do not belong to.
       older.channel('play').send(PeerSend(message: {'n': 1}));
       for (var i = 0; i < 5; i++) {
-        wireB.tick();
+        wireB.step();
       }
       expect(heard, isEmpty);
     });
@@ -253,8 +253,8 @@ void main() {
       for (var i = 0; i < 400; i++) {
         plays[0].advance();
         plays[1].advance();
-        wireA.tick();
-        wireB.tick();
+        wireA.step();
+        wireB.step();
       }
 
       // What a machine that never guessed would have run: each player's
@@ -338,15 +338,15 @@ void main() {
         final before = watched.length;
         b.step();
         perStep.add(watched.length - before);
-        wireA.tick();
-        wireB.tick();
+        wireA.step();
+        wireB.step();
       }
       a.pass({'player': 1, 'score': 90});
       for (var i = 0; i < 12; i++) {
         a.step();
         b.step();
-        wireA.tick();
-        wireB.tick();
+        wireA.step();
+        wireB.step();
       }
 
       final frames = watched.where((w) => w.startsWith('frame'));
@@ -368,7 +368,7 @@ void main() {
       // The new holder's word reaches the old one.
       b.tellEvent({'what': 'again'});
       for (var i = 0; i < 6; i++) {
-        wireA.tick();
+        wireA.step();
       }
       a.step();
       expect(watched.last, 'A heard again');
@@ -396,7 +396,7 @@ void main() {
       for (var n = 0; n < 20; n++) {
         a.tellFrame({'n': n});
       }
-      wireB.tick();
+      wireB.step();
       b.step();
       expect(shown.length, 17, reason: 'down to the last few in one step');
       b.step();
@@ -421,11 +421,11 @@ void main() {
           built++;
           return {'x': i};
         });
-        wireA.tick();
-        wireB.tick();
+        wireA.step();
+        wireB.step();
       }
       for (var i = 0; i < 10; i++) {
-        wireB.tick();
+        wireB.step();
       }
       expect(built, 50, reason: 'a state not sent is not built');
       final x = b.latest!['x']! as int;
@@ -463,14 +463,14 @@ void main() {
         onEvent: (_) {},
         onBaton: (_) {},
       ).tellEvent(<String, Object?>{'went': 'down'});
-      wireB.tick();
+      wireB.step();
       baton.step();
       expect(feed.latest, isNull);
       expect(turns, <Map<String, Object?>>[
         <String, Object?>{'went': 'down'},
       ]);
       PeerFeed(wireA).tell(() => <String, Object?>{'x': 1});
-      wireB.tick();
+      wireB.step();
       baton.step();
       expect(feed.latest, <String, Object?>{'x': 1});
       expect(turns, hasLength(1));
@@ -517,7 +517,7 @@ void main() {
     for (var n = 0; n < 200; n++) {
       a.send(PeerSend(message: {'n': n}, reliable: n.isEven));
     }
-    b.tick();
+    b.step();
     expect(heard.whereType<int>().where((n) => n.isEven), hasLength(100));
     expect(a.lost, inInclusiveRange(30, 70));
     expect(heard, hasLength(200 - a.lost));

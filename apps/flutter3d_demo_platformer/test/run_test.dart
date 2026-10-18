@@ -80,7 +80,7 @@ void main() {
     final playing = it.run.status as RunPlaying<LevelReady>;
     expect(playing.asset, _first);
     expect(playing.level.sim.lives, 3);
-    expect(playing.level.sim.elapsed, 0.0);
+    expect(playing.level.sim.elapsedSeconds, 0.0);
   });
 
   test(
@@ -128,7 +128,7 @@ void main() {
 
         // Spend something on the first level, so there is a tally to carry.
         first.staged.step(1.0 / 60.0);
-        final spent = first.sim.elapsed;
+        final spent = first.sim.elapsedSeconds;
         expect(spent, greaterThan(0.0));
 
         // Reach the exit the way the game does — by saying so, because walking
@@ -144,7 +144,7 @@ void main() {
         );
         final second = playing.level;
         expect(
-          second.sim.elapsed,
+          second.sim.elapsedSeconds,
           greaterThanOrEqualTo(spent),
           reason: 'the clock started again on the second level',
         );
@@ -213,7 +213,7 @@ void main() {
 
       final second = (it.run.status as RunPlaying<LevelReady>).level;
       expect(
-        second.sim.elapsed,
+        second.sim.elapsedSeconds,
         greaterThan(1.0),
         reason: 'nothing was carried, so this proves nothing',
       );
@@ -223,7 +223,7 @@ void main() {
       final after = (it.run.status as RunPlaying<LevelReady>).level;
       expect(after.sim.lives, 3);
       expect(
-        after.sim.elapsed,
+        after.sim.elapsedSeconds,
         0.0,
         reason: 'the clock of the run before carried into a restart',
       );
@@ -250,7 +250,7 @@ void main() {
       await it.run.begin();
       final before = it.run.level!;
       final timeline = _played(it.run, input, steps: 90);
-      final elapsed = before.sim.elapsed;
+      final elapsed = before.sim.elapsedSeconds;
       final standing = before.runner.body.position.clone();
       final lastBrush = before.loaded.level.brushes.last.center.y;
       built.clear();
@@ -265,7 +265,7 @@ void main() {
       expect(after, isNot(same(before)));
       expect(after.loaded.level.brushes.last.center.y, lastBrush + 40.0);
       expect(
-        after.sim.elapsed,
+        after.sim.elapsedSeconds,
         closeTo(elapsed, 1e-9),
         reason: 'the run was lived again up to now',
       );

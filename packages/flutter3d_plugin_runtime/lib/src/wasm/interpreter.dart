@@ -207,7 +207,7 @@ final class _Instance extends WasmInstance {
         render.draw();
         return 0;
       case hostTime:
-        return f32Bits(render.time);
+        return f32Bits(render.timeSeconds);
       case hostViewSize:
         return i32(render.viewSize(args[0]));
       default:

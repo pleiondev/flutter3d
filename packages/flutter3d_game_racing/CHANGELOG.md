@@ -1,5 +1,18 @@
 ## 1.0.0-rc.1
 
+- **Breaking: a time in a `double` says seconds in its name.**
+  `GhostDocument.lapTime` is `GhostDocument.lapSeconds`, `RaceState.elapsed`
+  is `RaceState.elapsedSeconds`, `RacerProgress.lapTime` is
+  `RacerProgress.lapSeconds`, `RacerProgress.totalTime` is
+  `RacerProgress.totalSeconds` and `SectorCompleted.time` is
+  `SectorCompleted.timeSeconds`; the value and its unit are what they were.
+  `dart fix` carries each rename out.
+- **Breaking: `tick` goes.** `step` is the fixed simulation step, `update`
+  the variable frame and `advance` playback: `GhostRecorder.tick` is
+  `GhostRecorder.record`. `dart fix` renames the calls and the overrides.
+- **Breaking: no public `late final` setter.** `ChaseCamera.virtualCamera`
+  is a getter over a private field: the setter they had worked once and
+  threw the second time, and every read compiles as it did.
 - **Breaking: the racing genre's hooks take the engine's contexts.** The
   plugin's `stepSimulation`, `publishEvents` and `restoreSimulation` take
   a `GenreStepContext`, `GenrePublishContext` and `GenreRestoreContext`,

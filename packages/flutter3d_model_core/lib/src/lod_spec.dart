@@ -44,4 +44,14 @@ final class LodSettings {
   @override
   String toString() =>
       'LodSpec(ratio: $ratio, maxScreenFraction: $maxScreenFraction)';
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LodSettings &&
+          other.ratio == ratio &&
+          other.maxScreenFraction == maxScreenFraction;
+
+  @override
+  int get hashCode => Object.hash(ratio, maxScreenFraction);
 }

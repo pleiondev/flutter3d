@@ -60,7 +60,7 @@ final class MultibodyChainDemo extends ShowcaseDemo {
       return null;
     }
     try {
-      return NativeWorld()..setSleep(speed: 0.0, time: 0.0);
+      return NativeWorld()..setSleep(speed: 0.0, timeSeconds: 0.0);
     } on Object catch (e) {
       fallback = '$e';
       return null;

@@ -387,7 +387,7 @@ extension _TransparencyPasses on Renderer {
           viewIndex: _frameViewIndex(deferred.view),
           viewProjection: deferred.viewProjection,
           frameIndex: _frameIndex,
-          time: _seconds,
+          timeSeconds: _seconds,
           temporal: temporal,
           lights: _contributorLights,
           sceneDepth: plugin.readsSceneDepth ? sceneDepth : null,

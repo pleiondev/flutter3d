@@ -72,7 +72,7 @@ final class BehaviorBrain extends Brain implements HasBehaviorTree {
   }
 
   @override
-  void think(Mind it) => tree.tick(it, boardOf(it.actor));
+  void think(Mind it) => tree.step(it, boardOf(it.actor));
 
   @override
   void act(Mind it) {

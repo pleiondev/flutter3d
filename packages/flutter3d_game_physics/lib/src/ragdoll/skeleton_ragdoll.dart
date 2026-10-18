@@ -425,7 +425,7 @@ final class SkeletonRagdoll {
           ),
       ];
     }
-    ragdoll = NativeRagdoll(
+    _ragdoll = NativeRagdoll(
       world,
       rest,
       pose: now,
@@ -447,8 +447,10 @@ final class SkeletonRagdoll {
   /// Which joints became bodies and which ride on one.
   final RagdollProfile profile;
 
+  late final NativeRagdoll _ragdoll;
+
   /// The bodies, to strike one or ask whether they sleep.
-  late final NativeRagdoll ragdoll;
+  NativeRagdoll get ragdoll => _ragdoll;
 
   /// For each body, its joint in the skeleton; and back.
   final List<int> _jointOfBody = <int>[];

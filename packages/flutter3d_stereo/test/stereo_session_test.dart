@@ -65,7 +65,10 @@ void main() {
     );
     final frame = await session.waitFrame();
     final next = await session.waitFrame();
-    expect(next.predictedDisplayTime - frame.predictedDisplayTime, 1 / 60);
+    expect(
+      next.predictedDisplaySeconds - frame.predictedDisplaySeconds,
+      1 / 60,
+    );
     final right = frame.views[1].pose.position;
     expect(right.y, closeTo(1.6, 1e-6));
     // Mutation: place the eyes without turning them with the head and the
@@ -107,7 +110,7 @@ void main() {
     // Without a head pose the head is between the eyes.
     final bare = XrFrame(
       index: 0,
-      predictedDisplayTime: 0,
+      predictedDisplaySeconds: 0,
       space: XrSpace.local,
       views: frame.views,
     );

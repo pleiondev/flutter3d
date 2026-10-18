@@ -1,5 +1,9 @@
 ## 1.0.0-rc.1
 
+- **Breaking: a time in a `double` says seconds in its name.**
+  `Particle.age` is `Particle.ageSeconds` and `Particle.lifetime` is
+  `Particle.lifetimeSeconds`; the value and its unit are what they were.
+  `dart fix` carries each rename out.
 - **A particle above or below the eye fogs as the air there does.** Both
   contributors bind the height fog's falloff, and the stages integrate it
   along the ray, where a spark high over the camera fogged at the camera's

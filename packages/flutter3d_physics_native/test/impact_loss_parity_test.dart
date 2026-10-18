@@ -134,7 +134,7 @@ void main() {
       Dynamics(world: world)..sleepAfter = double.infinity;
   RigidDynamics core(CollisionWorld world) {
     final dynamics = NativeDynamics(world: world);
-    dynamics.native.setSleep(speed: 0.0, time: 0.0);
+    dynamics.native.setSleep(speed: 0.0, timeSeconds: 0.0);
     addTearDown(dynamics.dispose);
     return dynamics;
   }

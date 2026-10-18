@@ -257,8 +257,8 @@ final class RaceFinished extends GameEvent {
 /// this driver's own best for this sector, which is the one a driver is
 /// actually chasing.
 final class SectorCompleted extends RacerEvent {
-  /// [sector] finished by `racer` in [time], [delta] against their best.
-  const SectorCompleted(super.racer, this.sector, this.time, this.delta);
+  /// [sector] finished by `racer` in [timeSeconds], [delta] against their best.
+  const SectorCompleted(super.racer, this.sector, this.timeSeconds, this.delta);
 
   /// The name it is declared and published under.
   static const String eventName = 'racing.sectorCompleted';
@@ -270,7 +270,7 @@ final class SectorCompleted extends RacerEvent {
         encode: (SectorCompleted e) => <Object?>[
           e.racer.index,
           e.sector,
-          e.time,
+          e.timeSeconds,
           e.delta,
         ],
         decode: (_) => null,
@@ -280,7 +280,7 @@ final class SectorCompleted extends RacerEvent {
   final int sector;
 
   /// How long it took, in simulated seconds.
-  final double time;
+  final double timeSeconds;
 
   /// How much slower than this driver's best for this sector, or null when
   /// there was no best to compare against — which is every sector of a first

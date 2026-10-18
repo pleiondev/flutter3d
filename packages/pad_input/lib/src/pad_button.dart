@@ -98,6 +98,38 @@ final class PadButton {
   /// game that cannot be left.
   static const PadButton guide = PadButton('guide');
 
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<PadButton> values = <PadButton>[
+    faceSouth,
+    faceEast,
+    faceWest,
+    faceNorth,
+    dpadUp,
+    dpadDown,
+    dpadLeft,
+    dpadRight,
+    shoulderLeft,
+    shoulderRight,
+    triggerLeft,
+    triggerRight,
+    stickLeftClick,
+    stickRightClick,
+    start,
+    back,
+    guide,
+  ];
+
+  /// The value whose [id] is [name], or null for a name this
+  /// version does not know, which is what a file written by a later
+  /// version can carry.
+  static PadButton? byName(String name) {
+    for (final value in values) {
+      if (value.id == name) return value;
+    }
+    return null;
+  }
+
   /// Every button this file names, for a rebinding screen that wants to list
   /// them.
   ///

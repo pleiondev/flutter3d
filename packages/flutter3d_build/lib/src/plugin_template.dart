@@ -133,6 +133,15 @@ final class PluginKind {
     isPlugin: false,
   );
 
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static PluginKind? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   /// Every kind, in the order `--list` prints them.
   static const List<PluginKind> values = <PluginKind>[
     renderStep,
@@ -1365,7 +1374,7 @@ final class {{stem}}Device extends GraphicsDevice {
   /// compiler and a manifest match is fixed for good, and must not follow a
   /// later rewording of the name people read.
   @override
-  String get backendId => name;
+  BackendId get backendId => const BackendId(name);
 
   /// Little beyond the base contract: texture-to-texture copies, 32-bit
   /// float targets, which it holds as it holds every other, and 32-bit

@@ -64,6 +64,19 @@ final class BusChannel {
   /// not shown twice.
   static const BusChannel frame = BusChannel._('frame');
 
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<BusChannel> values = <BusChannel>[step, frame];
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static BusChannel? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   /// The channel's name, `step` or `frame`, as a declaration and a tool list
   /// write it.
   final String name;

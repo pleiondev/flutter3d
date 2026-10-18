@@ -52,7 +52,7 @@ final class _World {
       mechanisms: mechanisms,
       lives: lives,
       deaths: deaths,
-      elapsed: elapsed,
+      elapsedSeconds: elapsed,
       random: GameRandom(1),
     );
     sim.publishTo(heard.bus);
@@ -241,18 +241,18 @@ void _progressTests() {
     // Mutation: read `DateTime.now()`. The number stops being the same for the
     // same play, and a player whose machine stuttered is charged for it.
     final run = _World()..run(120);
-    expect(run.sim.elapsed, closeTo(2.0, 0.01));
+    expect(run.sim.elapsedSeconds, closeTo(2.0, 0.01));
   });
 
   test('and it stops once the run is over', () {
     final run = _World(lives: 1);
     run.run(60);
-    final atDeath = run.sim.elapsed;
+    final atDeath = run.sim.elapsedSeconds;
     _die(run);
     run.run(120);
 
     expect(run.sim.state, RunState.lost);
-    expect(run.sim.elapsed, closeTo(atDeath, 0.05));
+    expect(run.sim.elapsedSeconds, closeTo(atDeath, 0.05));
   });
 
   test('a save carries both', () {
@@ -262,7 +262,7 @@ void _progressTests() {
 
     final other = _World(lives: 3)..restore(saved);
     expect(other.sim.lives, run.sim.lives);
-    expect(other.sim.elapsed, closeTo(run.sim.elapsed, 1e-6));
+    expect(other.sim.elapsedSeconds, closeTo(run.sim.elapsedSeconds, 1e-6));
     expect(other.sim.deaths, run.sim.deaths);
   });
 
@@ -281,7 +281,7 @@ void _progressTests() {
 
       expect(world.sim.lives, 2);
       expect(world.sim.deaths, 5);
-      expect(world.sim.elapsed, 91.5);
+      expect(world.sim.elapsedSeconds, 91.5);
     });
 
     test('and goes on counting from there', () {
@@ -289,7 +289,7 @@ void _progressTests() {
 
       world.step();
 
-      expect(world.sim.elapsed, greaterThan(91.5));
+      expect(world.sim.elapsedSeconds, greaterThan(91.5));
       expect(world.sim.deaths, 5, reason: 'nothing died');
     });
 
@@ -304,7 +304,7 @@ void _progressTests() {
 
       expect(fresh.sim.lives, 2);
       expect(fresh.sim.deaths, 5);
-      expect(fresh.sim.elapsed, 91.5);
+      expect(fresh.sim.elapsedSeconds, 91.5);
     });
   });
 

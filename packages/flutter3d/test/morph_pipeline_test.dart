@@ -117,7 +117,7 @@ void main() {
 
       final seen = <List<double>>[];
       for (final time in <double>[0.0, 0.25, 0.5, 0.75, 1.0]) {
-        player.seek(time * player.clips.first.duration);
+        player.seek(time * player.clips.first.durationSeconds);
         seen.add(List<double>.of(node.morphWeights));
       }
 

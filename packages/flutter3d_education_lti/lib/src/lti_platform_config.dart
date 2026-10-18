@@ -68,4 +68,25 @@ final class LtiPlatformSettings {
   /// score. Null for a platform this tool only ever launches from without
   /// grading — `LtiLaunchValidator` never reads this field.
   final Uri? authTokenUrl;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LtiPlatformSettings &&
+          other.issuer == issuer &&
+          other.clientId == clientId &&
+          other.deploymentId == deploymentId &&
+          other.authLoginUrl == authLoginUrl &&
+          other.jwksUrl == jwksUrl &&
+          other.authTokenUrl == authTokenUrl;
+
+  @override
+  int get hashCode => Object.hash(
+    issuer,
+    clientId,
+    deploymentId,
+    authLoginUrl,
+    jwksUrl,
+    authTokenUrl,
+  );
 }

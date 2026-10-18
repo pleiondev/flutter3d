@@ -106,7 +106,7 @@ final class WidgetSurfaceDemo extends ShowcaseDemo {
     // not queued behind by another.
     if (!_uploading) {
       _uploading = true;
-      unawaited(_surface.tick().whenComplete(() => _uploading = false));
+      unawaited(_surface.update().whenComplete(() => _uploading = false));
     }
     // #endregion tick
   }

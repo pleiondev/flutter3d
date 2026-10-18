@@ -40,6 +40,15 @@ final class TelemetryLevel {
   /// Per node and per resource, counted and timed.
   static const TelemetryLevel timings = TelemetryLevel._('timings', 2);
 
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static TelemetryLevel? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   /// Every level, least first.
   static const List<TelemetryLevel> values = <TelemetryLevel>[
     off,

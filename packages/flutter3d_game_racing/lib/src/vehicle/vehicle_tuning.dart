@@ -232,4 +232,59 @@ final class VehicleSettings {
   /// Well below one because a wheel is light and a car is not: the wheels win,
   /// and the surplus is what appears as wheelspin on a loose surface.
   final double wheelInertia;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is VehicleSettings &&
+          other.radius == radius &&
+          other.rideHeight == rideHeight &&
+          other.maxSpeed == maxSpeed &&
+          other.maxReverse == maxReverse &&
+          other.enginePush == enginePush &&
+          other.brakeStrength == brakeStrength &&
+          other.rollingDrag == rollingDrag &&
+          other.airDrag == airDrag &&
+          other.slipstream == slipstream &&
+          other.rollingResistance == rollingResistance &&
+          other.holdSpeed == holdSpeed &&
+          other.holdSlope == holdSlope &&
+          other.maxSteer == maxSteer &&
+          other.steerFalloff == steerFalloff &&
+          other.wheelBase == wheelBase &&
+          other.impactShrugged == impactShrugged &&
+          other.impactCost == impactCost &&
+          other.powerLostWhenWrecked == powerLostWhenWrecked &&
+          other.speedLostWhenWrecked == speedLostWhenWrecked &&
+          other.groundStick == groundStick &&
+          other.suspensionRate == suspensionRate &&
+          other.slideAlignment == slideAlignment &&
+          other.wheelInertia == wheelInertia;
+
+  @override
+  int get hashCode => Object.hashAll(<Object?>[
+    radius,
+    rideHeight,
+    maxSpeed,
+    maxReverse,
+    enginePush,
+    brakeStrength,
+    rollingDrag,
+    airDrag,
+    slipstream,
+    rollingResistance,
+    holdSpeed,
+    holdSlope,
+    maxSteer,
+    steerFalloff,
+    wheelBase,
+    impactShrugged,
+    impactCost,
+    powerLostWhenWrecked,
+    speedLostWhenWrecked,
+    groundStick,
+    suspensionRate,
+    slideAlignment,
+    wheelInertia,
+  ]);
 }

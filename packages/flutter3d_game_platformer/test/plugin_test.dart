@@ -126,11 +126,11 @@ void main() {
       loop.events.onStep<GameEvent>('test', (d) => heard.add(d.event.name));
 
       loop.runSteps(3);
-      expect(staged.sim.elapsed, 0.0, reason: 'no run is attached yet');
+      expect(staged.sim.elapsedSeconds, 0.0, reason: 'no run is attached yet');
 
       plugin.simulation = staged.sim;
       loop.runSteps(30);
-      expect(staged.sim.elapsed, closeTo(30 * loop.stepSeconds, 1e-9));
+      expect(staged.sim.elapsedSeconds, closeTo(30 * loop.stepSeconds, 1e-9));
 
       // An event the run publishes inside a step reaches the step channel:
       // the runner's bus is the engine's while the run is the genre's.
@@ -146,10 +146,10 @@ void main() {
 
       // Swapped away, the old run neither steps nor speaks.
       plugin.simulation = null;
-      final before = staged.sim.elapsed;
+      final before = staged.sim.elapsedSeconds;
       say = true;
       loop.runSteps(5);
-      expect(staged.sim.elapsed, before);
+      expect(staged.sim.elapsedSeconds, before);
       expect(
         heard,
         hasLength(spoken),
@@ -176,9 +176,9 @@ void main() {
       expect(loop.systemsIn(LoopPhase.physics), isEmpty);
       expect(loop.events.declared.where((d) => d.declaredBy != 'app'), isEmpty);
       expect(kinds.types, isEmpty);
-      final before = staged.sim.elapsed;
+      final before = staged.sim.elapsedSeconds;
       loop.runSteps(10);
-      expect(staged.sim.elapsed, before);
+      expect(staged.sim.elapsedSeconds, before);
     });
   });
 

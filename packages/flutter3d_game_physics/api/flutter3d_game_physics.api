@@ -196,12 +196,12 @@ final class SideRecording
   void settled(int step, Snapshot after)
 
 final class SkeletonRagdoll
+  NativeRagdoll get ragdoll
   RagdollLying lying()
   SkeletonRagdoll({required this.skeleton, required Matrix4 meshWorld, required NativeWorld world, this.profile = RagdollProfile.quaternius, double mass = referenceBodyMass, List<Matrix4>? previous, double dt = 1.0 / 60.0, JointTissue tissue = JointTissue.human, MuscleTone? tone = MuscleTone.human, NativeDynamics? dynamics, int layer = 1, int mask = 0xffffffff})
   final RagdollProfile profile
   final Skeleton skeleton
   int? bodyNamed(String name)
-  late final NativeRagdoll ragdoll
   void apply({double weight = 1.0})
   void dispose()
 
@@ -344,12 +344,12 @@ final class RagdollTailLength
   int get hashCode
 
 final class SkeletonRagdoll
+  NativeRagdoll get ragdoll
   RagdollLying lying()
   SkeletonRagdoll({required this.skeleton, required Matrix4 meshWorld, required NativeWorld world, this.profile = RagdollProfile.quaternius, double mass = referenceBodyMass, List<Matrix4>? previous, double dt = 1.0 / 60.0, JointTissue tissue = JointTissue.human, MuscleTone? tone = MuscleTone.human, NativeDynamics? dynamics, int layer = 1, int mask = 0xffffffff})
   final RagdollProfile profile
   final Skeleton skeleton
   int? bodyNamed(String name)
-  late final NativeRagdoll ragdoll
   void apply({double weight = 1.0})
   void dispose()
 

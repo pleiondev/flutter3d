@@ -44,9 +44,18 @@ final class AnimationBlend {
   /// For a clip authored as a *difference*: a breath, a recoil, a lean, a
   /// flinch. Playing one of these on its own poses a character into a shape
   /// nobody wants, which is the sign that it is additive — and the reason it
-  /// needs [AnimationClip.referenceTime] to say what it is a difference
+  /// needs [AnimationClip.referenceSeconds] to say what it is a difference
   /// *from*.
   static const AnimationBlend additive = AnimationBlend._('additive');
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static AnimationBlend? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
 
   /// Every blend.
   static const List<AnimationBlend> values = <AnimationBlend>[
@@ -73,7 +82,7 @@ final class AnimationBlend {
 /// layer covers a joint and has a track for it, the layer's value replaces the
 /// base's, faded by [weight]. [AnimationBlend.additive] instead takes the
 /// distance between the clip at this moment and the clip at its own
-/// [AnimationClip.referenceTime] and lays that *on top of* the base — which is
+/// [AnimationClip.referenceSeconds] and lays that *on top of* the base — which is
 /// what a breath over a walk, a recoil over an aim and a lean over a run all
 /// want, and what an override can never be: an overriding breath stops the
 /// walk for as long as it lasts.
@@ -93,6 +102,8 @@ final class AnimationBlend {
 /// here rather than in the caller because every caller would write the same
 /// four lines and one of them would forget to clamp.
 final class AnimationLayer {
+  /// A layer playing [clip] over [mask] (the whole skeleton when null) at
+  /// full weight, looping at normal speed and replacing the pose beneath.
   AnimationLayer({
     required this.clip,
     AnimationMask? mask,
@@ -104,13 +115,11 @@ final class AnimationLayer {
 
   /// Index into the player's clips.
   int clip;
-  /// A layer playing [clip] over [mask] (the whole skeleton when null) at
-  /// full weight, looping at normal speed and replacing the pose beneath.
 
   /// Whether this layer replaces the base's pose or adds to it — `gfx-10n`.
   ///
   /// [AnimationBlend.additive] needs the clip to name an
-  /// [AnimationClip.referenceTime]; without one there is nothing to measure a
+  /// [AnimationClip.referenceSeconds]; without one there is nothing to measure a
   /// delta from and the player falls back to overriding, which is the answer
   /// that at least shows the clip rather than silently posing nothing.
   AnimationBlend blend;
@@ -133,9 +142,11 @@ final class AnimationLayer {
   double speed;
 
   /// Where the layer's own playhead is, in seconds.
-  double get time => _time;
+  double get timeSeconds => _time;
   double _time = 0.0;
 
+  /// Whether the layer's playhead is advancing; true until a clip that does
+  /// not loop reaches its end.
   bool get isPlaying => _playing;
   bool _playing = true;
 
@@ -147,8 +158,6 @@ final class AnimationLayer {
 
   /// Whether the layer has finished a `once` clip and gone quiet.
   bool get isFinished => !_playing && wrap == AnimationWrap.once;
-  /// Whether the layer's playhead is advancing; true until a clip that does
-  /// not loop reaches its end.
 
   /// Rewinds to the start and plays again.
   void restart() {
@@ -191,13 +200,13 @@ final class AnimationLayer {
     if (!_playing || clipDuration <= 0.0) return;
 
     final advanced = advanceTime(
-      time: _time,
+      seconds: _time,
       deltaSeconds: deltaSeconds * speed,
       length: clipDuration,
       wrap: wrap,
       reversing: _reversing,
     );
-    _time = advanced.time;
+    _time = advanced.timeSeconds;
     _reversing = advanced.reversing;
     if (advanced.stopped) _playing = false;
   }
@@ -228,19 +237,19 @@ final class AnimationLayer {
 /// Where a playhead landed after [advanceTime]'s step, and what the wrap
 /// did to it.
 final class PlayheadStep {
+  /// A step that left the playhead at [timeSeconds] seconds, running backwards when
+  /// [reversing], and at an end when [stopped].
   const PlayheadStep({
-    required this.time,
+    required this.timeSeconds,
     required this.reversing,
     required this.stopped,
   });
 
   /// The playhead, in seconds into the clip.
-  final double time;
+  final double timeSeconds;
 
   /// Whether it now runs backwards: a ping-pong turned it, or it already
   /// did.
-  /// A step that left the playhead at [time] seconds, running backwards when
-  /// [reversing], and at an end when [stopped].
   final bool reversing;
 
   /// Whether a clip played once reached its end and stopped there.
@@ -255,22 +264,26 @@ final class PlayheadStep {
 /// bug that produces is a layer that drifts against the clip it is supposed to
 /// be in step with.
 PlayheadStep advanceTime({
-  required double time,
+  required double seconds,
   required double deltaSeconds,
   required double length,
   required AnimationWrap wrap,
   required bool reversing,
 }) {
-  var next = time + deltaSeconds * (reversing ? -1.0 : 1.0);
+  var next = seconds + deltaSeconds * (reversing ? -1.0 : 1.0);
   var turned = reversing;
 
   switch (wrap) {
     case AnimationWrap.once:
       if (next >= length) {
-        return PlayheadStep(time: length, reversing: turned, stopped: true);
+        return PlayheadStep(
+          timeSeconds: length,
+          reversing: turned,
+          stopped: true,
+        );
       }
       if (next <= 0.0) {
-        return PlayheadStep(time: 0.0, reversing: turned, stopped: true);
+        return PlayheadStep(timeSeconds: 0.0, reversing: turned, stopped: true);
       }
 
     case AnimationWrap.loop:
@@ -293,7 +306,7 @@ PlayheadStep advanceTime({
       throw UnsupportedError('no wrap rule for $wrap');
   }
 
-  return PlayheadStep(time: next, reversing: turned, stopped: false);
+  return PlayheadStep(timeSeconds: next, reversing: turned, stopped: false);
 }
 
 /// Shortest-arc interpolation between two rotations, [t] of the way from

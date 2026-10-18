@@ -74,7 +74,7 @@ void main() {
         glass.place(
           Matrix3.identity(),
           Vector3(0.2 * seconds, 0, 0),
-          time: world.time + frame,
+          timeSeconds: world.timeSeconds + frame,
         );
         world.advance(frame);
         worst = math.max(worst, glass.surface.reach);

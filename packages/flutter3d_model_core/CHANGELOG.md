@@ -1,5 +1,14 @@
 ## 1.0.0-rc.1
 
+- **Breaking: a time in a `double` says seconds in its name.**
+  `CurveSample.time` is `CurveSample.timeSeconds`, `KeyShape.time` is
+  `KeyShape.timeSeconds`, `KeyTable.duration` is `KeyTable.durationSeconds`,
+  `Keyframe.time` is `Keyframe.timeSeconds`, `MoveKeys.deltaTime` is
+  `MoveKeys.deltaSeconds`, `SetKey.time` is `SetKey.timeSeconds`,
+  `evaluateShapeDriversLive(… time:)` takes `timeSeconds:`,
+  `resolveIkConstraint(… time:)` takes `timeSeconds:` and
+  `resolveLookAtConstraint(… time:)` takes `timeSeconds:`; the value and its
+  unit are what they were. `dart fix` carries each rename out.
 - **The project, its history and the material commands read the engine's
   lighting models.** `readProject`, `CommandJournal.replay` and
   `modelCommandFromJson` take `lightingModels:` (`Renderer.lightingModels`),

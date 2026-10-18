@@ -94,7 +94,7 @@ final class RestPoller {
         return;
       }
       _lastError = null;
-      final taken = reading.sourceTime;
+      final taken = reading.sourceSeconds;
       if (taken != null && taken == _lastTaken) return;
       _lastTaken = taken;
       _latest = reading;

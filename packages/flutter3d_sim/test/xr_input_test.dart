@@ -86,10 +86,10 @@ void main() {
   group('poses', () {
     test('a pose is seven numbers and back, bit for bit', () {
       final pose = _headAt(13);
-      final input = pose.toInput(XrPoseSources.head, displayTime: 4.5);
+      final input = pose.toInput(XrPoseSources.head, displaySeconds: 4.5);
       expect(input.value, hasLength(7));
       expect(input.kind, ReadingKind.predicted);
-      expect(input.sourceTime, 4.5);
+      expect(input.sourceSeconds, 4.5);
       final back = XrPoseInput.fromInput(
         ExternalStateInput.fromJson(jsonDecode(jsonEncode(input.toJson()))),
       );
@@ -220,7 +220,7 @@ void main() {
     test('a plane is input and back, and a collider under its top', () {
       final back = XrPlane.fromInput(
         ExternalStateInput.fromJson(
-          jsonDecode(jsonEncode(table.toInput(displayTime: 2.0).toJson())),
+          jsonDecode(jsonEncode(table.toInput(displaySeconds: 2.0).toJson())),
         ),
       );
       expect(back.id, 'table-1');

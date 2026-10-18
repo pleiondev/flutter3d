@@ -26,7 +26,7 @@ final class Tape {
 
   /// How long the recording runs for, which is not always [seconds]: the last
   /// sample lands before the finish rather than on it.
-  double get duration => poses.isEmpty ? 0.0 : poses.last.time;
+  double get durationSeconds => poses.isEmpty ? 0.0 : poses.last.timeSeconds;
 
   /// **A tape does not write itself down, and that is not an omission.**
   ///

@@ -46,6 +46,15 @@ final class ModelFormat {
   /// STL, binary or text.
   static const ModelFormat stl = ModelFormat('stl');
 
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static ModelFormat? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   /// The engine's own values, in the order the enum had them.
   static const List<ModelFormat> values = <ModelFormat>[
     auto,

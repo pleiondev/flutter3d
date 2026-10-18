@@ -113,7 +113,9 @@ void main() {
           source: const FileAssetSource('assets_src/models/monster_runner.glb'),
         ),
       );
-      final run = doc.animations.firstWhere((c) => c.name == 'Run').duration;
+      final run = doc.animations
+          .firstWhere((c) => c.name == 'Run')
+          .durationSeconds;
       final cycles = 3.0 / run;
       expect(
         steps,

@@ -134,7 +134,7 @@ void main() {
     final afterRelaunch = await _loaded(_keeper(storage));
 
     expect(afterRelaunch.best, isNotNull);
-    expect(afterRelaunch.best!.lapTime, closeTo(4.0, 1e-3));
+    expect(afterRelaunch.best!.lapSeconds, closeTo(4.0, 1e-3));
     // Eighty metres is where four seconds at twenty a second ends; the last
     // sample lands a fifteenth of a second short of the line, which is why the
     // tape carries the lap time separately from its own last stamp.
@@ -160,9 +160,9 @@ void main() {
     _drive(keeper, seconds: 9.0, from: 500.0);
     expect(keeper.finished(9.0), isFalse);
 
-    expect(keeper.best!.lapTime, closeTo(4.0, 1e-3));
+    expect(keeper.best!.lapSeconds, closeTo(4.0, 1e-3));
     expect(
-      (await _loaded(_keeper(storage))).best!.lapTime,
+      (await _loaded(_keeper(storage))).best!.lapSeconds,
       closeTo(4.0, 1e-3),
       reason: 'the disk kept the slow lap even though memory did not',
     );
@@ -185,7 +185,7 @@ void main() {
       closeTo(500.0, 0.5),
       reason: 'the new lap starts where the old one did',
     );
-    expect(keeper.best!.poses.first.time, closeTo(0.0, 1e-6));
+    expect(keeper.best!.poses.first.timeSeconds, closeTo(0.0, 1e-6));
   });
 
   test('and a lap nobody really drove is not kept', () {
@@ -251,13 +251,13 @@ void main() {
       final car = _Car();
       final player = RacerProgress(index: 0);
       for (var step = 0; step * (1 / 60.0) < seconds; step++) {
-        player.lapTime = step / 60.0;
-        car.position.setValues(from + player.lapTime * 20.0, 0.0, 0.0);
+        player.lapSeconds = step / 60.0;
+        car.position.setValues(from + player.lapSeconds * 20.0, 0.0, 0.0);
         keeper.stepped(player, car, false);
       }
       player
         ..lastLap = seconds
-        ..lapTime = 0.0;
+        ..lapSeconds = 0.0;
       keeper.stepped(player, car, true);
       return keeper;
     }
@@ -275,7 +275,7 @@ void main() {
 
       final tape = keeper.best!;
       expect(
-        tape.poses.last.time,
+        tape.poses.last.timeSeconds,
         greaterThan(3.0),
         reason: 'the tape ends before it began',
       );
@@ -297,13 +297,14 @@ void main() {
       lapThrough(keeper, seconds: 3.0, best: true, from: 500.0);
 
       final tape = keeper.best!;
-      expect(tape.poses.first.time, closeTo(0.0, 1e-6));
+      expect(tape.poses.first.timeSeconds, closeTo(0.0, 1e-6));
       expect(
-        tape.poses.last.time,
+        tape.poses.last.timeSeconds,
         closeTo(3.0, 0.2),
-        reason: 'the second tape is ${tape.poses.last.time}s of recording',
+        reason:
+            'the second tape is ${tape.poses.last.timeSeconds}s of recording',
       );
-      expect(tape.lapTime, closeTo(3.0, 1e-6));
+      expect(tape.lapSeconds, closeTo(3.0, 1e-6));
     });
   });
 
@@ -347,7 +348,7 @@ void main() {
       _drive(keeper, seconds: 4.0);
       keeper.finished(4.0);
 
-      expect(keeper.record, keeper.best!.lapTime);
+      expect(keeper.record, keeper.best!.lapSeconds);
     });
 
     test('and a lap that beats it says so, once', () {
@@ -360,8 +361,8 @@ void main() {
       final player = RacerProgress(index: 0);
 
       for (var step = 0; step * (1 / 60.0) < 4.0; step++) {
-        player.lapTime = step / 60.0;
-        car.position.setValues(player.lapTime * 20.0, 0.0, 0.0);
+        player.lapSeconds = step / 60.0;
+        car.position.setValues(player.lapSeconds * 20.0, 0.0, 0.0);
         expect(
           keeper.stepped(player, car, false),
           isFalse,
@@ -370,7 +371,7 @@ void main() {
       }
       player
         ..lastLap = 4.0
-        ..lapTime = 0.0;
+        ..lapSeconds = 0.0;
 
       expect(keeper.stepped(player, car, true), isTrue);
 
@@ -390,13 +391,13 @@ void main() {
       final car = _Car();
       final player = RacerProgress(index: 0);
       for (var step = 0; step * (1 / 60.0) < 6.0; step++) {
-        player.lapTime = step / 60.0;
-        car.position.setValues(500.0 + player.lapTime * 20.0, 0.0, 0.0);
+        player.lapSeconds = step / 60.0;
+        car.position.setValues(500.0 + player.lapSeconds * 20.0, 0.0, 0.0);
         keeper.stepped(player, car, false);
       }
       player
         ..lastLap = 6.0
-        ..lapTime = 0.0;
+        ..lapSeconds = 0.0;
 
       expect(keeper.stepped(player, car, true), isFalse);
       expect(keeper.record, closeTo(4.0, 1e-3));
@@ -474,8 +475,8 @@ void main() {
       final tape = GhostTape(
         seconds: 1.0,
         poses: <GhostFrame>[
-          GhostFrame(time: 0.0)..up.setValues(1.0, 0.0, 0.0),
-          GhostFrame(time: 1.0)..up.setValues(1.0, 0.0, 0.0),
+          GhostFrame(timeSeconds: 0.0)..up.setValues(1.0, 0.0, 0.0),
+          GhostFrame(timeSeconds: 1.0)..up.setValues(1.0, 0.0, 0.0),
         ],
       );
       final ghost = Ghost(SceneNode(name: 'ghost'));

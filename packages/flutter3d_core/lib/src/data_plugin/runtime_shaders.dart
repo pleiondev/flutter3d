@@ -1089,7 +1089,7 @@ final class _ProgramFrame extends RenderProgramFrame {
 
   /// The frame's time, in seconds.
   @override
-  double get time => _frame.time;
+  double get time => _frame.timeSeconds;
 
   @override
   int get width => _frame.width;

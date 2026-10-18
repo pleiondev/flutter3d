@@ -56,7 +56,7 @@ final class ClipPlaybackDemo extends ShowcaseDemo {
       targets: <AnimationTarget?>[cube],
     );
     _player.play(index: 0);
-    _player.crossFadeTo(1, duration: 0.4);
+    _player.crossFadeTo(1, durationSeconds: 0.4);
     // #endregion player
 
     return Scene()

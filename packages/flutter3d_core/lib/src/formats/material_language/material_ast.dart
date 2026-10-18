@@ -387,6 +387,23 @@ final class MaterialStageKind {
   /// A kernel run once per texel of a storage texture it writes.
   static const MaterialStageKind compute = MaterialStageKind._('compute');
 
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<MaterialStageKind> values = <MaterialStageKind>[
+    surface,
+    fullscreen,
+    compute,
+  ];
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static MaterialStageKind? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   /// Every kind this version knows, in declaration order.
   static const List<MaterialStageKind> all = <MaterialStageKind>[
     surface,
@@ -444,6 +461,17 @@ final class MaterialBlend {
     'premultiplied',
     translucent: true,
   );
+
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<MaterialBlend> values = <MaterialBlend>[
+    opaque,
+    mask,
+    hashed,
+    alpha,
+    additive,
+    premultiplied,
+  ];
 
   /// Every blend this version knows, in declaration order.
   static const List<MaterialBlend> all = <MaterialBlend>[

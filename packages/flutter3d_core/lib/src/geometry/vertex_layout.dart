@@ -163,6 +163,8 @@ final class VertexLayout {
   /// Size of one vertex in bytes, four per float.
   int get strideInBytes => floatsPerVertex * 4;
 
+  /// Whether the layout holds an attribute of [attribute]'s name; the
+  /// component count is not compared.
   bool has(VertexAttribute attribute) => floatOffsetOf(attribute.name) >= 0;
 
   /// Offset of an attribute within a vertex, in floats. `-1` when absent.

@@ -48,19 +48,19 @@ base class ChaseBrain extends Brain {
   /// that is fired.
   final WeaponShot shot;
 
-  /// Which of its states the monster is in; [stateTime] counts from the
+  /// Which of its states the monster is in; [stateSeconds] counts from the
   /// moment it entered it.
   MonsterState state = MonsterState.idle;
 
   /// Seconds in the current state, for animation and for timing out of
   /// [MonsterState.hurt] and [MonsterState.alert].
-  double stateTime = 0.0;
+  double stateSeconds = 0.0;
 
   /// Seconds until it may attack again.
-  double attackCooldown = 0.0;
+  double attackCooldownSeconds = 0.0;
 
   /// Seconds until it may be staggered again.
-  double painCooldown = 0.0;
+  double painCooldownSeconds = 0.0;
 
   /// True once it has noticed the player, and it never goes back to false.
   ///
@@ -144,7 +144,7 @@ base class ChaseBrain extends Brain {
         return;
 
       case MonsterState.alert:
-        if (stateTime >= def.alertDuration * difficulty.opponentReaction) {
+        if (stateSeconds >= def.alertSeconds * difficulty.opponentReaction) {
           _enter(MonsterState.chase);
         }
 
@@ -173,9 +173,9 @@ base class ChaseBrain extends Brain {
   @override
   void act(Mind it) {
     _readTarget(it);
-    stateTime += it.dt;
-    attackCooldown = math.max(0.0, attackCooldown - it.dt);
-    painCooldown = math.max(0.0, painCooldown - it.dt);
+    stateSeconds += it.dt;
+    attackCooldownSeconds = math.max(0.0, attackCooldownSeconds - it.dt);
+    painCooldownSeconds = math.max(0.0, painCooldownSeconds - it.dt);
 
     switch (state) {
       case MonsterState.idle:
@@ -183,7 +183,7 @@ base class ChaseBrain extends Brain {
         break;
 
       case MonsterState.hurt:
-        if (stateTime >= def.hurtDuration) _enter(MonsterState.chase);
+        if (stateSeconds >= def.hurtSeconds) _enter(MonsterState.chase);
 
       case MonsterState.alert:
         it.turnTowards(_toTarget.x, _toTarget.z);
@@ -207,7 +207,7 @@ base class ChaseBrain extends Brain {
 
       case MonsterState.attack:
         it.turnTowards(_toTarget.x, _toTarget.z);
-        if (attackCooldown <= 0.0) _attack(it);
+        if (attackCooldownSeconds <= 0.0) _attack(it);
 
       // A state this brain does not know: it moves nothing and turns nothing,
       // for the reason `think` gives. The monster still steps — gravity and
@@ -236,11 +236,11 @@ base class ChaseBrain extends Brain {
       }
     }
     if (isResting) _enter(MonsterState.chase);
-    if (painCooldown <= 0.0 &&
+    if (painCooldownSeconds <= 0.0 &&
         state != MonsterState.hurt &&
         it.random.nextDouble() < def.painChance) {
       _enter(MonsterState.hurt);
-      painCooldown = def.hurtDuration + def.painCooldown;
+      painCooldownSeconds = def.hurtSeconds + def.painCooldownSeconds;
       // Recorded after the roll, so a caller can tell a monster that flinched
       // from one that took the hit and kept coming — which is the difference
       // between a grunt and a scream.
@@ -271,7 +271,7 @@ base class ChaseBrain extends Brain {
 
   void _attack(Mind it) {
     final weapon = def.attack;
-    attackCooldown = weapon.cooldown;
+    attackCooldownSeconds = weapon.cooldownSeconds;
 
     if (!it.actor.eyeLevel(_eye)) return;
     // At whatever it is dealing with — the player, or the one it has turned
@@ -368,7 +368,7 @@ base class ChaseBrain extends Brain {
   void _enter(MonsterState next) {
     if (state == next) return;
     state = next;
-    stateTime = 0.0;
+    stateSeconds = 0.0;
     if (next == MonsterState.alert || next == MonsterState.chase) {
       hasNoticed = true;
     }
@@ -377,9 +377,9 @@ base class ChaseBrain extends Brain {
   @override
   Map<String, Object?> save() => <String, Object?>{
     'state': state.name,
-    'stateTime': stateTime,
-    'attackCooldown': attackCooldown,
-    'painCooldown': painCooldown,
+    'stateTime': stateSeconds,
+    'attackCooldown': attackCooldownSeconds,
+    'painCooldown': painCooldownSeconds,
     'noticed': hasNoticed,
   };
 
@@ -391,9 +391,9 @@ base class ChaseBrain extends Brain {
     // through a save this package wrote.
     final named = from['state'];
     if (named is String && named.isNotEmpty) state = MonsterState(named);
-    stateTime = (from['stateTime'] as num?)?.toDouble() ?? 0.0;
-    attackCooldown = (from['attackCooldown'] as num?)?.toDouble() ?? 0.0;
-    painCooldown = (from['painCooldown'] as num?)?.toDouble() ?? 0.0;
+    stateSeconds = (from['stateTime'] as num?)?.toDouble() ?? 0.0;
+    attackCooldownSeconds = (from['attackCooldown'] as num?)?.toDouble() ?? 0.0;
+    painCooldownSeconds = (from['painCooldown'] as num?)?.toDouble() ?? 0.0;
     hasNoticed = from['noticed'] == true;
   }
 }

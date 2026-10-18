@@ -107,6 +107,7 @@ final class ActorCue
 final class ActorCueKind
   String toString()
   final String name
+  static ActorCueKind? byName(String name)
   static const ActorCueKind face = ActorCueKind._('face')
   static const ActorCueKind goTo = ActorCueKind._('goTo')
   static const ActorCueKind play = ActorCueKind._('play')
@@ -276,12 +277,12 @@ final class BehaviorBrain extends Brain implements HasBehaviorTree
   void think(Mind it)
 
 final class BehaviorChildren
-  BehaviorStatus tick(BehaviorContext context, int index)
+  BehaviorStatus step(BehaviorContext context, int index)
   String labelOf(int index)
   int get length
 
 abstract base class BehaviorComposite
-  abstract BehaviorStatus tick(BehaviorCompositeTick tick)
+  abstract BehaviorStatus step(BehaviorCompositeTick tick)
   const BehaviorComposite()
 
 final class BehaviorCompositeTick
@@ -319,7 +320,7 @@ final class BehaviorKindsRegistry extends PluginRegistry
 
 abstract base class BehaviorLeaf
   Vector3? goal(BehaviorView view)
-  abstract BehaviorStatus tick(BehaviorContext context)
+  abstract BehaviorStatus step(BehaviorContext context)
   const BehaviorLeaf()
   void act(BehaviorContext context)
 
@@ -342,7 +343,7 @@ final class BehaviorStatus
   static const List<BehaviorStatus> values = <BehaviorStatus>[success, failure, running]
 
 final class BehaviorTree
-  BehaviorStatus tick(Mind mind, Blackboard board)
+  BehaviorStatus step(Mind mind, Blackboard board)
   List<BehaviorPathStep> pathOf(Blackboard board)
   Vector3? goalOf(BehaviorView view)
   final Map<String, Object?> json
@@ -712,11 +713,13 @@ final class Difficulty
   final double damageTaken
   final double opponentReaction
   int get hashCode
+  static Difficulty? byName(String name)
   static const Difficulty gentle = Difficulty('gentle', damageTaken: 0.5, damageDealt: 1.5, opponentReaction: 1.5, assistance: 1.0)
   static const Difficulty hard = Difficulty('hard', damageTaken: 1.5, opponentReaction: 0.7)
   static const Difficulty normal = Difficulty('normal')
   static const Difficulty punishing = Difficulty('punishing', damageTaken: 2.5, damageDealt: 0.75, opponentReaction: 0.5)
   static const List<Difficulty> offered = <Difficulty>[gentle, normal, hard, punishing]
+  static const List<Difficulty> values = <Difficulty>[gentle, normal, hard, punishing]
 
 final class DigestTrace
   DigestTrace({this.every = 25})
@@ -784,8 +787,10 @@ final class DualAxisAction implements InputAction<Vector2>
   final String name
   final bool isDelta
   int get hashCode
+  static DualAxisAction? byName(String name)
   static const DualAxisAction look = DualAxisAction('look', isDelta: true)
   static const DualAxisAction move = DualAxisAction('move')
+  static const List<DualAxisAction> values = <DualAxisAction>[move, look]
 
 final class DualAxisValue
   String toString()
@@ -839,6 +844,7 @@ final class EngineLoop extends LoopRegistry
   List<UnorderedAccess> unorderedAccess()
   List<int> get keptSteps
   LoopRegistry forPlugin(PluginScope scope)
+  PluginManager get plugins
   PublishedState get published
   Registration addAssimilation(String name, Assimilation assimilation, {List<String> after = const <String>[], List<String> before = const <String>[]})
   Registration addPhase(LoopPhase phase, {List<String> after = const <String>[], List<String> before = const <String>[]})
@@ -851,6 +857,7 @@ final class EngineLoop extends LoopRegistry
   Registration shiftsPhysics(CollisionWorld world)
   SimulationVersion get simulationVersion
   Snapshot capture()
+  Snapshots get snapshots
   SubsystemRegistry get subsystems
   TimeSource time
   WorldPosition get origin
@@ -881,8 +888,6 @@ final class EngineLoop extends LoopRegistry
   int get lostSteps
   int get step
   int? frameAtVsync(Duration vsync, {double? seconds})
-  late final PluginManager plugins
-  late final Snapshots snapshots
   set timeScale(double scale)
   void changeTiming(WorldTiming timing)
   void keep({required int window, int every = 1})
@@ -1165,6 +1170,7 @@ final class GameAction implements InputAction<bool>
   const GameAction(this.name)
   final String name
   int get hashCode
+  static GameAction? byName(String name)
   static const GameAction jump = GameAction('jump')
   static const GameAction moveBack = GameAction('moveBack')
   static const GameAction moveForward = GameAction('moveForward')
@@ -1173,6 +1179,7 @@ final class GameAction implements InputAction<bool>
   static const GameAction sprint = GameAction('sprint')
   static const GameAction use = GameAction('use')
   static const List<GameAction> common = <GameAction>[moveForward, moveBack, moveLeft, moveRight, sprint, jump, use]
+  static const List<GameAction> values = <GameAction>[moveForward, moveBack, moveLeft, moveRight, sprint, jump, use]
 
 abstract base class GameEvent extends BusEvent
   abstract String get name
@@ -1242,9 +1249,9 @@ abstract final class GeometryTolerance
   static const double zeroLength = 1e-6
 
 final class GhostFrame
-  GhostFrame({this.time = 0.0, this.yaw = 0.0})
+  GhostFrame({this.timeSeconds = 0.0, this.yaw = 0.0})
   Map<String, Object?> toJson()
-  double time
+  double timeSeconds
   double yaw
   factory GhostFrame.fromJson(Map<String, Object?> json)
   final Vector3 position
@@ -2065,6 +2072,7 @@ abstract base class Mover extends Mechanism
 final class MoverState
   String toString()
   final String name
+  static MoverState? byName(String name)
   static const List<MoverState> values = <MoverState>[closed, opening, open, closing]
   static const MoverState closed = MoverState._('closed')
   static const MoverState closing = MoverState._('closing')
@@ -2183,6 +2191,7 @@ final class NavMeshSettings
   List<double> get values
   NavMeshSettings copyWith({double? cellSize, double? cellHeight, double? agentHeight, double? stepHeight, double? agentRadius, double? maxSlope, double? maxEdgeError, int? maxVerticesPerPolygon, double? minIslandArea, int? tileSize})
   NavMeshSettings withBody({required double radius, required double height})
+  bool operator ==(Object other)
   const NavMeshSettings({this.cellSize = 0.5, this.cellHeight = 0.1, this.agentHeight = 1.7, this.stepHeight = 0.4, this.agentRadius = 0.3, this.maxSlope = 0.698, this.maxEdgeError = 1.3, this.maxVerticesPerPolygon = 6, this.minIslandArea = 0.0, this.tileSize = 0})
   final double agentHeight
   final double agentRadius
@@ -2195,6 +2204,7 @@ final class NavMeshSettings
   final int maxVerticesPerPolygon
   final int tileSize
   int get erosion
+  int get hashCode
   int get minIslandCells
   int get walkableClimb
   int get walkableHeight
@@ -2418,18 +2428,18 @@ final class PublishedWorlds extends PluginRegistry
   Registration add(EcsWorld world)
 
 final class PulseLight extends LightBehavior
-  const PulseLight({this.depth = 0.35, this.period = 3.5})
+  const PulseLight({this.depth = 0.35, this.periodSeconds = 3.5})
   double at(double time, double seed)
   final double depth
-  final double period
+  final double periodSeconds
 
 final class Recorder
   Recorder({this.hz = 15.0})
   Tape finish(double seconds)
   final double hz
   int get length
+  void record(double time, {required Vector3 position, required double yaw, Vector3? up})
   void reset()
-  void tick(double time, {required Vector3 position, required double yaw, Vector3? up})
 
 final class ReflectionProbeKind extends EntityKind
   const ReflectionProbeKind()
@@ -2620,7 +2630,7 @@ final class RunService
 final class RunStats
   Map<String, Object?> save()
   RunStats({Map<String, bool Function(GameEvent)>? counting})
-  double elapsed
+  double elapsedSeconds
   final Tally tally
   void advance(double dt, List<GameEvent> events)
   void clear()
@@ -2800,6 +2810,7 @@ final class ShareFormatException extends Flutter3dFormatException
 final class ShareStatus
   String toString()
   final String name
+  static ShareStatus? byName(String name)
   static ShareStatus? named(Object? name)
   static const List<ShareStatus> values = <ShareStatus>[published, pending, removed]
   static const ShareStatus pending = ShareStatus._('pending')
@@ -3039,7 +3050,7 @@ base class Tally
 final class Tape
   bool get isEmpty
   const Tape({required this.poses, required this.seconds})
-  double get duration
+  double get durationSeconds
   final List<GhostFrame> poses
   final double seconds
 
@@ -3145,6 +3156,8 @@ final class TimeLost extends BusEvent
 final class TimeLostReason
   String toString()
   final String name
+  static TimeLostReason? byName(String name)
+  static const List<TimeLostReason> values = <TimeLostReason>[longFrame, overBudget]
   static const TimeLostReason longFrame = TimeLostReason._('longFrame')
   static const TimeLostReason overBudget = TimeLostReason._('overBudget')
 
@@ -3360,7 +3373,7 @@ final class XrHandJoint
 
 final class XrPlane
   Collider toCollider({double thickness = 0.02})
-  ExternalStateInput toInput({double? displayTime})
+  ExternalStateInput toInput({double? displaySeconds})
   XrPlane({required this.id, required this.pose, required this.width, required this.depth, this.orientation = XrPlaneOrientation.arbitrary})
   factory XrPlane.fromInput(ExternalStateInput input)
   final RigidPose pose
@@ -3368,7 +3381,7 @@ final class XrPlane
   final XrPlaneOrientation orientation
   final double depth
   final double width
-  static ExternalStateInput lost(String id, {double? displayTime})
+  static ExternalStateInput lost(String id, {double? displaySeconds})
   static String sourceOf(String id)
   static bool isPlane(String source)
 
@@ -3383,7 +3396,7 @@ final class XrPlaneOrientation
   static const XrPlaneOrientation vertical = XrPlaneOrientation._('vertical')
 
 extension XrPoseInput on RigidPose
-  ExternalStateInput toInput(String source, {double? displayTime, ReadingQuality? quality})
+  ExternalStateInput toInput(String source, {double? displaySeconds, ReadingQuality? quality})
   static RigidPose fromInput(ExternalStateInput input)
 
 abstract final class XrPoseSources
@@ -3413,7 +3426,7 @@ final class XrSceneColliders extends Assimilation
 
 final class XrSceneMesh
   Collider toCollider()
-  ExternalStateInput toInput({double? displayTime})
+  ExternalStateInput toInput({double? displaySeconds})
   XrSceneMesh({required this.id, required this.pose, required this.vertices, required this.indices})
   factory XrSceneMesh.fromInput(ExternalStateInput input)
   final Float32List vertices

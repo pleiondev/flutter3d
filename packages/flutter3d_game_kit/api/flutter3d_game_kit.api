@@ -97,10 +97,12 @@ typedef GroundHeight = double Function(double x, double z);
 final class Haptic
   String toString()
   final String name
+  static Haptic? byName(String name)
   static const Haptic heavy = Haptic._('heavy', HapticFeedback.heavyImpact)
   static const Haptic light = Haptic._('light', HapticFeedback.lightImpact)
   static const Haptic medium = Haptic._('medium', HapticFeedback.mediumImpact)
   static const Haptic selection = Haptic._('selection', HapticFeedback.selectionClick)
+  static const List<Haptic> values = <Haptic>[selection, light, medium, heavy]
   void perform()
 
 final class Horizon
@@ -119,9 +121,11 @@ final class Horizon
 final class Jolt
   String toString()
   final String name
+  static Jolt? byName(String name)
   static const Jolt kick = Jolt._('kick')
   static const Jolt shake = Jolt._('shake')
   static const Jolt widen = Jolt._('widen')
+  static const List<Jolt> values = <Jolt>[kick, shake, widen]
 
 final class Lingering
   const Lingering(this.key, this.effect, this.at, {required this.perSecond, required this.seconds})
@@ -246,6 +250,8 @@ final class SustainedVoices
 final class Voice
   String toString()
   final String name
+  static Voice? byName(String name)
+  static const List<Voice> values = <Voice>[begin, follow, end]
   static const Voice begin = Voice._('begin')
   static const Voice end = Voice._('end')
   static const Voice follow = Voice._('follow')
@@ -330,18 +336,22 @@ final class Felt
 final class Haptic
   String toString()
   final String name
+  static Haptic? byName(String name)
   static const Haptic heavy = Haptic._('heavy', HapticFeedback.heavyImpact)
   static const Haptic light = Haptic._('light', HapticFeedback.lightImpact)
   static const Haptic medium = Haptic._('medium', HapticFeedback.mediumImpact)
   static const Haptic selection = Haptic._('selection', HapticFeedback.selectionClick)
+  static const List<Haptic> values = <Haptic>[selection, light, medium, heavy]
   void perform()
 
 final class Jolt
   String toString()
   final String name
+  static Jolt? byName(String name)
   static const Jolt kick = Jolt._('kick')
   static const Jolt shake = Jolt._('shake')
   static const Jolt widen = Jolt._('widen')
+  static const List<Jolt> values = <Jolt>[kick, shake, widen]
 
 final class Lingering
   const Lingering(this.key, this.effect, this.at, {required this.perSecond, required this.seconds})
@@ -488,6 +498,8 @@ final class SustainedVoices
 final class Voice
   String toString()
   final String name
+  static Voice? byName(String name)
+  static const List<Voice> values = <Voice>[begin, follow, end]
   static const Voice begin = Voice._('begin')
   static const Voice end = Voice._('end')
   static const Voice follow = Voice._('follow')

@@ -89,10 +89,10 @@ void main() {
 
       for (final t in <double>[
         0.0,
-        clip.duration * 0.25,
-        clip.duration * 0.5,
-        clip.duration * 0.9,
-        clip.duration,
+        clip.durationSeconds * 0.25,
+        clip.durationSeconds * 0.5,
+        clip.durationSeconds * 0.9,
+        clip.durationSeconds,
       ]) {
         player.play(index: 0);
         player.seek(t);
@@ -126,7 +126,7 @@ void main() {
       );
       final withExtra = <ModelNode>[...asset.nodes, untouched];
       final withExtraPose = AnimationPose.fromNodes(withExtra);
-      withExtraPose.sampleClip(clip, clip.duration * 0.5);
+      withExtraPose.sampleClip(clip, clip.durationSeconds * 0.5);
 
       final world = withExtraPose.worldMatrices();
       final extraWorld = world.last;
@@ -167,10 +167,10 @@ void main() {
 
       for (final t in <double>[
         0.0,
-        clip.duration * 0.25,
-        clip.duration * 0.5,
-        clip.duration * 0.75,
-        clip.duration,
+        clip.durationSeconds * 0.25,
+        clip.durationSeconds * 0.5,
+        clip.durationSeconds * 0.75,
+        clip.durationSeconds,
       ]) {
         player.play(index: 0);
         player.seek(t);

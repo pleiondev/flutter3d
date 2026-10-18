@@ -1,5 +1,9 @@
 ## 1.0.0-rc.1
 
+- **Breaking: no public `late final` setter.** `LiquidView.sheetNode` and
+  `LiquidView.surfaceNode` are getters over a private field: the setter they
+  had worked once and threw the second time, and every read compiles as it
+  did.
 - **The spilt liquid's pair loops are placed like any compute.**
   `placeKernelLiquid` asks `FrameCompute.placeHosted` where
   `flutter3d_physics_native`'s liquid kernels run and builds its

@@ -100,7 +100,7 @@ final class AnimationGraphDemo extends ShowcaseDemo {
         conditions: const <AnimationCondition>[
           CompareCondition('speed', AnimationComparison.greater, 0.5),
         ],
-        duration: 0.3,
+        durationSeconds: 0.3,
       ),
       AnimationTransition(
         from: 'move',
@@ -108,21 +108,21 @@ final class AnimationGraphDemo extends ShowcaseDemo {
         conditions: const <AnimationCondition>[
           CompareCondition('speed', AnimationComparison.less, 0.3),
         ],
-        duration: 0.3,
+        durationSeconds: 0.3,
       ),
       for (final from in <String>['idle', 'move'])
         AnimationTransition(
           from: from,
           to: 'jump',
           conditions: const <AnimationCondition>[TriggerCondition('jump')],
-          duration: 0.1,
+          durationSeconds: 0.1,
           priority: 1,
         ),
       AnimationTransition(
         from: 'jump',
         to: 'idle',
         exitTime: 1.0,
-        duration: 0.2,
+        durationSeconds: 0.2,
       ),
     ],
   );
@@ -372,9 +372,9 @@ final class AnimationGraphDemo extends ShowcaseDemo {
     final AnimationClip walk = _clips.firstWhere((c) => c.name == 'Walking');
     final AnimationClip run = _clips.firstWhere((c) => c.name == 'Running');
     final AnimationPose expected = graph.pose.restCopy()
-      ..sampleClip(walk, graph.stateTime * walk.duration);
+      ..sampleClip(walk, graph.stateSeconds * walk.durationSeconds);
     final AnimationPose ran = graph.pose.restCopy()
-      ..sampleClip(run, graph.stateTime * run.duration);
+      ..sampleClip(run, graph.stateSeconds * run.durationSeconds);
     expected.blendFrom(ran, 1.0 - t);
     if (_dot(expected, graph.pose, _thigh) < 0.9999) {
       throw StateError('the leg is not half walk and half run');

@@ -27,12 +27,12 @@ List<CurveSample> curveSamples(
   required int sampleCount,
 }) {
   if (table.keyCount == 0 || sampleCount < 1) return const <CurveSample>[];
-  final start = table.keys.first.time;
-  final end = table.duration;
+  final start = table.keys.first.timeSeconds;
+  final end = table.durationSeconds;
   final out = Float32List(table.componentCount);
   CurveSample sampleAt(double t) {
     table.sample(t, out);
-    return CurveSample(time: t, value: out[component]);
+    return CurveSample(timeSeconds: t, value: out[component]);
   }
 
   return <CurveSample>[
@@ -48,25 +48,27 @@ List<CurveSample> curveSamples(
 /// One point of a curve: a time and the value a track has there. What
 /// [curveSamples] answers a list of.
 final class CurveSample {
-  /// The [value] the track has at [time].
-  const CurveSample({required this.time, required this.value});
+  /// The [value] the track has at [timeSeconds].
+  const CurveSample({required this.timeSeconds, required this.value});
 
   /// When the sample is taken, in seconds.
-  final double time;
+  final double timeSeconds;
 
-  /// The component's value at [time], in the track's own unit (metres,
+  /// The component's value at [timeSeconds], in the track's own unit (metres,
   /// radians or no unit, by what the track animates).
   final double value;
 
   @override
   bool operator ==(Object other) =>
-      other is CurveSample && other.time == time && other.value == value;
+      other is CurveSample &&
+      other.timeSeconds == timeSeconds &&
+      other.value == value;
 
   @override
-  int get hashCode => Object.hash(time, value);
+  int get hashCode => Object.hash(timeSeconds, value);
 
   @override
-  String toString() => 'CurveSample($time, $value)';
+  String toString() => 'CurveSample($timeSeconds, $value)';
 }
 
 /// The screen-space positions of key [keyIndex]'s own two tangent handles,
@@ -91,7 +93,7 @@ TangentHandles tangentHandles(
 }) {
   final key = table.keys[keyIndex];
   final value = key.values[component];
-  final position = Vector2(key.time, value);
+  final position = Vector2(key.timeSeconds, value);
 
   if (table.interpolation != AnimationInterpolation.cubicSpline) {
     return TangentHandles(inHandle: position, outHandle: position.clone());
@@ -100,9 +102,12 @@ TangentHandles tangentHandles(
   final inSlope = key.inTangent?[component] ?? 0.0;
   final outSlope = key.outTangent?[component] ?? 0.0;
   return TangentHandles(
-    inHandle: Vector2(key.time - handleLength, value - inSlope * handleLength),
+    inHandle: Vector2(
+      key.timeSeconds - handleLength,
+      value - inSlope * handleLength,
+    ),
     outHandle: Vector2(
-      key.time + handleLength,
+      key.timeSeconds + handleLength,
       value + outSlope * handleLength,
     ),
   );

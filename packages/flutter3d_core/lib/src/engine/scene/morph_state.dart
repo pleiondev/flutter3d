@@ -26,11 +26,13 @@ final class MorphState with MorphSink {
     required int targetCount,
     List<Aabb3>? reaches,
   }) : _reaches = reaches ?? const <Aabb3>[] {
-    weights = _MorphWeights(targetCount, this);
+    _weights = _MorphWeights(targetCount, this);
   }
 
   /// The packed deltas, uploaded once with the mesh.
   final TextureHandle texture;
+
+  late final List<double> _weights;
 
   /// One weight per target, from nought to one, in the order the file had them.
   ///
@@ -42,11 +44,11 @@ final class MorphState with MorphSink {
   /// [setWeights] does. It used to be a plain list, and a slider writing
   /// `node.morphWeights[i] = v` — the example app's does — moved the face
   /// without telling the bounds, so a jaw opened past the box was culled.
-  late final List<double> weights;
-
-  int get targetCount => weights.length;
+  List<double> get weights => _weights;
 
   /// How many morph targets the mesh has, a count.
+  int get targetCount => weights.length;
+
   /// The box each target's deltas span, in the mesh's own space,
   /// index-aligned with [weights]. Empty when the caller did not say.
   final List<Aabb3> _reaches;

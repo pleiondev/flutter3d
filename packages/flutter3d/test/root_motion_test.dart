@@ -89,7 +89,7 @@ void main() {
     for (var i = 0; i < steps; i++) {
       final from = i / steps;
       final to = (i + 1) / steps;
-      final delta = player.rootMotionDelta(0, fromTime: from, toTime: to);
+      final delta = player.rootMotionDelta(0, fromSeconds: from, toSeconds: to);
       expect(delta, isNotNull);
       total += delta!;
     }
@@ -116,7 +116,7 @@ void main() {
     // A frame that lands on 0.9s and, after `update`'s own `%=`, on 0.1s of
     // the next lap: the leg from 0.9 to 1.0 (0.2m) plus the leg from 0.0 to
     // 0.1 (0.2m).
-    final delta = player.rootMotionDelta(0, fromTime: 0.9, toTime: 0.1);
+    final delta = player.rootMotionDelta(0, fromSeconds: 0.9, toSeconds: 0.1);
 
     expect(delta, isNotNull);
     expect(delta!.x, closeTo(0.4, 1e-6));
@@ -153,7 +153,10 @@ void main() {
         targets: const [],
       )..play(index: 0);
 
-      expect(player.rootMotionDelta(0, fromTime: 0.0, toTime: 0.5), isNull);
+      expect(
+        player.rootMotionDelta(0, fromSeconds: 0.0, toSeconds: 0.5),
+        isNull,
+      );
     });
 
     test('a node index with no matching track answers null', () {
@@ -162,7 +165,10 @@ void main() {
         targets: const [],
       )..play(index: 0);
 
-      expect(player.rootMotionDelta(7, fromTime: 0.0, toTime: 0.5), isNull);
+      expect(
+        player.rootMotionDelta(7, fromSeconds: 0.0, toSeconds: 0.5),
+        isNull,
+      );
     });
 
     test(
@@ -192,7 +198,10 @@ void main() {
           targets: const [],
         )..play(index: 0);
 
-        expect(player.rootMotionDelta(0, fromTime: 0.0, toTime: 0.5), isNull);
+        expect(
+          player.rootMotionDelta(0, fromSeconds: 0.0, toSeconds: 0.5),
+          isNull,
+        );
       },
     );
   });

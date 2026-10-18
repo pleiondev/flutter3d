@@ -80,7 +80,7 @@ final class ClimbableKind extends EntityKind {
         collider: collider,
         climbSpeed: entity.number('speed') ?? 4.0,
         swing: entity.number('swing') ?? 0.0,
-        period: entity.number('period') ?? 2.4,
+        periodSeconds: entity.number('period') ?? 2.4,
         phase: entity.number('phase') ?? 0.0,
       ),
     );

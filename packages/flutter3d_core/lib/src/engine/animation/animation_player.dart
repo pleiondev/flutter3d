@@ -45,7 +45,7 @@ const String rootMotionExtra = 'flutter3dRootMotion';
 ///
 /// **A layer can also add rather than replace** — [AnimationBlend.additive],
 /// `gfx-10n`. The layer's distance from its clip's own
-/// [AnimationClip.referenceTime] is laid on the base: a breath over a walk, a
+/// [AnimationClip.referenceSeconds] is laid on the base: a breath over a walk, a
 /// recoil over an aim. A clip with no reference time has no delta to give and
 /// stays on the override path, so nothing about an existing clip changes.
 ///
@@ -207,15 +207,15 @@ final class AnimationPlayer {
   /// and longer makes a reaction feel late. Fading to the clip already playing
   /// is ignored rather than restarting it, so a state machine can ask every
   /// step without stuttering.
-  void crossFadeTo(int index, {double duration = 0.15}) {
+  void crossFadeTo(int index, {double durationSeconds = 0.15}) {
     if (index < 0 || index >= clips.length) return;
     if (index == _clipIndex && _playing) return;
 
-    if (duration > 0.0 && _clipIndex >= 0 && _clipIndex < clips.length) {
+    if (durationSeconds > 0.0 && _clipIndex >= 0 && _clipIndex < clips.length) {
       _fadingFrom = _clipIndex;
       _fadeFromTime = _time;
-      _fadeDuration = duration;
-      _fadeRemaining = duration;
+      _fadeDuration = durationSeconds;
+      _fadeRemaining = durationSeconds;
       _fadeFromTracks = <int, AnimationTrack>{
         for (final track in clips[_clipIndex].tracks) _trackKey(track): track,
       };
@@ -230,10 +230,10 @@ final class AnimationPlayer {
   }
 
   /// Fades to the clip called [name], if there is one.
-  bool crossFadeToNamed(String name, {double duration = 0.15}) {
+  bool crossFadeToNamed(String name, {double durationSeconds = 0.15}) {
     for (var i = 0; i < clips.length; i++) {
       if (clips[i].name != name) continue;
-      crossFadeTo(i, duration: duration);
+      crossFadeTo(i, durationSeconds: durationSeconds);
       return true;
     }
     return false;
@@ -293,13 +293,13 @@ final class AnimationPlayer {
       _clipIndex >= 0 && _clipIndex < clips.length ? clips[_clipIndex] : null;
 
   /// Current playhead position in seconds.
-  double get time => _time;
+  double get timeSeconds => _time;
 
   /// The current clip's length, in seconds.
-  double get duration => clip?.duration ?? 0.0;
+  double get durationSeconds => clip?.durationSeconds ?? 0.0;
 
-  /// The current clip's own extracted root motion, replayed from [fromTime]
-  /// to [toTime] on [rootNodeIndex] — the runtime half `anim-16`'s own
+  /// The current clip's own extracted root motion, replayed from [fromSeconds]
+  /// to [toSeconds] on [rootNodeIndex] — the runtime half `anim-16`'s own
   /// `root_motion_commands.dart` names as a separate, later piece: that file
   /// flattens a root joint's translation track to its first key so the
   /// engine sees a root that stands still, saving what it overwrote under
@@ -314,17 +314,17 @@ final class AnimationPlayer {
   /// own row is linear root motion, and a cubic one would need the saved
   /// in/out tangents replayed too, not only the value in the middle of them.
   ///
-  /// **[toTime] may be less than [fromTime].** That is what a clip wrapping
+  /// **[toSeconds] may be less than [fromSeconds].** That is what a clip wrapping
   /// from its own end back to its start looks like — [update]'s own `%=`
   /// against the clip's duration — and the delta then covers both legs: from
-  /// [fromTime] to the track's own last key, and from its first key to
-  /// [toTime]. A caller driving this every frame passes the playhead before
+  /// [fromSeconds] to the track's own last key, and from its first key to
+  /// [toSeconds]. A caller driving this every frame passes the playhead before
   /// and after [update] moved it, in that order, whether or not a wrap
   /// happened to fall in between.
   Vector3? rootMotionDelta(
     int rootNodeIndex, {
-    required double fromTime,
-    required double toTime,
+    required double fromSeconds,
+    required double toSeconds,
   }) {
     final active = clip;
     if (active == null) return null;
@@ -370,11 +370,11 @@ final class AnimationPlayer {
       return Vector3(out[0], out[1], out[2]);
     }
 
-    if (toTime >= fromTime) {
-      return sampleAt(toTime) - sampleAt(fromTime);
+    if (toSeconds >= fromSeconds) {
+      return sampleAt(toSeconds) - sampleAt(fromSeconds);
     }
-    return (sampleAt(track.endTime) - sampleAt(fromTime)) +
-        (sampleAt(toTime) - sampleAt(track.startTime));
+    return (sampleAt(track.endSeconds) - sampleAt(fromSeconds)) +
+        (sampleAt(toSeconds) - sampleAt(track.startSeconds));
   }
 
   /// Names of the clips, for a UI that lets the user pick one.
@@ -429,7 +429,7 @@ final class AnimationPlayer {
 
   /// Moves the playhead, clamped to the clip, and applies the pose.
   void seek(double seconds) {
-    final length = duration;
+    final length = durationSeconds;
     _time = length <= 0.0 ? 0.0 : seconds.clamp(0.0, length);
     apply();
   }
@@ -443,7 +443,7 @@ final class AnimationPlayer {
       // The clip being left keeps playing while it fades, which is the whole
       // difference between a crossfade and a dissolve to a frozen pose.
       _fadeFromTime += deltaSeconds * speed;
-      final outgoing = clips[_fadingFrom].duration;
+      final outgoing = clips[_fadingFrom].durationSeconds;
       if (outgoing > 0.0) _fadeFromTime %= outgoing;
 
       _fadeRemaining -= deltaSeconds;
@@ -459,20 +459,20 @@ final class AnimationPlayer {
       return;
     }
 
-    final length = duration;
+    final length = durationSeconds;
     if (length <= 0.0) {
       apply();
       return;
     }
 
     final advanced = advanceTime(
-      time: _time,
+      seconds: _time,
       deltaSeconds: deltaSeconds * speed,
       length: length,
       wrap: wrap,
       reversing: _reversing,
     );
-    _time = advanced.time;
+    _time = advanced.timeSeconds;
     _reversing = advanced.reversing;
     if (advanced.stopped) _playing = false;
 
@@ -483,7 +483,7 @@ final class AnimationPlayer {
     for (final layer in layers) {
       final index = layer.clip;
       if (index < 0 || index >= clips.length) continue;
-      layer.advance(deltaSeconds, clips[index].duration);
+      layer.advance(deltaSeconds, clips[index].durationSeconds);
     }
   }
 
@@ -673,7 +673,7 @@ final class AnimationPlayer {
       if (_layerSample.length < track.componentCount) {
         _layerSample = Float32List(track.componentCount);
       }
-      track.sample(layer.time, _layerSample);
+      track.sample(layer.timeSeconds, _layerSample);
       // An additive layer contributes its distance from its own reference
       // frame here too — `gfx-10n`. A weight track is already a sum, so the
       // only thing additive changes is *what* is summed: a blink authored over
@@ -792,7 +792,7 @@ final class AnimationPlayer {
   /// not adding — `gfx-10n`.
   ///
   /// Null covers both halves of "not adding": an override layer, and an
-  /// additive one over a clip that names no [AnimationClip.referenceTime].
+  /// additive one over a clip that names no [AnimationClip.referenceSeconds].
   /// The second is the case worth being deliberate about — a caller who asks
   /// for an additive blend over an ordinary clip gets the clip, overriding,
   /// rather than a delta measured from a pose nobody declared. Guessing at
@@ -803,7 +803,7 @@ final class AnimationPlayer {
     AnimationTrack track,
   ) {
     if (layer.blend != AnimationBlend.additive) return null;
-    final at = clip.referenceTime;
+    final at = clip.referenceSeconds;
     if (at == null) return null;
     if (_referenceSample.length < track.componentCount) {
       _referenceSample = Float32List(track.componentCount);
@@ -899,7 +899,7 @@ final class AnimationPlayer {
       if (_layerSample.length < track.componentCount) {
         _layerSample = Float32List(track.componentCount);
       }
-      track.sample(layer.time, _layerSample);
+      track.sample(layer.timeSeconds, _layerSample);
 
       final reference = _referenceOf(layer, clips[index], track);
       if (reference != null) {
@@ -960,7 +960,7 @@ final class AnimationPlayer {
         if (_layerSample.length < track.componentCount) {
           _layerSample = Float32List(track.componentCount);
         }
-        track.sample(layer.time, _layerSample);
+        track.sample(layer.timeSeconds, _layerSample);
         _write(node, track.path, _layerSample);
       }
     }

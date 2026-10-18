@@ -147,14 +147,14 @@ final class BehaviorChildren {
   /// [BehaviorContext.node] is the composite's — so the composite's own
   /// [BehaviorContext.memory] is what it reads and writes next, whatever
   /// the child below it did.
-  BehaviorStatus tick(BehaviorContext context, int index) {
+  BehaviorStatus step(BehaviorContext context, int index) {
     final status = _tree._tick(_node.children[index], context);
     context.node = _node.index;
     return status;
   }
 }
 
-/// What a [BehaviorComposite.tick] is handed: the context it ticks in and
+/// What a [BehaviorComposite.step] is handed: the context it ticks in and
 /// its children.
 ///
 /// **One object, so a minor can hand a composite more** — the tree, the
@@ -236,7 +236,7 @@ final class BehaviorTree {
 
   /// Decides: runs the tree from the root, records the path it took on
   /// [board], and forgets the memory of every node that is no longer running.
-  BehaviorStatus tick(Mind mind, Blackboard board) {
+  BehaviorStatus step(Mind mind, Blackboard board) {
     prepare(board);
     final context = _context
       ..mind = mind
@@ -264,7 +264,7 @@ final class BehaviorTree {
   }
 
   /// Moves: the running leaf's [BehaviorLeaf.act], every step, between the
-  /// decisions [tick] makes on the steps the system thinks on.
+  /// decisions [step] makes on the steps the system thinks on.
   void act(Mind mind, Blackboard board) {
     final leaf = _runningLeaf(board);
     if (leaf == null) return;
@@ -322,7 +322,7 @@ final class BehaviorTree {
         _ => BehaviorStatus.success,
       },
       _Cooldown() => _cooldown(node, context),
-      _Custom() => node.composite.tick(
+      _Custom() => node.composite.step(
         node.view.._context = (context..node = node.index),
       ),
     };
@@ -338,7 +338,7 @@ final class BehaviorTree {
       ..clear()
       ..addAll(_stack);
     context.node = node.index;
-    return node.leaf.tick(context);
+    return node.leaf.step(context);
   }
 
   BehaviorStatus _sequence(_Sequence node, BehaviorContext context) {

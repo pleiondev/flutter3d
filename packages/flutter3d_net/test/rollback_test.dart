@@ -188,8 +188,8 @@ void main() {
     final result = _play(
       (transportA, transportB),
       steps: 600,
-      tickA: transportA.tick,
-      tickB: transportB.tick,
+      tickA: transportA.step,
+      tickB: transportB.step,
     );
 
     final divergence = result.a.divergenceFromHex(result.b.hexDigests);
@@ -219,8 +219,8 @@ void main() {
       final result = _play(
         (_LyingTransport(transportA, lieAtStep: lieAtStep), transportB),
         steps: 200,
-        tickA: transportA.tick,
-        tickB: transportB.tick,
+        tickA: transportA.step,
+        tickB: transportB.step,
       );
 
       final divergence = result.a.divergenceFromHex(result.b.hexDigests);
@@ -254,8 +254,8 @@ void main() {
     final result = _play(
       (transportA, transportB),
       steps: 400,
-      tickA: transportA.tick,
-      tickB: transportB.tick,
+      tickA: transportA.step,
+      tickB: transportB.step,
     );
 
     expect(result.a.divergenceFromHex(result.b.hexDigests), isNull);
@@ -324,9 +324,9 @@ void main() {
     }
     for (var i = 0; i < 240; i++) {
       rollbacks[0].advance();
-      wireA.tick();
+      wireA.step();
       rollbacks[1].advance();
-      wireB.tick();
+      wireB.step();
     }
     // Mutation: a correction restored without the loop's snapshots, or the
     // step count left where it was — the two loops part.
@@ -364,7 +364,7 @@ void main() {
         },
       ),
     );
-    ours.tick();
+    ours.step();
     expect(session.droppedEarly, 1000);
 
     for (var i = 0; i < 4; i++) {

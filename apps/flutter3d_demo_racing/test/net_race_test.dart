@@ -182,12 +182,12 @@ void main() {
       _drive(deviceA.input, i);
       raceA.advance();
       deviceA.input.endStep();
-      transportA.tick();
+      transportA.step();
 
       _drive(deviceB.input, i, offset: 37);
       raceB.advance();
       deviceB.input.endStep();
-      transportB.tick();
+      transportB.step();
     }
 
     expect(digestsA.divergenceFromHex(digestsB.hexDigests), isNull);

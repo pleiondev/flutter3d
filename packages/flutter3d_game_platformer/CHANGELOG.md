@@ -1,5 +1,27 @@
 ## 1.0.0-rc.1
 
+- **Breaking: a time in a `double` says seconds in its name.**
+  `Climbable.period` is `Climbable.periodSeconds`, `Crumbling.delay` is
+  `Crumbling.delaySeconds`, `PlatformerSimulation.elapsed` is
+  `PlatformerSimulation.elapsedSeconds`, `Runner.dashCooldown` is
+  `Runner.dashCooldownSeconds`, `RunnerSettings.copyWith(… coyoteTime:)`
+  takes `coyoteSeconds:`, `RunnerSettings.copyWith(… dashCooldown:)` takes
+  `dashCooldownSeconds:`, `RunnerSettings.copyWith(… dropThroughTime:)`
+  takes `dropThroughSeconds:`, `RunnerSettings.copyWith(… jumpBufferTime:)`
+  takes `jumpBufferSeconds:`, `RunnerSettings.copyWith(… slideTime:)` takes
+  `slideSeconds:`, `RunnerSettings.copyWith(… wallCoyoteTime:)` takes
+  `wallCoyoteSeconds:`, `RunnerSettings.coyoteTime` is
+  `RunnerSettings.coyoteSeconds`, `RunnerSettings.dashCooldown` is
+  `RunnerSettings.dashCooldownSeconds`, `RunnerSettings.dropThroughTime` is
+  `RunnerSettings.dropThroughSeconds`, `RunnerSettings.jumpBufferTime` is
+  `RunnerSettings.jumpBufferSeconds`, `RunnerSettings.slideTime` is
+  `RunnerSettings.slideSeconds`, `RunnerSettings.wallCoyoteTime` is
+  `RunnerSettings.wallCoyoteSeconds` and `stagePlatformer(… elapsed:)` takes
+  `elapsedSeconds:`; the value and its unit are what they were. `dart fix`
+  carries each rename out.
+- **Breaking: no public `late final` setter.** `FollowCamera.virtualCamera`
+  is a getter over a private field: the setter they had worked once and
+  threw the second time, and every read compiles as it did.
 - **Breaking: `Runner.shove` is a public `final` field**, where a getter
   answered the runner's own vector. The runner refreshes it every step and
   the dynamics read it live to push crates, so its shape says it is live;

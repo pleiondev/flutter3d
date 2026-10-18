@@ -200,7 +200,7 @@ void main() {
       );
 
       expect(player.clipIndex, 0);
-      expect(player.time, closeTo(0.3, 1e-9));
+      expect(player.timeSeconds, closeTo(0.3, 1e-9));
     });
   });
 

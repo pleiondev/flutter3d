@@ -451,7 +451,7 @@ class ArcadeGame extends FlameGame with HasFlutter3d, KeyboardEvents {
 
   final math.Random _random;
 
-  late final Object3dComponent catcher;
+  late final Object3dComponent _catcher;
   final List<Object3dComponent> orbs = <Object3dComponent>[];
   final TextComponent hud = TextComponent(
     text: 'Catch the orbs',
@@ -486,7 +486,7 @@ class ArcadeGame extends FlameGame with HasFlutter3d, KeyboardEvents {
       LightNode(intensity: 14476.0)
         ..setLocalForward(Vector3(-0.3, -0.6, -1.0)),
     );
-    catcher = Object3dComponent(
+    _catcher = Object3dComponent(
       node: MeshNode(
         DeviceMesh.upload(
           device,
@@ -511,7 +511,7 @@ class ArcadeGame extends FlameGame with HasFlutter3d, KeyboardEvents {
       metallic: 0.2,
       roughness: 0.3,
     );
-    addAll(<Component>[catcher, hud]);
+    addAll(<Component>[_catcher, hud]);
   }
 
   /// Asks the catcher to go under [screen], a point on the game's canvas.
@@ -528,10 +528,10 @@ class ArcadeGame extends FlameGame with HasFlutter3d, KeyboardEvents {
 
   void _play(double dt) {
     // The catcher: toward where it was asked, or along the keys.
-    final x = catcher.position.x;
+    final x = _catcher.position.x;
     final want = _aim ?? x + _steer;
     final step = (want - x).clamp(-8.0 * dt, 8.0 * dt);
-    catcher.position.x = (x + step).clamp(-halfWidth, halfWidth);
+    _catcher.position.x = (x + step).clamp(-halfWidth, halfWidth);
 
     _untilNext -= dt;
     if (_untilNext <= 0.0) {
@@ -557,7 +557,7 @@ class ArcadeGame extends FlameGame with HasFlutter3d, KeyboardEvents {
       final caught =
           orb.position.y >= catcherY - 0.3 &&
           orb.position.y <= catcherY + 0.3 &&
-          (orb.position.x - catcher.position.x).abs() < reach;
+          (orb.position.x - _catcher.position.x).abs() < reach;
       if (caught) score++;
       if (caught || orb.position.y > catcherY + 1.5) {
         if (!caught) missed++;

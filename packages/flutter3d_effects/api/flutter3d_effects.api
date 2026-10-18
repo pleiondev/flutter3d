@@ -233,6 +233,8 @@ final class LiquidView
   LiquidView({required NativeWorld this._world, required this.liquid, required List<double> ground, required GraphicsDevice device, required Scene scene, required RenderMaterial look, this.detail = LiquidDetail.full, this.mist, NativeLiquidProperties? properties})
   List<SceneNode> get nodes
   List<StepBudget> get wanted
+  MeshNode get sheetNode
+  MeshNode get surfaceNode
   bool inSight
   final LiquidDetail detail
   final MistSettings? mist
@@ -241,8 +243,6 @@ final class LiquidView
   int bubbleClouds
   int sheetQuads
   int sprayInFlight
-  late final MeshNode sheetNode
-  late final MeshNode surfaceNode
   set ground(List<double> heights)
   static double cloudDepth(double shadow, double spread)
   static double dropShadow({required double volume, required double diameter})
@@ -251,10 +251,12 @@ final class LiquidView
 
 final class MistSettings
   MistSettings copyWith({double? share, double? droplet, bool clearShare = false})
+  bool operator ==(Object other)
   const MistSettings({this.share, this.droplet = 14.8e-6})
   double shareAt(double speed, {double g = standardGravity, double? viscosity})
   final double droplet
   final double? share
+  int get hashCode
 
 final class ParticleCloudWorkload extends _VisualWorkload<NativeParticles> with NativeParticleCloud
   Float32List read()

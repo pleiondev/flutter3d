@@ -28,7 +28,7 @@ final class BodyForceContext
   double get forceX
   double get forceY
   double get forceZ
-  double get time
+  double get timeSeconds
   double get vx
   double get vy
   double get vz
@@ -42,6 +42,7 @@ final class BodyForceContext
 
 final class CharacterController
   CharacterController({required this.world, CollisionShape? shape, Vector3? position, this.tuning = const MovementSettings(), int layer = 1 << 1})
+  Collider get collider
   Collider? get ground
   Collider? get groundBody
   CollisionShape get shape
@@ -60,7 +61,6 @@ final class CharacterController
   final Vector3 velocity
   int fromAboveLayers
   int get contactsLastStep
-  late final Collider collider
   void requestJump()
   void restore(Map<String, Object?> from)
   void step(double dt, {required Vector3 wishDirection, bool sprint = false, Vector3? drivenBy})
@@ -125,6 +125,7 @@ final class ClothObstacle
 final class ClothSettings
   ClothSettings copyWith({SimulationProfile? profile, double? gravity, int? substeps, int? iterations, double? distanceCompliance, double? bendCompliance, double? shearCompliance, double? damping, WindSettings? wind, double? collisionThickness, double? friction, bool? selfCollision, double? selfCollisionThickness, double? selfCollisionFriction, bool clearSelfCollisionThickness = false})
   ClothSettings inWorld(WorldProperties world, {PhysicalMaterial? material, MatterState state = MatterState.standard})
+  bool operator ==(Object other)
   const ClothSettings({this.gravity = standardGravity, this.substeps = 8, this.iterations = 2, this.distanceCompliance = 0.0, this.bendCompliance = 1e-3, this.shearCompliance = 5e-2, this.damping = 0.02, this.wind = const WindSettings(), this.collisionThickness = 0.01, this.friction = 0.0, this.selfCollision = true, this.selfCollisionThickness, this.selfCollisionFriction = 0.1, this.profile = SimulationProfile.deterministic})
   final SimulationProfile profile
   final WindSettings wind
@@ -140,6 +141,7 @@ final class ClothSettings
   final double? selfCollisionThickness
   final int iterations
   final int substeps
+  int get hashCode
 
 abstract base class ClothSimulation
   abstract ClothMesh get mesh
@@ -515,7 +517,7 @@ final class FluidWorld
   FluidWorld({required this.gravity, this.step = 1.0 / 240.0, this.particleSpacing = 0.002, this.floor, FluidSolver? solver, PhysicsBackend backend = const DartPhysics(), this.profile = SimulationProfile.deterministic, WorldProperties? world, FluidAir? air, this.field, this.shapes = LiquidShapeSolver.immediate})
   Vector3 gravityAt(Vector3 point)
   double get evaporated
-  double get time
+  double get timeSeconds
   double get volume
   final FluidAir air
   final FluidSolver solver
@@ -650,11 +652,13 @@ final class JointType
   const JointType.named(this.name)
   final String name
   int get hashCode
+  static JointType? byName(String name)
   static const JointType ball = JointType.named('ball')
   static const JointType fixed = JointType.named('fixed')
   static const JointType hinge = JointType.named('hinge')
   static const JointType slider = JointType.named('slider')
   static const List<JointType> standard = <JointType>[fixed, ball, hinge, slider]
+  static const List<JointType> values = <JointType>[fixed, ball, hinge, slider]
 
 abstract final class Layers
   static const int all = 0xFFFFFFFF
@@ -700,7 +704,7 @@ final class LiquidBody with JetReceiver
   final double wallThickness
   set shapes(LiquidShapeSolver solver)
   void add(LiquidLayer layer)
-  void place(Matrix3 turn, Vector3 at, {double? time})
+  void place(Matrix3 turn, Vector3 at, {double? timeSeconds})
   void pour(double amount, {FluidMedium? medium, Map<String, double> concentrations = const {}, Vector3? where, double knock = 0.0})
   void receive(JetLanding landing)
 
@@ -772,21 +776,23 @@ final class ModeRinging
   int get count
 
 final class MovementSettings
-  MovementSettings copyWith({double? walkSpeed, double? sprintSpeed, double? groundAcceleration, double? groundFriction, double? airAcceleration, double? gravity, bool clearGravity = false, double? terminalVelocity, double? jumpSpeed, double? stepHeight, double? coyoteTime, double? jumpBufferTime, double? groundProbe, double? floorSnapLength})
-  const MovementSettings({this.walkSpeed = 6.0, this.sprintSpeed = 10.0, this.groundAcceleration = 70.0, this.groundFriction = 55.0, this.airAcceleration = 14.0, this.gravity, this.terminalVelocity = 55.0, this.jumpSpeed = 8.0, this.stepHeight = 0.4, this.coyoteTime = 0.1, this.jumpBufferTime = 0.1, this.groundProbe = 0.08, this.floorSnapLength = 0.0})
+  MovementSettings copyWith({double? walkSpeed, double? sprintSpeed, double? groundAcceleration, double? groundFriction, double? airAcceleration, double? gravity, bool clearGravity = false, double? terminalVelocity, double? jumpSpeed, double? stepHeight, double? coyoteSeconds, double? jumpBufferSeconds, double? groundProbe, double? floorSnapLength})
+  bool operator ==(Object other)
+  const MovementSettings({this.walkSpeed = 6.0, this.sprintSpeed = 10.0, this.groundAcceleration = 70.0, this.groundFriction = 55.0, this.airAcceleration = 14.0, this.gravity, this.terminalVelocity = 55.0, this.jumpSpeed = 8.0, this.stepHeight = 0.4, this.coyoteSeconds = 0.1, this.jumpBufferSeconds = 0.1, this.groundProbe = 0.08, this.floorSnapLength = 0.0})
   final double airAcceleration
-  final double coyoteTime
+  final double coyoteSeconds
   final double floorSnapLength
   final double groundAcceleration
   final double groundFriction
   final double groundProbe
-  final double jumpBufferTime
+  final double jumpBufferSeconds
   final double jumpSpeed
   final double sprintSpeed
   final double stepHeight
   final double terminalVelocity
   final double walkSpeed
   final double? gravity
+  int get hashCode
 
 abstract final class Nearly
   static const double moving = 1e-4
@@ -845,8 +851,8 @@ final class ParticleFluid
   List<Vector3> get velocities
   Map<String, double> get concentrations
   ParticleFluid({required this.medium, required this.spacing, this.iterations = 4, this.substeps = 2, this.solver = const DartFluid()})
-  RetiredParticles retire({required double elapsed, required double after, required bool Function(Vector3 position, Vector3 velocity) settled})
-  double get capillaryTime
+  RetiredParticles retire({required double elapsedSeconds, required double after, required bool Function(Vector3 position, Vector3 velocity) settled})
+  double get capillarySeconds
   double get evaporated
   double get particleVolume
   double get received
@@ -937,7 +943,7 @@ final class PlaneObstacle with JetObstacle
 final class Puddle
   Map<String, double> get concentrations
   Puddle({required this.medium, required Vector3 center, required Vector3 normal, double? angle})
-  double age
+  double ageSeconds
   double capHeight(double radius)
   double evaporate(double dt, FluidAir air, double g)
   double get volume
@@ -1010,6 +1016,7 @@ final class RevolvedVessel implements VesselShape
   late final double widest
 
 final class RigidBody
+  Collider get collider
   Map<String, Object?> save()
   Quaternion get orientation
   RigidBody({required CollisionWorld world, required CollisionShape shape, required Vector3 position, this.mass = 1.0, double? restitution, double? friction, PhysicalMaterial? material, this.canRotate = false, Quaternion? orientation, this.angularDamping = 0.0, int layer = 1 << 0, int mask = Layers.all, Object? userData})
@@ -1028,7 +1035,6 @@ final class RigidBody
   final bool canRotate
   final double inverseMass
   final double mass
-  late final Collider collider
   set orientation(Quaternion value)
   void applyImpulse(Vector3 impulse)
   void applyImpulseAt(Vector3 impulse, Vector3 worldPoint)
@@ -1173,16 +1179,16 @@ final class SweptContact
 
 final class TubeMeniscus
   TubeMeniscus({required this.medium, required this.radius, required this.g, this.samples = 64})
+  double get apexCurvature
   double get rise
+  double get wallRise
   double heightAt(double r)
   final FluidMedium medium
   final double g
   final double radius
   final int samples
-  late final double apexCurvature
   late final double meanHeight
   late final double peak
-  late final double wallRise
 
 final class VapourCurve
   const VapourCurve({required this.a, required this.b, required this.c, required this.molarMass, this.isWater = false})
@@ -1255,6 +1261,7 @@ final class WeirFlow
 final class WindSettings
   WindSettings copyWith({double? velocityX, double? velocityY, double? velocityZ, double? drag, double? airDensity})
   bool get isNone
+  bool operator ==(Object other)
   const WindSettings({this.velocityX = 0, this.velocityY = 0, this.velocityZ = 0, this.drag = 0.3, this.airDensity = standardAirDensity})
   double get effectiveDrag
   final double airDensity
@@ -1262,6 +1269,7 @@ final class WindSettings
   final double velocityX
   final double velocityY
   final double velocityZ
+  int get hashCode
 
 abstract base mixin class WorldMirror
   WorldMirror()

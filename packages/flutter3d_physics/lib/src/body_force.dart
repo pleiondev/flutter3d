@@ -50,7 +50,7 @@ final class BodyForceContext {
   double _fx = 0.0, _fy = 0.0, _fz = 0.0;
 
   /// Seconds since the start of the step being taken.
-  double get time => _t;
+  double get timeSeconds => _t;
 
   /// Where the body is along X, in metres, origin-local.
   double get x => _x;

@@ -21,7 +21,6 @@ import 'package:flutter3d_modeler/src/modeler_viewport.dart';
 import 'package:flutter3d_modeler/src/settings.dart' show NavigationScheme;
 import 'package:flutter3d_modeler/src/staging.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart' hide Colors;
 
 import 'support/fake_graphics_backend.dart';
 

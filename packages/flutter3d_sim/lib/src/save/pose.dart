@@ -8,8 +8,8 @@ import 'snapshot.dart';
 /// A place, a facing and an up. Enough to draw a body again and no more.
 final class GhostFrame {
   /// A frame at the origin, facing yaw nought with the world's up, at
-  /// [time] seconds, unless told otherwise.
-  GhostFrame({this.time = 0.0, this.yaw = 0.0});
+  /// [timeSeconds] seconds, unless told otherwise.
+  GhostFrame({this.timeSeconds = 0.0, this.yaw = 0.0});
 
   /// **Read leniently, because this is a file from somebody's disk.** Every
   /// field used to be a `!` and an `as num`, so a tape truncated by a machine
@@ -20,7 +20,10 @@ final class GhostFrame {
   /// A pose it cannot read is a pose at the origin at time nought, which a
   /// playback either interpolates through or drops off the end of.
   factory GhostFrame.fromJson(Map<String, Object?> json) {
-    final pose = GhostFrame(time: json.number('t'), yaw: json.number('y'));
+    final pose = GhostFrame(
+      timeSeconds: json.number('t'),
+      yaw: json.number('y'),
+    );
     readVector(json['p'], pose.position);
     // The up is optional: tapes written before there was one still read, which
     // matters in the direction that counts — what is on disk was written by an
@@ -30,7 +33,7 @@ final class GhostFrame {
   }
 
   /// Seconds since the recording started.
-  double time;
+  double timeSeconds;
 
   /// Where the body was, in metres in the world; written in place.
   final Vector3 position = Vector3.zero();
@@ -47,7 +50,7 @@ final class GhostFrame {
 
   /// Copies [other]'s time, yaw, position and up into this frame.
   void setFrom(GhostFrame other) {
-    time = other.time;
+    timeSeconds = other.timeSeconds;
     yaw = other.yaw;
     position.setFrom(other.position);
     up.setFrom(other.up);
@@ -56,7 +59,7 @@ final class GhostFrame {
   /// This frame as JSON under short keys, each number rounded to three
   /// decimal places.
   Map<String, Object?> toJson() => <String, Object?>{
-    't': _round(time),
+    't': _round(timeSeconds),
     'p': <double>[_round(position.x), _round(position.y), _round(position.z)],
     'y': _round(yaw),
     'u': <double>[_round(up.x), _round(up.y), _round(up.z)],

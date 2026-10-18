@@ -154,6 +154,20 @@ final class DeviceSettings {
         ? null
         : onDeviceRestored ?? this.onDeviceRestored,
   );
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DeviceSettings &&
+          other.device == device &&
+          other.renderer == renderer &&
+          other.devices == devices &&
+          other.presenter == presenter &&
+          other.fallbackBanner == fallbackBanner;
+
+  @override
+  int get hashCode =>
+      Object.hash(device, renderer, devices, presenter, fallbackBanner);
 }
 
 /// What a `Flutter3dView` draws and how: the frame's settings, the view's
@@ -256,6 +270,31 @@ final class ViewSettings {
         ? null
         : onWarmUpProgress ?? this.onWarmUpProgress,
   );
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ViewSettings &&
+          other.settings == settings &&
+          other.render == render &&
+          other.resolution == resolution &&
+          _sameList(other.views, views) &&
+          other.continuous == continuous &&
+          other.frameRateCap == frameRateCap &&
+          other.placeholder == placeholder &&
+          other.warmUp == warmUp;
+
+  @override
+  int get hashCode => Object.hash(
+    settings,
+    render,
+    resolution,
+    views == null ? null : Object.hashAll(views!),
+    continuous,
+    frameRateCap,
+    placeholder,
+    warmUp,
+  );
 }
 
 /// How a `Flutter3dView`'s loop runs: its step, its input, its profile,
@@ -347,6 +386,20 @@ final class LoopSettings {
     simulation: simulation ?? this.simulation,
     profile: profile ?? this.profile,
   );
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LoopSettings &&
+          other.timing == timing &&
+          other.input == input &&
+          other.originShift == originShift &&
+          other.simulation == simulation &&
+          other.profile == profile;
+
+  @override
+  int get hashCode =>
+      Object.hash(timing, input, originShift, simulation, profile);
 }
 
 /// What a `Flutter3dView`'s loop installs and the registries it hands them.
@@ -400,6 +453,21 @@ final class PluginSettings {
     registries: registries ?? this.registries,
     readBundle: clearReadBundle ? null : readBundle ?? this.readBundle,
   );
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PluginSettings &&
+          _sameList(other.plugins, plugins) &&
+          _sameList(other.formats, formats) &&
+          _sameList(other.registries, registries);
+
+  @override
+  int get hashCode => Object.hash(
+    Object.hashAll(plugins),
+    Object.hashAll(formats),
+    Object.hashAll(registries),
+  );
 }
 
 /// What `DeviceSettings.onDeviceLost` is told: the [engine] whose device
@@ -416,4 +484,16 @@ final class DeviceLostEvent {
 
   /// Why, as the backend said.
   final DeviceLoss loss;
+}
+
+/// Whether [a] and [b] hold equal elements in the same order.
+bool _sameList<T>(Iterable<T>? a, Iterable<T>? b) {
+  if (identical(a, b)) return true;
+  if (a == null || b == null || a.length != b.length) return false;
+  final ib = b.iterator;
+  for (final x in a) {
+    ib.moveNext();
+    if (x != ib.current) return false;
+  }
+  return true;
 }

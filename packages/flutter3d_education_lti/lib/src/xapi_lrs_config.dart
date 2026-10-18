@@ -29,4 +29,14 @@ final class XapiLrsSettings {
   /// scheme included (`Basic …` or `Bearer …`). A secret: keep it out of
   /// logs.
   final String authorizationHeader;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is XapiLrsSettings &&
+          other.statementsEndpoint == statementsEndpoint &&
+          other.authorizationHeader == authorizationHeader;
+
+  @override
+  int get hashCode => Object.hash(statementsEndpoint, authorizationHeader);
 }

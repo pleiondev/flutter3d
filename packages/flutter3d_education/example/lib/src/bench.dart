@@ -984,12 +984,12 @@ final class Bench {
     // Where the glass is at the end of this frame, stamped with that time:
     // the frame runs a whole number of the world's fixed steps, and a frame
     // of one step after one of three must not read as a jolt.
-    final now = world.time + seconds;
+    final now = world.timeSeconds + seconds;
     for (final vessel in vessels) {
       vessel.liquid.place(
         _turnOf(vessel),
         vessel.body.readPosition(),
-        time: now,
+        timeSeconds: now,
       );
     }
     world.advance(seconds);
@@ -1038,7 +1038,7 @@ final class Bench {
     var changed = false;
     for (final fluid in world.particles.values) {
       final gone = fluid.retire(
-        elapsed: seconds,
+        elapsedSeconds: seconds,
         after: _settleTime,
         settled: (position, _) => position.y < low,
       );

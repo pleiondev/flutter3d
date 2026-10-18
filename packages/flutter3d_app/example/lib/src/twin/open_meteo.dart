@@ -37,8 +37,8 @@ ExternalStateInput? readOpenMeteo(
     return ExternalStateInput.quantity(
       SiteTwin.airSource,
       Quantity(celsius.toDouble(), Unit.celsius),
-      sourceTime: taken == null ? null : taken.millisecondsSinceEpoch / 1000,
-      receivedTime: receivedTime,
+      sourceSeconds: taken == null ? null : taken.millisecondsSinceEpoch / 1000,
+      receivedSeconds: receivedTime,
       quality: ReadingQuality.good,
       kind: ReadingKind.measured,
       tag: 'open-meteo',

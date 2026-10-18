@@ -23,7 +23,7 @@ Tape _circle({double hz = 15.0, double seconds = 4.0, double radius = 20.0}) {
   final recorder = Recorder(hz: hz);
   for (var t = 0.0; t <= seconds; t += 1.0 / 120.0) {
     final angle = t / seconds * 2 * math.pi;
-    recorder.tick(
+    recorder.record(
       t,
       position: Vector3(
         math.cos(angle) * radius,
@@ -65,12 +65,12 @@ void main() {
 
     test('and starting again forgets what came before', () {
       final recorder = Recorder()
-        ..tick(0.0, position: Vector3.zero(), yaw: 0.0)
-        ..tick(1.0, position: Vector3.zero(), yaw: 0.0);
+        ..record(0.0, position: Vector3.zero(), yaw: 0.0)
+        ..record(1.0, position: Vector3.zero(), yaw: 0.0);
       expect(recorder.length, 2);
 
       recorder.reset();
-      recorder.tick(0.0, position: Vector3.zero(), yaw: 0.0);
+      recorder.record(0.0, position: Vector3.zero(), yaw: 0.0);
 
       expect(recorder.length, 1);
     });
@@ -150,8 +150,8 @@ void main() {
       final tape = Tape(
         seconds: 1.0,
         poses: <GhostFrame>[
-          GhostFrame(time: 0.0, yaw: math.pi - 0.1),
-          GhostFrame(time: 1.0, yaw: -math.pi + 0.1),
+          GhostFrame(timeSeconds: 0.0, yaw: math.pi - 0.1),
+          GhostFrame(timeSeconds: 1.0, yaw: -math.pi + 0.1),
         ],
       );
       final out = GhostFrame();
@@ -174,8 +174,8 @@ void main() {
       final tape = Tape(
         seconds: 1.0,
         poses: <GhostFrame>[
-          GhostFrame(time: 0.0)..up.setValues(0.0, 1.0, 0.0),
-          GhostFrame(time: 1.0)..up.setValues(1.0, 0.0, 0.0),
+          GhostFrame(timeSeconds: 0.0)..up.setValues(0.0, 1.0, 0.0),
+          GhostFrame(timeSeconds: 1.0)..up.setValues(1.0, 0.0, 0.0),
         ],
       );
       final out = GhostFrame();
@@ -188,13 +188,13 @@ void main() {
   });
 
   test('a pose survives being written down and read back', () {
-    final pose = GhostFrame(time: 1.25, yaw: 0.5)
+    final pose = GhostFrame(timeSeconds: 1.25, yaw: 0.5)
       ..position.setValues(1.0, 2.0, 3.0)
       ..up.setValues(0.0, 0.7071, 0.7071);
 
     final copy = GhostFrame.fromJson(pose.toJson());
 
-    expect(copy.time, closeTo(1.25, 1e-3));
+    expect(copy.timeSeconds, closeTo(1.25, 1e-3));
     expect(copy.position.x, closeTo(1.0, 1e-3));
     expect(copy.up.z, closeTo(0.7071, 1e-3));
   });
@@ -233,7 +233,7 @@ void main() {
       final pose = GhostFrame.fromJson(broken);
 
       // A time that reads is kept, and one that does not is nought.
-      expect(pose.time, broken['t'] is num ? broken['t'] : 0.0);
+      expect(pose.timeSeconds, broken['t'] is num ? broken['t'] : 0.0);
       expect(pose.position.x.isFinite, isTrue);
       expect(pose.up.y, 1.0, reason: 'the up was left broken rather than up');
     }

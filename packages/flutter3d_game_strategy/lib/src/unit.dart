@@ -88,6 +88,19 @@ final class UnitType {
     reload: 1.6,
   );
 
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<UnitType> values = <UnitType>[soldier, tank];
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static UnitType? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   /// What it is called, for a game that shows the word and for a reader of a
   /// save who wants to know what a row of numbers was meant to be.
   final String name;
@@ -309,7 +322,7 @@ final class StrategyUnit {
       side: from.integer('side'),
       order: UnitOrder.fromSnapshot(from),
       health: from.number('health', orElse: type.health),
-    )..cooldown = from.number('cooldown');
+    )..cooldownSeconds = from.number('cooldown');
   }
 
   /// Where it is, in world space. Mutated in place by the step: a crowd that
@@ -341,7 +354,7 @@ final class StrategyUnit {
   /// and a bot's thinking count are: a unit restored ready to fire when it was
   /// half a second from it wins an exchange it should have lost, and two runs
   /// of one recording then disagree about who is left standing.
-  double cooldown = 0.0;
+  double cooldownSeconds = 0.0;
 
   /// What it is doing. Assigning a new one is how a game gives an order.
   UnitOrder order;
@@ -400,7 +413,7 @@ final class StrategyUnit {
     'type': type.toJson(),
     'side': side,
     'health': health,
-    'cooldown': cooldown,
+    'cooldown': cooldownSeconds,
     ...order.save(),
   };
 }

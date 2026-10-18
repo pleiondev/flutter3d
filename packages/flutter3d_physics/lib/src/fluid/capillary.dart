@@ -59,13 +59,17 @@ final class TubeMeniscus {
   /// count; 64 unless given. The solve takes two steps per point.
   final int samples;
 
+  late final double _apexCurvature;
+
   /// The curvature at the middle, per metre.
-  late final double apexCurvature;
+  double get apexCurvature => _apexCurvature;
+
+  late final double _wallRise;
 
   /// How far the surface stands at the wall above its middle, in metres:
   /// positive for a liquid that wets the wall, negative for one that does
   /// not.
-  late final double wallRise;
+  double get wallRise => _wallRise;
 
   /// How far the middle of the surface stands above the level of a wide bath
   /// the tube is dipped in: the pressure under it, σb, worth ρg per metre.
@@ -170,11 +174,11 @@ final class TubeMeniscus {
         kept = -1;
       }
     }
-    apexCurvature = 0.5 * (lo + hi);
+    _apexCurvature = 0.5 * (lo + hi);
     final path = _shoot(apexCurvature, bond, keep: true);
     _r = path.r;
     _z = path.z;
-    wallRise = _z.last;
+    _wallRise = _z.last;
   }
 
   /// The surface from the axis to the wall for an apex curvature [b]: the

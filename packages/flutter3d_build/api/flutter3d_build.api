@@ -20,6 +20,7 @@ final class CliOptionSet
 
 final class ConvertCommandSettings
   ConvertCommandSettings copyWith({List<String>? inputs, String? output, bool? dryRun, bool? overwrite, String? assetPrefix, bool? materials, String? reportPath, bool? json, ModelSettings? models, bool? split, bool clearAssetPrefix = false, bool clearReportPath = false})
+  bool operator ==(Object other)
   const ConvertCommandSettings({required this.inputs, this.output = '.', this.dryRun = false, this.overwrite = false, this.assetPrefix, this.materials = true, this.reportPath, this.json = false, this.models = const ModelSettings(), this.split = false})
   final List<String> inputs
   final ModelSettings models
@@ -31,16 +32,19 @@ final class ConvertCommandSettings
   final bool materials
   final bool overwrite
   final bool split
+  int get hashCode
   static ConvertCommandSettings parse(List<String> arguments)
 
 final class ConvertOutcome
   String toString()
   final String name
   final int exitCode
+  static ConvertOutcome? byName(String name)
   static const ConvertOutcome converted = ConvertOutcome._('converted', 0)
   static const ConvertOutcome failed = ConvertOutcome._('failed', 1)
   static const ConvertOutcome missingTool = ConvertOutcome._('missing-tool', 3)
   static const ConvertOutcome wouldOverwrite = ConvertOutcome._('would-overwrite', 4)
+  static const List<ConvertOutcome> values = <ConvertOutcome>[converted, failed, missingTool, wouldOverwrite]
 
 final class ConvertReport
   ConvertOutcome outcome
@@ -73,10 +77,12 @@ final class DoctorCheck
 final class DoctorStatus
   final String mark
   final String name
+  static DoctorStatus? byName(String name)
   static const DoctorStatus missing = DoctorStatus._('[--]', 'missing')
   static const DoctorStatus note = DoctorStatus._('[~~]', 'note')
   static const DoctorStatus ok = DoctorStatus._('[ok]', 'ok')
   static const DoctorStatus problem = DoctorStatus._('[!!]', 'problem')
+  static const List<DoctorStatus> values = <DoctorStatus>[ok, note, missing, problem]
 
 final class ExternalTool
   String? locate({Map<String, String>? environment})
@@ -100,6 +106,7 @@ final class ProjectKind
   final String about
   final String name
   static ProjectKind named(String name)
+  static ProjectKind? byName(String name)
   static const List<ProjectKind> values = <ProjectKind>[scene, viewer, arcade]
   static const ProjectKind arcade = ProjectKind._('arcade', 'a Flame game drawn over a 3D layer through flame_flutter3d: a catcher, ' 'falling orbs and a score')
   static const ProjectKind scene = ProjectKind._('scene', 'one lit sphere in a Scene3D, the smallest application')
@@ -209,6 +216,7 @@ final class ConversionTarget
   String toString()
   bool keeps(String path)
   final String name
+  static ConversionTarget? byName(String name)
   static const ConversionTarget everything = ConversionTarget._('everything', _all)
   static const ConversionTarget materials = ConversionTarget._('materials', _isMaterial)
   static const ConversionTarget models = ConversionTarget._('models', _isModel)
@@ -219,10 +227,12 @@ final class ConvertOutcome
   String toString()
   final String name
   final int exitCode
+  static ConvertOutcome? byName(String name)
   static const ConvertOutcome converted = ConvertOutcome._('converted', 0)
   static const ConvertOutcome failed = ConvertOutcome._('failed', 1)
   static const ConvertOutcome missingTool = ConvertOutcome._('missing-tool', 3)
   static const ConvertOutcome wouldOverwrite = ConvertOutcome._('would-overwrite', 4)
+  static const List<ConvertOutcome> values = <ConvertOutcome>[converted, failed, missingTool, wouldOverwrite]
 
 final class ConvertReport
   ConvertOutcome outcome
@@ -246,12 +256,14 @@ final class ConvertReport
 
 final class ModelSettings
   ModelSettings copyWith({TextureFamily? textures, bool? mips, List<double>? lods, bool? impostor, int? chunks, bool clearChunks = false})
+  bool operator ==(Object other)
   const ModelSettings({this.textures = TextureFamily.auto, this.mips = true, this.lods = const <double>[], this.impostor = false, this.chunks})
   final List<double> lods
   final TextureFamily textures
   final bool impostor
   final bool mips
   final int? chunks
+  int get hashCode
 
 final class SourceFormatException extends Flutter3dFormatException
   String toString()
@@ -262,6 +274,7 @@ final class TextureFamily
   String toString()
   final String name
   static TextureFamily parse(String text)
+  static TextureFamily? byName(String name)
   static TextureFamily? tryParse(String text)
   static const List<TextureFamily> values = <TextureFamily>[auto, bc, etc2, universal, none]
   static const TextureFamily auto = TextureFamily._('auto')
@@ -414,6 +427,7 @@ final class ConformanceTest
 
 final class ConvertSettings
   ConvertSettings copyWith({String? input, String? output, TextureFamily? textures, bool? mips, List<double>? lods, bool? impostor, int? chunks, List<DeviceClass>? classes, bool clearOutput = false, bool clearChunks = false})
+  bool operator ==(Object other)
   const ConvertSettings({required this.input, this.output, this.textures = TextureFamily.auto, this.mips = true, this.lods = const <double>[], this.impostor = false, this.chunks, this.classes = const <DeviceClass>[]})
   final List<DeviceClass> classes
   final List<double> lods
@@ -423,6 +437,7 @@ final class ConvertSettings
   final bool impostor
   final bool mips
   final int? chunks
+  int get hashCode
   static ConvertSettings parse(List<String> arguments)
 
 final class ConvertUsageException extends Flutter3dFormatException
@@ -533,6 +548,7 @@ final class PluginKind
   final bool isPlugin
   final bool simulates
   static PluginKind named(String name)
+  static PluginKind? byName(String name)
   static const List<PluginKind> values = <PluginKind>[renderStep, effect, genre, element, tool, material, compute, codec, editor, data, backend]
   static const PluginKind backend = PluginKind._('backend', 'a graphics backend with no GPU yet, which passes conformance and grows ' 'into one for another API', simulates: false, isPlugin: false)
   static const PluginKind codec = PluginKind._('codec', 'an image format of its own, read wherever the engine loads a texture', simulates: false)
@@ -628,6 +644,8 @@ final class ShaderBuildTarget
   final bool impeller
   final bool webGl
   final bool webGpu
+  static ShaderBuildTarget? byName(String name)
+  static const List<ShaderBuildTarget> values = <ShaderBuildTarget>[native, web, any]
   static const ShaderBuildTarget any = ShaderBuildTarget._('any', impeller: true, webGl: true, webGpu: true)
   static const ShaderBuildTarget native = ShaderBuildTarget._('native', impeller: true, webGl: false, webGpu: false)
   static const ShaderBuildTarget web = ShaderBuildTarget._('web', impeller: false, webGl: true, webGpu: true)
@@ -647,6 +665,7 @@ final class TextureFamily
   String toString()
   final String name
   static TextureFamily parse(String text)
+  static TextureFamily? byName(String name)
   static TextureFamily? tryParse(String text)
   static const List<TextureFamily> values = <TextureFamily>[auto, bc, etc2, universal, none]
   static const TextureFamily auto = TextureFamily._('auto')

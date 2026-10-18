@@ -361,7 +361,7 @@ void main() {
         final b = reloaded.animations[c];
         expect(b.name, a.name);
         expect(b.tracks.length, a.tracks.length);
-        expect(b.duration, closeTo(a.duration, 1e-6));
+        expect(b.durationSeconds, closeTo(a.durationSeconds, 1e-6));
 
         for (var t = 0; t < a.tracks.length; t++) {
           final ta = a.tracks[t];
@@ -377,7 +377,7 @@ void main() {
           final outA = Float32List(ta.componentCount);
           final outB = Float32List(tb.componentCount);
           for (var step = 0; step <= 8; step++) {
-            final time = ta.endTime * step / 8;
+            final time = ta.endSeconds * step / 8;
             ta.sample(time, outA);
             tb.sample(time, outB);
             expect(

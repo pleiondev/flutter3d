@@ -1,6 +1,6 @@
 # Generated from flutter3d_build/lib/migrations/*.yaml by
 # `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
-# table-stamp: fbb33994bd2fa7e5
+# table-stamp: f38ff10f91336e6b
 #
 # Read by `dart fix` and the IDE: see "A break comes with its migration"
 # in CONTRIBUTING.md.
@@ -172,3 +172,12 @@ transforms:
               value: 'arguments[0]'
       - kind: 'removeParameter'
         index: 0
+  - title: 'flutter3d after 1.0.0-rc.1: game-PadInput-tick'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_game/flutter3d_game.dart']
+      method: 'tick'
+      inClass: 'PadInput'
+    changes:
+      - kind: 'rename'
+        newName: 'update'

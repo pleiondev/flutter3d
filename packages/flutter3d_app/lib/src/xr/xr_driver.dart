@@ -88,6 +88,31 @@ final class XrSettings {
     far: far ?? this.far,
     mainLight: clearMainLight ? null : mainLight ?? this.mainLight,
   );
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is XrSettings &&
+          other.mainLight == mainLight &&
+          other.session == session &&
+          other.request == request &&
+          _sameList(other.panels, panels) &&
+          _sameMap(other.actions, actions) &&
+          other.swapchain == swapchain &&
+          other.near == near &&
+          other.far == far;
+
+  @override
+  int get hashCode => Object.hash(
+    mainLight,
+    session,
+    request,
+    Object.hashAll(panels),
+    Object.hashAllUnordered(actions.keys),
+    swapchain,
+    near,
+    far,
+  );
 }
 
 /// Drives one XR session for one renderer: waits for the runtime's frames,
@@ -235,7 +260,7 @@ final class XrDriver {
     if (frame == null) return null;
     _pending = null;
     _current = frame;
-    time.predict(frame.predictedDisplayTime);
+    time.predict(frame.predictedDisplaySeconds);
     for (final external in frame.toInputs()) {
       input.feedExternal(external);
     }
@@ -398,4 +423,26 @@ final class XrPanelRequest {
 
   /// The texture's height, in pixels.
   final int height;
+}
+
+/// Whether [a] and [b] hold equal elements in the same order.
+bool _sameList<T>(Iterable<T>? a, Iterable<T>? b) {
+  if (identical(a, b)) return true;
+  if (a == null || b == null || a.length != b.length) return false;
+  final ib = b.iterator;
+  for (final x in a) {
+    ib.moveNext();
+    if (x != ib.current) return false;
+  }
+  return true;
+}
+
+/// Whether [a] and [b] map the same keys to equal values.
+bool _sameMap<K, V>(Map<K, V>? a, Map<K, V>? b) {
+  if (identical(a, b)) return true;
+  if (a == null || b == null || a.length != b.length) return false;
+  for (final MapEntry(:key, :value) in a.entries) {
+    if (!b.containsKey(key) || b[key] != value) return false;
+  }
+  return true;
 }

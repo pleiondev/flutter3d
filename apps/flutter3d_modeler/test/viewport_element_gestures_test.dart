@@ -23,7 +23,6 @@ import 'package:flutter3d_modeler/src/selection_box.dart';
 import 'package:flutter3d_modeler/src/selection_rules.dart';
 import 'package:flutter3d_modeler/src/staging.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart' show Matrix4;
 
 import 'support/fake_graphics_backend.dart';
 

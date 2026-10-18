@@ -50,7 +50,7 @@ void main() {
     // `operator_panel_test.dart` after it) found a bare `await` on this
     // deadlocks inside `testWidgets`'s fake async zone, since the rasteriser
     // needs the real event loop `runAsync` escapes to.
-    await tester.runAsync(surface.tick);
+    await tester.runAsync(surface.update);
 
     final result = renderer.render(
       width: 64,

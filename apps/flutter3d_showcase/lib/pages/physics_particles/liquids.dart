@@ -262,7 +262,7 @@ final class LiquidsDemo extends ShowcaseDemo {
   void _runVessels(double seconds) {
     for (var i = 0; i < (seconds / _vessels.step).round(); i++) {
       for (final _Glass g in <_Glass>[_left, _right, _basin]) {
-        g.body.place(g.turn, g.at, time: _vessels.time);
+        g.body.place(g.turn, g.at, timeSeconds: _vessels.timeSeconds);
       }
       _vessels.advance(_vessels.step);
       _dynamics.step(_vessels.step);
@@ -272,9 +272,9 @@ final class LiquidsDemo extends ShowcaseDemo {
   void _runPour(double seconds) {
     for (var i = 0; i < (seconds / _pouring.step).round(); i++) {
       // Tipped over half a second, to seventy-five degrees.
-      _source.tilt = math.min(1.3, 2.6 * _pouring.time);
+      _source.tilt = math.min(1.3, 2.6 * _pouring.timeSeconds);
       for (final _Glass g in <_Glass>[_source, _target]) {
-        g.body.place(g.turn, g.at, time: _pouring.time);
+        g.body.place(g.turn, g.at, timeSeconds: _pouring.timeSeconds);
       }
       _pouring.advance(_pouring.step);
     }

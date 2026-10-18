@@ -122,7 +122,7 @@ void main() {
       expect(command, isNotNull);
       expect(command!.clipIndex, 0);
       expect(command!.trackIndex, 0);
-      expect(command!.time, closeTo(1.0, 1e-6));
+      expect(command!.timeSeconds, closeTo(1.0, 1e-6));
       // Mutation: touch y/z as well as x, or lose the original y/z
       // entirely rather than carrying them through unedited.
       expect(command!.values[1], 0.0);

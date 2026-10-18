@@ -29,7 +29,7 @@ final class ViewCamera {
     double stiffness = 4.0,
     CollisionWorld? world,
   }) : framing = ViewFraming(view: view, stiffness: stiffness) {
-    virtualCamera = VirtualCamera('view', framing, world: world);
+    _virtualCamera = VirtualCamera('view', framing, world: world);
   }
 
   /// The scene camera the shot is written to.
@@ -38,8 +38,10 @@ final class ViewCamera {
   /// Where the camera wants to be.
   final ViewFraming framing;
 
+  late final VirtualCamera _virtualCamera;
+
   /// The framing with its rig: what a director would hold.
-  late final VirtualCamera virtualCamera;
+  VirtualCamera get virtualCamera => _virtualCamera;
 
   /// Where the camera wants to be this frame, written into `eye` and
   /// `target`; false leaves the camera where it is.

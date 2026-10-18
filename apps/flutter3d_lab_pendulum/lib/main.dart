@@ -271,7 +271,7 @@ class _PendulumLabScreenState extends State<PendulumLabScreen>
     if (_running.value) _clock.advance(_pendulum, dt.clamp(0.0, 0.05));
     _placeBob();
     _placeString();
-    unawaited(_panel.tick());
+    unawaited(_panel.update());
     if (mounted) setState(() {});
   }
 

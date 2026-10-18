@@ -121,6 +121,19 @@ final class JointType {
   /// A slider along an axis.
   static const JointType slider = JointType.named('slider');
 
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<JointType> values = <JointType>[fixed, ball, hinge, slider];
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static JointType? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   /// The four every jointed backend is expected to solve.
   static const List<JointType> standard = <JointType>[
     fixed,

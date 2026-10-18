@@ -585,7 +585,7 @@ extension _ScenePasses on Renderer {
             viewIndex: _frameViewIndex(view),
             viewProjection: drawMatrix,
             frameIndex: _frameIndex,
-            time: _seconds,
+            timeSeconds: _seconds,
             temporal: temporal,
             lights: _contributorLights,
             reversedDepth: reversed,

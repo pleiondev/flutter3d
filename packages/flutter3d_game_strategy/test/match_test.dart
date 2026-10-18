@@ -113,7 +113,7 @@ List<double> digestOf(StrategySimulation sim) => <double>[
     // a comparison blind to that would go on passing while the whole military
     // half of the game drifted.
     unit.health,
-    unit.cooldown,
+    unit.cooldownSeconds,
   ],
 ];
 

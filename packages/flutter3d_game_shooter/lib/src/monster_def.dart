@@ -87,6 +87,26 @@ final class MonsterState {
   /// Dead: it neither moves nor decides again.
   static const MonsterState dead = MonsterState('dead');
 
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<MonsterState> values = <MonsterState>[
+    idle,
+    alert,
+    chase,
+    attack,
+    hurt,
+    dead,
+  ];
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static MonsterState? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   /// The six [ChaseBrain] decides between, for a table that wants to list
   /// them. A game adds its own; there is no registry, for the reason
   /// [GameAction.common] gives — a list nobody has to keep up to date cannot
@@ -128,11 +148,11 @@ final class MonsterDef {
     required this.radius,
     required this.height,
     this.sightRange = 26.0,
-    this.hurtDuration = 0.25,
-    this.alertDuration = 0.35,
+    this.hurtSeconds = 0.25,
+    this.alertSeconds = 0.35,
     this.turnRate = 6.0,
     this.painChance = 1.0,
-    this.painCooldown = 0.2,
+    this.painCooldownSeconds = 0.2,
   });
 
   /// What the kind is called, for a log, an editor and the bestiary's
@@ -162,12 +182,12 @@ final class MonsterDef {
   /// How long a stagger lasts. Long enough to read as a reaction, short enough
   /// that it cannot be used to stun-lock something to death.
   /// In seconds.
-  final double hurtDuration;
+  final double hurtSeconds;
 
   /// How long it hesitates after noticing before it comes. A monster that
   /// snaps to face the player the instant it sees them reads as a turret.
   /// In seconds.
-  final double alertDuration;
+  final double alertSeconds;
 
   /// How fast it turns, in radians per second.
   final double turnRate;
@@ -182,5 +202,5 @@ final class MonsterDef {
 
   /// How long after a stagger before it can be staggered again.
   /// In seconds.
-  final double painCooldown;
+  final double painCooldownSeconds;
 }

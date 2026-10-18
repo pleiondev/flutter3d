@@ -145,6 +145,33 @@ final class AutoExposureSettings {
     highPercentile: highPercentile ?? this.highPercentile,
     perView: perView ?? this.perView,
   );
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AutoExposureSettings &&
+          other.enabled == enabled &&
+          other.minExposure == minExposure &&
+          other.maxExposure == maxExposure &&
+          other.speedUp == speedUp &&
+          other.speedDown == speedDown &&
+          other.target == target &&
+          other.lowPercentile == lowPercentile &&
+          other.highPercentile == highPercentile &&
+          other.perView == perView;
+
+  @override
+  int get hashCode => Object.hash(
+    enabled,
+    minExposure,
+    maxExposure,
+    speedUp,
+    speedDown,
+    target,
+    lowPercentile,
+    highPercentile,
+    perView,
+  );
 }
 
 /// A rectangle of the frame, in fractions — what a view occupies.
@@ -295,6 +322,7 @@ abstract final class ExposureMeter {
 /// two later — and the adapter is what turns that into something the frame
 /// being drawn can use without lurching.
 final class ExposureAdapter {
+  /// An adapter starting at the exposure [initial].
   ExposureAdapter({required double initial}) : value = initial;
 
   /// The exposure the composite uses now.
@@ -322,7 +350,6 @@ final class ExposureAdapter {
       luminance,
       lowPercentile: settings.lowPercentile,
       highPercentile: settings.highPercentile,
-  /// An adapter starting at the exposure [initial].
       within: within,
     );
     _target = ExposureMeter.exposureFor(

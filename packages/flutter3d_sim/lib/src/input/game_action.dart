@@ -119,6 +119,19 @@ final class DualAxisAction implements InputAction<Vector2> {
   /// Turning the view, as a delta. [InputState.lookDelta].
   static const DualAxisAction look = DualAxisAction('look', isDelta: true);
 
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<DualAxisAction> values = <DualAxisAction>[move, look];
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static DualAxisAction? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   @override
   bool operator ==(Object other) =>
       other is DualAxisAction && other.name == name;
@@ -193,6 +206,27 @@ final class GameAction implements InputAction<bool> {
 
   /// Buttons, levers, doors, and reading the notes on the walls.
   static const GameAction use = GameAction('use');
+
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<GameAction> values = <GameAction>[
+    moveForward,
+    moveBack,
+    moveLeft,
+    moveRight,
+    sprint,
+    jump,
+    use,
+  ];
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static GameAction? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
 
   /// The seven every game in this repository has needed, for a rebind screen that
   /// wants to list them. A genre adds its own; there is no registry, and that is

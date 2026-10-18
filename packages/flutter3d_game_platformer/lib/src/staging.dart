@@ -88,7 +88,7 @@ PlatformerStaged stagePlatformer(
   int deaths = 0,
 
   /// Seconds already on the run's clock.
-  double elapsed = 0.0,
+  double elapsedSeconds = 0.0,
   GameRandom? random,
   RigidDynamics Function(CollisionWorld world)? dynamicsFor,
   EcsWorld? entities,
@@ -176,7 +176,7 @@ PlatformerStaged stagePlatformer(
       random: dice,
       lives: lives,
       deaths: deaths,
-      elapsed: elapsed,
+      elapsedSeconds: elapsedSeconds,
     ),
   );
 }
@@ -314,7 +314,7 @@ final class _PlatformerRun extends RestorableRun {
         '${at.z.toStringAsFixed(1)}), health '
         '${health.current.toStringAsFixed(0)}/'
         '${health.maximum.toStringAsFixed(0)}, ${_sim.state.name}, '
-        '${_sim.deaths} deaths, ${_sim.elapsed.toStringAsFixed(1)} s.';
+        '${_sim.deaths} deaths, ${_sim.elapsedSeconds.toStringAsFixed(1)} s.';
   }
 
   @override
@@ -331,7 +331,7 @@ final class _PlatformerRun extends RestorableRun {
       'state': _sim.state.name,
       'deaths': _sim.deaths,
       'lives': _sim.lives,
-      'elapsed': _sim.elapsed,
+      'elapsed': _sim.elapsedSeconds,
       'next': _sim.nextLevel,
     };
   }

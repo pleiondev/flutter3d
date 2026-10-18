@@ -123,8 +123,8 @@ void main() {
       // sub-steps a frame takes would then change how fast particles spin.
       const spin = ParticleSpin(turnsPerSecond: 1.0);
       final particle = Particle()
-        ..lifetime = 1.0
-        ..age = 0.25
+        ..lifetimeSeconds = 1.0
+        ..ageSeconds = 0.25
         ..seed = 0.8;
       spin.apply(ParticleStep(particle: particle, dt: 1 / 60));
       final once = particle.rotation;
@@ -137,12 +137,12 @@ void main() {
       // step, which draws the eye to the grid.
       const spin = ParticleSpin(turnsPerSecond: 1.0);
       final a = Particle()
-        ..lifetime = 1.0
-        ..age = 0.3
+        ..lifetimeSeconds = 1.0
+        ..ageSeconds = 0.3
         ..seed = 0.1;
       final b = Particle()
-        ..lifetime = 1.0
-        ..age = 0.3
+        ..lifetimeSeconds = 1.0
+        ..ageSeconds = 0.3
         ..seed = 0.9;
       spin
         ..apply(ParticleStep(particle: a, dt: 1 / 60))
@@ -174,32 +174,32 @@ void main() {
 
     test('the cell advances across the life and holds the last one', () {
       final book = Flipbook(columns: 4, rows: 1);
-      final particle = Particle()..lifetime = 1.0;
+      final particle = Particle()..lifetimeSeconds = 1.0;
 
-      particle.age = 0.0;
+      particle.ageSeconds = 0.0;
       expect(book.cellFor(particle).left, closeTo(0.0, 1e-9));
-      particle.age = 0.3;
+      particle.ageSeconds = 0.3;
       expect(book.cellFor(particle).left, closeTo(0.25, 1e-9));
-      particle.age = 0.8;
+      particle.ageSeconds = 0.8;
       expect(book.cellFor(particle).left, closeTo(0.75, 1e-9));
 
       // At and past the end the last frame is held. Wrapping to the first would
       // be a visible blink at the instant the particle disappears.
-      particle.age = 1.0;
+      particle.ageSeconds = 1.0;
       expect(book.cellFor(particle).left, closeTo(0.75, 1e-9));
-      particle.age = 2.0;
+      particle.ageSeconds = 2.0;
       expect(book.cellFor(particle).left, closeTo(0.75, 1e-9));
     });
 
     test('a looping sheet wraps instead of holding', () {
       final book = Flipbook(columns: 2, rows: 1, loops: 2);
-      final particle = Particle()..lifetime = 1.0;
-      particle.age = 0.0;
+      final particle = Particle()..lifetimeSeconds = 1.0;
+      particle.ageSeconds = 0.0;
       expect(book.cellFor(particle).left, closeTo(0.0, 1e-9));
-      particle.age = 0.3;
+      particle.ageSeconds = 0.3;
       expect(book.cellFor(particle).left, closeTo(0.5, 1e-9));
       // Second time round.
-      particle.age = 0.6;
+      particle.ageSeconds = 0.6;
       expect(book.cellFor(particle).left, closeTo(0.0, 1e-9));
     });
 
@@ -209,8 +209,8 @@ void main() {
       final book = Flipbook(columns: 3, rows: 3, frames: 7);
       expect(book.frameCount, 7);
       final particle = Particle()
-        ..lifetime = 1.0
-        ..age = 0.999;
+        ..lifetimeSeconds = 1.0
+        ..ageSeconds = 0.999;
       final cell = book.cellFor(particle);
       expect(cell.left, closeTo(0.0, 1e-9), reason: 'frame six is column zero');
       expect(cell.top, closeTo(2 / 3, 1e-9), reason: 'of the last row');

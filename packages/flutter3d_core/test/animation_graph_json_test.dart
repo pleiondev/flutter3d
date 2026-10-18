@@ -61,7 +61,7 @@ AnimationStateMachine _everything() => AnimationStateMachine(
       conditions: const <AnimationCondition>[
         CompareCondition('speed', AnimationComparison.less, 0.1),
       ],
-      duration: 0.2,
+      durationSeconds: 0.2,
     ),
     AnimationTransition(
       from: 'idle',
@@ -70,7 +70,7 @@ AnimationStateMachine _everything() => AnimationStateMachine(
         CompareCondition('speed', AnimationComparison.greater, 0.1),
         BoolCondition('grounded'),
       ],
-      duration: 0.2,
+      durationSeconds: 0.2,
     ),
     AnimationTransition(
       from: 'move',
@@ -88,7 +88,7 @@ AnimationStateMachine _everything() => AnimationStateMachine(
         BoolCondition('grounded', value: true),
       ],
       exitTime: 1.0,
-      duration: 0.1,
+      durationSeconds: 0.1,
     ),
     AnimationTransition(from: 'idle', to: 'strafe', exitTime: 0.5),
     // Never fires: the script stays on the ground.

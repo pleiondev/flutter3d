@@ -136,6 +136,16 @@ final class EffectDrawing {
   /// A six-way lit sheet — `ParticleContributor` with a `SixWayMaterial`.
   static const EffectDrawing sixWay = EffectDrawing._('sixWay');
 
+  /// The value whose [word] is [name], or null for a name this
+  /// version does not know, which is what a file written by a later
+  /// version can carry.
+  static EffectDrawing? byName(String name) {
+    for (final value in values) {
+      if (value.word == name) return value;
+    }
+    return null;
+  }
+
   /// Every drawing this build knows.
   static const List<EffectDrawing> values = <EffectDrawing>[
     billboard,
@@ -165,6 +175,16 @@ final class EffectBlend {
 
   /// Over what is behind, sorted far to near: the six-way sheet's.
   static const EffectBlend over = EffectBlend._('over');
+
+  /// The value whose [word] is [name], or null for a name this
+  /// version does not know, which is what a file written by a later
+  /// version can carry.
+  static EffectBlend? byName(String name) {
+    for (final value in values) {
+      if (value.word == name) return value;
+    }
+    return null;
+  }
 
   /// Every blend this build knows.
   static const List<EffectBlend> values = <EffectBlend>[
@@ -267,6 +287,16 @@ final class EffectSpawn {
 
   /// A rate for a stated time — `ParticleSystem.emitTimed`.
   static const EffectSpawn timed = EffectSpawn._('timed');
+
+  /// The value whose [word] is [name], or null for a name this
+  /// version does not know, which is what a file written by a later
+  /// version can carry.
+  static EffectSpawn? byName(String name) {
+    for (final value in values) {
+      if (value.word == name) return value;
+    }
+    return null;
+  }
 
   /// Every way of emitting this build knows.
   static const List<EffectSpawn> values = <EffectSpawn>[burst, timed];

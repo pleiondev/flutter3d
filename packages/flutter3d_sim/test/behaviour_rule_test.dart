@@ -11,7 +11,7 @@ final class _Attack extends BehaviorLeaf {
   const _Attack();
 
   @override
-  BehaviorStatus tick(BehaviorContext context) => BehaviorStatus.success;
+  BehaviorStatus step(BehaviorContext context) => BehaviorStatus.success;
 }
 
 const Map<String, Object?> _fight = <String, Object?>{

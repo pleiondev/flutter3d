@@ -27,7 +27,7 @@ final class Recorder {
   /// Called every step and mostly does nothing, which is the point: the caller
   /// does not have to know the rate, so changing it changes one number here
   /// rather than a condition at every call site.
-  void tick(
+  void record(
     double time, {
     required Vector3 position,
     required double yaw,
@@ -35,7 +35,8 @@ final class Recorder {
   }) {
     if (_poses.isNotEmpty && time < _nextAt) return;
 
-    final pose = GhostFrame(time: time, yaw: yaw)..position.setFrom(position);
+    final pose = GhostFrame(timeSeconds: time, yaw: yaw)
+      ..position.setFrom(position);
     if (up != null) pose.up.setFrom(up);
 
     _poses.add(pose);

@@ -76,6 +76,26 @@ final class ExpressionType {
   /// is why its [components] is zero rather than some number of channels.
   static const ExpressionType texture = ExpressionType('texture', 0);
 
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<ExpressionType> values = <ExpressionType>[
+    float,
+    vec2,
+    vec3,
+    vec4,
+    boolean,
+    texture,
+  ];
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static ExpressionType? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   /// The dimensionless numeric types, by how many components they have —
   /// `numeric[3]` is [vec3]. Index zero is absent on purpose: there is no
   /// zero-component number, and [texture] taking that slot would make an
@@ -441,6 +461,35 @@ final class ExpressionBuiltin {
     dimension: _pure,
     units: 'takes any dimension',
   );
+
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<ExpressionBuiltin> values = <ExpressionBuiltin>[
+    dot,
+    length,
+    normalize,
+    mix,
+    clamp,
+    smoothstep,
+    step,
+    pow,
+    min,
+    max,
+    abs,
+    sqrt,
+    floor,
+    fract,
+    sin,
+    cos,
+    tan,
+    asin,
+    acos,
+    atan,
+    atan2,
+    exp,
+    log,
+    sign,
+  ];
 
   /// Every builtin of the language, in the order a reference lists them.
   static const List<ExpressionBuiltin> all = <ExpressionBuiltin>[

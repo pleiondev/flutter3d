@@ -174,7 +174,7 @@ typedef ImpulseRule<T extends BusEvent> = CameraImpulse? Function(T event);
 final class ImpulseShake
   ImpulseShake({this.seed = 0, this.motion = 1.0, this.limit = 16})
   bool get isShaking
-  double get time
+  double get timeSeconds
   double motion
   final int limit
   final int seed
@@ -270,6 +270,7 @@ final class PhotoCamera
 
 base class RigSettings
   RigSettings copyWith({double? distance, double? height, double? aimHeight, double? lag, double? nearClearance, double? minDistance})
+  bool operator ==(Object other)
   const RigSettings({required this.distance, required this.height, required this.aimHeight, required this.lag, required this.nearClearance, required this.minDistance})
   final double aimHeight
   final double distance
@@ -277,6 +278,7 @@ base class RigSettings
   final double lag
   final double minDistance
   final double nearClearance
+  int get hashCode
 
 final class SequenceView
   SequenceView(this.sequence)

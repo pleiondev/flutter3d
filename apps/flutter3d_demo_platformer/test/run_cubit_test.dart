@@ -120,14 +120,14 @@ void main() {
     await it.run.begin();
     final first = it.run.state as RunPlaying<LevelReady>;
     first.level.staged.step(1.0 / 60.0);
-    expect(first.level.sim.elapsed, greaterThan(0.0));
+    expect(first.level.sim.elapsedSeconds, greaterThan(0.0));
 
     await it.run.restart();
 
     final second = it.run.state as RunPlaying<LevelReady>;
     expect(second.asset, first.asset);
     expect(
-      second.level.sim.elapsed,
+      second.level.sim.elapsedSeconds,
       0.0,
       reason: 'a restart that keeps the clock you died at is not one',
     );

@@ -178,7 +178,7 @@ void main() {
     world
       ..gravity = Vector3.zero()
       ..substeps = 1
-      ..setSleep(speed: 0.0, time: 0.0);
+      ..setSleep(speed: 0.0, timeSeconds: 0.0);
     final native = world.addBody(position: Vector3.zero(), mass: 2.0);
     world
       ..setShape(native, NativeShape.box(half))

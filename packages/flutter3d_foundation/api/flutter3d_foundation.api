@@ -131,6 +131,7 @@ final class ExpressionBuiltin
   static const ExpressionBuiltin step = ExpressionBuiltin('step', arity: 2, apply: _step, dimension: _sameToPure, units: 'takes arguments of one dimension')
   static const ExpressionBuiltin tan = ExpressionBuiltin('tan', arity: 1, apply: _tan, dimension: _angleToPure, units: 'takes an angle or a pure number')
   static const List<ExpressionBuiltin> all = …
+  static const List<ExpressionBuiltin> values = …
 
 final class ExpressionCall extends Expression
   R accept<R>(ExpressionVisitor<R> visitor)
@@ -213,12 +214,14 @@ final class ExpressionType
   final int components
   int get hashCode
   static ExpressionType measuring(Unit unit, {int components = 1})
+  static ExpressionType? byName(String name)
   static const ExpressionType boolean = ExpressionType('bool', 1, isBoolean: true)
   static const ExpressionType float = ExpressionType('float', 1)
   static const ExpressionType texture = ExpressionType('texture', 0)
   static const ExpressionType vec2 = ExpressionType('vec2', 2)
   static const ExpressionType vec3 = ExpressionType('vec3', 3)
   static const ExpressionType vec4 = ExpressionType('vec4', 4)
+  static const List<ExpressionType> values = <ExpressionType>[float, vec2, vec3, vec4, boolean, texture]
   static const Map<int, ExpressionType> numeric = <int, ExpressionType>{1: float, 2: vec2, 3: vec3, 4: vec4}
 
 base class ExpressionVariable extends Expression

@@ -70,6 +70,29 @@ final class DebugDrawSettings {
     skeletons: skeletons ?? this.skeletons,
     normalLength: normalLength ?? this.normalLength,
   );
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DebugDrawSettings &&
+          other.bounds == bounds &&
+          other.normals == normals &&
+          other.lightGizmos == lightGizmos &&
+          other.axes == axes &&
+          other.cameraFrustums == cameraFrustums &&
+          other.skeletons == skeletons &&
+          other.normalLength == normalLength;
+
+  @override
+  int get hashCode => Object.hash(
+    bounds,
+    normals,
+    lightGizmos,
+    axes,
+    cameraFrustums,
+    skeletons,
+    normalLength,
+  );
 }
 
 /// Colours used by the built-in overlays, so a screenshot is readable without a
@@ -81,13 +104,28 @@ final class DebugDrawSettings {
 /// constant; a `Vector4` here had to be a getter, because a caller scaling
 /// one changed it for every overlay in the process.
 abstract final class DebugColors {
+  /// Cyan, for mesh bounding boxes.
   static final LinearColor bounds = LinearColor.fromSrgb(0.25, 0.85, 1.0);
+
+  /// Orange, for normal segments.
   static final LinearColor normal = LinearColor.fromSrgb(1.0, 0.45, 0.15);
+
+  /// Yellow, for light gizmos.
   static final LinearColor light = LinearColor.fromSrgb(1.0, 0.92, 0.35);
+
+  /// Violet, for camera frustums.
   static final LinearColor frustum = LinearColor.fromSrgb(0.65, 0.45, 1.0);
+
+  /// Green, for the selection outline.
   static final LinearColor selection = LinearColor.fromSrgb(0.35, 1.0, 0.45);
+
+  /// Red, for the X axis.
   static final LinearColor axisX = LinearColor.fromSrgb(1.0, 0.25, 0.25);
+
+  /// Green, for the Y axis.
   static final LinearColor axisY = LinearColor.fromSrgb(0.25, 1.0, 0.35);
+
+  /// Blue, for the Z axis.
   static final LinearColor axisZ = LinearColor.fromSrgb(0.3, 0.5, 1.0);
 
   /// `#FF458E` — a joint the skeleton overlay draws to say something is
@@ -104,28 +142,13 @@ abstract final class DebugColors {
 /// Everything the engine wants to visualise — bounds, normals, gizmos, frusta —
 /// is line segments, so all of it goes into a single buffer drawn with one
 /// `PrimitiveType.line` call. That keeps the debug overlay off the frame's
-  /// Cyan, for mesh bounding boxes.
 /// critical path: one draw and one buffer upload regardless of how much is
-
-  /// Orange, for normal segments.
 /// shown.
-
-  /// Yellow, for light gizmos.
 ///
-
-  /// Violet, for camera frustums.
 /// The buffer is grown by doubling and never released, so a steady overlay
-
-  /// Green, for the selection outline.
 /// allocates nothing after the first few frames. This class knows nothing about
-
-  /// Red, for the X axis.
 /// the graphics backend, which keeps it testable without a device.
-
-  /// Green, for the Y axis.
 ///
-
-  /// Blue, for the Z axis.
 /// ## Where a line is
 ///
 /// **In scene space**: float32 offsets from the drawn scene's [origin]
@@ -141,11 +164,15 @@ abstract final class DebugColors {
 /// drawn after the frame is encoded for the display, so each line's colour
 /// is encoded here, once, and reaches the screen as the sRGB value it names.
 final class DebugDraw {
+  /// An empty line buffer with room for [reserveLines] lines, at least one,
+  /// before it has to grow.
   DebugDraw({int reserveLines = 256})
     : _data = Float32List(math.max(1, reserveLines) * floatsPerLine);
 
   /// position.xyz + colour.rgba, matching [VertexLayout.positionColor].
   static const int floatsPerVertex = 7;
+
+  /// Floats one line takes: two vertices of [floatsPerVertex] each.
   static const int floatsPerLine = floatsPerVertex * 2;
 
   /// Upper bound on the normals drawn for one mesh.
@@ -164,24 +191,24 @@ final class DebugDraw {
   WorldPosition origin = WorldPosition.origin;
 
   /// The last colour encoded, and its display values, so a run of lines in
-  /// An empty line buffer with room for [reserveLines] lines, at least one,
-  /// before it has to grow.
   /// one colour (a box, a sphere, every normal of a mesh) encodes it once.
   LinearColor? _encodedFrom;
   double _er = 0, _eg = 0, _eb = 0, _ea = 1;
 
+  /// How many vertices the buffer holds, two a line.
   int get vertexCount => _floats ~/ floatsPerVertex;
 
-  /// Floats one line takes: two vertices of [floatsPerVertex] each.
-
+  /// How many lines the buffer holds.
   int get lineCount => _floats ~/ floatsPerLine;
 
+  /// Whether the buffer holds no line.
   bool get isEmpty => _floats == 0;
 
   /// The used portion of the buffer, ready to upload.
   ByteData get vertexBytes =>
       _data.buffer.asByteData(_data.offsetInBytes, _floats * 4);
 
+  /// Empties the buffer, keeping its storage for the next frame.
   void clear() => _floats = 0;
 
   /// Trims every line to the part of it the camera can actually see.
@@ -195,20 +222,16 @@ final class DebugDraw {
   /// stand next to it.
   ///
   /// Nothing else in the frame has this problem, because everything else is
-  /// How many vertices the buffer holds, two a line.
   /// made of triangles and the rasteriser clips those. A line list is handed
   /// straight to the hardware, and the near plane is ours to respect.
-  /// How many lines the buffer holds.
   ///
   /// The intersection is found in clip space and applied to the *world*
-  /// Whether the buffer holds no line.
   /// endpoints, because world positions are what this buffer holds. A segment
   /// with both ends behind the eye is collapsed to a point, which draws
   /// nothing.
   void clipToNearPlane(Matrix4 viewProjection, {double epsilon = 1e-4}) {
     final m = viewProjection.storage;
     double wOf(double x, double y, double z) =>
-  /// Empties the buffer, keeping its storage for the next frame.
         m[3] * x + m[7] * y + m[11] * z + m[15];
 
     for (var line = 0; line + floatsPerLine <= _floats; line += floatsPerLine) {

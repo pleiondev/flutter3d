@@ -82,7 +82,7 @@ void _run(EngineLoop loop, ObserverFeed feed, LoopbackParty party, int steps) {
   for (var i = 0; i < steps; i++) {
     loop.runSteps(1);
     feed.stepped(recorder.tape.frames.last, loop.published);
-    party.tick();
+    party.step();
   }
   feeding.cancel();
   loop.recorders.remove(recorder);
@@ -116,11 +116,11 @@ void main() {
       readings: readings.add,
     )..join();
     party
-      ..tick()
-      ..tick();
+      ..step()
+      ..step();
     expect(observer.mode, ObserverMode.tape);
     _run(plant, feed, party, 3);
-    party.tick();
+    party.step();
     expect(copy.capture().toJson(), plant.capture().toJson());
     expect(copy.probeReadings, plant.probeReadings);
     // Its filter: only the probe it asked for.
@@ -153,10 +153,10 @@ void main() {
         )..join(),
     ];
     party
-      ..tick()
-      ..tick();
+      ..step()
+      ..step();
     _run(plant, feed, party, 2);
-    party.tick();
+    party.step();
     expect(watchers.map((w) => w.mode), everyElement(ObserverMode.poses));
     final first = shown[1]!.last;
     expect(first.positions.values.single, const WorldPosition(1, 2, 3));
@@ -181,7 +181,7 @@ void main() {
       wire: party.wire(1),
       simulation: const SimulationVersion(genre: 'racing'),
     )..join();
-    party.tick();
+    party.step();
     _run(plant, feed, party, 1);
     expect(observer.mode, ObserverMode.poses);
     expect(feed.observers, <int>[1]);

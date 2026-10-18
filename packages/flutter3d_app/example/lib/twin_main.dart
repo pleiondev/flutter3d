@@ -290,7 +290,7 @@ class _Readings extends StatelessWidget {
               probe: SiteTwin.airProbe,
               builder: (context, _) => Text(switch ((
                 source.lastError,
-                source.latest?.sourceTime,
+                source.latest?.sourceSeconds,
               )) {
                 (final String error, _) => 'Source: $error',
                 (_, final double taken) =>

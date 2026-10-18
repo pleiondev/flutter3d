@@ -14,9 +14,9 @@ final class AgreedEnding<S>
 
 final class EngineRollback
   EngineRollback({required this.loop, required PeerWire wire, required Map<String, Object?> Function() captureLocalFrame, required this.applyFrames, int? localSlot, int players = 2, int inputDelay = 2, int maxRollbackFrames = 8, int redundancy = 8, bool Function(LoopState after)? endsAt, void Function(SettledStep<LoopState> settled)? onSettled, void Function(PeerMessage message)? onMessage})
+  RollbackSession<LoopState> get session
   final EngineLoop loop
   final void Function(RollbackStep step) applyFrames
-  late final RollbackSession<LoopState> session
   void advance()
 
 final class InputStatus
@@ -41,7 +41,7 @@ final class LoopbackParty
   final double lossRate
   final int delaySteps
   final int size
-  void tick()
+  void step()
 
 final class LoopbackWire extends PeerWire
   Future<void> close()
@@ -51,7 +51,7 @@ final class LoopbackWire extends PeerWire
   static LoopbackPair pair({int delaySteps = 0, double lossRate = 0.0, int seed = 1})
   void send(PeerSend context)
   void sendBytes(PeerSendBytes context)
-  void tick()
+  void step()
 
 final class ObserverFeed
   Iterable<int> get observers
@@ -293,6 +293,8 @@ final class WireHello
 final class WireState
   String toString()
   final String name
+  static WireState? byName(String name)
+  static const List<WireState> values = <WireState>[connecting, open, closed]
   static const WireState closed = WireState._('closed')
   static const WireState connecting = WireState._('connecting')
   static const WireState open = WireState._('open')

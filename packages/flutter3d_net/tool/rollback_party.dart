@@ -250,7 +250,7 @@ List<Map<String, Object?>> _play(_Options o) {
     for (final session in sessions) {
       session.advance();
     }
-    party.tick();
+    party.step();
   }
   return [
     for (var s = 0; s < o.players; s++)

@@ -229,8 +229,8 @@ final class VariantsAndPointersDemo extends ShowcaseDemo {
     SliderControl(
       'Time',
       min: 0,
-      max: _player.duration,
-      value: () => _player.time,
+      max: _player.durationSeconds,
+      value: () => _player.timeSeconds,
       onChanged: (double v) => _player
         ..pause()
         ..seek(v),

@@ -179,4 +179,33 @@ final class NavMeshSettings {
     // before tiles existed.
     if (tileSize > 0) tileSize.toDouble(),
   ];
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is NavMeshSettings &&
+          other.cellSize == cellSize &&
+          other.cellHeight == cellHeight &&
+          other.agentHeight == agentHeight &&
+          other.stepHeight == stepHeight &&
+          other.agentRadius == agentRadius &&
+          other.maxSlope == maxSlope &&
+          other.maxEdgeError == maxEdgeError &&
+          other.maxVerticesPerPolygon == maxVerticesPerPolygon &&
+          other.minIslandArea == minIslandArea &&
+          other.tileSize == tileSize;
+
+  @override
+  int get hashCode => Object.hash(
+    cellSize,
+    cellHeight,
+    agentHeight,
+    stepHeight,
+    agentRadius,
+    maxSlope,
+    maxEdgeError,
+    maxVerticesPerPolygon,
+    minIslandArea,
+    tileSize,
+  );
 }

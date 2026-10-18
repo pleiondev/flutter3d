@@ -1311,9 +1311,9 @@ class _GameScreenState extends State<GameScreen>
   void _onTick(Duration _) {
     // The ticker's argument is the frame's scheduled time, not the present;
     // `FrameClock` says why the wall is measured instead.
-    final dt = _frames.tick();
+    final dt = _frames.nextFrameSeconds();
     if (_fogAlternates) {
-      final phase = (_frames.elapsed / 2.0).floor().isEven;
+      final phase = (_frames.elapsedSeconds / 2.0).floor().isEven;
       if (phase != _fogOn) _fogOn = phase;
     }
     // Paused exactly when the pointer is not captured, which is what Escape
@@ -1324,7 +1324,7 @@ class _GameScreenState extends State<GameScreen>
     // There is no pointer to own in a browser, so there the game is never
     // paused by not owning it.
     // Before the loop, so the frame that reads the pad is the frame it moves in.
-    _pad.tick(dt);
+    _pad.update(dt);
     // Start restarts a finished run, and a pad button offered to a waiting
     // rebinding takes precedence over it — `PadPresses` holds both, and holds
     // the edge this game did not have on the rebinding: a controller resting
@@ -1460,7 +1460,7 @@ class _GameScreenState extends State<GameScreen>
         // own clock is a model with no graph, naming its clips, and the
         // corpses falling.
         _actorVisuals?.animate(frame.realDt);
-        _fixtureVisuals?.sync(_frames.elapsed);
+        _fixtureVisuals?.sync(_frames.elapsedSeconds);
       })
       ..addSystem('dungeon.photo', LoopPhase.camera, (LoopContext frame) {
         if (!_photo.isActive) return;

@@ -128,9 +128,9 @@ final class IrradianceField {
   }) : assert(countX > 1 && countY > 1 && countZ > 1, 'a field needs a cell'),
        assert(tile > 1 && depthTile > 1, 'a tile needs an interior') {
     final probes = countX * countY * countZ;
-    irradiance = Float32List(probes * _stride(tile) * _stride(tile) * 3);
-    depth = Float32List(probes * _stride(depthTile) * _stride(depthTile) * 2);
-    active = Uint8List(probes)..fillRange(0, probes, 1);
+    _irradiance = Float32List(probes * _stride(tile) * _stride(tile) * 3);
+    _depth = Float32List(probes * _stride(depthTile) * _stride(depthTile) * 2);
+    _active = Uint8List(probes)..fillRange(0, probes, 1);
   }
 
   /// Where probe (0, 0, 0) stands.
@@ -156,11 +156,15 @@ final class IrradianceField {
   /// decides whether light crosses a wall and a coarse one crosses it.
   final int depthTile;
 
+  late final Float32List _irradiance;
+
   /// `rgb` per texel, per probe.
-  late final Float32List irradiance;
+  Float32List get irradiance => _irradiance;
+
+  late final Float32List _depth;
 
   /// Mean distance and mean square distance per texel, per probe.
-  late final Float32List depth;
+  Float32List get depth => _depth;
 
   /// How many probes the renderer updates a frame on the GPU — `L4`. Nought,
   /// the default, leaves the field exactly what was baked; above it, the
@@ -174,6 +178,8 @@ final class IrradianceField {
   /// A 0..1 fraction.
   double hysteresis = 0.9;
 
+  late final Uint8List _active;
+
   /// Whether each probe stands somewhere worth reading.
   ///
   /// **A probe inside a wall is the other way a field goes wrong**, and it is
@@ -183,15 +189,15 @@ final class IrradianceField {
   /// what is actually lighting the room. Marking it and skipping it is what
   /// `gatherProbe` does; the alternative the published schemes use is to move
   /// the probe, which needs a search this does not have.
-  late final Uint8List active;
+  Uint8List get active => _active;
 
+  /// How many probes the field holds, a count.
   int get probeCount => countX * countY * countZ;
 
   static int _stride(int interior) => interior + 2;
 
   /// Bumped whenever the field's contents change — `L3`: by every write here
   /// and by [fillGutters], which is how a bake finishes. The renderer uploads
-  /// How many probes the field holds, a count.
   /// the atlas again when this moved and not otherwise. Anything that writes
   /// [irradiance], [depth] or [active] directly calls [markChanged].
   int get version => _version;

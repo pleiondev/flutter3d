@@ -37,13 +37,16 @@ final class BooleanModifier extends Modifier
 final class BrushFalloff
   String toString()
   final String name
+  static BrushFalloff? byName(String name)
   static const BrushFalloff linear = BrushFalloff._('linear')
   static const BrushFalloff sharp = BrushFalloff._('sharp')
   static const BrushFalloff smooth = BrushFalloff._('smooth')
+  static const List<BrushFalloff> values = <BrushFalloff>[linear, smooth, sharp]
 
 final class BrushKind
   String toString()
   final String name
+  static BrushKind? byName(String name)
   static const BrushKind clay = BrushKind._('clay')
   static const BrushKind crease = BrushKind._('crease')
   static const BrushKind draw = BrushKind._('draw')
@@ -52,6 +55,7 @@ final class BrushKind
   static const BrushKind inflate = BrushKind._('inflate')
   static const BrushKind pinch = BrushKind._('pinch')
   static const BrushKind smooth = BrushKind._('smooth')
+  static const List<BrushKind> values = <BrushKind>[draw, clay, smooth, flatten, inflate, grab, pinch, crease]
 
 final class BrushResult
   const BrushResult({required this.touchedVertices, required this.touchedChunks})
@@ -438,6 +442,8 @@ final class MeshIssueKind
   final ElementLevel level
   final Severity severity
   final String name
+  static MeshIssueKind? byName(String name)
+  static const List<MeshIssueKind> values = <MeshIssueKind>[ngon, boundaryEdge, nonManifoldVertex, isolatedVertex, duplicateVertex, invertedShell, degenerateFace]
   static const MeshIssueKind boundaryEdge = MeshIssueKind('boundary-edge', Severity.note, ElementLevel.edge)
   static const MeshIssueKind degenerateFace = MeshIssueKind('degenerate-face', Severity.error, ElementLevel.face)
   static const MeshIssueKind duplicateVertex = MeshIssueKind('duplicate-vertex', Severity.warning, ElementLevel.vertex)
@@ -801,6 +807,8 @@ final class TriangleIndices
 
 final class UvProjection
   String toString()
+  static UvProjection? byName(String name)
+  static const List<UvProjection> values = <UvProjection>[planar, box]
   static const UvProjection box = UvProjection._('box')
   static const UvProjection planar = UvProjection._('planar')
 

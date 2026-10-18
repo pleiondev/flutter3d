@@ -66,6 +66,20 @@ final class InputSource {
   /// key away. Never produced by a device.
   static const InputSource none = InputSource('');
 
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<InputSource> values = <InputSource>[pointerMotion, none];
+
+  /// The value whose [id] is [name], or null for a name this
+  /// version does not know, which is what a file written by a later
+  /// version can carry.
+  static InputSource? byName(String name) {
+    for (final value in values) {
+      if (value.id == name) return value;
+    }
+    return null;
+  }
+
   /// The device family: what comes before the colon, `key`, `pad`,
   /// `pointer`, `touch`.
   ///

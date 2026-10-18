@@ -1,6 +1,6 @@
 # Generated from flutter3d_build/lib/migrations/*.yaml by
 # `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
-# table-stamp: fbb33994bd2fa7e5
+# table-stamp: f38ff10f91336e6b
 #
 # Read by `dart fix` and the IDE: see "A break comes with its migration"
 # in CONTRIBUTING.md.
@@ -114,3 +114,182 @@ transforms:
     changes:
       - kind: 'rename'
         newName: 'SwimSettings'
+  - title: 'flutter3d after 1.0.0-rc.1: game_platformer-Climbable-Climbable'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_game_platformer/flutter3d_game_platformer.dart']
+      constructor: ''
+      inClass: 'Climbable'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'period'
+        newName: 'periodSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: game_platformer-Climbable-period'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_game_platformer/flutter3d_game_platformer.dart']
+      field: 'period'
+      inClass: 'Climbable'
+    changes:
+      - kind: 'rename'
+        newName: 'periodSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: game_platformer-Crumbling-Crumbling'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_game_platformer/flutter3d_game_platformer.dart']
+      constructor: ''
+      inClass: 'Crumbling'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'delay'
+        newName: 'delaySeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: game_platformer-Crumbling-delay'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_game_platformer/flutter3d_game_platformer.dart']
+      field: 'delay'
+      inClass: 'Crumbling'
+    changes:
+      - kind: 'rename'
+        newName: 'delaySeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: game_platformer-PlatformerSimulation-PlatformerSimulation'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_game_platformer/flutter3d_game_platformer.dart']
+      constructor: ''
+      inClass: 'PlatformerSimulation'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'elapsed'
+        newName: 'elapsedSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: game_platformer-PlatformerSimulation-elapsed'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_game_platformer/flutter3d_game_platformer.dart']
+      field: 'elapsed'
+      inClass: 'PlatformerSimulation'
+    changes:
+      - kind: 'rename'
+        newName: 'elapsedSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: game_platformer-Runner-dashCooldown'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_game_platformer/flutter3d_game_platformer.dart']
+      getter: 'dashCooldown'
+      inClass: 'Runner'
+    changes:
+      - kind: 'rename'
+        newName: 'dashCooldownSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: game_platformer-RunnerSettings-RunnerSettings'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_game_platformer/flutter3d_game_platformer.dart']
+      constructor: ''
+      inClass: 'RunnerSettings'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'coyoteTime'
+        newName: 'coyoteSeconds'
+      - kind: 'renameParameter'
+        oldName: 'dashCooldown'
+        newName: 'dashCooldownSeconds'
+      - kind: 'renameParameter'
+        oldName: 'dropThroughTime'
+        newName: 'dropThroughSeconds'
+      - kind: 'renameParameter'
+        oldName: 'jumpBufferTime'
+        newName: 'jumpBufferSeconds'
+      - kind: 'renameParameter'
+        oldName: 'slideTime'
+        newName: 'slideSeconds'
+      - kind: 'renameParameter'
+        oldName: 'wallCoyoteTime'
+        newName: 'wallCoyoteSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: game_platformer-RunnerSettings-copyWith'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_game_platformer/flutter3d_game_platformer.dart']
+      method: 'copyWith'
+      inClass: 'RunnerSettings'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'coyoteTime'
+        newName: 'coyoteSeconds'
+      - kind: 'renameParameter'
+        oldName: 'dashCooldown'
+        newName: 'dashCooldownSeconds'
+      - kind: 'renameParameter'
+        oldName: 'dropThroughTime'
+        newName: 'dropThroughSeconds'
+      - kind: 'renameParameter'
+        oldName: 'jumpBufferTime'
+        newName: 'jumpBufferSeconds'
+      - kind: 'renameParameter'
+        oldName: 'slideTime'
+        newName: 'slideSeconds'
+      - kind: 'renameParameter'
+        oldName: 'wallCoyoteTime'
+        newName: 'wallCoyoteSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: game_platformer-RunnerSettings-coyoteTime'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_game_platformer/flutter3d_game_platformer.dart']
+      field: 'coyoteTime'
+      inClass: 'RunnerSettings'
+    changes:
+      - kind: 'rename'
+        newName: 'coyoteSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: game_platformer-RunnerSettings-dashCooldown'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_game_platformer/flutter3d_game_platformer.dart']
+      field: 'dashCooldown'
+      inClass: 'RunnerSettings'
+    changes:
+      - kind: 'rename'
+        newName: 'dashCooldownSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: game_platformer-RunnerSettings-dropThroughTime'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_game_platformer/flutter3d_game_platformer.dart']
+      field: 'dropThroughTime'
+      inClass: 'RunnerSettings'
+    changes:
+      - kind: 'rename'
+        newName: 'dropThroughSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: game_platformer-RunnerSettings-jumpBufferTime'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_game_platformer/flutter3d_game_platformer.dart']
+      field: 'jumpBufferTime'
+      inClass: 'RunnerSettings'
+    changes:
+      - kind: 'rename'
+        newName: 'jumpBufferSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: game_platformer-RunnerSettings-slideTime'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_game_platformer/flutter3d_game_platformer.dart']
+      field: 'slideTime'
+      inClass: 'RunnerSettings'
+    changes:
+      - kind: 'rename'
+        newName: 'slideSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: game_platformer-RunnerSettings-wallCoyoteTime'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_game_platformer/flutter3d_game_platformer.dart']
+      field: 'wallCoyoteTime'
+      inClass: 'RunnerSettings'
+    changes:
+      - kind: 'rename'
+        newName: 'wallCoyoteSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: game_platformer-stagePlatformer'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_game_platformer/flutter3d_game_platformer.dart']
+      function: 'stagePlatformer'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'elapsed'
+        newName: 'elapsedSeconds'

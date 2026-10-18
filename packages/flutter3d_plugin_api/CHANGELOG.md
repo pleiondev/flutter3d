@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1
 
+- **Breaking: a time in a `double` says seconds in its name.**
+  `ExternalStateInput.quantity(… receivedTime:)` takes `receivedSeconds:`,
+  `ExternalStateInput.quantity(… sourceTime:)` takes `sourceSeconds:`,
+  `ExternalStateInput.receivedTime` is `ExternalStateInput.receivedSeconds`
+  and `ExternalStateInput.sourceTime` is `ExternalStateInput.sourceSeconds`;
+  the value and its unit are what they were. `dart fix` carries each rename
+  out.
 - **Breaking: `LoopRegistry.addSystem` takes `reads:` and `writes:`.** A
   system names the state it touches, a component, a field or a genre's
   run, so the engine's loop can name two systems of one step phase that

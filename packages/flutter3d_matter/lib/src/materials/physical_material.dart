@@ -30,6 +30,24 @@ final class MaterialPhase {
   /// Grains that pour and pile: sand, soil, gravel.
   static const MaterialPhase granular = MaterialPhase.named('granular');
 
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<MaterialPhase> values = <MaterialPhase>[
+    solid,
+    liquid,
+    gas,
+    granular,
+  ];
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static MaterialPhase? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   /// Its word in a file and a message.
   final String name;
 

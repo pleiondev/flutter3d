@@ -98,14 +98,14 @@ final class CheckpointReached extends GameEvent
 
 final class Climbable extends Mechanism
   ActivationOutcome activate(Activation by)
-  Climbable({super.name, required this.collider, this.climbSpeed = 4.0, this.swing = 0.0, this.period = 2.4, double phase = 0.0})
+  Climbable({super.name, required this.collider, this.climbSpeed = 4.0, this.swing = 0.0, this.periodSeconds = 2.4, double phase = 0.0})
   Map<String, Object?> save()
   Vector3 get origin
   double get swingVelocity
   double get top
   final Collider collider
   final double climbSpeed
-  final double period
+  final double periodSeconds
   final double swing
   void restore(Map<String, Object?> from)
   void step(double dt)
@@ -161,14 +161,14 @@ final class CrateKind extends EntityKind
 
 final class Crumbling extends Mechanism with CollisionListener
   ActivationOutcome activate(Activation by)
-  Crumbling({super.name, required this.collider, this.delay = 0.5, this.gone = 2.5})
+  Crumbling({super.name, required this.collider, this.delaySeconds = 0.5, this.gone = 2.5})
   Map<String, Object?> save()
   Vector3 get origin
   bool crumbledThisStep
   bool get hasFallen
   double sinceTouched
   final Collider collider
-  final double delay
+  final double delaySeconds
   final double gone
   void bearWeight()
   void restore(Map<String, Object?> from)
@@ -203,6 +203,7 @@ final class FollowCamera
   FollowCamera({required this.world, this.tuning = const FollowSettings(), double yaw = 0.0, String name = 'follow', CameraFraming Function(OrbitFraming preset)? reframe})
   Vector3 get eye
   Vector3 get target
+  VirtualCamera get virtualCamera
   double get extraFovY
   double get motion
   double get pitch
@@ -211,7 +212,6 @@ final class FollowCamera
   final CollisionWorld world
   final FollowSettings tuning
   final OrbitFraming framing
-  late final VirtualCamera virtualCamera
   set motion(double value)
   void aim(Vector3 runner, {Vector3? traveling})
   void cut()
@@ -223,6 +223,7 @@ final class FollowCamera
 
 final class FollowSettings extends RigSettings
   FollowSettings copyWith({double? distance, double? height, double? aimHeight, double? lag, double? nearClearance, double? minDistance, double? pitch, double? minPitch, double? maxPitch, double? sensitivity, double? impulseDecay, double? lookAhead, double? lookAheadLimit, double? recenter, double? recenterAbove})
+  bool operator ==(Object other)
   const FollowSettings({super.distance = 7.0, super.height = 2.6, super.aimHeight = 1.2, super.lag = 9.0, this.pitch = -0.22, this.minPitch = -1.2, this.maxPitch = 0.9, this.sensitivity = 0.0035, super.nearClearance = 0.35, super.minDistance = 1.2, this.impulseDecay = 9.0, this.lookAhead = 0.34, this.lookAheadLimit = 4.0, this.recenter = 1.6, this.recenterAbove = 3.0})
   final double impulseDecay
   final double lookAhead
@@ -233,6 +234,7 @@ final class FollowSettings extends RigSettings
   final double recenter
   final double recenterAbove
   final double sensitivity
+  int get hashCode
 
 abstract base class FurnitureEvent extends GameEvent
   const FurnitureEvent(this.at)
@@ -405,7 +407,7 @@ final class PlatformerPlugin extends GenrePlugin<PlatformerSimulation>
 
 final class PlatformerSimulation
   List<String> systemsIn(LoopPhase phase)
-  PlatformerSimulation({required this.runner, required this.collision, required this.input, required Vector3 startAt, this.mechanisms, this.dynamics, this.actors, this.lives = -1, this.deaths = 0, this.elapsed = 0.0, this.levelNext, required this.random, this.killPlane = -20.0, Difficulty difficulty = Difficulty.normal})
+  PlatformerSimulation({required this.runner, required this.collision, required this.input, required Vector3 startAt, this.mechanisms, this.dynamics, this.actors, this.lives = -1, this.deaths = 0, this.elapsedSeconds = 0.0, this.levelNext, required this.random, this.killPlane = -20.0, Difficulty difficulty = Difficulty.normal})
   Registration addSystem(String name, LoopPhase phase, LoopSystem system, {List<String> after = const <String>[], List<String> before = const <String>[]})
   Registration publishTo(EventRegistry bus)
   RunState state
@@ -415,7 +417,7 @@ final class PlatformerSimulation
   bool get didMoveThisStep
   double actorDamage
   double cameraYaw
-  double elapsed
+  double elapsedSeconds
   final ActorSystem? actors
   final CollisionWorld collision
   final GameRandom random
@@ -486,7 +488,7 @@ final class Runner with KeyHolder, Damageable, Rider, Gatherer, KeyTaker, Launch
   bool get isPounding
   bool get isSliding
   bool poundedThisStep
-  double get dashCooldown
+  double get dashCooldownSeconds
   double get standingHalfHeight
   double landingSpeed
   double lift
@@ -518,20 +520,21 @@ abstract base class RunnerEvent extends GameEvent
   const RunnerEvent()
 
 final class RunnerSettings
-  RunnerSettings copyWith({double? jumpSpeed, double? airJumpSpeed, int? airJumps, double? jumpCut, double? coyoteTime, double? slopeSpeed, double? glideFall, double? glideAfter, double? dropThroughTime, double? stompBounce, double? stompBounceHeld, double? crouchHeight, double? crouchSpeed, double? slideSpeed, double? slideTime, double? slideFriction, double? longJumpUp, double? longJumpPush, double? poundSpeed, double? jumpBufferTime, double? dashSpeed, double? dashCooldown, double? dashDrag, double? turnRate, double? wallProbe, double? wallSlideSpeed, double? wallJumpUp, double? wallJumpPush, double? wallCoyoteTime, double? mantleLow, double? mantleHigh, double? mantleReach, double? grip})
-  const RunnerSettings({this.jumpSpeed = 9.5, this.airJumpSpeed = 8.2, this.airJumps = 1, this.jumpCut = 0.45, this.coyoteTime = 0.12, this.slopeSpeed = 0.34, this.glideFall = 4.0, this.glideAfter = 0.2, this.dropThroughTime = 0.25, this.stompBounce = 7.5, this.stompBounceHeld = 11.0, this.crouchHeight = 0.45, this.crouchSpeed = 2.4, this.slideSpeed = 11.0, this.slideTime = 0.55, this.slideFriction = 6.0, this.longJumpUp = 6.0, this.longJumpPush = 12.0, this.poundSpeed = 26.0, this.jumpBufferTime = 0.12, this.dashSpeed = 18.0, this.dashCooldown = 0.55, this.dashDrag = 40.0, this.turnRate = 16.0, this.wallProbe = 0.14, this.wallSlideSpeed = 3.2, this.wallJumpUp = 9.0, this.wallJumpPush = 7.5, this.wallCoyoteTime = 0.12, this.mantleLow = 0.35, this.mantleHigh = 1.5, this.mantleReach = 0.45, this.grip = 0.68})
+  RunnerSettings copyWith({double? jumpSpeed, double? airJumpSpeed, int? airJumps, double? jumpCut, double? coyoteSeconds, double? slopeSpeed, double? glideFall, double? glideAfter, double? dropThroughSeconds, double? stompBounce, double? stompBounceHeld, double? crouchHeight, double? crouchSpeed, double? slideSpeed, double? slideSeconds, double? slideFriction, double? longJumpUp, double? longJumpPush, double? poundSpeed, double? jumpBufferSeconds, double? dashSpeed, double? dashCooldownSeconds, double? dashDrag, double? turnRate, double? wallProbe, double? wallSlideSpeed, double? wallJumpUp, double? wallJumpPush, double? wallCoyoteSeconds, double? mantleLow, double? mantleHigh, double? mantleReach, double? grip})
+  bool operator ==(Object other)
+  const RunnerSettings({this.jumpSpeed = 9.5, this.airJumpSpeed = 8.2, this.airJumps = 1, this.jumpCut = 0.45, this.coyoteSeconds = 0.12, this.slopeSpeed = 0.34, this.glideFall = 4.0, this.glideAfter = 0.2, this.dropThroughSeconds = 0.25, this.stompBounce = 7.5, this.stompBounceHeld = 11.0, this.crouchHeight = 0.45, this.crouchSpeed = 2.4, this.slideSpeed = 11.0, this.slideSeconds = 0.55, this.slideFriction = 6.0, this.longJumpUp = 6.0, this.longJumpPush = 12.0, this.poundSpeed = 26.0, this.jumpBufferSeconds = 0.12, this.dashSpeed = 18.0, this.dashCooldownSeconds = 0.55, this.dashDrag = 40.0, this.turnRate = 16.0, this.wallProbe = 0.14, this.wallSlideSpeed = 3.2, this.wallJumpUp = 9.0, this.wallJumpPush = 7.5, this.wallCoyoteSeconds = 0.12, this.mantleLow = 0.35, this.mantleHigh = 1.5, this.mantleReach = 0.45, this.grip = 0.68})
   final double airJumpSpeed
-  final double coyoteTime
+  final double coyoteSeconds
   final double crouchHeight
   final double crouchSpeed
-  final double dashCooldown
+  final double dashCooldownSeconds
   final double dashDrag
   final double dashSpeed
-  final double dropThroughTime
+  final double dropThroughSeconds
   final double glideAfter
   final double glideFall
   final double grip
-  final double jumpBufferTime
+  final double jumpBufferSeconds
   final double jumpCut
   final double jumpSpeed
   final double longJumpPush
@@ -541,18 +544,19 @@ final class RunnerSettings
   final double mantleReach
   final double poundSpeed
   final double slideFriction
+  final double slideSeconds
   final double slideSpeed
-  final double slideTime
   final double slopeSpeed
   final double stompBounce
   final double stompBounceHeld
   final double turnRate
-  final double wallCoyoteTime
+  final double wallCoyoteSeconds
   final double wallJumpPush
   final double wallJumpUp
   final double wallProbe
   final double wallSlideSpeed
   final int airJumps
+  int get hashCode
 
 final class Slid extends RunnerEvent
   String get name
@@ -593,12 +597,14 @@ final class Surfaces extends SurfaceTable<MovementSettings>
 
 final class SwimSettings
   SwimSettings copyWith({double? buoyancyRatio, double? sinkSpeed, double? riseSpeed, double? drag, double? speed})
+  bool operator ==(Object other)
   const SwimSettings({this.buoyancyRatio = 0.25, this.sinkSpeed = 2.0, this.riseSpeed = 3.0, this.drag = 3.0, this.speed = 3.4})
   final double buoyancyRatio
   final double drag
   final double riseSpeed
   final double sinkSpeed
   final double speed
+  int get hashCode
 
 final class WallJumped extends RunnerEvent
   String get name
@@ -626,4 +632,4 @@ const SimulationVersion platformerSimulationVersion = SimulationVersion(genre: '
 
 final WorldProperties platformerWorld
 
-PlatformerStaged stagePlatformer(Level level, CollisionWorld world, {required InputState input, EntityRegistry? registry, void Function(Fixture fixture)? onFixture, Vector3? startAt, int coins = 0, int lives = -1, int deaths = 0, double elapsed = 0.0, GameRandom? random, RigidDynamics Function(CollisionWorld world)? dynamicsFor, EcsWorld? entities})
+PlatformerStaged stagePlatformer(Level level, CollisionWorld world, {required InputState input, EntityRegistry? registry, void Function(Fixture fixture)? onFixture, Vector3? startAt, int coins = 0, int lives = -1, int deaths = 0, double elapsedSeconds = 0.0, GameRandom? random, RigidDynamics Function(CollisionWorld world)? dynamicsFor, EcsWorld? entities})

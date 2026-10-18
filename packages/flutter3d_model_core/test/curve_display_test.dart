@@ -33,7 +33,7 @@ void main() {
       // Mutation: sample through a smooth interpolation instead of
       // `KeyTable.sample` — this would read values climbing from 1.0
       // toward 9.0 instead of holding flat at 1.0 until the jump.
-      for (final CurveSample(:time, :value) in samples) {
+      for (final CurveSample(timeSeconds: time, :value) in samples) {
         if (time < 1.0) {
           expect(value, 1.0, reason: 't=$time');
         }
@@ -66,7 +66,7 @@ void main() {
       );
       final out = Float32List(1);
 
-      for (final CurveSample(:time, :value) in curveSamples(
+      for (final CurveSample(timeSeconds: time, :value) in curveSamples(
         table,
         0,
         sampleCount: 13,

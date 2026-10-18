@@ -1362,11 +1362,11 @@ class _RaceScreenState extends State<RaceScreen>
   void _onTick(Duration _) {
     // The ticker's argument is the frame's scheduled time, not the present;
     // `FrameClock` says why the wall is measured instead.
-    final dt = _frames.tick();
+    final dt = _frames.nextFrameSeconds();
 
     // Before the loop advances, so a step and the intent it is stepping with
     // belong to the same frame — see [PadInput].
-    _pad.tick(dt);
+    _pad.update(dt);
     _padRebinding();
 
     final race = _race;
@@ -1670,7 +1670,7 @@ class _RaceScreenState extends State<RaceScreen>
     final tape = _ghosts.best;
     final race = _race;
     if (tape != null && race != null) {
-      _ghostCar?.showAt(race.progress[0].lapTime, tape, lift: _carLift[0]);
+      _ghostCar?.showAt(race.progress[0].lapSeconds, tape, lift: _carLift[0]);
     } else {
       _ghostCar?.node.isVisible = false;
     }
@@ -1714,7 +1714,7 @@ class _RaceScreenState extends State<RaceScreen>
     // read, [_readout]'s own requirement.
     if (_hudPanel case final panel?) {
       _hudReading.value = _readout();
-      unawaited(panel.tick());
+      unawaited(panel.update());
     }
   }
 
@@ -1756,7 +1756,7 @@ class _RaceScreenState extends State<RaceScreen>
       laps: race.laps,
       position: race.positionOf(0),
       racers: race.progress.length,
-      lapTime: player.lapTime,
+      lapTime: player.lapSeconds,
       bestLap: player.bestLap,
       record: _ghosts.record,
       recordJustSet: _celebrateFor > 0.0,

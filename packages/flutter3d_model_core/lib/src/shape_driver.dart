@@ -67,6 +67,19 @@ final class DriverAxis {
   /// The joint's local Z axis.
   static const DriverAxis z = DriverAxis._('z', 0, 0, 1);
 
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<DriverAxis> values = <DriverAxis>[x, y, z];
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static DriverAxis? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   @override
   String toString() => 'DriverAxis.$name';
 }
@@ -248,7 +261,7 @@ Quaternion? _jointRotationAt(ProjectClip clip, int jointId, double time) {
   return null;
 }
 
-/// Every driver in [drivers] evaluated against [clip] at [time], summed per
+/// Every driver in [drivers] evaluated against [clip] at [timeSeconds], summed per
 /// shape index into a [shapeCount]-long weight list — the additive
 /// combination the row's own "аддитивно" asks for: two drivers naming the
 /// same [ShapeDriver.shapeIndex] add rather than the second overwriting the
@@ -261,14 +274,15 @@ Quaternion? _jointRotationAt(ProjectClip clip, int jointId, double time) {
 List<double> evaluateShapeDriversLive({
   required ProjectClip clip,
   required List<ShapeDriver> drivers,
-  required double time,
+  required double timeSeconds,
   required int shapeCount,
 }) {
   final weights = List<double>.filled(shapeCount, 0.0);
   for (final driver in drivers) {
     if (driver.shapeIndex < 0 || driver.shapeIndex >= shapeCount) continue;
     final rotation =
-        _jointRotationAt(clip, driver.jointId, time) ?? Quaternion.identity();
+        _jointRotationAt(clip, driver.jointId, timeSeconds) ??
+        Quaternion.identity();
     weights[driver.shapeIndex] += driver.evaluate(rotation);
   }
   return weights;
@@ -310,7 +324,7 @@ ProjectClip bakeShapeDrivers({
       evaluateShapeDriversLive(
         clip: clip,
         drivers: drivers,
-        time: time,
+        timeSeconds: time,
         shapeCount: shapeCount,
       ),
     );

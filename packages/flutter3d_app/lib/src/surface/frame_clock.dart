@@ -26,7 +26,7 @@ import 'package:flutter/scheduler.dart' show Ticker;
 /// interval, then by almost nothing, then by a whole interval again, and every
 /// motion integrated against their differences staggers in time with them —
 /// interpolation, particles, a camera's smoothing — exactly when the machine is
-/// already struggling. [tick] measures the wall instead, through `package:clock`
+/// already struggling. [nextFrameSeconds] measures the wall instead, through `package:clock`
 /// rather than a `Stopwatch` so that a widget test's `pump` still advances it.
 /// [secondsSince] keeps taking a `Duration` for the caller with a clock of its
 /// own, and for the tests.
@@ -44,13 +44,13 @@ final class FrameClock {
 
   final Clock? _wall;
 
-  /// Seconds since the previous [tick], on the wall clock, and nought on the
+  /// Seconds since the previous [nextFrameSeconds], on the wall clock, and nought on the
   /// first one.
   ///
   /// Call once a frame, from the ticker's callback, ignoring what the ticker
   /// passed: that is the frame's scheduled time, not the present, and the
   /// difference between two of them is not a frame's length under load.
-  double tick() {
+  double nextFrameSeconds() {
     final wall = _wall ?? clock;
     return secondsSince(
       Duration(microseconds: wall.now().microsecondsSinceEpoch),
@@ -60,7 +60,7 @@ final class FrameClock {
   /// Seconds since the previous frame, and nought on the first one, from a
   /// timestamp the caller measured.
   ///
-  /// Call once a frame: this both answers and advances. [tick] is this with the
+  /// Call once a frame: this both answers and advances. [nextFrameSeconds] is this with the
   /// wall clock as the caller.
   double secondsSince(Duration now) {
     final seconds = _last == null ? 0.0 : (now - _last!).inMicroseconds / 1e6;
@@ -75,7 +75,7 @@ final class FrameClock {
   /// The sum rather than the ticker's own elapsed, so that anything drawn from
   /// it — a fog that alternates, a torch that flickers — agrees exactly with
   /// what everything else this frame was told.
-  double get elapsed => _elapsed;
+  double get elapsedSeconds => _elapsed;
 
   /// Frames a second, smoothed.
   ///

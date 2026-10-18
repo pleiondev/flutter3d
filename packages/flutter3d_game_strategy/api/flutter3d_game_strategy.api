@@ -139,23 +139,25 @@ final class MapCamera
   Vector3 get eye
   Vector3 get focus
   Vector3 get target
+  VirtualCamera get virtualCamera
   double get distance
   final CameraRig rig
   final Heightfield ground
   final MapCameraSettings tuning
   final OverheadFraming framing
-  late final VirtualCamera virtualCamera
   void pan(double x, double z)
   void place(double dt)
   void zoom(double by)
 
 final class MapCameraSettings
   MapCameraSettings copyWith({double? pitch, double? minDistance, double? maxDistance, double? lag})
+  bool operator ==(Object other)
   const MapCameraSettings({this.pitch = 0.95, this.minDistance = 12.0, this.maxDistance = 90.0, this.lag = 12.0})
   final double lag
   final double maxDistance
   final double minDistance
   final double pitch
+  int get hashCode
 
 final class MatchDecided extends GameEvent
   String get name
@@ -384,7 +386,7 @@ final class StrategyUnit
   StrategyUnit({required this.position, this.type = UnitType.worker, this.side = 0, UnitOrder? order, double? health})
   UnitOrder order
   bool get isAlive
-  double cooldown
+  double cooldownSeconds
   double get radius
   double get sight
   double get speed
@@ -455,6 +457,8 @@ final class UnitType
   final double sight
   final double speed
   int get hashCode
+  static UnitType? byName(String name)
+  static const List<UnitType> values = <UnitType>[soldier, tank]
   static const UnitType soldier = UnitType(name: 'soldier', speed: 3.4, sight: 20.0, health: 70.0, damage: 9.0, range: 6.0, reload: 0.9)
   static const UnitType tank = UnitType(name: 'tank', radius: 0.9, speed: 2.2, sight: 22.0, health: 260.0, damage: 26.0, range: 5.0, reload: 1.6)
   static const UnitType worker = UnitType()

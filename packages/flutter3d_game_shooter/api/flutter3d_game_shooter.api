@@ -59,10 +59,12 @@ final class AmmoType
   const AmmoType(this.name)
   final String name
   int get hashCode
+  static AmmoType? byName(String name)
   static const AmmoType bullets = AmmoType('bullets')
   static const AmmoType none = AmmoType('none')
   static const AmmoType rockets = AmmoType('rockets')
   static const AmmoType shells = AmmoType('shells')
+  static const List<AmmoType> values = <AmmoType>[none, bullets, shells, rockets]
 
 final class ArmorGift extends Gift
   GiftAnnouncement? announce(GiftAnnounce context)
@@ -129,9 +131,9 @@ base class ChaseBrain extends Brain
   MonsterState state
   bool get isResting
   bool hasNoticed
-  double attackCooldown
-  double painCooldown
-  double stateTime
+  double attackCooldownSeconds
+  double painCooldownSeconds
+  double stateSeconds
   final Difficulty difficulty
   final MonsterDef def
   final WeaponShot shot
@@ -162,10 +164,10 @@ final class FirstPersonCamera
   FirstPersonCamera({double fovY = 1.0, String name = 'eyes', CameraFraming Function(FirstPersonFraming preset)? reframe})
   Vector3 get eye
   Vector3 get target
+  VirtualCamera get virtualCamera
   double get fovY
   final CameraRig rig
   final FirstPersonFraming framing
-  late final VirtualCamera virtualCamera
   void aim(Player player, Vector3 position)
   void cut()
   void follow(Player player, Vector3 position, double dt)
@@ -331,15 +333,15 @@ final class MeleeBehavior extends WeaponBehavior
   void deliver(WeaponShot shot)
 
 final class MonsterDef
-  const MonsterDef({required this.name, required this.health, required this.speed, required this.attack, required this.radius, required this.height, this.sightRange = 26.0, this.hurtDuration = 0.25, this.alertDuration = 0.35, this.turnRate = 6.0, this.painChance = 1.0, this.painCooldown = 0.2})
+  const MonsterDef({required this.name, required this.health, required this.speed, required this.attack, required this.radius, required this.height, this.sightRange = 26.0, this.hurtSeconds = 0.25, this.alertSeconds = 0.35, this.turnRate = 6.0, this.painChance = 1.0, this.painCooldownSeconds = 0.2})
   final String name
   final WeaponDef attack
-  final double alertDuration
+  final double alertSeconds
   final double health
   final double height
-  final double hurtDuration
+  final double hurtSeconds
   final double painChance
-  final double painCooldown
+  final double painCooldownSeconds
   final double radius
   final double sightRange
   final double speed
@@ -359,7 +361,9 @@ final class MonsterState
   const MonsterState(this.name)
   final String name
   int get hashCode
+  static MonsterState? byName(String name)
   static const List<MonsterState> chased = <MonsterState>[idle, alert, chase, attack, hurt, dead]
+  static const List<MonsterState> values = <MonsterState>[idle, alert, chase, attack, hurt, dead]
   static const MonsterState alert = MonsterState('alert')
   static const MonsterState attack = MonsterState('attack')
   static const MonsterState chase = MonsterState('chase')
@@ -596,7 +600,7 @@ final class WeaponDef
   Blast? get blast
   const WeaponDef({required this.name, required this.behavior, this.alternate, this.magazine, this.reloadSeconds = 1.5, required this.ammo, required this.damage, required this.shotsPerSecond, this.ammoPerShot = 1, this.rayCount = 1, this.spread = 0.0, this.range = 120.0, this.automatic = false, this.falloffStart = 0.0, this.falloffEnd = 0.0, this.minimumDamageFraction = 0.25, this.knockback = 0.0, this.loudness = 18.0, this.recoil = 0.0, this.recoilRecovery = 7.0, this.projectileSpeed = 0.0, this.splashRadius = 0.0, this.splashMinimumFraction = 0.0})
   double damageAt(double distance)
-  double get cooldown
+  double get cooldownSeconds
   final AmmoType ammo
   final String name
   final WeaponBehavior behavior

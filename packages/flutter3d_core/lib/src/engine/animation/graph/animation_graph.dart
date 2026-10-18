@@ -93,9 +93,9 @@ final class AnimationGraph {
         for (final (i, state) in machine.states.indexed)
           <(double, String)>[
             for (final m in state.markers) (m.at, m.name),
-            if (!_clips[i].blend && _clips[i].clips.first.duration > 0.0)
+            if (!_clips[i].blend && _clips[i].clips.first.durationSeconds > 0.0)
               for (final m in _clips[i].clips.first.markers)
-                (m.at / _clips[i].clips.first.duration, m.name),
+                (m.at / _clips[i].clips.first.durationSeconds, m.name),
           ]..sort((a, b) => a.$1.compareTo(b.$1)),
       ],
       _current = machine.indexOfState(machine.entry) {
@@ -201,7 +201,7 @@ final class AnimationGraph {
 
   /// The playhead in [state]'s clip, in seconds; in a blend state, the share
   /// of the cycle, nought to one.
-  double get stateTime => _head.time;
+  double get stateSeconds => _head.time;
 
   /// How far into [state] the graph is, in lengths of its clip — what an exit
   /// time is compared against.
@@ -427,19 +427,19 @@ final class AnimationGraph {
   _Playhead _advance(int state, _Playhead head, double step) {
     final plays = _clips[state];
     if (plays.blend) return _advanceBlend(state, plays, head, step);
-    final length = plays.clips.first.duration;
+    final length = plays.clips.first.durationSeconds;
     final delta = step * machine.states[state].speed;
     if (length <= 0.0 || delta == 0.0) {
       return _Playhead(head.time, head.elapsed + delta, head.reversing);
     }
     final moved = advanceTime(
-      time: head.time,
+      seconds: head.time,
       deltaSeconds: delta,
       length: length,
       wrap: machine.states[state].wrap,
       reversing: head.reversing,
     );
-    return _Playhead(moved.time, head.elapsed + delta, moved.reversing);
+    return _Playhead(moved.timeSeconds, head.elapsed + delta, moved.reversing);
   }
 
   /// A blend's phase moves by the length its mix would have: see
@@ -453,7 +453,7 @@ final class AnimationGraph {
     final weights = _weightsOf(plays);
     var length = 0.0;
     for (var i = 0; i < weights.length; i++) {
-      length += plays.clips[i].duration * weights[i];
+      length += plays.clips[i].durationSeconds * weights[i];
     }
     final delta = step * machine.states[state].speed;
     if (length <= 0.0 || delta == 0.0) {
@@ -465,13 +465,13 @@ final class AnimationGraph {
     }
     final share = delta / length;
     final moved = advanceTime(
-      time: head.time,
+      seconds: head.time,
       deltaSeconds: share,
       length: 1.0,
       wrap: machine.states[state].wrap,
       reversing: head.reversing,
     );
-    return _Playhead(moved.time, head.elapsed + share, moved.reversing);
+    return _Playhead(moved.timeSeconds, head.elapsed + share, moved.reversing);
   }
 
   /// How much of each of a blend's clips plays now, summing to one, into
@@ -526,7 +526,7 @@ final class AnimationGraph {
     final plays = _clips[state];
     if (!plays.blend) {
       final clip = plays.clips.first;
-      final length = clip.duration;
+      final length = clip.durationSeconds;
       // The turns the playhead has wrapped, read off the playhead itself:
       // elapsed is the time and the whole cycles before it. Floored from
       // elapsed alone, a sum of steps a hair short of the turn counted one
@@ -546,7 +546,7 @@ final class AnimationGraph {
       if (weights[i] == 0.0) continue;
       final c = plays.clips[i];
       out.addScaled(
-        _unwound(c, root, head.time * c.duration, turns),
+        _unwound(c, root, head.time * c.durationSeconds, turns),
         weights[i],
       );
     }
@@ -560,9 +560,9 @@ final class AnimationGraph {
     track.sample(time, _sampled);
     final at = Vector3(_sampled[0], _sampled[1], _sampled[2]);
     if (turns == 0) return at;
-    track.sample(track.endTime, _sampled);
+    track.sample(track.endSeconds, _sampled);
     final end = Vector3(_sampled[0], _sampled[1], _sampled[2]);
-    track.sample(track.startTime, _sampled);
+    track.sample(track.startSeconds, _sampled);
     final start = Vector3(_sampled[0], _sampled[1], _sampled[2]);
     return at..addScaled(end - start, turns.toDouble());
   }
@@ -585,7 +585,7 @@ final class AnimationGraph {
   double? _cycles(int state, _Playhead head) {
     final plays = _clips[state];
     if (plays.blend) return head.elapsed;
-    final length = plays.clips.first.duration;
+    final length = plays.clips.first.durationSeconds;
     return length <= 0.0 ? null : head.elapsed / length;
   }
 
@@ -615,7 +615,7 @@ final class AnimationGraph {
   double _normalized(int state, _Playhead head) {
     final plays = _clips[state];
     if (plays.blend) return head.elapsed;
-    final length = plays.clips.first.duration;
+    final length = plays.clips.first.durationSeconds;
     return length <= 0.0 ? 1.0 : head.elapsed / length;
   }
 
@@ -642,9 +642,9 @@ final class AnimationGraph {
       if (w == 0.0) continue;
       final c = plays.clips[i];
       if (total == 0.0) {
-        into.sampleClip(c, head.time * c.duration);
+        into.sampleClip(c, head.time * c.durationSeconds);
       } else {
-        _scratch.sampleClip(c, head.time * c.duration);
+        _scratch.sampleClip(c, head.time * c.durationSeconds);
         into.blendFrom(_scratch, total / (total + w));
       }
       total += w;
@@ -671,7 +671,7 @@ final class AnimationGraph {
       for (final (_, t) in declared)
         _Transition(
           to: machine.indexOfState(t.to),
-          duration: t.duration,
+          duration: t.durationSeconds,
           exitTime: t.exitTime,
           checks: <_Check>[
             for (final c in t.conditions)

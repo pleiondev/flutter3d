@@ -294,7 +294,7 @@ class _SandboxScreenState extends State<SandboxScreen>
   }
 
   void _onTick(Duration _) {
-    final dt = _frames.tick();
+    final dt = _frames.nextFrameSeconds();
     if (_playing == null) return;
     // The world is stopped while a photo is framed, the day with it: no
     // step runs, and what the keys and the drag ask for goes to the photo

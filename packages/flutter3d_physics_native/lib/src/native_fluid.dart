@@ -74,6 +74,29 @@ final class FluidSettings {
 
   /// How many density passes a substep makes; nought is taken as one.
   final int iterations;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FluidSettings &&
+          other.gravity == gravity &&
+          other.tankMin == tankMin &&
+          other.tankMax == tankMax &&
+          other.viscosity == viscosity &&
+          other.relaxation == relaxation &&
+          other.substeps == substeps &&
+          other.iterations == iterations;
+
+  @override
+  int get hashCode => Object.hash(
+    gravity,
+    tankMin,
+    tankMax,
+    viscosity,
+    relaxation,
+    substeps,
+    iterations,
+  );
 }
 
 /// One particle to add.

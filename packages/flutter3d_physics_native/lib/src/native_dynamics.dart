@@ -99,7 +99,7 @@ final class NativeDynamics extends RigidDynamics with WorldMirror {
     if (movesCharacters || castsRays) world.mirrors.add(this);
     _pushProperties();
     native
-      ..setSleep(speed: 0.08, time: 0.5)
+      ..setSleep(speed: 0.08, timeSeconds: 0.5)
       ..substeps = substeps;
     if (threads != 1) native.threads = threads;
   }

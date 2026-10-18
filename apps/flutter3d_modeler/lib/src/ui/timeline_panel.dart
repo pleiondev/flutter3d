@@ -339,7 +339,7 @@ class _TimelinePanelState extends State<TimelinePanel> {
           clipIndex: widget.clipIndex,
           trackIndex: each.key,
           indices: each.value..sort(),
-          deltaTime: drag.deltaTime,
+          deltaSeconds: drag.deltaTime,
         ),
       );
     }
@@ -351,7 +351,7 @@ class _TimelinePanelState extends State<TimelinePanel> {
     final double duration = tracks.isEmpty
         ? 0.0
         : tracks
-              .map((ProjectTrack t) => t.track.endTime)
+              .map((ProjectTrack t) => t.track.endSeconds)
               .reduce((double a, double b) => a > b ? a : b);
     // **The ruler is pinned and the rows scroll under it** — `ux-46`. A
     // seventeen-bone rig is fifty-one tracks, which at the row height this

@@ -17,8 +17,8 @@ final class MovementSettings {
     this.terminalVelocity = 55.0,
     this.jumpSpeed = 8.0,
     this.stepHeight = 0.4,
-    this.coyoteTime = 0.1,
-    this.jumpBufferTime = 0.1,
+    this.coyoteSeconds = 0.1,
+    this.jumpBufferSeconds = 0.1,
     this.groundProbe = 0.08,
     this.floorSnapLength = 0.0,
   });
@@ -73,13 +73,13 @@ final class MovementSettings {
   ///
   /// Without it the controls feel broken and the player blames themselves. It
   /// costs one timer, and every platformer worth playing has it.
-  final double coyoteTime;
+  final double coyoteSeconds;
 
   /// How long before landing a jump can be asked for and still happen.
   ///
   /// The other half of the same problem: pressing jump a frame early should not
   /// silently do nothing.
-  final double jumpBufferTime;
+  final double jumpBufferSeconds;
 
   /// How far below the feet still counts as standing on something.
   ///
@@ -133,8 +133,8 @@ final class MovementSettings {
     double? terminalVelocity,
     double? jumpSpeed,
     double? stepHeight,
-    double? coyoteTime,
-    double? jumpBufferTime,
+    double? coyoteSeconds,
+    double? jumpBufferSeconds,
     double? groundProbe,
     double? floorSnapLength,
   }) => MovementSettings(
@@ -147,9 +147,44 @@ final class MovementSettings {
     terminalVelocity: terminalVelocity ?? this.terminalVelocity,
     jumpSpeed: jumpSpeed ?? this.jumpSpeed,
     stepHeight: stepHeight ?? this.stepHeight,
-    coyoteTime: coyoteTime ?? this.coyoteTime,
-    jumpBufferTime: jumpBufferTime ?? this.jumpBufferTime,
+    coyoteSeconds: coyoteSeconds ?? this.coyoteSeconds,
+    jumpBufferSeconds: jumpBufferSeconds ?? this.jumpBufferSeconds,
     groundProbe: groundProbe ?? this.groundProbe,
     floorSnapLength: floorSnapLength ?? this.floorSnapLength,
+  );
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MovementSettings &&
+          other.walkSpeed == walkSpeed &&
+          other.sprintSpeed == sprintSpeed &&
+          other.groundAcceleration == groundAcceleration &&
+          other.groundFriction == groundFriction &&
+          other.airAcceleration == airAcceleration &&
+          other.gravity == gravity &&
+          other.terminalVelocity == terminalVelocity &&
+          other.jumpSpeed == jumpSpeed &&
+          other.stepHeight == stepHeight &&
+          other.coyoteSeconds == coyoteSeconds &&
+          other.jumpBufferSeconds == jumpBufferSeconds &&
+          other.groundProbe == groundProbe &&
+          other.floorSnapLength == floorSnapLength;
+
+  @override
+  int get hashCode => Object.hash(
+    walkSpeed,
+    sprintSpeed,
+    groundAcceleration,
+    groundFriction,
+    airAcceleration,
+    gravity,
+    terminalVelocity,
+    jumpSpeed,
+    stepHeight,
+    coyoteSeconds,
+    jumpBufferSeconds,
+    groundProbe,
+    floorSnapLength,
   );
 }

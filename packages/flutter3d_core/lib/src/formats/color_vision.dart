@@ -52,6 +52,15 @@ final class ColorVisionDeficiency {
     ],
   );
 
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static ColorVisionDeficiency? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   /// The three, in the order a settings menu lists them.
   static const List<ColorVisionDeficiency> values = <ColorVisionDeficiency>[
     protan,

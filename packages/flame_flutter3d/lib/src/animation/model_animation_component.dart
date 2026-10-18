@@ -54,7 +54,7 @@ base class ModelAnimationComponent extends Component {
     }
     final found = _current == null
         ? player.playNamed(name)
-        : player.crossFadeToNamed(name, duration: fade ?? crossFade);
+        : player.crossFadeToNamed(name, durationSeconds: fade ?? crossFade);
     if (found) _current = name;
     return found;
   }

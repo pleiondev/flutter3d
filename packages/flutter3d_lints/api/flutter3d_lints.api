@@ -4,6 +4,28 @@
 
 library package:flutter3d_lints/flutter3d_lints.dart
 
+abstract final class EngineImportRules
+  static const List<String> all = <String>[internalImports, flutterMatrix4]
+  static const String flutterMatrix4 = 'hide_flutter_matrix4'
+  static const String internalImports = 'avoid_engine_internal_imports'
+
+final class ImportEdit
+  String toString()
+  bool operator ==(Object other)
+  const ImportEdit(this.offset, this.text)
+  final String text
+  final int offset
+  int get hashCode
+
+final class ImportFinding
+  String toString()
+  const ImportFinding({required this.rule, required this.offset, required this.length, required this.what, this.edit})
+  final ImportEdit? edit
+  final String rule
+  final String what
+  final int length
+  final int offset
+
 final class SimulationFinding
   String toString()
   const SimulationFinding({required this.rule, required this.offset, required this.length, required this.what})
@@ -19,7 +41,15 @@ abstract final class SimulationRules
   static const String prefixedMath = 'step_prefixes_dart_math'
   static const String seededRandom = 'step_takes_seeded_random'
 
+const Set<String> engineMatrix4Libraries = <String>{'package:vector_math/vector_math.dart', 'package:flutter3d/flutter3d.dart'}
+
+const Set<String> flutterMatrix4Libraries = <String>{'package:flutter/widgets.dart', 'package:flutter/material.dart', 'package:flutter/cupertino.dart', 'package:flutter/rendering.dart'}
+
+bool isEngineInternalUri(String uri)
+
 const Set<String> machineArithmetic = <String>{'sin', 'cos', 'tan', 'asin', 'acos', 'atan2', 'atan', 'exp', 'log', 'pow'}
+
+List<ImportFinding> scanEngineImports(CompilationUnit unit, {String? ownPackage})
 
 List<SimulationFinding> scanSimulationCode(CompilationUnit unit)
 

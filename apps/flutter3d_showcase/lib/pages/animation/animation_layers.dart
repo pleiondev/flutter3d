@@ -140,7 +140,7 @@ final class AnimationLayersDemo extends ShowcaseDemo {
     }
 
     final Float32List sample = Float32List(4);
-    _waveTrack.sample(_wave.time, sample);
+    _waveTrack.sample(_wave.timeSeconds, sample);
     final Quaternion armRotation = Quaternion.fromRotation(
       _arm.worldMatrix.getRotation(),
     );

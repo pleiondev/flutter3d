@@ -16,6 +16,19 @@ final class Voice {
   /// Stop it.
   static const Voice end = Voice._('end');
 
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<Voice> values = <Voice>[begin, follow, end];
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static Voice? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   /// The verb's name, `begin`, `follow` or `end`, as [toString] gives it.
   final String name;
 

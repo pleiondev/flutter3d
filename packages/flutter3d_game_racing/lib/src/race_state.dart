@@ -56,7 +56,7 @@ final class RaceState {
   double countdown;
 
   /// The whole race clock, in simulated seconds.
-  double elapsed = 0.0;
+  double elapsedSeconds = 0.0;
 
   /// Where this car is running, counting from one.
   ///
@@ -103,7 +103,7 @@ final class RaceState {
   Map<String, Object?> save() => <String, Object?>{
     'phase': phase.name,
     'countdown': countdown,
-    'elapsed': elapsed,
+    'elapsed': elapsedSeconds,
     'progress': <Map<String, Object?>>[
       for (final racer in progress) racer.save(),
     ],
@@ -118,7 +118,7 @@ final class RaceState {
   void restore(Map<String, Object?> from) {
     phase = RacePhase.byName(from['phase']) ?? phase;
     countdown = from.number('countdown', orElse: countdown);
-    elapsed = from.number('elapsed');
+    elapsedSeconds = from.number('elapsed');
     final rows = from['progress'];
     if (rows is! List) return;
     for (var i = 0; i < progress.length && i < rows.length; i++) {

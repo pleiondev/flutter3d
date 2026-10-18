@@ -130,20 +130,20 @@ final class XrPlane {
 
   /// The plane as input for the step: the pose's seven numbers and the two
   /// extents, with the orientation as the reading's tag.
-  ExternalStateInput toInput({double? displayTime}) => ExternalStateInput(
+  ExternalStateInput toInput({double? displaySeconds}) => ExternalStateInput(
     source: sourceOf(id),
     value: <double>[...pose.components, width, depth],
-    sourceTime: displayTime,
+    sourceSeconds: displaySeconds,
     kind: ReadingKind.measured,
     tag: orientation.name,
   );
 
   /// Input saying the plane [id] is no longer tracked: no numbers at all.
-  static ExternalStateInput lost(String id, {double? displayTime}) =>
+  static ExternalStateInput lost(String id, {double? displaySeconds}) =>
       ExternalStateInput(
         source: sourceOf(id),
         value: const <double>[],
-        sourceTime: displayTime,
+        sourceSeconds: displaySeconds,
       );
 
   /// A static collider over the plane: the axis-aligned box around it,
@@ -240,7 +240,7 @@ final class XrSceneMesh {
 
   /// The mesh as input for the step: the pose's seven numbers, the vertex
   /// count, the coordinates, then the indices.
-  ExternalStateInput toInput({double? displayTime}) => ExternalStateInput(
+  ExternalStateInput toInput({double? displaySeconds}) => ExternalStateInput(
     source: sourceOf(id),
     value: <double>[
       ...pose.components,
@@ -248,7 +248,7 @@ final class XrSceneMesh {
       ...vertices,
       for (final index in indices) index.toDouble(),
     ],
-    sourceTime: displayTime,
+    sourceSeconds: displaySeconds,
     kind: ReadingKind.measured,
   );
 

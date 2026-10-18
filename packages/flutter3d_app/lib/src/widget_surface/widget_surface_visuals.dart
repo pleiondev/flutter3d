@@ -110,7 +110,7 @@ final class WidgetSurfaceVisuals {
     return surface;
   }
 
-  /// Runs [WidgetSurface.tick] on every surface this built — the answer to
+  /// Runs [WidgetSurface.update] on every surface this built — the answer to
   /// "how does the game loop know a `WidgetSurface` needs ticking": it asks
   /// whoever placed it, the same way `FixtureVisuals.sync` already is the
   /// answer for "how does a torch's flame know to move" — a game calls this
@@ -118,7 +118,7 @@ final class WidgetSurfaceVisuals {
   /// would otherwise have to know how to recognise.
   Future<void> tickAll() async {
     for (final surface in _surfaces) {
-      await surface.tick();
+      await surface.update();
     }
   }
 

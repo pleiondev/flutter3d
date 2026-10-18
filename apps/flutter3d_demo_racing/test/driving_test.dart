@@ -61,7 +61,7 @@ void main() {
     final fake = _FakePad()..state.setAxis(GamePadAxis.triggerRight, 0.33);
     final input = InputState();
 
-    PadInput(state: input, pad: fake, actions: _driving()).tick(1 / 60);
+    PadInput(state: input, pad: fake, actions: _driving()).update(1 / 60);
 
     expect(_asDriven(input).throttle, closeTo(0.33, 1e-6));
   });
@@ -70,7 +70,7 @@ void main() {
     final fake = _FakePad()..state.setAxis(GamePadAxis.leftStickX, -0.5);
     final input = InputState();
 
-    PadInput(state: input, pad: fake, actions: _driving()).tick(1 / 60);
+    PadInput(state: input, pad: fake, actions: _driving()).update(1 / 60);
 
     // Negative is left, and left is a negative steering angle at the car.
     expect(_asDriven(input).steer, closeTo(-0.5, 1e-6));
@@ -91,13 +91,13 @@ void main() {
     final fake = _FakePad()..state.setAxis(GamePadAxis.leftStickX, 1.0);
     final input = InputState();
     final pad = PadInput(state: input, pad: fake, actions: _driving())
-      ..tick(1 / 60);
+      ..update(1 / 60);
     expect(_asDriven(input).steer, closeTo(1.0, 1e-6));
 
     fake.state
       ..isConnected = false
       ..setAxis(GamePadAxis.leftStickX, 0.0);
-    pad.tick(1 / 60);
+    pad.update(1 / 60);
 
     expect(_asDriven(input).steer, 0.0);
   });

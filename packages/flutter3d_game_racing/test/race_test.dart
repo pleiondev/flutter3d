@@ -213,8 +213,8 @@ void main() {
 
       driveRound(it, seconds: 5.0);
 
-      expect(it.player.lapTime, closeTo(5.0, 0.05));
-      expect(it.race.elapsed, closeTo(5.0, 0.05));
+      expect(it.player.lapSeconds, closeTo(5.0, 0.05));
+      expect(it.race.elapsedSeconds, closeTo(5.0, 0.05));
     });
   });
 
@@ -522,11 +522,11 @@ void main() {
     test('a finished race stops counting', () {
       final it = Race(mode: RaceMode.race, cars: 1, laps: 1);
       driveRound(it, seconds: 60.0, throttle: 0.8);
-      final at = it.race.elapsed;
+      final at = it.race.elapsedSeconds;
 
       driveRound(it, seconds: 2.0);
 
-      expect(it.race.elapsed, at);
+      expect(it.race.elapsedSeconds, at);
     });
 
     test('a time trial never ends on its own', () {
@@ -695,7 +695,7 @@ void main() {
         seconds: 40.0,
         watch: () {
           for (final event in it.heard.take()) {
-            if (event is SectorCompleted) sectors.add(event.time);
+            if (event is SectorCompleted) sectors.add(event.timeSeconds);
             if (event is LapCompleted) {
               laps.add(event.racer.lastLap);
               closed.add(
@@ -856,14 +856,14 @@ void main() {
     test('puts the race back on the grid', () {
       final it = Race(mode: RaceMode.race, cars: 2, laps: 2);
       driveRound(it, seconds: 30.0, throttle: 1.0);
-      expect(it.player.lap + it.player.lapTime, greaterThan(0.0));
+      expect(it.player.lap + it.player.lapSeconds, greaterThan(0.0));
 
       it.simulation.restart();
 
       expect(it.player.lap, 0);
-      expect(it.player.lapTime, 0.0);
+      expect(it.player.lapSeconds, 0.0);
       expect(it.player.nextCheckpoint, 0);
-      expect(it.race.elapsed, 0.0);
+      expect(it.race.elapsedSeconds, 0.0);
       expect(it.race.phase, RacePhase.countdown);
       expect(it.vehicles[0].speed, 0.0);
     });

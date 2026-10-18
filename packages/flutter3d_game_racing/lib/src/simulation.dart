@@ -238,7 +238,7 @@ final class RacingSimulation {
     if (race.phase == RacePhase.finished) return;
 
     final racing = _runLights(dt);
-    race.elapsed += dt;
+    race.elapsedSeconds += dt;
     _run(RacingPhases.begin, dt);
 
     _world.movers(dt);
@@ -394,12 +394,12 @@ final class RacingSimulation {
     if (!racing || racer.isFinished || !race.mode.countsProgress) {
       // The clock still runs where nothing else does, so a session has a
       // length even when no lap is being counted.
-      if (!race.mode.countsProgress) racer.totalTime += dt;
+      if (!race.mode.countsProgress) racer.totalSeconds += dt;
       return;
     }
 
-    racer.lapTime += dt;
-    racer.totalTime += dt;
+    racer.lapSeconds += dt;
+    racer.totalSeconds += dt;
 
     _readWrongWay(racer, index, moved);
     _readCheckpoints(racer, previous, moved, length);
@@ -600,7 +600,7 @@ final class RacingSimulation {
       0.0,
       (double a, double b) => a + b,
     );
-    final took = racer.lapTime - done;
+    final took = racer.lapSeconds - done;
     final index = racer.sectorTimes.length;
     racer.sectorTimes.add(took);
 
@@ -638,7 +638,7 @@ final class RacingSimulation {
 
     racer.lap += 1;
     racer.nextCheckpoint = 0;
-    racer.lastLap = racer.lapTime;
+    racer.lastLap = racer.lapSeconds;
     _publish(LapCompleted(racer));
 
     final best = racer.bestLap;
@@ -646,11 +646,11 @@ final class RacingSimulation {
       racer.bestLap = racer.lastLap;
       _publish(BestLapSet(racer));
     }
-    racer.lapTime = 0.0;
+    racer.lapSeconds = 0.0;
     racer.sectorTimes.clear();
 
     if (race.mode.endsAfterLaps && racer.lap >= race.laps) {
-      racer.finishedAt = race.elapsed;
+      racer.finishedAt = race.elapsedSeconds;
       _publish(RacerFinished(racer));
       if (race.progress.every((RacerProgress other) => other.isFinished)) {
         race.phase = RacePhase.finished;
@@ -796,8 +796,8 @@ final class RacingSimulation {
         ..s = race.track.center.wrap(race.track.grid.s)
         ..lap = 0
         ..nextCheckpoint = 0
-        ..lapTime = 0.0
-        ..totalTime = 0.0
+        ..lapSeconds = 0.0
+        ..totalSeconds = 0.0
         ..lastLap = 0.0
         ..finishedAt = null
         ..offRoad = false
@@ -809,7 +809,7 @@ final class RacingSimulation {
     }
 
     race
-      ..elapsed = 0.0
+      ..elapsedSeconds = 0.0
       ..phase = race.mode.startsBehindLights
           ? RacePhase.countdown
           : RacePhase.running

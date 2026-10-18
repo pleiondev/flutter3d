@@ -1216,7 +1216,7 @@ class _GameScreenState extends State<GameScreen> {
     final dt = frame.seconds;
     _elapsed += dt;
     // Before the loop, so the frame that reads the pad is the frame it moves in.
-    _pad.tick(dt);
+    _pad.update(dt);
     _padScreenButtons();
 
     // Four facts and no devices — see `pause_gate.dart`, which carries the three
@@ -1348,7 +1348,7 @@ class _GameScreenState extends State<GameScreen> {
       final Tape track,
       final PlatformerSimulation sim,
     )) {
-      ghost.showAt(sim.elapsed, track);
+      ghost.showAt(sim.elapsedSeconds, track);
     }
     if (_photo.isActive) {
       // The paused loop drains nothing, so the look is taken here, and the
@@ -1850,7 +1850,7 @@ class _GameScreenState extends State<GameScreen> {
                   coins: _runner?.purse['coin'] ?? 0,
                   deaths: sim.deaths,
                   lives: sim.lives,
-                  elapsed: sim.elapsed,
+                  elapsed: sim.elapsedSeconds,
                   state: sim.state,
                   // Nothing to capture in a browser, so nothing to prompt for.
                   captured: !_playing.capturesPointer || _devices.isCaptured,

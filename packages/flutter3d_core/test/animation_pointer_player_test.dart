@@ -103,7 +103,7 @@ void main() {
     expect(node.position.x, 9.0);
 
     player
-      ..crossFadeTo(1, duration: 1.0)
+      ..crossFadeTo(1, durationSeconds: 1.0)
       ..update(0.5);
     expect(material.roughness, closeTo(0.5, 1e-6));
   });

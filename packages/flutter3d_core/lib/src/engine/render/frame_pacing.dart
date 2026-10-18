@@ -108,6 +108,15 @@ final class PipelineGeometry {
   /// A level mesh drawn with its lightmap.
   static const PipelineGeometry lightmapped = PipelineGeometry._('lightmapped');
 
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static PipelineGeometry? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   /// Every kind, in the order above.
   static const List<PipelineGeometry> values = <PipelineGeometry>[
     plain,
@@ -137,6 +146,8 @@ final class PipelineGeometry {
 /// On `FrameResult.pipelineStalls`, through `RenderListener.stalled`, and on
 /// the bus as [FramePipelineStall].
 final class PipelineStall {
+  /// A stall of [micros] building the pipeline for [material] over
+  /// [geometry], in frame [frame].
   const PipelineStall({
     required this.material,
     required this.geometry,
@@ -148,12 +159,12 @@ final class PipelineStall {
 
   /// The lighting model's shader name — `LightingModel.shaderName`.
   final String material;
-  /// A stall of [micros] building the pipeline for [material] over
-  /// [geometry], in frame [frame].
 
   /// The vertex stage a material brought, or null for the engine's own.
   final String? vertexShader;
 
+  /// What kind of mesh the pipeline was built for: plain, skinned,
+  /// instanced or lightmapped.
   final PipelineGeometry geometry;
 
   /// Whether this was the opaque variant of the model's stage.
@@ -165,8 +176,6 @@ final class PipelineStall {
   /// `Renderer.frameIndex` of the frame that paid for it.
   final int frame;
 
-  /// What kind of mesh the pipeline was built for: plain, skinned,
-  /// instanced or lightmapped.
   @override
   String toString() =>
       'PipelineStall($material${opaque ? ' (opaque)' : ''}, ${geometry.name}'
@@ -181,12 +190,12 @@ final class PipelineStall {
 /// is a fact about the machine, and a replay on another one must not differ
 /// by it.
 final class FramePipelineStall extends BusEvent {
+  /// The event for [stall].
   const FramePipelineStall(this.stall);
 
+  /// The pipeline build that ran over the threshold.
   final PipelineStall stall;
 
   @override
   String get name => 'render.pipelineStall';
 }
-  /// The event for [stall].
-  /// The pipeline build that ran over the threshold.

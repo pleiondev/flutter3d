@@ -32,6 +32,7 @@ typedef EffectAffectorReader = ParticleAffector Function(Map<String, Object?> js
 final class EffectBlend
   String toString()
   final String word
+  static EffectBlend? byName(String name)
   static const EffectBlend additive = EffectBlend._('additive')
   static const EffectBlend darkening = EffectBlend._('darkening')
   static const EffectBlend over = EffectBlend._('over')
@@ -61,6 +62,7 @@ final class EffectDocument extends FormatDocument
 final class EffectDrawing
   String toString()
   final String word
+  static EffectDrawing? byName(String name)
   static const EffectDrawing billboard = EffectDrawing._('billboard')
   static const EffectDrawing mesh = EffectDrawing._('mesh')
   static const EffectDrawing sixWay = EffectDrawing._('sixWay')
@@ -91,6 +93,7 @@ final class EffectRender
 final class EffectSpawn
   String toString()
   final String word
+  static EffectSpawn? byName(String name)
   static const EffectSpawn burst = EffectSpawn._('burst')
   static const EffectSpawn timed = EffectSpawn._('timed')
   static const List<EffectSpawn> values = <EffectSpawn>[burst, timed]
@@ -149,9 +152,11 @@ final class KeyEase
   final String name
   final double Function(double t) shape
   int get hashCode
+  static KeyEase? byName(String name)
   static const KeyEase linear = KeyEase('linear', _linear)
   static const KeyEase smooth = KeyEase('smooth', _smooth)
   static const KeyEase step = KeyEase('step', _step)
+  static const List<KeyEase> values = <KeyEase>[step, linear, smooth]
 
 base mixin class LightEmitter
   LightEmitter()
@@ -173,11 +178,11 @@ final class Particle
   Object? source
   Particle()
   bool isAlive
-  double age
+  double ageSeconds
   double birthSize
   double get life
   double gravity
-  double lifetime
+  double lifetimeSeconds
   double rotation
   double seed
   double size

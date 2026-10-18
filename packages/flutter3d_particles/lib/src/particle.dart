@@ -46,10 +46,10 @@ final class Particle {
   double rotation = 0.0;
 
   /// How long it has lived, in seconds.
-  double age = 0.0;
+  double ageSeconds = 0.0;
 
   /// How long it lives, in seconds.
-  double lifetime = 0.0;
+  double lifetimeSeconds = 0.0;
 
   /// The billboard's width and height now, in metres.
   double size = 0.0;
@@ -91,13 +91,13 @@ final class Particle {
   final Vector3 wind = Vector3.zero();
 
   /// Whether the slot holds a live particle: set when it is emitted,
-  /// cleared when its [age] reaches its [lifetime].
+  /// cleared when its [ageSeconds] reaches its [lifetimeSeconds].
   bool isAlive = false;
 
-  /// How far through its life, in `[0, 1]`: a fraction of [lifetime].
+  /// How far through its life, in `[0, 1]`: a fraction of [lifetimeSeconds].
   double get life {
-    if (lifetime <= 0.0) return 1.0;
-    final t = age / lifetime;
+    if (lifetimeSeconds <= 0.0) return 1.0;
+    final t = ageSeconds / lifetimeSeconds;
     return t < 0.0 ? 0.0 : (t > 1.0 ? 1.0 : t);
   }
 }

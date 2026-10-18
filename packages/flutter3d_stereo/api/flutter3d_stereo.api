@@ -8,9 +8,11 @@ final class Eye
   String toString()
   final String label
   final int index
+  static Eye? byName(String name)
   static const Eye left = Eye._(0, 'left')
   static const Eye right = Eye._(1, 'right')
   static const List<Eye> both = <Eye>[left, right]
+  static const List<Eye> values = <Eye>[left, right]
 
 abstract base class HeadTracker
   Future<void> start()
@@ -22,7 +24,7 @@ final class HolderXrSession extends XrSession
   Future<XrFrame> waitFrame()
   Future<void> end()
   Future<void> start(XrSessionRequest request)
-  HolderXrSession({required this.tracker, this.viewer, this.screen, this.interpupillaryDistance = 0.064, this.fovY = 1.0, this.aspect = 1.0, this.period = 1 / 60, this.eyeHeight = 1.6})
+  HolderXrSession({required this.tracker, this.viewer, this.screen, this.interpupillaryDistance = 0.064, this.fovY = 1.0, this.aspect = 1.0, this.periodSeconds = 1 / 60, this.eyeHeight = 1.6})
   Set<XrCapability> get capabilities
   Stream<XrSessionState> get states
   String get runtimeName
@@ -34,7 +36,7 @@ final class HolderXrSession extends XrSession
   final double eyeHeight
   final double fovY
   final double interpupillaryDistance
-  final double period
+  final double periodSeconds
   void endFrame(XrFrameEnd end)
 
 final class LessonPlayer

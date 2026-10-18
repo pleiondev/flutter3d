@@ -25,6 +25,19 @@ final class WireState {
   /// Closed, from either end; nothing more is carried.
   static const WireState closed = WireState._('closed');
 
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<WireState> values = <WireState>[connecting, open, closed];
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static WireState? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   /// The state in lower case, as [toString] prints it after `WireState.`.
   final String name;
 
@@ -317,7 +330,7 @@ final class LoopbackPair {
 /// as a test asks, and repeatable from its seed.
 ///
 /// **Time is steps, and the test turns them.** A message sent is delivered
-/// [delaySteps] calls of [tick] later on the other side. An unreliable one is
+/// [delaySteps] calls of [step] later on the other side. An unreliable one is
 /// lost one time in `1 / lossRate`, rolled from a generator both sides share,
 /// so the same seed loses the same messages; a reliable one is never lost,
 /// which is the promise it stands for. The first end is slot nought, the
@@ -326,7 +339,7 @@ final class LoopbackWire extends PeerWire {
   LoopbackWire._(this._delaySteps, this._lossRate, this._random, this.slot);
 
   /// Two ends of one wire, slot nought and slot one. [delaySteps] calls of
-  /// [tick] a message takes; [lossRate] the share of unreliable ones lost.
+  /// [step] a message takes; [lossRate] the share of unreliable ones lost.
   static LoopbackPair pair({
     int delaySteps = 0,
     double lossRate = 0.0,
@@ -401,7 +414,7 @@ final class LoopbackWire extends PeerWire {
 
   /// One step of this side's clock: delivers what is due, messages and
   /// bytes in the order they were sent.
-  void tick() {
+  void step() {
     _now++;
     final due = <Object>[
       for (final (at, message) in _inbox)
@@ -494,7 +507,7 @@ final class LoopbackParty {
   /// slots run from nought to one less than it.
   final int size;
 
-  /// How many [tick]s a message takes to arrive.
+  /// How many [step]s a message takes to arrive.
   final int delaySteps;
 
   /// The share of unreliable messages that never arrive.
@@ -515,7 +528,7 @@ final class LoopbackParty {
   final Set<int> cut = <int>{};
 
   /// One step of time: whatever is due arrives, in the order it was sent.
-  void tick() {
+  void step() {
     _now++;
     final due = _inFlight.where((m) => m.at <= _now).toList();
     _inFlight.removeWhere((m) => m.at <= _now);

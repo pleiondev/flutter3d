@@ -318,7 +318,7 @@ final class _PadFeed extends Component {
     if (_stepped == null) _read();
   }
 
-  void _read() => pad.tick(_stepped?.frameSeconds ?? _dt);
+  void _read() => pad.update(_stepped?.frameSeconds ?? _dt);
 }
 
 /// Several players at one machine, each with their own keys and state.

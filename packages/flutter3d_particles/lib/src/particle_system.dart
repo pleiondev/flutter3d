@@ -549,8 +549,8 @@ final class ParticleSystem {
       // [ParticleGlow]. A rocket going off near a wall brightened the torch on
       // it. [_emitOne] and [burst] assign the real source after this returns.
       ..source = null
-      ..age = 0.0
-      ..lifetime = effect.lifetime.sample(_random)
+      ..ageSeconds = 0.0
+      ..lifetimeSeconds = effect.lifetime.sample(_random)
       ..birthSize = effect.size.sample(_random)
       ..seed = _random.nextDouble();
     particle.size = particle.birthSize;
@@ -577,8 +577,8 @@ final class ParticleSystem {
     while (i < _alive) {
       final particle = _pool[i];
 
-      particle.age += dt;
-      if (particle.age >= particle.lifetime) {
+      particle.ageSeconds += dt;
+      if (particle.ageSeconds >= particle.lifetimeSeconds) {
         particle.isAlive = false;
         _alive--;
         _pool[i] = _pool[_alive];

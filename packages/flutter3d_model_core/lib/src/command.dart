@@ -1339,7 +1339,7 @@ _modelCommandReaders =
             (final int id, final int clipIndex, final num time) => KeyShape(
               id: id,
               clipIndex: clipIndex,
-              time: time.toDouble(),
+              timeSeconds: time.toDouble(),
             ),
             _ => null,
           },
@@ -1687,7 +1687,7 @@ _modelCommandReaders =
             final List<double> values => SetKey(
               clipIndex: clipIndex,
               trackIndex: trackIndex,
-              time: time.toDouble(),
+              timeSeconds: time.toDouble(),
               values: values,
               inTangent: _doubleListFrom(json['inTangent']),
               outTangent: _doubleListFrom(json['outTangent']),
@@ -1715,7 +1715,7 @@ _modelCommandReaders =
             indices: <int>[
               for (final Object? each in indicesJson) each! as int,
             ],
-            deltaTime: deltaTime.toDouble(),
+            deltaSeconds: deltaTime.toDouble(),
           ),
         _ => null,
       },

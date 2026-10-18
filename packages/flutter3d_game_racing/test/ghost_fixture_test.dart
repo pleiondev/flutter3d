@@ -28,7 +28,7 @@ void main() {
     // bare `{"version": 1}` shape.
     for (var v = 1; v <= ghostFormatVersion; v++) {
       final lap = ghostTapeFromJson(_fixture(v));
-      expect(lap.lapTime, 41.25, reason: 'v$v');
+      expect(lap.lapSeconds, 41.25, reason: 'v$v');
       expect(lap.poses, hasLength(3), reason: 'v$v');
       expect(lap.poses.first.up.y, 1.0, reason: 'v$v');
     }

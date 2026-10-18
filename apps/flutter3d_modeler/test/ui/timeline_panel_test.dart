@@ -160,7 +160,7 @@ void main() {
       expect(moved!.clipIndex, 3);
       expect(moved!.trackIndex, 0);
       expect(moved!.indices, <int>[0]);
-      expect(moved!.deltaTime, closeTo(0.2, 1e-9));
+      expect(moved!.deltaSeconds, closeTo(0.2, 1e-9));
     },
   );
 
@@ -181,7 +181,7 @@ void main() {
     expect(moved, isNotNull);
     expect(moved!.trackIndex, 1);
     expect(moved!.indices, <int>[0]);
-    expect(moved!.deltaTime, closeTo(-0.1, 1e-9));
+    expect(moved!.deltaSeconds, closeTo(-0.1, 1e-9));
   });
 
   testWidgets('a drag that starts on empty timeline space reports nothing', (
@@ -385,7 +385,7 @@ void main() {
       expect(moved, isNotNull);
       // The panel's own default is thirty frames a second, so a landed
       // delta is a whole number of thirtieths.
-      final double frames = moved!.deltaTime * 30;
+      final double frames = moved!.deltaSeconds * 30;
       expect(frames.round(), closeTo(frames, 1e-6));
       expect(frames, isNot(0));
     });

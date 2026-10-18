@@ -138,8 +138,8 @@ abstract final class GoldenStages {
       everyFrame: (frame, model) {
         // Round the clip, since a seek past its end holds the last pose and
         // the skeleton would stop moving a few seconds in.
-        if (model.player case final player? when player.duration > 0.0) {
-          player.seek((1.2 + 0.2 * frame) % player.duration);
+        if (model.player case final player? when player.durationSeconds > 0.0) {
+          player.seek((1.2 + 0.2 * frame) % player.durationSeconds);
         }
         final smile = (frame % 2).toDouble();
         for (final mesh in model.meshes) {

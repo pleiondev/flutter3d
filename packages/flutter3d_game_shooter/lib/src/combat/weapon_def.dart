@@ -45,6 +45,24 @@ final class AmmoType {
   /// Rockets for a launcher.
   static const AmmoType rockets = AmmoType('rockets');
 
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<AmmoType> values = <AmmoType>[
+    none,
+    bullets,
+    shells,
+    rockets,
+  ];
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static AmmoType? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   @override
   bool operator ==(Object other) => other is AmmoType && other.name == name;
 
@@ -240,7 +258,7 @@ final class WeaponDef {
 
   /// Seconds between shots: simulation time, so a `double` of seconds, not
   /// a `Duration`.
-  double get cooldown => 1.0 / shotsPerSecond;
+  double get cooldownSeconds => 1.0 / shotsPerSecond;
 
   /// Damage a single ray does at [distance].
   ///

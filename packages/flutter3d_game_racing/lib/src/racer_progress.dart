@@ -34,7 +34,7 @@ final class RacerProgress {
   double lateral = 0.0;
 
   /// How long this lap has taken so far, in simulated seconds.
-  double lapTime = 0.0;
+  double lapSeconds = 0.0;
 
   /// The quickest completed lap, or null before there is one.
   /// In simulated seconds.
@@ -42,7 +42,7 @@ final class RacerProgress {
 
   /// How long the car has been racing.
   /// In simulated seconds.
-  double totalTime = 0.0;
+  double totalSeconds = 0.0;
 
   /// How long each sector of the current lap took, for the sectors finished.
   ///
@@ -128,9 +128,9 @@ final class RacerProgress {
     'wrongWay': wrongWay,
     'offRoad': offRoad,
     'lateral': lateral,
-    'lapTime': lapTime,
+    'lapTime': lapSeconds,
     if (bestLap != null) 'bestLap': bestLap,
-    'totalTime': totalTime,
+    'totalTime': totalSeconds,
     if (finishedAt != null) 'finishedAt': finishedAt,
     'lastLap': lastLap,
   };
@@ -146,12 +146,12 @@ final class RacerProgress {
     wrongWay = from.flag('wrongWay');
     offRoad = from.flag('offRoad');
     lateral = from.number('lateral');
-    lapTime = from.number('lapTime');
+    lapSeconds = from.number('lapTime');
     // Absent means never set, which is not the same as nought: a car with a
     // best lap of zero has driven a perfect lap in no time at all, and every
     // ranking that reads it puts them first for ever.
     bestLap = from['bestLap'] is num ? from.number('bestLap') : null;
-    totalTime = from.number('totalTime');
+    totalSeconds = from.number('totalTime');
     finishedAt = from['finishedAt'] is num ? from.number('finishedAt') : null;
     lastLap = from.number('lastLap');
     clearStepFlags();

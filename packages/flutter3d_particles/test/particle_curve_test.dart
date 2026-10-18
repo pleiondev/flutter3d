@@ -163,9 +163,9 @@ void main() {
       final particle = Particle()
         ..birthSize = 2.0
         ..size = 2.0
-        ..lifetime = 1.0;
+        ..lifetimeSeconds = 1.0;
 
-      particle.age = 0.5;
+      particle.ageSeconds = 0.5;
       sized.apply(ParticleStep(particle: particle, dt: 1.0 / 60.0));
       expect(particle.size, closeTo(1.5, 1e-12));
 

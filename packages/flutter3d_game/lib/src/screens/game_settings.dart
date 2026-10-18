@@ -123,7 +123,7 @@ final class GameSettingsController extends ChangeNotifier
            rebinding?.actions ??
            settings.actions?.copy() ??
            ActionMap(actions: ActionSet.common) {
-    this.rebinding = rebinding ?? Rebinding(actions: this.actions);
+    _rebinding = rebinding ?? Rebinding(actions: this.actions);
   }
 
   /// The settings as they are now.
@@ -140,9 +140,11 @@ final class GameSettingsController extends ChangeNotifier
   /// input.
   final void Function(GameSettings settings) apply;
 
+  late final Rebinding _rebinding;
+
   /// The capture a rebind goes through: the one the constructor was given,
   /// or one over [actions].
-  late final Rebinding rebinding;
+  Rebinding get rebinding => _rebinding;
 
   SettingsState _state = const SettingsState();
   bool _disposed = false;

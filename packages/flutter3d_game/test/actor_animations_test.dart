@@ -281,7 +281,7 @@ void main() {
     again.system.strides = restored;
     again.walker.body!.restore(saved['body']! as Map<String, Object?>);
     again.system.restore(saved['actors']);
-    expect(restored.graphOf(again.walker)!.stateTime, greaterThan(0.0));
+    expect(restored.graphOf(again.walker)!.stateSeconds, greaterThan(0.0));
     expect(<String>[
       for (var i = 0; i < 60; i++)
         (() {

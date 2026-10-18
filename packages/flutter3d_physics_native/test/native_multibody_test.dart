@@ -15,7 +15,7 @@ void main() {
   setUp(() {
     world = NativeWorld()
       ..setAir(temperature: 293.15, density: 1e-30)
-      ..setSleep(speed: 0.0, time: 0.0);
+      ..setSleep(speed: 0.0, timeSeconds: 0.0);
   });
   tearDown(() => world.dispose());
 

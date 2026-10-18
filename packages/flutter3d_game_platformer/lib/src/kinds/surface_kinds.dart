@@ -161,7 +161,7 @@ final class CrumblingKind extends EntityKind {
       Crumbling(
         name: entity.name,
         collider: collider,
-        delay: entity.number('delay') ?? 0.5,
+        delaySeconds: entity.number('delay') ?? 0.5,
         gone: entity.number('gone') ?? 2.5,
       ),
     );

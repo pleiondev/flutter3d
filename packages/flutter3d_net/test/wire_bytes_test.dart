@@ -53,9 +53,9 @@ void main() {
       ..sendBytes(PeerSendBytes(bytes: buffer));
     // The sender reuses its buffer; the far side has its own copy.
     buffer[0] = 99;
-    b.tick();
+    b.step();
     expect(order, isEmpty);
-    b.tick();
+    b.step();
     expect(order, <Object>[
       <String, Object?>{'n': 1},
       <Object>[
@@ -100,7 +100,7 @@ void main() {
       heard.add(<Object>[from, data.toList()]);
     });
     party.wire(2).sendBytes(PeerSendBytes(bytes: Uint8List.fromList(<int>[5])));
-    party.tick();
+    party.step();
     expect(heard, <List<Object>>[
       <Object>[
         2,
@@ -125,7 +125,7 @@ void main() {
         heard.add(<Object>[from, data.toList()]);
       });
     left.sendBytes(PeerSendBytes(bytes: Uint8List.fromList(<int>[42, 43])));
-    b.tick();
+    b.step();
     expect(heard, <List<Object>>[
       <Object>[
         0,
@@ -143,10 +143,10 @@ void main() {
       heard.add(data.toList());
     });
     a.sendBytes(PeerSendBytes(bytes: Uint8List.fromList(<int>[1])));
-    b.tick();
+    b.step();
     listening.cancel();
     a.sendBytes(PeerSendBytes(bytes: Uint8List.fromList(<int>[2])));
-    b.tick();
+    b.step();
     expect(heard, <List<int>>[
       <int>[1],
     ]);

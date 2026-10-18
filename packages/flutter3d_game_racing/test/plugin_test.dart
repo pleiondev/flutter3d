@@ -56,7 +56,7 @@ void main() {
       loop.runSteps(30);
       // Mutation: step with a `dt` of the plugin's own rather than the
       // loop's. Thirty steps of the world's rate are half a second of race.
-      expect(sim.race.elapsed, closeTo(30 * loop.stepSeconds, 1e-9));
+      expect(sim.race.elapsedSeconds, closeTo(30 * loop.stepSeconds, 1e-9));
     });
 
     test('declares the genre\'s own events under racing. names', () {

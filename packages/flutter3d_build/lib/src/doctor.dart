@@ -51,6 +51,25 @@ final class DoctorStatus {
 
   /// Required, and absent or too old. The command exits 1.
   static const DoctorStatus problem = DoctorStatus._('[!!]', 'problem');
+
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<DoctorStatus> values = <DoctorStatus>[
+    ok,
+    note,
+    missing,
+    problem,
+  ];
+
+  /// The value whose [mark] is [name], or null for a name this
+  /// version does not know, which is what a file written by a later
+  /// version can carry.
+  static DoctorStatus? byName(String name) {
+    for (final value in values) {
+      if (value.mark == name) return value;
+    }
+    return null;
+  }
 }
 
 /// One line of the doctor's report.

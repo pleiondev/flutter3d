@@ -88,7 +88,7 @@ final class AdditiveBlendDemo extends ShowcaseDemo {
       tracks: <AnimationTrack>[_nodTrack],
       // The rest pose the nod is a difference from: at time zero it asks
       // for nothing, so laid on top of a turn it leaves the turn alone.
-      referenceTime: 0.0,
+      referenceSeconds: 0.0,
     );
     // #endregion clips
 
@@ -241,9 +241,10 @@ final class AdditiveBlendDemo extends ShowcaseDemo {
     final AnimationLayer? nod = _additiveNod;
     if (nod == null) throw StateError('the additive head has no nod playing');
 
-    final Quaternion turn = _sample(_turnTrack, _additive.time);
+    final Quaternion turn = _sample(_turnTrack, _additive.timeSeconds);
     final Quaternion delta =
-        (_sample(_nodTrack, 0.0).conjugated() * _sample(_nodTrack, nod.time))
+        (_sample(_nodTrack, 0.0).conjugated() *
+              _sample(_nodTrack, nod.timeSeconds))
           ..normalize();
     if ((delta.w - 1.0).abs() < 1e-3) {
       throw StateError('the nod has not moved yet; nothing to add');

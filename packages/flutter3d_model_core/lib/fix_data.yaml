@@ -1,6 +1,6 @@
 # Generated from flutter3d_build/lib/migrations/*.yaml by
 # `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
-# table-stamp: fbb33994bd2fa7e5
+# table-stamp: f38ff10f91336e6b
 #
 # Read by `dart fix` and the IDE: see "A break comes with its migration"
 # in CONTRIBUTING.md.
@@ -398,3 +398,97 @@ transforms:
       - kind: 'renameParameter'
         oldName: 'fovYRadians'
         newName: 'fovY'
+  - title: 'flutter3d after 1.0.0-rc.1: model_core-KeyShape-KeyShape'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      constructor: ''
+      inClass: 'KeyShape'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'time'
+        newName: 'timeSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: model_core-KeyShape-time'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      field: 'time'
+      inClass: 'KeyShape'
+    changes:
+      - kind: 'rename'
+        newName: 'timeSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: model_core-KeyTable-duration'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      getter: 'duration'
+      inClass: 'KeyTable'
+    changes:
+      - kind: 'rename'
+        newName: 'durationSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: model_core-Keyframe-Keyframe'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      constructor: ''
+      inClass: 'Keyframe'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'time'
+        newName: 'timeSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: model_core-Keyframe-time'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      field: 'time'
+      inClass: 'Keyframe'
+    changes:
+      - kind: 'rename'
+        newName: 'timeSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: model_core-MoveKeys-MoveKeys'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      constructor: ''
+      inClass: 'MoveKeys'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'deltaTime'
+        newName: 'deltaSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: model_core-MoveKeys-deltaTime'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      field: 'deltaTime'
+      inClass: 'MoveKeys'
+    changes:
+      - kind: 'rename'
+        newName: 'deltaSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: model_core-SetKey-SetKey'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      constructor: ''
+      inClass: 'SetKey'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'time'
+        newName: 'timeSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: model_core-SetKey-time'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      field: 'time'
+      inClass: 'SetKey'
+    changes:
+      - kind: 'rename'
+        newName: 'timeSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: model_core-evaluateShapeDriversLive'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      function: 'evaluateShapeDriversLive'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'time'
+        newName: 'timeSeconds'

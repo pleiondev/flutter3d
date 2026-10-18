@@ -112,6 +112,24 @@ final class Difficulty {
     opponentReaction: 0.5,
   );
 
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<Difficulty> values = <Difficulty>[
+    gentle,
+    normal,
+    hard,
+    punishing,
+  ];
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static Difficulty? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   /// The four that ship, for a menu that wants to list them.
   ///
   /// A game adds its own; there is no registry, for the reason

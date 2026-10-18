@@ -90,6 +90,7 @@ final class DockSide
   final String name
   final bool vertical
   final double growsWith
+  static DockSide? byName(String name)
   static const DockSide bottom = DockSide._('bottom', vertical: false, growsWith: -1.0, foldIcon: Icons.expand_more)
   static const DockSide left = DockSide._('left', vertical: true, growsWith: 1.0, foldIcon: Icons.chevron_left)
   static const DockSide right = DockSide._('right', vertical: true, growsWith: -1.0, foldIcon: Icons.chevron_right)

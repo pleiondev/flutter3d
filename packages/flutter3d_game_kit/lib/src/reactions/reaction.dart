@@ -54,6 +54,19 @@ final class Jolt {
   /// The view pulled out, decaying back: `CameraRig.widen`.
   static const Jolt widen = Jolt._('widen');
 
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<Jolt> values = <Jolt>[kick, shake, widen];
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static Jolt? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   /// The verb's name, `kick`, `shake` or `widen`, as [toString] gives it.
   final String name;
 
@@ -140,6 +153,19 @@ final class Haptic {
   /// A heavy impact, a hard landing or a crash:
   /// `HapticFeedback.heavyImpact`.
   static const Haptic heavy = Haptic._('heavy', HapticFeedback.heavyImpact);
+
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<Haptic> values = <Haptic>[selection, light, medium, heavy];
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static Haptic? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
 
   /// The pulse's name, `selection`, `light`, `medium` or `heavy`.
   final String name;

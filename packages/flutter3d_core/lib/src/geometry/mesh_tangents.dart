@@ -35,6 +35,15 @@ final class TangentMethod {
   /// For a mesh whose maps were made for it, or one redrawn every frame.
   static const TangentMethod lengyel = TangentMethod._('lengyel');
 
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static TangentMethod? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   /// Every method.
   static const List<TangentMethod> values = <TangentMethod>[
     mikkTSpace,

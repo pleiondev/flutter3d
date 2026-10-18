@@ -74,7 +74,7 @@ final class ParticleSpin extends ParticleAffector {
     final particle = step.particle;
     final spin = (particle.seed * 2.0 - 1.0) * turnsPerSecond;
     final start = randomizeStart ? particle.seed * _tau : 0.0;
-    particle.rotation = start + spin * particle.age * _tau;
+    particle.rotation = start + spin * particle.ageSeconds * _tau;
   }
 }
 

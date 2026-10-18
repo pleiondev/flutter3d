@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **Breaking: a time in a `double` says seconds in its name.**
+  `HolderXrSession.period` is `HolderXrSession.periodSeconds`; the value and
+  its unit are what they were. `dart fix` carries each rename out.
 - **Breaking: `RenderView` is `CameraView`.** `StereoRig` changed with it.
   `package:flutter/rendering.dart` exports a `RenderView` too, the root of a
   render tree, so a file importing both had to hide one.

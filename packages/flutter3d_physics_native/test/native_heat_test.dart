@@ -200,7 +200,7 @@ void main() {
   test('a ball falls to its terminal speed in still air', () {
     final ball = world.addBody(position: Vector3.zero(), mass: 0.05);
     world
-      ..setSleep(speed: 0.0, time: 0.0)
+      ..setSleep(speed: 0.0, timeSeconds: 0.0)
       ..setShape(ball, const NativeShape.sphere(0.1));
     for (var i = 0; i < 3000; i++) {
       world.step(1.0 / 60.0);

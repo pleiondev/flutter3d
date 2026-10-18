@@ -1,5 +1,24 @@
 ## 1.0.0-rc.1
 
+- **Breaking: a time in a `double` says seconds in its name.**
+  `GhostFrame.time` is `GhostFrame.timeSeconds`, `PulseLight.period` is
+  `PulseLight.periodSeconds`, `RunStats.elapsed` is
+  `RunStats.elapsedSeconds`, `Tape.duration` is `Tape.durationSeconds`,
+  `XrPlane.lost(… displayTime:)` takes `displaySeconds:`, `XrPlane.toInput(…
+  displayTime:)` takes `displaySeconds:`, `XrPoseInput.toInput(…
+  displayTime:)` takes `displaySeconds:` and `XrSceneMesh.toInput(…
+  displayTime:)` takes `displaySeconds:`; the value and its unit are what
+  they were. `dart fix` carries each rename out.
+- **Breaking: `tick` goes.** `step` is the fixed simulation step, `update`
+  the variable frame and `advance` playback: `BehaviorChildren.tick` is
+  `BehaviorChildren.step`, `BehaviorComposite.tick` is
+  `BehaviorComposite.step`, `BehaviorLeaf.tick` is `BehaviorLeaf.step`,
+  `BehaviorTree.tick` is `BehaviorTree.step` and `Recorder.tick` is
+  `Recorder.record`. `dart fix` renames the calls and the overrides.
+- **Breaking: no public `late final` setter.** `EngineLoop.plugins` and
+  `EngineLoop.snapshots` are getters over a private field: the setter they
+  had worked once and threw the second time, and every read compiles as it
+  did.
 - **The loop names systems that touch one state unordered.** A system
   added with `reads:`/`writes:` is checked against the others of its step
   phase: `EngineLoop.unorderedAccess()` lists every pair where one writes

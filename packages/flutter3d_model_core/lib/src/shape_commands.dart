@@ -311,7 +311,7 @@ List<ProjectTrack>? _withComponentDropped(ProjectTrack track, int dropped) {
     keys: <Keyframe>[
       for (final key in table.keys)
         Keyframe(
-          time: key.time,
+          timeSeconds: key.timeSeconds,
           values: without(key.values)!,
           inTangent: without(key.inTangent),
           outTangent: without(key.outTangent),
@@ -329,7 +329,7 @@ List<ProjectTrack>? _withComponentDropped(ProjectTrack track, int dropped) {
   ];
 }
 
-/// Records [id]'s own *current* shape weights as a keyframe at [time], in
+/// Records [id]'s own *current* shape weights as a keyframe at [timeSeconds], in
 /// clip [clipIndex] — `KeyShape`'s own row, an auto-key from whatever
 /// [SetShapeWeight] last set rather than a value handed in separately, the
 /// same "capture the live state" shape every auto-key in this plan takes.
@@ -338,11 +338,11 @@ List<ProjectTrack>? _withComponentDropped(ProjectTrack track, int dropped) {
 /// one yet, sized to the shape set's own current key count.
 final class KeyShape extends ModelCommand {
   /// A step keying object [id]'s current shape weights in clip [clipIndex] at
-  /// [time] seconds.
+  /// [timeSeconds] seconds.
   const KeyShape({
     required this.id,
     required this.clipIndex,
-    required this.time,
+    required this.timeSeconds,
   });
 
   /// The object whose weights are keyed. [apply] refuses when the project has
@@ -354,7 +354,7 @@ final class KeyShape extends ModelCommand {
   final int clipIndex;
 
   /// In seconds.
-  final double time;
+  final double timeSeconds;
 
   @override
   String get name => 'keyShape';
@@ -366,7 +366,7 @@ final class KeyShape extends ModelCommand {
   Map<String, Object?> get arguments => <String, Object?>{
     'id': id,
     'clipIndex': clipIndex,
-    'time': time,
+    'time': timeSeconds,
   };
 
   @override
@@ -394,7 +394,7 @@ final class KeyShape extends ModelCommand {
         '"${object.name}" now has ${shapes.keys.length} shape keys',
       );
     }
-    table.setKey(time, List<double>.of(shapes.weights));
+    table.setKey(timeSeconds, List<double>.of(shapes.weights));
 
     final newTrack = ProjectTrack(
       objectId: id,

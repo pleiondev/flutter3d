@@ -680,7 +680,7 @@ class _EditorScreenState extends State<EditorScreen>
   void _onTick(Duration _) {
     // The ticker's argument is the frame's scheduled time, not the present;
     // `FrameClock` says why the wall is measured instead.
-    final dt = _frames.tick();
+    final dt = _frames.nextFrameSeconds();
     if (_preview case final CutscenePreview preview) {
       _previewed += dt;
       if (_previewed >= preview.seconds) _endPreview();

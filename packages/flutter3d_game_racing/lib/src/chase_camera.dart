@@ -108,6 +108,31 @@ final class ChaseSettings extends RigSettings {
   /// reads as a fish-eye rather than as speed.
   /// In radians.
   final double maxFov;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ChaseSettings &&
+          other.headingBlend == headingBlend &&
+          other.headingFrom == headingFrom &&
+          other.headingTo == headingTo &&
+          other.lookAhead == lookAhead &&
+          other.lookAheadWeight == lookAheadWeight &&
+          other.baseFovY == baseFovY &&
+          other.fovYPerSpeed == fovYPerSpeed &&
+          other.maxFov == maxFov;
+
+  @override
+  int get hashCode => Object.hash(
+    headingBlend,
+    headingFrom,
+    headingTo,
+    lookAhead,
+    lookAheadWeight,
+    baseFovY,
+    fovYPerSpeed,
+    maxFov,
+  );
 }
 
 /// A camera behind a car: behind where it is *going*, looking into the corner.
@@ -154,7 +179,7 @@ final class ChaseCamera {
          fovYPerSpeed: tuning.fovYPerSpeed,
          maxFov: tuning.maxFov,
        ) {
-    virtualCamera = VirtualCamera(
+    _virtualCamera = VirtualCamera(
       name,
       reframe?.call(framing) ?? framing,
       rig: rig,
@@ -169,6 +194,8 @@ final class ChaseCamera {
   /// it: the preset this camera is.
   final ChaseFraming framing;
 
+  late final VirtualCamera _virtualCamera;
+
   /// This camera as one of a director's: the [framing] carried out by [rig].
   ///
   /// **Its framing can be replaced.** Pass `reframe` to the constructor and
@@ -177,7 +204,7 @@ final class ChaseCamera {
   /// and changes what it asks for, or one that ignores it. The preset is
   /// still the one the calls here feed, so a replacement that wraps it
   /// keeps the subject and the look it is given.
-  late final VirtualCamera virtualCamera;
+  VirtualCamera get virtualCamera => _virtualCamera;
 
   /// The circuit, for looking up the road. Absent on a test plane, and then the
   /// camera looks along the car instead — which is the same thing on a straight.

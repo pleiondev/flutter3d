@@ -71,6 +71,15 @@ final class RigTemplate {
   /// A four-legged animal: spine, tail and four legs.
   static const RigTemplate quadruped = RigTemplate._('quadruped');
 
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static RigTemplate? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   /// The templates [buildSkeleton] knows today.
   static const List<RigTemplate> values = <RigTemplate>[humanoid, quadruped];
 
@@ -97,6 +106,15 @@ final class RigMirrorAxis {
 
   /// Mirrors left and right across the plane `z = 0`.
   static const RigMirrorAxis z = RigMirrorAxis._('z');
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static RigMirrorAxis? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
 
   /// Every axis, in declaration order.
   static const List<RigMirrorAxis> values = <RigMirrorAxis>[x, y, z];
@@ -184,6 +202,29 @@ final class RigBuildSettings {
   /// toward [previewRig]'s own `deformingCount` or the skinning shader's
   /// budget. See [BuiltRig] for where the extra object ends up.
   final bool controllers;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is RigBuildSettings &&
+          other.mirrorAxis == mirrorAxis &&
+          other.spineCount == spineCount &&
+          other.fingers == fingers &&
+          other.toes == toes &&
+          other.faceBones == faceBones &&
+          other.ikChains == ikChains &&
+          other.controllers == controllers;
+
+  @override
+  int get hashCode => Object.hash(
+    mirrorAxis,
+    spineCount,
+    fingers,
+    toes,
+    faceBones,
+    ikChains,
+    controllers,
+  );
 }
 
 /// What [buildSkeleton] hands back: the joints as freshly-made socket

@@ -13,7 +13,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d/flutter3d.dart' as f3d show RenderMaterial;
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart' hide Colors;
 
 final class ScreenBoundsDemo extends ShowcaseDemo {
   int ringed = 3;

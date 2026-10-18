@@ -55,7 +55,7 @@ final class FlameChaseCamera {
          lookAcross: lookAcross,
          stiffness: stiffness,
        ) {
-    virtualCamera = VirtualCamera('chase', framing, world: world);
+    _virtualCamera = VirtualCamera('chase', framing, world: world);
   }
 
   /// The scene camera the shot is written to.
@@ -64,8 +64,10 @@ final class FlameChaseCamera {
   /// Where the camera wants to be.
   final FlameChaseFraming framing;
 
+  late final VirtualCamera _virtualCamera;
+
   /// The framing with its rig: what a director would hold.
-  late final VirtualCamera virtualCamera;
+  VirtualCamera get virtualCamera => _virtualCamera;
 
   /// What eases the camera, and what shakes it: `rig.shake(0.4)` when the
   /// craft goes down.

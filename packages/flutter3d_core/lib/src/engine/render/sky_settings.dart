@@ -334,6 +334,43 @@ final class SkySettings {
     tint: clearTint ? null : (tint ?? this.tint),
     physical: clearPhysical ? null : (physical ?? this.physical),
   );
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SkySettings &&
+          other.enabled == enabled &&
+          other.zenith == zenith &&
+          other.horizon == horizon &&
+          other.nadir == nadir &&
+          other.directionToSun == directionToSun &&
+          other.sunColor == sunColor &&
+          other.glowExponent == glowExponent &&
+          other.glowStrength == glowStrength &&
+          other.sunAngularRadius == sunAngularRadius &&
+          other.sunSoftness == sunSoftness &&
+          other.sunIntensity == sunIntensity &&
+          other.cubemap == cubemap &&
+          other.tint == tint &&
+          other.physical == physical;
+
+  @override
+  int get hashCode => Object.hash(
+    enabled,
+    zenith,
+    horizon,
+    nadir,
+    directionToSun,
+    sunColor,
+    glowExponent,
+    glowStrength,
+    sunAngularRadius,
+    sunSoftness,
+    sunIntensity,
+    cubemap,
+    tint,
+    physical,
+  );
 }
 
 /// [color]'s red, green and blue as the `Vector3` the sky's arithmetic is

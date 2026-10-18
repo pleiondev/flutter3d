@@ -39,8 +39,8 @@ XrFrame _triggered(FakeXrSession session, int index) {
   final frame = FakeXrSession.standardFrame(session, index);
   return XrFrame(
     index: frame.index,
-    predictedDisplayTime: frame.predictedDisplayTime,
-    predictedDisplayPeriod: frame.predictedDisplayPeriod,
+    predictedDisplaySeconds: frame.predictedDisplaySeconds,
+    predictedDisplayPeriodSeconds: frame.predictedDisplayPeriodSeconds,
     space: frame.space,
     views: frame.views,
     poses: frame.poses,
@@ -120,8 +120,8 @@ void main() {
     final ended = session.ended;
     expect(ended, isNotEmpty);
     final shown =
-        ended.last.frame.predictedDisplayTime -
-        ended.first.frame.predictedDisplayTime;
+        ended.last.frame.predictedDisplaySeconds -
+        ended.first.frame.predictedDisplaySeconds;
     expect(steps.length, closeTo(shown * 60, 2));
     // Each frame ended with its projection layer: both eyes, one image.
     for (final end in ended) {
@@ -141,7 +141,10 @@ void main() {
     ];
     expect(heads, isNotEmpty);
     expect(heads.first.kind, ReadingKind.predicted);
-    expect(heads.first.sourceTime, greaterThanOrEqualTo(session.startTime));
+    expect(
+      heads.first.sourceSeconds,
+      greaterThanOrEqualTo(session.startSeconds),
+    );
 
     await tester.pumpWidget(const SizedBox());
     await tester.pump();
@@ -264,7 +267,7 @@ void main() {
             final frame = FakeXrSession.standardFrame(session, index);
             return XrFrame(
               index: index,
-              predictedDisplayTime: frame.predictedDisplayTime,
+              predictedDisplaySeconds: frame.predictedDisplaySeconds,
               space: frame.space,
               views: frame.views,
               depth: depth,

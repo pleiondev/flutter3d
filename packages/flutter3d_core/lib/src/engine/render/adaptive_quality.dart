@@ -128,6 +128,33 @@ final class AdaptiveQualitySettings {
 
   /// The largest render scale a row may have while in motion.
   final double motionScale;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AdaptiveQualitySettings &&
+          other.enabled == enabled &&
+          other.budget == budget &&
+          other.headroom == headroom &&
+          other.climbHeadroom == climbHeadroom &&
+          other.climbFrames == climbFrames &&
+          other.smoothing == smoothing &&
+          other.correctionSmoothing == correctionSmoothing &&
+          other.motionThreshold == motionThreshold &&
+          other.motionScale == motionScale;
+
+  @override
+  int get hashCode => Object.hash(
+    enabled,
+    budget,
+    headroom,
+    climbHeadroom,
+    climbFrames,
+    smoothing,
+    correctionSmoothing,
+    motionThreshold,
+    motionScale,
+  );
 }
 
 /// Chooses a [QualityRow] of [table] each frame.
@@ -135,6 +162,9 @@ final class AdaptiveQualitySettings {
 /// Holds its own state: feed it every frame's time and read [row], or pass
 /// the application's settings through [apply].
 final class AdaptiveQuality {
+  /// A controller choosing rows of [table] under [settings].
+  ///
+  /// Asserts a budget above nought.
   AdaptiveQuality(
     this.table, {
     this.settings = const AdaptiveQualitySettings(),
@@ -157,14 +187,14 @@ final class AdaptiveQuality {
   /// dependency order, null passing to the next. Null asks none.
   final RenderHooks? hooks;
 
+  /// The measured rows the controller chooses between.
   final QualityTable table;
+
+  /// What the controller aims at, and how cautiously.
   final AdaptiveQualitySettings settings;
 
   /// Microseconds per unit of cost, or null before the first frame.
   double? _load;
-  /// A controller choosing rows of [table] under [settings].
-  ///
-  /// Asserts a budget above nought.
   final List<double> _correction;
   int _index = 0;
   int _climbCount = 0;
@@ -187,10 +217,7 @@ final class AdaptiveQuality {
     return load == null ? null : load * table.rows[i].cost * _correction[i];
   }
 
-  /// The measured rows the controller chooses between.
   /// Feeds in the time the last frame took at [row] and returns the row for
-
-  /// What the controller aims at, and how cautiously.
   /// the next. [motion] is how fast the picture moves, see [screenMotion].
   ///
   /// Disabled, this sits at full quality and forgets what it measured.

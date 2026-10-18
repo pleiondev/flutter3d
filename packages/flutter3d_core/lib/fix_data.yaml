@@ -1,6 +1,6 @@
 # Generated from flutter3d_build/lib/migrations/*.yaml by
 # `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
-# table-stamp: fbb33994bd2fa7e5
+# table-stamp: f38ff10f91336e6b
 #
 # Read by `dart fix` and the IDE: see "A break comes with its migration"
 # in CONTRIBUTING.md.
@@ -2143,3 +2143,185 @@ transforms:
     changes:
       - kind: 'rename'
         newName: 'dispose'
+  - title: 'flutter3d after 1.0.0-rc.1: core-AnimationClip-AnimationClip'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart', 'package:flutter3d_game/flutter3d_game.dart']
+      constructor: ''
+      inClass: 'AnimationClip'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'referenceTime'
+        newName: 'referenceSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: core-AnimationClip-duration'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart', 'package:flutter3d_game/flutter3d_game.dart']
+      field: 'duration'
+      inClass: 'AnimationClip'
+    changes:
+      - kind: 'rename'
+        newName: 'durationSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: core-AnimationClip-referenceTime'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart', 'package:flutter3d_game/flutter3d_game.dart']
+      field: 'referenceTime'
+      inClass: 'AnimationClip'
+    changes:
+      - kind: 'rename'
+        newName: 'referenceSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: core-AnimationGraph-stateTime'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_game/flutter3d_game.dart']
+      getter: 'stateTime'
+      inClass: 'AnimationGraph'
+    changes:
+      - kind: 'rename'
+        newName: 'stateSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: core-AnimationLayer-time'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_game/flutter3d_game.dart']
+      getter: 'time'
+      inClass: 'AnimationLayer'
+    changes:
+      - kind: 'rename'
+        newName: 'timeSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: core-AnimationPlayer-crossFadeTo'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_game/flutter3d_game.dart']
+      method: 'crossFadeTo'
+      inClass: 'AnimationPlayer'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'duration'
+        newName: 'durationSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: core-AnimationPlayer-crossFadeToNamed'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_game/flutter3d_game.dart']
+      method: 'crossFadeToNamed'
+      inClass: 'AnimationPlayer'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'duration'
+        newName: 'durationSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: core-AnimationPlayer-duration'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_game/flutter3d_game.dart']
+      getter: 'duration'
+      inClass: 'AnimationPlayer'
+    changes:
+      - kind: 'rename'
+        newName: 'durationSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: core-AnimationPlayer-rootMotionDelta'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_game/flutter3d_game.dart']
+      method: 'rootMotionDelta'
+      inClass: 'AnimationPlayer'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'fromTime'
+        newName: 'fromSeconds'
+      - kind: 'renameParameter'
+        oldName: 'toTime'
+        newName: 'toSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: core-AnimationPlayer-time'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_game/flutter3d_game.dart']
+      getter: 'time'
+      inClass: 'AnimationPlayer'
+    changes:
+      - kind: 'rename'
+        newName: 'timeSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: core-AnimationTrack-endTime'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart', 'package:flutter3d_game/flutter3d_game.dart']
+      getter: 'endTime'
+      inClass: 'AnimationTrack'
+    changes:
+      - kind: 'rename'
+        newName: 'endSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: core-AnimationTrack-startTime'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart', 'package:flutter3d_game/flutter3d_game.dart']
+      getter: 'startTime'
+      inClass: 'AnimationTrack'
+    changes:
+      - kind: 'rename'
+        newName: 'startSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: core-AnimationTransition-AnimationTransition'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_game/flutter3d_game.dart']
+      constructor: ''
+      inClass: 'AnimationTransition'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'duration'
+        newName: 'durationSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: core-AnimationTransition-duration'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_game/flutter3d_game.dart']
+      field: 'duration'
+      inClass: 'AnimationTransition'
+    changes:
+      - kind: 'rename'
+        newName: 'durationSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: core-ContributorFrame-ContributorFrame'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_game/flutter3d_game.dart']
+      constructor: ''
+      inClass: 'ContributorFrame'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'time'
+        newName: 'timeSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: core-PlayheadStep-PlayheadStep'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      constructor: ''
+      inClass: 'PlayheadStep'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'time'
+        newName: 'timeSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: core-PlayheadStep-time'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      field: 'time'
+      inClass: 'PlayheadStep'
+    changes:
+      - kind: 'rename'
+        newName: 'timeSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: core-RenderFrame-RenderFrame'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_game/flutter3d_game.dart']
+      constructor: ''
+      inClass: 'RenderFrame'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'time'
+        newName: 'timeSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: core-advanceTime'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_game/flutter3d_game.dart']
+      function: 'advanceTime'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'time'
+        newName: 'seconds'

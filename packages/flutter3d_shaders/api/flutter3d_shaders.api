@@ -359,6 +359,7 @@ final class ShaderStageNeed
   static ShaderStageNeed? bringing(String stage)
   static ShaderStageNeed? byName(String name)
   static const List<ShaderStageNeed> engine = <ShaderStageNeed>[pbrLayered, blinnPhong, lambert, toon, impostor]
+  static const List<ShaderStageNeed> values = <ShaderStageNeed>[pbrLayered, blinnPhong, lambert, toon, impostor]
   static const ShaderStageNeed blinnPhong = ShaderStageNeed('blinnPhong', <String>['BlinnPhong', 'BlinnPhongOpaque'])
   static const ShaderStageNeed impostor = ShaderStageNeed('impostor', <String>['ImpostorVertex', 'Impostor'])
   static const ShaderStageNeed lambert = ShaderStageNeed('lambert', <String>['Lambert', 'LambertOpaque'])

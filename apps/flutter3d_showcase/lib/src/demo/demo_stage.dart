@@ -69,7 +69,7 @@ class _DemoStageState extends State<DemoStage>
     // A frame that took long (a tab left in the background) is played as a
     // tenth of a second: a page that steps by `dt` is then never flung a
     // minute's worth in one go.
-    run.update(math.min(_clock.tick(), 0.1));
+    run.update(math.min(_clock.nextFrameSeconds(), 0.1));
     setState(() {});
   }
 

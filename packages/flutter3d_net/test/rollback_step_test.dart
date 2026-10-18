@@ -47,7 +47,7 @@ void main() {
         0: <String, Object?>{'move': -1},
       }),
     );
-    ours.tick();
+    ours.step();
     expect(steps, hasLength(2));
     final again = steps.last;
     expect(again.step, 0);
@@ -61,7 +61,7 @@ void main() {
         1: <String, Object?>{'move': 0},
       }),
     );
-    ours.tick();
+    ours.step();
     session.advance();
     expect(steps.last.step, 1);
     expect(steps.last.statusOf(1), InputStatus.confirmed);

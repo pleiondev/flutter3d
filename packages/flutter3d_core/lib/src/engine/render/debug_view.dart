@@ -34,6 +34,15 @@ final class DebugViewKind {
   /// A check that paints what breaks a rule red and what keeps it calm.
   static const DebugViewKind validation = DebugViewKind._('validation');
 
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static DebugViewKind? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   /// All of them, in the order a tool lists them.
   static const List<DebugViewKind> values = <DebugViewKind>[
     lit,
@@ -322,6 +331,15 @@ final class DebugWipeSide {
   /// Right of `DebugViewSettings.split` only.
   static const DebugWipeSide right = DebugWipeSide._('right');
 
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static DebugWipeSide? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   /// All of them, [both] first.
   static const List<DebugWipeSide> values = <DebugWipeSide>[both, left, right];
 
@@ -366,6 +384,7 @@ final class DebugWipeSide {
 /// composite's exposure, curve, bloom and grade do not touch a side that
 /// shows a channel.
 final class DebugViewSettings {
+  /// No channel on either side of the wipe; every default is an exact no-op.
   const DebugViewSettings({
     this.view = DebugView.off,
     this.split = 0.0,
@@ -388,7 +407,6 @@ final class DebugViewSettings {
 
   /// Which side of the wipe the overlays draw on — [DebugWipeSide.both], the
   /// whole frame, by default.
-  /// No channel on either side of the wipe; every default is an exact no-op.
   final DebugWipeSide overlays;
 
   /// Whether the right of the wipe shows a channel.
@@ -400,6 +418,8 @@ final class DebugViewSettings {
   /// Whether a frame drawn with these shows a channel anywhere.
   bool get active => showsRight || showsLeft;
 
+  /// Returns a copy with the given fields replaced; null leaves a field as
+  /// it is.
   DebugViewSettings copyWith({
     DebugView? view,
     double? split,
@@ -411,6 +431,16 @@ final class DebugViewSettings {
     left: left ?? this.left,
     overlays: overlays ?? this.overlays,
   );
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DebugViewSettings &&
+          other.view == view &&
+          other.split == split &&
+          other.left == left &&
+          other.overlays == overlays;
+
+  @override
+  int get hashCode => Object.hash(view, split, left, overlays);
 }
-  /// Returns a copy with the given fields replaced; null leaves a field as
-  /// it is.

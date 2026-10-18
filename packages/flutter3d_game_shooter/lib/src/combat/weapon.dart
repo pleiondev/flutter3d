@@ -362,7 +362,7 @@ final class Arsenal {
         _ammo[weapon.ammo] = ammoOf(weapon.ammo) - weapon.ammoPerShot;
       }
     }
-    _cooldown = weapon.cooldown;
+    _cooldown = weapon.cooldownSeconds;
     return weapon;
   }
 

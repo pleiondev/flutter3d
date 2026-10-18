@@ -193,7 +193,7 @@ void main() {
       expect(clip.tracks, hasLength(1));
       expect(clip.tracks.single.path, AnimationPath.rotation);
       expect(clip.tracks.single.componentCount, 4);
-      expect(clip.duration, greaterThan(0.0));
+      expect(clip.durationSeconds, greaterThan(0.0));
     });
 
     test('BoxAnimated drives a hierarchy', () async {
@@ -205,7 +205,7 @@ void main() {
           .map((t) => t.path)
           .toSet();
       expect(paths, contains(AnimationPath.translation));
-      expect(asset.animations.first.duration, greaterThan(0.0));
+      expect(asset.animations.first.durationSeconds, greaterThan(0.0));
     });
 
     test('InterpolationTest covers all three interpolations', () async {
@@ -243,7 +243,7 @@ void main() {
 
       final out = Float32List(cubic.componentCount);
       for (var i = 0; i <= 10; i++) {
-        cubic.sample(cubic.endTime * i / 10.0, out);
+        cubic.sample(cubic.endSeconds * i / 10.0, out);
         for (final value in out) {
           expect(value.isFinite, isTrue);
         }

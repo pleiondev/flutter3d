@@ -119,6 +119,7 @@ final class LtiNonceMismatchException extends LtiLaunchException
 
 final class LtiPlatformSettings
   LtiPlatformSettings copyWith({String? issuer, String? clientId, String? deploymentId, Uri? authLoginUrl, Uri? jwksUrl, Uri? authTokenUrl, bool clearAuthTokenUrl = false})
+  bool operator ==(Object other)
   const LtiPlatformSettings({required this.issuer, required this.clientId, required this.deploymentId, required this.authLoginUrl, required this.jwksUrl, this.authTokenUrl})
   final String clientId
   final String deploymentId
@@ -126,6 +127,7 @@ final class LtiPlatformSettings
   final Uri authLoginUrl
   final Uri jwksUrl
   final Uri? authTokenUrl
+  int get hashCode
 
 final class LtiStateMismatchException extends LtiLaunchException
   const LtiStateMismatchException()
@@ -190,9 +192,11 @@ final class XapiException extends ResourceException
 
 final class XapiLrsSettings
   XapiLrsSettings copyWith({Uri? statementsEndpoint, String? authorizationHeader})
+  bool operator ==(Object other)
   const XapiLrsSettings({required this.statementsEndpoint, required this.authorizationHeader})
   final String authorizationHeader
   final Uri statementsEndpoint
+  int get hashCode
 
 final class XapiResult
   Map<String, dynamic> toJson()

@@ -135,9 +135,9 @@ void main() {
       // reason `widget_surface_pipeline_benchmark_test.dart` reaches for
       // `tester.runAsync` around the identical call.
       expect(surface.redrawCount, 0);
-      await tester.runAsync(surface.tick);
-      await tester.runAsync(surface.tick);
-      await tester.runAsync(surface.tick);
+      await tester.runAsync(surface.update);
+      await tester.runAsync(surface.update);
+      await tester.runAsync(surface.update);
       expect(
         surface.redrawCount,
         0,
@@ -145,11 +145,11 @@ void main() {
       );
 
       notifier.value = const Color(0xFF00FF00);
-      await tester.runAsync(surface.tick);
+      await tester.runAsync(surface.update);
       expect(surface.redrawCount, 1);
 
-      await tester.runAsync(surface.tick);
-      await tester.runAsync(surface.tick);
+      await tester.runAsync(surface.update);
+      await tester.runAsync(surface.update);
       expect(
         surface.redrawCount,
         1,
@@ -169,7 +169,7 @@ void main() {
       addTearDown(surface.dispose);
 
       final before = surface.node.material.albedo;
-      await tester.runAsync(surface.tick);
+      await tester.runAsync(surface.update);
       // The very first frame is already drawn by the pipeline's own
       // constructor (see `WidgetSurfacePipeline`'s docstring) rather than by
       // this call, so `redrawCount` does not have to move for a widget this
@@ -179,7 +179,7 @@ void main() {
       expect(surface.node.material.albedo, isNot(same(before)));
 
       final afterFirst = surface.node.material.albedo;
-      await tester.runAsync(surface.tick);
+      await tester.runAsync(surface.update);
       expect(
         surface.node.material.albedo,
         same(afterFirst),

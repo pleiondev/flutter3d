@@ -2829,7 +2829,7 @@ void main() {
         const AddShapeFromMesh(id: 1, shapeName: 'smile'),
         const RenameShape(id: 1, shapeIndex: 0, to: 'grin'),
         const DeleteShape(id: 1, shapeIndex: 0),
-        const KeyShape(id: 1, clipIndex: 0, time: 0.5),
+        const KeyShape(id: 1, clipIndex: 0, timeSeconds: 0.5),
         const AddShapeDriver(
           id: 1,
           driver: ShapeDriver(
@@ -2963,7 +2963,7 @@ void main() {
         const SetKey(
           clipIndex: 0,
           trackIndex: 0,
-          time: 0.5,
+          timeSeconds: 0.5,
           values: <double>[1, 2, 3],
           inTangent: <double>[0, 0, 0],
           outTangent: <double>[0, 0, 0],
@@ -2972,7 +2972,7 @@ void main() {
           clipIndex: 0,
           trackIndex: 0,
           indices: <int>[0, 1],
-          deltaTime: 0.25,
+          deltaSeconds: 0.25,
         ),
         const DeleteKeys(clipIndex: 0, trackIndex: 0, indices: <int>[1]),
         const SetInterpolation(
@@ -3811,7 +3811,7 @@ void main() {
         const fps = 30.0;
         const time = frame / fps;
         expect(
-          replayed.run(const KeyShape(id: 1, clipIndex: 0, time: time)),
+          replayed.run(const KeyShape(id: 1, clipIndex: 0, timeSeconds: time)),
           isNull,
         );
 
@@ -3843,7 +3843,7 @@ void main() {
         ],
       );
       final replayed = ModelHistory(project)..selection = history.selection;
-      replayed.run(const KeyShape(id: 1, clipIndex: 0, time: 0.0));
+      replayed.run(const KeyShape(id: 1, clipIndex: 0, timeSeconds: 0.0));
 
       expect(replayed.run(const DeleteShape(id: 1, shapeIndex: 1)), isNull);
 
@@ -4332,7 +4332,7 @@ void main() {
           const SetKey(
             clipIndex: 0,
             trackIndex: 0,
-            time: 0.5,
+            timeSeconds: 0.5,
             values: <double>[9, 9, 9],
           ),
         ),
@@ -4352,7 +4352,7 @@ void main() {
           const SetKey(
             clipIndex: 0,
             trackIndex: 0,
-            time: 0.5,
+            timeSeconds: 0.5,
             values: <double>[1, 2],
           ),
         ),
@@ -4368,7 +4368,7 @@ void main() {
             clipIndex: 0,
             trackIndex: 0,
             indices: <int>[0],
-            deltaTime: 2.0,
+            deltaSeconds: 2.0,
           ),
         ),
         isNull,
@@ -4387,7 +4387,7 @@ void main() {
             clipIndex: 0,
             trackIndex: 0,
             indices: <int>[5],
-            deltaTime: 1.0,
+            deltaSeconds: 1.0,
           ),
         ),
         isNotNull,
@@ -4462,7 +4462,7 @@ void main() {
           history.project.clips.single.tracks.single.track,
         );
         expect(table.keys[0].outTangent, <double>[1, 0, 0]);
-        expect(table.keys[0].time, 0.0);
+        expect(table.keys[0].timeSeconds, 0.0);
         expect(table.keys[0].values, <double>[0, 0, 0]);
       },
     );
@@ -4851,7 +4851,7 @@ void main() {
         const SetKey(
           clipIndex: 0,
           trackIndex: 0,
-          time: 0.75,
+          timeSeconds: 0.75,
           values: <double>[0, 0, 0],
         ),
       );

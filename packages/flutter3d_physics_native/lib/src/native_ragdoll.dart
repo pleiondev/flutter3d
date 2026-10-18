@@ -84,6 +84,26 @@ final class JointGroup {
   /// The knee, between the thigh and the shin.
   static const JointGroup knee = JointGroup('knee');
 
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<JointGroup> values = <JointGroup>[
+    spine,
+    neck,
+    shoulder,
+    elbow,
+    hip,
+    knee,
+  ];
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static JointGroup? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   @override
   bool operator ==(Object other) => other is JointGroup && other.name == name;
 

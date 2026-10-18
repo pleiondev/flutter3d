@@ -214,6 +214,35 @@ final class ConvertCommandSettings {
       ),
     );
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ConvertCommandSettings &&
+          _sameList(other.inputs, inputs) &&
+          other.output == output &&
+          other.dryRun == dryRun &&
+          other.overwrite == overwrite &&
+          other.assetPrefix == assetPrefix &&
+          other.materials == materials &&
+          other.reportPath == reportPath &&
+          other.json == json &&
+          other.models == models &&
+          other.split == split;
+
+  @override
+  int get hashCode => Object.hash(
+    Object.hashAll(inputs),
+    output,
+    dryRun,
+    overwrite,
+    assetPrefix,
+    materials,
+    reportPath,
+    json,
+    models,
+    split,
+  );
 }
 
 /// The formats an input may be, with their readers.
@@ -473,4 +502,16 @@ Future<int> runConvertCommand(
       );
   }
   return exitCodeFor(reports.map((ConvertReport r) => r.outcome));
+}
+
+/// Whether [a] and [b] hold equal elements in the same order.
+bool _sameList<T>(Iterable<T>? a, Iterable<T>? b) {
+  if (identical(a, b)) return true;
+  if (a == null || b == null || a.length != b.length) return false;
+  final ib = b.iterator;
+  for (final x in a) {
+    ib.moveNext();
+    if (x != ib.current) return false;
+  }
+  return true;
 }

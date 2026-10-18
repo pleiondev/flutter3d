@@ -58,7 +58,7 @@ final class GhostKeeper {
   /// whose next sample is not due for another fifteenth.
   bool stepped(RacerProgress player, VehicleController car, bool lapped) {
     final record = lapped && finished(player.lastLap);
-    watch(player.lapTime, car);
+    watch(player.lapSeconds, car);
     return record;
   }
 

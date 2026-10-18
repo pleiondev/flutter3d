@@ -63,7 +63,7 @@ void main() {
         _drive(it.input, step, index);
         it.race.advance();
       }
-      party.tick();
+      party.step();
     }
     // Every machine heard every other, and drove its own car.
     for (final (index, it) in races.indexed) {

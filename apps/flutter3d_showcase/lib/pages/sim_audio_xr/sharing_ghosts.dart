@@ -177,7 +177,7 @@ RunTransport _inMemory(Map<String, Map<String, Object?>> store) =>
     simulation: SimulationVersion.engineOnly,
   );
   var step = 0;
-  recorder.tick(
+  recorder.record(
     0.0,
     position: run.position.toVector3Relative(WorldPosition.origin),
     yaw: 0.0,
@@ -188,7 +188,7 @@ RunTransport _inMemory(Map<String, Map<String, Object?>> store) =>
     run.step(dt);
     input.endStep();
     step++;
-    recorder.tick(
+    recorder.record(
       step * dt,
       position: run.position.toVector3Relative(WorldPosition.origin),
       yaw: 0.0,
@@ -393,10 +393,10 @@ final class SharingGhostsDemo extends ShowcaseDemo {
     // The ghost is where the original runner was, to the bit, at every
     // sample, and it ends where the run ended.
     for (final GhostFrame pose in ghost.poses) {
-      final Vector3 was = _original[(pose.time * 60.0).round()];
+      final Vector3 was = _original[(pose.timeSeconds * 60.0).round()];
       if (pose.position != was) {
         throw StateError(
-          'at ${pose.time} s the ghost is at ${pose.position}, '
+          'at ${pose.timeSeconds} s the ghost is at ${pose.position}, '
           'the run was at $was',
         );
       }

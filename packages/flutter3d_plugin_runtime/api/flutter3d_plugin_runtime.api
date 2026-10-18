@@ -241,7 +241,7 @@ final class WasmRenderCall
 final class WasmRenderImports
   T during<T>(RenderProgramFrame frame, T Function() call)
   WasmRenderImports({required this.parameters, this.lights = const <String>[]})
-  double get time
+  double get timeSeconds
   final List<String> lights
   final int parameters
   int lightCode(int light)

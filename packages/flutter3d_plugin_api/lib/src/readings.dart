@@ -33,6 +33,15 @@ final class ReadingKind {
   /// world.
   static const ReadingKind simulated = ReadingKind._('simulated');
 
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static ReadingKind? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   /// The kinds this release names, in the order they were added.
   static const List<ReadingKind> values = <ReadingKind>[
     measured,
@@ -78,6 +87,15 @@ final class ReadingQuality {
 
   /// Once good and not renewed when it should have been.
   static const ReadingQuality stale = ReadingQuality._('stale');
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static ReadingQuality? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
 
   /// The qualities this release names, in the order they were added.
   static const List<ReadingQuality> values = <ReadingQuality>[
@@ -133,8 +151,8 @@ final class ExternalStateInput {
     required this.source,
     required List<double> value,
     this.unit,
-    this.sourceTime,
-    this.receivedTime,
+    this.sourceSeconds,
+    this.receivedSeconds,
     this.quality,
     this.kind,
     this.tag,
@@ -148,8 +166,8 @@ final class ExternalStateInput {
   factory ExternalStateInput.quantity(
     String source,
     Quantity quantity, {
-    double? sourceTime,
-    double? receivedTime,
+    double? sourceSeconds,
+    double? receivedSeconds,
     ReadingQuality? quality,
     ReadingKind? kind,
     String? tag,
@@ -157,8 +175,8 @@ final class ExternalStateInput {
     source: source,
     value: <double>[quantity.value],
     unit: quantity.unit,
-    sourceTime: sourceTime,
-    receivedTime: receivedTime,
+    sourceSeconds: sourceSeconds,
+    receivedSeconds: receivedSeconds,
     quality: quality,
     kind: kind,
     tag: tag,
@@ -200,8 +218,8 @@ final class ExternalStateInput {
       source: source,
       value: value,
       unit: unit,
-      sourceTime: seconds('sourceTime'),
-      receivedTime: seconds('receivedTime'),
+      sourceSeconds: seconds('sourceTime'),
+      receivedSeconds: seconds('receivedTime'),
       quality: switch (text('quality')) {
         null => null,
         final name => ReadingQuality.parse(name),
@@ -230,11 +248,11 @@ final class ExternalStateInput {
 
   /// When the source took it, seconds on the source's clock; null when it
   /// does not say.
-  final double? sourceTime;
+  final double? sourceSeconds;
 
   /// When the engine received it, seconds on the receiving machine's clock;
   /// null when not recorded.
-  final double? receivedTime;
+  final double? receivedSeconds;
 
   /// How far its source trusts it; null when it does not say.
   final ReadingQuality? quality;
@@ -281,8 +299,8 @@ final class ExternalStateInput {
     'source': source,
     'value': value,
     if (unit case final unit?) 'unit': unit.toJson(),
-    'sourceTime': ?sourceTime,
-    'receivedTime': ?receivedTime,
+    'sourceTime': ?sourceSeconds,
+    'receivedTime': ?receivedSeconds,
     if (quality case final quality?) 'quality': quality.name,
     if (kind case final kind?) 'kind': kind.name,
     'tag': ?tag,
@@ -294,8 +312,8 @@ final class ExternalStateInput {
       other.source == source &&
       _sameNumbers(other.value, value) &&
       other.unit == unit &&
-      other.sourceTime == sourceTime &&
-      other.receivedTime == receivedTime &&
+      other.sourceSeconds == sourceSeconds &&
+      other.receivedSeconds == receivedSeconds &&
       other.quality == quality &&
       other.kind == kind &&
       other.tag == tag;
@@ -305,8 +323,8 @@ final class ExternalStateInput {
     source,
     Object.hashAll(value),
     unit,
-    sourceTime,
-    receivedTime,
+    sourceSeconds,
+    receivedSeconds,
     quality,
     kind,
     tag,

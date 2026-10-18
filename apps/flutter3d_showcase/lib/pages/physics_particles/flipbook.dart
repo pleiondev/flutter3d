@@ -129,11 +129,11 @@ final class FlipbookDemo extends ShowcaseDemo {
     // A particle just born and one about to die should be showing different
     // cells of the sheet: the whole point of a flipbook over a static sprite.
     final Particle newborn = Particle()
-      ..age = 0.0
-      ..lifetime = 1.0;
+      ..ageSeconds = 0.0
+      ..lifetimeSeconds = 1.0;
     final Particle dying = Particle()
-      ..age = 0.99
-      ..lifetime = 1.0;
+      ..ageSeconds = 0.99
+      ..lifetimeSeconds = 1.0;
     if (_flipbook.cellFor(newborn).left == _flipbook.cellFor(dying).left) {
       throw StateError('the flipbook should play across a particle\'s life');
     }

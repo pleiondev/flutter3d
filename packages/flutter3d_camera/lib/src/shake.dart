@@ -95,7 +95,7 @@ final class ImpulseShake {
   double _time = 0.0;
 
   /// Seconds since the shake was made, as [advance] counted them.
-  double get time => _time;
+  double get timeSeconds => _time;
 
   /// Whether anything is still shaking.
   bool get isShaking => _live.isNotEmpty;

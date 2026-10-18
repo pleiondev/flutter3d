@@ -112,7 +112,7 @@ void main() {
       ]);
       rig.player
         ..play(index: 0)
-        ..crossFadeTo(1, duration: 0.2)
+        ..crossFadeTo(1, durationSeconds: 0.2)
         ..update(0.1);
 
       expect(rig.player.fadeWeight, closeTo(0.5, 1e-6));
@@ -197,8 +197,12 @@ void main() {
       );
       rig.player.update(0.25);
 
-      expect(layer.time, closeTo(0.5, 1e-6), reason: 'twice the base delta');
-      expect(rig.player.time, closeTo(0.25, 1e-6));
+      expect(
+        layer.timeSeconds,
+        closeTo(0.5, 1e-6),
+        reason: 'twice the base delta',
+      );
+      expect(rig.player.timeSeconds, closeTo(0.25, 1e-6));
     });
 
     test('the last of two over one joint is the one that lands', () {
@@ -231,7 +235,7 @@ void main() {
       );
       rig.player.update(0.25);
 
-      expect(layer.time, closeTo(0.25, 1e-6));
+      expect(layer.timeSeconds, closeTo(0.25, 1e-6));
     });
 
     test('a once clip stops at its end and says it is finished', () {
@@ -251,7 +255,11 @@ void main() {
 
       rig.player.update(1.0);
       expect(layer.isFinished, isTrue);
-      expect(layer.time, closeTo(1.0, 1e-6), reason: 'held on the last pose');
+      expect(
+        layer.timeSeconds,
+        closeTo(1.0, 1e-6),
+        reason: 'held on the last pose',
+      );
     });
   });
 

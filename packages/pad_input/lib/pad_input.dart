@@ -72,7 +72,9 @@ final class Gamepad {
   /// connect, one for the second. See [GamepadPlatform.readPad].
   final int index;
 
-  /// The one a game uses when it has not made its own.
+  /// The one a game uses when it has not made its own: process-wide, one
+  /// per process, like the platform channel under it. The engine reaches
+  /// it only through a `PadDevice`, which a game or a test replaces.
   ///
   /// Constructed on first use, so a build that never touches a gamepad never
   /// touches a platform channel either.

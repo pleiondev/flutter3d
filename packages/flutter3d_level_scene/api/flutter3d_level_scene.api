@@ -15,8 +15,10 @@ final class LevelBatching
   String toString()
   final String name
   final bool drawPerBrush
+  static LevelBatching? byName(String name)
   static const LevelBatching perBrush = LevelBatching._('perBrush', drawPerBrush: true)
   static const LevelBatching perMaterial = LevelBatching._('perMaterial', drawPerBrush: false)
+  static const List<LevelBatching> values = <LevelBatching>[perMaterial, perBrush]
 
 final class LevelScene
   LevelSceneParts build(Level level, {required GraphicsDevice device, Map<String, TextureHandle?> textures = const <String, TextureHandle?>{}, Map<String, RenderMaterial> deferred = const <String, RenderMaterial>{}, LevelVisibility? visibility, LightmapLayout? lightmapLayout, TextureHandle? lightmapTexture})

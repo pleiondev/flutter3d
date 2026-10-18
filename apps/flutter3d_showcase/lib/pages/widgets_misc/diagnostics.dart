@@ -39,12 +39,12 @@ final class DiagnosticsDemo extends ShowcaseDemo {
   // #region clock
   static (String, double) _clockLine() {
     final clock = FrameClock();
-    final first = clock.tick();
+    final first = clock.nextFrameSeconds();
     clock.secondsSince(const Duration(milliseconds: 16));
     clock.secondsSince(const Duration(milliseconds: 32));
     return (
       'first tick: ${first}s, elapsed after two frames: '
-          '${clock.elapsed.toStringAsFixed(3)}s',
+          '${clock.elapsedSeconds.toStringAsFixed(3)}s',
       first,
     );
   }

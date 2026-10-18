@@ -59,6 +59,18 @@ final class MapCameraSettings {
 
   /// How much of the gap the rig closes in a second. Higher is tighter.
   final double lag;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MapCameraSettings &&
+          other.pitch == pitch &&
+          other.minDistance == minDistance &&
+          other.maxDistance == maxDistance &&
+          other.lag == lag;
+
+  @override
+  int get hashCode => Object.hash(pitch, minDistance, maxDistance, lag);
 }
 
 /// The view over a strategy's map.
@@ -89,7 +101,7 @@ final class MapCamera {
          maxDistance: tuning.maxDistance,
          lag: tuning.lag,
        ) {
-    virtualCamera = VirtualCamera(
+    _virtualCamera = VirtualCamera(
       name,
       reframe?.call(framing) ?? framing,
       rig: rig,
@@ -108,6 +120,8 @@ final class MapCamera {
   /// Where the camera wants to be: the focus, the zoom and the tilt.
   final OverheadFraming framing;
 
+  late final VirtualCamera _virtualCamera;
+
   /// This camera as one of a director's: the [framing] carried out by [rig].
   ///
   /// **Its framing can be replaced.** Pass `reframe` to the constructor and
@@ -116,7 +130,7 @@ final class MapCamera {
   /// and changes what it asks for, or one that ignores it. The preset is
   /// still the one the calls here feed, so a replacement that wraps it
   /// keeps the subject and the look it is given.
-  late final VirtualCamera virtualCamera;
+  VirtualCamera get virtualCamera => _virtualCamera;
 
   /// Where the view is pointed, on the ground.
   Vector3 get focus => framing.focus;

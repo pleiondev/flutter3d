@@ -110,8 +110,8 @@ final class ParticleModifiersDemo extends ShowcaseDemo {
     // against a particle of our own and read what changed.
     final Particle sample = Particle()
       ..velocity.setValues(0.0, 2.0, 0.0)
-      ..age = 0.4
-      ..lifetime = 2.0
+      ..ageSeconds = 0.4
+      ..lifetimeSeconds = 2.0
       ..seed = 0.5;
     for (final ParticleAffector affector in _affectors) {
       affector.apply(ParticleStep(particle: sample, dt: 1 / 60));

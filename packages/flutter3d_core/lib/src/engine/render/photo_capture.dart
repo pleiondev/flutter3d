@@ -149,6 +149,28 @@ final class PhotoFilter {
     lift: LinearColor(0.06, 0.06, 0.06),
   );
 
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<PhotoFilter> values = <PhotoFilter>[
+    none,
+    vivid,
+    warm,
+    cool,
+    mono,
+    sepia,
+    noir,
+    faded,
+  ];
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static PhotoFilter? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   /// The order a menu shows them in.
   static final List<PhotoFilter> all = <PhotoFilter>[
     none,
@@ -193,6 +215,8 @@ final class PhotoFilter {
 /// added after the encode as the composite adds it — at the frame's position
 /// rather than the tile's, which is the whole reason this exists.
 final class PhotoFinish {
+  /// A finish for a [width] by [height] picture with the given [vignette],
+  /// [roundness] and [grain]; see [PhotoFinish.of] to take them from a look.
   PhotoFinish({
     required this.width,
     required this.height,
@@ -211,20 +235,22 @@ final class PhotoFinish {
         grain: math.max(look.grain, 0.0),
       );
 
+  /// Width of the whole picture in pixels.
   final int width;
+
+  /// Height of the whole picture in pixels.
   final int height;
 
   /// How far the corners are pulled down, a 0..1 fraction.
   final double vignette;
 
-  /// A finish for a [width] by [height] picture with the given [vignette],
-  /// [roundness] and [grain]; see [PhotoFinish.of] to take them from a look.
   /// A 0..1 fraction: one keeps the falloff circular, nought follows the frame.
   final double roundness;
 
   /// Amplitude of per-pixel noise as a fraction of the encoded range.
   final double grain;
 
+  /// Whether the finish changes nothing: no vignette and no grain.
   bool get isNeutral => vignette == 0.0 && grain == 0.0;
 
   static final Float64List _decode = Float64List.fromList(
@@ -237,10 +263,7 @@ final class PhotoFinish {
     final aspect = width / height;
     final stretch = 1.0 + (aspect - 1.0) * roundness;
     for (var row = 0; row < rows; row++) {
-  /// Width of the whole picture in pixels.
       final y = top + row;
-
-  /// Height of the whole picture in pixels.
       final fy = (y + 0.5) / height - 0.5;
       for (var x = 0; x < width; x++) {
         final at = (row * width + x) * 4;
@@ -252,7 +275,6 @@ final class PhotoFinish {
             : (_hash(x + 0.5, y + 0.5) - 0.5) * grain;
         for (var c = 0; c < 3; c++) {
           final encoded = vignette == 0.0
-  /// Whether the finish changes nothing: no vignette and no grain.
               ? rgba[at + c] / 255.0
               : linearToSrgb(_decode[rgba[at + c]] * keep);
           rgba[at + c] = ((encoded + noise).clamp(0.0, 1.0) * 255.0).round();
@@ -274,6 +296,8 @@ final class PhotoFinish {
 /// between the picture on screen and the picture saved, and a player who
 /// notices one deserves a sentence rather than a bug report.
 final class PhotoCaptureReport {
+  /// A report on a [width] by [height] photo drawn as [tilesX] by [tilesY]
+  /// tiles.
   const PhotoCaptureReport({
     required this.width,
     required this.height,
@@ -284,9 +308,16 @@ final class PhotoCaptureReport {
     required this.setAside,
   });
 
+  /// Width of the saved picture in pixels.
   final int width;
+
+  /// Height of the saved picture in pixels.
   final int height;
+
+  /// How many tiles across the picture was drawn in, a count.
   final int tilesX;
+
+  /// How many tiles down the picture was drawn in, a count.
   final int tilesY;
 
   /// Pixels of picture drawn round each tile and cropped away.
@@ -298,8 +329,6 @@ final class PhotoCaptureReport {
   /// One sentence per setting the capture could not carry over.
   final List<String> setAside;
 }
-  /// A report on a [width] by [height] photo drawn as [tilesX] by [tilesY]
-  /// tiles.
 
 const String _noTemporal =
     'temporal anti-aliasing is off: it resolves over frames a still tile '
@@ -310,22 +339,16 @@ const String _noMotionBlur =
 const String _noAberration =
     'chromatic aberration is left out: it is centred on each tile, and no '
     'whole-frame version is written yet';
-  /// Width of the saved picture in pixels.
 const String _noScale =
-
-  /// Height of the saved picture in pixels.
     'render scale and upscaling are off: the picture is drawn at its own size';
-
-  /// How many tiles across the picture was drawn in, a count.
 const String _noExtended =
-
-  /// How many tiles down the picture was drawn in, a count.
     'the extended-range output is written as standard range';
 
 /// What [photoSettings] works out for a photo: the settings each [tile] is
 /// drawn with, the [look] the whole picture is finished with, and a
 /// sentence for each thing it [setAside] that a tiled photo cannot do.
 final class PhotoPlan {
+  /// A plan drawing each tile with [tile] and finishing with [look].
   const PhotoPlan({
     required this.tile,
     required this.look,
@@ -350,7 +373,6 @@ final class PhotoPlan {
 PhotoPlan photoSettings(
   RenderSettings settings,
   PhotoFilter filter,
-  /// A plan drawing each tile with [tile] and finishing with [look].
   double exposure,
 ) {
   final look = filter.applyTo(settings.look);

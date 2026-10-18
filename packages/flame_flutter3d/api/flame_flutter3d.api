@@ -241,12 +241,12 @@ final class FlameChaseCamera
   Object3dComponent get target
   Vector3 get lookOffset
   Vector3 get offset
+  VirtualCamera get virtualCamera
   double get followAcross
   double get lookAcross
   double get stiffness
   final CameraNode camera
   final FlameChaseFraming framing
-  late final VirtualCamera virtualCamera
   void advance(double dt)
 
 final class FlameChaseCameraComponent extends Component
@@ -714,11 +714,11 @@ mixin UpdatesAtRoot on Component
 final class ViewCamera
   CameraRig get rig
   ViewCamera({required this.camera, required bool Function(Vector3 eye, Vector3 target) view, double stiffness = 4.0, CollisionWorld? world})
+  VirtualCamera get virtualCamera
   bool Function(Vector3 eye, Vector3 target) get view
   double get stiffness
   final CameraNode camera
   final ViewFraming framing
-  late final VirtualCamera virtualCamera
   void advance(double dt)
 
 final class ViewCameraComponent extends Component

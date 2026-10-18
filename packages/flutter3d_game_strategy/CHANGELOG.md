@@ -1,5 +1,11 @@
 ## 1.0.0-rc.1
 
+- **Breaking: a time in a `double` says seconds in its name.**
+  `StrategyUnit.cooldown` is `StrategyUnit.cooldownSeconds`; the value and
+  its unit are what they were. `dart fix` carries each rename out.
+- **Breaking: no public `late final` setter.** `MapCamera.virtualCamera` is
+  a getter over a private field: the setter they had worked once and threw
+  the second time, and every read compiles as it did.
 - **Breaking: a recorded match's playback checks the match itself.**
   `OrderTapePlayback(match, simulation: strategySimulationVersion)` refuses
   a match recorded on another simulation with `ReplayException` before an

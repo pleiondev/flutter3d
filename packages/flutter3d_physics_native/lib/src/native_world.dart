@@ -52,6 +52,23 @@ final class NativeBodyType {
     'kinematic',
   );
 
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<NativeBodyType> values = <NativeBodyType>[
+    dynamic,
+    fixed,
+    kinematic,
+  ];
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static NativeBodyType? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   /// The core's number for it.
   final int code;
 
@@ -206,6 +223,19 @@ final class GridSide {
 
   /// The edge along the grid's far z, past its last row of cells.
   static const GridSide north = GridSide._(3, 'north');
+
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<GridSide> values = <GridSide>[west, east, south, north];
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static GridSide? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
 
   /// The core's number for the edge, nought to three, as
   /// `f3d_shallow_set_edge` takes it.
@@ -938,6 +968,31 @@ final class NativeWheelSettings {
     width: clearWidth ? null : (width ?? this.width),
     rollingResistance: rollingResistance ?? this.rollingResistance,
   );
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is NativeWheelSettings &&
+          other.attach == attach &&
+          other.rest == rest &&
+          other.radius == radius &&
+          other.stiffness == stiffness &&
+          other.damping == damping &&
+          other.grip == grip &&
+          other.width == width &&
+          other.rollingResistance == rollingResistance;
+
+  @override
+  int get hashCode => Object.hash(
+    attach,
+    rest,
+    radius,
+    stiffness,
+    damping,
+    grip,
+    width,
+    rollingResistance,
+  );
 }
 
 /// A wheel as the last step left it.
@@ -1222,6 +1277,24 @@ final class NativeJointType {
     c.JointType.prismatic,
     'prismatic',
   );
+
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<NativeJointType> values = <NativeJointType>[
+    fixed,
+    spherical,
+    revolute,
+    prismatic,
+  ];
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static NativeJointType? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
 
   /// The core's number for it, as `F3dJointType` numbers it.
   final int code;
@@ -1828,6 +1901,30 @@ final class NativeEventKind {
     'burnerOut',
   );
 
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<NativeEventKind> values = <NativeEventKind>[
+    slept,
+    woke,
+    ignited,
+    extinguished,
+    burntOut,
+    contactBegan,
+    contactEnded,
+    jointBroken,
+    wetted,
+    burnerOut,
+  ];
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static NativeEventKind? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   static const List<NativeEventKind> _all = <NativeEventKind>[
     slept,
     woke,
@@ -2325,10 +2422,10 @@ final class NativeWorld {
   }
 
   /// How long, s, a body must stay slower than [speed] (m/s and rad/s) to
-  /// fall asleep; a [time] of nought turns sleep off. Defaults 0.05 and 0.5.
-  void setSleep({required double speed, required double time}) {
-    if (c.f3d_world_set_sleep(_live, speed, time) == 0) {
-      throw ArgumentError('sleep after $time s under $speed');
+  /// fall asleep; a [timeSeconds] of nought turns sleep off. Defaults 0.05 and 0.5.
+  void setSleep({required double speed, required double timeSeconds}) {
+    if (c.f3d_world_set_sleep(_live, speed, timeSeconds) == 0) {
+      throw ArgumentError('sleep after $timeSeconds s under $speed');
     }
   }
 

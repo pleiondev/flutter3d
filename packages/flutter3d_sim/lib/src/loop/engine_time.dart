@@ -94,6 +94,22 @@ final class TimeLostReason {
   /// The frame brought more steps than the catch-up policy allows.
   static const TimeLostReason overBudget = TimeLostReason._('overBudget');
 
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<TimeLostReason> values = <TimeLostReason>[
+    longFrame,
+    overBudget,
+  ];
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static TimeLostReason? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   /// The stable name, and what [toString] and a [TimeLost] report write.
   final String name;
 

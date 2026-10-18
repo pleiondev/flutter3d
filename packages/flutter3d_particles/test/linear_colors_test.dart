@@ -38,8 +38,8 @@ void main() {
 
   test('a colour over life runs from one LinearColor to another', () {
     final particle = Particle()
-      ..age = 0.25
-      ..lifetime = 1.0;
+      ..ageSeconds = 0.25
+      ..lifetimeSeconds = 1.0;
     ParticleColorOverLife(
       const LinearColor(0.0, 0.0, 0.0, 1.0),
       const LinearColor(1.0, 1.0, 1.0, 1.0),

@@ -185,7 +185,11 @@ void main() {
     bool any() => fluid.count + fluid.drops.length > 0;
     for (var frame = 0; frame < 120 && any(); frame++) {
       world.advance(1 / 60);
-      final gone = fluid.retire(elapsed: 1 / 60, after: 0.25, settled: lying);
+      final gone = fluid.retire(
+        elapsedSeconds: 1 / 60,
+        after: 0.25,
+        settled: lying,
+      );
       if (!gone.isEmpty) {
         retired.add(gone);
         first = math.min(first, frame / 60);
@@ -225,18 +229,22 @@ void main() {
     for (var i = 0; i < 100; i++) {
       yes = !yes;
       final gone = fluid.retire(
-        elapsed: 0.1,
+        elapsedSeconds: 0.1,
         after: 0.15,
         settled: (_, _) => yes,
       );
       expect(gone.isEmpty, isTrue);
     }
     expect(
-      fluid.retire(elapsed: 0.1, after: 0.15, settled: (_, _) => true).isEmpty,
+      fluid
+          .retire(elapsedSeconds: 0.1, after: 0.15, settled: (_, _) => true)
+          .isEmpty,
       isTrue,
     );
     expect(
-      fluid.retire(elapsed: 0.1, after: 0.15, settled: (_, _) => true).volume,
+      fluid
+          .retire(elapsedSeconds: 0.1, after: 0.15, settled: (_, _) => true)
+          .volume,
       closeTo(fluid.particleVolume, 1e-18),
     );
     expect(fluid.count, 0);

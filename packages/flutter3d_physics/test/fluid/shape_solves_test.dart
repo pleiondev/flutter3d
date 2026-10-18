@@ -68,7 +68,7 @@ void main() {
       for (var i = 0; i < 60; i++) {
         time += 1 / 240;
         tube
-          ..place(turned, Vector3.zero(), time: time)
+          ..place(turned, Vector3.zero(), timeSeconds: time)
           ..step(1 / 240, gravity: Vector3(0, -9.81, 0));
       }
     }

@@ -159,7 +159,7 @@ final class HideFlutterMatrix4Fix extends ResolvedCorrectionProducer {
     if (edits.isEmpty) return;
     final edit = edits.first;
     await builder.addDartFileEdit(file, (builder) {
-      builder.addSimpleInsertion(edit.offset, edit.replacement);
+      builder.addSimpleInsertion(edit.offset, edit.text);
     });
   }
 }

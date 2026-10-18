@@ -375,7 +375,7 @@ final class PlatformerRun extends RunSession<LevelReady> {
   /// the loop's fixed sixtieths, so it is the run's step count across levels
   /// without a counter of its own.
   @override
-  int stepOf(LevelReady level) => (level.sim.elapsed * 60.0).round();
+  int stepOf(LevelReady level) => (level.sim.elapsedSeconds * 60.0).round();
 
   /// The tally of the run so far. Only this side knows what the level after
   /// this one is, so only this side can carry anything into it.
@@ -385,7 +385,7 @@ final class PlatformerRun extends RunSession<LevelReady> {
     _carried = (
       lives: level.sim.lives,
       deaths: level.sim.deaths,
-      elapsed: level.sim.elapsed,
+      elapsed: level.sim.elapsedSeconds,
       coins: level.runner.purse['coin'],
     );
   }

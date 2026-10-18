@@ -56,7 +56,7 @@ abstract base class FrameContext {
     required this.height,
     this.view,
     this.frameIndex = 0,
-    this.time = 0.0,
+    this.timeSeconds = 0.0,
     this.origin = WorldPosition.origin,
     List<FrameView>? views,
     this.viewIndex = 0,
@@ -138,7 +138,7 @@ abstract base class FrameContext {
 
   /// Seconds since the renderer drew its first frame — the clock an
   /// animated effect reads.
-  final double time;
+  final double timeSeconds;
 
   /// Where the scene's own space starts in the world (`Scene.origin`): what
   /// a node that holds a [WorldPosition] subtracts to draw it. Every matrix
@@ -230,7 +230,7 @@ final class RenderFrame extends FrameContext {
     required super.height,
     super.view,
     super.frameIndex,
-    super.time,
+    super.timeSeconds,
     super.origin,
     super.views,
     super.viewIndex,

@@ -110,6 +110,33 @@ final class AdaptiveScaleSettings {
   /// Below this multiple, there is room to give resolution back.
   /// A unitless ratio to [target].
   final double fastRatio;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AdaptiveScaleSettings &&
+          other.enabled == enabled &&
+          other.target == target &&
+          other.minimum == minimum &&
+          other.maximum == maximum &&
+          other.step == step &&
+          other.window == window &&
+          other.holdWindows == holdWindows &&
+          other.slowRatio == slowRatio &&
+          other.fastRatio == fastRatio;
+
+  @override
+  int get hashCode => Object.hash(
+    enabled,
+    target,
+    minimum,
+    maximum,
+    step,
+    window,
+    holdWindows,
+    slowRatio,
+    fastRatio,
+  );
 }
 
 /// The scale to draw the next frame at, decided from the ones before it.
@@ -117,8 +144,10 @@ final class AdaptiveScaleSettings {
 /// Holds its own state, so an application feeds it every frame and reads
 /// [scale] — there is nothing to arrange and nothing to reset between scenes.
 final class AdaptiveScale {
+  /// A controller following [settings], starting at the maximum scale.
   AdaptiveScale(this.settings);
 
+  /// How far the resolution may be pulled, and how fast.
   final AdaptiveScaleSettings settings;
 
   /// How many steps below [AdaptiveScaleSettings.maximum] the scale sits.
@@ -144,10 +173,8 @@ final class AdaptiveScale {
   /// Feeds one frame's own cost in, and returns the scale for the next.
   ///
   /// Disabled, this reports [AdaptiveScaleSettings.maximum] and forgets
-  /// A controller following [settings], starting at the maximum scale.
   /// whatever it had gathered: an application that switches the controller
   /// off and on again should not find a window from before still deciding.
-  /// How far the resolution may be pulled, and how fast.
   double recordFrame(int cpuMicros) {
     if (!settings.enabled) {
       _window.clear();

@@ -686,7 +686,7 @@ final class StrategySimulation {
   void _fight(double dt) {
     var reach = 0.0;
     for (final StrategyUnit unit in units) {
-      if (unit.cooldown > 0.0) unit.cooldown -= dt;
+      if (unit.cooldownSeconds > 0.0) unit.cooldownSeconds -= dt;
       if (unit.type.isArmed && unit.type.range > reach) reach = unit.type.range;
     }
     if (reach <= 0.0) return;
@@ -694,11 +694,13 @@ final class StrategySimulation {
     _hash(_marks, reach);
 
     for (final StrategyUnit unit in units) {
-      if (!unit.isAlive || !unit.type.isArmed || unit.cooldown > 0.0) continue;
+      if (!unit.isAlive || !unit.type.isArmed || unit.cooldownSeconds > 0.0) {
+        continue;
+      }
       final StrategyUnit? mark = _markFor(unit, reach);
       if (mark == null) continue;
       mark.hurt(unit.type.damage);
-      unit.cooldown = unit.type.reload;
+      unit.cooldownSeconds = unit.type.reload;
       _shots.add(UnitShot(unit, mark));
     }
   }

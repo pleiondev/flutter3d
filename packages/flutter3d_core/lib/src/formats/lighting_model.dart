@@ -238,6 +238,32 @@ final class LightingModel {
     usesMaterialParameters: false,
   );
 
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<LightingModel> values = <LightingModel>[
+    unlit,
+    xray,
+    planarReflection,
+    polyline,
+    impostor,
+    lambert,
+    blinnPhong,
+    pbr,
+    pbrLayered,
+    toon,
+    normals,
+  ];
+
+  /// The built-in model a document calls [name], or null for a name this
+  /// version does not know, which is what a file written by a later
+  /// version can carry.
+  static LightingModel? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   /// The word a document names this model by: `<namespace>.<Name>` for a
   /// plugin's (`acme_ink.Ink`), whose [shaderName] is `<namespace>__<Name>`
   /// ([shaderNameOf]); the [shaderName] itself for a built-in model and one

@@ -73,8 +73,8 @@ abstract final class Monsters {
     height: 2.4,
     sightRange: 22.0,
     painChance: 0.15,
-    painCooldown: 1.4,
-    hurtDuration: 0.18,
+    painCooldownSeconds: 1.4,
+    hurtSeconds: 0.18,
     attack: WeaponDef(
       name: 'slam',
       loudness: 12.0,

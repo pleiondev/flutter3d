@@ -99,8 +99,8 @@ void main() {
 
     expect(loaded.player.lap, it.player.lap);
     expect(loaded.player.bestLap, closeTo(it.player.bestLap!, 1e-6));
-    expect(loaded.player.totalTime, closeTo(it.player.totalTime, 1e-6));
-    expect(loaded.race.elapsed, closeTo(it.race.elapsed, 1e-6));
+    expect(loaded.player.totalSeconds, closeTo(it.player.totalSeconds, 1e-6));
+    expect(loaded.race.elapsedSeconds, closeTo(it.race.elapsedSeconds, 1e-6));
   });
 
   test('and a lap that was never driven is not a lap driven in no time', () {

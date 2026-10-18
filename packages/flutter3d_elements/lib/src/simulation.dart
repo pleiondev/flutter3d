@@ -985,7 +985,7 @@ final class _WaterStep extends ElementHook {
 /// world's are the core's ([NativeElementFields]).
 final class ElementsSimulation {
   ElementsSimulation._(this.world, {required this.steps}) {
-    fires = Fires._(this);
+    _fires = Fires._(this);
     _hooks
       ..add(const _WaterStep())
       ..add(_FireStep(this));
@@ -1006,8 +1006,10 @@ final class ElementsSimulation {
   /// Whether [step] steps [world]; not for one adopted.
   final bool steps;
 
+  late final Fires _fires;
+
   /// The fires, and what lights and puts them out.
-  late final Fires fires;
+  Fires get fires => _fires;
 
   /// What the elements tell the game ([ElementsListener]); null for none.
   ElementsListener? listener;

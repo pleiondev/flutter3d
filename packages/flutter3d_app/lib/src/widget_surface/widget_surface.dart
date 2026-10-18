@@ -83,7 +83,7 @@ final class WidgetSurface {
   /// control under a thumb was a texture per frame that nothing gave back.
   TextureHandle? _texture;
 
-  /// Bumped by every [tick] that uploads and by [dispose], so an upload that
+  /// Bumped by every [update] that uploads and by [dispose], so an upload that
   /// finishes after a newer one — or after the surface is gone — can tell.
   int _generation = 0;
   bool _disposed = false;
@@ -127,7 +127,7 @@ final class WidgetSurface {
   /// which is not the first call costs one boolean check and nothing else,
   /// because [WidgetSurfacePipeline.redrawIfDirty] already is that cheap —
   /// `wg-00`'s own measurement is what this relies on rather than re-proves.
-  Future<void> tick() async {
+  Future<void> update() async {
     if (_disposed) return;
     final dirty = pipeline.redrawIfDirty();
     if (!dirty && _uploaded) return;

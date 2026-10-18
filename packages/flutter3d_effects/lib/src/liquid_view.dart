@@ -110,6 +110,14 @@ final class MistSettings {
     double g = standardGravity,
     double? viscosity,
   }) => share ?? mistShare(speed, g: g, viscosity: viscosity);
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MistSettings && other.share == share && other.droplet == droplet;
+
+  @override
+  int get hashCode => Object.hash(share, droplet);
 }
 
 /// The airborne share of a liquid landing at [speed] m/s
@@ -205,7 +213,7 @@ final class LiquidView {
         indices: gridTriangles(liquid.nx, liquid.nz),
       ),
     );
-    surfaceNode = MeshNode(_surface, look, name: 'water')..castsShadow = false;
+    _surfaceNode = MeshNode(_surface, look, name: 'water')..castsShadow = false;
     _sheetVertices = Float32List(detail.sheet * 4 * vertexFloats);
     _sheet = DeviceMesh.upload(
       device,
@@ -217,7 +225,7 @@ final class LiquidView {
     );
     // The sheet and the mist are drawn with the surface's own look, which
     // tells them apart by what their vertices and instances carry.
-    sheetNode = MeshNode(_sheet, look, name: 'falling water')
+    _sheetNode = MeshNode(_sheet, look, name: 'falling water')
       ..castsShadow = false;
     _mistNode = InstancedMeshNode(
       DeviceMesh.upload(
@@ -284,8 +292,13 @@ final class LiquidView {
   final List<_Puff> _puffs = <_Puff>[];
   final Matrix4 _m = Matrix4.identity();
 
-  /// The surface, and the falling sheet.
-  late final MeshNode surfaceNode, sheetNode;
+  late final MeshNode _surfaceNode, _sheetNode;
+
+  /// The water's surface, drawn from the core's height grid.
+  MeshNode get surfaceNode => _surfaceNode;
+
+  /// The falling sheet of water, drawn with the surface's own look.
+  MeshNode get sheetNode => _sheetNode;
 
   /// How many pieces of falling water and clouds of bubbles the core has
   /// for this liquid, and how many quads of sheet were drawn, as of the last

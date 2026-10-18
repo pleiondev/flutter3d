@@ -235,6 +235,43 @@ final class ClothSettings {
   /// brings the fastest particle down to 0.02 m/s after ten seconds where
   /// none leaves it at 0.04; both keep the layers apart equally well.
   final double selfCollisionFriction;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ClothSettings &&
+          other.profile == profile &&
+          other.gravity == gravity &&
+          other.substeps == substeps &&
+          other.iterations == iterations &&
+          other.distanceCompliance == distanceCompliance &&
+          other.bendCompliance == bendCompliance &&
+          other.shearCompliance == shearCompliance &&
+          other.damping == damping &&
+          other.wind == wind &&
+          other.collisionThickness == collisionThickness &&
+          other.friction == friction &&
+          other.selfCollision == selfCollision &&
+          other.selfCollisionThickness == selfCollisionThickness &&
+          other.selfCollisionFriction == selfCollisionFriction;
+
+  @override
+  int get hashCode => Object.hash(
+    profile,
+    gravity,
+    substeps,
+    iterations,
+    distanceCompliance,
+    bendCompliance,
+    shearCompliance,
+    damping,
+    wind,
+    collisionThickness,
+    friction,
+    selfCollision,
+    selfCollisionThickness,
+    selfCollisionFriction,
+  );
 }
 
 /// A uniform wind field, applied per triangle as drag along its own normal.
@@ -300,4 +337,18 @@ final class WindSettings {
   /// Whether the wind does nothing: [drag] is zero. A still wind with drag
   /// is not none, since it damps a moving cloth.
   bool get isNone => drag == 0;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is WindSettings &&
+          other.airDensity == airDensity &&
+          other.velocityX == velocityX &&
+          other.velocityY == velocityY &&
+          other.velocityZ == velocityZ &&
+          other.drag == drag;
+
+  @override
+  int get hashCode =>
+      Object.hash(airDensity, velocityX, velocityY, velocityZ, drag);
 }

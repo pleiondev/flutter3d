@@ -204,7 +204,7 @@ final class PoseRecord {
         final turn = rotation.asRotationMatrix();
         final forward = turn.transformed(Vector3(0.0, 0.0, 1.0));
         final pose = GhostFrame(
-          time: frame.step * stepSeconds,
+          timeSeconds: frame.step * stepSeconds,
           yaw: Portable.atan2(forward.x, forward.z),
         )..position.setValues(values[0], values[1], values[2]);
         pose.up.setFrom(turn.transformed(Vector3(0.0, 1.0, 0.0)));

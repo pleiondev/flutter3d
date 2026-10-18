@@ -77,6 +77,31 @@ final class DebrisSettings {
 
   /// How many impulse passes a substep makes; nought is taken as one.
   final int iterations;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DebrisSettings &&
+          other.gravity == gravity &&
+          other.friction == friction &&
+          other.restitution == restitution &&
+          other.linearDamping == linearDamping &&
+          other.angularDamping == angularDamping &&
+          other.maxSpeed == maxSpeed &&
+          other.substeps == substeps &&
+          other.iterations == iterations;
+
+  @override
+  int get hashCode => Object.hash(
+    gravity,
+    friction,
+    restitution,
+    linearDamping,
+    angularDamping,
+    maxSpeed,
+    substeps,
+    iterations,
+  );
 }
 
 /// One ball of debris to add: a radius or mass of nought or less empties

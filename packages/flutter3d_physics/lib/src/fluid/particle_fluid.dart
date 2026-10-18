@@ -232,7 +232,7 @@ final class ParticleFluid {
   final int iterations;
 
   /// The fewest substeps a [step] is cut into, a count; more are taken
-  /// when [capillaryTime] asks for them.
+  /// when [capillarySeconds] asks for them.
   final int substeps;
 
   /// What moves the particles each step: the reference unless told
@@ -244,7 +244,7 @@ final class ParticleFluid {
   /// a step stepped explicitly must be well inside it. A third of a
   /// millisecond for millimetre water, where a fixed two substeps of a
   /// 240th of a second threw drops apart at metres a second.
-  double get capillaryTime => medium.surfaceTension > 0.0
+  double get capillarySeconds => medium.surfaceTension > 0.0
       ? math.sqrt(
           medium.density * spacing * spacing * spacing / medium.surfaceTension,
         )
@@ -332,8 +332,8 @@ final class ParticleFluid {
   /// Takes out every particle that [settled] has held true of for [after]
   /// seconds running, and says where they were and what they carried.
   ///
-  /// Meant to be called once a frame, [elapsed] being the seconds since the
-  /// last call: a particle [settled] holds true of has [elapsed] added to
+  /// Meant to be called once a frame, [elapsedSeconds] being the seconds since the
+  /// last call: a particle [settled] holds true of has [elapsedSeconds] added to
   /// its time, one it does not starts again from nought. [settled] is asked
   /// with the particle's position and velocity, in vectors lent for the
   /// call and reused for the next particle.
@@ -350,7 +350,7 @@ final class ParticleFluid {
   /// angle, so a lone particle on one slides on at the speed it landed
   /// with, and a test for stillness would never pass.
   RetiredParticles retire({
-    required double elapsed,
+    required double elapsedSeconds,
     required double after,
     required bool Function(Vector3 position, Vector3 velocity) settled,
   }) {
@@ -365,7 +365,9 @@ final class ParticleFluid {
       final d = _drops[i];
       position.setValues(d.x.x, d.x.y, d.x.z);
       velocity.setValues(d.v.x, d.v.y, d.v.z);
-      d.settled = settled(position, velocity) ? d.settled + elapsed : 0.0;
+      d.settled = settled(position, velocity)
+          ? d.settled + elapsedSeconds
+          : 0.0;
       if (d.settled < after) continue;
       goneDrops.add(
         LiquidDrop(
@@ -387,7 +389,9 @@ final class ParticleFluid {
       final u = _v[i];
       position.setValues(x.x, x.y, x.z);
       velocity.setValues(u.x, u.y, u.z);
-      final time = settled(position, velocity) ? _settled[i] + elapsed : 0.0;
+      final time = settled(position, velocity)
+          ? _settled[i] + elapsedSeconds
+          : 0.0;
       if (time >= after) {
         gone.add(x.toVector3());
         _c[i].forEach((key, c) {
@@ -524,7 +528,7 @@ final class ParticleFluid {
     // not a density solve, per piece.
     final fastest = _v.fold(0.0, (m, v) => math.max(m, v.length));
     final count = math
-        .max(substeps, (dt / (0.25 * capillaryTime)).ceil())
+        .max(substeps, (dt / (0.25 * capillarySeconds)).ceil())
         .clamp(1, 256);
     final sub = dt / count;
     // The walls anything here could reach this step, found once: every

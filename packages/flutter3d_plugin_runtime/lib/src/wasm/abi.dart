@@ -438,7 +438,7 @@ final class WasmRenderImports {
 
   /// `time() -> f32`: the frame's time, in seconds since the renderer
   /// began.
-  double get time => _running.time;
+  double get timeSeconds => _running.time;
 
   /// `view_size(axis) -> i32`: the view's width in pixels for axis 0, its
   /// height for 1, nought for any other.

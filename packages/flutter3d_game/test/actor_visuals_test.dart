@@ -330,7 +330,7 @@ void main() {
       );
 
       final player = corpses.model!.player!;
-      final clock = player.time;
+      final clock = player.timeSeconds;
       final root = corpses.model!.root.worldMatrix.getTranslation();
       actor.body!.teleport(Vector3(5.0, 0.0, 5.0));
       for (var i = 0; i < 5; i++) {
@@ -339,7 +339,7 @@ void main() {
           ..sync();
       }
       expect(corpses.begun, hasLength(1), reason: 'asked once');
-      expect(player.time, clock, reason: 'its clip is not played on');
+      expect(player.timeSeconds, clock, reason: 'its clip is not played on');
       expect(corpses.model!.root.worldMatrix.getTranslation(), root);
 
       visuals.remove(actor);
@@ -568,9 +568,9 @@ void main() {
         graph.evaluate(1.0 / 60.0);
         visuals.recordStep(dt: 1.0 / 60.0);
       }
-      final time = graph.stateTime;
+      final time = graph.stateSeconds;
       final afterFirst = drawn(1.0);
-      expect(graph.stateTime, time, reason: 'the frame does not step it');
+      expect(graph.stateSeconds, time, reason: 'the frame does not step it');
       graph.evaluate(0.1);
       visuals.recordStep(dt: 0.1);
       final atStart = drawn(0.0);
@@ -941,7 +941,7 @@ final class _Graphs with ActorGraphs {
             from: 'stand',
             to: 'run',
             conditions: const <AnimationCondition>[BoolCondition('running')],
-            duration: 0.1,
+            durationSeconds: 0.1,
           ),
         ],
       );

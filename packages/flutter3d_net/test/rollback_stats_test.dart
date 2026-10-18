@@ -44,9 +44,9 @@ import 'package:test/test.dart';
   b = session(1);
   for (var i = 0; i < steps; i++) {
     a.advance();
-    first.tick();
+    first.step();
     b.advance();
-    second.tick();
+    second.step();
   }
   return (first: a, second: b);
 }

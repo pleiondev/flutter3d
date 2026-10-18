@@ -52,6 +52,7 @@ final class DeviceLostEvent
 
 final class DeviceSettings
   DeviceSettings copyWith({GraphicsDevice? device, Renderer? renderer, DeviceRegistry? devices, FramePresenter? presenter, bool? fallbackBanner, void Function(DeviceLostEvent event)? onDeviceLost, void Function(Flutter3dEngine engine)? onDeviceRestored, bool clearDevice = false, bool clearRenderer = false, bool clearDevices = false, bool clearPresenter = false, bool clearOnDeviceLost = false, bool clearOnDeviceRestored = false})
+  bool operator ==(Object other)
   const DeviceSettings({this.device, this.renderer, this.devices, this.presenter, this.fallbackBanner = true, this.onDeviceLost, this.onDeviceRestored})
   final DeviceRegistry? devices
   final FramePresenter? presenter
@@ -60,6 +61,7 @@ final class DeviceSettings
   final bool fallbackBanner
   final void Function(DeviceLostEvent event)? onDeviceLost
   final void Function(Flutter3dEngine engine)? onDeviceRestored
+  int get hashCode
 
 final class DidNotStart extends StatelessWidget
   Widget build(BuildContext context)
@@ -164,10 +166,10 @@ final class Flutter3dView extends StatefulWidget
 
 final class FrameClock
   FrameClock({Clock? wallClock})
-  double get elapsed
+  double get elapsedSeconds
   double get fps
+  double nextFrameSeconds()
   double secondsSince(Duration now)
-  double tick()
   void reset()
 
 final class FrameInfo
@@ -326,6 +328,7 @@ final class LoadingScreen extends StatelessWidget
 
 final class LoopSettings
   LoopSettings copyWith({WorldTiming? timing, InputState? input, void Function(Vector2 out)? drainLook, double? originShift, SimulationPlacement? simulation, SimulationProfile? profile, bool clearInput = false, bool clearDrainLook = false, bool clearOriginShift = false})
+  bool operator ==(Object other)
   const LoopSettings({this.timing = const WorldTiming(), this.input, this.drainLook, this.originShift = defaultOriginShift, this.simulation = const SimulationPlacement.inline(), this.profile = SimulationProfile.deterministic})
   final InputState? input
   final SimulationPlacement simulation
@@ -333,6 +336,7 @@ final class LoopSettings
   final WorldTiming timing
   final double? originShift
   final void Function(Vector2 out)? drainLook
+  int get hashCode
   static const double defaultOriginShift = 1000.0
 
 final class Material3D extends StatefulWidget
@@ -492,11 +496,13 @@ final class PhotoTaken
 
 final class PluginSettings
   PluginSettings copyWith({Iterable<Flutter3dPlugin>? plugins, Iterable<FormatSpec>? formats, Iterable<PluginRegistry>? registries, Future<ByteData?> Function(String asset)? readBundle, bool clearReadBundle = false})
+  bool operator ==(Object other)
   const PluginSettings({this.plugins = const <Flutter3dPlugin>[], this.formats = const <FormatSpec>[], this.registries = const <PluginRegistry>[], this.readBundle})
   final Future<ByteData?> Function(String asset)? readBundle
   final Iterable<Flutter3dPlugin> plugins
   final Iterable<FormatSpec> formats
   final Iterable<PluginRegistry> registries
+  int get hashCode
 
 final class ProbeBuilder extends StatelessWidget
   Widget build(BuildContext context)
@@ -702,6 +708,7 @@ final class ViewResolution
 
 final class ViewSettings
   ViewSettings copyWith({RenderSettings? settings, CameraViewSettings? render, ViewResolution? resolution, List<CameraView>? views, bool? continuous, double? frameRateCap, Widget? placeholder, Widget Function(Object error)? failure, bool? warmUp, void Function(double done)? onWarmUpProgress, bool clearViews = false, bool clearFrameRateCap = false, bool clearFailure = false, bool clearOnWarmUpProgress = false})
+  bool operator ==(Object other)
   const ViewSettings({this.settings = const RenderSettings(), this.render = const CameraViewSettings(), this.resolution = ViewResolution.native, this.views, this.continuous = true, this.frameRateCap, this.placeholder = const SizedBox.expand(), this.failure, this.warmUp = true, this.onWarmUpProgress})
   final CameraViewSettings render
   final List<CameraView>? views
@@ -713,6 +720,7 @@ final class ViewSettings
   final bool warmUp
   final double? frameRateCap
   final void Function(double done)? onWarmUpProgress
+  int get hashCode
 
 final class VisibilityBatch
   const VisibilityBatch({required this.node, required this.bounds})
@@ -729,7 +737,7 @@ final class VisibilityCuller
   void showAll()
 
 final class WidgetSurface
-  Future<void> tick()
+  Future<void> update()
   WidgetSurface({required Widget child, required GraphicsDevice device, double width = 1.0, double height = 1.0, double pixelsPerMeter = 512.0, String? name})
   double get yaw
   final GraphicsDevice device
@@ -852,7 +860,7 @@ final class XrFieldOfView
 final class XrFrame
   List<ExternalStateInput> toInputs()
   Map<String, XrControlReading> get controlReadings
-  XrFrame({required this.index, required this.predictedDisplayTime, required this.space, required List<XrView> views, this.predictedDisplayPeriod = 1 / 90, this.shouldRender = true, Map<String, RigidPose> poses = const <String, RigidPose>{}, List<XrInputSource> inputs = const <XrInputSource>[], List<XrPlane> planes = const <XrPlane>[], List<String> lostPlanes = const <String>[], List<XrSceneMesh> meshes = const <XrSceneMesh>[], this.light, this.depth})
+  XrFrame({required this.index, required this.predictedDisplaySeconds, required this.space, required List<XrView> views, this.predictedDisplayPeriodSeconds = 1 / 90, this.shouldRender = true, Map<String, RigidPose> poses = const <String, RigidPose>{}, List<XrInputSource> inputs = const <XrInputSource>[], List<XrPlane> planes = const <XrPlane>[], List<String> lostPlanes = const <String>[], List<XrSceneMesh> meshes = const <XrSceneMesh>[], this.light, this.depth})
   final EnvironmentDepth? depth
   final List<String> lostPlanes
   final List<XrInputSource> inputs
@@ -863,8 +871,8 @@ final class XrFrame
   final XrLightEstimate? light
   final XrSpace space
   final bool shouldRender
-  final double predictedDisplayPeriod
-  final double predictedDisplayTime
+  final double predictedDisplayPeriodSeconds
+  final double predictedDisplaySeconds
   final int index
 
 final class XrFrameEnd
@@ -979,6 +987,7 @@ final class XrSessionState
 
 final class XrSettings
   XrSettings copyWith({XrSession? session, XrSessionRequest? request, List<XrPanel>? panels, Map<String, InputAction<Object>>? actions, XrSwapchainRequest? swapchain, bool clearSwapchain = false, double? near, double? far, LightNode? mainLight, bool clearMainLight = false})
+  bool operator ==(Object other)
   const XrSettings({required this.session, this.request = const XrSessionRequest(), this.panels = const <XrPanel>[], this.actions = const <String, InputAction<Object>>{}, this.swapchain, this.near = 0.05, this.far = 500.0, this.mainLight})
   final LightNode? mainLight
   final List<XrPanel> panels
@@ -988,6 +997,7 @@ final class XrSettings
   final XrSwapchainRequest? swapchain
   final double far
   final double near
+  int get hashCode
 
 final class XrSpace
   String toString()
@@ -1223,7 +1233,7 @@ CpuStage materialLanguageCompiler(String stage, String source)
 library package:flutter3d_app/xr_testing.dart
 
 final class FakeXrSession extends XrSession
-  FakeXrSession({Set<XrCapability>? capabilities, this.period = 1 / 90, this.startTime = 100.0, XrFrame Function(FakeXrSession session, int index)? frameAt, Map<String, XrAnchor>? anchorStore})
+  FakeXrSession({Set<XrCapability>? capabilities, this.periodSeconds = 1 / 90, this.startSeconds = 100.0, XrFrame Function(FakeXrSession session, int index)? frameAt, Map<String, XrAnchor>? anchorStore})
   Future<XrAnchor> placeAnchor(XrAnchorRequest request)
   Future<XrAnchor?> restoreAnchor(String id)
   Future<XrFrame> waitFrame()
@@ -1240,8 +1250,8 @@ final class FakeXrSession extends XrSession
   final Map<String, XrAnchor> anchorStore
   final Set<XrCapability> capabilities
   final XrFrame Function(FakeXrSession session, int index) frameAt
-  final double period
-  final double startTime
+  final double periodSeconds
+  final double startSeconds
   int get framesWaited
   static XrFrame standardFrame(FakeXrSession session, int index)
   void endFrame(XrFrameEnd end)

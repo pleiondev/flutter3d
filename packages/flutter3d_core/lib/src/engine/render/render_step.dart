@@ -583,6 +583,15 @@ final class RenderStep {
     passes: <String>{'viewport shading'},
   );
 
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static RenderStep? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   /// Every step, in the order the frame meets them.
   static const List<RenderStep> values = <RenderStep>[
     shadows,

@@ -115,6 +115,22 @@ final class PaintWeightsMode {
   /// defect [assignSelection] itself exists to avoid.
   static const PaintWeightsMode assign = PaintWeightsMode._('assign');
 
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<PaintWeightsMode> values = <PaintWeightsMode>[
+    paint,
+    assign,
+  ];
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static PaintWeightsMode? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   @override
   String toString() => 'PaintWeightsMode.$name';
 }

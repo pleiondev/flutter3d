@@ -29,7 +29,7 @@ final class FirstPersonCamera {
        // the walls, and a ray from a point in front of the face back to the
        // eye finds the wall the player is pressed against.
        rig = CameraRig(world: CollisionWorld()) {
-    virtualCamera = VirtualCamera(
+    _virtualCamera = VirtualCamera(
       name,
       reframe?.call(framing) ?? framing,
       rig: rig,
@@ -42,6 +42,8 @@ final class FirstPersonCamera {
   /// The knocks, the shake and the widening.
   final CameraRig rig;
 
+  late final VirtualCamera _virtualCamera;
+
   /// This camera as one of a director's.
   ///
   /// **Its framing can be replaced.** Pass `reframe` to the constructor and
@@ -50,7 +52,7 @@ final class FirstPersonCamera {
   /// and changes what it asks for, or one that ignores it. The preset is
   /// still the one the calls here feed, so a replacement that wraps it
   /// keeps the subject and the look it is given.
-  late final VirtualCamera virtualCamera;
+  VirtualCamera get virtualCamera => _virtualCamera;
 
   /// Where the eye is, after the last [follow].
   Vector3 get eye => rig.eye;

@@ -13,7 +13,6 @@ import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/src/ui/bend_slider_bar.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart' show Matrix4, Quaternion;
 
 /// One joint, its skeleton, and the rest pose it is bent away from.
 ///

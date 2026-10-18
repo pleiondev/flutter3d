@@ -52,7 +52,9 @@ final class PadButton
   const PadButton(this.id)
   final String id
   int get hashCode
+  static PadButton? byName(String name)
   static const List<PadButton> known = …
+  static const List<PadButton> values = …
   static const PadButton back = PadButton('back')
   static const PadButton dpadDown = PadButton('dpad.down')
   static const PadButton dpadLeft = PadButton('dpad.left')

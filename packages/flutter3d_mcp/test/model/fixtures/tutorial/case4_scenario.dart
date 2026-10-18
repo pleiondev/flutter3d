@@ -490,7 +490,7 @@ Future<void> runCase4Scenario(ModelSession session) async {
 
   must(
     session.run(
-      const KeyShape(id: case4BodyId, clipIndex: clipIndex, time: 0.0),
+      const KeyShape(id: case4BodyId, clipIndex: clipIndex, timeSeconds: 0.0),
     ),
     'keyShape(rest)',
   );
@@ -527,7 +527,7 @@ Future<void> runCase4Scenario(ModelSession session) async {
   );
   must(
     session.run(
-      const KeyShape(id: case4BodyId, clipIndex: clipIndex, time: 0.4),
+      const KeyShape(id: case4BodyId, clipIndex: clipIndex, timeSeconds: 0.4),
     ),
     'keyShape(bent)',
   );

@@ -201,6 +201,7 @@ final class ElementsOverBudget extends BusEvent
 
 final class ElementsSimulation
   ElementsListener? listener
+  Fires get fires
   Follower follow(RigidPose Function() pose, {required NativeShape shape, ({int layer, int mask})? collides})
   List<ElementHook> get elements
   List<NativeEvent> events
@@ -222,7 +223,6 @@ final class ElementsSimulation
   final NativeWorld world
   final bool steps
   late final ElementFields fields
-  late final Fires fires
   void dispose()
   void remove(Object thing)
   void restoreElements(Map<String, Object?> saved)
@@ -256,11 +256,13 @@ final class FieldQuantity extends Capability
   final String name
   final Unit unit
   int get hashCode
+  static FieldQuantity? byName(String name)
   static const FieldQuantity heat = FieldQuantity('heat', Unit.joule)
   static const FieldQuantity radiantFlux = FieldQuantity('radiantFlux', Unit('W/m²', Dimension(<String, int>{'kg': 1, 's': -3})))
   static const FieldQuantity surfaceTemperature = FieldQuantity('surfaceTemperature', Unit.kelvin)
   static const FieldQuantity temperature = FieldQuantity('temperature', Unit.kelvin)
   static const FieldQuantity water = FieldQuantity('water', Unit.kilogram)
+  static const List<FieldQuantity> values = <FieldQuantity>[temperature, surfaceTemperature, heat, water, radiantFlux]
 
 final class FireSteps
   FireSteps copyWith({bool? flames, bool? smoke, bool? embers, bool? firelight, bool? charring})

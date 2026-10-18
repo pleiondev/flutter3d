@@ -42,6 +42,14 @@ TextureHandle wrapTexture({required Object backend, required int width, required
 
 library package:flutter3d_hardware/flutter3d_hardware.dart
 
+extension type const BackendId(String name) implements String
+  static const BackendId cpu = BackendId('cpu')
+  static const BackendId impeller = BackendId('impeller')
+  static const BackendId webgl = BackendId('webgl')
+  static const BackendId webgpu = BackendId('webgpu')
+  static const BackendId wgpu = BackendId('wgpu')
+  static const List<BackendId> values = <BackendId>[cpu, impeller, webgl, webgpu, wgpu]
+
 typedef BackendOpener = Future<GraphicsDevice> Function(DeviceRequest request);
 
 extension BindUniformBlockObject on PassEncoder
@@ -665,6 +673,7 @@ final class GpuPassTiming
 abstract base class GraphicsDevice with TextureAllocator
   @protected DeviceResourceException refuseResource(String operation, String reason, {Object? cause})
   @protected UnsupportedCapabilityException refuse(DeviceFeature feature, {String? reason})
+  BackendId get backendId
   ComputeEncoder beginComputePass({String? label, PassTimestampWrites? timestampWrites})
   ComputePipelineHandle createComputePipeline(ShaderHandle shader)
   ComputePipelineHandle createComputePipelineFrom(ComputePipelineDescriptor descriptor)
@@ -691,7 +700,6 @@ abstract base class GraphicsDevice with TextureAllocator
   StorageBuffer importBuffer(NativeHandle handle, BufferDescriptor descriptor)
   Stream<DeviceError> get errors
   Stream<DeviceLoss> get lost
-  String get backendId
   String get backendName
   String? labelOf(Object resource)
   TextureHandle importTexture(NativeHandle handle, TextureDescriptor descriptor)
@@ -2034,6 +2042,7 @@ final class FakeTransfer extends TransferEncoder
   void submit()
 
 final class MaskedDevice extends GraphicsDevice
+  BackendId get backendId
   CommandEncoder beginRenderPass(RenderPassDescriptor descriptor)
   ComputeEncoder beginComputePass({String? label, PassTimestampWrites? timestampWrites})
   ComputePipelineHandle createComputePipeline(ShaderHandle shader)
@@ -2069,7 +2078,6 @@ final class MaskedDevice extends GraphicsDevice
   StorageBuffer importBuffer(NativeHandle handle, BufferDescriptor descriptor)
   Stream<DeviceError> get errors
   Stream<DeviceLoss> get lost
-  String get backendId
   String get backendName
   String toString()
   String? labelOf(Object resource)
@@ -2220,6 +2228,7 @@ ComputePlacement computePlacementOf(ComputeSite site)
 library package:flutter3d_hardware/trace.dart
 
 final class RecordingDevice extends GraphicsDevice with SynchronousBufferReadback
+  BackendId get backendId
   ByteData readBufferSync(StorageBuffer buffer, {int offsetInBytes = 0, int? sizeInBytes})
   CommandEncoder beginRenderPass(RenderPassDescriptor descriptor)
   ComputeEncoder beginComputePass({String? label, PassTimestampWrites? timestampWrites})
@@ -2251,7 +2260,6 @@ final class RecordingDevice extends GraphicsDevice with SynchronousBufferReadbac
   StorageBuffer createBuffer(BufferDescriptor descriptor, {ByteData? contents})
   Stream<DeviceError> get errors
   Stream<DeviceLoss> get lost
-  String get backendId
   String get backendName
   String? labelOf(Object resource)
   TextureFormat get defaultColorFormat
@@ -2542,6 +2550,7 @@ final class TraceLabeled
   String toString()
   final String wire
   static TraceLabeled fromWire(Object? value)
+  static TraceLabeled? byName(String name)
   static const List<TraceLabeled> values = <TraceLabeled>[texture, geometry, pipeline, storage]
   static const TraceLabeled geometry = TraceLabeled._('geometry')
   static const TraceLabeled pipeline = TraceLabeled._('pipeline')

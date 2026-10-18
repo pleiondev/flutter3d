@@ -37,6 +37,15 @@ final class SortMode {
   /// Submission order.
   static const SortMode none = SortMode._('none');
 
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static SortMode? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   /// Every mode.
   static const List<SortMode> values = <SortMode>[
     stateThenDepth,
@@ -369,6 +378,27 @@ final class CameraViewSettings {
     depthNear: clearDepthNear ? null : depthNear ?? this.depthNear,
     window: clearWindow ? null : window ?? this.window,
   );
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CameraViewSettings &&
+          other.settings == settings &&
+          other.refreshEveryFrame == refreshEveryFrame &&
+          other.exposure == exposure &&
+          other.label == label &&
+          other.depthNear == depthNear &&
+          other.window == window;
+
+  @override
+  int get hashCode => Object.hash(
+    settings,
+    refreshEveryFrame,
+    exposure,
+    label,
+    depthNear,
+    window,
+  );
 }
 
 /// Where a render target sits in a larger frame: the frame is [width] ×
@@ -378,6 +408,7 @@ final class CameraViewSettings {
 /// A photo drawn in tiles names one per tile, each with the photo's size
 /// and the tile's corner, margin included.
 final class FrameWindow {
+  /// A window at [left], [top] of a [width] by [height] frame, in pixels.
   const FrameWindow({
     required this.width,
     required this.height,
@@ -410,7 +441,6 @@ final class FrameWindow {
   @override
   int get hashCode => Object.hash(width, height, left, top);
 
-  /// A window at [left], [top] of a [width] by [height] frame, in pixels.
   @override
   String toString() => 'FrameWindow(${width}x$height at $left, $top)';
 }
@@ -467,4 +497,16 @@ final class ViewportRect {
 
   @override
   String toString() => 'ViewportRect($x, $y, $width, $height)';
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ViewportRect &&
+          other.x == x &&
+          other.y == y &&
+          other.width == width &&
+          other.height == height;
+
+  @override
+  int get hashCode => Object.hash(x, y, width, height);
 }

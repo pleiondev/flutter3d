@@ -56,6 +56,15 @@ final class TextureFamily {
   /// RGBA8 against what the device reports sampling.
   static const TextureFamily universal = TextureFamily._('universal');
 
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static TextureFamily? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   /// Every family, in the order a usage text lists them; what [parse]
   /// accepts.
   static const List<TextureFamily> values = <TextureFamily>[
@@ -305,6 +314,31 @@ final class ConvertSettings {
       classes: classes,
     );
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ConvertSettings &&
+          other.input == input &&
+          other.output == output &&
+          other.textures == textures &&
+          other.mips == mips &&
+          _sameList(other.lods, lods) &&
+          other.impostor == impostor &&
+          other.chunks == chunks &&
+          _sameList(other.classes, classes);
+
+  @override
+  int get hashCode => Object.hash(
+    input,
+    output,
+    textures,
+    mips,
+    Object.hashAll(lods),
+    impostor,
+    chunks,
+    Object.hashAll(classes),
+  );
 }
 
 /// The extensions [convertOne] reads without being handed a decoder: every
@@ -850,4 +884,16 @@ String _bytes(int count) {
   if (count < 1024) return '$count B';
   if (count < 1024 * 1024) return '${(count / 1024).toStringAsFixed(1)} KB';
   return '${(count / (1024 * 1024)).toStringAsFixed(1)} MB';
+}
+
+/// Whether [a] and [b] hold equal elements in the same order.
+bool _sameList<T>(Iterable<T>? a, Iterable<T>? b) {
+  if (identical(a, b)) return true;
+  if (a == null || b == null || a.length != b.length) return false;
+  final ib = b.iterator;
+  for (final x in a) {
+    ib.moveNext();
+    if (x != ib.current) return false;
+  }
+  return true;
 }

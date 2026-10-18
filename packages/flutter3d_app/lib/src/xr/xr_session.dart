@@ -403,13 +403,13 @@ final class XrLightEstimate {
 /// Made by the runtime in [XrSession.waitFrame]; the engine reads it and
 /// answers with an [XrFrameEnd].
 final class XrFrame {
-  /// The frame [index], shown at [predictedDisplayTime].
+  /// The frame [index], shown at [predictedDisplaySeconds].
   XrFrame({
     required this.index,
-    required this.predictedDisplayTime,
+    required this.predictedDisplaySeconds,
     required this.space,
     required List<XrView> views,
-    this.predictedDisplayPeriod = 1 / 90,
+    this.predictedDisplayPeriodSeconds = 1 / 90,
     this.shouldRender = true,
     Map<String, RigidPose> poses = const <String, RigidPose>{},
     List<XrInputSource> inputs = const <XrInputSource>[],
@@ -430,10 +430,10 @@ final class XrFrame {
 
   /// When the runtime will show it, seconds on the runtime's clock: what
   /// the loop's `DisplayTime` is told.
-  final double predictedDisplayTime;
+  final double predictedDisplaySeconds;
 
   /// The runtime's frame period, seconds: a 90 Hz headset's is 1/90.
-  final double predictedDisplayPeriod;
+  final double predictedDisplayPeriodSeconds;
 
   /// Whether the runtime will show what is drawn; false while the session
   /// is visible but hidden, when a frame is ended with no layers.
@@ -474,12 +474,13 @@ final class XrFrame {
   List<ExternalStateInput> toInputs() => <ExternalStateInput>[
     for (final MapEntry(key: source, value: pose) in poses.entries)
       if (XrPoseSources.isPose(source))
-        pose.toInput(source, displayTime: predictedDisplayTime),
+        pose.toInput(source, displaySeconds: predictedDisplaySeconds),
     for (final plane in planes)
-      plane.toInput(displayTime: predictedDisplayTime),
+      plane.toInput(displaySeconds: predictedDisplaySeconds),
     for (final id in lostPlanes)
-      XrPlane.lost(id, displayTime: predictedDisplayTime),
-    for (final mesh in meshes) mesh.toInput(displayTime: predictedDisplayTime),
+      XrPlane.lost(id, displaySeconds: predictedDisplaySeconds),
+    for (final mesh in meshes)
+      mesh.toInput(displaySeconds: predictedDisplaySeconds),
   ];
 
   /// What each control reads this frame, by the source id an action map

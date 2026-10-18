@@ -639,7 +639,10 @@ void main() async {
 
       expect(second.runner.purse['coin'], first.runner.purse['coin']);
       expect(second.sim.deaths, first.sim.deaths);
-      expect(second.sim.elapsed, closeTo(first.sim.elapsed, 1e-6));
+      expect(
+        second.sim.elapsedSeconds,
+        closeTo(first.sim.elapsedSeconds, 1e-6),
+      );
       expect(second.runner.position.z, closeTo(first.runner.position.z, 0.01));
       expect(
         second.sim.respawnPoint.z,

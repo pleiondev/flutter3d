@@ -1,6 +1,6 @@
 # Generated from flutter3d_build/lib/migrations/*.yaml by
 # `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
-# table-stamp: fbb33994bd2fa7e5
+# table-stamp: f38ff10f91336e6b
 #
 # Read by `dart fix` and the IDE: see "A break comes with its migration"
 # in CONTRIBUTING.md.
@@ -458,3 +458,144 @@ transforms:
               value: 'arguments[1]'
       - kind: 'removeParameter'
         index: 1
+  - title: 'flutter3d after 1.0.0-rc.1: sim-BehaviorChildren-tick'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_game/flutter3d_game.dart', 'package:flutter3d_sim/flutter3d_sim.dart']
+      method: 'tick'
+      inClass: 'BehaviorChildren'
+    changes:
+      - kind: 'rename'
+        newName: 'step'
+  - title: 'flutter3d after 1.0.0-rc.1: sim-BehaviorComposite-tick'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_game/flutter3d_game.dart', 'package:flutter3d_sim/flutter3d_sim.dart']
+      method: 'tick'
+      inClass: 'BehaviorComposite'
+    changes:
+      - kind: 'rename'
+        newName: 'step'
+  - title: 'flutter3d after 1.0.0-rc.1: sim-BehaviorLeaf-tick'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_game/flutter3d_game.dart', 'package:flutter3d_sim/flutter3d_sim.dart']
+      method: 'tick'
+      inClass: 'BehaviorLeaf'
+    changes:
+      - kind: 'rename'
+        newName: 'step'
+  - title: 'flutter3d after 1.0.0-rc.1: sim-BehaviorTree-tick'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_game/flutter3d_game.dart', 'package:flutter3d_sim/flutter3d_sim.dart']
+      method: 'tick'
+      inClass: 'BehaviorTree'
+    changes:
+      - kind: 'rename'
+        newName: 'step'
+  - title: 'flutter3d after 1.0.0-rc.1: sim-GhostFrame-GhostFrame'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_game/flutter3d_game.dart', 'package:flutter3d_sim/flutter3d_sim.dart']
+      constructor: ''
+      inClass: 'GhostFrame'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'time'
+        newName: 'timeSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: sim-GhostFrame-time'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_game/flutter3d_game.dart', 'package:flutter3d_sim/flutter3d_sim.dart']
+      field: 'time'
+      inClass: 'GhostFrame'
+    changes:
+      - kind: 'rename'
+        newName: 'timeSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: sim-PulseLight-PulseLight'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_game/flutter3d_game.dart', 'package:flutter3d_sim/flutter3d_sim.dart']
+      constructor: ''
+      inClass: 'PulseLight'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'period'
+        newName: 'periodSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: sim-PulseLight-period'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_game/flutter3d_game.dart', 'package:flutter3d_sim/flutter3d_sim.dart']
+      field: 'period'
+      inClass: 'PulseLight'
+    changes:
+      - kind: 'rename'
+        newName: 'periodSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: sim-Recorder-tick'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      method: 'tick'
+      inClass: 'Recorder'
+    changes:
+      - kind: 'rename'
+        newName: 'record'
+  - title: 'flutter3d after 1.0.0-rc.1: sim-RunStats-elapsed'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      field: 'elapsed'
+      inClass: 'RunStats'
+    changes:
+      - kind: 'rename'
+        newName: 'elapsedSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: sim-Tape-duration'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_game/flutter3d_game.dart', 'package:flutter3d_sim/flutter3d_sim.dart']
+      getter: 'duration'
+      inClass: 'Tape'
+    changes:
+      - kind: 'rename'
+        newName: 'durationSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: sim-XrPlane-lost'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_app/flutter3d_app.dart', 'package:flutter3d_game/flutter3d_game.dart', 'package:flutter3d_sim/flutter3d_sim.dart']
+      method: 'lost'
+      inClass: 'XrPlane'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'displayTime'
+        newName: 'displaySeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: sim-XrPlane-toInput'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_app/flutter3d_app.dart', 'package:flutter3d_game/flutter3d_game.dart', 'package:flutter3d_sim/flutter3d_sim.dart']
+      method: 'toInput'
+      inClass: 'XrPlane'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'displayTime'
+        newName: 'displaySeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: sim-XrPoseInput-toInput'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_app/flutter3d_app.dart', 'package:flutter3d_game/flutter3d_game.dart', 'package:flutter3d_sim/flutter3d_sim.dart']
+      method: 'toInput'
+      inExtension: 'XrPoseInput'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'displayTime'
+        newName: 'displaySeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: sim-XrSceneMesh-toInput'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_app/flutter3d_app.dart', 'package:flutter3d_game/flutter3d_game.dart', 'package:flutter3d_sim/flutter3d_sim.dart']
+      method: 'toInput'
+      inClass: 'XrSceneMesh'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'displayTime'
+        newName: 'displaySeconds'

@@ -141,6 +141,15 @@ final class SceneEnvironmentPreset {
     'sunset',
   );
 
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static SceneEnvironmentPreset? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   /// Every preset, in declaration order.
   static const List<SceneEnvironmentPreset> values = <SceneEnvironmentPreset>[
     none,
@@ -173,6 +182,14 @@ final class ScenePostSettings {
   /// Returns a copy with the given field replaced; null leaves it as it is.
   ScenePostSettings copyWith({bool? bloomEnabled}) =>
       ScenePostSettings(bloomEnabled: bloomEnabled ?? this.bloomEnabled);
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ScenePostSettings && other.bloomEnabled == bloomEnabled;
+
+  @override
+  int get hashCode => bloomEnabled.hashCode;
 }
 
 /// A project's own lighting, environment, ambient level, shadow request and

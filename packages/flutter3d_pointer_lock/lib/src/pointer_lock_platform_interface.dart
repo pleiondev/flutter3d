@@ -41,7 +41,8 @@ abstract base class PointerLockPlatform extends PlatformInterface {
   /// compile-time choice rather than a plugin registration.
   static PointerLockPlatform _instance = defaultPointerLockPlatform();
 
-  /// The implementation every `PointerLock` talks to.
+  /// The implementation every `PointerLock` talks to: process-wide, set
+  /// once by the platform package at registration.
   ///
   /// Setting it replaces the platform, which is how a test installs a fake;
   /// the setter throws an `AssertionError` for an implementation that was

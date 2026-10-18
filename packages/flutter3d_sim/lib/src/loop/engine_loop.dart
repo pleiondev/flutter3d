@@ -174,8 +174,8 @@ final class EngineLoop extends LoopRegistry {
           'way.',
       codec: OriginShifted.codec,
     );
-    snapshots = Snapshots(world: this.world);
-    this.plugins = PluginManager(
+    _snapshots = Snapshots(world: this.world);
+    _plugins = PluginManager(
       loop: this,
       events: events,
       registries: <PluginRegistry>[
@@ -207,10 +207,12 @@ final class EngineLoop extends LoopRegistry {
   /// `LoopContext.world`.
   final EcsWorld world;
 
+  late final Snapshots _snapshots;
+
   /// Every part of the state, the world first: the one way it is captured,
   /// restored and digested. Plugins reach it as
   /// `host.registry<SnapshotRegistry>()`.
-  late final Snapshots snapshots;
+  Snapshots get snapshots => _snapshots;
 
   /// The questions the view may ask by name, answered against [world]
   /// between two steps (`SimulationHandle.ask`). Plugins reach it as
@@ -289,8 +291,10 @@ final class EngineLoop extends LoopRegistry {
   /// The bus: step and frame channels.
   final EventBus events;
 
+  late final PluginManager _plugins;
+
   /// The plugins: installed at construction, switched at step boundaries.
-  late final PluginManager plugins;
+  PluginManager get plugins => _plugins;
 
   /// The policy for frames that bring more time than may be stepped.
   final CatchUp catchUp;

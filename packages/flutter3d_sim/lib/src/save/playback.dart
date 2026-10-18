@@ -25,7 +25,9 @@ final class Playback {
   bool sampleAt(double time, GhostFrame out) {
     final frames = tape.poses;
     if (frames.isEmpty) return false;
-    if (time < frames.first.time || time > frames.last.time) return false;
+    if (time < frames.first.timeSeconds || time > frames.last.timeSeconds) {
+      return false;
+    }
     if (frames.length == 1) {
       out.setFrom(frames.first);
       return true;
@@ -34,8 +36,10 @@ final class Playback {
     final index = _segmentAt(time);
     final a = frames[index];
     final b = frames[index + 1];
-    final span = b.time - a.time;
-    final t = span > GeometryTolerance.divisor ? (time - a.time) / span : 0.0;
+    final span = b.timeSeconds - a.timeSeconds;
+    final t = span > GeometryTolerance.divisor
+        ? (time - a.timeSeconds) / span
+        : 0.0;
 
     // The two beyond the segment. Curved rather than straight between samples:
     // at fifteen a second and forty metres a second the samples are nearly
@@ -71,7 +75,7 @@ final class Playback {
     // plain blend spins almost all the way round the wrong way, once a lap,
     // wherever the track happens to point south.
     out.yaw = a.yaw + shortestAngle(a.yaw, b.yaw) * t;
-    out.time = time;
+    out.timeSeconds = time;
 
     out.up
       ..setFrom(a.up)
@@ -90,7 +94,7 @@ final class Playback {
     var high = frames.length - 2;
     while (low < high) {
       final middle = (low + high + 1) >> 1;
-      if (frames[middle].time <= time) {
+      if (frames[middle].timeSeconds <= time) {
         low = middle;
       } else {
         high = middle - 1;

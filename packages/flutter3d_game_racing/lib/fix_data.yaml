@@ -1,6 +1,6 @@
 # Generated from flutter3d_build/lib/migrations/*.yaml by
 # `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
-# table-stamp: fbb33994bd2fa7e5
+# table-stamp: f38ff10f91336e6b
 #
 # Read by `dart fix` and the IDE: see "A break comes with its migration"
 # in CONTRIBUTING.md.
@@ -234,3 +234,57 @@ transforms:
     changes:
       - kind: 'removeParameter'
         name: 'gravity'
+  - title: 'flutter3d after 1.0.0-rc.1: game_racing-GhostDocument-lapTime'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_game_racing/flutter3d_game_racing.dart']
+      getter: 'lapTime'
+      inExtension: 'GhostDocument'
+    changes:
+      - kind: 'rename'
+        newName: 'lapSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: game_racing-GhostRecorder-tick'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_game_racing/flutter3d_game_racing.dart']
+      method: 'tick'
+      inClass: 'GhostRecorder'
+    changes:
+      - kind: 'rename'
+        newName: 'record'
+  - title: 'flutter3d after 1.0.0-rc.1: game_racing-RaceState-elapsed'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_game_racing/flutter3d_game_racing.dart']
+      field: 'elapsed'
+      inClass: 'RaceState'
+    changes:
+      - kind: 'rename'
+        newName: 'elapsedSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: game_racing-RacerProgress-lapTime'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_game_racing/flutter3d_game_racing.dart']
+      field: 'lapTime'
+      inClass: 'RacerProgress'
+    changes:
+      - kind: 'rename'
+        newName: 'lapSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: game_racing-RacerProgress-totalTime'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_game_racing/flutter3d_game_racing.dart']
+      field: 'totalTime'
+      inClass: 'RacerProgress'
+    changes:
+      - kind: 'rename'
+        newName: 'totalSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: game_racing-SectorCompleted-time'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_game_racing/flutter3d_game_racing.dart']
+      field: 'time'
+      inClass: 'SectorCompleted'
+    changes:
+      - kind: 'rename'
+        newName: 'timeSeconds'

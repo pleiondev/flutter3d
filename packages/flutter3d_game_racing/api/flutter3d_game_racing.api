@@ -27,12 +27,14 @@ final class RacingReadoutStyle
 
 final class RoadMeshSettings
   RoadMeshSettings copyWith({double? sagitta, double? minStep, double? maxStep, double? metersPerTile, double? barrierHeight})
+  bool operator ==(Object other)
   const RoadMeshSettings({this.sagitta = 0.04, this.minStep = 1.5, this.maxStep = 8.0, this.metersPerTile = 9.0, this.barrierHeight = 1.1})
   final double barrierHeight
   final double maxStep
   final double metersPerTile
   final double minStep
   final double sagitta
+  int get hashCode
 
 List<MeshData> buildBarrierMeshes(TrackSpline track, {required int side, RoadMeshSettings settings = const RoadMeshSettings(), VertexLayout? layout})
 
@@ -52,6 +54,7 @@ final class AiDriver
 
 final class AiSettings
   AiSettings copyWith({double? lookAheadPerSpeed, double? minLookAhead, double? steerGain, double? corneringGrip, double? brakeHorizon, double? brakeMargin, double? rubberBandPer100m, double? rubberBandClamp, double? avoidRange, double? avoidWidth, double? avoidOffset, double? skill})
+  bool operator ==(Object other)
   const AiSettings({this.lookAheadPerSpeed = 0.55, this.minLookAhead = 12.0, this.steerGain = 2.2, this.corneringGrip = 14.0, this.brakeHorizon = 45.0, this.brakeMargin = 1.1, this.rubberBandPer100m = 0.07, this.rubberBandClamp = 0.22, this.avoidRange = 22.0, this.avoidWidth = 3.2, this.avoidOffset = 3.0, this.skill = 1.0})
   final double avoidOffset
   final double avoidRange
@@ -65,6 +68,7 @@ final class AiSettings
   final double rubberBandPer100m
   final double skill
   final double steerGain
+  int get hashCode
 
 final class BarrierBand
   bool covers(double s)
@@ -84,6 +88,7 @@ final class ChaseCamera
   ChaseCamera({required CollisionWorld world, this.track, this.tuning = const ChaseSettings(), String name = 'chase', CameraFraming Function(ChaseFraming preset)? reframe})
   Vector3 get eye
   Vector3 get target
+  VirtualCamera get virtualCamera
   double get fovY
   double get heading
   double get motion
@@ -91,7 +96,6 @@ final class ChaseCamera
   final ChaseFraming framing
   final ChaseSettings tuning
   final TrackSpline? track
-  late final VirtualCamera virtualCamera
   set motion(double value)
   void aim(VehicleController car)
   void cut()
@@ -102,6 +106,7 @@ final class ChaseCamera
 
 final class ChaseSettings extends RigSettings
   ChaseSettings copyWith({double? distance, double? height, double? aimHeight, double? lag, double? nearClearance, double? minDistance, double? headingBlend, double? headingFrom, double? headingTo, double? lookAhead, double? lookAheadWeight, double? baseFovY, double? fovYPerSpeed, double? maxFov})
+  bool operator ==(Object other)
   const ChaseSettings({super.distance = 8.0, super.height = 3.0, super.aimHeight = 1.0, super.lag = 7.0, this.headingBlend = 0.75, this.headingFrom = 4.0, this.headingTo = 14.0, this.lookAhead = 26.0, this.lookAheadWeight = 0.35, this.baseFovY = 1.05, this.fovYPerSpeed = 0.006, this.maxFov = 1.45, super.nearClearance = 0.4, super.minDistance = 2.0})
   final double baseFovY
   final double fovYPerSpeed
@@ -111,6 +116,7 @@ final class ChaseSettings extends RigSettings
   final double lookAhead
   final double lookAheadWeight
   final double maxFov
+  int get hashCode
 
 final class CheckpointPassed extends RacerEvent
   String get name
@@ -135,7 +141,7 @@ final class DriftScored extends RacerEvent
 
 extension GhostDocument on GhostTape
   Map<String, Object?> toJson()
-  double get lapTime
+  double get lapSeconds
 
 typedef GhostPlayer = Playback;
 
@@ -143,8 +149,8 @@ final class GhostRecorder
   GhostRecorder({double hz = 15.0})
   GhostTape finish(double lapTime)
   int get frameCount
+  void record(double time, VehicleController vehicle)
   void reset()
-  void tick(double time, VehicleController vehicle)
 
 typedef GhostTape = Tape;
 
@@ -197,6 +203,8 @@ final class RaceMode
   final bool endsAfterLaps
   final bool startsBehindLights
   int get hashCode
+  static RaceMode? byName(String name)
+  static const List<RaceMode> values = <RaceMode>[freeRoam, timeTrial, race]
   static const RaceMode freeRoam = RaceMode('freeRoam', startsBehindLights: false, countsProgress: false, endsAfterLaps: false)
   static const RaceMode race = RaceMode('race', startsBehindLights: true, countsProgress: true, endsAfterLaps: true)
   static const RaceMode timeTrial = RaceMode('timeTrial', startsBehindLights: false, countsProgress: true, endsAfterLaps: false)
@@ -222,7 +230,7 @@ final class RaceState
   RacePhase phase
   RaceState({required this.mode, required this.track, required int racers, this.laps = 3, this.countdownSeconds = 3.0})
   double countdown
-  double elapsed
+  double elapsedSeconds
   double? get bestLap
   final List<RacerProgress> progress
   final RaceMode mode
@@ -253,13 +261,13 @@ final class RacerProgress
   double bestDrift
   double driftFor
   double driftScore
-  double lapTime
+  double lapSeconds
   double lastLap
   double lateral
   double progressAlong(double lapLength)
   double s
   double totalDrift
-  double totalTime
+  double totalSeconds
   double? bestLap
   double? finishedAt
   final List<double> sectorTimes
@@ -344,8 +352,8 @@ final class Respawned extends RacerEvent
 
 final class SectorCompleted extends RacerEvent
   String get name
-  const SectorCompleted(super.racer, this.sector, this.time, this.delta)
-  final double time
+  const SectorCompleted(super.racer, this.sector, this.timeSeconds, this.delta)
+  final double timeSeconds
   final double? delta
   final int sector
   static const String eventName = 'racing.sectorCompleted'
@@ -538,6 +546,7 @@ final class VehiclePlacement
 
 final class VehicleSettings
   VehicleSettings copyWith({double? radius, double? rideHeight, double? maxSpeed, double? maxReverse, double? enginePush, double? brakeStrength, double? rollingDrag, double? rollingResistance, double? holdSpeed, double? holdSlope, double? airDrag, double? slipstream, double? maxSteer, double? steerFalloff, double? wheelBase, double? impactShrugged, double? impactCost, double? powerLostWhenWrecked, double? speedLostWhenWrecked, double? groundStick, double? suspensionRate, double? slideAlignment, double? wheelInertia})
+  bool operator ==(Object other)
   const VehicleSettings({this.radius = 0.7, this.rideHeight = 0.55, this.maxSpeed = 52.0, this.maxReverse = 12.0, this.enginePush = 14.0, this.brakeStrength = 26.0, this.rollingDrag = 3.0, this.rollingResistance = 0.9, this.holdSpeed = 0.7, this.holdSlope = 1.2, this.airDrag = 0.0006, this.slipstream = 0.34, this.maxSteer = 0.62, this.steerFalloff = 26.0, this.wheelBase = 2.7, this.impactShrugged = 6.0, this.impactCost = 0.017, this.powerLostWhenWrecked = 0.45, this.speedLostWhenWrecked = 0.25, this.groundStick = 0.45, this.suspensionRate = 18.0, this.slideAlignment = 2.2, this.wheelInertia = 0.25})
   final double airDrag
   final double brakeStrength
@@ -562,6 +571,7 @@ final class VehicleSettings
   final double suspensionRate
   final double wheelBase
   final double wheelInertia
+  int get hashCode
 
 final class VehicleStep
   VehicleInput input

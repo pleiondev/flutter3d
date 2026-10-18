@@ -106,7 +106,7 @@ void main() {
       // The C tests hold every joint against its physics; this holds the
       // binding: a joint made, read and taken away.
       world
-        ..setSleep(speed: 0.0, time: 0.0)
+        ..setSleep(speed: 0.0, timeSeconds: 0.0)
         ..substeps = 4;
       final pivot = world.addBody(
         position: Vector3(0.0, 3.0, 0.0),
@@ -231,7 +231,7 @@ void main() {
   test('a ball joint holds a limb in its cone, its twist in limits', () {
     // The binding of what a ragdoll's shoulder is made of: a limb a metre
     // long hung by its end and knocked past level, a spin about it.
-    world.setSleep(speed: 0.0, time: 0.0);
+    world.setSleep(speed: 0.0, timeSeconds: 0.0);
     final pivot = world.addBody(
       position: Vector3(0.0, 3.0, 0.0),
       type: NativeBodyType.fixed,

@@ -116,7 +116,7 @@ final class _Party {
         ..ask()
         ..advance();
     }
-    wire.tick();
+    wire.step();
     ticks++;
   }
   // #endregion tick

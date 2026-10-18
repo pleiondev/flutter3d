@@ -41,7 +41,7 @@ ExternalStateInput _air(double celsius, {double at = 0}) =>
     ExternalStateInput.quantity(
       SiteTwin.airSource,
       Quantity(celsius, Unit.celsius),
-      sourceTime: at,
+      sourceSeconds: at,
       quality: ReadingQuality.good,
       kind: ReadingKind.measured,
     );
@@ -76,10 +76,10 @@ void main() {
       expect(reading.kind, ReadingKind.measured);
       expect(reading.quality, ReadingQuality.good);
       expect(
-        reading.sourceTime,
+        reading.sourceSeconds,
         DateTime.utc(2026, 10, 11, 12).millisecondsSinceEpoch / 1000,
       );
-      expect(reading.receivedTime, 99);
+      expect(reading.receivedSeconds, 99);
     });
 
     test('an answer without the temperature is no reading', () {
@@ -124,7 +124,7 @@ void main() {
         await poller.pollOnce();
         final taken = poller.take();
         expect(taken.single.quantity.value, 11);
-        expect(taken.single.receivedTime, 5);
+        expect(taken.single.receivedSeconds, 5);
         expect(poller.take(), isEmpty);
         expect(poller.lastError, isNull);
       },

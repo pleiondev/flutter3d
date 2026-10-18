@@ -29,9 +29,11 @@ final class AudioBus
   const AudioBus(this.name)
   final String name
   int get hashCode
+  static AudioBus? byName(String name)
   static const AudioBus master = AudioBus('master')
   static const AudioBus music = AudioBus('music')
   static const AudioBus sfx = AudioBus('sfx')
+  static const List<AudioBus> values = <AudioBus>[master, music, sfx]
 
 final class AudioEmitter
   AudioBus bus

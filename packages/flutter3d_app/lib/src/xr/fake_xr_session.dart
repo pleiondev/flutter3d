@@ -26,12 +26,12 @@ import 'xr_swapchain.dart';
 /// is handed to the next one.
 final class FakeXrSession extends XrSession {
   /// A session reporting [capabilities], whose frame `n` is shown at
-  /// [startTime] plus `n` times [period] and is made by [frameAt] (two eyes
+  /// [startSeconds] plus `n` times [periodSeconds] and is made by [frameAt] (two eyes
   /// 64 mm apart at 1.6 m, looking down −z, by default).
   FakeXrSession({
     Set<XrCapability>? capabilities,
-    this.period = 1 / 90,
-    this.startTime = 100.0,
+    this.periodSeconds = 1 / 90,
+    this.startSeconds = 100.0,
     XrFrame Function(FakeXrSession session, int index)? frameAt,
     Map<String, XrAnchor>? anchorStore,
   }) : capabilities = Set<XrCapability>.unmodifiable(
@@ -47,10 +47,10 @@ final class FakeXrSession extends XrSession {
   final Set<XrCapability> capabilities;
 
   /// Seconds between frames.
-  final double period;
+  final double periodSeconds;
 
   /// The display time of the first frame, seconds.
-  final double startTime;
+  final double startSeconds;
 
   /// What frame [index] is.
   final XrFrame Function(FakeXrSession session, int index) frameAt;
@@ -165,8 +165,9 @@ final class FakeXrSession extends XrSession {
     );
     return XrFrame(
       index: index,
-      predictedDisplayTime: session.startTime + index * session.period,
-      predictedDisplayPeriod: session.period,
+      predictedDisplaySeconds:
+          session.startSeconds + index * session.periodSeconds,
+      predictedDisplayPeriodSeconds: session.periodSeconds,
       space: session.request?.space ?? XrSpace.localFloor,
       poses: <String, RigidPose>{XrPoseSources.head: head},
       views: <XrView>[

@@ -11,14 +11,14 @@ import 'package:vector_math/vector_math.dart';
 void main() {
   test('a step of the playhead is a PlayheadStep', () {
     final step = advanceTime(
-      time: 0.9,
+      seconds: 0.9,
       deltaSeconds: 0.2,
       length: 1.0,
       wrap: AnimationWrap.once,
       reversing: false,
     );
     expect(step, isA<PlayheadStep>());
-    expect(step.time, 1.0);
+    expect(step.timeSeconds, 1.0);
     expect(step.stopped, isTrue);
     expect(step.reversing, isFalse);
   });

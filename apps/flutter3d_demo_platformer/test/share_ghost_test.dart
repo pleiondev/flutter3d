@@ -240,7 +240,7 @@ void main() {
       // own start, or one step out of phase — either puts it elsewhere.
       expect(ghost!.poses.length, greaterThan(100));
       for (final pose in ghost.poses) {
-        final step = (pose.time / _dt).round();
+        final step = (pose.timeSeconds / _dt).round();
         expect(pose.position, played.feet[step], reason: 'step $step');
       }
       // And it went somewhere: a ghost that stands at the start races nobody.
@@ -281,8 +281,8 @@ void main() {
     final fromPoses = ghostOf(level, on(later, record: poses.recorded));
     expect(fromPoses.note.say(), contains('pose record'));
     expect(fromPoses.note.say(), contains('platformer 99'));
-    expect(fromPoses.ghost!.poses.first.time, 0.0);
-    expect(fromPoses.ghost!.poses[1].time, closeTo(4 * _dt, 1e-9));
+    expect(fromPoses.ghost!.poses.first.timeSeconds, 0.0);
+    expect(fromPoses.ghost!.poses[1].timeSeconds, closeTo(4 * _dt, 1e-9));
     expect(
       fromPoses.ghost!.poses.last.position.distanceTo(played.feet[60]),
       lessThan(1e-3),
@@ -303,8 +303,10 @@ void main() {
   test('the ghost is drawn where the track was, and nowhere outside it', () {
     final track = Tape(
       poses: <GhostFrame>[
-        GhostFrame(time: 0.0, yaw: 0.0)..position.setValues(0.0, 0.0, 0.0),
-        GhostFrame(time: 1.0, yaw: 0.0)..position.setValues(4.0, 0.0, 0.0),
+        GhostFrame(timeSeconds: 0.0, yaw: 0.0)
+          ..position.setValues(0.0, 0.0, 0.0),
+        GhostFrame(timeSeconds: 1.0, yaw: 0.0)
+          ..position.setValues(4.0, 0.0, 0.0),
       ],
       seconds: 1.0,
     );

@@ -135,8 +135,10 @@ final class BindingLifetime
 final class BusChannel
   String toString()
   final String name
+  static BusChannel? byName(String name)
   static const BusChannel frame = BusChannel._('frame')
   static const BusChannel step = BusChannel._('step')
+  static const List<BusChannel> values = <BusChannel>[step, frame]
 
 abstract base class BusEvent
   String toString()
@@ -289,13 +291,13 @@ abstract base class EventRegistry extends PluginRegistry
   const EventRegistry()
 
 final class ExternalStateInput
-  ExternalStateInput({required this.source, required List<double> value, this.unit, this.sourceTime, this.receivedTime, this.quality, this.kind, this.tag, Map<String, Object?> unknown = const <String, Object?>{}})
+  ExternalStateInput({required this.source, required List<double> value, this.unit, this.sourceSeconds, this.receivedSeconds, this.quality, this.kind, this.tag, Map<String, Object?> unknown = const <String, Object?>{}})
   Map<String, Object?> toJson()
   Quantity get quantity
   String toString()
   bool operator ==(Object other)
   factory ExternalStateInput.fromJson(Object? json)
-  factory ExternalStateInput.quantity(String source, Quantity quantity, {double? sourceTime, double? receivedTime, ReadingQuality? quality, ReadingKind? kind, String? tag})
+  factory ExternalStateInput.quantity(String source, Quantity quantity, {double? sourceSeconds, double? receivedSeconds, ReadingQuality? quality, ReadingKind? kind, String? tag})
   final List<double> value
   final Map<String, Object?> unknown
   final ReadingKind? kind
@@ -303,8 +305,8 @@ final class ExternalStateInput
   final String source
   final String? tag
   final Unit? unit
-  final double? receivedTime
-  final double? sourceTime
+  final double? receivedSeconds
+  final double? sourceSeconds
   int get hashCode
 
 abstract base class Flutter3dPlugin
@@ -356,9 +358,11 @@ final class LoopPhase
   final PhaseKind kind
   final String name
   int get hashCode
+  static LoopPhase? byName(String name)
   static String currentName(String name)
   static const List<LoopPhase> framePhases = <LoopPhase>[animate, audio, camera, render, ui]
   static const List<LoopPhase> stepPhases = <LoopPhase>[input, movers, physics, fields, rules, publish]
+  static const List<LoopPhase> values = <LoopPhase>[input, movers, physics, fields, rules, publish, animate, audio, camera, render, ui]
   static const LoopPhase animate = LoopPhase.frame('animate')
   static const LoopPhase audio = LoopPhase.frame('audio')
   static const LoopPhase camera = LoopPhase.frame('camera')
@@ -401,6 +405,8 @@ final class OriginShifted extends BusEvent
 final class PhaseKind
   String toString()
   final String name
+  static PhaseKind? byName(String name)
+  static const List<PhaseKind> values = <PhaseKind>[step, frame]
   static const PhaseKind frame = PhaseKind._('frame')
   static const PhaseKind step = PhaseKind._('step')
 
@@ -533,6 +539,8 @@ final class PluginPermission
   const PluginPermission(this.name)
   final String name
   int get hashCode
+  static PluginPermission? byName(String name)
+  static const List<PluginPermission> values = <PluginPermission>[network, files, tools, replace]
   static const PluginPermission files = PluginPermission('files')
   static const PluginPermission network = PluginPermission('network')
   static const PluginPermission replace = PluginPermission('replace')
@@ -566,6 +574,8 @@ final class PluginTouches
   final String name
   int get hashCode
   static PluginTouches named(String name)
+  static PluginTouches? byName(String name)
+  static const List<PluginTouches> values = <PluginTouches>[simulation, view, tooling]
   static const PluginTouches simulation = PluginTouches._('simulation')
   static const PluginTouches tooling = PluginTouches._('tooling')
   static const PluginTouches view = PluginTouches._('view')
@@ -664,6 +674,7 @@ final class ReadingKind
   final String name
   int get hashCode
   static ReadingKind parse(String name)
+  static ReadingKind? byName(String name)
   static const List<ReadingKind> values = <ReadingKind>[measured, estimated, predicted, simulated]
   static const ReadingKind estimated = ReadingKind._('estimated')
   static const ReadingKind measured = ReadingKind._('measured')
@@ -676,6 +687,7 @@ final class ReadingQuality
   final String name
   int get hashCode
   static ReadingQuality parse(String name)
+  static ReadingQuality? byName(String name)
   static const List<ReadingQuality> values = <ReadingQuality>[good, uncertain, bad, stale]
   static const ReadingQuality bad = ReadingQuality._('bad')
   static const ReadingQuality good = ReadingQuality._('good')
@@ -691,6 +703,7 @@ final class RenderAnchor
   final RenderAnchor? follows
   final String name
   int get hashCode
+  static RenderAnchor? byName(String name)
   static RenderAnchor? named(String name)
   static const List<RenderAnchor> values = …
   static const RenderAnchor afterAmbientOcclusion = RenderAnchor._('f3d.after_ambient_occlusion')
@@ -844,6 +857,7 @@ final class SimulationProfile
   final bool usesDoublePrecision
   int get hashCode
   static SimulationProfile parse(String name, {Iterable<SimulationProfile> known = values})
+  static SimulationProfile? byName(String name)
   static const List<SimulationProfile> values = <SimulationProfile>[deterministic, accurate]
   static const SimulationProfile accurate = SimulationProfile('accurate', isBitExact: false, usesDoublePrecision: true, allowsAdaptiveSteps: true)
   static const SimulationProfile deterministic = SimulationProfile('deterministic', isBitExact: true, usesDoublePrecision: false, allowsAdaptiveSteps: false)

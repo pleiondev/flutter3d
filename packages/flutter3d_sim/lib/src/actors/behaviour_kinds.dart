@@ -41,11 +41,11 @@ abstract base class BehaviorLeaf {
   const BehaviorLeaf();
 
   /// Decides, on the steps the actor thinks on.
-  BehaviorStatus tick(BehaviorContext context);
+  BehaviorStatus step(BehaviorContext context);
 
   /// Moves, every step this leaf is the one running. Thinking is throttled
   /// for an actor far from the focus and moving is not; a leaf that only
-  /// steered in [tick] would stutter out there.
+  /// steered in [step] would stutter out there.
   void act(BehaviorContext context) {}
 
   /// Where this leaf is taking the actor, for the debug overlay.
@@ -68,18 +68,18 @@ typedef Consideration = double Function(BehaviorContext context);
 /// own**, for the reason [BehaviorLeaf] gives. What it must remember while a
 /// child runs — which child, how many tries — goes in
 /// [BehaviorContext.memory], which is the composite's own slot on the
-/// actor's board while [tick] runs, is JSON-shaped, and is in every
+/// actor's board while [step] runs, is JSON-shaped, and is in every
 /// snapshot. It is forgotten when the composite leaves the running path.
 abstract base class BehaviorComposite {
   /// Lets a subclass be const.
   const BehaviorComposite();
 
   /// Decides, ticking whichever of the tick's children it chooses, in the
-  /// order it chooses. [BehaviorChildren.tick] gives the child's status and
+  /// order it chooses. [BehaviorChildren.step] gives the child's status and
   /// leaves the tick's context addressing this composite again, so
   /// [BehaviorContext.memory] read or written after it is still this
   /// composite's.
-  BehaviorStatus tick(BehaviorCompositeTick tick);
+  BehaviorStatus step(BehaviorCompositeTick tick);
 }
 
 /// Builds a leaf kind's code from a node's fields, once when a tree is
@@ -439,7 +439,7 @@ final class _Wait extends BehaviorLeaf {
   final double seconds;
 
   @override
-  BehaviorStatus tick(BehaviorContext context) {
+  BehaviorStatus step(BehaviorContext context) {
     final start = switch (context.memory) {
       final num at => at.toDouble(),
       _ => context.clock,
@@ -458,7 +458,7 @@ final class _GoToFocus extends BehaviorLeaf {
   final double within;
 
   @override
-  BehaviorStatus tick(BehaviorContext context) =>
+  BehaviorStatus step(BehaviorContext context) =>
       context.mind.distance <= within
       ? BehaviorStatus.success
       : BehaviorStatus.running;
@@ -485,7 +485,7 @@ final class _GoTo extends BehaviorLeaf {
   final Vector3 _at = Vector3.zero();
 
   @override
-  BehaviorStatus tick(BehaviorContext context) {
+  BehaviorStatus step(BehaviorContext context) {
     final position = context.mind.actor.body?.position;
     if (position == null || !context.board.point(key, _at)) {
       return BehaviorStatus.failure;
@@ -515,7 +515,7 @@ final class _SeesFocus extends BehaviorLeaf {
   const _SeesFocus();
 
   @override
-  BehaviorStatus tick(BehaviorContext context) =>
+  BehaviorStatus step(BehaviorContext context) =>
       context.mind.canSee() ? BehaviorStatus.success : BehaviorStatus.failure;
 }
 
@@ -526,7 +526,7 @@ final class _FocusWithin extends BehaviorLeaf {
   final double distance;
 
   @override
-  BehaviorStatus tick(BehaviorContext context) =>
+  BehaviorStatus step(BehaviorContext context) =>
       context.mind.distance <= distance
       ? BehaviorStatus.success
       : BehaviorStatus.failure;
@@ -545,7 +545,7 @@ final class _Check extends BehaviorLeaf {
   final double? below;
 
   @override
-  BehaviorStatus tick(BehaviorContext context) {
+  BehaviorStatus step(BehaviorContext context) {
     final board = context.board;
     final holds = switch ((above, below)) {
       (null, null) => board.flag(key),
@@ -566,7 +566,7 @@ final class _Set extends BehaviorLeaf {
   final Object? value;
 
   @override
-  BehaviorStatus tick(BehaviorContext context) {
+  BehaviorStatus step(BehaviorContext context) {
     context.board.set(key, value);
     return BehaviorStatus.success;
   }
@@ -578,7 +578,7 @@ final class _MarkFocus extends BehaviorLeaf {
   final String key;
 
   @override
-  BehaviorStatus tick(BehaviorContext context) {
+  BehaviorStatus step(BehaviorContext context) {
     context.board.setPoint(key, context.mind.focus);
     return BehaviorStatus.success;
   }
@@ -588,7 +588,7 @@ final class _Jump extends BehaviorLeaf {
   const _Jump();
 
   @override
-  BehaviorStatus tick(BehaviorContext context) {
+  BehaviorStatus step(BehaviorContext context) {
     context.mind.jump();
     return BehaviorStatus.success;
   }

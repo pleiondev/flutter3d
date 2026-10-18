@@ -61,6 +61,15 @@ final class SimulationProfile {
     allowsAdaptiveSteps: true,
   );
 
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static SimulationProfile? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   /// The profiles this release defines, in the order they were added.
   static const List<SimulationProfile> values = <SimulationProfile>[
     deterministic,

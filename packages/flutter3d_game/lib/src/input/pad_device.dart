@@ -81,6 +81,38 @@ final class GamePadButton {
   /// The pad's own logo button, which the platform often keeps for itself.
   static const GamePadButton guide = GamePadButton('guide');
 
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<GamePadButton> values = <GamePadButton>[
+    faceSouth,
+    faceEast,
+    faceWest,
+    faceNorth,
+    dpadUp,
+    dpadDown,
+    dpadLeft,
+    dpadRight,
+    shoulderLeft,
+    shoulderRight,
+    triggerLeft,
+    triggerRight,
+    stickLeftClick,
+    stickRightClick,
+    start,
+    back,
+    guide,
+  ];
+
+  /// The value whose [id] is [name], or null for a name this
+  /// version does not know, which is what a file written by a later
+  /// version can carry.
+  static GamePadButton? byName(String name) {
+    for (final value in values) {
+      if (value.id == name) return value;
+    }
+    return null;
+  }
+
   /// Every button this version names, for a rebinding screen that lists
   /// them. A later version appends; a pad may still hold one it does not
   /// name.

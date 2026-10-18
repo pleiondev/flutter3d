@@ -95,7 +95,7 @@ void main() {
       glass.place(
         Matrix3.identity(),
         Vector3(1, 0, 0),
-        time: world.time + world.step,
+        timeSeconds: world.timeSeconds + world.step,
       );
       world.advance(world.step);
     }

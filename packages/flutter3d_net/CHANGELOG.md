@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `tick` goes.** `step` is the fixed simulation step, `update`
+  the variable frame and `advance` playback: `LoopbackParty.tick` is
+  `LoopbackParty.step` and `LoopbackWire.tick` is `LoopbackWire.step`. `dart
+  fix` renames the calls and the overrides.
+- **Breaking: no public `late final` setter.** `EngineRollback.session` is a
+  getter over a private field: the setter they had worked once and threw the
+  second time, and every read compiles as it did.
 - **The wire is a snapshot.** `api/flutter3d_net.wire` lists every message
   the engine and its relay send, by the keys that tell it apart and the keys
   it carries, and every address the relay answers at, with a golden JSON

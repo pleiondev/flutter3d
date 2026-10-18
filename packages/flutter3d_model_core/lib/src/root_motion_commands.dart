@@ -112,7 +112,7 @@ final class ExtractRootMotion extends ModelCommand {
     ];
     for (final key in keys) {
       table.setKey(
-        key.time,
+        key.timeSeconds,
         anchor,
         inTangent: key.inTangent,
         outTangent: key.outTangent,
@@ -202,7 +202,7 @@ final class BakeRootMotionIntoClip extends ModelCommand {
       }
       final key = keys[i];
       table.setKey(
-        key.time,
+        key.timeSeconds,
         restored,
         inTangent: key.inTangent,
         outTangent: key.outTangent,

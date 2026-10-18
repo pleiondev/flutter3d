@@ -156,10 +156,10 @@ final class TimelinePlayback {
   Playback get playback => _playback;
 
   /// The playhead, in whole frames at [fps] — [KeyTable.frameOfTime] applied
-  /// to [AnimationPlayer.time].
-  int get frame => KeyTable.frameOfTime(player.time, fps);
+  /// to [AnimationPlayer.timeSeconds].
+  int get frame => KeyTable.frameOfTime(player.timeSeconds, fps);
 
-  double get time => player.time;
+  double get time => player.timeSeconds;
 
   /// Starts [clipIndex], or resumes the current clip when it is null —
   /// [AnimationPlayer.play]'s own contract, carried through unchanged.
@@ -215,7 +215,7 @@ final class TimelinePlayback {
   /// "switch action" is a play, not a seek, so both hooks fire the way
   /// [play] itself makes them.
   void crossFadeTo(int index, {double duration = 0.15}) {
-    player.crossFadeTo(index, duration: duration);
+    player.crossFadeTo(index, durationSeconds: duration);
     _setPlayback(
       _playback.copyWith(
         status: PlaybackStatus.playing,

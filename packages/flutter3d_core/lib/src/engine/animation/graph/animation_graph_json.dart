@@ -140,7 +140,7 @@ abstract final class AnimationGraphJson {
           'conditions': <Object?>[
             for (final c in t.conditions) _encodeCondition(c),
           ],
-        if (t.duration != 0.0) 'duration': t.duration,
+        if (t.durationSeconds != 0.0) 'duration': t.durationSeconds,
         if (t.priority != 0) 'priority': t.priority,
         'exitTime': ?t.exitTime,
       };
@@ -270,7 +270,7 @@ abstract final class AnimationGraphJson {
                 .indexed)
           _decodeCondition(at.key('conditions').index(i), c),
       ],
-      duration: at.key('duration').numberOr(map['duration'], 0.0),
+      durationSeconds: at.key('duration').numberOr(map['duration'], 0.0),
       priority: at.key('priority').numberOr(map['priority'], 0.0).round(),
       exitTime: exitTime == null ? null : at.key('exitTime').number(exitTime),
     );

@@ -46,7 +46,7 @@ RunGhost ghostOf(Level level, Demo demo, {double hz = 30.0}) => ghostOfRun(
       feet
         ..setFrom(runner.position)
         ..y -= runner.body.halfExtents.y;
-      recorder.tick(step * dt, position: feet, yaw: runner.yaw);
+      recorder.record(step * dt, position: feet, yaw: runner.yaw);
     }
 
     final playback = InputTapePlayback(

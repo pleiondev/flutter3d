@@ -230,13 +230,13 @@ final class AnimationTrack {
 
   /// When the first keyframe is, in seconds.
   ///
-  /// The player reads [endTime] to know when a clip is over and never needs
+  /// The player reads [endSeconds] to know when a clip is over and never needs
   /// this, because it samples from zero. It is for a tool that lays tracks out
   /// on a timeline, where a track starting late is a gap somebody has to see.
-  double get startTime => times.first;
+  double get startSeconds => times.first;
 
   /// When the last keyframe is, in seconds.
-  double get endTime => times.last;
+  double get endSeconds => times.last;
 
   /// Count of keyframes, at least one.
   int get keyCount => times.length;

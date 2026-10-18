@@ -384,7 +384,7 @@ bool _sameQuaternion(Quaternion a, Quaternion b) =>
     a.x == b.x && a.y == b.y && a.z == b.z && a.w == b.w;
 
 /// [constraint], solved against [project]'s own rest transforms and
-/// whichever rotations [clip] gives its root and middle joints at [time] —
+/// whichever rotations [clip] gives its root and middle joints at [timeSeconds] —
 /// "applied after FK": the pre-solve rotations (from [clip] when it
 /// animates them, [project]'s own rest pose otherwise) seed which way the
 /// chain is already bent, exactly the reasoning `TwoBoneIk.solve`'s own doc
@@ -396,12 +396,22 @@ IkSolution resolveIkConstraint({
   ProjectClip? clip,
 
   /// In seconds.
-  double time = 0.0,
+  double timeSeconds = 0.0,
 }) => _solveTwoBoneIk(
   project: project,
   constraint: constraint,
-  currentRoot: _currentRotationOf(project, constraint.rootJointId, clip, time),
-  currentMid: _currentRotationOf(project, constraint.midJointId, clip, time),
+  currentRoot: _currentRotationOf(
+    project,
+    constraint.rootJointId,
+    clip,
+    timeSeconds,
+  ),
+  currentMid: _currentRotationOf(
+    project,
+    constraint.midJointId,
+    clip,
+    timeSeconds,
+  ),
 );
 
 /// [constraint] solved once: the joint's own new local rotation, and how
@@ -427,9 +437,14 @@ LookAtSolution resolveLookAtConstraint({
   ProjectClip? clip,
 
   /// In seconds.
-  double time = 0.0,
+  double timeSeconds = 0.0,
 }) {
-  final restLocal = _currentRotationOf(project, constraint.jointId, clip, time);
+  final restLocal = _currentRotationOf(
+    project,
+    constraint.jointId,
+    clip,
+    timeSeconds,
+  );
   final overrides = <int, Quaternion>{constraint.jointId: restLocal};
 
   final jointPos = worldTransformOf(
@@ -523,7 +538,7 @@ ProjectClip bakeLookAt({
       project: project,
       constraint: constraint,
       clip: clip,
-      time: time,
+      timeSeconds: time,
     );
     table.setKey(time, <double>[
       solved.rotation.x,
@@ -588,7 +603,7 @@ ProjectClip bakeIk({
       project: project,
       constraint: constraint,
       clip: clip,
-      time: time,
+      timeSeconds: time,
     );
     rootTable.setKey(time, <double>[
       solved.root.x,

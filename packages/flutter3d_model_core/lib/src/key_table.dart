@@ -12,17 +12,17 @@ import 'package:flutter3d_core/formats.dart';
 /// linear for a moment still has its tangents when the table switches back,
 /// rather than losing the curve shape a person spent time shaping.
 final class Keyframe {
-  /// A key at [time] seconds holding [values], with flat tangents unless
+  /// A key at [timeSeconds] seconds holding [values], with flat tangents unless
   /// [inTangent] or [outTangent] is given.
   const Keyframe({
-    required this.time,
+    required this.timeSeconds,
     required this.values,
     this.inTangent,
     this.outTangent,
   });
 
   /// In seconds.
-  final double time;
+  final double timeSeconds;
 
   /// One value per component — the point itself, never a tangent.
   final List<double> values;
@@ -39,7 +39,7 @@ final class Keyframe {
 
   /// Returns a copy moved to [newTime] seconds, values and tangents kept.
   Keyframe withTime(double newTime) => Keyframe(
-    time: newTime,
+    timeSeconds: newTime,
     values: values,
     inTangent: inTangent,
     outTangent: outTangent,
@@ -49,7 +49,7 @@ final class Keyframe {
   /// it is, so this cannot clear one.
   Keyframe withTangents({List<double>? inTangent, List<double>? outTangent}) =>
       Keyframe(
-        time: time,
+        timeSeconds: timeSeconds,
         values: values,
         inTangent: inTangent ?? this.inTangent,
         outTangent: outTangent ?? this.outTangent,
@@ -69,7 +69,7 @@ final class Keyframe {
 /// place that pays the flattening cost, once, when something actually needs
 /// to sample.
 ///
-/// **Keys stay sorted by [Keyframe.time], always.** [AnimationTrack]'s own
+/// **Keys stay sorted by [Keyframe.timeSeconds], always.** [AnimationTrack]'s own
 /// contract requires ascending times for its binary search to mean
 /// anything, and a table that let them fall out of order would produce a
 /// track that silently samples the wrong key. Every mutator here restores
@@ -82,7 +82,7 @@ final class KeyTable {
     this.interpolation = AnimationInterpolation.linear,
     List<Keyframe>? keys,
   }) : _keys = List<Keyframe>.of(keys ?? const <Keyframe>[])
-         ..sort((a, b) => a.time.compareTo(b.time));
+         ..sort((a, b) => a.timeSeconds.compareTo(b.timeSeconds));
 
   /// [track] read into an editable table — the same values, split back out
   /// of whichever of [AnimationTrack]'s two flat layouts [track.interpolation]
@@ -94,7 +94,7 @@ final class KeyTable {
       for (var i = 0; i < track.keyCount; i++)
         if (cubic)
           Keyframe(
-            time: track.times[i],
+            timeSeconds: track.times[i],
             inTangent: _slice(track.values, i * stride, track.componentCount),
             values: _slice(
               track.values,
@@ -109,7 +109,7 @@ final class KeyTable {
           )
         else
           Keyframe(
-            time: track.times[i],
+            timeSeconds: track.times[i],
             values: _slice(track.values, i * stride, track.componentCount),
           ),
     ];
@@ -157,7 +157,7 @@ final class KeyTable {
   int get keyCount => _keys.length;
 
   /// The last key's time, in seconds.
-  double get duration => _keys.isEmpty ? 0.0 : _keys.last.time;
+  double get durationSeconds => _keys.isEmpty ? 0.0 : _keys.last.timeSeconds;
 
   static List<double> _slice(Float32List from, int at, int count) => <double>[
     for (var c = 0; c < count; c++) from[at + c],
@@ -172,7 +172,9 @@ final class KeyTable {
     required int nodeIndex,
     required AnimationPath path,
   }) {
-    final times = Float32List.fromList(<double>[for (final k in _keys) k.time]);
+    final times = Float32List.fromList(<double>[
+      for (final k in _keys) k.timeSeconds,
+    ]);
     final cubic = interpolation == AnimationInterpolation.cubicSpline;
     final stride = componentCount * (cubic ? 3 : 1);
     final values = Float32List(_keys.length * stride);
@@ -240,7 +242,8 @@ final class KeyTable {
   static double snappedToFrame(double time, double fps) =>
       timeOfFrame(frameOfTime(time, fps), fps);
 
-  void _resort() => _keys.sort((a, b) => a.time.compareTo(b.time));
+  void _resort() =>
+      _keys.sort((a, b) => a.timeSeconds.compareTo(b.timeSeconds));
 
   /// Writes (or replaces) the key at [time]. An existing key within
   /// [_kSameKeyTolerance] of this time is replaced outright rather than
@@ -254,13 +257,13 @@ final class KeyTable {
     List<double>? outTangent,
   }) {
     final key = Keyframe(
-      time: time,
+      timeSeconds: time,
       values: values,
       inTangent: inTangent,
       outTangent: outTangent,
     );
     final existing = _keys.indexWhere(
-      (k) => (k.time - time).abs() <= _kSameKeyTolerance,
+      (k) => (k.timeSeconds - time).abs() <= _kSameKeyTolerance,
     );
     if (existing >= 0) {
       _keys[existing] = key;
@@ -276,7 +279,7 @@ final class KeyTable {
   void moveKeys(List<int> indices, double deltaTime) {
     for (final i in indices) {
       if (i < 0 || i >= _keys.length) continue;
-      _keys[i] = _keys[i].withTime(_keys[i].time + deltaTime);
+      _keys[i] = _keys[i].withTime(_keys[i].timeSeconds + deltaTime);
     }
     _resort();
   }

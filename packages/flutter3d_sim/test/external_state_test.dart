@@ -30,7 +30,7 @@ ExternalStateInput _level(double metres, {ReadingQuality? quality}) =>
     ExternalStateInput.quantity(
       'tank.level',
       Quantity(metres, Unit.meter),
-      sourceTime: metres,
+      sourceSeconds: metres,
       quality: quality ?? ReadingQuality.good,
       kind: ReadingKind.measured,
     );

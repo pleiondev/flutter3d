@@ -41,6 +41,15 @@ final class MemoryCategory {
   /// weighed: no backend says what a pipeline costs.
   static const MemoryCategory shaders = MemoryCategory._('shaders');
 
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static MemoryCategory? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   /// All of them, in the order a report lists them.
   static const List<MemoryCategory> values = <MemoryCategory>[
     textures,
@@ -56,6 +65,8 @@ final class MemoryCategory {
 
 /// One line of a [MemoryReport].
 final class MemoryEntry {
+  /// A line of [count] objects of [category] called [label], holding [bytes]
+  /// when something can say.
   const MemoryEntry({
     required this.category,
     required this.label,
@@ -63,12 +74,11 @@ final class MemoryEntry {
     this.bytes,
   });
 
+  /// Which part of the engine holds the objects.
   final MemoryCategory category;
 
   /// What it is, in words a reader recognises: `hdrColor`, `shadow atlas`,
   /// a material's name.
-  /// A line of [count] objects of [category] called [label], holding [bytes]
-  /// when something can say.
   final String label;
 
   /// How many objects the line stands for.
@@ -76,9 +86,10 @@ final class MemoryEntry {
 
   /// What they hold, or null when nothing can say — see the library
   /// comment.
-  /// Which part of the engine holds the objects.
   final int? bytes;
 
+  /// Returns the line as a JSON map: its category's name, label, count and
+  /// bytes, null when unknown.
   Map<String, Object?> toJson() => <String, Object?>{
     'category': category.name,
     'label': label,
@@ -90,8 +101,6 @@ final class MemoryEntry {
   String toString() =>
       'MemoryEntry(${category.name}, $label, $count, ${bytes ?? '?'} B)';
 }
-  /// Returns the line as a JSON map: its category's name, label, count and
-  /// bytes, null when unknown.
 
 /// What the renderer holds on the device, line by line and by category —
 /// `Renderer.memoryReport`.
@@ -100,9 +109,11 @@ final class MemoryEntry {
 /// keeps is counted under the first category that claims it, in the order
 /// [MemoryCategory] lists them, and a mesh two nodes share is one line.
 final class MemoryReport {
+  /// A report of [entries], copied and unmodifiable.
   MemoryReport(List<MemoryEntry> entries)
     : entries = List<MemoryEntry>.unmodifiable(entries);
 
+  /// Every line, each object counted once.
   final List<MemoryEntry> entries;
 
   /// What [category] holds, in bytes, counting only the lines that know.
@@ -111,11 +122,9 @@ final class MemoryReport {
       .fold(0, (int sum, MemoryEntry e) => sum + (e.bytes ?? 0));
 
   /// How many objects [category] holds.
-  /// A report of [entries], copied and unmodifiable.
   int countOf(MemoryCategory category) => entries
       .where((MemoryEntry e) => e.category == category)
       .fold(0, (int sum, MemoryEntry e) => sum + e.count);
-  /// Every line, each object counted once.
 
   /// Every category's bytes together.
   int get totalBytes =>

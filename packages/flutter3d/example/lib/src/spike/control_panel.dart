@@ -504,15 +504,15 @@ class AnimationControls extends StatelessWidget {
               child: PanelSlider(
                 label:
                     'Time '
-                    '${player.time.toStringAsFixed(2)}/'
-                    '${player.duration.toStringAsFixed(2)}s',
-                value: player.duration <= 0.0
+                    '${player.timeSeconds.toStringAsFixed(2)}/'
+                    '${player.durationSeconds.toStringAsFixed(2)}s',
+                value: player.durationSeconds <= 0.0
                     ? 0.0
-                    : player.time / player.duration,
-                enabled: player.duration > 0.0,
+                    : player.timeSeconds / player.durationSeconds,
+                enabled: player.durationSeconds > 0.0,
                 onChanged: (v) {
                   player.pause();
-                  player.seek(v * player.duration);
+                  player.seek(v * player.durationSeconds);
                   onChanged();
                 },
               ),

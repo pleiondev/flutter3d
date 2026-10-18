@@ -62,6 +62,20 @@ final class ModelSettings {
   /// `--chunks`: the triangle count above which a static mesh is split
   /// into clusters; null splits nothing.
   final int? chunks;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ModelSettings &&
+          other.textures == textures &&
+          other.mips == mips &&
+          _sameList(other.lods, lods) &&
+          other.impostor == impostor &&
+          other.chunks == chunks;
+
+  @override
+  int get hashCode =>
+      Object.hash(textures, mips, Object.hashAll(lods), impostor, chunks);
 }
 
 /// One run's shared state.
@@ -238,4 +252,16 @@ final class ConvertContext {
       return null;
     }
   }
+}
+
+/// Whether [a] and [b] hold equal elements in the same order.
+bool _sameList<T>(Iterable<T>? a, Iterable<T>? b) {
+  if (identical(a, b)) return true;
+  if (a == null || b == null || a.length != b.length) return false;
+  final ib = b.iterator;
+  for (final x in a) {
+    ib.moveNext();
+    if (x != ib.current) return false;
+  }
+  return true;
 }

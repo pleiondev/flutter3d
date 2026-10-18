@@ -68,8 +68,8 @@ final class Bestiary {
           // No jumping and no coyote time: a monster that leaves the ground
           // is one that has walked off something, and it should simply fall.
           jumpSpeed: 0.0,
-          coyoteTime: 0.0,
-          jumpBufferTime: 0.0,
+          coyoteSeconds: 0.0,
+          jumpBufferSeconds: 0.0,
         ),
       ),
       health: Health(def.health),

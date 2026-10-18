@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **Breaking: a time in a `double` says seconds in its name.**
+  `NativeWorld.setSleep(… time:)` takes `timeSeconds:`; the value and its
+  unit are what they were. `dart fix` carries each rename out.
 - **A liquid's shapes worked out off the frame.** `BackgroundShapeSolver`,
   handed to a `FluidWorld` as its `shapes`, works out a cross-section's
   modes and a meniscus not met before on a long-lived isolate, the same

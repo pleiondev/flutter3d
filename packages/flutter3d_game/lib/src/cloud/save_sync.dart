@@ -46,6 +46,27 @@ final class SyncOutcome {
   /// The store could not be reached, or would not do it.
   static const SyncOutcome unavailable = SyncOutcome._('unavailable');
 
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<SyncOutcome> values = <SyncOutcome>[
+    notConsented,
+    inSync,
+    uploaded,
+    downloaded,
+    ask,
+    refused,
+    unavailable,
+  ];
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static SyncOutcome? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   @override
   String toString() => 'SyncOutcome.$name';
 }

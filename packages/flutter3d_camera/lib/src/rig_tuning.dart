@@ -72,4 +72,19 @@ base class RigSettings {
   /// A camera pushed inside what it is watching shows the inside of it, which
   /// is worse than a camera in a wall.
   final double minDistance;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is RigSettings &&
+          other.distance == distance &&
+          other.height == height &&
+          other.aimHeight == aimHeight &&
+          other.lag == lag &&
+          other.nearClearance == nearClearance &&
+          other.minDistance == minDistance;
+
+  @override
+  int get hashCode =>
+      Object.hash(distance, height, aimHeight, lag, nearClearance, minDistance);
 }

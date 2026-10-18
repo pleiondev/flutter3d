@@ -25,11 +25,7 @@ List<String> _rules(String source, {String? ownPackage}) => <String>[
 /// [source] with the fix of its first finding applied.
 String _fixed(String source) {
   final edit = _scan(source).first.edit!;
-  return source.replaceRange(
-    edit.offset,
-    edit.offset + edit.length,
-    edit.replacement,
-  );
+  return source.replaceRange(edit.offset, edit.offset, edit.text);
 }
 
 void main() {

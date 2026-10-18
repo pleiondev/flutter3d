@@ -212,7 +212,7 @@ class _CurveEditorState extends State<CurveEditor> {
         }
       }
       final keyScreen = Offset(
-        timeToX(key.time, widget.pixelsPerSecond),
+        timeToX(key.timeSeconds, widget.pixelsPerSecond),
         _valueToY(key.values[_component], range.min, range.max, height),
       );
       if ((local - keyScreen).distance <= kKeyHitRadius) {
@@ -258,7 +258,7 @@ class _CurveEditorState extends State<CurveEditor> {
           SetKey(
             clipIndex: widget.clipIndex,
             trackIndex: widget.trackIndex,
-            time: key.time,
+            timeSeconds: key.timeSeconds,
             values: values,
             inTangent: key.inTangent,
             outTangent: key.outTangent,
@@ -429,7 +429,7 @@ class _CurveEditorPainter extends CustomPainter {
     if (samples.length > 1) {
       final path = Path();
       for (var i = 0; i < samples.length; i++) {
-        final CurveSample(time: t, value: v) = samples[i];
+        final CurveSample(timeSeconds: t, value: v) = samples[i];
         final point = Offset(
           timeToX(t, pixelsPerSecond),
           _valueToY(v, size.height),
@@ -457,7 +457,7 @@ class _CurveEditorPainter extends CustomPainter {
         value = _yToValueForDrag(d.y, size.height);
       }
       final keyPoint = Offset(
-        timeToX(key.time, pixelsPerSecond),
+        timeToX(key.timeSeconds, pixelsPerSecond),
         _valueToY(value, size.height),
       );
 

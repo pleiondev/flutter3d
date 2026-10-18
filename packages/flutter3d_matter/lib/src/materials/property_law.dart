@@ -39,6 +39,15 @@ final class Confidence {
   /// thumb, or the engine's own choice: its source says which.
   static const Confidence estimate = Confidence.named('estimate');
 
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static Confidence? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   /// The three the engine's catalogue uses, from the most trusted.
   static const List<Confidence> values = <Confidence>[
     measured,

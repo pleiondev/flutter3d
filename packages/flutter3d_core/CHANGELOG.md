@@ -1,5 +1,37 @@
 ## 1.0.0-rc.1
 
+- **Settings and rectangles compare by value.** Every `…Settings` class and
+  `ViewportRect` has `==` and `hashCode` over every field it holds, lists
+  and sets by their elements, so a widget comparing the old settings with
+  the new in `didUpdateWidget` sees an equal value as unchanged. The same
+  holds in every package that publishes a settings class.
+- **Every open set has `values` and `byName`**, `TonemapCurve`,
+  `RenderStep`, `LightingModel` and the rest, as `DeviceFeature` had:
+  `byName` answers null for a name a later version wrote.
+- **Breaking: a time in a `double` says seconds in its name.**
+  `ContributorFrame(… time:)` and `RenderFrame(… time:)` take
+  `timeSeconds:`, as `FrameContext.time` is `FrameContext.timeSeconds`;
+  `AnimationClip.duration` is `AnimationClip.durationSeconds`,
+  `AnimationClip.referenceTime` is `AnimationClip.referenceSeconds`,
+  `AnimationGraph.stateTime` is `AnimationGraph.stateSeconds`,
+  `AnimationLayer.time` is `AnimationLayer.timeSeconds`,
+  `AnimationPlayer.crossFadeTo(… duration:)` takes `durationSeconds:`,
+  `AnimationPlayer.crossFadeToNamed(… duration:)` takes `durationSeconds:`,
+  `AnimationPlayer.duration` is `AnimationPlayer.durationSeconds`,
+  `AnimationPlayer.rootMotionDelta(… fromTime:)` takes `fromSeconds:`,
+  `AnimationPlayer.rootMotionDelta(… toTime:)` takes `toSeconds:`,
+  `AnimationPlayer.time` is `AnimationPlayer.timeSeconds`,
+  `AnimationTrack.endTime` is `AnimationTrack.endSeconds`,
+  `AnimationTrack.startTime` is `AnimationTrack.startSeconds`,
+  `AnimationTransition.duration` is `AnimationTransition.durationSeconds`,
+  `FrameContext.time` is `FrameContext.timeSeconds`, `PlayheadStep.time` is
+  `PlayheadStep.timeSeconds` and `advanceTime(… time:)` takes `seconds:`;
+  the value and its unit are what they were. `dart fix` carries each rename
+  out.
+- **Breaking: no public `late final` setter.** `IrradianceField.active`,
+  `IrradianceField.depth`, `IrradianceField.irradiance` and
+  `MorphState.weights` are getters over a private field: the setter they had
+  worked once and threw the second time, and every read compiles as it did.
 - **A restored device is answered by the same renderer.**
   `Renderer.deviceResources` is a `DeviceResources` registry: each of the
   renderer's stages and fallback textures with the recipe that makes it,

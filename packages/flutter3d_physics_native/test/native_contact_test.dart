@@ -18,7 +18,7 @@ void main() {
   setUp(() {
     world = NativeWorld()
       ..gravity = Vector3.zero()
-      ..setSleep(speed: 0.0, time: 0.0);
+      ..setSleep(speed: 0.0, timeSeconds: 0.0);
   });
   tearDown(() => world.dispose());
 
@@ -208,7 +208,7 @@ void main() {
     );
     world
       ..setShape(floor, NativeShape.box(Vector3(20.0, 0.5, 20.0)))
-      ..setSleep(speed: 0.05, time: 0.5)
+      ..setSleep(speed: 0.05, timeSeconds: 0.5)
       ..gravity = Vector3(0.0, -9.81, 0.0);
     final hull = world.createHull(<Vector3>[
       for (var i = 0; i < 8; i++)
@@ -262,7 +262,7 @@ void main() {
     );
     world
       ..setShape(floor, NativeShape.box(Vector3(20.0, 0.5, 20.0)))
-      ..setSleep(speed: 0.05, time: 0.5)
+      ..setSleep(speed: 0.05, timeSeconds: 0.5)
       ..gravity = Vector3(0.0, -9.81, 0.0);
     final table = world.createCompound(<NativeCompoundPart>[
       NativeCompoundPart(
@@ -319,7 +319,7 @@ void main() {
   test('a crate and a ball rest on a mesh floor, through the binding', () {
     world
       ..gravity = Vector3(0.0, -9.81, 0.0)
-      ..setSleep(speed: 0.05, time: 0.5);
+      ..setSleep(speed: 0.05, timeSeconds: 0.5);
     // Four by four squares, two triangles each, their vertices shared.
     final vertices = <Vector3>[
       for (var j = 0; j <= 4; j++)

@@ -35,7 +35,7 @@ final class RunStats {
   /// **Simulated rather than wall clock**, for the reason every clock in this
   /// repository is: a run timed against the wall is a run whose record depends
   /// on the machine it was set on.
-  double elapsed = 0.0;
+  double elapsedSeconds = 0.0;
 
   /// Starts counting [name] whenever [matches] answers yes.
   ///
@@ -53,7 +53,7 @@ final class RunStats {
   /// everything else reads — so a counter cannot disagree with a sound about
   /// whether something happened.
   void advance(double dt, List<GameEvent> events) {
-    elapsed += dt;
+    elapsedSeconds += dt;
     if (events.isEmpty || _counting.isEmpty) return;
     for (final GameEvent event in events) {
       for (final MapEntry<String, bool Function(GameEvent)> counter
@@ -70,18 +70,18 @@ final class RunStats {
   /// that stops counting after the first restart.
   void clear() {
     tally.clear();
-    elapsed = 0.0;
+    elapsedSeconds = 0.0;
   }
 
   /// The clock and the counts, for a save; the counters are not saved.
   Map<String, Object?> save() => <String, Object?>{
-    'elapsed': elapsed,
+    'elapsed': elapsedSeconds,
     'tally': tally.save(),
   };
 
   /// Puts back what [save] wrote; a missing clock reads nought.
   void restore(Map<String, Object?> from) {
-    elapsed = (from['elapsed'] as num?)?.toDouble() ?? 0.0;
+    elapsedSeconds = (from['elapsed'] as num?)?.toDouble() ?? 0.0;
     final counts = from['tally'];
     if (counts is Map) tally.restore(counts.cast<String, Object?>());
   }

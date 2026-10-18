@@ -165,7 +165,7 @@ final class MonsterGraphs with ActorGraphs {
                   0.3,
                 ),
               ],
-              duration: 0.2,
+              durationSeconds: 0.2,
             ),
           AnimationTransition(
             from: 'move',
@@ -174,7 +174,7 @@ final class MonsterGraphs with ActorGraphs {
               isNot(MonsterState.chase),
               isNot(patrolling),
             ],
-            duration: 0.25,
+            durationSeconds: 0.25,
           ),
           AnimationTransition(
             from: 'move',
@@ -182,7 +182,7 @@ final class MonsterGraphs with ActorGraphs {
             conditions: <AnimationCondition>[
               const CompareCondition('speed', AnimationComparison.less, 0.1),
             ],
-            duration: 0.25,
+            durationSeconds: 0.25,
           ),
         ],
         if (attack != null) ...<AnimationTransition>[
@@ -191,14 +191,14 @@ final class MonsterGraphs with ActorGraphs {
               from: from,
               to: 'attack',
               conditions: <AnimationCondition>[isIn(MonsterState.attack)],
-              duration: 0.1,
+              durationSeconds: 0.1,
               priority: 1,
             ),
           AnimationTransition(
             from: 'attack',
             to: 'idle',
             conditions: <AnimationCondition>[isNot(MonsterState.attack)],
-            duration: 0.2,
+            durationSeconds: 0.2,
           ),
         ],
         if (hurt != null) ...<AnimationTransition>[
@@ -207,14 +207,14 @@ final class MonsterGraphs with ActorGraphs {
               from: from,
               to: 'hurt',
               conditions: <AnimationCondition>[isIn(MonsterState.hurt)],
-              duration: 0.08,
+              durationSeconds: 0.08,
               priority: 5,
             ),
           AnimationTransition(
             from: 'hurt',
             to: 'idle',
             conditions: <AnimationCondition>[isNot(MonsterState.hurt)],
-            duration: 0.15,
+            durationSeconds: 0.15,
           ),
         ],
         for (final clip in cues) ...<AnimationTransition>[
@@ -223,14 +223,14 @@ final class MonsterGraphs with ActorGraphs {
               from: from,
               to: 'cue:$clip',
               conditions: <AnimationCondition>[TriggerCondition('cue:$clip')],
-              duration: 0.15,
+              durationSeconds: 0.15,
               priority: 2,
             ),
           AnimationTransition(
             from: 'cue:$clip',
             to: 'idle',
             exitTime: 1.0,
-            duration: 0.2,
+            durationSeconds: 0.2,
           ),
         ],
         if (death != null)
@@ -239,7 +239,7 @@ final class MonsterGraphs with ActorGraphs {
               from: from,
               to: 'death',
               conditions: <AnimationCondition>[isIn(MonsterState.dead)],
-              duration: 0.15,
+              durationSeconds: 0.15,
               priority: 10,
             ),
       ],

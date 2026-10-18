@@ -176,7 +176,7 @@ final class LiquidBody with JetReceiver {
   /// The height of the surface's plane along [up], in metres.
   double get height => surface.height;
 
-  /// Puts the vessel at [at], turned by [turn], as it is at [time] seconds
+  /// Puts the vessel at [at], turned by [turn], as it is at [timeSeconds] seconds
   /// on the liquid's clock — by default the clock as it stands, the place
   /// for the next [step]. The vessel's acceleration is read off its path, so
   /// the time must be when the vessel was there: a caller placing it once a
@@ -185,8 +185,8 @@ final class LiquidBody with JetReceiver {
   /// the clock instead, a frame that ran one step and the next that ran
   /// three read as a jolt worth a good part of gravity, and the liquid
   /// threw itself out of the glass.
-  void place(Matrix3 turn, Vector3 at, {double? time}) {
-    final stamp = time ?? _clock;
+  void place(Matrix3 turn, Vector3 at, {double? timeSeconds}) {
+    final stamp = timeSeconds ?? _clock;
     rotation.setFrom(turn);
     position.setFrom(at);
     // Placed again for the same moment: the newer place stands for it.

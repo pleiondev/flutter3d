@@ -44,6 +44,26 @@ final class AnimationComparison {
     exact: true,
   );
 
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<AnimationComparison> values = <AnimationComparison>[
+    greater,
+    less,
+    equals,
+    notEquals,
+  ];
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static AnimationComparison? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// Returns whether [actual], the parameter's value, compares to [value] as
+  /// this asks.
   bool test(double actual, num value) => _test(actual, value);
 
   static bool _greater(double actual, num value) => actual > value;
@@ -65,72 +85,74 @@ final class AnimationComparison {
 abstract final class AnimationCondition {
   const AnimationCondition(this.parameter);
 
+  /// The name of the parameter the condition reads, resolved against the
+  /// schema when the graph is built.
   final String parameter;
 }
 
 /// A float or integer parameter against a number.
 final class CompareCondition extends AnimationCondition {
+  /// A condition true while [parameter] compares to [value] by [comparison].
   const CompareCondition(super.parameter, this.comparison, this.value);
 
+  /// How the parameter is held against [value].
   final AnimationComparison comparison;
+
+  /// The number the parameter is compared with, in the parameter's own unit.
   final num value;
 
+  /// Returns whether [actual], the parameter's current value, meets this
+  /// condition.
   bool holds(double actual) => comparison.test(actual, value);
 }
 
 /// A boolean parameter being [value].
 final class BoolCondition extends AnimationCondition {
+  /// A condition true while the boolean [parameter] is [value].
   const BoolCondition(super.parameter, {this.value = true});
 
+  /// The value the parameter must have for the condition to hold; true by
+  /// default.
   final bool value;
 }
 
 /// A trigger parameter being set — and consumed when the transition fires.
 final class TriggerCondition extends AnimationCondition {
-  /// The name of the parameter the condition reads, resolved against the
-  /// schema when the graph is built.
+  /// A condition true once the trigger [parameter] is set.
   const TriggerCondition(super.parameter);
 }
 
 /// One clip of an [AnimationBlendSpace], played where its parameter reads [at].
 final class BlendPoint {
-  /// A condition true while [parameter] compares to [value] by [comparison].
+  /// The clip named [clip] placed at [at], and at [y] across a plane.
   const BlendPoint(this.at, this.clip, {this.y = 0.0});
 
-  /// How the parameter is held against [value].
   /// In the unit of the value the blend's parameter carries.
-
-  /// The number the parameter is compared with, in the parameter's own unit.
   final double at;
 
-  /// Returns whether [actual], the parameter's current value, meets this
-  /// condition.
   /// Where it stands along the blend's second parameter, for a blend across
   /// a plane; unread along a line.
   final double y;
 
   /// The [AnimationClip.name] played here.
-  /// A condition true while the boolean [parameter] is [value].
   final String clip;
 }
-  /// The value the parameter must have for the condition to hold; true by
-  /// default.
 
 /// Clips blended by a parameter — a one-dimensional blend space: a walk at
 /// one speed and a run at another, and between them some of each.
 ///
 /// **One cycle, whatever the mix.** The clips are played at one phase, a
-  /// A condition true once the trigger [parameter] is set.
 /// share of their own length each, and the phase moves at the speed of the
 /// length the mix would have: a walk of a second and a run of two thirds of
 /// one, half and half, go round once in five sixths of a second, every foot
 /// down in both at once. Played by their own clocks instead, the two would
 /// drift apart and the feet with them.
-  /// The clip named [clip] placed at [at], and at [y] across a plane.
 ///
 /// Below the first point the first clip plays alone, above the last the
 /// last.
 final class AnimationBlendSpace {
+  /// A blend by [parameter] over [points], across a plane when [across]
+  /// names a second parameter. The list is copied and cannot be changed.
   AnimationBlendSpace(this.parameter, List<BlendPoint> points, {this.across})
     : points = List<BlendPoint>.unmodifiable(points);
 
@@ -152,9 +174,9 @@ final class AnimationBlendSpace {
 
 /// A state: which clip plays while the graph is in it, and how.
 final class AnimationState {
+  /// A state called [name] playing [clip], or the points of [blend], at
+  /// [speed] and wrapped by [wrap].
   const AnimationState({
-  /// A blend by [parameter] over [points], across a plane when [across]
-  /// names a second parameter. The list is copied and cannot be changed.
     required this.name,
     this.clip = '',
     this.blend,
@@ -163,6 +185,8 @@ final class AnimationState {
     this.markers = const <AnimationMarker>[],
   });
 
+  /// The state's name, which transitions and [AnimationStateMachine.entry]
+  /// refer to it by; unique within a machine.
   final String name;
 
   /// The [AnimationClip.name] this state plays; empty for a [blend] state.
@@ -176,8 +200,6 @@ final class AnimationState {
   /// that plays [clip].
   final AnimationBlendSpace? blend;
 
-  /// A state called [name] playing [clip], or the points of [blend], at
-  /// [speed] and wrapped by [wrap].
   /// Moments of this state's cycle, each [AnimationMarker.at] a share of it
   /// from nought up to one: where a game names its feet down when the clips
   /// themselves do not — and the only kind a blend has, its cycle being the
@@ -187,8 +209,7 @@ final class AnimationState {
   /// Playback rate, zero or more. Zero holds the first frame.
   final double speed;
 
-  /// The state's name, which transitions and [AnimationStateMachine.entry]
-  /// refer to it by; unique within a machine.
+  /// What happens when the state's clip runs past its end; loops by default.
   final AnimationWrap wrap;
 }
 
@@ -198,11 +219,13 @@ final class AnimationState {
 /// passed.** The conditions are a conjunction; an "or" is two transitions,
 /// which is also how it reads in a graph editor.
 final class AnimationTransition {
+  /// A transition from the state named [from] to [to] when every one of
+  /// [conditions] holds. The list is copied and cannot be changed.
   AnimationTransition({
     required this.from,
     required this.to,
     List<AnimationCondition> conditions = const <AnimationCondition>[],
-    this.duration = 0.0,
+    this.durationSeconds = 0.0,
     this.priority = 0,
     this.exitTime,
   }) : conditions = List<AnimationCondition>.unmodifiable(conditions);
@@ -211,18 +234,17 @@ final class AnimationTransition {
   final String from;
 
   /// The state it enters, by name.
-  /// What happens when the state's clip runs past its end; loops by default.
   final String to;
 
+  /// What must all hold for the transition to fire; empty fires as soon as
+  /// the exit time, if any, has passed.
   final List<AnimationCondition> conditions;
 
   /// The crossfade, in seconds; zero cuts.
-  final double duration;
+  final double durationSeconds;
 
   /// Which of several transitions that could fire on the same step does.
   ///
-  /// A transition from the state named [from] to [to] when every one of
-  /// [conditions] holds. The list is copied and cannot be changed.
   /// Higher first, and declaration order between equals — so the answer to
   /// "hit and jump on the same step" is written down rather than left to
   /// whichever was added first by accident.
@@ -238,8 +260,6 @@ final class AnimationTransition {
   /// time and a trigger on one transition.
   final double? exitTime;
 }
-  /// What must all hold for the transition to fire; empty fires as soon as
-  /// the exit time, if any, has passed.
 
 /// The states, transitions and parameters of one animation graph — what a
 /// file stores and an editor edits. `AnimationGraph` is what runs it.
@@ -249,6 +269,9 @@ final class AnimationTransition {
 /// an agent can act on; `AnimationGraph` refuses to be built over a
 /// definition that has any.
 final class AnimationStateMachine {
+  /// A machine over [parameters] with [states] and [transitions], starting in
+  /// [entry] or the first state. The lists are copied and cannot be changed;
+  /// nothing is checked until [problems] is asked.
   AnimationStateMachine({
     required this.parameters,
     required List<AnimationState> states,
@@ -258,8 +281,13 @@ final class AnimationStateMachine {
        transitions = List<AnimationTransition>.unmodifiable(transitions),
        entry = entry ?? (states.isEmpty ? '' : states.first.name);
 
+  /// The parameters the conditions and blends read, by name.
   final AnimationParameterSchema parameters;
+
+  /// Every state, each named once; read-only.
   final List<AnimationState> states;
+
+  /// Every way between states, in declaration order; read-only.
   final List<AnimationTransition> transitions;
 
   /// The state the graph starts in: the first one unless named.
@@ -271,9 +299,6 @@ final class AnimationStateMachine {
   /// Everything that would stop this definition running over [clips]; empty
   /// when it can.
   List<String> problems(List<AnimationClip> clips) {
-  /// A machine over [parameters] with [states] and [transitions], starting in
-  /// [entry] or the first state. The lists are copied and cannot be changed;
-  /// nothing is checked until [problems] is asked.
     final clipNames = <String>{for (final clip in clips) ?clip.name};
     final stateNames = <String>{for (final s in states) s.name};
     String? duplicate(Iterable<String> names, String what) {
@@ -283,13 +308,8 @@ final class AnimationStateMachine {
           ? null
           : 'More than one $what is called ${_listed(twice, '')}; names are '
                 'how everything else refers to them, so each must be unique.';
-  /// The parameters the conditions and blends read, by name.
     }
 
-  /// Every state, each named once; read-only.
-
-
-  /// Every way between states, in declaration order; read-only.
     return <String>[
       ?duplicate(parameters.parameters.map((p) => p.name), 'parameter'),
       ?duplicate(states.map((s) => s.name), 'state'),
@@ -393,8 +413,8 @@ final class AnimationStateMachine {
       if (!stateNames.contains(t.to))
         'Transition $label enters `${t.to}`, which is not a state.',
       ?_if(
-        !t.duration.isFinite || t.duration < 0.0,
-        'Transition $label fades over ${t.duration} s; use zero to cut or a '
+        !t.durationSeconds.isFinite || t.durationSeconds < 0.0,
+        'Transition $label fades over ${t.durationSeconds} s; use zero to cut or a '
         'positive number of seconds.',
       ),
       if (t.exitTime case final exit? when !exit.isFinite || exit < 0.0)

@@ -52,12 +52,12 @@ void main() {
     final settings = _settings();
 
     it.fake.state.setDown(GamePadButton.start, down: true);
-    it.pad.tick(1 / 60);
+    it.pad.update(1 / 60);
     expect(presses.offer(it.pad, settings), isTrue);
 
     // The same thumb, four more frames of it.
     for (var frame = 0; frame < 4; frame++) {
-      it.pad.tick(1 / 60);
+      it.pad.update(1 / 60);
       expect(
         presses.offer(it.pad, settings),
         isFalse,
@@ -72,20 +72,20 @@ void main() {
     final settings = _settings();
 
     it.fake.state.setDown(GamePadButton.start, down: true);
-    it.pad.tick(1 / 60);
+    it.pad.update(1 / 60);
     presses.offer(it.pad, settings);
 
     it.fake.state.setDown(GamePadButton.start, down: false);
-    it.pad.tick(1 / 60);
+    it.pad.update(1 / 60);
     presses.offer(it.pad, settings);
 
     it.fake.state.setDown(GamePadButton.start, down: true);
-    it.pad.tick(1 / 60);
+    it.pad.update(1 / 60);
     expect(presses.offer(it.pad, settings), isTrue);
   });
 
   test('and nothing pressed is not a press', () {
-    final it = _pad()..pad.tick(1 / 60);
+    final it = _pad()..pad.update(1 / 60);
     expect(PadPresses().offer(it.pad, _settings()), isFalse);
   });
 
@@ -98,7 +98,7 @@ void main() {
     final settings = _settings()..rebind(GameAction.jump);
 
     it.fake.state.setDown(GamePadButton.faceSouth, down: true);
-    it.pad.tick(1 / 60);
+    it.pad.update(1 / 60);
     final left = PadPresses().offer(it.pad, settings);
 
     expect(left, isFalse, reason: 'the screen acted on a rebinding press');
@@ -118,13 +118,13 @@ void main() {
     final settings = _settings();
 
     it.fake.state.setDown(GamePadButton.faceSouth, down: true);
-    it.pad.tick(1 / 60);
+    it.pad.update(1 / 60);
     PadPresses().offer(it.pad, settings);
 
     // The button is still down when the player asks to rebind.
     final presses = PadPresses()..offer(it.pad, settings);
     settings.rebind(GameAction.jump);
-    it.pad.tick(1 / 60);
+    it.pad.update(1 / 60);
     presses.offer(it.pad, settings);
 
     expect(
@@ -149,7 +149,7 @@ void main() {
     final presses = PadPresses();
 
     it.fake.state.setDown(GamePadButton.start, down: true);
-    it.pad.tick(1 / 60);
+    it.pad.update(1 / 60);
     expect(
       presses.offer(it.pad, settings, menuButton: GamePadButton.start),
       isFalse,
@@ -159,11 +159,11 @@ void main() {
     // Offered on the release frame too: that is the call that notices the
     // button went up, exactly as it was when this was a single bool.
     it.fake.state.setDown(GamePadButton.start, down: false);
-    it.pad.tick(1 / 60);
+    it.pad.update(1 / 60);
     presses.offer(it.pad, settings, menuButton: GamePadButton.start);
 
     it.fake.state.setDown(GamePadButton.start, down: true);
-    it.pad.tick(1 / 60);
+    it.pad.update(1 / 60);
     presses.offer(it.pad, settings, menuButton: GamePadButton.start);
 
     expect(settings.value.isOpen, isFalse);
@@ -181,12 +181,12 @@ void main() {
     final presses = PadPresses();
 
     it.fake.state.setDown(GamePadButton.triggerRight, down: true);
-    it.pad.tick(1 / 60);
+    it.pad.update(1 / 60);
     presses.offer(it.pad, settings, menuButton: GamePadButton.start);
 
     // Start, without letting go of the trigger.
     it.fake.state.setDown(GamePadButton.start, down: true);
-    it.pad.tick(1 / 60);
+    it.pad.update(1 / 60);
     presses.offer(it.pad, settings, menuButton: GamePadButton.start);
 
     expect(settings.value.isOpen, isTrue);

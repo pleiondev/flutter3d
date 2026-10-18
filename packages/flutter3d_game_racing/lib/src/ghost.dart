@@ -25,7 +25,7 @@ final class GhostRecorder {
   int get frameCount => _recorder.length;
 
   /// Records the car's place at [time], if enough time has passed.
-  void tick(double time, VehicleController vehicle) => _recorder.tick(
+  void record(double time, VehicleController vehicle) => _recorder.record(
     time,
     position: vehicle.position,
     yaw: vehicle.headingYaw,
@@ -51,7 +51,7 @@ final class GhostRecorder {
 extension GhostDocument on GhostTape {
   /// What the lap took. The reason anybody keeps the tape.
   /// In seconds.
-  double get lapTime => seconds;
+  double get lapSeconds => seconds;
 
   /// The lap in the shared envelope (`f3d.ghost`, [ghostFormatVersion]),
   /// then `lapTime` and `frames`.

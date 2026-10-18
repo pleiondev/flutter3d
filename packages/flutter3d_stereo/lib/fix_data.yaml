@@ -1,6 +1,6 @@
 # Generated from flutter3d_build/lib/migrations/*.yaml by
 # `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
-# table-stamp: fbb33994bd2fa7e5
+# table-stamp: f38ff10f91336e6b
 #
 # Read by `dart fix` and the IDE: see "A break comes with its migration"
 # in CONTRIBUTING.md.
@@ -72,3 +72,22 @@ transforms:
       - kind: 'renameParameter'
         oldName: 'rotation'
         newName: 'orientation'
+  - title: 'flutter3d after 1.0.0-rc.1: stereo-HolderXrSession-HolderXrSession'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_stereo/flutter3d_stereo.dart']
+      constructor: ''
+      inClass: 'HolderXrSession'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'period'
+        newName: 'periodSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: stereo-HolderXrSession-period'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_stereo/flutter3d_stereo.dart']
+      field: 'period'
+      inClass: 'HolderXrSession'
+    changes:
+      - kind: 'rename'
+        newName: 'periodSeconds'

@@ -86,6 +86,15 @@ final class ShareStatus {
   /// Taken down; the code answers with the reason.
   static const ShareStatus removed = ShareStatus._('removed');
 
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static ShareStatus? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   /// Every status this build knows, in declaration order.
   static const List<ShareStatus> values = <ShareStatus>[
     published,

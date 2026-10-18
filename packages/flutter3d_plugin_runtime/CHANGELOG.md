@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **Breaking: a time in a `double` says seconds in its name.**
+  `WasmRenderImports.time` is `WasmRenderImports.timeSeconds`; the value and
+  its unit are what they were. `dart fix` carries each rename out.
 - **Breaking: Wasm render modules, ABI 3.** A `.f3dplugin`'s `wasmRender`
   section declares a module that drives one of its render steps frame by
   frame (`WasmRenderSpec`, run as a `WasmRenderNode`): decoded as a render

@@ -72,7 +72,7 @@ void main() {
       for (final machine in machines) {
         machine.advance();
       }
-      party.tick();
+      party.step();
     }
     final truth = _truth(players, 300, delay);
     // Mutation: a correction that runs the steps since on the old guess,
@@ -139,7 +139,7 @@ void main() {
             ..ask()
             ..advance();
         }
-        party.tick();
+        party.step();
       }
       final truth = _truth(players, 200, delay);
       // Mutation: a host that sends the steps but not the state to start
@@ -195,7 +195,7 @@ void main() {
         client.advance();
       }
       authority.advance();
-      party.tick();
+      party.step();
     }
     // Mutation: a client that takes the state and does not run its own
     // unacknowledged hands again on it — or runs the acknowledged too.
@@ -263,7 +263,7 @@ void main() {
               ),
             );
         authority.advance();
-        party.tick();
+        party.step();
       }
       // Mutation: the hello not compared — the next major's hands run.
       expect(ran, isEmpty);
@@ -312,7 +312,7 @@ void main() {
           ),
         );
         watcher.ask();
-        party.tick();
+        party.step();
       }
       expect(watcher.refusal, contains('protocol ${ahead.protocolMajor}'));
       expect(watcher.next, isNull);
@@ -322,8 +322,8 @@ void main() {
       welcome.ask();
       // One tick for the ask to arrive, one for the answer.
       party
-        ..tick()
-        ..tick();
+        ..step()
+        ..step();
       expect(welcome.refusal, isNull);
       expect(welcome.next, 6);
       // Mutation: the ask back as a bare `{"watching": true}` — a game's

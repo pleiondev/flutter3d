@@ -111,7 +111,7 @@ final class _BrowserRuntime extends WasmRuntime {
                     ))
                 .toJS
         ..['draw'] = render.draw.toJS
-        ..['time'] = (() => render.time.toJS).toJS
+        ..['time'] = (() => render.timeSeconds.toJS).toJS
         ..['view_size'] =
             ((JSNumber axis) => render.viewSize(axis.toDartInt).toJS).toJS
         ..['light_code'] =

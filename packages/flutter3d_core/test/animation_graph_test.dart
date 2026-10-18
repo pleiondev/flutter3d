@@ -135,7 +135,7 @@ void main() {
               from: 'move',
               to: 'stand',
               conditions: const <AnimationCondition>[TriggerCondition('stop')],
-              duration: 0.4,
+              durationSeconds: 0.4,
             ),
           ],
         ),
@@ -492,7 +492,7 @@ void main() {
             from: 'walk',
             to: 'stand',
             conditions: const <AnimationCondition>[TriggerCondition('stop')],
-            duration: 0.5,
+            durationSeconds: 0.5,
           ),
         ],
       );
@@ -794,7 +794,7 @@ void main() {
             from: 'walk',
             to: 'run',
             conditions: const <AnimationCondition>[TriggerCondition('go')],
-            duration: 0.5,
+            durationSeconds: 0.5,
           ),
         ],
       );
@@ -1225,7 +1225,7 @@ void main() {
         AnimationTransition(
           from: 'idle',
           to: 'walk',
-          duration: 0.25,
+          durationSeconds: 0.25,
           conditions: const <AnimationCondition>[
             CompareCondition('speed', AnimationComparison.greater, 0.5),
           ],
@@ -1254,7 +1254,7 @@ void main() {
       AnimationTransition(
         from: 'idle',
         to: 'walk',
-        duration: 0.25,
+        durationSeconds: 0.25,
         conditions: const <AnimationCondition>[
           CompareCondition('speed', AnimationComparison.greater, 0.5),
         ],
@@ -1309,7 +1309,7 @@ void main() {
       )..play(index: 0);
 
       graph.evaluate(_dt);
-      player.crossFadeTo(1, duration: 0.25);
+      player.crossFadeTo(1, durationSeconds: 0.25);
       for (var i = 0; i < 6; i++) {
         graph.evaluate(_dt);
         player
@@ -1334,7 +1334,7 @@ void main() {
         AnimationTransition(
           from: 'idle',
           to: 'walk',
-          duration: 0.125,
+          durationSeconds: 0.125,
           conditions: const <AnimationCondition>[
             CompareCondition('speed', AnimationComparison.greater, 0.5),
           ],
@@ -1342,13 +1342,13 @@ void main() {
         AnimationTransition(
           from: 'walk',
           to: 'attack',
-          duration: 0.0625,
+          durationSeconds: 0.0625,
           conditions: const <AnimationCondition>[TriggerCondition('attack')],
         ),
         AnimationTransition(
           from: 'attack',
           to: 'idle',
-          duration: 0.25,
+          durationSeconds: 0.25,
           exitTime: 1.0,
         ),
       ]);

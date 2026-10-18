@@ -1,5 +1,21 @@
 ## 1.0.0-rc.1
 
+- **Breaking: a time in a `double` says seconds in its name.**
+  `BodyForceContext.time` is `BodyForceContext.timeSeconds`,
+  `FluidWorld.time` is `FluidWorld.timeSeconds`, `LiquidBody.place(… time:)`
+  takes `timeSeconds:`, `MovementSettings.copyWith(… coyoteTime:)` takes
+  `coyoteSeconds:`, `MovementSettings.copyWith(… jumpBufferTime:)` takes
+  `jumpBufferSeconds:`, `MovementSettings.coyoteTime` is
+  `MovementSettings.coyoteSeconds`, `MovementSettings.jumpBufferTime` is
+  `MovementSettings.jumpBufferSeconds`, `ParticleFluid.capillaryTime` is
+  `ParticleFluid.capillarySeconds`, `ParticleFluid.retire(… elapsed:)` takes
+  `elapsedSeconds:` and `Puddle.age` is `Puddle.ageSeconds`; the value and
+  its unit are what they were. `dart fix` carries each rename out.
+- **Breaking: no public `late final` setter.**
+  `CharacterController.collider`, `RigidBody.collider`,
+  `TubeMeniscus.apexCurvature` and `TubeMeniscus.wallRise` are getters over
+  a private field: the setter they had worked once and threw the second
+  time, and every read compiles as it did.
 - **The liquids have air.** A `FluidWorld` reads its `FluidAir` from the
   world's properties (temperature, pressure, the new humidity, wind):
   drops fall against a sphere's drag at their own size, streams bend in a

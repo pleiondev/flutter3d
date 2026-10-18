@@ -21,7 +21,7 @@ final class _Miss extends BehaviorLeaf {
   final String key;
 
   @override
-  BehaviorStatus tick(BehaviorContext context) {
+  BehaviorStatus step(BehaviorContext context) {
     context.board.set(key, (context.board.number(key) ?? 0.0) + 1.0);
     return BehaviorStatus.failure;
   }
@@ -32,7 +32,7 @@ final class _Hold extends BehaviorLeaf {
   const _Hold();
 
   @override
-  BehaviorStatus tick(BehaviorContext context) => BehaviorStatus.running;
+  BehaviorStatus step(BehaviorContext context) => BehaviorStatus.running;
 }
 
 /// The first child that does not fail, and — unlike a selector — it
@@ -41,7 +41,7 @@ final class _FirstSuccess extends BehaviorComposite {
   const _FirstSuccess();
 
   @override
-  BehaviorStatus tick(BehaviorCompositeTick tick) {
+  BehaviorStatus step(BehaviorCompositeTick tick) {
     final context = tick.context;
     final children = tick.children;
     final from = switch (context.memory) {
@@ -49,7 +49,7 @@ final class _FirstSuccess extends BehaviorComposite {
       _ => 0,
     };
     for (var i = from; i < children.length; i++) {
-      final status = children.tick(context, i);
+      final status = children.step(context, i);
       if (status == BehaviorStatus.failure) continue;
       context.memory = status == BehaviorStatus.running ? i : null;
       return status;
@@ -64,10 +64,10 @@ final class _Veto extends BehaviorComposite {
   const _Veto();
 
   @override
-  BehaviorStatus tick(BehaviorCompositeTick tick) {
+  BehaviorStatus step(BehaviorCompositeTick tick) {
     final context = tick.context;
     final children = tick.children;
-    children.tick(context, 0);
+    children.step(context, 0);
     return BehaviorStatus.failure;
   }
 }

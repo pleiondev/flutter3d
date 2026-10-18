@@ -161,6 +161,15 @@ final class UniversalTarget {
     encodeBlock: null,
   );
 
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static UniversalTarget? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   /// Every target this version names, in declaration order.
   static const List<UniversalTarget> values = <UniversalTarget>[
     bc1,

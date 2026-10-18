@@ -86,6 +86,15 @@ final class CompositePass {
   /// Writes the frame out. Always runs.
   static const CompositePass output = CompositePass._('output', 6, fixed: true);
 
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static CompositePass? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   /// The chain, in the order it runs.
   static const List<CompositePass> values = <CompositePass>[
     scene,

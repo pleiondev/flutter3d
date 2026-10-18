@@ -6243,7 +6243,7 @@ final class Renderer with RenderServices {
                 views: _frameViews,
                 viewIndex: viewIndex,
                 frameIndex: _frameIndex,
-                time: _seconds,
+                timeSeconds: _seconds,
                 origin: scene.origin,
                 // `R2`: after the temporal resolve, the output's size.
                 width: _outputSized.contains(node) ? _outputWidth : width,

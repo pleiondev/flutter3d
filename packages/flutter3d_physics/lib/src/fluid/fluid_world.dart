@@ -169,7 +169,7 @@ final class FluidWorld {
   /// the time of whatever the caller places for the frame it is on, as
   /// `LiquidBody.place`'s `time` wants it. Bodies added at the start share
   /// this clock.
-  double get time => _ran * step + _carried;
+  double get timeSeconds => _ran * step + _carried;
 
   /// Runs as many whole steps as [elapsed] seconds hold, plus what was left
   /// over from the last call; returns how many it ran.

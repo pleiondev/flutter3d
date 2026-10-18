@@ -84,7 +84,11 @@ void main() {
     world.advance(world.step);
     await background.settled();
     for (var i = 0; i < 4; i++) {
-      tube.place(Matrix3.identity(), Vector3.zero(), time: world.time);
+      tube.place(
+        Matrix3.identity(),
+        Vector3.zero(),
+        timeSeconds: world.timeSeconds,
+      );
       world.advance(world.step);
     }
     expect(tube.surface.wavenumbers, isNotEmpty);

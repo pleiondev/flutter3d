@@ -600,6 +600,14 @@ final class ImportSettings {
   /// Which axis the file treats as up. [UpAxis.z] rotates every root so that up
   /// becomes Y; [UpAxis.y], the default, changes nothing.
   final UpAxis upAxis;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ImportSettings && other.scale == scale && other.upAxis == upAxis;
+
+  @override
+  int get hashCode => Object.hash(scale, upAxis);
 }
 
 /// The profile does not come back, because a file does not record one: a

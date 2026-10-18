@@ -59,6 +59,15 @@ final class NativeLawProperty {
     'surfaceTension',
   );
 
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static NativeLawProperty? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   /// Every one the core reads through a law, in their order.
   static const List<NativeLawProperty> values = <NativeLawProperty>[
     specificHeat,

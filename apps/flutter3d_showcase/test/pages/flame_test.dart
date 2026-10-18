@@ -21,7 +21,6 @@ import 'package:flutter3d_showcase/pages/flame/flame_seats.dart';
 import 'package:flutter3d_showcase/pages/flame/flame_transform_bridge.dart';
 import 'package:flutter3d_showcase/src/demo/demo_run.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart' show Matrix4, Vector3;
 
 import '../support/page_harness.dart';
 

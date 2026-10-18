@@ -56,7 +56,7 @@ final class EngineRollback {
     void Function(SettledStep<LoopState> settled)? onSettled,
     void Function(PeerMessage message)? onMessage,
   }) {
-    session = RollbackSession<LoopState>(
+    _session = RollbackSession<LoopState>(
       wire: wire,
       localSlot: localSlot,
       players: players,
@@ -81,8 +81,10 @@ final class EngineRollback {
   /// ([RollbackStep.statusOf]) and whether the step is run again.
   final void Function(RollbackStep step) applyFrames;
 
+  late final RollbackSession<LoopState> _session;
+
   /// The rollback itself: its window, its counters, its agreed ending.
-  late final RollbackSession<LoopState> session;
+  RollbackSession<LoopState> get session => _session;
 
   /// Captures this machine's hands, sends them, and runs one step of the
   /// loop. Once a fixed step.

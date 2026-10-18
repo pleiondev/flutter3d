@@ -75,6 +75,15 @@ final class DockSide {
     foldIcon: Icons.expand_more,
   );
 
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static DockSide? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   /// Every side, in the order [DockArrangement.fromJson] looks names up.
   static const List<DockSide> values = <DockSide>[left, right, bottom];
 

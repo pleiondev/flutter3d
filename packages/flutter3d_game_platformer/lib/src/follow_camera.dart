@@ -117,6 +117,33 @@ final class FollowSettings extends RigSettings {
   /// far faster than it ever runs — from throwing the camera off the level
   /// entirely.
   final double lookAheadLimit;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FollowSettings &&
+          other.recenter == recenter &&
+          other.recenterAbove == recenterAbove &&
+          other.pitch == pitch &&
+          other.minPitch == minPitch &&
+          other.maxPitch == maxPitch &&
+          other.sensitivity == sensitivity &&
+          other.impulseDecay == impulseDecay &&
+          other.lookAhead == lookAhead &&
+          other.lookAheadLimit == lookAheadLimit;
+
+  @override
+  int get hashCode => Object.hash(
+    recenter,
+    recenterAbove,
+    pitch,
+    minPitch,
+    maxPitch,
+    sensitivity,
+    impulseDecay,
+    lookAhead,
+    lookAheadLimit,
+  );
 }
 
 /// A third-person camera: behind the runner, above it, out of the walls.
@@ -165,7 +192,7 @@ final class FollowCamera {
          recenterAbove: tuning.recenterAbove,
          yaw: yaw,
        ) {
-    virtualCamera = VirtualCamera(
+    _virtualCamera = VirtualCamera(
       name,
       reframe?.call(framing) ?? framing,
       rig: rig,
@@ -187,6 +214,8 @@ final class FollowCamera {
   /// [follow].
   final OrbitFraming framing;
 
+  late final VirtualCamera _virtualCamera;
+
   /// This camera as one of a director's: the [framing] carried out by [rig].
   ///
   /// **Its framing can be replaced.** Pass `reframe` to the constructor and
@@ -195,7 +224,7 @@ final class FollowCamera {
   /// and changes what it asks for, or one that ignores it. The preset is
   /// still the one the calls here feed, so a replacement that wraps it
   /// keeps the subject and the look it is given.
-  late final VirtualCamera virtualCamera;
+  VirtualCamera get virtualCamera => _virtualCamera;
 
   /// Which way the camera faces, in radians. The runner takes this as the
   /// direction "forward" means.

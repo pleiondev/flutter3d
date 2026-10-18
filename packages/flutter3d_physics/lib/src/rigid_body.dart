@@ -83,7 +83,7 @@ final class RigidBody {
        ) {
     if (orientation != null) _setUnit(orientation);
     refreshInertia();
-    collider = world.add(
+    _collider = world.add(
       Collider(
         shape: shape,
         position: position,
@@ -96,13 +96,15 @@ final class RigidBody {
     );
   }
 
+  late final Collider _collider;
+
   /// This body's entry in the collision world, which owns its position.
   ///
   /// One place a position lives, rather than a copy here kept in step with a
   /// copy there. Two copies of where something is are two answers to the
   /// question, and the disagreement shows up as a crate drawn beside the hole
   /// it is actually in.
-  late final Collider collider;
+  Collider get collider => _collider;
 
   /// Where the body's centre is, as a copy the caller owns.
   ///

@@ -16,7 +16,7 @@ import 'pad_device.dart';
 ///
 /// ## Polled, not subscribed
 ///
-/// [tick] is called once per frame, before the loop advances, and everything
+/// [update] is called once per frame, before the loop advances, and everything
 /// happens there: edges, magnitudes, the view, and letting go of a pad that has
 /// been unplugged. Nothing is driven by a stream, even though the platform
 /// offers one, because an event arriving between two steps would mutate the
@@ -73,7 +73,7 @@ final class PadInput {
   }
 
   /// The action map this pad reads: its buttons, and its composites, axes
-  /// and sticks on `pad:` sources, read every [tick] — see
+  /// and sticks on `pad:` sources, read every [update] — see
   /// [InputSource.padAxis] and [InputSource.padStick]. The look binding on
   /// `pad:stick.right` shapes [drainLook] with its sensitivity and invert.
   ///
@@ -254,7 +254,7 @@ final class PadInput {
   final Map<String, ({GameAction action, double magnitude})> _speaking =
       <String, ({GameAction action, double magnitude})>{};
 
-  /// The analogue controls [tick] read this time round. One that spoke and
+  /// The analogue controls [update] read this time round. One that spoke and
   /// was not read (its binding removed, or [routes] swapped while it was
   /// pressed) would otherwise hold its last magnitude for good, and win every
   /// maximum its action takes.
@@ -267,7 +267,7 @@ final class PadInput {
   /// Whether this build can read a pad at all; see [PadDevice.isSupported].
   bool get isSupported => pad.isSupported;
 
-  /// Whether a pad answered the last [tick].
+  /// Whether a pad answered the last [update].
   bool get isConnected => _snapshot.isConnected;
 
   /// What the pad is holding, for a screen rather than for a simulation.
@@ -284,7 +284,7 @@ final class PadInput {
   /// stick reports a **rate** and [InputState.addLook] accumulates a
   /// **displacement**, so the integration has to happen somewhere and this is
   /// the only place that knows both numbers.
-  void tick(double dt) {
+  void update(double dt) {
     pad.read(_snapshot);
 
     if (!_snapshot.isConnected) {

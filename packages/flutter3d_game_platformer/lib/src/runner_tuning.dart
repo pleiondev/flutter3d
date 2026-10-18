@@ -6,31 +6,31 @@ final class RunnerSettings {
     this.airJumpSpeed = 8.2,
     this.airJumps = 1,
     this.jumpCut = 0.45,
-    this.coyoteTime = 0.12,
+    this.coyoteSeconds = 0.12,
     this.slopeSpeed = 0.34,
     this.glideFall = 4.0,
     this.glideAfter = 0.2,
-    this.dropThroughTime = 0.25,
+    this.dropThroughSeconds = 0.25,
     this.stompBounce = 7.5,
     this.stompBounceHeld = 11.0,
     this.crouchHeight = 0.45,
     this.crouchSpeed = 2.4,
     this.slideSpeed = 11.0,
-    this.slideTime = 0.55,
+    this.slideSeconds = 0.55,
     this.slideFriction = 6.0,
     this.longJumpUp = 6.0,
     this.longJumpPush = 12.0,
     this.poundSpeed = 26.0,
-    this.jumpBufferTime = 0.12,
+    this.jumpBufferSeconds = 0.12,
     this.dashSpeed = 18.0,
-    this.dashCooldown = 0.55,
+    this.dashCooldownSeconds = 0.55,
     this.dashDrag = 40.0,
     this.turnRate = 16.0,
     this.wallProbe = 0.14,
     this.wallSlideSpeed = 3.2,
     this.wallJumpUp = 9.0,
     this.wallJumpPush = 7.5,
-    this.wallCoyoteTime = 0.12,
+    this.wallCoyoteSeconds = 0.12,
     this.mantleLow = 0.35,
     this.mantleHigh = 1.5,
     this.mantleReach = 0.45,
@@ -43,31 +43,31 @@ final class RunnerSettings {
     double? airJumpSpeed,
     int? airJumps,
     double? jumpCut,
-    double? coyoteTime,
+    double? coyoteSeconds,
     double? slopeSpeed,
     double? glideFall,
     double? glideAfter,
-    double? dropThroughTime,
+    double? dropThroughSeconds,
     double? stompBounce,
     double? stompBounceHeld,
     double? crouchHeight,
     double? crouchSpeed,
     double? slideSpeed,
-    double? slideTime,
+    double? slideSeconds,
     double? slideFriction,
     double? longJumpUp,
     double? longJumpPush,
     double? poundSpeed,
-    double? jumpBufferTime,
+    double? jumpBufferSeconds,
     double? dashSpeed,
-    double? dashCooldown,
+    double? dashCooldownSeconds,
     double? dashDrag,
     double? turnRate,
     double? wallProbe,
     double? wallSlideSpeed,
     double? wallJumpUp,
     double? wallJumpPush,
-    double? wallCoyoteTime,
+    double? wallCoyoteSeconds,
     double? mantleLow,
     double? mantleHigh,
     double? mantleReach,
@@ -77,31 +77,31 @@ final class RunnerSettings {
     airJumpSpeed: airJumpSpeed ?? this.airJumpSpeed,
     airJumps: airJumps ?? this.airJumps,
     jumpCut: jumpCut ?? this.jumpCut,
-    coyoteTime: coyoteTime ?? this.coyoteTime,
+    coyoteSeconds: coyoteSeconds ?? this.coyoteSeconds,
     slopeSpeed: slopeSpeed ?? this.slopeSpeed,
     glideFall: glideFall ?? this.glideFall,
     glideAfter: glideAfter ?? this.glideAfter,
-    dropThroughTime: dropThroughTime ?? this.dropThroughTime,
+    dropThroughSeconds: dropThroughSeconds ?? this.dropThroughSeconds,
     stompBounce: stompBounce ?? this.stompBounce,
     stompBounceHeld: stompBounceHeld ?? this.stompBounceHeld,
     crouchHeight: crouchHeight ?? this.crouchHeight,
     crouchSpeed: crouchSpeed ?? this.crouchSpeed,
     slideSpeed: slideSpeed ?? this.slideSpeed,
-    slideTime: slideTime ?? this.slideTime,
+    slideSeconds: slideSeconds ?? this.slideSeconds,
     slideFriction: slideFriction ?? this.slideFriction,
     longJumpUp: longJumpUp ?? this.longJumpUp,
     longJumpPush: longJumpPush ?? this.longJumpPush,
     poundSpeed: poundSpeed ?? this.poundSpeed,
-    jumpBufferTime: jumpBufferTime ?? this.jumpBufferTime,
+    jumpBufferSeconds: jumpBufferSeconds ?? this.jumpBufferSeconds,
     dashSpeed: dashSpeed ?? this.dashSpeed,
-    dashCooldown: dashCooldown ?? this.dashCooldown,
+    dashCooldownSeconds: dashCooldownSeconds ?? this.dashCooldownSeconds,
     dashDrag: dashDrag ?? this.dashDrag,
     turnRate: turnRate ?? this.turnRate,
     wallProbe: wallProbe ?? this.wallProbe,
     wallSlideSpeed: wallSlideSpeed ?? this.wallSlideSpeed,
     wallJumpUp: wallJumpUp ?? this.wallJumpUp,
     wallJumpPush: wallJumpPush ?? this.wallJumpPush,
-    wallCoyoteTime: wallCoyoteTime ?? this.wallCoyoteTime,
+    wallCoyoteSeconds: wallCoyoteSeconds ?? this.wallCoyoteSeconds,
     mantleLow: mantleLow ?? this.mantleLow,
     mantleHigh: mantleHigh ?? this.mantleHigh,
     mantleReach: mantleReach ?? this.mantleReach,
@@ -162,7 +162,7 @@ final class RunnerSettings {
 
   /// How long after walking off a ledge a jump still counts.
   /// In seconds.
-  final double coyoteTime;
+  final double coyoteSeconds;
 
   /// How much faster a runner goes straight downhill, and slower straight up,
   /// as a fraction of its speed on the flat.
@@ -210,13 +210,13 @@ final class RunnerSettings {
 
   /// How long before landing a jump can be asked for and still happen.
   /// In seconds.
-  final double jumpBufferTime;
+  final double jumpBufferSeconds;
 
   /// How fast a dash throws the runner, in metres per second.
   final double dashSpeed;
 
   /// How long before the next dash, in seconds.
-  final double dashCooldown;
+  final double dashCooldownSeconds;
 
   /// How fast speed above walking pace bleeds off, in m/s².
   ///
@@ -256,7 +256,7 @@ final class RunnerSettings {
   /// How long after leaving a wall a wall jump still counts. Coyote time again,
   /// for the same reason: the player pressed jump when they were on the wall.
   /// In seconds.
-  final double wallCoyoteTime;
+  final double wallCoyoteSeconds;
 
   /// The shortest ledge worth pulling up onto.
   ///
@@ -280,7 +280,7 @@ final class RunnerSettings {
   /// centimetres, and any thickness a level authors is well under that. Too
   /// short and the runner lands back on the platform it just left, which reads
   /// as the input being eaten.
-  final double dropThroughTime;
+  final double dropThroughSeconds;
 
   /// Half the body's height while crouched.
   ///
@@ -301,7 +301,7 @@ final class RunnerSettings {
 
   /// How long a slide lasts before it becomes an ordinary crouch.
   /// In seconds.
-  final double slideTime;
+  final double slideSeconds;
 
   /// How quickly a slide bleeds off. Low: a slide that stops in its own length
   /// is a stumble.
@@ -337,4 +337,79 @@ final class RunnerSettings {
   /// How far past the wall to look for the ledge's floor.
   /// In metres.
   final double mantleReach;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is RunnerSettings &&
+          other.grip == grip &&
+          other.jumpSpeed == jumpSpeed &&
+          other.airJumpSpeed == airJumpSpeed &&
+          other.airJumps == airJumps &&
+          other.jumpCut == jumpCut &&
+          other.coyoteSeconds == coyoteSeconds &&
+          other.slopeSpeed == slopeSpeed &&
+          other.glideFall == glideFall &&
+          other.glideAfter == glideAfter &&
+          other.jumpBufferSeconds == jumpBufferSeconds &&
+          other.dashSpeed == dashSpeed &&
+          other.dashCooldownSeconds == dashCooldownSeconds &&
+          other.dashDrag == dashDrag &&
+          other.turnRate == turnRate &&
+          other.wallProbe == wallProbe &&
+          other.wallSlideSpeed == wallSlideSpeed &&
+          other.wallJumpUp == wallJumpUp &&
+          other.wallJumpPush == wallJumpPush &&
+          other.wallCoyoteSeconds == wallCoyoteSeconds &&
+          other.mantleLow == mantleLow &&
+          other.stompBounce == stompBounce &&
+          other.stompBounceHeld == stompBounceHeld &&
+          other.dropThroughSeconds == dropThroughSeconds &&
+          other.crouchHeight == crouchHeight &&
+          other.crouchSpeed == crouchSpeed &&
+          other.slideSpeed == slideSpeed &&
+          other.slideSeconds == slideSeconds &&
+          other.slideFriction == slideFriction &&
+          other.longJumpUp == longJumpUp &&
+          other.longJumpPush == longJumpPush &&
+          other.poundSpeed == poundSpeed &&
+          other.mantleHigh == mantleHigh &&
+          other.mantleReach == mantleReach;
+
+  @override
+  int get hashCode => Object.hashAll(<Object?>[
+    grip,
+    jumpSpeed,
+    airJumpSpeed,
+    airJumps,
+    jumpCut,
+    coyoteSeconds,
+    slopeSpeed,
+    glideFall,
+    glideAfter,
+    jumpBufferSeconds,
+    dashSpeed,
+    dashCooldownSeconds,
+    dashDrag,
+    turnRate,
+    wallProbe,
+    wallSlideSpeed,
+    wallJumpUp,
+    wallJumpPush,
+    wallCoyoteSeconds,
+    mantleLow,
+    stompBounce,
+    stompBounceHeld,
+    dropThroughSeconds,
+    crouchHeight,
+    crouchSpeed,
+    slideSpeed,
+    slideSeconds,
+    slideFriction,
+    longJumpUp,
+    longJumpPush,
+    poundSpeed,
+    mantleHigh,
+    mantleReach,
+  ]);
 }

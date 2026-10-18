@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **Breaking: a time in a `double` says seconds in its name.**
+  `ImpulseShake.time` is `ImpulseShake.timeSeconds`; the value and its unit
+  are what they were. `dart fix` carries each rename out.
 - **A cutscene's picture is read here.** `SequenceView` (new) is made once
   for a `Sequence` and turns its keys into what a frame shows: `cameraOf`
   puts the eye and the point it looks at, in metres, on curves through the

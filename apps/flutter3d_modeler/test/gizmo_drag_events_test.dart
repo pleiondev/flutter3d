@@ -25,7 +25,6 @@ import 'package:flutter3d_modeler/src/staging.dart';
 import 'package:flutter3d_modeler/src/transform_gizmo.dart';
 import 'package:flutter3d_modeler/src/transform_modal.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart' hide Colors;
 
 import 'support/fake_graphics_backend.dart';
 

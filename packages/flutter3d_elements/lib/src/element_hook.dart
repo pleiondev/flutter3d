@@ -219,6 +219,25 @@ final class FieldQuantity extends Capability {
     Unit('W/m²', Dimension(<String, int>{'kg': 1, 's': -3})),
   );
 
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<FieldQuantity> values = <FieldQuantity>[
+    temperature,
+    surfaceTemperature,
+    heat,
+    water,
+    radiantFlux,
+  ];
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static FieldQuantity? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   /// The field's word in a file and a refusal.
   @override
   final String name;

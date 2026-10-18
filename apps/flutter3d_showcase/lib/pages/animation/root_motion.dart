@@ -141,11 +141,11 @@ final class RootMotionDemo extends ShowcaseDemo {
     // #region live
     final double fromTime = _lastTime;
     _player.update(dt);
-    _lastTime = _player.time;
+    _lastTime = _player.timeSeconds;
     final Vector3? delta = _player.rootMotionDelta(
       0,
-      fromTime: fromTime,
-      toTime: _lastTime,
+      fromSeconds: fromTime,
+      toSeconds: _lastTime,
     );
     if (delta != null) {
       // The clip only ever walks forward; which way forward is on the floor

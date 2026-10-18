@@ -101,4 +101,37 @@ final class AiSettings {
     avoidOffset: avoidOffset ?? this.avoidOffset,
     skill: skill ?? this.skill,
   );
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AiSettings &&
+          other.lookAheadPerSpeed == lookAheadPerSpeed &&
+          other.minLookAhead == minLookAhead &&
+          other.steerGain == steerGain &&
+          other.corneringGrip == corneringGrip &&
+          other.brakeHorizon == brakeHorizon &&
+          other.brakeMargin == brakeMargin &&
+          other.rubberBandPer100m == rubberBandPer100m &&
+          other.rubberBandClamp == rubberBandClamp &&
+          other.avoidRange == avoidRange &&
+          other.avoidWidth == avoidWidth &&
+          other.avoidOffset == avoidOffset &&
+          other.skill == skill;
+
+  @override
+  int get hashCode => Object.hash(
+    lookAheadPerSpeed,
+    minLookAhead,
+    steerGain,
+    corneringGrip,
+    brakeHorizon,
+    brakeMargin,
+    rubberBandPer100m,
+    rubberBandClamp,
+    avoidRange,
+    avoidWidth,
+    avoidOffset,
+    skill,
+  );
 }

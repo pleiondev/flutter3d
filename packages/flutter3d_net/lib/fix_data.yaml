@@ -1,6 +1,6 @@
 # Generated from flutter3d_build/lib/migrations/*.yaml by
 # `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
-# table-stamp: fbb33994bd2fa7e5
+# table-stamp: f38ff10f91336e6b
 #
 # Read by `dart fix` and the IDE: see "A break comes with its migration"
 # in CONTRIBUTING.md.
@@ -24,3 +24,21 @@ transforms:
               value: 'arguments[2]'
       - kind: 'removeParameter'
         index: 2
+  - title: 'flutter3d after 1.0.0-rc.1: net-LoopbackParty-tick'
+    date: 2026-10-14
+    element:
+      uris: ['package:flame_multiplayer/flame_multiplayer.dart', 'package:flutter3d_net/flutter3d_net.dart']
+      method: 'tick'
+      inClass: 'LoopbackParty'
+    changes:
+      - kind: 'rename'
+        newName: 'step'
+  - title: 'flutter3d after 1.0.0-rc.1: net-LoopbackWire-tick'
+    date: 2026-10-14
+    element:
+      uris: ['package:flame_multiplayer/flame_multiplayer.dart', 'package:flutter3d_net/flutter3d_net.dart']
+      method: 'tick'
+      inClass: 'LoopbackWire'
+    changes:
+      - kind: 'rename'
+        newName: 'step'

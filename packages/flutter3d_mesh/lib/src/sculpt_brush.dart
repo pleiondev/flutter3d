@@ -80,6 +80,28 @@ final class BrushKind {
   /// fold.
   static const BrushKind crease = BrushKind._('crease');
 
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<BrushKind> values = <BrushKind>[
+    draw,
+    clay,
+    smooth,
+    flatten,
+    inflate,
+    grab,
+    pinch,
+    crease,
+  ];
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static BrushKind? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   @override
   String toString() => 'BrushKind.$name';
 }
@@ -105,6 +127,23 @@ final class BrushFalloff {
   /// Influence follows the square of the linear falloff, concentrated at
   /// the centre and thinning fast toward the edge.
   static const BrushFalloff sharp = BrushFalloff._('sharp');
+
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<BrushFalloff> values = <BrushFalloff>[
+    linear,
+    smooth,
+    sharp,
+  ];
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static BrushFalloff? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
 
   @override
   String toString() => 'BrushFalloff.$name';

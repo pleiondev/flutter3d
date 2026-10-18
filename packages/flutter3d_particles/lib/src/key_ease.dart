@@ -36,6 +36,19 @@ final class KeyEase {
   /// the curve is visible as a crease in the motion.
   static const KeyEase smooth = KeyEase('smooth', _smooth);
 
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<KeyEase> values = <KeyEase>[step, linear, smooth];
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static KeyEase? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   @override
   bool operator ==(Object other) => other is KeyEase && other.name == name;
 

@@ -32,6 +32,15 @@ final class MoverState {
   /// On its way back.
   static const MoverState closing = MoverState._('closing');
 
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static MoverState? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   /// Every state this build knows, in the order the enum declared them.
   static const List<MoverState> values = <MoverState>[
     closed,

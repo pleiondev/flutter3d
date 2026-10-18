@@ -49,7 +49,7 @@ void main() {
     RigidDynamics core(CollisionWorld world) {
       world.properties = world.properties.copyWith(airDensity: 1e-30);
       final dynamics = NativeDynamics(world: world);
-      if (!scene.sleeps) dynamics.native.setSleep(speed: 0.0, time: 0.0);
+      if (!scene.sleeps) dynamics.native.setSleep(speed: 0.0, timeSeconds: 0.0);
       addTearDown(dynamics.dispose);
       return dynamics;
     }

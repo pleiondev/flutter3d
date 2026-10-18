@@ -75,6 +75,20 @@ final class SwimSettings {
 
   /// Top speed while swimming, in metres a second.
   final double speed;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SwimSettings &&
+          other.buoyancyRatio == buoyancyRatio &&
+          other.sinkSpeed == sinkSpeed &&
+          other.riseSpeed == riseSpeed &&
+          other.drag == drag &&
+          other.speed == speed;
+
+  @override
+  int get hashCode =>
+      Object.hash(buoyancyRatio, sinkSpeed, riseSpeed, drag, speed);
 }
 
 /// A body of water, as a trigger a runner can be inside.

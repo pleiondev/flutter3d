@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `tick` goes.** `step` is the fixed simulation step, `update`
+  the variable frame and `advance` playback: `PadInput.tick` is
+  `PadInput.update`. `dart fix` renames the calls and the overrides.
+- **Breaking: no public `late final` setter.**
+  `GameSettingsController.rebinding` is a getter over a private field: the
+  setter they had worked once and threw the second time, and every read
+  compiles as it did.
 - **A branch cuts a demo with the buffer.** `RunTimeline(onBranched:)`
   hears every `releaseAt` and `branchHere` as a `TimelineBranch`: the step
   the run goes on from and how far back that was.

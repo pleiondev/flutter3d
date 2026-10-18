@@ -484,7 +484,7 @@ void main() {
     final it = _skirmish();
     _steps(it.sim, 41);
     expect(
-      it.hunter.cooldown,
+      it.hunter.cooldownSeconds,
       greaterThan(0.0),
       reason: 'it was ready to fire anyway, so nothing was under test',
     );

@@ -3156,3 +3156,1353 @@ entries:
       `addSystem` takes optional `reads:` and `writes:`, empty by default,
       so every call compiles as it did. A class of your own that extends
       `LoopRegistry` adds the two named parameters to its `addSystem`.
+
+  - id: flame_flutter3d-FlameChaseCamera-virtualCamera
+    package: flame_flutter3d
+    symbol: FlameChaseCamera.virtualCamera
+    kind: none
+    reason: >-
+      `virtualCamera` was a public `late final` with no initialiser: a setter
+      that worked once and threw `LateInitializationError` the second time. It
+      is a getter now; every read compiles as it did, and only an assignment,
+      which could never succeed after construction, is refused.
+
+  - id: flame_flutter3d-ViewCamera-virtualCamera
+    package: flame_flutter3d
+    symbol: ViewCamera.virtualCamera
+    kind: none
+    reason: >-
+      `virtualCamera` was a public `late final` with no initialiser: a setter
+      that worked once and threw `LateInitializationError` the second time. It
+      is a getter now; every read compiles as it did, and only an assignment,
+      which could never succeed after construction, is refused.
+
+  - id: app-FrameClock-elapsed
+    package: flutter3d_app
+    symbol: FrameClock.elapsed
+    kind: rename
+    to: FrameClock.elapsedSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: app-FrameClock-tick
+    package: flutter3d_app
+    symbol: FrameClock.tick
+    kind: rename
+    to: FrameClock.nextFrameSeconds
+    guidance: >-
+      One verb per clock: `step` is the fixed simulation step, `update` the
+      variable frame, `advance` playback, and `tick` is none of them. Same
+      behaviour under the new name.
+
+  - id: app-WidgetSurface-tick
+    package: flutter3d_app
+    symbol: WidgetSurface.tick
+    kind: rename
+    to: WidgetSurface.update
+    guidance: >-
+      One verb per clock: `step` is the fixed simulation step, `update` the
+      variable frame, `advance` playback, and `tick` is none of them. Same
+      behaviour under the new name.
+
+  - id: app-XrFrame-XrFrame
+    package: flutter3d_app
+    symbol: XrFrame.XrFrame
+    kind: parameters
+    changes:
+      - rename: predictedDisplayPeriod
+        to: predictedDisplayPeriodSeconds
+      - rename: predictedDisplayTime
+        to: predictedDisplaySeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: app-XrFrame-predictedDisplayPeriod
+    package: flutter3d_app
+    symbol: XrFrame.predictedDisplayPeriod
+    kind: rename
+    to: XrFrame.predictedDisplayPeriodSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: app-XrFrame-predictedDisplayTime
+    package: flutter3d_app
+    symbol: XrFrame.predictedDisplayTime
+    kind: rename
+    to: XrFrame.predictedDisplaySeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: app-FakeXrSession-FakeXrSession
+    package: flutter3d_app
+    symbol: FakeXrSession.FakeXrSession
+    kind: parameters
+    changes:
+      - rename: period
+        to: periodSeconds
+      - rename: startTime
+        to: startSeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: app-FakeXrSession-period
+    package: flutter3d_app
+    symbol: FakeXrSession.period
+    kind: rename
+    to: FakeXrSession.periodSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: app-FakeXrSession-startTime
+    package: flutter3d_app
+    symbol: FakeXrSession.startTime
+    kind: rename
+    to: FakeXrSession.startSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: camera-ImpulseShake-time
+    package: flutter3d_camera
+    symbol: ImpulseShake.time
+    kind: rename
+    to: ImpulseShake.timeSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: core-AnimationClip-AnimationClip
+    package: flutter3d_core
+    symbol: AnimationClip.AnimationClip
+    kind: parameters
+    changes:
+      - rename: referenceTime
+        to: referenceSeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: core-AnimationClip-duration
+    package: flutter3d_core
+    symbol: AnimationClip.duration
+    kind: rename
+    to: AnimationClip.durationSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: core-AnimationClip-referenceTime
+    package: flutter3d_core
+    symbol: AnimationClip.referenceTime
+    kind: rename
+    to: AnimationClip.referenceSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: core-AnimationGraph-stateTime
+    package: flutter3d_core
+    symbol: AnimationGraph.stateTime
+    kind: rename
+    to: AnimationGraph.stateSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: core-AnimationLayer-time
+    package: flutter3d_core
+    symbol: AnimationLayer.time
+    kind: rename
+    to: AnimationLayer.timeSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: core-AnimationPlayer-crossFadeTo
+    package: flutter3d_core
+    symbol: AnimationPlayer.crossFadeTo
+    kind: parameters
+    changes:
+      - rename: duration
+        to: durationSeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: core-AnimationPlayer-crossFadeToNamed
+    package: flutter3d_core
+    symbol: AnimationPlayer.crossFadeToNamed
+    kind: parameters
+    changes:
+      - rename: duration
+        to: durationSeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: core-AnimationPlayer-duration
+    package: flutter3d_core
+    symbol: AnimationPlayer.duration
+    kind: rename
+    to: AnimationPlayer.durationSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: core-AnimationPlayer-rootMotionDelta
+    package: flutter3d_core
+    symbol: AnimationPlayer.rootMotionDelta
+    kind: parameters
+    changes:
+      - rename: fromTime
+        to: fromSeconds
+      - rename: toTime
+        to: toSeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: core-AnimationPlayer-time
+    package: flutter3d_core
+    symbol: AnimationPlayer.time
+    kind: rename
+    to: AnimationPlayer.timeSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: core-AnimationTrack-endTime
+    package: flutter3d_core
+    symbol: AnimationTrack.endTime
+    kind: rename
+    to: AnimationTrack.endSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: core-AnimationTrack-startTime
+    package: flutter3d_core
+    symbol: AnimationTrack.startTime
+    kind: rename
+    to: AnimationTrack.startSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: core-AnimationTransition-AnimationTransition
+    package: flutter3d_core
+    symbol: AnimationTransition.AnimationTransition
+    kind: parameters
+    changes:
+      - rename: duration
+        to: durationSeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: core-AnimationTransition-duration
+    package: flutter3d_core
+    symbol: AnimationTransition.duration
+    kind: rename
+    to: AnimationTransition.durationSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: core-ContributorFrame-ContributorFrame
+    package: flutter3d_core
+    symbol: ContributorFrame.ContributorFrame
+    kind: parameters
+    changes:
+      - rename: time
+        to: timeSeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: core-IrradianceField-active
+    package: flutter3d_core
+    symbol: IrradianceField.active
+    kind: none
+    reason: >-
+      `active` was a public `late final` with no initialiser: a setter that
+      worked once and threw `LateInitializationError` the second time. It is a
+      getter now; every read compiles as it did, and only an assignment, which
+      could never succeed after construction, is refused.
+
+  - id: core-IrradianceField-depth
+    package: flutter3d_core
+    symbol: IrradianceField.depth
+    kind: none
+    reason: >-
+      `depth` was a public `late final` with no initialiser: a setter that
+      worked once and threw `LateInitializationError` the second time. It is a
+      getter now; every read compiles as it did, and only an assignment, which
+      could never succeed after construction, is refused.
+
+  - id: core-IrradianceField-irradiance
+    package: flutter3d_core
+    symbol: IrradianceField.irradiance
+    kind: none
+    reason: >-
+      `irradiance` was a public `late final` with no initialiser: a setter
+      that worked once and threw `LateInitializationError` the second time. It
+      is a getter now; every read compiles as it did, and only an assignment,
+      which could never succeed after construction, is refused.
+
+  - id: core-MorphState-weights
+    package: flutter3d_core
+    symbol: MorphState.weights
+    kind: none
+    reason: >-
+      `weights` was a public `late final` with no initialiser: a setter that
+      worked once and threw `LateInitializationError` the second time. It is a
+      getter now; every read compiles as it did, and only an assignment, which
+      could never succeed after construction, is refused.
+
+  - id: core-PlayheadStep-PlayheadStep
+    package: flutter3d_core
+    symbol: PlayheadStep.PlayheadStep
+    kind: parameters
+    changes:
+      - rename: time
+        to: timeSeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: core-PlayheadStep-time
+    package: flutter3d_core
+    symbol: PlayheadStep.time
+    kind: rename
+    to: PlayheadStep.timeSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: core-RenderFrame-RenderFrame
+    package: flutter3d_core
+    symbol: RenderFrame.RenderFrame
+    kind: parameters
+    changes:
+      - rename: time
+        to: timeSeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: core-advanceTime
+    package: flutter3d_core
+    symbol: advanceTime
+    kind: parameters
+    changes:
+      - rename: time
+        to: seconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: cpu-CpuDevice-backendId
+    package: flutter3d_cpu
+    symbol: CpuDevice.backendId
+    kind: none
+    reason: >-
+      `CpuDevice.backendId` answers a `BackendId`, an extension type that
+      implements `String` and holds the same text, so every read compiles and
+      compares as it did.
+
+  - id: effects-LiquidView-sheetNode
+    package: flutter3d_effects
+    symbol: LiquidView.sheetNode
+    kind: none
+    reason: >-
+      `sheetNode` was a public `late final` with no initialiser: a setter that
+      worked once and threw `LateInitializationError` the second time. It is a
+      getter now; every read compiles as it did, and only an assignment, which
+      could never succeed after construction, is refused.
+
+  - id: effects-LiquidView-surfaceNode
+    package: flutter3d_effects
+    symbol: LiquidView.surfaceNode
+    kind: none
+    reason: >-
+      `surfaceNode` was a public `late final` with no initialiser: a setter
+      that worked once and threw `LateInitializationError` the second time. It
+      is a getter now; every read compiles as it did, and only an assignment,
+      which could never succeed after construction, is refused.
+
+  - id: elements-ElementsSimulation-fires
+    package: flutter3d_elements
+    symbol: ElementsSimulation.fires
+    kind: none
+    reason: >-
+      `fires` was a public `late final` with no initialiser: a setter that
+      worked once and threw `LateInitializationError` the second time. It is a
+      getter now; every read compiles as it did, and only an assignment, which
+      could never succeed after construction, is refused.
+
+  - id: game-GameSettingsController-rebinding
+    package: flutter3d_game
+    symbol: GameSettingsController.rebinding
+    kind: none
+    reason: >-
+      `rebinding` was a public `late final` with no initialiser: a setter that
+      worked once and threw `LateInitializationError` the second time. It is a
+      getter now; every read compiles as it did, and only an assignment, which
+      could never succeed after construction, is refused.
+
+  - id: game-PadInput-tick
+    package: flutter3d_game
+    symbol: PadInput.tick
+    kind: rename
+    to: PadInput.update
+    guidance: >-
+      One verb per clock: `step` is the fixed simulation step, `update` the
+      variable frame, `advance` playback, and `tick` is none of them. Same
+      behaviour under the new name.
+
+  - id: game_physics-SkeletonRagdoll-ragdoll
+    package: flutter3d_game_physics
+    symbol: SkeletonRagdoll.ragdoll
+    kind: none
+    reason: >-
+      `ragdoll` was a public `late final` with no initialiser: a setter that
+      worked once and threw `LateInitializationError` the second time. It is a
+      getter now; every read compiles as it did, and only an assignment, which
+      could never succeed after construction, is refused.
+
+  - id: game_platformer-Climbable-Climbable
+    package: flutter3d_game_platformer
+    symbol: Climbable.Climbable
+    kind: parameters
+    changes:
+      - rename: period
+        to: periodSeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: game_platformer-Climbable-period
+    package: flutter3d_game_platformer
+    symbol: Climbable.period
+    kind: rename
+    to: Climbable.periodSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: game_platformer-Crumbling-Crumbling
+    package: flutter3d_game_platformer
+    symbol: Crumbling.Crumbling
+    kind: parameters
+    changes:
+      - rename: delay
+        to: delaySeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: game_platformer-Crumbling-delay
+    package: flutter3d_game_platformer
+    symbol: Crumbling.delay
+    kind: rename
+    to: Crumbling.delaySeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: game_platformer-FollowCamera-virtualCamera
+    package: flutter3d_game_platformer
+    symbol: FollowCamera.virtualCamera
+    kind: none
+    reason: >-
+      `virtualCamera` was a public `late final` with no initialiser: a setter
+      that worked once and threw `LateInitializationError` the second time. It
+      is a getter now; every read compiles as it did, and only an assignment,
+      which could never succeed after construction, is refused.
+
+  - id: game_platformer-PlatformerSimulation-PlatformerSimulation
+    package: flutter3d_game_platformer
+    symbol: PlatformerSimulation.PlatformerSimulation
+    kind: parameters
+    changes:
+      - rename: elapsed
+        to: elapsedSeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: game_platformer-PlatformerSimulation-elapsed
+    package: flutter3d_game_platformer
+    symbol: PlatformerSimulation.elapsed
+    kind: rename
+    to: PlatformerSimulation.elapsedSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: game_platformer-Runner-dashCooldown
+    package: flutter3d_game_platformer
+    symbol: Runner.dashCooldown
+    kind: rename
+    to: Runner.dashCooldownSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: game_platformer-RunnerSettings-RunnerSettings
+    package: flutter3d_game_platformer
+    symbol: RunnerSettings.RunnerSettings
+    kind: parameters
+    changes:
+      - rename: coyoteTime
+        to: coyoteSeconds
+      - rename: dashCooldown
+        to: dashCooldownSeconds
+      - rename: dropThroughTime
+        to: dropThroughSeconds
+      - rename: jumpBufferTime
+        to: jumpBufferSeconds
+      - rename: slideTime
+        to: slideSeconds
+      - rename: wallCoyoteTime
+        to: wallCoyoteSeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: game_platformer-RunnerSettings-copyWith
+    package: flutter3d_game_platformer
+    symbol: RunnerSettings.copyWith
+    kind: parameters
+    changes:
+      - rename: coyoteTime
+        to: coyoteSeconds
+      - rename: dashCooldown
+        to: dashCooldownSeconds
+      - rename: dropThroughTime
+        to: dropThroughSeconds
+      - rename: jumpBufferTime
+        to: jumpBufferSeconds
+      - rename: slideTime
+        to: slideSeconds
+      - rename: wallCoyoteTime
+        to: wallCoyoteSeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: game_platformer-RunnerSettings-coyoteTime
+    package: flutter3d_game_platformer
+    symbol: RunnerSettings.coyoteTime
+    kind: rename
+    to: RunnerSettings.coyoteSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: game_platformer-RunnerSettings-dashCooldown
+    package: flutter3d_game_platformer
+    symbol: RunnerSettings.dashCooldown
+    kind: rename
+    to: RunnerSettings.dashCooldownSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: game_platformer-RunnerSettings-dropThroughTime
+    package: flutter3d_game_platformer
+    symbol: RunnerSettings.dropThroughTime
+    kind: rename
+    to: RunnerSettings.dropThroughSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: game_platformer-RunnerSettings-jumpBufferTime
+    package: flutter3d_game_platformer
+    symbol: RunnerSettings.jumpBufferTime
+    kind: rename
+    to: RunnerSettings.jumpBufferSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: game_platformer-RunnerSettings-slideTime
+    package: flutter3d_game_platformer
+    symbol: RunnerSettings.slideTime
+    kind: rename
+    to: RunnerSettings.slideSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: game_platformer-RunnerSettings-wallCoyoteTime
+    package: flutter3d_game_platformer
+    symbol: RunnerSettings.wallCoyoteTime
+    kind: rename
+    to: RunnerSettings.wallCoyoteSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: game_platformer-stagePlatformer
+    package: flutter3d_game_platformer
+    symbol: stagePlatformer
+    kind: parameters
+    changes:
+      - rename: elapsed
+        to: elapsedSeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: game_racing-ChaseCamera-virtualCamera
+    package: flutter3d_game_racing
+    symbol: ChaseCamera.virtualCamera
+    kind: none
+    reason: >-
+      `virtualCamera` was a public `late final` with no initialiser: a setter
+      that worked once and threw `LateInitializationError` the second time. It
+      is a getter now; every read compiles as it did, and only an assignment,
+      which could never succeed after construction, is refused.
+
+  - id: game_racing-GhostDocument-lapTime
+    package: flutter3d_game_racing
+    symbol: GhostDocument.lapTime
+    kind: rename
+    to: GhostDocument.lapSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: game_racing-GhostRecorder-tick
+    package: flutter3d_game_racing
+    symbol: GhostRecorder.tick
+    kind: rename
+    to: GhostRecorder.record
+    guidance: >-
+      One verb per clock: `step` is the fixed simulation step, `update` the
+      variable frame, `advance` playback, and `tick` is none of them. Same
+      behaviour under the new name.
+
+  - id: game_racing-RaceState-elapsed
+    package: flutter3d_game_racing
+    symbol: RaceState.elapsed
+    kind: rename
+    to: RaceState.elapsedSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: game_racing-RacerProgress-lapTime
+    package: flutter3d_game_racing
+    symbol: RacerProgress.lapTime
+    kind: rename
+    to: RacerProgress.lapSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: game_racing-RacerProgress-totalTime
+    package: flutter3d_game_racing
+    symbol: RacerProgress.totalTime
+    kind: rename
+    to: RacerProgress.totalSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: game_racing-SectorCompleted-time
+    package: flutter3d_game_racing
+    symbol: SectorCompleted.time
+    kind: rename
+    to: SectorCompleted.timeSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: game_shooter-ChaseBrain-attackCooldown
+    package: flutter3d_game_shooter
+    symbol: ChaseBrain.attackCooldown
+    kind: rename
+    to: ChaseBrain.attackCooldownSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: game_shooter-ChaseBrain-painCooldown
+    package: flutter3d_game_shooter
+    symbol: ChaseBrain.painCooldown
+    kind: rename
+    to: ChaseBrain.painCooldownSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: game_shooter-ChaseBrain-stateTime
+    package: flutter3d_game_shooter
+    symbol: ChaseBrain.stateTime
+    kind: rename
+    to: ChaseBrain.stateSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: game_shooter-FirstPersonCamera-virtualCamera
+    package: flutter3d_game_shooter
+    symbol: FirstPersonCamera.virtualCamera
+    kind: none
+    reason: >-
+      `virtualCamera` was a public `late final` with no initialiser: a setter
+      that worked once and threw `LateInitializationError` the second time. It
+      is a getter now; every read compiles as it did, and only an assignment,
+      which could never succeed after construction, is refused.
+
+  - id: game_shooter-MonsterDef-MonsterDef
+    package: flutter3d_game_shooter
+    symbol: MonsterDef.MonsterDef
+    kind: parameters
+    changes:
+      - rename: alertDuration
+        to: alertSeconds
+      - rename: hurtDuration
+        to: hurtSeconds
+      - rename: painCooldown
+        to: painCooldownSeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: game_shooter-MonsterDef-alertDuration
+    package: flutter3d_game_shooter
+    symbol: MonsterDef.alertDuration
+    kind: rename
+    to: MonsterDef.alertSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: game_shooter-MonsterDef-hurtDuration
+    package: flutter3d_game_shooter
+    symbol: MonsterDef.hurtDuration
+    kind: rename
+    to: MonsterDef.hurtSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: game_shooter-MonsterDef-painCooldown
+    package: flutter3d_game_shooter
+    symbol: MonsterDef.painCooldown
+    kind: rename
+    to: MonsterDef.painCooldownSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: game_shooter-WeaponDef-cooldown
+    package: flutter3d_game_shooter
+    symbol: WeaponDef.cooldown
+    kind: rename
+    to: WeaponDef.cooldownSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: game_strategy-MapCamera-virtualCamera
+    package: flutter3d_game_strategy
+    symbol: MapCamera.virtualCamera
+    kind: none
+    reason: >-
+      `virtualCamera` was a public `late final` with no initialiser: a setter
+      that worked once and threw `LateInitializationError` the second time. It
+      is a getter now; every read compiles as it did, and only an assignment,
+      which could never succeed after construction, is refused.
+
+  - id: game_strategy-StrategyUnit-cooldown
+    package: flutter3d_game_strategy
+    symbol: StrategyUnit.cooldown
+    kind: rename
+    to: StrategyUnit.cooldownSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: hardware-GraphicsDevice-backendId
+    package: flutter3d_hardware
+    symbol: GraphicsDevice.backendId
+    kind: manual
+    guidance: >-
+      A backend of your own overrides `backendId` with the `BackendId` type:
+      `BackendId get backendId => const BackendId('mybackend');` with the same
+      string as before. Code that reads it keeps compiling: a `BackendId` is a
+      `String`.
+
+  - id: hardware-RecordingDevice-backendId
+    package: flutter3d_hardware
+    symbol: RecordingDevice.backendId
+    kind: none
+    reason: >-
+      `RecordingDevice.backendId` answers a `BackendId`, an extension type
+      that implements `String` and holds the same text, so every read compiles
+      and compares as it did.
+
+  - id: impeller-GpuRenderBackend-backendId
+    package: flutter3d_impeller
+    symbol: GpuRenderBackend.backendId
+    kind: none
+    reason: >-
+      `GpuRenderBackend.backendId` answers a `BackendId`, an extension type
+      that implements `String` and holds the same text, so every read compiles
+      and compares as it did.
+
+  - id: model_core-KeyShape-KeyShape
+    package: flutter3d_model_core
+    symbol: KeyShape.KeyShape
+    kind: parameters
+    changes:
+      - rename: time
+        to: timeSeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: model_core-KeyShape-time
+    package: flutter3d_model_core
+    symbol: KeyShape.time
+    kind: rename
+    to: KeyShape.timeSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: model_core-KeyTable-duration
+    package: flutter3d_model_core
+    symbol: KeyTable.duration
+    kind: rename
+    to: KeyTable.durationSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: model_core-Keyframe-Keyframe
+    package: flutter3d_model_core
+    symbol: Keyframe.Keyframe
+    kind: parameters
+    changes:
+      - rename: time
+        to: timeSeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: model_core-Keyframe-time
+    package: flutter3d_model_core
+    symbol: Keyframe.time
+    kind: rename
+    to: Keyframe.timeSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: model_core-MoveKeys-MoveKeys
+    package: flutter3d_model_core
+    symbol: MoveKeys.MoveKeys
+    kind: parameters
+    changes:
+      - rename: deltaTime
+        to: deltaSeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: model_core-MoveKeys-deltaTime
+    package: flutter3d_model_core
+    symbol: MoveKeys.deltaTime
+    kind: rename
+    to: MoveKeys.deltaSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: model_core-SetKey-SetKey
+    package: flutter3d_model_core
+    symbol: SetKey.SetKey
+    kind: parameters
+    changes:
+      - rename: time
+        to: timeSeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: model_core-SetKey-time
+    package: flutter3d_model_core
+    symbol: SetKey.time
+    kind: rename
+    to: SetKey.timeSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: model_core-evaluateShapeDriversLive
+    package: flutter3d_model_core
+    symbol: evaluateShapeDriversLive
+    kind: parameters
+    changes:
+      - rename: time
+        to: timeSeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: net-EngineRollback-session
+    package: flutter3d_net
+    symbol: EngineRollback.session
+    kind: none
+    reason: >-
+      `session` was a public `late final` with no initialiser: a setter that
+      worked once and threw `LateInitializationError` the second time. It is a
+      getter now; every read compiles as it did, and only an assignment, which
+      could never succeed after construction, is refused.
+
+  - id: net-LoopbackParty-tick
+    package: flutter3d_net
+    symbol: LoopbackParty.tick
+    kind: rename
+    to: LoopbackParty.step
+    guidance: >-
+      One verb per clock: `step` is the fixed simulation step, `update` the
+      variable frame, `advance` playback, and `tick` is none of them. Same
+      behaviour under the new name.
+
+  - id: net-LoopbackWire-tick
+    package: flutter3d_net
+    symbol: LoopbackWire.tick
+    kind: rename
+    to: LoopbackWire.step
+    guidance: >-
+      One verb per clock: `step` is the fixed simulation step, `update` the
+      variable frame, `advance` playback, and `tick` is none of them. Same
+      behaviour under the new name.
+
+  - id: particles-Particle-age
+    package: flutter3d_particles
+    symbol: Particle.age
+    kind: rename
+    to: Particle.ageSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: particles-Particle-lifetime
+    package: flutter3d_particles
+    symbol: Particle.lifetime
+    kind: rename
+    to: Particle.lifetimeSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: physics-BodyForceContext-time
+    package: flutter3d_physics
+    symbol: BodyForceContext.time
+    kind: rename
+    to: BodyForceContext.timeSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: physics-CharacterController-collider
+    package: flutter3d_physics
+    symbol: CharacterController.collider
+    kind: none
+    reason: >-
+      `collider` was a public `late final` with no initialiser: a setter that
+      worked once and threw `LateInitializationError` the second time. It is a
+      getter now; every read compiles as it did, and only an assignment, which
+      could never succeed after construction, is refused.
+
+  - id: physics-FluidWorld-time
+    package: flutter3d_physics
+    symbol: FluidWorld.time
+    kind: rename
+    to: FluidWorld.timeSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: physics-LiquidBody-place
+    package: flutter3d_physics
+    symbol: LiquidBody.place
+    kind: parameters
+    changes:
+      - rename: time
+        to: timeSeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: physics-MovementSettings-MovementSettings
+    package: flutter3d_physics
+    symbol: MovementSettings.MovementSettings
+    kind: parameters
+    changes:
+      - rename: coyoteTime
+        to: coyoteSeconds
+      - rename: jumpBufferTime
+        to: jumpBufferSeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: physics-MovementSettings-copyWith
+    package: flutter3d_physics
+    symbol: MovementSettings.copyWith
+    kind: parameters
+    changes:
+      - rename: coyoteTime
+        to: coyoteSeconds
+      - rename: jumpBufferTime
+        to: jumpBufferSeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: physics-MovementSettings-coyoteTime
+    package: flutter3d_physics
+    symbol: MovementSettings.coyoteTime
+    kind: rename
+    to: MovementSettings.coyoteSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: physics-MovementSettings-jumpBufferTime
+    package: flutter3d_physics
+    symbol: MovementSettings.jumpBufferTime
+    kind: rename
+    to: MovementSettings.jumpBufferSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: physics-ParticleFluid-capillaryTime
+    package: flutter3d_physics
+    symbol: ParticleFluid.capillaryTime
+    kind: rename
+    to: ParticleFluid.capillarySeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: physics-RigidBody-collider
+    package: flutter3d_physics
+    symbol: RigidBody.collider
+    kind: none
+    reason: >-
+      `collider` was a public `late final` with no initialiser: a setter that
+      worked once and threw `LateInitializationError` the second time. It is a
+      getter now; every read compiles as it did, and only an assignment, which
+      could never succeed after construction, is refused.
+
+  - id: physics-TubeMeniscus-apexCurvature
+    package: flutter3d_physics
+    symbol: TubeMeniscus.apexCurvature
+    kind: none
+    reason: >-
+      `apexCurvature` was a public `late final` with no initialiser: a setter
+      that worked once and threw `LateInitializationError` the second time. It
+      is a getter now; every read compiles as it did, and only an assignment,
+      which could never succeed after construction, is refused.
+
+  - id: physics-TubeMeniscus-wallRise
+    package: flutter3d_physics
+    symbol: TubeMeniscus.wallRise
+    kind: none
+    reason: >-
+      `wallRise` was a public `late final` with no initialiser: a setter that
+      worked once and threw `LateInitializationError` the second time. It is a
+      getter now; every read compiles as it did, and only an assignment, which
+      could never succeed after construction, is refused.
+
+  - id: plugin_api-ExternalStateInput-ExternalStateInput
+    package: flutter3d_plugin_api
+    symbol: ExternalStateInput.ExternalStateInput
+    kind: parameters
+    changes:
+      - rename: receivedTime
+        to: receivedSeconds
+      - rename: sourceTime
+        to: sourceSeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: plugin_api-ExternalStateInput-ExternalStateInput-quantity
+    package: flutter3d_plugin_api
+    symbol: ExternalStateInput.ExternalStateInput.quantity
+    kind: parameters
+    changes:
+      - rename: receivedTime
+        to: receivedSeconds
+      - rename: sourceTime
+        to: sourceSeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: plugin_api-ExternalStateInput-receivedTime
+    package: flutter3d_plugin_api
+    symbol: ExternalStateInput.receivedTime
+    kind: rename
+    to: ExternalStateInput.receivedSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: plugin_api-ExternalStateInput-sourceTime
+    package: flutter3d_plugin_api
+    symbol: ExternalStateInput.sourceTime
+    kind: rename
+    to: ExternalStateInput.sourceSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: sim-BehaviorChildren-tick
+    package: flutter3d_sim
+    symbol: BehaviorChildren.tick
+    kind: rename
+    to: BehaviorChildren.step
+    guidance: >-
+      One verb per clock: `step` is the fixed simulation step, `update` the
+      variable frame, `advance` playback, and `tick` is none of them. Same
+      behaviour under the new name.
+
+  - id: sim-BehaviorComposite-tick
+    package: flutter3d_sim
+    symbol: BehaviorComposite.tick
+    kind: rename
+    to: BehaviorComposite.step
+    guidance: >-
+      One verb per clock: `step` is the fixed simulation step, `update` the
+      variable frame, `advance` playback, and `tick` is none of them. Same
+      behaviour under the new name.
+
+  - id: sim-BehaviorLeaf-tick
+    package: flutter3d_sim
+    symbol: BehaviorLeaf.tick
+    kind: rename
+    to: BehaviorLeaf.step
+    guidance: >-
+      One verb per clock: `step` is the fixed simulation step, `update` the
+      variable frame, `advance` playback, and `tick` is none of them. Same
+      behaviour under the new name.
+
+  - id: sim-BehaviorTree-tick
+    package: flutter3d_sim
+    symbol: BehaviorTree.tick
+    kind: rename
+    to: BehaviorTree.step
+    guidance: >-
+      One verb per clock: `step` is the fixed simulation step, `update` the
+      variable frame, `advance` playback, and `tick` is none of them. Same
+      behaviour under the new name.
+
+  - id: sim-EngineLoop-plugins
+    package: flutter3d_sim
+    symbol: EngineLoop.plugins
+    kind: none
+    reason: >-
+      `plugins` was a public `late final` with no initialiser: a setter that
+      worked once and threw `LateInitializationError` the second time. It is a
+      getter now; every read compiles as it did, and only an assignment, which
+      could never succeed after construction, is refused.
+
+  - id: sim-EngineLoop-snapshots
+    package: flutter3d_sim
+    symbol: EngineLoop.snapshots
+    kind: none
+    reason: >-
+      `snapshots` was a public `late final` with no initialiser: a setter that
+      worked once and threw `LateInitializationError` the second time. It is a
+      getter now; every read compiles as it did, and only an assignment, which
+      could never succeed after construction, is refused.
+
+  - id: sim-GhostFrame-GhostFrame
+    package: flutter3d_sim
+    symbol: GhostFrame.GhostFrame
+    kind: parameters
+    changes:
+      - rename: time
+        to: timeSeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: sim-GhostFrame-time
+    package: flutter3d_sim
+    symbol: GhostFrame.time
+    kind: rename
+    to: GhostFrame.timeSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: sim-PulseLight-PulseLight
+    package: flutter3d_sim
+    symbol: PulseLight.PulseLight
+    kind: parameters
+    changes:
+      - rename: period
+        to: periodSeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: sim-PulseLight-period
+    package: flutter3d_sim
+    symbol: PulseLight.period
+    kind: rename
+    to: PulseLight.periodSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: sim-Recorder-tick
+    package: flutter3d_sim
+    symbol: Recorder.tick
+    kind: rename
+    to: Recorder.record
+    guidance: >-
+      One verb per clock: `step` is the fixed simulation step, `update` the
+      variable frame, `advance` playback, and `tick` is none of them. Same
+      behaviour under the new name.
+
+  - id: sim-RunStats-elapsed
+    package: flutter3d_sim
+    symbol: RunStats.elapsed
+    kind: rename
+    to: RunStats.elapsedSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: sim-Tape-duration
+    package: flutter3d_sim
+    symbol: Tape.duration
+    kind: rename
+    to: Tape.durationSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: sim-XrPlane-lost
+    package: flutter3d_sim
+    symbol: XrPlane.lost
+    kind: parameters
+    changes:
+      - rename: displayTime
+        to: displaySeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: sim-XrPlane-toInput
+    package: flutter3d_sim
+    symbol: XrPlane.toInput
+    kind: parameters
+    changes:
+      - rename: displayTime
+        to: displaySeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: sim-XrPoseInput-toInput
+    package: flutter3d_sim
+    symbol: XrPoseInput.toInput
+    kind: parameters
+    changes:
+      - rename: displayTime
+        to: displaySeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: sim-XrSceneMesh-toInput
+    package: flutter3d_sim
+    symbol: XrSceneMesh.toInput
+    kind: parameters
+    changes:
+      - rename: displayTime
+        to: displaySeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: stereo-HolderXrSession-HolderXrSession
+    package: flutter3d_stereo
+    symbol: HolderXrSession.HolderXrSession
+    kind: parameters
+    changes:
+      - rename: period
+        to: periodSeconds
+    guidance: >-
+      A time in a `double` is seconds and its name says so: the named
+      arguments are renamed, with the same value and unit.
+
+  - id: stereo-HolderXrSession-period
+    package: flutter3d_stereo
+    symbol: HolderXrSession.period
+    kind: rename
+    to: HolderXrSession.periodSeconds
+    guidance: >-
+      A time held in a `double` is seconds and its name says so. Same value,
+      same unit, under the new name.
+
+  - id: webgl-WebGlDevice-backendId
+    package: flutter3d_webgl
+    symbol: WebGlDevice.backendId
+    kind: none
+    reason: >-
+      `WebGlDevice.backendId` answers a `BackendId`, an extension type that
+      implements `String` and holds the same text, so every read compiles and
+      compares as it did.
+
+  - id: webgpu-WebGpuDevice-backendId
+    package: flutter3d_webgpu
+    symbol: WebGpuDevice.backendId
+    kind: none
+    reason: >-
+      `WebGpuDevice.backendId` answers a `BackendId`, an extension type that
+      implements `String` and holds the same text, so every read compiles and
+      compares as it did.
+
+
+  - id: sim-BehaviorComposite-step-abstract
+    package: flutter3d_sim
+    symbol: BehaviorComposite
+    kind: none
+    reason: >-
+      The abstract `step` a composite of your own writes is the `tick` it
+      wrote before, under its new name, and `dart fix` renames the override
+      with the call sites (`sim-BehaviorComposite-tick`): nothing is left to
+      write.
+
+  - id: sim-BehaviorLeaf-step-abstract
+    package: flutter3d_sim
+    symbol: BehaviorLeaf
+    kind: none
+    reason: >-
+      The abstract `step` a leaf of your own writes is the `tick` it wrote
+      before, under its new name, and `dart fix` renames the override with
+      the call sites (`sim-BehaviorLeaf-tick`): nothing is left to write.

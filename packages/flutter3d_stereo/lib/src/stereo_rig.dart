@@ -18,6 +18,20 @@ final class Eye {
   /// The right eye: index one, drawn in the right half of a target.
   static const Eye right = Eye._(1, 'right');
 
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<Eye> values = <Eye>[left, right];
+
+  /// The value whose [label] is [name], or null for a name this
+  /// version does not know, which is what a file written by a later
+  /// version can carry.
+  static Eye? byName(String name) {
+    for (final value in values) {
+      if (value.label == name) return value;
+    }
+    return null;
+  }
+
   /// In the order a projection layer lists them, which is also the order the
   /// halves of a target run in.
   static const List<Eye> both = <Eye>[left, right];

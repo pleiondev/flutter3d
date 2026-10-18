@@ -309,6 +309,15 @@ final class RenderAnchor {
     'f3d.before_present',
   );
 
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static RenderAnchor? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   /// Every anchor, in the order the frame meets them.
   static const List<RenderAnchor> values = <RenderAnchor>[
     beforeShadows,

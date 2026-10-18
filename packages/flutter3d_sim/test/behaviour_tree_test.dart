@@ -18,7 +18,7 @@ final class _Count extends BehaviorLeaf {
   final String key;
 
   @override
-  BehaviorStatus tick(BehaviorContext context) {
+  BehaviorStatus step(BehaviorContext context) {
     context.board.set(key, (context.board.number(key) ?? 0.0) + 1.0);
     return BehaviorStatus.success;
   }
@@ -29,7 +29,7 @@ final class _Hold extends BehaviorLeaf {
   const _Hold();
 
   @override
-  BehaviorStatus tick(BehaviorContext context) => BehaviorStatus.running;
+  BehaviorStatus step(BehaviorContext context) => BehaviorStatus.running;
 }
 
 BehaviorKinds _kinds() => BehaviorKinds()

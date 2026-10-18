@@ -14,7 +14,7 @@ final class GradientKey {
   /// its life.
   final double at;
 
-  /// Linear RGB with alpha as brightness, written into `Particle.linearRgba`.
+  /// Linear RGB with alpha as brightness, written into [Particle.linearRgba].
   final LinearColor color;
 
   /// How the colour leaves this key on its way to the next. Never read on

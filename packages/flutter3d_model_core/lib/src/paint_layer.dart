@@ -96,6 +96,15 @@ final class PaintBlendMode {
   /// `1 - (1-top)*(1-bottom)`, per channel.
   static const PaintBlendMode screen = PaintBlendMode._('screen', _screen);
 
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static PaintBlendMode? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   /// Every mode this class defines, for a picker to offer.
   static const List<PaintBlendMode> values = <PaintBlendMode>[
     normal,

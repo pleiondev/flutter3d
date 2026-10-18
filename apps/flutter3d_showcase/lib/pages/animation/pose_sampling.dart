@@ -115,7 +115,7 @@ final class PoseSamplingDemo extends ShowcaseDemo {
   @override
   void update(DemoContext context, double dt) {
     // #region sample
-    _time = (_time + dt) % _swing.duration;
+    _time = (_time + dt) % _swing.durationSeconds;
     _pose.sampleClip(_swing, _time);
     final List<Matrix4> world = _pose.worldMatrices();
     _rootMarker.setPositionFrom(world[0].getTranslation());

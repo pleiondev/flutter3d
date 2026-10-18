@@ -95,7 +95,10 @@ final class LightFixtureKind extends EntityKind {
     if (swell != null) {
       return swell <= 0.0
           ? const SteadyLight()
-          : PulseLight(depth: swell, period: entity.number('period') ?? 3.5);
+          : PulseLight(
+              depth: swell,
+              periodSeconds: entity.number('period') ?? 3.5,
+            );
     }
 
     final depth = entity.number('flicker');

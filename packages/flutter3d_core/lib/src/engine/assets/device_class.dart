@@ -50,6 +50,15 @@ final class DeviceClass {
   /// textures and the full level-of-detail chain.
   static const DeviceClass desktop = DeviceClass._('desktop');
 
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static DeviceClass? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   /// Every class, cheapest first.
   static const List<DeviceClass> values = <DeviceClass>[phone, web, desktop];
 
@@ -85,6 +94,7 @@ final class DeviceClass {
 
 /// A device class name [DeviceClass.parse] does not know.
 final class UnknownDeviceClassException extends Flutter3dFormatException {
+  /// The exception for the unknown name [text].
   const UnknownDeviceClassException(this.text);
 
   /// The name that was given.
@@ -96,7 +106,6 @@ final class UnknownDeviceClassException extends Flutter3dFormatException {
       '${DeviceClass.values.join(', ')}';
 
   @override
-  /// The exception for the unknown name [text].
   String toString() => 'UnknownDeviceClassException: $message';
 }
 
@@ -120,6 +129,7 @@ String deviceClassPath(String path, DeviceClass deviceClass) {
 /// is a function a test can hold: the same traits and the same measurement
 /// always pick the same class.
 final class DeviceTraits {
+  /// Traits stated directly; [DeviceTraits.of] reads them off a device.
   const DeviceTraits({
     required this.web,
     required this.samplesBc,
@@ -131,7 +141,6 @@ final class DeviceTraits {
   factory DeviceTraits.of(GraphicsDevice device, {required bool web}) =>
       DeviceTraits(
         web: web,
-  /// Traits stated directly; [DeviceTraits.of] reads them off a device.
         samplesBc:
             device
                 .textureFormatSupport(TextureFormat.bc1RGBAUNormInt)
@@ -181,6 +190,8 @@ final class DeviceTraits {
 /// loading screen is still a phone ten minutes later, hot, and the desktop's
 /// textures would not fit its memory then either.
 final class DeviceClassSelector {
+  /// A selector that takes a probe frame within [desktopLimit] for a
+  /// desktop, 8 ms by default.
   const DeviceClassSelector({
     this.desktopLimit = const Duration(microseconds: 8000),
   });
@@ -192,8 +203,6 @@ final class DeviceClassSelector {
   final Duration desktopLimit;
 
   /// The class for [traits], given the probe frame took [measuredMicros]
-  /// A selector that takes a probe frame within [desktopLimit] for a
-  /// desktop, 8 ms by default.
   /// (null when nothing was measured, which leaves the flags to decide
   /// alone).
   DeviceClass choose(DeviceTraits traits, {int? measuredMicros}) {
@@ -262,6 +271,8 @@ abstract base class DeviceClassMemory {
 /// A [DeviceClassMemory] that lasts as long as the process — the default, and
 /// what a test uses.
 final class InMemoryDeviceClassMemory extends DeviceClassMemory {
+  /// A memory holding the given class to begin with, or nothing when it is
+  /// null.
   InMemoryDeviceClassMemory([this._value]);
 
   String? _value;
@@ -273,8 +284,6 @@ final class InMemoryDeviceClassMemory extends DeviceClassMemory {
   Future<void> write(String? value) async => _value = value;
 }
 
-  /// A memory holding the given class to begin with, or nothing when it is
-  /// null.
 /// The class this device reads its assets as: picked once, remembered, and
 /// overridable by the player.
 ///
@@ -282,32 +291,32 @@ final class InMemoryDeviceClassMemory extends DeviceClassMemory {
 /// `chosen:desktop` — so clearing an override measures again rather than
 /// keeping the override's answer as if it had been measured.
 final class DeviceClassPicker {
+  /// A picker for a device with [traits], remembering its answer in [memory]
+  /// (in process memory when null) and measuring with [selector].
   DeviceClassPicker({
     required this.traits,
     DeviceClassMemory? memory,
     this.selector = const DeviceClassSelector(),
   }) : memory = memory ?? InMemoryDeviceClassMemory();
 
+  /// What the device can do, as the picker was given it.
   final DeviceTraits traits;
+
+  /// Where the picked class is remembered between runs.
   final DeviceClassMemory memory;
+
+  /// How a measured probe frame becomes a class.
   final DeviceClassSelector selector;
 
   static const String _measured = 'measured:';
-  /// A picker for a device with [traits], remembering its answer in [memory]
-  /// (in process memory when null) and measuring with [selector].
   static const String _chosen = 'chosen:';
 
   /// The classes a player may choose between here — see
   /// [DeviceClass.availableOn].
   List<DeviceClass> get choices => DeviceClass.availableOn(web: traits.web);
 
-  /// What the device can do, as the picker was given it.
   /// The remembered class, or — the first time — the one [measure] and the
-
-  /// Where the picked class is remembered between runs.
   /// traits pick, which is then remembered. [measure] is called only when
-
-  /// How a measured probe frame becomes a class.
   /// nothing usable is remembered; null picks from the traits alone.
   ///
   /// A remembered class this device cannot read (a phone's answer carried to

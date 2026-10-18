@@ -76,6 +76,20 @@ final class RoadMeshSettings {
   /// How tall a barrier stands above the road it guards.
   /// In metres.
   final double barrierHeight;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is RoadMeshSettings &&
+          other.sagitta == sagitta &&
+          other.minStep == minStep &&
+          other.maxStep == maxStep &&
+          other.metersPerTile == metersPerTile &&
+          other.barrierHeight == barrierHeight;
+
+  @override
+  int get hashCode =>
+      Object.hash(sagitta, minStep, maxStep, metersPerTile, barrierHeight);
 }
 
 /// The road surface itself, kerb to kerb.

@@ -190,7 +190,7 @@ final class F3dWriter {
           transformed(m.emissiveTexture),
     );
     final additive = document.animations
-        .where((a) => a.referenceTime != null)
+        .where((a) => a.referenceSeconds != null)
         .length;
 
     String dropped(int count, String what) =>

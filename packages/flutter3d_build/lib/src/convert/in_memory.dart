@@ -45,6 +45,15 @@ final class ConversionTarget {
   /// the same files as [everything].
   static const ConversionTarget scenes = ConversionTarget._('scenes', _all);
 
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static ConversionTarget? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   /// Every target, [everything] first.
   static const List<ConversionTarget> values = <ConversionTarget>[
     everything,

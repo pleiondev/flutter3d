@@ -18,13 +18,13 @@ final class AnimationMarker {
 
 /// A named set of tracks that play together.
 final class AnimationClip {
-  /// A clip of [tracks], its [duration] taken from their last keyframes.
+  /// A clip of [tracks], its [durationSeconds] taken from their last keyframes.
   AnimationClip({
     required this.tracks,
     this.name,
     this.extras,
-    this.referenceTime,
-  }) : duration = _durationOf(tracks);
+    this.referenceSeconds,
+  }) : durationSeconds = _durationOf(tracks);
 
   /// The animation's name in the file; null when it has none.
   final String? name;
@@ -55,10 +55,10 @@ final class AnimationClip {
   /// read from a file has: a layer asking for an additive blend over a clip
   /// with no reference has nothing to subtract, and the player says so rather
   /// than guessing at zero.
-  final double? referenceTime;
+  final double? referenceSeconds;
 
   /// Time of the last keyframe in any track.
-  final double duration;
+  final double durationSeconds;
 
   /// glTF's own `extras` on this animation, carried opaquely — see
   /// `ModelNode.extras` for what that means and why.
@@ -85,7 +85,7 @@ final class AnimationClip {
   static double _durationOf(List<AnimationTrack> tracks) {
     var longest = 0.0;
     for (final track in tracks) {
-      if (track.endTime > longest) longest = track.endTime;
+      if (track.endSeconds > longest) longest = track.endSeconds;
     }
     return longest;
   }
@@ -93,5 +93,5 @@ final class AnimationClip {
   @override
   String toString() =>
       'AnimationClip(${name ?? 'unnamed'}, ${tracks.length} tracks, '
-      '${duration.toStringAsFixed(3)}s)';
+      '${durationSeconds.toStringAsFixed(3)}s)';
 }

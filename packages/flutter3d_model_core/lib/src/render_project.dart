@@ -108,6 +108,15 @@ final class RenderProjectView {
     math.pi / 6,
   );
 
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static RenderProjectView? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   /// Every view, in the order a tool lists them.
   static const List<RenderProjectView> values = <RenderProjectView>[
     front,
@@ -182,6 +191,15 @@ final class RenderShading {
   /// than left to be noticed: an imported mesh drawn under this mode is not
   /// a bug, it is a mesh with no topology behind it.
   static const RenderShading wireframe = RenderShading._('wireframe');
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static RenderShading? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
 
   /// Every shading, in declaration order.
   static const List<RenderShading> values = <RenderShading>[

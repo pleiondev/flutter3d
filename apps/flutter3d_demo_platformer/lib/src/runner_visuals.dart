@@ -140,7 +140,7 @@ final class RunnerVisuals {
       // standing there while the body is already in the air.
       player.crossFadeToNamed(
         wanted,
-        duration: wanted == RunnerClips.jump ? 0.06 : 0.14,
+        durationSeconds: wanted == RunnerClips.jump ? 0.06 : 0.14,
       );
       _clip = wanted;
     }

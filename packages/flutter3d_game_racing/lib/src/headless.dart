@@ -208,7 +208,7 @@ final class _RacingRun extends RestorableRun {
     final race = sim.race;
     return <String, Object?>{
       'phase': race.phase.name,
-      'elapsed': race.elapsed,
+      'elapsed': race.elapsedSeconds,
       'cars': <Map<String, Object?>>[
         for (var i = 0; i < sim.vehicles.length; i++)
           <String, Object?>{

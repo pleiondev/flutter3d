@@ -1,5 +1,18 @@
 ## 1.0.0-rc.1
 
+- **Breaking: a time in a `double` says seconds in its name.**
+  `ChaseBrain.attackCooldown` is `ChaseBrain.attackCooldownSeconds`,
+  `ChaseBrain.painCooldown` is `ChaseBrain.painCooldownSeconds`,
+  `ChaseBrain.stateTime` is `ChaseBrain.stateSeconds`,
+  `MonsterDef.alertDuration` is `MonsterDef.alertSeconds`,
+  `MonsterDef.hurtDuration` is `MonsterDef.hurtSeconds`,
+  `MonsterDef.painCooldown` is `MonsterDef.painCooldownSeconds` and
+  `WeaponDef.cooldown` is `WeaponDef.cooldownSeconds`; the value and its
+  unit are what they were. `dart fix` carries each rename out.
+- **Breaking: no public `late final` setter.**
+  `FirstPersonCamera.virtualCamera` is a getter over a private field: the
+  setter they had worked once and threw the second time, and every read
+  compiles as it did.
 - **Breaking: the shooter's hooks take the engine's contexts.**
   `ChaseBrain.onHurt` and `onNoise`, `Player.applyDamage`, the plugin's
   `stepSimulation`, `publishEvents` and `restoreSimulation` take the one

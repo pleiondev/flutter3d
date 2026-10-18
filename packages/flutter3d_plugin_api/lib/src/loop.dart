@@ -24,6 +24,19 @@ final class PhaseKind {
   /// camera, drawing, interface.
   static const PhaseKind frame = PhaseKind._('frame');
 
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<PhaseKind> values = <PhaseKind>[step, frame];
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static PhaseKind? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   /// The kind's name, `step` or `frame`, as a manifest and a tool list write
   /// it.
   final String name;
@@ -91,6 +104,31 @@ final class LoopPhase {
 
   /// The interface over it.
   static const LoopPhase ui = LoopPhase.frame('ui');
+
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<LoopPhase> values = <LoopPhase>[
+    input,
+    movers,
+    physics,
+    fields,
+    rules,
+    publish,
+    animate,
+    audio,
+    camera,
+    render,
+    ui,
+  ];
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static LoopPhase? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
 
   /// The engine's step phases, in order.
   static const List<LoopPhase> stepPhases = <LoopPhase>[

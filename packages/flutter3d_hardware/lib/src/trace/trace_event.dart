@@ -1193,6 +1193,16 @@ final class TraceLabeled {
   /// A storage buffer, by its creation's id.
   static const TraceLabeled storage = TraceLabeled._('storage');
 
+  /// The value whose [wire] is [name], or null for a name this
+  /// version does not know, which is what a file written by a later
+  /// version can carry.
+  static TraceLabeled? byName(String name) {
+    for (final value in values) {
+      if (value.wire == name) return value;
+    }
+    return null;
+  }
+
   /// Every kind this build knows, in declaration order.
   static const List<TraceLabeled> values = <TraceLabeled>[
     texture,

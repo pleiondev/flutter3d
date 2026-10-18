@@ -224,7 +224,7 @@ final class XrHandJoint {
 extension XrPoseInput on RigidPose {
   /// This pose as input from [source] for the step it is fed to: seven
   /// numbers with no unit (meters and a unit quaternion), predicted for
-  /// [displayTime] on the runtime's clock, which goes on the tape as the
+  /// [displaySeconds] on the runtime's clock, which goes on the tape as the
   /// reading's source time.
   ///
   /// **A predicted reading.** A runtime states where the head will be when
@@ -232,12 +232,12 @@ extension XrPoseInput on RigidPose {
   /// [ReadingKind.predicted].
   ExternalStateInput toInput(
     String source, {
-    double? displayTime,
+    double? displaySeconds,
     ReadingQuality? quality,
   }) => ExternalStateInput(
     source: source,
     value: components,
-    sourceTime: displayTime,
+    sourceSeconds: displaySeconds,
     kind: ReadingKind.predicted,
     quality: quality,
   );

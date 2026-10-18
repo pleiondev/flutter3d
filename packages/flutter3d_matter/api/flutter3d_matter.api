@@ -21,6 +21,7 @@ final class Confidence
   const Confidence.named(this.name)
   final String name
   int get hashCode
+  static Confidence? byName(String name)
   static const Confidence estimate = Confidence.named('estimate')
   static const Confidence handbook = Confidence.named('handbook')
   static const Confidence measured = Confidence.named('measured')
@@ -205,6 +206,8 @@ final class MaterialPhase
   const MaterialPhase.named(this.name)
   final String name
   int get hashCode
+  static MaterialPhase? byName(String name)
+  static const List<MaterialPhase> values = <MaterialPhase>[solid, liquid, gas, granular]
   static const MaterialPhase gas = MaterialPhase.named('gas')
   static const MaterialPhase granular = MaterialPhase.named('granular')
   static const MaterialPhase liquid = MaterialPhase.named('liquid')

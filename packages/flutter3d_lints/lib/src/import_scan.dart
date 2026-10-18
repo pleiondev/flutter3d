@@ -89,10 +89,32 @@ final class ImportFinding {
   /// The quick fix as one replacement in the unit's source, or null when
   /// the rule has none ([EngineImportRules.internalImports]: what to import
   /// instead is the author's decision).
-  final ({int offset, int length, String replacement})? edit;
+  final ImportEdit? edit;
 
   @override
   String toString() => '$rule at $offset: $what';
+}
+
+/// An insertion into a unit's source: [text] at [offset].
+final class ImportEdit {
+  /// [text] written at [offset], replacing nothing.
+  const ImportEdit(this.offset, this.text);
+
+  /// Where [text] goes, in UTF-16 code units from the start of the unit.
+  final int offset;
+
+  /// What is inserted: `' hide Matrix4'` or `', Matrix4'`.
+  final String text;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ImportEdit && other.offset == offset && other.text == text;
+
+  @override
+  int get hashCode => Object.hash(offset, text);
+
+  @override
+  String toString() => 'at $offset insert "$text"';
 }
 
 /// The names of the import rules, which are also their diagnostic codes.
@@ -168,19 +190,13 @@ bool _writesMatrix4(CompilationUnit unit) {
 
 /// The edit that hides `Matrix4` from [directive]: appended to its `hide`
 /// list when it has one, a new `hide` before the semicolon otherwise.
-({int offset, int length, String replacement}) _hideMatrix4(
-  ImportDirective directive,
-) {
+ImportEdit _hideMatrix4(ImportDirective directive) {
   for (final combinator in directive.combinators) {
     if (combinator is HideCombinator) {
-      return (offset: combinator.end, length: 0, replacement: ', Matrix4');
+      return ImportEdit(combinator.end, ', Matrix4');
     }
   }
-  return (
-    offset: directive.semicolon.offset,
-    length: 0,
-    replacement: ' hide Matrix4',
-  );
+  return ImportEdit(directive.semicolon.offset, ' hide Matrix4');
 }
 
 final class _Matrix4Finder extends RecursiveAstVisitor<void> {

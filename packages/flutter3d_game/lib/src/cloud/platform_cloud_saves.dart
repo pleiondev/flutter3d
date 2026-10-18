@@ -25,6 +25,19 @@ final class CloudProvider {
 
   /// iCloud, on iOS and macOS.
   static const CloudProvider iCloud = CloudProvider('iCloud', 'iCloud');
+
+  /// Every value this version names, in declaration order. A later
+  /// version appends; nothing is removed or renamed within a major.
+  static const List<CloudProvider> values = <CloudProvider>[playGames, iCloud];
+
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static CloudProvider? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
 }
 
 /// Saves kept by Play Games or iCloud, through the platform's own side.

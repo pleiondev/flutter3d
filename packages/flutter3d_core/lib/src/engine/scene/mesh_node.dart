@@ -62,6 +62,15 @@ final class ShadowCastingMode {
     'shadowsOnly',
   );
 
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static ShadowCastingMode? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   /// Every mode.
   static const List<ShadowCastingMode> values = <ShadowCastingMode>[
     on,
@@ -92,9 +101,14 @@ final class ShadowCastingMode {
 /// without a GPU. The renderer is the place that cares whether the geometry has
 /// actually been uploaded.
 base class MeshNode extends SceneNode {
+  /// A node drawing [mesh] with [material], called [name].
   MeshNode(this.mesh, this.material, {super.name});
 
+  /// The geometry drawn, held on the CPU side; the renderer uploads it.
+  /// May be replaced.
   MeshGeometry mesh;
+
+  /// The appearance the geometry is drawn with. May be replaced.
   RenderMaterial material;
 
   /// Multiplies this node's colour and opacity, over whatever its material
@@ -103,14 +117,9 @@ base class MeshNode extends SceneNode {
   ///
   /// **Per node, over a shared material.** A hundred tankers share one
   /// material; flashing the one that was hit, or fading the one sinking,
-  /// A node drawing [mesh] with [material], called [name].
   /// meant a material of its own made for the moment. The colour is linear,
   /// as a vertex colour and an instance colour are, and is applied on the
-  /// The geometry drawn, held on the CPU side; the renderer uploads it.
-  /// May be replaced.
   /// material's base colour for this node's draw alone.
-
-  /// The appearance the geometry is drawn with. May be replaced.
   ///
   /// **Below one alpha, the node is drawn blended**, in the transparent pass
   /// and sorted with it, whatever its material's own alpha mode. A node at

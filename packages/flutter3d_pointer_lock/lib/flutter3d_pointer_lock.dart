@@ -39,7 +39,10 @@ final class PointerLock {
     }
   }
 
-  /// The instance an application uses when it has not made its own.
+  /// The instance an application uses when it has not made its own:
+  /// process-wide, one per process, like the platform channel under it.
+  /// The engine reaches it only through a `MouseCapture`, which a game or
+  /// a test replaces.
   ///
   /// **One per process, and everything in it is shared**: the accumulated
   /// motion, the captured flag, the subscription to the platform's state. That

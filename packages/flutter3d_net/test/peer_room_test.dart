@@ -21,8 +21,8 @@ void main() {
     theirs.send(
       PeerSend(message: <String, Object?>{'tag': 'hello', 'met': false}),
     );
-    ours.tick();
-    theirs.tick();
+    ours.step();
+    theirs.step();
 
     // Mutation: drop a hello without a `body` before reading it, as before
     // 1.0. The room never answers and the older machine waits for ever
@@ -51,7 +51,7 @@ void main() {
         },
       ),
     );
-    expect(ours.tick, returnsNormally);
+    expect(ours.step, returnsNormally);
     expect(heard, <Map<String, Object?>>[
       <String, Object?>{'n': 1},
     ]);

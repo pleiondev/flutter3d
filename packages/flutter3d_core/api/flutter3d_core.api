@@ -124,6 +124,7 @@ final class AdaptiveQuality
 
 final class AdaptiveQualitySettings
   AdaptiveQualitySettings copyWith({bool? enabled, Duration? budget, double? headroom, double? climbHeadroom, int? climbFrames, double? smoothing, double? correctionSmoothing, double? motionThreshold, double? motionScale})
+  bool operator ==(Object other)
   const AdaptiveQualitySettings({this.enabled = false, this.budget = const Duration(microseconds: 16667), this.headroom = 0.9, this.climbHeadroom = 0.75, this.climbFrames = 30, this.smoothing = 0.1, this.correctionSmoothing = 0.02, this.motionThreshold = 0.0, this.motionScale = 0.7})
   final Duration budget
   final bool enabled
@@ -134,6 +135,7 @@ final class AdaptiveQualitySettings
   final double motionThreshold
   final double smoothing
   final int climbFrames
+  int get hashCode
 
 final class AdaptiveScale
   AdaptiveScale(this.settings)
@@ -144,6 +146,7 @@ final class AdaptiveScale
 
 final class AdaptiveScaleSettings
   AdaptiveScaleSettings copyWith({bool? enabled, Duration? target, double? minimum, double? maximum, double? step, int? window, int? holdWindows, double? slowRatio, double? fastRatio})
+  bool operator ==(Object other)
   const AdaptiveScaleSettings({this.enabled = false, this.target = const Duration(microseconds: 16667), this.minimum = 0.5, this.maximum = 1.0, this.step = 0.1, this.window = 30, this.holdWindows = 6, this.slowRatio = 1.1, this.fastRatio = 0.7})
   final Duration target
   final bool enabled
@@ -154,11 +157,13 @@ final class AdaptiveScaleSettings
   final double step
   final int holdWindows
   final int window
+  int get hashCode
 
 final class AmbientOcclusionMethod
   String toString()
   final String name
   final double code
+  static AmbientOcclusionMethod? byName(String name)
   static const AmbientOcclusionMethod gtao = AmbientOcclusionMethod._('gtao', 1.0)
   static const AmbientOcclusionMethod ssao = AmbientOcclusionMethod._('ssao', 0.0)
   static const AmbientOcclusionMethod ssil = AmbientOcclusionMethod._('ssil', 2.0)
@@ -166,6 +171,7 @@ final class AmbientOcclusionMethod
 
 final class AmbientOcclusionSettings
   AmbientOcclusionSettings copyWith({bool? enabled, double? radius, int? samples, double? strength, double? bias, int? blurTaps, double? blurDepthFalloff, AmbientOcclusionMethod? method, double? thickness})
+  bool operator ==(Object other)
   const AmbientOcclusionSettings({this.enabled = false, this.radius = 0.5, this.samples = 12, this.strength = 0.8, this.bias = 0.02, this.blurTaps = 0, this.blurDepthFalloff = 0.02, this.method = AmbientOcclusionMethod.ssao, this.thickness = 0.3})
   final AmbientOcclusionMethod method
   final bool enabled
@@ -176,10 +182,12 @@ final class AmbientOcclusionSettings
   final double thickness
   final int blurTaps
   final int samples
+  int get hashCode
 
 final class AnimationBlend
   String toString()
   final String name
+  static AnimationBlend? byName(String name)
   static const AnimationBlend additive = AnimationBlend._('additive')
   static const AnimationBlend override = AnimationBlend._('override')
   static const List<AnimationBlend> values = <AnimationBlend>[override, additive]
@@ -191,14 +199,14 @@ final class AnimationBlendSpace
   final String? across
 
 final class AnimationClip
-  AnimationClip({required this.tracks, this.name, this.extras, this.referenceTime})
+  AnimationClip({required this.tracks, this.name, this.extras, this.referenceSeconds})
   String toString()
   bool get isEmpty
   final List<AnimationTrack> tracks
   final Map<String, Object?>? extras
   final String? name
-  final double duration
-  final double? referenceTime
+  final double durationSeconds
+  final double? referenceSeconds
   late final List<AnimationMarker> markers
 
 final class AnimationComparison
@@ -206,10 +214,12 @@ final class AnimationComparison
   bool test(double actual, num value)
   final String name
   final bool exact
+  static AnimationComparison? byName(String name)
   static const AnimationComparison equals = AnimationComparison._('equals', _equals, exact: true)
   static const AnimationComparison greater = AnimationComparison._('greater', _greater)
   static const AnimationComparison less = AnimationComparison._('less', _less)
   static const AnimationComparison notEquals = AnimationComparison._('notEquals', _notEquals, exact: true)
+  static const List<AnimationComparison> values = <AnimationComparison>[greater, less, equals, notEquals]
 
 abstract final class AnimationCondition
   const AnimationCondition(this.parameter)
@@ -235,7 +245,7 @@ final class AnimationGraph
   Vector3 rootDeltaIn(Matrix4 poseToWorld)
   double get fadeWeight
   double get normalizedTime
-  double get stateTime
+  double get stateSeconds
   factory AnimationGraph({required AnimationStateMachine machine, required List<AnimationClip> clips, required AnimationPose pose})
   final AnimationParameters parameters
   final AnimationPose pose
@@ -288,7 +298,7 @@ final class AnimationLayer
   bool get isFinished
   bool get isPlaying
   double get effectiveWeight
-  double get time
+  double get timeSeconds
   double speed
   double weight
   int clip
@@ -330,10 +340,12 @@ final class AnimationParameterType
   String toString()
   final String name
   final String writer
+  static AnimationParameterType? byName(String name)
   static const AnimationParameterType boolean = AnimationParameterType._('boolean', 'setBool')
   static const AnimationParameterType float = AnimationParameterType._('float', 'setFloat')
   static const AnimationParameterType integer = AnimationParameterType._('integer', 'setInteger')
   static const AnimationParameterType trigger = AnimationParameterType._('trigger', 'fire')
+  static const List<AnimationParameterType> values = <AnimationParameterType>[float, integer, boolean, trigger]
 
 final class AnimationParameters
   AnimationParameters(this.schema)
@@ -373,15 +385,15 @@ final class AnimationPlayer
   AnimationWrap wrap
   List<String> get clipNames
   String toString()
-  Vector3? rootMotionDelta(int rootNodeIndex, {required double fromTime, required double toTime})
-  bool crossFadeToNamed(String name, {double duration = 0.15})
+  Vector3? rootMotionDelta(int rootNodeIndex, {required double fromSeconds, required double toSeconds})
+  bool crossFadeToNamed(String name, {double durationSeconds = 0.15})
   bool get hasClips
   bool get isCrossFading
   bool get isPlaying
   bool playNamed(String name)
-  double get duration
+  double get durationSeconds
   double get fadeWeight
-  double get time
+  double get timeSeconds
   double speed
   final AnimationPointerSink? pointers
   final List<AnimationClip> clips
@@ -390,7 +402,7 @@ final class AnimationPlayer
   final List<MorphSink?> morphs
   int get clipIndex
   void apply()
-  void crossFadeTo(int index, {double duration = 0.15})
+  void crossFadeTo(int index, {double durationSeconds = 0.15})
   void pause()
   void play({int? index})
   void seek(double seconds)
@@ -491,8 +503,8 @@ abstract base mixin class AnimationTarget
 final class AnimationTrack
   AnimationTrack({required this.nodeIndex, required this.path, required this.interpolation, required this.times, required this.values, required this.componentCount, this.pointer})
   String toString()
-  double get endTime
-  double get startTime
+  double get endSeconds
+  double get startSeconds
   final AnimationInterpolation interpolation
   final AnimationPath path
   final AnimationPointer? pointer
@@ -504,11 +516,11 @@ final class AnimationTrack
   void sample(double time, Float32List out)
 
 final class AnimationTransition
-  AnimationTransition({required this.from, required this.to, List<AnimationCondition> conditions = const <AnimationCondition>[], this.duration = 0.0, this.priority = 0, this.exitTime})
+  AnimationTransition({required this.from, required this.to, List<AnimationCondition> conditions = const <AnimationCondition>[], this.durationSeconds = 0.0, this.priority = 0, this.exitTime})
   final List<AnimationCondition> conditions
   final String from
   final String to
-  final double duration
+  final double durationSeconds
   final double? exitTime
   final int priority
 
@@ -523,6 +535,7 @@ final class AnimationWrap
 
 final class AntiAliasSettings
   AntiAliasSettings copyWith({bool? enabled, EdgeSmoothing? method, double? contrastThreshold, double? blend, double? sharpen, TemporalSettings? temporal})
+  bool operator ==(Object other)
   const AntiAliasSettings({this.enabled = false, this.method = EdgeSmoothing.fxaa, this.contrastThreshold = 0.125, this.blend = 0.75, this.sharpen = 0.0, this.temporal = const TemporalSettings()})
   final EdgeSmoothing method
   final TemporalSettings temporal
@@ -530,6 +543,7 @@ final class AntiAliasSettings
   final double blend
   final double contrastThreshold
   final double sharpen
+  int get hashCode
 
 final class AssetByteRange
   String toString()
@@ -625,6 +639,7 @@ final class AtmosphereKey
 
 final class AutoExposureSettings
   AutoExposureSettings copyWith({bool? enabled, double? minExposure, double? maxExposure, double? speedUp, double? speedDown, double? target, double? lowPercentile, double? highPercentile, bool? perView})
+  bool operator ==(Object other)
   const AutoExposureSettings({this.enabled = false, this.minExposure = 0.25, this.maxExposure = 8.0, this.speedUp = 1.5, this.speedDown = 3.0, this.target = 0.18, this.lowPercentile = 0.8, this.highPercentile = 0.98, this.perView = false})
   final bool enabled
   final bool perView
@@ -635,6 +650,7 @@ final class AutoExposureSettings
   final double speedDown
   final double speedUp
   final double target
+  int get hashCode
 
 final class BakedPoses
   Matrix4 matrixAt(int clip, int frame, int joint)
@@ -656,6 +672,7 @@ final class BlendPoint
 
 final class BloomSettings
   BloomSettings copyWith({bool? enabled, double? threshold, double? knee, double? intensity, int? levels, double? filterRadius, int? referenceHeight, double? halation, double? scatter, LensFlareSettings? lensFlare})
+  bool operator ==(Object other)
   const BloomSettings({this.enabled = true, this.threshold = 1.0, this.knee = 0.5, this.intensity = 0.06, this.levels = 5, this.filterRadius = 1.0, this.referenceHeight = 0, this.halation = 0.0, this.scatter = 1.0, this.lensFlare = const LensFlareSettings()})
   final LensFlareSettings lensFlare
   final bool enabled
@@ -667,6 +684,7 @@ final class BloomSettings
   final double threshold
   final int levels
   final int referenceHeight
+  int get hashCode
 
 final class BoolCondition extends AnimationCondition
   const BoolCondition(super.parameter, {this.value = true})
@@ -731,6 +749,7 @@ final class CameraView
 
 final class CameraViewSettings
   CameraViewSettings copyWith({RenderSettings? settings, bool Function()? visible, bool? refreshEveryFrame, double? exposure, String? label, double? depthNear, FrameWindow? window, bool clearSettings = false, bool clearVisible = false, bool clearLabel = false, bool clearDepthNear = false, bool clearWindow = false})
+  bool operator ==(Object other)
   const CameraViewSettings({this.settings, this.visible, this.refreshEveryFrame = true, this.exposure = 1.0, this.label, this.depthNear, this.window})
   final FrameWindow? window
   final RenderSettings? settings
@@ -739,6 +758,7 @@ final class CameraViewSettings
   final bool refreshEveryFrame
   final double exposure
   final double? depthNear
+  int get hashCode
 
 final class CapsuleShape extends DerivedShape
   Shape get delegate
@@ -883,6 +903,7 @@ final class ColorVision
 final class ColorVisionDeficiency
   String toString()
   final String name
+  static ColorVisionDeficiency? byName(String name)
   static const ColorVisionDeficiency deutan = ColorVisionDeficiency._('deutan', <double>[0.367322, 0.860646, -0.227968, 0.280085, 0.672501, 0.047413, -0.011820, 0.042940, 0.968881], _redGreenShift)
   static const ColorVisionDeficiency protan = ColorVisionDeficiency._('protan', <double>[0.152286, 1.052583, -0.204868, 0.114503, 0.786281, 0.099216, -0.003882, -0.048116, 1.051998], _redGreenShift)
   static const ColorVisionDeficiency tritan = …
@@ -965,6 +986,7 @@ final class ConeShape extends DerivedShape
 
 final class ContactShadowSettings
   ContactShadowSettings copyWith({bool? enabled, double? length, int? steps, double? thickness, double? bias, double? strength})
+  bool operator ==(Object other)
   const ContactShadowSettings({this.enabled = false, this.length = 0.25, this.steps = 8, this.thickness = 0.15, this.bias = 0.01, this.strength = 1.0})
   final bool enabled
   final double bias
@@ -972,9 +994,10 @@ final class ContactShadowSettings
   final double strength
   final double thickness
   final int steps
+  int get hashCode
 
 final class ContributorFrame extends FrameContext
-  ContributorFrame({required this.encoder, required super.device, required super.services, required super.settings, required super.width, required super.height, super.view, this.viewProjection, super.frameIndex, super.time, super.origin, super.views, super.viewIndex, this.temporal = false, this.lights, this.sceneDepth, this.reversedDepth = false})
+  ContributorFrame({required this.encoder, required super.device, required super.services, required super.settings, required super.width, required super.height, super.view, this.viewProjection, super.frameIndex, super.timeSeconds, super.origin, super.views, super.viewIndex, this.temporal = false, this.lights, this.sceneDepth, this.reversedDepth = false})
   RenderBundleEncoder createRenderBundleEncoder(RenderBundleDescriptor descriptor)
   final ContributorLights? lights
   final PassEncoder encoder
@@ -1084,6 +1107,7 @@ extension DebugDrawGizmos on DebugDraw
 final class DebugDrawSettings
   DebugDrawSettings copyWith({bool? bounds, bool? normals, bool? lightGizmos, bool? axes, bool? cameraFrustums, bool? skeletons, double? normalLength})
   bool get anyEnabled
+  bool operator ==(Object other)
   const DebugDrawSettings({this.bounds = false, this.normals = false, this.lightGizmos = false, this.axes = false, this.cameraFrustums = false, this.skeletons = false, this.normalLength = 0.0})
   final bool axes
   final bool bounds
@@ -1092,6 +1116,7 @@ final class DebugDrawSettings
   final bool normals
   final bool skeletons
   final double normalLength
+  int get hashCode
 
 final class DebugView
   Map<String, Object?> toJson()
@@ -1124,6 +1149,7 @@ final class DebugView
 final class DebugViewKind
   String toString()
   final String name
+  static DebugViewKind? byName(String name)
   static const DebugViewKind geometry = DebugViewKind._('geometry')
   static const DebugViewKind identity = DebugViewKind._('identity')
   static const DebugViewKind lit = DebugViewKind._('lit')
@@ -1136,15 +1162,18 @@ final class DebugViewSettings
   bool get active
   bool get showsLeft
   bool get showsRight
+  bool operator ==(Object other)
   const DebugViewSettings({this.view = DebugView.off, this.split = 0.0, this.left = DebugView.off, this.overlays = DebugWipeSide.both})
   final DebugView left
   final DebugView view
   final DebugWipeSide overlays
   final double split
+  int get hashCode
 
 final class DebugWipeSide
   String toString()
   final String name
+  static DebugWipeSide? byName(String name)
   static const DebugWipeSide both = DebugWipeSide._('both')
   static const DebugWipeSide left = DebugWipeSide._('left')
   static const DebugWipeSide right = DebugWipeSide._('right')
@@ -1166,10 +1195,12 @@ final class DecalNode extends SceneNode
 
 final class DecalSettings
   DecalSettings copyWith({bool? enabled, int? decalsPerDraw, int? picturesPerDraw})
+  bool operator ==(Object other)
   const DecalSettings({this.enabled = false, this.decalsPerDraw = 16, this.picturesPerDraw = 4})
   final bool enabled
   final int decalsPerDraw
   final int picturesPerDraw
+  int get hashCode
   static int get maxDecalsPerDraw
   static int get maxPicturesPerDraw
 
@@ -1193,6 +1224,7 @@ final class DepthMoments
 final class DepthOfFieldSettings
   DepthOfFieldSettings copyWith({bool? enabled, double? focusDistance, double? focalLength, double? aperture, int? samples, double? maxRadius, double? sensorWidth, bool clearFocalLength = false})
   ThinLens lensFor({required double? verticalFieldOfView, required double aspect})
+  bool operator ==(Object other)
   const DepthOfFieldSettings({this.enabled = false, this.focusDistance = 10.0, this.focalLength, this.aperture = 8.0, this.samples = 24, this.maxRadius = 16.0, this.sensorWidth = 0.036})
   final bool enabled
   final double aperture
@@ -1201,6 +1233,7 @@ final class DepthOfFieldSettings
   final double sensorWidth
   final double? focalLength
   final int samples
+  int get hashCode
 
 abstract base class DerivedShape extends Shape
   MeshData build({VertexLayout layout = VertexLayout.standard})
@@ -1211,6 +1244,7 @@ final class DeviceClass
   String toString()
   final String name
   static DeviceClass parse(String text)
+  static DeviceClass? byName(String name)
   static DeviceClass? tryParse(String text)
   static List<DeviceClass> availableOn({required bool web})
   static const DeviceClass desktop = DeviceClass._('desktop')
@@ -1298,6 +1332,7 @@ final class DeviceTraits
 final class DiffuseModel
   String toString()
   final String name
+  static DiffuseModel? byName(String name)
   static const DiffuseModel eon = DiffuseModel._('eon')
   static const DiffuseModel lambert = DiffuseModel._('lambert')
   static const List<DiffuseModel> values = <DiffuseModel>[lambert, eon]
@@ -1407,8 +1442,10 @@ abstract base class DrawableGeometry with MeshGeometry
 final class EdgeSmoothing
   String toString()
   final String name
+  static EdgeSmoothing? byName(String name)
   static const EdgeSmoothing fxaa = EdgeSmoothing._('fxaa')
   static const EdgeSmoothing smaa = EdgeSmoothing._('smaa')
+  static const List<EdgeSmoothing> values = <EdgeSmoothing>[fxaa, smaa]
 
 final class EffectiveAntiAliasing
   String toString()
@@ -1723,6 +1760,7 @@ final class FogSettings
   FogSettings copyWith({LinearColor? color, double? density, double? heightFalloff, double? baseHeight, bool clearColor = false})
   LinearColor get resolvedColor
   bool get enabled
+  bool operator ==(Object other)
   const FogSettings({this.color, this.density = 0.0, this.heightFalloff = defaultHeightFalloff, this.baseHeight = 0.0})
   double densityAt(double y)
   double get resolvedHeightFalloff
@@ -1730,6 +1768,7 @@ final class FogSettings
   final double baseHeight
   final double density
   final double heightFalloff
+  int get hashCode
   static const double defaultHeightFalloff = 0.05
 
 final class FootLeg
@@ -1782,7 +1821,7 @@ final class FrameCaptureFormatException extends Flutter3dFormatException
   final String message
 
 abstract base class FrameContext
-  FrameContext({required this.device, required this.services, required this.settings, required this.width, required this.height, this.view, this.frameIndex = 0, this.time = 0.0, this.origin = WorldPosition.origin, List<FrameView>? views, this.viewIndex = 0})
+  FrameContext({required this.device, required this.services, required this.settings, required this.width, required this.height, this.view, this.frameIndex = 0, this.timeSeconds = 0.0, this.origin = WorldPosition.origin, List<FrameView>? views, this.viewIndex = 0})
   FrameView? get frameView
   PixelJitter get jitter
   ResourceId perView(ResourceId id)
@@ -1792,7 +1831,7 @@ abstract base class FrameContext
   final RenderServices services
   final RenderSettings settings
   final WorldPosition origin
-  final double time
+  final double timeSeconds
   final int frameIndex
   final int height
   final int viewIndex
@@ -2267,6 +2306,7 @@ final class HiZOcclusion
 
 final class HighContrastSettings
   HighContrastSettings copyWith({bool? enabled, double? flatten, double? flattenSpacing, double? contrast, double? saturation, double? depthEdge, double? normalEdge, double? outlineWidth, LinearColor? outlineColor, double? roleWidth, double? roleFill, bool clearOutlineColor = false})
+  bool operator ==(Object other)
   const HighContrastSettings({this.enabled = false, this.flatten = 1.0, this.flattenSpacing = 1.0, this.contrast = 1.5, this.saturation = 0.25, this.depthEdge = 0.04, this.normalEdge = 0.2, this.outlineWidth = 1.0, this.outlineColor, this.roleWidth = 3.0, this.roleFill = 0.3})
   final LinearColor? outlineColor
   final bool enabled
@@ -2279,6 +2319,7 @@ final class HighContrastSettings
   final double roleFill
   final double roleWidth
   final double saturation
+  int get hashCode
 
 final class HitResult
   MeshNode get requireNode
@@ -2376,10 +2417,13 @@ final class IrradianceAtlas
 
 final class IrradianceField
   DepthMoments readDepth(int probe, Vector3 direction)
+  Float32List get depth
+  Float32List get irradiance
   IrradianceAtlas toAtlas()
   IrradianceField({required this.origin, required this.spacing, required this.countX, required this.countY, required this.countZ, this.tile = 8, this.depthTile = 16})
   LinearColor readIrradiance(int probe, Vector3 direction)
   LinearColor sample(Vector3 position, Vector3 normal)
+  Uint8List get active
   Vector3 probePosition(int x, int y, int z, [Vector3? out])
   Vector3 texelDirection(int tx, int ty, int interior, [Vector3? out])
   double hysteresis
@@ -2395,9 +2439,6 @@ final class IrradianceField
   int get version
   int gpuUpdates
   int probeIndex(int x, int y, int z)
-  late final Float32List depth
-  late final Float32List irradiance
-  late final Uint8List active
   void fillGutters()
   void markChanged()
   void writeDepth(int probe, Vector3 direction, double distance)
@@ -2489,6 +2530,7 @@ final class LatheShape extends Shape
 final class LensFlareSettings
   LensFlareSettings copyWith({bool? enabled, double? intensity, int? ghosts, double? ghostSpacing, double? haloRadius, double? halo, double? fringe})
   bool get isActive
+  bool operator ==(Object other)
   const LensFlareSettings({this.enabled = false, this.intensity = 1.0, this.ghosts = 4, this.ghostSpacing = 0.35, this.haloRadius = 0.45, this.halo = 0.5, this.fringe = 0.004})
   final bool enabled
   final double fringe
@@ -2497,6 +2539,7 @@ final class LensFlareSettings
   final double haloRadius
   final double intensity
   final int ghosts
+  int get hashCode
 
 final class LightBindRequest
   LightBindRequest({required this.encoder, required this.stage, required this.center, required this.radius})
@@ -2547,6 +2590,7 @@ final class LightPackContext
 
 final class LightShaftSettings
   LightShaftSettings copyWith({bool? enabled, int? steps, double? distance, double? strength, LinearColor? color, double? anisotropy, bool clearColor = false})
+  bool operator ==(Object other)
   const LightShaftSettings({this.enabled = false, this.steps = 16, this.distance = 40.0, this.strength = 0.005, this.color, this.anisotropy = 0.6})
   final LinearColor? color
   final bool enabled
@@ -2554,6 +2598,7 @@ final class LightShaftSettings
   final double distance
   final double strength
   final int steps
+  int get hashCode
 
 abstract base class LightTypeHook
   abstract LightType get type
@@ -2595,6 +2640,7 @@ final class LightingModel
   final bool vertexStageInDepthPasses
   final bool vertexStageMorphs
   int get pipelineGroup
+  static LightingModel? byName(String name)
   static String shaderNameOf(String name)
   static const LightingModel blinnPhong = LightingModel('Blinn-Phong', 'BlinnPhong')
   static const LightingModel impostor = …
@@ -2608,6 +2654,7 @@ final class LightingModel
   static const LightingModel unlit = LightingModel('Unlit', 'Unlit', usesMaterialMaps: false, usesMetallicRoughnessMap: false, usesMaterialParameters: false)
   static const LightingModel xray = LightingModel('X-ray', 'Xray', usesMaterialMaps: false, usesMetallicRoughnessMap: false, usesMaterialParameters: false)
   static const List<LightingModel> builtIn = <LightingModel>[unlit, lambert, blinnPhong, pbr, toon, normals]
+  static const List<LightingModel> values = <LightingModel>[unlit, xray, planarReflection, polyline, impostor, lambert, blinnPhong, pbr, pbrLayered, toon, normals]
 
 abstract base class LightingModelAddon extends Flutter3dPlugin
   PluginManifest get manifest
@@ -2646,11 +2693,13 @@ final class LinearBlendSkinning extends HostSkinningHook
 
 final class LocalExposureSettings
   LocalExposureSettings copyWith({bool? enabled, double? strength, double? shadowStops, double? highlightStops})
+  bool operator ==(Object other)
   const LocalExposureSettings({this.enabled = false, this.strength = 0.7, this.shadowStops = 2.0, this.highlightStops = 2.0})
   final bool enabled
   final double highlightStops
   final double shadowStops
   final double strength
+  int get hashCode
 
 final class LocalRay
   LocalRay normalizeDirection()
@@ -2712,6 +2761,7 @@ final class LookSettings
   LookSettings copyWith({double? contrast, double? saturation, double? temperature, double? vignette, double? vignetteRoundness, double? grain, double? chromaticAberration, double? distortion, double? dither, LinearColor? lift, LinearColor? gamma, LinearColor? gain, double? whiteBalance, double? tint, TextureHandle? lut, double? lutStrength, DisplayTransform? displayTransform, bool clearLift = false, bool clearGamma = false, bool clearGain = false, bool clearLut = false, bool clearDisplayTransform = false})
   bool get gradesThroughLut
   bool get isNeutral
+  bool operator ==(Object other)
   const LookSettings({this.contrast = 1.0, this.saturation = 1.0, this.temperature = 0.0, this.vignette = 0.0, this.vignetteRoundness = 1.0, this.grain = 0.0, this.chromaticAberration = 0.0, this.distortion = 0.0, this.dither = 1.0 / 255.0, this.lift, this.gamma, this.gain, this.whiteBalance = 0.0, this.tint = 0.0, this.lut, this.lutStrength = 1.0, this.displayTransform})
   final DisplayTransform? displayTransform
   final LinearColor? gain
@@ -2730,10 +2780,12 @@ final class LookSettings
   final double vignette
   final double vignetteRoundness
   final double whiteBalance
+  int get hashCode
 
 final class MaterialAlphaMode
   String toString()
   final String name
+  static MaterialAlphaMode? byName(String name)
   static const List<MaterialAlphaMode> values = <MaterialAlphaMode>[opaque, mask, blend, hashed]
   static const MaterialAlphaMode blend = MaterialAlphaMode._('blend')
   static const MaterialAlphaMode hashed = MaterialAlphaMode._('hashed')
@@ -2768,6 +2820,7 @@ final class MaterialBlend
   final bool translucent
   static MaterialBlend? byName(String name)
   static const List<MaterialBlend> all = <MaterialBlend>[opaque, mask, hashed, alpha, additive, premultiplied]
+  static const List<MaterialBlend> values = <MaterialBlend>[opaque, mask, hashed, alpha, additive, premultiplied]
   static const MaterialBlend additive = MaterialBlend._('additive', translucent: true)
   static const MaterialBlend alpha = MaterialBlend._('alpha', translucent: true)
   static const MaterialBlend hashed = MaterialBlend._('hashed', translucent: false)
@@ -2778,6 +2831,7 @@ final class MaterialBlend
 final class MaterialBlendMode
   String toString()
   final String name
+  static MaterialBlendMode? byName(String name)
   static const List<MaterialBlendMode> values = <MaterialBlendMode>[alpha, additive, premultiplied]
   static const MaterialBlendMode additive = MaterialBlendMode._('additive')
   static const MaterialBlendMode alpha = MaterialBlendMode._('alpha')
@@ -3051,7 +3105,9 @@ final class MaterialSortIds
 final class MaterialStageKind
   String toString()
   final String name
+  static MaterialStageKind? byName(String name)
   static const List<MaterialStageKind> all = <MaterialStageKind>[surface, fullscreen, compute]
+  static const List<MaterialStageKind> values = <MaterialStageKind>[surface, fullscreen, compute]
   static const MaterialStageKind compute = MaterialStageKind._('compute')
   static const MaterialStageKind fullscreen = MaterialStageKind._('fullscreen')
   static const MaterialStageKind surface = MaterialStageKind._('material')
@@ -3134,6 +3190,7 @@ final class MemoryBudgetCrossing
 final class MemoryCategory
   String toString()
   final String name
+  static MemoryCategory? byName(String name)
   static const List<MemoryCategory> values = <MemoryCategory>[textures, buffers, renderTargets, meshes, shaders]
   static const MemoryCategory buffers = MemoryCategory._('buffers')
   static const MemoryCategory meshes = MemoryCategory._('meshes')
@@ -3359,6 +3416,7 @@ final class ModelFormat
   String toString()
   const ModelFormat(this.name)
   final String name
+  static ModelFormat? byName(String name)
   static const List<ModelFormat> values = <ModelFormat>[auto, gltf, obj, f3d, stl]
   static const ModelFormat auto = ModelFormat('auto')
   static const ModelFormat f3d = ModelFormat('f3d')
@@ -3533,13 +3591,13 @@ abstract base mixin class MorphSink
 
 final class MorphState with MorphSink
   Aabb3 get growth
+  List<double> get weights
   MorphState({required this.texture, required int targetCount, List<Aabb3>? reaches})
   String toString()
   bool get grows
   final TextureHandle texture
   int get targetCount
   int get version
-  late final List<double> weights
   void setWeights(List<double> values)
 
 final class MorphTarget
@@ -3566,10 +3624,12 @@ final class MorphTexture
 
 final class MotionBlurSettings
   MotionBlurSettings copyWith({bool? enabled, double? shutterFraction, double? maxRadius})
+  bool operator ==(Object other)
   const MotionBlurSettings({this.enabled = false, this.shutterFraction = 0.5, this.maxRadius = 20.0})
   final bool enabled
   final double maxRadius
   final double shutterFraction
+  int get hashCode
 
 final class MtlMaterial
   const MtlMaterial({required this.name, this.diffuse, this.specular, this.specularExponent, this.opacity = 1.0, this.diffuseTexturePath})
@@ -3895,6 +3955,8 @@ final class PhotoFilter
   final double tint
   final double vignette
   static PhotoFilter named(String name)
+  static PhotoFilter? byName(String name)
+  static const List<PhotoFilter> values = <PhotoFilter>[none, vivid, warm, cool, mono, sepia, noir, faded]
   static const PhotoFilter cool = PhotoFilter(name: 'cool', temperature: -0.35, tint: -0.05)
   static const PhotoFilter faded = PhotoFilter(name: 'faded', contrast: 0.85, saturation: 0.75, lift: LinearColor(0.06, 0.06, 0.06))
   static const PhotoFilter mono = PhotoFilter(name: 'mono', saturation: 0.0, contrast: 1.1)
@@ -4013,6 +4075,7 @@ final class PipelineDocument extends FormatDocument
 final class PipelineGeometry
   String toString()
   final String name
+  static PipelineGeometry? byName(String name)
   static const List<PipelineGeometry> values = <PipelineGeometry>[plain, skinned, instanced, lightmapped]
   static const PipelineGeometry instanced = PipelineGeometry._('instanced')
   static const PipelineGeometry lightmapped = PipelineGeometry._('lightmapped')
@@ -4101,8 +4164,10 @@ final class PlainModelDocument extends ModelDocument
 
 final class PlanarReflectionSettings
   PlanarReflectionSettings copyWith({bool? enabled})
+  bool operator ==(Object other)
   const PlanarReflectionSettings({this.enabled = false})
   final bool enabled
+  int get hashCode
 
 final class PlanarReflectorNode extends SceneNode
   LinearColor tint
@@ -4133,10 +4198,10 @@ final class PlatformFeature extends Capability
   static const PlatformFeature fileSystem = PlatformFeature._('fileSystem')
 
 final class PlayheadStep
-  const PlayheadStep({required this.time, required this.reversing, required this.stopped})
+  const PlayheadStep({required this.timeSeconds, required this.reversing, required this.stopped})
   final bool reversing
   final bool stopped
-  final double time
+  final double timeSeconds
 
 final class PointerTargets with AnimationPointerSink
   PointerTargets({Map<int, RenderMaterial>? materials, Map<int, LightNode>? lights})
@@ -4298,6 +4363,7 @@ final class ReflectionProbeNode extends SceneNode
 
 final class ReflectionSettings
   ReflectionSettings copyWith({bool? enabled, int? steps, double? stride, double? thickness, double? intensity, bool? debugOnly})
+  bool operator ==(Object other)
   const ReflectionSettings({this.enabled = false, this.steps = 32, this.stride = 0.1, this.thickness = 0.12, this.intensity = 0.7, this.debugOnly = false})
   final bool debugOnly
   final bool enabled
@@ -4305,9 +4371,10 @@ final class ReflectionSettings
   final double stride
   final double thickness
   final int steps
+  int get hashCode
 
 final class RenderFrame extends FrameContext
-  RenderFrame({required super.device, required this.resources, required super.services, required super.settings, required super.width, required super.height, super.view, super.frameIndex, super.time, super.origin, super.views, super.viewIndex, this.sceneColor, this.placement})
+  RenderFrame({required super.device, required this.resources, required super.services, required super.settings, required super.width, required super.height, super.view, super.frameIndex, super.timeSeconds, super.origin, super.views, super.viewIndex, this.sceneColor, this.placement})
   final FrameResources resources
   final Object? placement
   final TextureHandle? sceneColor
@@ -4417,6 +4484,7 @@ final class RenderSettings
   RenderSettings withExtension<T extends Object>(SettingsSlot<T> slot, T value)
   RenderSettings without(Set<RenderStep> steps, {Iterable<RenderStep> also = const <RenderStep>[]})
   T extension<T extends Object>(SettingsSlot<T> slot)
+  bool operator ==(Object other)
   const RenderSettings({this.specular = 1.0, this.exposure = defaultExposure, this.wireframe = false, this.backfaceCulling = true, this.batchIdenticalDraws = false, this.debug = const DebugDrawSettings(), this.highlighted = const <SceneNode>[], this.tonemap = true, this.tonemapCurve = TonemapCurve.neutral, this.antiAlias = const AntiAliasSettings(), this.bloom = const BloomSettings(), this.look = const LookSettings(), this.shadows = const ShadowSettings(), this.surfaceBuffer = false, this.showSurfaceBuffer = false, this.showShadowMap = false, this.showStaticShadowMap = false, this.showVelocity = false, this.showPointShadowDebug = false, this.reflections = const ReflectionSettings(), this.ambientOcclusion = const AmbientOcclusionSettings(), this.contactShadows = const ContactShadowSettings(), this.fog = const FogSettings(), this.sky = const SkySettings(), this.anisotropy = 1, this.lightFadeBand = 0.0, this.autoExposure = const AutoExposureSettings(), this.xray = const XraySettings(), this.renderScale = 1.0, this.spatialUpscale = const SpatialUpscaleSettings(), this.localExposure = const LocalExposureSettings(), this.outputTransform = OutputTransform.sdr, this.frameWorkBudget = Duration.zero, this.energyCompensation = false, this.diffuseModel = DiffuseModel.lambert, this.clusteredLights = true, this.aliasTargets = false, this.occlusion = OcclusionMode.none, this.lightShafts = const LightShaftSettings(), this.volumetricFog = const VolumetricFogSettings(), this.depthOfField = const DepthOfFieldSettings(), this.motionBlur = const MotionBlurSettings(), this.planarReflections = const PlanarReflectionSettings(), this.decals = const DecalSettings(), this.viewportShading = const ViewportShadingSettings(), this.highContrast = const HighContrastSettings(), this.debugView = const DebugViewSettings(), this.transparency = TransparencyMode.sorted, this.reflectionProbes = true, this.renderTextures = true, this.irradianceUpdates = true, this.reversedDepth = true, this.stepsOff = const <RenderStep>{}, this.camera = const PhysicalCamera(), this.physicalCamera = true, this.extensions = const SettingsExtensions(), this.telemetry = TelemetryLevel.timings})
   double get cameraExposure
   final AmbientOcclusionSettings ambientOcclusion
@@ -4476,6 +4544,7 @@ final class RenderSettings
   final double renderScale
   final double specular
   final int anisotropy
+  int get hashCode
   static String probePassName(int index)
   static const List<String> passOrder = …
   static const Set<RenderStep> pixelAlteringSteps = …
@@ -4492,6 +4561,7 @@ final class RenderStep
   final Set<String> passes
   final String name
   final String? passPrefix
+  static RenderStep? byName(String name)
   static const List<RenderStep> values = …
   static const RenderStep ambientOcclusion = RenderStep._('f3d.ambient_occlusion', _aoOff, _aoOn, passes: <String>{'ssao', 'ssao blur'})
   static const RenderStep autoExposure = RenderStep._('f3d.auto_exposure', _autoExposureOff, _autoExposureOn, passes: <String>{'luminance'})
@@ -5014,6 +5084,7 @@ final class ShadowCastingMode
   bool get castsFromEveryFace
   bool get drawsColor
   final String name
+  static ShadowCastingMode? byName(String name)
   static const List<ShadowCastingMode> values = <ShadowCastingMode>[on, off, doubleSided, shadowsOnly]
   static const ShadowCastingMode doubleSided = ShadowCastingMode._('doubleSided')
   static const ShadowCastingMode off = ShadowCastingMode._('off')
@@ -5053,6 +5124,7 @@ final class ShadowFilter
   String toString()
   const ShadowFilter.custom(this.name, {required ShadowFilter base, ShadowTechnique? technique})
   final String name
+  static ShadowFilter? byName(String name)
   static const List<ShadowFilter> values = <ShadowFilter>[pcf, pcss, evsm]
   static const ShadowFilter evsm = ShadowFilter._('evsm')
   static const ShadowFilter pcf = ShadowFilter._('pcf')
@@ -5089,6 +5161,7 @@ final class ShadowSettings
   ShadowFilter get directionalFilter
   ShadowSettings copyWith({bool? enabled, int? resolution, int? cubeResolution, double? bias, double? normalOffset, double? strength, double? depthPadding, int? cascades, double? cascadeSplit, double? viewDistance, double? pointBias, double? pointNormalOffset, double? pointSoftness, double? directionalLightRadius, double? pointLightRadius, double? pointMaxSoftness, ShadowCasterFaces? casterFaces, ShadowCasterFaces? directionalCasterFaces, ShadowFilter? filter, int? evsmBlurRadius, double? evsmBleedReduction, bool? translucentCasters, bool? caustics, int? causticPhotons, bool clearFilter = false})
   ShadowTechnique get directionalTechnique
+  bool operator ==(Object other)
   const ShadowSettings({this.enabled = true, this.resolution = 1024, this.cubeResolution = 512, this.bias = 0.0015, this.normalOffset = 0.02, this.strength = 1.0, this.depthPadding = 1.2, this.cascades = 3, this.cascadeSplit = 0.7, this.viewDistance = 60.0, this.pointBias = 0.08, this.pointNormalOffset = 1.5, this.pointSoftness = 4.0, this.directionalLightRadius = 0.0, this.pointLightRadius = 0.0, this.pointMaxSoftness = 16.0, this.casterFaces = ShadowCasterFaces.back, this.directionalCasterFaces = ShadowCasterFaces.both, this.filter, this.evsmBlurRadius = 2, this.evsmBleedReduction = 0.2, this.translucentCasters = false, this.caustics = false, this.causticPhotons = 128})
   final ShadowCasterFaces casterFaces
   final ShadowCasterFaces directionalCasterFaces
@@ -5114,6 +5187,7 @@ final class ShadowSettings
   final int cubeResolution
   final int evsmBlurRadius
   final int resolution
+  int get hashCode
   static const double sunAngularRadius = 0.004653
   static const int minCubeTile = 128
   static const int minResolution = 256
@@ -5241,6 +5315,7 @@ final class SkySettings
   SkySettings copyWith({bool? enabled, LinearColor? zenith, LinearColor? horizon, LinearColor? nadir, Vector3? directionToSun, LinearColor? sunColor, double? glowExponent, double? glowStrength, double? sunAngularRadius, double? sunSoftness, double? sunIntensity, TextureHandle? cubemap, LinearColor? tint, PhysicalSky? physical, bool clearZenith = false, bool clearHorizon = false, bool clearNadir = false, bool clearDirectionToSun = false, bool clearSunColor = false, bool clearCubemap = false, bool clearTint = false, bool clearPhysical = false})
   Vector3 get resolvedDirectionToSun
   Vector3 sample(Vector3 direction)
+  bool operator ==(Object other)
   const SkySettings({this.enabled = false, this.zenith, this.horizon, this.nadir, this.directionToSun, this.sunColor, this.glowExponent = 6.0, this.glowStrength = 0.3, this.sunAngularRadius = ShadowSettings.sunAngularRadius, this.sunSoftness = 0.35 * math.pi / 180.0, this.sunIntensity = 0.0, this.cubemap, this.tint, this.physical})
   double get discInnerCosine
   double get discOuterCosine
@@ -5258,6 +5333,7 @@ final class SkySettings
   final double sunAngularRadius
   final double sunIntensity
   final double sunSoftness
+  int get hashCode
 
 final class SoftwareOcclusion
   OcclusionTest prepare({required List<MeshNode> meshes, required Matrix4 viewProjection, required Frustum frustum, required Vector3 eye, required int layerMask, bool cullBackFaces = true, int budget = triangleBudget})
@@ -5279,6 +5355,7 @@ final class SolidColorTexture extends ProceduralTexture
 final class SortMode
   String toString()
   final String name
+  static SortMode? byName(String name)
   static const List<SortMode> values = <SortMode>[stateThenDepth, backToFront, frontToBack, manual, none]
   static const SortMode backToFront = SortMode._('backToFront')
   static const SortMode frontToBack = SortMode._('frontToBack')
@@ -5288,9 +5365,11 @@ final class SortMode
 
 final class SpatialUpscaleSettings
   SpatialUpscaleSettings copyWith({bool? enabled, double? sharpen})
+  bool operator ==(Object other)
   const SpatialUpscaleSettings({this.enabled = false, this.sharpen = 0.2})
   final bool enabled
   final double sharpen
+  int get hashCode
   static bool runsFor(RenderSettings settings)
 
 final class SphereShape extends DerivedShape
@@ -5305,6 +5384,8 @@ final class SplatAxes
   String toString()
   final String name
   final bool halfTurnAboutX
+  static SplatAxes? byName(String name)
+  static const List<SplatAxes> values = <SplatAxes>[rightUpBack, rightDownFront]
   static const SplatAxes rightDownFront = SplatAxes._('rightDownFront', halfTurnAboutX: true)
   static const SplatAxes rightUpBack = SplatAxes._('rightUpBack', halfTurnAboutX: false)
 
@@ -5527,6 +5608,7 @@ final class SymmetricEigen
 final class TangentMethod
   String toString()
   final String name
+  static TangentMethod? byName(String name)
   static const List<TangentMethod> values = <TangentMethod>[mikkTSpace, lengyel]
   static const TangentMethod lengyel = TangentMethod._('lengyel')
   static const TangentMethod mikkTSpace = TangentMethod._('mikkTSpace')
@@ -5536,6 +5618,7 @@ final class TelemetryLevel
   bool get recordsNodes
   bool get recordsTimes
   final String name
+  static TelemetryLevel? byName(String name)
   static const List<TelemetryLevel> values = <TelemetryLevel>[off, counters, timings]
   static const TelemetryLevel counters = TelemetryLevel._('counters', 1)
   static const TelemetryLevel off = TelemetryLevel._('off', 0)
@@ -5556,6 +5639,7 @@ final class TemporalClip
 
 final class TemporalSettings
   TemporalSettings copyWith({bool? enabled, int? sequenceLength, double? historyWeight, double? sharpen, double? reactive, TemporalClip? clip})
+  bool operator ==(Object other)
   const TemporalSettings({this.enabled = false, this.sequenceLength = 16, this.historyWeight = 0.9, this.sharpen = 0.25, this.reactive = 0.0, this.clip = TemporalClip.aabb})
   final TemporalClip clip
   final bool enabled
@@ -5563,6 +5647,7 @@ final class TemporalSettings
   final double reactive
   final double sharpen
   final int sequenceLength
+  int get hashCode
 
 final class TexelValue
   String toString()
@@ -5656,6 +5741,7 @@ final class TonemapCurve
   String toString()
   final String name
   final double code
+  static TonemapCurve? byName(String name)
   static const List<TonemapCurve> values = <TonemapCurve>[neutral, aces, agx, reinhard, aces2]
   static const TonemapCurve aces = TonemapCurve._('aces', 2.0)
   static const TonemapCurve aces2 = TonemapCurve._('aces2', 6.0)
@@ -5715,6 +5801,7 @@ final class UniversalTarget
   final bool carriesAlpha
   final int bytesPerBlock
   final int vkFormat
+  static UniversalTarget? byName(String name)
   static const List<UniversalTarget> values = <UniversalTarget>[bc1, bc3, astc4x4, etc2Rgb8, rgba8]
   static const UniversalTarget astc4x4 = UniversalTarget._('astc4x4', vkFormat: VkFormat.astc4x4UNormBlock, bytesPerBlock: 16, carriesAlpha: false, encodeBlock: _toAstcBlock)
   static const UniversalTarget bc1 = UniversalTarget._('bc1', vkFormat: VkFormat.bc1RgbaUNormBlock, bytesPerBlock: 8, carriesAlpha: false, encodeBlock: _toBc1Block)
@@ -5815,16 +5902,19 @@ final class ViewRuns
 final class ViewportRect
   String toString()
   bool get isFullTarget
+  bool operator ==(Object other)
   const ViewportRect(this.x, this.y, this.width, this.height)
   final double height
   final double width
   final double x
   final double y
+  int get hashCode
 
 final class ViewportShading
   String toString()
   final String name
   final double code
+  static ViewportShading? byName(String name)
   static const List<ViewportShading> values = <ViewportShading>[off, normals, clay, outline, curvature]
   static const ViewportShading clay = ViewportShading._('clay', 2.0)
   static const ViewportShading curvature = ViewportShading._('curvature', 4.0)
@@ -5834,6 +5924,7 @@ final class ViewportShading
 
 final class ViewportShadingSettings
   ViewportShadingSettings copyWith({ViewportShading? mode, double? amount, double? ambient, double? depthEdge, double? normalEdge, double? outlineWidth, double? curvatureGain, double? cavity, vm.Vector3? lightDirection, bool clearLightDirection = false})
+  bool operator ==(Object other)
   const ViewportShadingSettings({this.mode = ViewportShading.off, this.amount = 1.0, this.ambient = 0.25, this.depthEdge = 0.05, this.normalEdge = 0.15, this.outlineWidth = 1.0, this.curvatureGain = 4.0, this.cavity = 1.0, this.lightDirection})
   final ViewportShading mode
   final double ambient
@@ -5844,6 +5935,7 @@ final class ViewportShadingSettings
   final double normalEdge
   final double outlineWidth
   final vm.Vector3? lightDirection
+  int get hashCode
 
 abstract final class VkFormat
   static const int astc4x4SfloatBlock = 1000066000
@@ -5874,6 +5966,7 @@ abstract final class VkFormat
 
 final class VolumetricFogSettings
   VolumetricFogSettings copyWith({bool? enabled, double? density, double? heightFalloff, double? baseHeight, double? anisotropy, int? steps, double? distance, LinearColor? color, LinearColor? ambient, bool clearColor = false, bool clearAmbient = false})
+  bool operator ==(Object other)
   const VolumetricFogSettings({this.enabled = false, this.density = 0.02, this.heightFalloff = 0.0, this.baseHeight = 0.0, this.anisotropy = 0.3, this.steps = 24, this.distance = 40.0, this.color, this.ambient})
   final LinearColor? ambient
   final LinearColor? color
@@ -5884,6 +5977,7 @@ final class VolumetricFogSettings
   final double distance
   final double heightFalloff
   final int steps
+  int get hashCode
 
 abstract final class WebDecodeWorker
   static String? get inPlaceReason
@@ -5927,11 +6021,13 @@ final class XraySettings
   LinearColor get resolvedColor
   XraySettings copyWith({LinearColor? color, int? layerMask, bool clearColor = false})
   bool get enabled
+  bool operator ==(Object other)
   const XraySettings({this.color, this.layerMask = 0})
   final LinearColor? color
   final int layerMask
+  int get hashCode
 
-PlayheadStep advanceTime({required double time, required double deltaSeconds, required double length, required AnimationWrap wrap, required bool reversing})
+PlayheadStep advanceTime({required double seconds, required double deltaSeconds, required double length, required AnimationWrap wrap, required bool reversing})
 
 int animationTrackKey(AnimationTrack track)
 
@@ -6474,14 +6570,14 @@ Uint8List? zlibInflate(Uint8List zlib)
 library package:flutter3d_core/formats.dart
 
 final class AnimationClip
-  AnimationClip({required this.tracks, this.name, this.extras, this.referenceTime})
+  AnimationClip({required this.tracks, this.name, this.extras, this.referenceSeconds})
   String toString()
   bool get isEmpty
   final List<AnimationTrack> tracks
   final Map<String, Object?>? extras
   final String? name
-  final double duration
-  final double? referenceTime
+  final double durationSeconds
+  final double? referenceSeconds
   late final List<AnimationMarker> markers
 
 final class AnimationGraphFormatException extends Flutter3dFormatException
@@ -6580,8 +6676,8 @@ final class AnimationPointerTarget
 final class AnimationTrack
   AnimationTrack({required this.nodeIndex, required this.path, required this.interpolation, required this.times, required this.values, required this.componentCount, this.pointer})
   String toString()
-  double get endTime
-  double get startTime
+  double get endSeconds
+  double get startSeconds
   final AnimationInterpolation interpolation
   final AnimationPath path
   final AnimationPointer? pointer
@@ -6701,6 +6797,7 @@ final class ColorVision
 final class ColorVisionDeficiency
   String toString()
   final String name
+  static ColorVisionDeficiency? byName(String name)
   static const ColorVisionDeficiency deutan = ColorVisionDeficiency._('deutan', <double>[0.367322, 0.860646, -0.227968, 0.280085, 0.672501, 0.047413, -0.011820, 0.042940, 0.968881], _redGreenShift)
   static const ColorVisionDeficiency protan = ColorVisionDeficiency._('protan', <double>[0.152286, 1.052583, -0.204868, 0.114503, 0.786281, 0.099216, -0.003882, -0.048116, 1.051998], _redGreenShift)
   static const ColorVisionDeficiency tritan = …
@@ -7195,6 +7292,7 @@ final class LightingModel
   final bool vertexStageInDepthPasses
   final bool vertexStageMorphs
   int get pipelineGroup
+  static LightingModel? byName(String name)
   static String shaderNameOf(String name)
   static const LightingModel blinnPhong = LightingModel('Blinn-Phong', 'BlinnPhong')
   static const LightingModel impostor = …
@@ -7208,6 +7306,7 @@ final class LightingModel
   static const LightingModel unlit = LightingModel('Unlit', 'Unlit', usesMaterialMaps: false, usesMetallicRoughnessMap: false, usesMaterialParameters: false)
   static const LightingModel xray = LightingModel('X-ray', 'Xray', usesMaterialMaps: false, usesMetallicRoughnessMap: false, usesMaterialParameters: false)
   static const List<LightingModel> builtIn = <LightingModel>[unlit, lambert, blinnPhong, pbr, toon, normals]
+  static const List<LightingModel> values = <LightingModel>[unlit, xray, planarReflection, polyline, impostor, lambert, blinnPhong, pbr, pbrLayered, toon, normals]
 
 final class LightingModels extends PluginRegistry
   LightingModel? named(String name)
@@ -7246,6 +7345,7 @@ final class MaterialBlend
   final bool translucent
   static MaterialBlend? byName(String name)
   static const List<MaterialBlend> all = <MaterialBlend>[opaque, mask, hashed, alpha, additive, premultiplied]
+  static const List<MaterialBlend> values = <MaterialBlend>[opaque, mask, hashed, alpha, additive, premultiplied]
   static const MaterialBlend additive = MaterialBlend._('additive', translucent: true)
   static const MaterialBlend alpha = MaterialBlend._('alpha', translucent: true)
   static const MaterialBlend hashed = MaterialBlend._('hashed', translucent: false)
@@ -7516,7 +7616,9 @@ final class MaterialSlotTable
 final class MaterialStageKind
   String toString()
   final String name
+  static MaterialStageKind? byName(String name)
   static const List<MaterialStageKind> all = <MaterialStageKind>[surface, fullscreen, compute]
+  static const List<MaterialStageKind> values = <MaterialStageKind>[surface, fullscreen, compute]
   static const MaterialStageKind compute = MaterialStageKind._('compute')
   static const MaterialStageKind fullscreen = MaterialStageKind._('fullscreen')
   static const MaterialStageKind surface = MaterialStageKind._('material')
@@ -7640,6 +7742,7 @@ final class ModelFormat
   String toString()
   const ModelFormat(this.name)
   final String name
+  static ModelFormat? byName(String name)
   static const List<ModelFormat> values = <ModelFormat>[auto, gltf, obj, f3d, stl]
   static const ModelFormat auto = ModelFormat('auto')
   static const ModelFormat f3d = ModelFormat('f3d')
@@ -7951,6 +8054,8 @@ final class SplatAxes
   String toString()
   final String name
   final bool halfTurnAboutX
+  static SplatAxes? byName(String name)
+  static const List<SplatAxes> values = <SplatAxes>[rightUpBack, rightDownFront]
   static const SplatAxes rightDownFront = SplatAxes._('rightDownFront', halfTurnAboutX: true)
   static const SplatAxes rightUpBack = SplatAxes._('rightUpBack', halfTurnAboutX: false)
 
@@ -8152,6 +8257,7 @@ final class UniversalTarget
   final bool carriesAlpha
   final int bytesPerBlock
   final int vkFormat
+  static UniversalTarget? byName(String name)
   static const List<UniversalTarget> values = <UniversalTarget>[bc1, bc3, astc4x4, etc2Rgb8, rgba8]
   static const UniversalTarget astc4x4 = UniversalTarget._('astc4x4', vkFormat: VkFormat.astc4x4UNormBlock, bytesPerBlock: 16, carriesAlpha: false, encodeBlock: _toAstcBlock)
   static const UniversalTarget bc1 = UniversalTarget._('bc1', vkFormat: VkFormat.bc1RgbaUNormBlock, bytesPerBlock: 8, carriesAlpha: false, encodeBlock: _toBc1Block)
@@ -8786,6 +8892,7 @@ final class SphereShape extends DerivedShape
 final class TangentMethod
   String toString()
   final String name
+  static TangentMethod? byName(String name)
   static const List<TangentMethod> values = <TangentMethod>[mikkTSpace, lengyel]
   static const TangentMethod lengyel = TangentMethod._('lengyel')
   static const TangentMethod mikkTSpace = TangentMethod._('mikkTSpace')

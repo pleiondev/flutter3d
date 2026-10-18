@@ -42,7 +42,8 @@ abstract base class GamepadPlatform extends PlatformInterface {
   /// native backend is written with a controller in hand.
   static GamepadPlatform _instance = defaultGamepadPlatform();
 
-  /// The implementation a `Gamepad` uses when it is given none.
+  /// The implementation a `Gamepad` uses when it is given none:
+  /// process-wide, set once by the platform package at registration.
   ///
   /// Setting it replaces the platform, which is how a test installs a fake;
   /// the setter throws an `AssertionError` for an implementation that was

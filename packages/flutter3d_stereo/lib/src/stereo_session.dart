@@ -34,7 +34,7 @@ import 'stereo_viewer.dart';
 /// that the frames go to Flutter's own surface ([XrCapability.inline]), so
 /// there is no swapchain and nothing to compose, and the runtime's clock is
 /// the phone's own. Frames come as fast as they are asked for, each
-/// predicted for [period] after the last.
+/// predicted for [periodSeconds] after the last.
 final class HolderXrSession extends XrSession {
   /// A session following [tracker].
   HolderXrSession({
@@ -44,7 +44,7 @@ final class HolderXrSession extends XrSession {
     this.interpupillaryDistance = 0.064,
     this.fovY = 1.0,
     this.aspect = 1.0,
-    this.period = 1 / 60,
+    this.periodSeconds = 1 / 60,
     this.eyeHeight = 1.6,
   });
 
@@ -69,7 +69,7 @@ final class HolderXrSession extends XrSession {
   final double aspect;
 
   /// Seconds between the frames' display times.
-  final double period;
+  final double periodSeconds;
 
   /// How far above the session's floor the head is, meters: a sensor that
   /// knows only a rotation puts the head here.
@@ -120,8 +120,8 @@ final class HolderXrSession extends XrSession {
     final shown = screen ?? const StereoScreen(width: 0.1324, height: 0.0745);
     return XrFrame(
       index: index,
-      predictedDisplayTime: index * period,
-      predictedDisplayPeriod: period,
+      predictedDisplaySeconds: index * periodSeconds,
+      predictedDisplayPeriodSeconds: periodSeconds,
       space: _space,
       poses: <String, RigidPose>{
         XrPoseSources.head: RigidPose(

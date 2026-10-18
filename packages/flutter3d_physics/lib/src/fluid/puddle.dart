@@ -56,7 +56,7 @@ final class Puddle {
   final Map<String, double> _amounts = {};
 
   /// Seconds since it was first wetted, as a gravity current counts them.
-  double age = 0.0;
+  double ageSeconds = 0.0;
 
   /// Cubic metres in it.
   double get volume => _volume;
@@ -88,7 +88,7 @@ final class Puddle {
     );
     _volume = total;
     other._amounts.forEach((k, a) => _amounts[k] = (_amounts[k] ?? 0.0) + a);
-    age = math.max(age, other.age);
+    ageSeconds = math.max(ageSeconds, other.ageSeconds);
   }
 
   /// **What evaporates from it in [dt]** into [air] under gravity [g],
@@ -131,7 +131,7 @@ final class Puddle {
   double radius(double g) {
     if (_volume <= 0.0) return 0.0;
     final rest = restRadius(g);
-    if (medium.viscosity <= 0.0 || age <= 0.0) return rest;
+    if (medium.viscosity <= 0.0 || ageSeconds <= 0.0) return rest;
     final current =
         0.894 *
         Portable.pow(
@@ -143,7 +143,7 @@ final class Puddle {
               (3.0 * medium.viscosity),
           0.125,
         ) *
-        Portable.pow(age, 0.125);
+        Portable.pow(ageSeconds, 0.125);
     return math.min(rest, current);
   }
 
@@ -254,7 +254,7 @@ final class PuddleSurface with JetReceiver {
     _g = math.max(-gravity.dot(surface.normal), 0.0);
     if (puddles.isEmpty) return;
     for (final p in puddles) {
-      p.age += dt;
+      p.ageSeconds += dt;
     }
     _join();
   }

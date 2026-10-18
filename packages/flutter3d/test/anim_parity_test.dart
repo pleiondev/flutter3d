@@ -111,7 +111,7 @@ Map<String, Matrix4> _matricesAt({
   final meshNodeIndex = document.nodes.indexWhere((n) => n.surfaces.isNotEmpty);
   final meshNode = built.created[meshNodeIndex];
 
-  final time = clip.duration * frame / framesPerClip;
+  final time = clip.durationSeconds * frame / framesPerClip;
 
   // Path 1: Pose.sampleClip.
   final pose = AnimationPose.fromNodes(document.nodes);

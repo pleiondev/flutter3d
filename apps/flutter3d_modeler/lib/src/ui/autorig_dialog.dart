@@ -26,7 +26,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d/flutter3d.dart' as engine show RenderMaterial;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:vector_math/vector_math.dart' show Aabb3, Vector3;
 
 import '../../l10n/app_localizations.dart';
 import '../autorig_markers.dart';

@@ -1,5 +1,17 @@
 ## 1.0.0-rc.1
 
+- **Breaking: a time in a `double` says seconds in its name.**
+  `FakeXrSession.period` is `FakeXrSession.periodSeconds`,
+  `FakeXrSession.startTime` is `FakeXrSession.startSeconds`,
+  `FrameClock.elapsed` is `FrameClock.elapsedSeconds`,
+  `XrFrame.predictedDisplayPeriod` is
+  `XrFrame.predictedDisplayPeriodSeconds` and `XrFrame.predictedDisplayTime`
+  is `XrFrame.predictedDisplaySeconds`; the value and its unit are what they
+  were. `dart fix` carries each rename out.
+- **Breaking: `tick` goes.** `step` is the fixed simulation step, `update`
+  the variable frame and `advance` playback: `FrameClock.tick` is
+  `FrameClock.nextFrameSeconds` and `WidgetSurface.tick` is
+  `WidgetSurface.update`. `dart fix` renames the calls and the overrides.
 - **A context that comes back keeps its renderer.** On
   `DeviceLoss.restored` the view calls `Renderer.recoverFromLoss` on the
   renderer it has instead of making a new one over the device; a device

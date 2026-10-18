@@ -1,6 +1,6 @@
 # Generated from flutter3d_build/lib/migrations/*.yaml by
 # `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
-# table-stamp: fbb33994bd2fa7e5
+# table-stamp: f38ff10f91336e6b
 #
 # Read by `dart fix` and the IDE: see "A break comes with its migration"
 # in CONTRIBUTING.md.
@@ -177,3 +177,82 @@ transforms:
     changes:
       - kind: 'rename'
         newName: 'ArmorGift'
+  - title: 'flutter3d after 1.0.0-rc.1: game_shooter-ChaseBrain-attackCooldown'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_game_shooter/flutter3d_game_shooter.dart']
+      field: 'attackCooldown'
+      inClass: 'ChaseBrain'
+    changes:
+      - kind: 'rename'
+        newName: 'attackCooldownSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: game_shooter-ChaseBrain-painCooldown'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_game_shooter/flutter3d_game_shooter.dart']
+      field: 'painCooldown'
+      inClass: 'ChaseBrain'
+    changes:
+      - kind: 'rename'
+        newName: 'painCooldownSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: game_shooter-ChaseBrain-stateTime'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_game_shooter/flutter3d_game_shooter.dart']
+      field: 'stateTime'
+      inClass: 'ChaseBrain'
+    changes:
+      - kind: 'rename'
+        newName: 'stateSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: game_shooter-MonsterDef-MonsterDef'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_game_shooter/flutter3d_game_shooter.dart']
+      constructor: ''
+      inClass: 'MonsterDef'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'alertDuration'
+        newName: 'alertSeconds'
+      - kind: 'renameParameter'
+        oldName: 'hurtDuration'
+        newName: 'hurtSeconds'
+      - kind: 'renameParameter'
+        oldName: 'painCooldown'
+        newName: 'painCooldownSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: game_shooter-MonsterDef-alertDuration'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_game_shooter/flutter3d_game_shooter.dart']
+      field: 'alertDuration'
+      inClass: 'MonsterDef'
+    changes:
+      - kind: 'rename'
+        newName: 'alertSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: game_shooter-MonsterDef-hurtDuration'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_game_shooter/flutter3d_game_shooter.dart']
+      field: 'hurtDuration'
+      inClass: 'MonsterDef'
+    changes:
+      - kind: 'rename'
+        newName: 'hurtSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: game_shooter-MonsterDef-painCooldown'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_game_shooter/flutter3d_game_shooter.dart']
+      field: 'painCooldown'
+      inClass: 'MonsterDef'
+    changes:
+      - kind: 'rename'
+        newName: 'painCooldownSeconds'
+  - title: 'flutter3d after 1.0.0-rc.1: game_shooter-WeaponDef-cooldown'
+    date: 2026-10-14
+    element:
+      uris: ['package:flutter3d_game_shooter/flutter3d_game_shooter.dart']
+      getter: 'cooldown'
+      inClass: 'WeaponDef'
+    changes:
+      - kind: 'rename'
+        newName: 'cooldownSeconds'

@@ -273,15 +273,15 @@ ModelProject _withTrack(
   return project.copyWith(clips: clips);
 }
 
-/// Writes (or replaces) the keyframe at [time] on clip [clipIndex] track
+/// Writes (or replaces) the keyframe at [timeSeconds] on clip [clipIndex] track
 /// [trackIndex] — [KeyTable.setKey], wired into the undo stack.
 final class SetKey extends ModelCommand {
-  /// A step writing a key at [time] seconds holding [values] onto track
+  /// A step writing a key at [timeSeconds] seconds holding [values] onto track
   /// [trackIndex] of clip [clipIndex], with flat tangents unless given.
   const SetKey({
     required this.clipIndex,
     required this.trackIndex,
-    required this.time,
+    required this.timeSeconds,
     required this.values,
     this.inTangent,
     this.outTangent,
@@ -296,7 +296,7 @@ final class SetKey extends ModelCommand {
   final int trackIndex;
 
   /// In seconds.
-  final double time;
+  final double timeSeconds;
 
   /// The key's value, one number per component of the track. [apply] refuses a
   /// list of the wrong length.
@@ -320,7 +320,7 @@ final class SetKey extends ModelCommand {
   Map<String, Object?> get arguments => <String, Object?>{
     'clipIndex': clipIndex,
     'trackIndex': trackIndex,
-    'time': time,
+    'time': timeSeconds,
     'values': values,
     'inTangent': inTangent,
     'outTangent': outTangent,
@@ -349,7 +349,12 @@ final class SetKey extends ModelCommand {
         'has ${outTangent!.length}',
       );
     }
-    table.setKey(time, values, inTangent: inTangent, outTangent: outTangent);
+    table.setKey(
+      timeSeconds,
+      values,
+      inTangent: inTangent,
+      outTangent: outTangent,
+    );
     return Outcome.done(
       _withTrack(
         project,
@@ -362,15 +367,15 @@ final class SetKey extends ModelCommand {
 }
 
 /// Shifts the keys at [indices] on clip [clipIndex] track [trackIndex] by
-/// [deltaTime] — [KeyTable.moveKeys], wired into the undo stack.
+/// [deltaSeconds] — [KeyTable.moveKeys], wired into the undo stack.
 final class MoveKeys extends ModelCommand {
   /// A step moving keys [indices] of track [trackIndex] in clip [clipIndex] by
-  /// [deltaTime] seconds.
+  /// [deltaSeconds] seconds.
   const MoveKeys({
     required this.clipIndex,
     required this.trackIndex,
     required this.indices,
-    required this.deltaTime,
+    required this.deltaSeconds,
   });
 
   /// Index of the clip in [ModelProject.clips]. [apply] refuses an index with
@@ -386,7 +391,7 @@ final class MoveKeys extends ModelCommand {
   final List<int> indices;
 
   /// In seconds.
-  final double deltaTime;
+  final double deltaSeconds;
 
   @override
   String get name => 'moveKeys';
@@ -399,7 +404,7 @@ final class MoveKeys extends ModelCommand {
     'clipIndex': clipIndex,
     'trackIndex': trackIndex,
     'indices': indices,
-    'deltaTime': deltaTime,
+    'deltaTime': deltaSeconds,
   };
 
   @override
@@ -414,7 +419,7 @@ final class MoveKeys extends ModelCommand {
         );
       }
     }
-    table.moveKeys(indices, deltaTime);
+    table.moveKeys(indices, deltaSeconds);
     return Outcome.done(
       _withTrack(
         project,

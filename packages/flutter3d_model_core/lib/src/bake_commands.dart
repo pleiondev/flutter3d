@@ -52,6 +52,15 @@ final class BakeMapKind {
   /// the image is added unbound, for a texture graph to read as a mask.
   static const BakeMapKind thickness = BakeMapKind._('thickness', null);
 
+  /// The value called [name], or null for a name this version does not
+  /// know, which is what a file written by a later version can carry.
+  static BakeMapKind? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
   /// Every map this build can bake, in the order a command lists them.
   static const List<BakeMapKind> values = <BakeMapKind>[
     normal,

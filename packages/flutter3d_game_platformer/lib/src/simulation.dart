@@ -113,7 +113,7 @@ final class PlatformerSimulation {
     this.actors,
     this.lives = -1,
     this.deaths = 0,
-    this.elapsed = 0.0,
+    this.elapsedSeconds = 0.0,
     this.levelNext,
     required this.random,
     this.killPlane = -20.0,
@@ -245,7 +245,7 @@ final class PlatformerSimulation {
   /// clock is a timer that punishes a player whose laptop stuttered.
   ///
   /// Given at construction for the same reason [deaths] is: a run spans levels.
-  double elapsed;
+  double elapsedSeconds;
 
   EventRegistry? _bus;
 
@@ -397,7 +397,7 @@ final class PlatformerSimulation {
       return;
     }
 
-    elapsed += dt;
+    elapsedSeconds += dt;
     _moved = true;
     _run(PlatformerPhases.begin, dt);
 
@@ -625,7 +625,7 @@ final class PlatformerSimulation {
     'respawn': <double>[_respawn.x, _respawn.y, _respawn.z],
     'deaths': deaths,
     'lives': lives,
-    'elapsed': elapsed,
+    'elapsed': elapsedSeconds,
     // **Keyed by name, and a mechanism without one is not saved** — see
     // `MechanismWorld.save`, which is where the rule and the paragraph
     // explaining it now live, because this game and the shooter had written
@@ -670,7 +670,7 @@ final class PlatformerSimulation {
     final left = data['lives'];
     if (left is num) lives = left.toInt();
     final played = data['elapsed'];
-    if (played is num) elapsed = played.toDouble();
+    if (played is num) elapsedSeconds = played.toDouble();
 
     mechanisms?.restore(data['mechanisms']);
 

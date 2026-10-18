@@ -312,6 +312,23 @@ final class GameSettings {
     for (final MapEntry(:key, :value) in unknown.entries)
       if (!_known.contains(key)) key: value,
   };
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GameSettings &&
+          _sameMap(other.volumes, volumes) &&
+          _sameMap(other.values, values) &&
+          other.actions == actions &&
+          _sameMap(other.unknown, unknown);
+
+  @override
+  int get hashCode => Object.hash(
+    Object.hashAllUnordered(volumes.keys),
+    Object.hashAllUnordered(values.keys),
+    actions,
+    Object.hashAllUnordered(unknown.keys),
+  );
 }
 
 /// The names version 1 of the settings file wrote, and the ids they are now.
@@ -380,4 +397,14 @@ final class GameSettingsFormatException extends Flutter3dFormatException {
 
   @override
   String toString() => 'GameSettingsFormatException: $message';
+}
+
+/// Whether [a] and [b] map the same keys to equal values.
+bool _sameMap<K, V>(Map<K, V>? a, Map<K, V>? b) {
+  if (identical(a, b)) return true;
+  if (a == null || b == null || a.length != b.length) return false;
+  for (final MapEntry(:key, :value) in a.entries) {
+    if (!b.containsKey(key) || b[key] != value) return false;
+  }
+  return true;
 }

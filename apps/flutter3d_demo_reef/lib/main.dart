@@ -313,7 +313,7 @@ class _ReefScreenState extends State<ReefScreen>
   }
 
   void _onTick(Duration _) {
-    final dt = _frames.tick();
+    final dt = _frames.nextFrameSeconds();
     final loop = _loop;
     if (_playing == null || loop == null) return;
     loop.frame(dt);

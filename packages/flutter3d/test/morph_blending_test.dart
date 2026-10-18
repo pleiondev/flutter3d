@@ -80,7 +80,7 @@ void main() {
       player.seek(0.0);
       expect(sink.last, <double>[1.0, 0.0]);
 
-      player.crossFadeTo(1, duration: 1.0);
+      player.crossFadeTo(1, durationSeconds: 1.0);
       player.update(0.5);
       expect(sink.last[0], closeTo(0.5, 1e-6));
       expect(sink.last[1], closeTo(0.5, 1e-6));
@@ -102,7 +102,7 @@ void main() {
       ], sink);
 
       player.play(index: 0);
-      player.crossFadeTo(1, duration: 1.0);
+      player.crossFadeTo(1, durationSeconds: 1.0);
       player.update(0.5);
 
       expect(sink.last, <double>[1.0]);

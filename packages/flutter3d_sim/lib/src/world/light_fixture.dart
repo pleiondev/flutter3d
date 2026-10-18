@@ -67,18 +67,18 @@ final class FlameFlicker extends LightBehavior {
 
 /// A slow swell, for something magical rather than burning.
 final class PulseLight extends LightBehavior {
-  /// A swell dipping by [depth] (0.35) once every [period] (3.5) seconds.
-  const PulseLight({this.depth = 0.35, this.period = 3.5});
+  /// A swell dipping by [depth] (0.35) once every [periodSeconds] (3.5) seconds.
+  const PulseLight({this.depth = 0.35, this.periodSeconds = 3.5});
 
   /// How far it dips below full, from 0 to 1.
   final double depth;
 
   /// One swell, trough to trough, in seconds.
-  final double period;
+  final double periodSeconds;
 
   @override
   double at(double time, double seed) {
-    final phase = 2.0 * math.pi * (time / period + seed);
+    final phase = 2.0 * math.pi * (time / periodSeconds + seed);
     return 1.0 - depth * (0.5 - 0.5 * math.sin(phase));
   }
 }
