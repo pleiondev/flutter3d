@@ -199,6 +199,7 @@ final class GeoOrigin {
 
 /// A geo origin in a document that cannot be read.
 final class GeoOriginFormatException extends Flutter3dFormatException {
+  /// A refusal saying what was wrong with the geo origin in [message].
   const GeoOriginFormatException(this.message);
 
   @override

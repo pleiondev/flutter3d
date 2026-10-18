@@ -35,6 +35,7 @@ typedef ContactFilter = bool Function(SweptContact contact);
 /// scratch — read it, do not keep it. `tool/filter_cost.dart` is what says
 /// this costs nothing, and it is run when this changes.
 final class SweptContact {
+  /// A contact pointing at nothing; [other] throws until [set] is called.
   SweptContact();
 
   /// What was touched.
@@ -83,10 +84,13 @@ final class SweepHit {
   /// why the change was quiet — it was looked for before it was made.
   final Vector3 normal = Vector3.zero();
 
+  /// The collider the shape touched, or null when nothing was in the way.
   Collider? collider;
 
+  /// Whether the shape touched something: [fraction] is below one.
   bool get didHit => fraction < 1.0;
 
+  /// Clears the hit back to an unobstructed sweep, for the next query.
   void reset() {
     fraction = 1.0;
     normal.setZero();

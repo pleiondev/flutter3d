@@ -41,6 +41,9 @@ export 'sweep_hit.dart';
 /// their lists between rebuilds, so after a few frames it allocates nothing and
 /// costs one integer append per collider per cell it covers.
 final class CollisionWorld {
+  /// An empty world indexed in grid cells [cellSize] metres across (four
+  /// by default), stepped by the Dart reference unless [backend] says
+  /// otherwise, of the standard world's properties unless given.
   CollisionWorld({
     double cellSize = 4.0,
     this.backend = const DartPhysics(),
@@ -127,7 +130,10 @@ final class CollisionWorld {
   int _nextId = 0;
   final Map<Collider, int> _ids = <Collider, int>{};
 
+  /// Colliders in the world, static and moving, a count.
   int get colliderCount => _statics.length + _movers.length;
+
+  /// Static colliders in the world, a count.
   int get staticCount => _statics.length;
 
   /// The static colliders, for a caller that has to find its own among them
@@ -270,6 +276,9 @@ final class CollisionWorld {
     ),
   );
 
+  /// Takes [collider] out now, re-indexing its grid so a query before the
+  /// next [update] sees the world without it. A collider not in the world
+  /// is ignored. Its listener is not told the overlaps ended.
   void remove(Collider collider) {
     fileColliderInWorld(collider, null);
     _reporters.remove(collider);
@@ -289,6 +298,8 @@ final class CollisionWorld {
     if (_statics.remove(collider)) _reindexStatics();
   }
 
+  /// Empties the world: every collider, both grids, the overlaps in
+  /// progress and the pending removals. No listener is told.
   void clear() {
     _revision++;
     _statics.clear();

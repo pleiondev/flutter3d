@@ -19,6 +19,8 @@ const double sharpEdgeDischarge = 0.62;
 
 /// What a submerged opening passes — [orificeFlow].
 final class OrificeStream {
+  /// A stream of [flow] cubic metres a second leaving at [speed] metres a
+  /// second.
   const OrificeStream({required this.flow, required this.speed});
 
   /// The flow it passes, in m³ a second: [speed] over the contracted
@@ -41,6 +43,8 @@ final class OrificeStream {
 
 /// What passes a weir round a circular mouth — [circularWeir].
 final class WeirFlow {
+  /// [flow] cubic metres a second over a crest section of [area] square
+  /// metres.
   const WeirFlow({required this.flow, required this.area});
 
   /// The flow over the crest, in m³ a second.
@@ -62,6 +66,8 @@ final class WeirFlow {
 
 /// The sheet a flow makes over a circular mouth's lip — [overCircularLip].
 final class LipOverflow {
+  /// A sheet [width] metres wide under [head] metres, leaving at [speed]
+  /// metres a second.
   const LipOverflow({
     required this.head,
     required this.speed,

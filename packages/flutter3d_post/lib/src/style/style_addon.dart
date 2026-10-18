@@ -13,6 +13,8 @@ import 'package:flutter3d_core/flutter3d_core.dart';
 /// The high-contrast look: the picture flattened and toned around the nodes
 /// a game marked — `RenderSettings.highContrast`.
 final class HighContrastAddon extends RenderStepAddon {
+  /// The plugin `flutter3d_post.high_contrast`, which owns the switch of
+  /// [RenderStep.highContrast].
   const HighContrastAddon()
     : super(
         id: 'flutter3d_post.high_contrast',
@@ -47,6 +49,8 @@ bool _outlinesOn(RenderStepContext context) =>
 /// The outlines — [outlinesStep]. Needs [HighContrastAddon], which the
 /// plugin host installs first.
 final class OutlinesAddon extends RenderStepAddon {
+  /// The plugin `flutter3d_post.outlines`, which owns the switch of
+  /// [outlinesStep]. Depends on `flutter3d_post.high_contrast`.
   const OutlinesAddon()
     : super(
         id: 'flutter3d_post.outlines',
@@ -60,6 +64,8 @@ final class OutlinesAddon extends RenderStepAddon {
 /// The editor's normals, clay, outline and curvature views —
 /// `RenderSettings.viewportShading`.
 final class ViewportShadingAddon extends RenderStepAddon {
+  /// The plugin `flutter3d_post.viewport_shading`, which owns the switch of
+  /// [RenderStep.viewportShading].
   const ViewportShadingAddon()
     : super(
         id: 'flutter3d_post.viewport_shading',
@@ -88,6 +94,8 @@ const LightingModel toonLighting = LightingModel('Toon', 'Toon');
 /// frame. Its stages come with the backend's bundle, so it brings no
 /// `stages`; a third-party model's addon brings its own.
 final class ToonLightingAddon extends LightingModelAddon {
+  /// The plugin `flutter3d_post.toon`, which brings the lighting model
+  /// [toonLighting].
   const ToonLightingAddon()
     : super(
         id: 'flutter3d_post.toon',

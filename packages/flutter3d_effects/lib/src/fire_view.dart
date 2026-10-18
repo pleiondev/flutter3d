@@ -22,6 +22,8 @@ import 'fire_light.dart';
 
 /// How much of the fire is drawn at most, and how fine its smoke is baked.
 final class FireDetail {
+  /// Detail of at most [flames], [embers] and [smoke] particles, the smoke
+  /// baked in frames [smokeCell] pixels a side.
   const FireDetail({
     required this.flames,
     required this.embers,
@@ -57,6 +59,7 @@ final class FireDetail {
 /// [FireView.wanted], [LiquidView.wanted]. Where [wanted] is over [holds],
 /// the step drew fewer, larger or farther apart.
 final class StepBudget {
+  /// The budget of [step], which wanted [wanted] and holds [holds].
   const StepBudget({
     required this.step,
     required this.wanted,
@@ -397,6 +400,12 @@ final class _Watched {
 /// Everything that flies is carried by the wind where its fire is, and a
 /// wind leans the flame as far as the core's flame leans.
 final class FireView {
+  /// A view of the fires of a world, drawn into a scene through [renderer]
+  /// at [detail] (full by default), lit by clustered lights, its smoke of
+  /// albedo 0.66 unless given.
+  ///
+  /// Bakes the smoke's six-way sheet and uploads it to [device] here, so a
+  /// view is made once, not each frame.
   FireView({
     required this._world,
     required GraphicsDevice device,
@@ -565,7 +574,11 @@ final class FireView {
 
   /// How many tongues, embers and puffs are alive.
   int get tongues => _flames.aliveCount;
+
+  /// Embers alive now, a count, at most [FireDetail.embers].
   int get embers => _embers.aliveCount;
+
+  /// Puffs of smoke alive now, a count, at most [FireDetail.smoke].
   int get puffs => _smoke.aliveCount;
 
   /// [look] draws [body], and chars with it: from [fresh] towards [charred]

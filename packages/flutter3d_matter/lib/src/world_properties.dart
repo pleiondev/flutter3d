@@ -362,6 +362,8 @@ final class WorldProperties {
 /// A world's properties in a document — a level's `world`, a snapshot —
 /// that cannot be read.
 final class WorldPropertiesFormatException extends Flutter3dFormatException {
+  /// A refusal saying what was wrong with the world's properties in
+  /// [message].
   const WorldPropertiesFormatException(this.message);
 
   @override

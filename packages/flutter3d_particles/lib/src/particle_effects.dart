@@ -17,6 +17,7 @@ typedef EffectPlacer = EffectPlace? Function(BusEvent event);
 /// One distinct look among the effects added, and the pool it draws —
 /// [ParticleEffects.looks].
 final class ParticleLook {
+  /// The look [render] and the pool [system] its effects emit into.
   const ParticleLook({required this.render, required this.system});
 
   /// How the look is drawn.
@@ -39,6 +40,7 @@ final class ParticleLook {
 /// How many triggers have fired, and how many could not for want of a
 /// place — [ParticleEffects.triggerCounts].
 final class TriggerCounts {
+  /// The counts [fired] and [unplaced].
   const TriggerCounts({required this.fired, required this.unplaced});
 
   /// The triggers that fired.
@@ -91,6 +93,8 @@ final class TriggerCounts {
 /// softness. [looks] lists each look and its pool, which is what an
 /// application builds its contributors from.
 final class ParticleEffects extends PluginRegistry {
+  /// A registry with no effects, emitting into `system`, or into the pool
+  /// `systemFor` picks for an effect's [EffectRender] when it is given.
   ParticleEffects(
     ParticleSystem system, {
     ParticleSystem Function(EffectRender render)? systemFor,

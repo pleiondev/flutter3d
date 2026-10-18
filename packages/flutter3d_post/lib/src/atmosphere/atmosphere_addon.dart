@@ -14,6 +14,8 @@ import 'package:flutter3d_core/flutter3d_core.dart';
 /// `RenderSettings.fog`. Height fog is the same step: `FogSettings`
 /// thins it upwards with `heightFalloff`.
 final class FogAddon extends RenderStepAddon {
+  /// The plugin `flutter3d_post.fog`, which owns the switch of
+  /// [RenderStep.fog].
   const FogAddon()
     : super(
         id: 'flutter3d_post.fog',
@@ -25,6 +27,8 @@ final class FogAddon extends RenderStepAddon {
 
 /// The fog marched through the light — `RenderSettings.volumetricFog`.
 final class VolumetricFogAddon extends RenderStepAddon {
+  /// The plugin `flutter3d_post.volumetric_fog`, which owns the switch of
+  /// [RenderStep.volumetricFog].
   const VolumetricFogAddon()
     : super(
         id: 'flutter3d_post.volumetric_fog',
@@ -36,6 +40,8 @@ final class VolumetricFogAddon extends RenderStepAddon {
 
 /// Shafts of sunlight through the air — `RenderSettings.lightShafts`.
 final class LightShaftsAddon extends RenderStepAddon {
+  /// The plugin `flutter3d_post.light_shafts`, which owns the switch of
+  /// [RenderStep.lightShafts].
   const LightShaftsAddon()
     : super(
         id: 'flutter3d_post.light_shafts',
@@ -65,6 +71,7 @@ bool _skyOn(RenderStepContext context) => context.settings.sky.enabled;
 
 /// The sky — [skyStep], the physical sky by default.
 final class SkyAddon extends RenderStepAddon {
+  /// The plugin `flutter3d_post.sky`, which owns the switch of [skyStep].
   const SkyAddon()
     : super(
         id: 'flutter3d_post.sky',

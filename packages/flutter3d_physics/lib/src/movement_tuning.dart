@@ -4,6 +4,9 @@
 /// hundreds of times, always together, and always by feel. A tuning value
 /// buried in the middle of the movement code is a tuning value nobody adjusts.
 final class MovementSettings {
+  /// The default feel: walking at 6 metres per second, sprinting at 10,
+  /// jumping at 8, climbing 0.4-metre steps, with a tenth of a second of
+  /// coyote time and jump buffer, and falling by the world's gravity.
   const MovementSettings({
     this.walkSpeed = 6.0,
     this.sprintSpeed = 10.0,

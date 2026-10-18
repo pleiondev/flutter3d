@@ -11,6 +11,7 @@ import 'particle.dart';
 /// what happens to it afterwards. Between them they cover every effect this
 /// game needs without a single field named after a specific one.
 abstract base class ParticleEmitter {
+  /// An emitter; a subclass says what [emit] does.
   const ParticleEmitter();
 
   /// Places [ParticleBirth.particle] for a burst at [ParticleBirth.origin],
@@ -42,6 +43,8 @@ abstract base class ParticleEmitter {
 /// it emits, so a burst allocates nothing for it; an emitter reads it during
 /// [ParticleEmitter.emit] and does not keep it.
 final class ParticleBirth {
+  /// A birth placing [particle] for a burst at [origin] fired along
+  /// [direction], drawing from [random].
   ParticleBirth({
     required this.particle,
     required this.origin,
@@ -65,11 +68,14 @@ final class ParticleBirth {
 
 /// Outwards in every direction. Explosions, and anything that bursts.
 final class SphereEmitter extends ParticleEmitter {
+  /// A burst from a point at 2 to 6 metres per second unless told
+  /// otherwise.
   const SphereEmitter({
     this.speed = const Range(2.0, 6.0),
     this.radius = const Range.exact(0.0),
   });
 
+  /// How fast a particle leaves, in metres per second, sampled per particle.
   final Range speed;
 
   /// How far from the origin a particle starts, so a burst begins as a shell
@@ -94,6 +100,8 @@ final class SphereEmitter extends ParticleEmitter {
 
 /// A cone around a direction. Muzzle flashes, sparks off a wall, blood.
 final class ConeEmitter extends ParticleEmitter {
+  /// A cone 25 degrees either side of the burst's direction, at 3 to 8
+  /// metres per second, unless told otherwise.
   const ConeEmitter({
     this.speed = const Range(3.0, 8.0),
     this.halfAngle = 25.0 * math.pi / 180.0,
@@ -133,6 +141,9 @@ final class ConeEmitter extends ParticleEmitter {
 /// tall has to be built out of several emitters that then have to be kept in
 /// step with each other.
 final class BoxEmitter extends ParticleEmitter {
+  /// A box reaching `halfExtents` metres either way of the origin on each
+  /// axis, firing along `along` or else the burst's direction, at no speed
+  /// unless [speed] says. Both vectors are copied.
   BoxEmitter({
     required Vector3 halfExtents,
     this.speed = const Range(0.0, 0.0),
@@ -149,6 +160,8 @@ final class BoxEmitter extends ParticleEmitter {
   /// particle goes the same way — rain falls down, it does not fall outwards.
   final Vector3? _along;
 
+  /// How fast a particle leaves, in metres per second, sampled per particle;
+  /// it scales the direction as given, which is not normalised here.
   final Range speed;
 
   @override
@@ -172,11 +185,14 @@ final class BoxEmitter extends ParticleEmitter {
 
 /// Straight up, slowly. Smoke and dust.
 final class DriftEmitter extends ParticleEmitter {
+  /// A drift up at 0.3 to 1 metre per second, wandering up to 0.3 metres
+  /// per second sideways, unless told otherwise.
   const DriftEmitter({
     this.speed = const Range(0.3, 1.0),
     this.spread = const Range(-0.3, 0.3),
   });
 
+  /// How fast a particle rises, in metres per second, up y.
   final Range speed;
 
   /// Sideways wander at birth, so a column is not a line.

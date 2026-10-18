@@ -20,6 +20,7 @@ import 'simulation.dart' show ElementsListener, TrackedBody;
 /// Its digest is the kind's code and the bodies' handles: a replay that
 /// lights a different crate, or the same one a step later, differs here.
 final class ElementEvent extends BusEvent {
+  /// An event of [kind] on [body], and on [other] for an event between two.
   const ElementEvent({required this.kind, required this.body, this.other});
 
   /// The name it is declared under.
@@ -50,7 +51,11 @@ final class ElementEvent extends BusEvent {
     },
   );
 
+  /// What happened: one of [ElementEventKinds.coreKinds], or a plugin
+  /// element's kind.
   final NativeEventKind kind;
+
+  /// The body it happened to, the first of two for an event between two.
   final NativeBody body;
 
   /// The second body of an event between two; null for the rest.
@@ -287,8 +292,12 @@ void declareElementEvents(EventRegistry events) {
 /// [made] is the elements' own handle when they made the body, for a game
 /// that keeps its look; it is not part of the digest.
 abstract base class ElementBodyEvent extends BusEvent {
+  /// An event on [body], made by the elements as [made] or by the game
+  /// when null.
   const ElementBodyEvent(this.body, this.made);
 
+  /// The body it happened to, by its core handle: what the digest and the
+  /// codec carry.
   final NativeBody body;
 
   /// The body as `Elements.addBody` made it; null for one the game made.
@@ -313,6 +322,7 @@ abstract base class ElementBodyEvent extends BusEvent {
 
 /// A body caught fire: [ElementsListener.caught].
 final class ElementCaught extends ElementBodyEvent {
+  /// The event of [body] catching fire.
   const ElementCaught(super.body, super.made);
 
   /// The name it is published and declared under.
@@ -324,6 +334,7 @@ final class ElementCaught extends ElementBodyEvent {
 
 /// A body's fire went out with fuel left: [ElementsListener.out].
 final class ElementOut extends ElementBodyEvent {
+  /// The event of [body]'s fire going out with fuel left.
   const ElementOut(super.body, super.made);
 
   /// The name it is published and declared under.
@@ -335,6 +346,7 @@ final class ElementOut extends ElementBodyEvent {
 
 /// A body burnt all its fuel: [ElementsListener.burntOut].
 final class ElementBurntOut extends ElementBodyEvent {
+  /// The event of [body] burning all its fuel.
   const ElementBurntOut(super.body, super.made);
 
   /// The name it is published and declared under.
@@ -346,6 +358,7 @@ final class ElementBurntOut extends ElementBodyEvent {
 
 /// A body went into a liquid: [ElementsListener.wetted].
 final class ElementWetted extends ElementBodyEvent {
+  /// The event of [body] going into a liquid.
   const ElementWetted(super.body, super.made);
 
   /// The name it is published and declared under.
@@ -358,6 +371,7 @@ final class ElementWetted extends ElementBodyEvent {
 /// A burner went out, under a liquid or out of the fuel it was fed
 /// (`Fires.setBurner`'s `fuel`): [ElementsListener.burnerOut].
 final class ElementBurnerOut extends ElementBodyEvent {
+  /// The event of [body]'s burner going out.
   const ElementBurnerOut(super.body, super.made);
 
   /// The name it is published and declared under.
@@ -373,10 +387,14 @@ final class ElementBurnerOut extends ElementBodyEvent {
 /// A [PlacedEvent], so an effect document triggered by `elements.exploded`
 /// goes off where the charge did with no code in between.
 final class ElementExploded extends BusEvent with PlacedEvent {
+  /// A blast at [at], copied, that pushed [pushed] bodies.
   ElementExploded(Vector3 at, this.pushed) : at = at.clone();
 
+  /// Where the charge went off, in world metres; the event's own copy.
   @override
   final Vector3 at;
+
+  /// Bodies the blast pushed, a count.
   final int pushed;
 
   /// How it is written: where, then how many bodies it pushed.
@@ -423,11 +441,19 @@ final class ElementExploded extends BusEvent with PlacedEvent {
 /// A step of the drawing wanted more than it holds this frame:
 /// [ElementsListener.budget]. About the picture, never the run.
 final class ElementsOverBudget extends BusEvent {
+  /// The event of [step] wanting [wanted] things to draw and holding only
+  /// [holds].
   const ElementsOverBudget(this.step, this.wanted, this.holds);
 
   /// 'flames', 'smoke', 'embers', 'drops' or 'bubbles'.
   final String step;
+
+  /// How many the step wanted to draw this frame, a count; more than
+  /// [holds].
   final int wanted;
+
+  /// How many the step holds, a count: what it drew instead, fewer, larger
+  /// or farther apart.
   final int holds;
 
   /// The name it is published and declared under.
@@ -440,8 +466,10 @@ final class ElementsOverBudget extends BusEvent {
 /// A fire came into the camera's picture: [ElementsListener.seen]. About
 /// the picture, never the run.
 final class ElementFireSeen extends BusEvent {
+  /// The event of [fire] coming into the picture.
   const ElementFireSeen(this.fire);
 
+  /// The fire now in sight, as the core reported it this frame.
   final NativeFire fire;
 
   /// The name it is published and declared under.
@@ -454,8 +482,10 @@ final class ElementFireSeen extends BusEvent {
 /// A fire left the camera's picture: [ElementsListener.lost]. About the
 /// picture, never the run.
 final class ElementFireLost extends BusEvent {
+  /// The event of [body]'s fire leaving the picture.
   const ElementFireLost(this.body);
 
+  /// The burning body whose fire is out of sight now, or has gone out.
   final NativeBody body;
 
   /// The name it is published and declared under.

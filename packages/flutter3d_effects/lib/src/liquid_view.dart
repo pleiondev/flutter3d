@@ -31,6 +31,8 @@ import 'vertices.dart';
 /// How much falling water is drawn at most: pieces of a falling sheet, drops
 /// and clouds of bubbles. What is past it is still simulated.
 final class LiquidDetail {
+  /// Detail of at most [sheet] sheet pieces, [drops] drops and [bubbles]
+  /// clouds of bubbles.
   const LiquidDetail({
     required this.sheet,
     required this.drops,
@@ -51,6 +53,8 @@ final class LiquidDetail {
     bubbles: 600,
   );
 
+  /// The most pieces of falling sheet, drops and clouds of bubbles drawn at
+  /// once, each a count.
   final int sheet, drops, bubbles;
 }
 
@@ -71,6 +75,8 @@ final class LiquidDetail {
 /// the speed to the 3.3; no more than 1.5 %, the most of a jet the flood
 /// spray models turn to spray (`doc/mist_share.md`).
 final class MistSettings {
+  /// Mist by [shareAt]'s law unless [share] fixes it, of droplets
+  /// [droplet] metres across (14.8 µm by default).
   const MistSettings({this.share, this.droplet = 14.8e-6});
 
   /// A copy with the given fields replaced. A `clear…` flag resets that
@@ -162,6 +168,13 @@ double mistShare(
 /// shadow map knows only through or not — a solid shadow of a waterfall on
 /// the cliff behind it is a dark band.
 final class LiquidView {
+  /// A view of the shallow [liquid] over [ground], one height a cell,
+  /// drawn into [scene] with [look] at [detail] (full by default), of
+  /// fresh water's properties unless given. Uploads the surface mesh to
+  /// [device] here.
+  ///
+  /// Throws an [ArgumentError] when [ground] does not hold one height per
+  /// cell of [liquid].
   LiquidView({
     required this._world,
     required this.liquid,

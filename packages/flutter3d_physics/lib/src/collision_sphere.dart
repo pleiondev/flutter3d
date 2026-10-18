@@ -3,6 +3,7 @@ part of 'collision_shape.dart';
 
 /// A sphere: pickups, projectiles, blast radii.
 final class CollisionSphere extends CollisionShape {
+  /// A sphere of [radius] metres. Checks nothing.
   CollisionSphere(this.radius);
 
   /// The sphere's radius, in metres.

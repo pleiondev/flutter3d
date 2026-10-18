@@ -13,6 +13,8 @@ import 'package:flutter3d_core/flutter3d_core.dart';
 
 /// The depth of field — `RenderSettings.depthOfField`.
 final class DepthOfFieldAddon extends RenderStepAddon {
+  /// The plugin `flutter3d_post.depth_of_field`, which owns the switch of
+  /// [RenderStep.depthOfField].
   const DepthOfFieldAddon()
     : super(
         id: 'flutter3d_post.depth_of_field',
@@ -24,6 +26,8 @@ final class DepthOfFieldAddon extends RenderStepAddon {
 
 /// The motion blur — `RenderSettings.motionBlur`.
 final class MotionBlurAddon extends RenderStepAddon {
+  /// The plugin `flutter3d_post.motion_blur`, which owns the switch of
+  /// [RenderStep.motionBlur].
   const MotionBlurAddon()
     : super(
         id: 'flutter3d_post.motion_blur',
@@ -40,6 +44,8 @@ final class MotionBlurAddon extends RenderStepAddon {
 /// as it does when the setting is off: the kernel's upscale only runs
 /// without the resolve.
 final class TemporalAntiAliasingAddon extends RenderStepAddon {
+  /// The plugin `flutter3d_post.temporal_anti_aliasing`, which owns the switch
+  /// of [RenderStep.temporalAntiAliasing].
   const TemporalAntiAliasingAddon()
     : super(
         id: 'flutter3d_post.temporal_anti_aliasing',

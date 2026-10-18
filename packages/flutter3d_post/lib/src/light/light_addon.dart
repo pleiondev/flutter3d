@@ -13,6 +13,8 @@ import 'package:flutter3d_core/flutter3d_core.dart';
 /// The glow taken from the bright parts of the picture —
 /// `RenderSettings.bloom`.
 final class BloomAddon extends RenderStepAddon {
+  /// The plugin `flutter3d_post.bloom`, which owns the switch of
+  /// [RenderStep.bloom].
   const BloomAddon()
     : super(
         id: 'flutter3d_post.bloom',
@@ -25,6 +27,8 @@ final class BloomAddon extends RenderStepAddon {
 /// Ghosts and a halo drawn from the glow — `BloomSettings.lensFlare`. Needs
 /// [BloomAddon], which the plugin host installs first.
 final class LensFlareAddon extends RenderStepAddon {
+  /// The plugin `flutter3d_post.lens_flare`, which owns the switch of
+  /// [RenderStep.lensFlare]. Depends on `flutter3d_post.bloom`.
   const LensFlareAddon()
     : super(
         id: 'flutter3d_post.lens_flare',
@@ -38,6 +42,8 @@ final class LensFlareAddon extends RenderStepAddon {
 /// The meter that adapts the exposure to the picture —
 /// `RenderSettings.autoExposure`.
 final class AutoExposureAddon extends RenderStepAddon {
+  /// The plugin `flutter3d_post.auto_exposure`, which owns the switch of
+  /// [RenderStep.autoExposure].
   const AutoExposureAddon()
     : super(
         id: 'flutter3d_post.auto_exposure',
@@ -50,6 +56,8 @@ final class AutoExposureAddon extends RenderStepAddon {
 /// Shadows lifted and highlights held, region by region —
 /// `RenderSettings.localExposure`.
 final class LocalExposureAddon extends RenderStepAddon {
+  /// The plugin `flutter3d_post.local_exposure`, which owns the switch of
+  /// [RenderStep.localExposure].
   const LocalExposureAddon()
     : super(
         id: 'flutter3d_post.local_exposure',
@@ -62,6 +70,8 @@ final class LocalExposureAddon extends RenderStepAddon {
 /// Contrast, saturation, temperature, lift, gamma, gain and the colour
 /// table — the grade's half of `RenderSettings.look`.
 final class ColorGradeAddon extends RenderStepAddon {
+  /// The plugin `flutter3d_post.color_grade`, which owns the switch of
+  /// [RenderStep.colorGrade].
   const ColorGradeAddon()
     : super(
         id: 'flutter3d_post.color_grade',
@@ -74,6 +84,8 @@ final class ColorGradeAddon extends RenderStepAddon {
 /// The lens's bend and its colour fringes — `LookSettings.distortion` and
 /// `LookSettings.chromaticAberration`.
 final class LensDistortionAddon extends RenderStepAddon {
+  /// The plugin `flutter3d_post.lens_distortion`, which owns the switch of
+  /// [RenderStep.lensDistortion].
   const LensDistortionAddon()
     : super(
         id: 'flutter3d_post.lens_distortion',
@@ -86,6 +98,8 @@ final class LensDistortionAddon extends RenderStepAddon {
 /// The film: `LookSettings.vignette` and `LookSettings.grain`. They are one
 /// step in the kernel, so one plugin switches both.
 final class VignetteAndGrainAddon extends RenderStepAddon {
+  /// The plugin `flutter3d_post.vignette_and_grain`, which owns the switch of
+  /// [RenderStep.vignetteAndGrain].
   const VignetteAndGrainAddon()
     : super(
         id: 'flutter3d_post.vignette_and_grain',

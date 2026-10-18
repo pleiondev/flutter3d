@@ -24,6 +24,7 @@ import 'xpbd_solver.dart';
 /// (decision 5 of `tasks/1.0-api-review.md`), so a member added in a minor
 /// arrives with a default body and every implementation keeps compiling.
 abstract base class ClothSimulation {
+  /// A simulation; a subclass gives its [mesh] and its [step].
   const ClothSimulation();
 
   /// The sheet this steps, in place.
@@ -41,6 +42,7 @@ abstract base class ClothSimulation {
 
 /// The reference: [stepCloth] on [mesh], nothing held besides.
 final class DartCloth extends ClothSimulation {
+  /// The reference simulation of [mesh], stepping it in place.
   DartCloth(this.mesh);
 
   @override
@@ -64,6 +66,8 @@ final class DartCloth extends ClothSimulation {
 /// the call; a simulation reads it during [ClothSimulation.step] and does
 /// not keep it.
 final class ClothStep {
+  /// A step of [dt] seconds, nought unless given, with the default
+  /// settings and no obstacles unless given.
   ClothStep({
     this.settings = const ClothSettings(),
     this.dt = 0.0,

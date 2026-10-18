@@ -29,6 +29,7 @@ part of 'collision_shape.dart';
 /// **Deterministic**: the walk is in doubles, in a fixed order, with a fixed
 /// iteration cap, and reads no clock.
 abstract base class CustomShape extends CollisionShape {
+  /// A shape; a subclass gives its [support] and its bounds.
   const CustomShape();
 
   /// Writes into [out] the point of this shape, centred on the origin,

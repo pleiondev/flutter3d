@@ -11,8 +11,11 @@ import 'particle_curve.dart';
 /// every particle in the burst identical at every instant, which is the look
 /// [Range] exists to avoid.
 final class ParticleSizeCurve extends ParticleAffector {
+  /// Sizes each particle by [curve] over its life.
   const ParticleSizeCurve(this.curve);
 
+  /// The multiplier of the birth size, against life from nought to one. A
+  /// particle born with no size is left alone.
   final ParticleCurve curve;
 
   @override
@@ -26,8 +29,11 @@ final class ParticleSizeCurve extends ParticleAffector {
 
 /// Drives a particle's colour from a gradient.
 final class ParticleColorGradient extends ParticleAffector {
+  /// Colours each particle by [gradient] over its life.
   const ParticleColorGradient(this.gradient);
 
+  /// The colour in linear light, alpha included, against life from nought
+  /// to one. Replaces the colour the particle was born with.
   final ParticleGradient gradient;
 
   @override
@@ -49,6 +55,8 @@ final class ParticleColorGradient extends ParticleAffector {
 /// happened to take, and the fixed timestep exists precisely so that nothing
 /// does. It also means an affector applied twice in one step is harmless.
 final class ParticleSpin extends ParticleAffector {
+  /// Spins each particle at up to [turnsPerSecond], from a random angle
+  /// unless [randomizeStart] is false.
   const ParticleSpin({
     required this.turnsPerSecond,
     this.randomizeStart = true,

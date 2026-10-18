@@ -33,6 +33,7 @@ import 'physics_hearing.dart';
 
 /// How much of the elements is drawn at most.
 final class ElementsQuality {
+  /// Drawing at most [liquid] of the waters and [fire] of the fires.
   const ElementsQuality({required this.liquid, required this.fire});
 
   /// A desktop or a console, or a phone.
@@ -43,7 +44,10 @@ final class ElementsQuality {
         )
       : const ElementsQuality(liquid: LiquidDetail.full, fire: FireDetail.full);
 
+  /// The most each water's view draws: its sheet, drops and bubbles.
   final LiquidDetail liquid;
+
+  /// The most the fires' view draws: its flames, smoke and embers.
   final FireDetail fire;
 }
 
@@ -51,6 +55,8 @@ final class ElementsQuality {
 /// ([optics]), what heat sees of it ([heat]), and the light it gives off
 /// itself, [glow] — molten rock's.
 final class Liquid {
+  /// A liquid that gives off no light and keeps [heat]'s own temperature
+  /// unless told otherwise.
   const Liquid({
     required this.properties,
     required this.optics,
@@ -75,8 +81,16 @@ final class Liquid {
     atAirTemperature: temperature == null,
   );
 
+  /// How it flows: its density, viscosity and surface tension, as the core
+  /// steps it.
   final NativeLiquidProperties properties;
+
+  /// What it does to light passing through it: absorption and
+  /// backscatter.
   final LiquidOptics optics;
+
+  /// What the core's heat model sees of it: its temperature and how it
+  /// takes heat.
   final NativeLiquidHeat heat;
 
   /// The light the liquid gives off itself, linear, or null for none.
@@ -710,6 +724,8 @@ final class _DrawnWater {
 /// **Touches only the view**, so it may be switched on and off without a
 /// replay noticing; it steps nothing.
 final class ElementsViewPlugin extends Flutter3dPlugin {
+  /// A plugin drawing [elements] from [eye], under the id
+  /// `flutter3d_effects.elements` unless given another.
   ElementsViewPlugin(
     this.elements, {
     required this.eye,
@@ -717,6 +733,8 @@ final class ElementsViewPlugin extends Flutter3dPlugin {
     this.id = 'flutter3d_effects.elements',
   });
 
+  /// The elements whose view this draws; their simulation is stepped
+  /// elsewhere.
   final Elements elements;
 
   /// Where the camera is this frame: origin-local, as the elements'
@@ -726,6 +744,7 @@ final class ElementsViewPlugin extends Flutter3dPlugin {
   /// The camera, for what comes into its picture; null for none.
   final CameraNode? Function()? camera;
 
+  /// The plugin's id in its manifest.
   final String id;
 
   @override

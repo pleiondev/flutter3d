@@ -30,6 +30,8 @@ import 'property_law.dart';
 ///
 /// **Not sealed**, so a group added in a minor breaks no switch over them.
 abstract base class PropertyGroup {
+  /// A group whose numbers come from [source], keeping the [unknown] keys
+  /// of its JSON.
   const PropertyGroup({
     required this.source,
     this.unknown = const <String, Object?>{},
@@ -134,6 +136,7 @@ const Map<String, Unit> propertyUnits = <String, Unit>{
 /// of μ, the larger e), unless the catalogue holds a `MaterialPair` that says
 /// otherwise.
 final class MechanicalProperties extends PropertyGroup {
+  /// The group from [source]; a property left null is not known.
   const MechanicalProperties({
     this.density,
     this.youngsModulus,
@@ -255,6 +258,7 @@ final class MechanicalProperties extends PropertyGroup {
 /// How a liquid or a gas flows: its viscosity, its surface's pull and how
 /// hard it is to squeeze. Its density is its [MechanicalProperties.density].
 final class FluidProperties extends PropertyGroup {
+  /// The group from [source]; a property left null is not known.
   const FluidProperties({
     this.viscosity,
     this.surfaceTension,
@@ -313,6 +317,7 @@ final class FluidProperties extends PropertyGroup {
 /// rest of a fire's model — how a flame creeps, how its char grows — is the
 /// fire model's own, in the core.
 final class ThermalProperties extends PropertyGroup {
+  /// The group from [source]; a property left null is not known.
   const ThermalProperties({
     this.specificHeat,
     this.conductivity,
@@ -458,6 +463,7 @@ final class ThermalProperties extends PropertyGroup {
 /// How a material meets sound: what a surface of it absorbs, band by band,
 /// and how fast sound crosses it.
 final class AcousticProperties extends PropertyGroup {
+  /// The group from [source]; a property left null is not known.
   const AcousticProperties({
     this.absorption,
     this.speedOfSound,
@@ -526,11 +532,14 @@ final class AcousticProperties extends PropertyGroup {
 /// Three numbers for the red, green and blue of linear light: a reflectance,
 /// or a coefficient per metre — the field that holds one says which.
 final class RgbValues {
+  /// The values [red], [green] and [blue].
   const RgbValues(this.red, this.green, this.blue);
 
   /// The same value in all three.
   const RgbValues.all(double value) : this(value, value, value);
 
+  /// The value for each channel of linear light, in the unit the field
+  /// holding it gives: a reflectance fraction or a coefficient per metre.
   final double red, green, blue;
 
   /// `[red, green, blue]`, as a file holds them.
@@ -557,6 +566,7 @@ final class RgbValues {
 /// look an artist chose, and may be made from these — a glass's index, a
 /// dielectric's F0, a metal's — rather than the other way round.
 final class OpticalProperties extends PropertyGroup {
+  /// The group from [source]; a property left null is not known.
   const OpticalProperties({
     this.refractiveIndex,
     this.abbeNumber,
@@ -664,6 +674,7 @@ final class OpticalProperties extends PropertyGroup {
 
 /// How a material carries a current.
 final class ElectricalProperties extends PropertyGroup {
+  /// The group from [source]; a [resistivity] left null is not known.
   const ElectricalProperties({
     this.resistivity,
     required super.source,
@@ -714,6 +725,7 @@ final class ElectricalProperties extends PropertyGroup {
 ///   `meltTemperature`, `roomTemperature` (K) and `referenceStrainRate`
 ///   (1/s), σ = (A + B εⁿ)(1 + C ln ε̇*)(1 − T*ᵐ).
 final class ConstitutiveModel {
+  /// The model named [model], with no parameters or terms unless given.
   const ConstitutiveModel(
     this.model, {
     this.parameters = const <String, double>{},
@@ -813,6 +825,8 @@ final class ConstitutiveModel {
 /// limits, a rubber's large stretch, a metal's dent. A model is data with
 /// its source; which solver uses which is the solver's.
 final class InelasticProperties extends PropertyGroup {
+  /// The group from [source]; a loss factor or a model left null is not
+  /// known.
   const InelasticProperties({
     this.lossFactor,
     this.hyperelastic,

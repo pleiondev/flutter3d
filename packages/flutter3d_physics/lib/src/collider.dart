@@ -95,11 +95,14 @@ abstract final class Layers {
 /// three defaults and override only the one it cares about — which is almost
 /// always [onCollisionStart].
 abstract base mixin class CollisionListener {
+  /// Called on the first step the pair overlaps. Nothing, by default.
   void onCollisionStart(CollisionContext context) {}
 
   /// Called for every step the pair stays overlapping, the first one excepted.
   void onCollision(CollisionContext context) {}
 
+  /// Called on the first step the pair no longer overlaps. Nothing, by
+  /// default.
   void onCollisionEnd(CollisionContext context) {}
 }
 
@@ -112,6 +115,7 @@ abstract base mixin class CollisionListener {
 /// during the call and does not keep it (keeping [self] or [other] is
 /// fine).
 final class CollisionContext {
+  /// A context telling [self]'s listener that it met [other].
   CollisionContext({required this.self, required this.other});
 
   /// The collider the listener belongs to.
@@ -123,6 +127,9 @@ final class CollisionContext {
 
 /// A shape, somewhere, that takes part in collision.
 final class Collider {
+  /// A collider of [shape] at [position] (copied; the origin by default),
+  /// static on layer bit zero and testing every layer unless told
+  /// otherwise. Its bounds are computed here.
   Collider({
     required this.shape,
     Vector3? position,
@@ -142,11 +149,15 @@ final class Collider {
     refreshBounds();
   }
 
+  /// The volume this collider occupies, centred on [position]. A new shape
+  /// is seen by queries once [refreshBounds] has run.
   CollisionShape shape;
 
   /// Centre of the shape, in world space.
   final Vector3 position;
 
+  /// Whether it blocks and who moves it: static level geometry, a
+  /// kinematic body moved by game logic, or a trigger that only reports.
   ColliderKind kind;
 
   /// Which layer this collider is on.
@@ -239,6 +250,7 @@ final class Collider {
     position.setFrom(to);
   }
 
+  /// Forgets this step's motion: [delta] back to zero.
   void clearDelta() => delta.setZero();
 
   /// Cached bounds, refreshed by the world when it indexes this collider.
@@ -257,6 +269,8 @@ final class Collider {
   /// than fished back out of the middle of [bounds].
   final Vector3 indexedAt = Vector3.zero();
 
+  /// Recomputes [bounds] from [shape] at [position], and records that
+  /// position as [indexedAt].
   void refreshBounds() {
     shape.computeBounds(position, bounds);
     indexedAt.setFrom(position);

@@ -559,6 +559,10 @@ final class ParticleSystem {
     particle.affectors = effect.affectors;
   }
 
+  /// Runs one step of [dt] seconds as it is, with no sub-stepping and no
+  /// emission: ages every live particle, retires those past their lifetime,
+  /// applies their affectors and moves them. Does nothing for a [dt] of
+  /// nought or less. [advance] calls it in fixed sub-steps.
   void step(double dt) {
     if (dt <= 0.0) return;
 
@@ -636,6 +640,8 @@ final class ParticleSystem {
   /// wall behind it — dimly, and forever.
   static const double _glowFloor = 1e-4;
 
+  /// Retires every live particle at once. Standing emissions are kept: a
+  /// rate still stated makes new particles on the next step.
   void clear() {
     for (var i = 0; i < _alive; i++) {
       _pool[i].isAlive = false;

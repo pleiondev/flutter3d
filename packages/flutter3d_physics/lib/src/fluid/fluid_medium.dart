@@ -12,6 +12,8 @@ import 'package:flutter3d_matter/flutter3d_matter.dart';
 /// which is a property of the pair, not of the liquid, and so is a field a
 /// caller can change with [copyWith].
 final class FluidMedium {
+  /// A liquid given by its numbers, in SI, wetting the wall completely
+  /// unless [contactAngle] says otherwise. Checks nothing.
   const FluidMedium({
     required this.name,
     required this.density,
@@ -101,6 +103,8 @@ final class FluidMedium {
   /// rather than climbing it.
   static final FluidMedium mercury = FluidMedium.of(Materials.mercury);
 
+  /// What a person calls it. `FluidWorld` also keys its drops and splashes
+  /// by it, so two media of one name share one particle fluid.
   final String name;
 
   /// Kilograms per cubic metre.

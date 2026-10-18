@@ -62,8 +62,10 @@ final class Confidence {
 /// The spread a value is known within: the low and high ends of a range a
 /// source gives, in the property's unit.
 final class PropertyInterval {
+  /// The range from [low] to [high]. Checks nothing.
   const PropertyInterval(this.low, this.high);
 
+  /// The range's low and high ends, in the property's coherent SI unit.
   final double low, high;
 
   /// `[low, high]`, as a file holds it.
@@ -90,6 +92,8 @@ final class PropertyInterval {
 /// before the law sees it, so water's viscosity above its boiling point is
 /// its value at the boiling point rather than whatever the fit gives there.
 final class LawInput {
+  /// The quantity [id] in [unit], unitless unless given, unbounded unless
+  /// [low] or [high] is given.
   const LawInput(
     this.id, {
     this.unit = Unit.one,
@@ -231,6 +235,8 @@ final class LawInput {
 /// Every value is in the coherent SI unit of the property it is a law of,
 /// as the property's documentation gives it.
 abstract base class PropertyLaw {
+  /// A law whose value at the reference state is [value]; a subclass says
+  /// how it changes.
   const PropertyLaw(this.value, {this.confidence, this.source, this.interval});
 
   /// The value at the material's reference state, in the property's unit.
@@ -377,6 +383,7 @@ abstract base class PropertyLaw {
 /// A value the same at every state: the catalogue's number with nothing
 /// known of how it changes.
 final class ConstantLaw extends PropertyLaw {
+  /// The law that answers [value] at every state.
   const ConstantLaw(
     super.value, {
     super.confidence,
@@ -445,6 +452,9 @@ final class ConstantLaw extends PropertyLaw {
 /// expression and compiled to bytecode, at the body's temperature, to the
 /// bit what [at] gives.
 final class TableLaw extends PropertyLaw {
+  /// The table of [ys] at [xs] against [input], the temperature unless
+  /// given. Checks nothing: [problems] says what is wrong with the points,
+  /// and reading one from a file refuses a table with any.
   const TableLaw(
     super.value, {
     this.input = LawInput.temperature,
@@ -585,6 +595,8 @@ final class TableLaw extends PropertyLaw {
 /// The factories write the forms a handbook gives ([FormulaLaw.andrade],
 /// [FormulaLaw.arrhenius], [FormulaLaw.polynomial]) as that text.
 final class FormulaLaw extends PropertyLaw {
+  /// The formula [expression] over [inputs], `T` and `p` unless given. The
+  /// text is not read here: it is compiled the first time it is needed.
   const FormulaLaw(
     super.value, {
     required this.expression,

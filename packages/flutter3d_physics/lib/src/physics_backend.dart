@@ -34,6 +34,8 @@ import 'rigid_dynamics.dart';
 /// What only some backends can do arrives beside it as a capability a
 /// backend mixes in: [JointPhysics], [ConstraintPhysics], [ShapePhysics].
 abstract base class PhysicsBackend {
+  /// A backend; a subclass gives its [name] and overrides what it does on
+  /// its own.
   const PhysicsBackend();
 
   /// What a recording calls it: `'native'` or `'dart'`.
@@ -76,6 +78,8 @@ abstract base class PhysicsBackend {
 /// iterations, a sleeping threshold — without breaking a backend written
 /// against 1.0.
 final class DynamicsRequest {
+  /// A request for [world]'s dynamics, replacing its gravity with [gravity]
+  /// when given.
   const DynamicsRequest(this.world, {this.gravity});
 
   /// The world whose rigid bodies the dynamics simulate.
@@ -88,6 +92,7 @@ final class DynamicsRequest {
 /// The reference: everything in Dart, on every platform, from the first
 /// line. What a world is made with unless it is given another.
 final class DartPhysics extends PhysicsBackend {
+  /// The reference backend; it holds nothing, so one is as good as another.
   const DartPhysics();
 
   @override
@@ -139,8 +144,10 @@ final class JointType {
 
 /// A joint a [JointPhysics] backend made, as the caller holds it.
 final class JointHandle {
+  /// The handle of the backend's joint [id], of [type].
   const JointHandle(this.type, this.id);
 
+  /// The kind of joint it is.
   final JointType type;
 
   /// The backend's number for it.
@@ -183,6 +190,8 @@ abstract base mixin class JointPhysics {
 /// body's position is — not a `WorldPosition`. A caller holding a
 /// `WorldPosition` narrows it with `toVector3Relative(world.origin)`.
 final class JointRequest {
+  /// A request for a [type] joint holding [b] against [a] at [anchor],
+  /// along [axis] for a hinge or a slider (null for the others).
   const JointRequest(
     this.type,
     this.a,
@@ -214,6 +223,7 @@ final class JointRequest {
 /// What [JointPhysics.unjoin] is handed, for the reason [JointRequest]
 /// gives.
 final class JointRelease {
+  /// A request to take [joint] apart, made by [dynamics].
   const JointRelease(this.joint, {required this.dynamics});
 
   /// The joint to take apart.
@@ -227,6 +237,7 @@ final class JointRelease {
 /// on one body or between two, computed in Dart before the step from where
 /// the bodies are.
 abstract base class PhysicsConstraint {
+  /// A constraint; a subclass gives its [name] and its [forceOn].
   const PhysicsConstraint();
 
   /// A stable name for a report and a snapshot.
@@ -246,6 +257,9 @@ abstract base class PhysicsConstraint {
 /// every body of every step, so a step allocates nothing for it; a
 /// constraint reads it during the call and does not keep it.
 final class ConstraintForce {
+  /// A context for [body], if given, over a step of [dt] seconds, writing
+  /// into [out] (a new zero vector by default). [body] must be set before
+  /// it is read.
   ConstraintForce({RigidBody? body, this.dt = 0.0, Vector3? out})
     : out = out ?? Vector3.zero() {
     if (body != null) this.body = body;
@@ -276,6 +290,7 @@ abstract base mixin class ConstraintPhysics {
 ///
 /// One object, for the reason [JointRequest] gives.
 final class ConstraintRequest {
+  /// A request to solve [constraint] on [bodies] of [dynamics].
   const ConstraintRequest(
     this.constraint, {
     required this.dynamics,

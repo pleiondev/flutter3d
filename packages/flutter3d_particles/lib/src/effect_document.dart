@@ -69,6 +69,8 @@ const String effectDocumentExtension = '.f3dfx';
 /// An effect document that cannot be read, with the sentence that says why
 /// and where.
 final class EffectFormatException extends Flutter3dFormatException {
+  /// A refusal saying what was wrong with the document, and where, in
+  /// [message].
   const EffectFormatException(this.message);
 
   @override
@@ -95,6 +97,8 @@ typedef EffectAffectorReader =
 /// the ones that are, because a document whose effect silently lost an
 /// affector draws something nobody wrote.
 final class EffectVocabulary {
+  /// A vocabulary adding [emitters], [affectors] and [eases] to this
+  /// package's own; none by default.
   const EffectVocabulary({
     this.emitters = const <String, EffectEmitterReader>{},
     this.affectors = const <String, EffectAffectorReader>{},
@@ -184,6 +188,8 @@ final class EffectBlend {
 /// document names them and whoever builds the contributor resolves the
 /// names — relative to the document, as every path a document names is.
 final class EffectRender {
+  /// A drawing, by default additive billboards of the procedural disc with
+  /// hard edges.
   const EffectRender({
     this.drawing = EffectDrawing.billboard,
     this.blend = EffectBlend.additive,
@@ -194,7 +200,10 @@ final class EffectRender {
     this.sheet,
   });
 
+  /// What each particle is drawn as: a quad, a mesh or a six-way sheet.
   final EffectDrawing drawing;
+
+  /// How the particles combine with what is behind them.
   final EffectBlend blend;
 
   /// A billboard's sprite, or null for the procedural disc.
@@ -225,6 +234,7 @@ final class EffectRender {
 /// The two textures of a six-way sheet, by the paths a document names them
 /// — [EffectRender.sheet].
 final class SixWaySheetNames {
+  /// The sheet whose textures are at [positive] and [negative].
   const SixWaySheetNames({required this.positive, required this.negative});
 
   /// The positive texture: light from the right, the top and the back, and
@@ -270,6 +280,8 @@ final class EffectSpawn {
 
 /// An effect going off when an event is published on the bus.
 final class EffectTrigger {
+  /// A trigger on [event], one burst unless [spawn] says, placed where the
+  /// event says unless [at] and [direction] are given.
   const EffectTrigger({
     required this.event,
     this.spawn = EffectSpawn.burst,
@@ -282,6 +294,7 @@ final class EffectTrigger {
   /// The event's name on the bus — `BusEvent.name`.
   final String event;
 
+  /// Whether it fires one burst or a rate for [seconds].
   final EffectSpawn spawn;
 
   /// A timed spawn's rate, in particles per second; the effect's own `rate`
@@ -316,6 +329,9 @@ final class EffectDescription {
 
   /// Unique in its document.
   final String name;
+
+  /// The document's `description` of the effect, for a person; null when
+  /// it gives none.
   final String? description;
 
   /// What `ParticleSystem.burst` and `emit` are handed.
@@ -325,6 +341,7 @@ final class EffectDescription {
   /// effect that only bursts.
   final double? rate;
 
+  /// How its particles are drawn, and which pool they share.
   final EffectRender render;
 
   /// The bus events it goes off on, in the order written.

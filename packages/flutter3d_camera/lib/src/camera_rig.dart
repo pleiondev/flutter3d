@@ -28,6 +28,9 @@ import 'package:vector_math/vector_math.dart';
 /// Three hundred random impulses in a boxed room found it half a metre into the
 /// wall behind the player.
 final class CameraRig {
+  /// A rig kept out of [world]'s walls on [wallMask]. Defaults: impulses
+  /// fade at 9 per second, 0.35 metres of wall clearance, pulled in no
+  /// closer than 1.2 metres.
   CameraRig({
     required this.world,
     this.impulseDecay = 9.0,

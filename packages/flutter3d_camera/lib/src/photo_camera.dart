@@ -38,6 +38,10 @@ import 'package:vector_math/vector_math.dart';
 /// while this flies, and nothing it does reaches a snapshot or a tape. A
 /// photo is the one camera in a game that is allowed to be non-deterministic.
 final class PhotoCamera {
+  /// A photo camera tethered [reach] metres from its anchor inside [world].
+  ///
+  /// Asserts that [reach] and [radius] are positive and that
+  /// [minFieldOfView] is positive and below [maxFieldOfView].
   PhotoCamera({
     required this.world,
     this.reach = 12.0,

@@ -24,6 +24,7 @@ import 'particle.dart';
 /// They are const and stateless, so one instance is shared by every particle of
 /// every effect that uses it.
 abstract base class ParticleAffector {
+  /// An affector; a subclass says what [apply] does.
   const ParticleAffector();
 
   /// Advances [ParticleStep.particle] by [ParticleStep.dt]. Called once per
@@ -44,6 +45,7 @@ abstract base class ParticleAffector {
 /// before every call, so a step allocates nothing for it; an affector reads
 /// it during [ParticleAffector.apply] and does not keep it.
 final class ParticleStep {
+  /// A step advancing [particle] by [dt] seconds.
   ParticleStep({required this.particle, required this.dt});
 
   /// The particle being advanced.
@@ -104,6 +106,8 @@ final class ParticleGravity extends ParticleAffector {
 /// world nobody gave a wind — that is its speed, as it always was; in a
 /// wind, smoke and sparks slowed by drag are carried off with it.
 final class ParticleDrag extends ParticleAffector {
+  /// Drag that bleeds [perSecond] of the speed relative to the wind,
+  /// exponentially.
   const ParticleDrag(this.perSecond);
 
   /// Fraction of the remaining speed lost each second.
@@ -131,6 +135,8 @@ final class ParticleDrag extends ParticleAffector {
 
 /// Pushes everything one way, for a draught or the wake of an explosion.
 final class ParticleWind extends ParticleAffector {
+  /// A push of `acceleration`, in metres per second squared, copied so a
+  /// later change to the vector passed in does not reach it.
   ParticleWind(Vector3 acceleration) : _acceleration = acceleration.clone();
 
   final Vector3 _acceleration;
@@ -176,6 +182,8 @@ final class ParticleWind extends ParticleAffector {
 /// A standing field is also what a fire in a still room looks like: the flame
 /// moves, the draught does not.
 final class ParticleTurbulence extends ParticleAffector {
+  /// The symmetric flow at 2 m/s², a spatial frequency of 0.6 per metre,
+  /// unless told otherwise.
   const ParticleTurbulence({
     this.strength = 2.0,
     this.scale = 0.6,
@@ -224,6 +232,8 @@ final class ParticleTurbulence extends ParticleAffector {
 
 /// Moves the colour from one to another across the particle's life.
 final class ParticleColorOverLife extends ParticleAffector {
+  /// A ramp in linear light from the first colour at birth to the second at
+  /// death, straight across life, alpha included. Replaces the birth colour.
   const ParticleColorOverLife(this._from, this._to);
 
   final LinearColor _from;
@@ -248,6 +258,8 @@ final class ParticleColorOverLife extends ParticleAffector {
 /// not the colour change, and an effect that had to spell out both ends of a
 /// colour ramp just to disappear would spell it out wrong.
 final class ParticleFade extends ParticleAffector {
+  /// A straight fade of alpha to nought at death, beginning at [startsAt],
+  /// from birth by default.
   const ParticleFade({this.startsAt = 0.0});
 
   /// Point in the particle's life where the fade begins, in `[0, 1)`: a
@@ -267,6 +279,8 @@ final class ParticleFade extends ParticleAffector {
 
 /// Scales a particle across its life.
 final class ParticleSizeOverLife extends ParticleAffector {
+  /// A straight scale from [from] to [to] of the birth size; by default
+  /// from full size to nothing.
   const ParticleSizeOverLife({this.from = 1.0, this.to = 0.0});
 
   /// The multiplier on the size the particle was born with, at birth.

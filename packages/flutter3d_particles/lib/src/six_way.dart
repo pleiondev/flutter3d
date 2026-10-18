@@ -43,6 +43,8 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 /// with a `rotation` turns its picture and not the light, so a puff spun a
 /// quarter turn is lit as though its right were its top.
 final class SixWayMaterial {
+  /// A sheet of [positive] and [negative], emitting and lit by nothing
+  /// beyond the scene's lights unless [emission] and [ambient] say.
   SixWayMaterial({
     required this.positive,
     required this.negative,
@@ -77,6 +79,8 @@ typedef SixWayChannel = ({int image, int channel});
 
 /// Where each of the eight six-way quantities is in a set of source images.
 final class SixWayLayout {
+  /// A layout naming the channel of every quantity; [emission] may be left
+  /// out.
   const SixWayLayout({
     required this.right,
     required this.left,
@@ -101,12 +105,27 @@ final class SixWayLayout {
     emission: (image: 1, channel: 3),
   );
 
+  /// The puff lit from the right: written to the positive texture's R.
   final SixWayChannel right;
+
+  /// The puff lit from the left: written to the negative texture's R.
   final SixWayChannel left;
+
+  /// The puff lit from above: written to the positive texture's G.
   final SixWayChannel top;
+
+  /// The puff lit from below: written to the negative texture's G.
   final SixWayChannel bottom;
+
+  /// The puff lit from behind, from −z: written to the positive
+  /// texture's B.
   final SixWayChannel back;
+
+  /// The puff lit from the front: written to the negative texture's B.
   final SixWayChannel front;
+
+  /// How much of what is behind the puff it covers, nought to full:
+  /// written to the positive texture's A.
   final SixWayChannel coverage;
 
   /// Null for a sheet with no emission, which then emits nothing.
@@ -174,6 +193,7 @@ SixWayTextures importSixWay({
 /// A six-way sheet as the engine's two RGBA8 textures — what [importSixWay]
 /// answers.
 final class SixWayTextures {
+  /// The two textures' bytes, RGBA8, as [importSixWay] wrote them.
   const SixWayTextures({required this.positive, required this.negative});
 
   /// The positive texture: light from the right, the top and the back, and

@@ -68,6 +68,7 @@ final class CharacterMoved {
 /// of `tasks/1.0-api-review.md`), so a member added in a minor arrives with a
 /// default body and every implementation keeps compiling.
 abstract base class CharacterMover {
+  /// A mover; a subclass says how it moves in [move].
   const CharacterMover();
 
   /// Moves the move's [CharacterMove.body] from where it is by its
@@ -87,6 +88,8 @@ abstract base class CharacterMover {
 /// step allocates nothing for it; a mover reads it during the call and does
 /// not keep it.
 final class CharacterMove {
+  /// A move of [body] by [delta]. By default it climbs no step, stands on
+  /// any slope up to a wall and may not step.
   CharacterMove({
     required this.body,
     required this.delta,

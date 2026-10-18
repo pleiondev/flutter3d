@@ -13,6 +13,7 @@ import 'package:vector_math/vector_math.dart';
 /// while the same thing goes on sounding — a fire, a fall — so a looping
 /// voice can be held to it.
 final class Audible {
+  /// A source [key] at [at], heard at [loudness] and played at [rate].
   const Audible({
     required this.key,
     required this.at,
@@ -20,7 +21,12 @@ final class Audible {
     required this.rate,
   });
 
+  /// The source's identity across frames: the same number while the same
+  /// fire, fall or splashing body sounds. Not otherwise meaningful.
   final int key;
+
+  /// Where it sounds from, origin-local metres; for a fall, the middle of
+  /// the water falling in its square, weighted by power.
   final Vector3 at;
 
   /// How loud, a fraction from nought to one.
@@ -40,6 +46,9 @@ final class Audible {
 /// source sounds lower: its speed falls by [pitch] in the exponent with
 /// each tenfold past [reference], within [slowest] and [fastest].
 final class HearingScale {
+  /// A scale silent at [quiet], full at [loud] and at the recording's own
+  /// speed at [reference]; pitch 0.06, playing between 0.7 and 1.4 times
+  /// the recording's speed unless told otherwise. Checks nothing.
   const HearingScale({
     required this.quiet,
     required this.loud,
@@ -79,6 +88,9 @@ final class HearingScale {
 /// into a liquid, as loud as the energy it goes in with. Each is heard on
 /// the game's own [HearingScale].
 final class PhysicsHearing {
+  /// Hearing of a world's fires on [fireScale], its falls of water on
+  /// [fallScale] and its splashes on [splashScale]. Hears no falling water
+  /// until [listen] names a liquid.
   PhysicsHearing(
     this._world, {
     required this.fireScale,

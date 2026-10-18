@@ -37,6 +37,7 @@ abstract base class VesselShape {
 /// How far a vessel's inside reaches along a direction — [VesselShape.span]:
 /// the least and greatest `up · p` over it.
 final class VesselSpan {
+  /// The span from [low] to [high] metres along the direction.
   const VesselSpan({required this.low, required this.high});
 
   /// The least `up · p` over the inside, in metres: below it the plane
@@ -61,6 +62,7 @@ final class VesselSpan {
 /// The lowest point of a vessel's rim along a direction, where liquid leaves
 /// first — [VesselVolumes.lip].
 final class VesselLip {
+  /// The lip at [point], [height] metres along the direction.
   const VesselLip({required this.point, required this.height});
 
   /// The point of the rim, in the vessel's frame.
@@ -83,6 +85,8 @@ final class VesselLip {
 /// How far a point is from a vessel's wall, and the wall's way out there —
 /// [RevolvedVessel.wallDistance].
 final class VesselWallDistance {
+  /// A point [distance] metres across the wall, whose outward unit normal
+  /// there is [normal].
   const VesselWallDistance({required this.distance, required this.normal});
 
   /// The distance across the wall, in metres: negative inside, positive in
@@ -200,6 +204,9 @@ extension VesselVolumes on VesselShape {
 /// slice. Upright it is exact: a straight piece of the profile sweeps a
 /// frustum, πΔy(r₀² + r₀r₁ + r₁²)/3.
 final class RevolvedVessel implements VesselShape {
+  /// The vessel swept from [wall], summed over 240 slices with 48 rim
+  /// points unless given. Throws an [ArgumentError] for a wall of fewer
+  /// than two points.
   RevolvedVessel(List<Vector2> wall, {this.slices = 240, this.rimPoints = 48})
     : wall = List<Vector2>.unmodifiable(wall) {
     if (wall.length < 2) {
@@ -207,6 +214,8 @@ final class RevolvedVessel implements VesselShape {
     }
   }
 
+  /// The profile, an unmodifiable copy: each point a (radius, height) in
+  /// metres, from the middle of the floor up the side to the mouth.
   final List<Vector2> wall;
 
   /// How many slices a tilted plane's volume is summed over.
@@ -365,6 +374,9 @@ double circularSegment(double radius, double offset) {
 /// itself — which for a vessel that is not convex may be several outlines —
 /// never has to be found.
 final class MeshVessel implements VesselShape {
+  /// The cavity of triangles [indices] over [positions], with the mouth's
+  /// [rim], or none for a closed vessel. Keeps unmodifiable copies; throws
+  /// an [ArgumentError] when [indices] does not come in threes.
   MeshVessel({
     required List<Vector3> positions,
     required List<int> indices,
@@ -377,7 +389,11 @@ final class MeshVessel implements VesselShape {
     }
   }
 
+  /// The mesh's vertices, in metres in the vessel's frame.
   final List<Vector3> positions;
+
+  /// Three [positions] indices per triangle, wound counter-clockwise seen
+  /// from outside the cavity.
   final List<int> indices;
 
   @override

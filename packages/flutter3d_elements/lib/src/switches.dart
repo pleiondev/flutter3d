@@ -24,6 +24,8 @@ import 'element_hook.dart'
 /// is off, as in [none], which switches every element nobody named off.
 /// [ElementSwitches] lists the switches an engine's elements declared.
 final class ElementsSteps {
+  /// Switches with every step on and every plugin element at its own
+  /// default, unless told otherwise.
   const ElementsSteps({
     this.fire = FireSteps.all,
     this.liquid = LiquidSteps.all,
@@ -43,8 +45,14 @@ final class ElementsSteps {
     otherElements: false,
   );
 
+  /// Which of the fires' steps are drawn.
   final FireSteps fire;
+
+  /// Which of the waters' steps are drawn.
   final LiquidSteps liquid;
+
+  /// Whether the elements are heard at all; off, the view's hearing is
+  /// not updated.
   final bool sound;
 
   /// Plugin elements switched by id: drawn and heard when true, neither
@@ -64,6 +72,8 @@ final class ElementsSteps {
   ElementsSteps withElement(String id, {required bool on}) =>
       copyWith(elements: <String, bool>{...elements, id: on});
 
+  /// Returns a copy with the given fields replaced; null leaves a field as
+  /// it is. A new [elements] map is copied unmodifiable.
   ElementsSteps copyWith({
     FireSteps? fire,
     LiquidSteps? liquid,
@@ -87,6 +97,7 @@ final class ElementsSteps {
 /// leaves nothing of itself drawn; the others are drawn as they would be
 /// with it — any combination.
 final class FireSteps {
+  /// Switches with every fire step on unless told otherwise.
   const FireSteps({
     this.flames = true,
     this.smoke = true,
@@ -107,8 +118,13 @@ final class FireSteps {
     charring: false,
   );
 
+  /// Whether each step is taken: the tongues of flame, the smoke, the
+  /// embers, the light the fires give the scene, and the charring of the
+  /// looks the view watches.
   final bool flames, smoke, embers, firelight, charring;
 
+  /// Returns a copy with the given fields replaced; null leaves a field as
+  /// it is.
   FireSteps copyWith({
     bool? flames,
     bool? smoke,
@@ -130,6 +146,7 @@ final class FireSteps {
 /// nothing and leaves nothing of itself drawn; the others are drawn as they
 /// would be with it — any combination.
 final class LiquidSteps {
+  /// Switches with every water step on unless told otherwise.
   const LiquidSteps({
     this.surface = true,
     this.sheet = true,
@@ -150,8 +167,13 @@ final class LiquidSteps {
     bubbles: false,
   );
 
+  /// Whether each step is taken: the water's surface, the sheet falling
+  /// off a lip, the drops in the air, the mist where they land, and the
+  /// bubbles a plunge drives down.
   final bool surface, sheet, drops, mist, bubbles;
 
+  /// Returns a copy with the given fields replaced; null leaves a field as
+  /// it is.
   LiquidSteps copyWith({
     bool? surface,
     bool? sheet,

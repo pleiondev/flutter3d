@@ -11,6 +11,7 @@ import 'property_law.dart';
 /// plugin's `physicalMaterials` entry — that cannot be read: a number that is not
 /// one, a group with no source, a phase or an id that is not a word.
 final class MaterialFormatException extends Flutter3dFormatException {
+  /// A refusal saying what was wrong with the document in [message].
   const MaterialFormatException(this.message);
 
   @override
@@ -23,6 +24,8 @@ final class MaterialFormatException extends Flutter3dFormatException {
 /// Reads one property group's JSON: its numbers by key, its source, and the
 /// keys it did not ask for. Not exported.
 final class GroupReader {
+  /// A reader of the group named `group` in a material's document, its
+  /// body `json`, whose keys it reads are `known`.
   GroupReader(this._json, this._group, this._known);
 
   final Map<String, Object?> _json;

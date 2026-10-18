@@ -141,8 +141,13 @@ final class FieldGrid {
   /// holding [components] values: one for a temperature, three for a wind.
   const FieldGrid(this.width, this.height, this.depth, {this.components = 1});
 
+  /// Cells along the grid's x axis, a count.
   final int width;
+
+  /// Cells along the grid's y axis, a count.
   final int height;
+
+  /// Cells along the grid's z axis, a count.
   final int depth;
 
   /// Values a cell holds, one after another.
@@ -182,6 +187,7 @@ final class FieldGrid {
 /// A point in a field's grid, in cells: `(0, 0, 0)` is the middle of the
 /// first cell, `(1.5, 0, 0)` halfway between the second and the third.
 final class FieldCoordinate {
+  /// The point [x], [y], [z] cells from the middle of the first cell.
   const FieldCoordinate(this.x, this.y, this.z);
 
   /// Along the grid's x axis, in cells.
@@ -278,6 +284,11 @@ final class FieldTransform {
 /// name a plugin brings is; a field in the frame graph is the resource of
 /// that name.
 final class FieldDeclaration {
+  /// A field [id] of [quantity] in [unit] on [grid], written by [writer].
+  ///
+  /// Held in host memory at the world origin unless [residence] and
+  /// [transform] say otherwise. Checks nothing: [problem] says what is
+  /// wrong, and `FieldRegistry.declare` refuses it.
   const FieldDeclaration({
     required this.id,
     required this.quantity,

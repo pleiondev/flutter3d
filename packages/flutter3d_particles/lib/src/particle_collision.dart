@@ -20,6 +20,11 @@ import 'particle_affector.dart';
 /// into a rise by [bounce] instead, and one already below it — born there, or
 /// pushed there by something else — is put back on it.
 final class ParticlePlaneCollision extends ParticleAffector {
+  /// A floor at [height], 0 m by default, that lands particles dead and
+  /// keeps their sideways speed unless [bounce] and [friction] say.
+  ///
+  /// Asserts that [bounce] is not negative and [friction] is within
+  /// nought to one.
   const ParticlePlaneCollision({
     this.height = 0.0,
     this.bounce = 0.0,

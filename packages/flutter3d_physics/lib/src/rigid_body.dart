@@ -45,7 +45,16 @@ import 'collision_world.dart';
 import 'inertia.dart';
 import 'snapshot.dart';
 
+/// A body with mass that a `RigidDynamics` pushes around, registered in
+/// its [CollisionWorld] as a kinematic [collider].
 final class RigidBody {
+  /// A body of [shape] at [position] in [world], registered there as a
+  /// kinematic collider on [layer] (bit zero by default).
+  ///
+  /// [mass] is in kilograms, one by default; zero or less makes it
+  /// immovable. Restitution and friction come from [material] where not
+  /// given, else nought and `MaterialCatalog.defaultFriction`. It does not
+  /// turn unless [canRotate].
   RigidBody({
     required CollisionWorld world,
     required CollisionShape shape,
@@ -103,6 +112,7 @@ final class RigidBody {
   /// so the broadphase hears about it.
   Vector3 get position => collider.position.clone();
 
+  /// The body's velocity, in metres per second. Zeroed by [sleep].
   final Vector3 velocity = Vector3.zero();
 
   /// Kilograms. Zero or less means immovable — infinite mass, which is what a
@@ -245,6 +255,8 @@ final class RigidBody {
   /// Seconds spent below the sleep threshold.
   double _still = 0.0;
 
+  /// Whether anything can move it: its mass is positive. An immovable body
+  /// ignores impulses and is never woken.
   bool get isMovable => inverseMass > 0.0;
 
   /// Wakes it, and resets the clock that would put it back to sleep.
@@ -253,6 +265,8 @@ final class RigidBody {
     _still = 0.0;
   }
 
+  /// Puts it to sleep now, stopping it dead: both velocities zeroed and
+  /// the stillness clock reset.
   void sleep() {
     _asleep = true;
     _still = 0.0;
@@ -383,6 +397,12 @@ final class RigidBody {
     },
   };
 
+  /// Puts back what [save] wrote in [from], moving the collider with it.
+  ///
+  /// Throws nothing: a missing or malformed vector leaves that vector as it
+  /// was, and a missing stillness clock starts at nought. For a body that
+  /// [canRotate], a missing orientation and spin mean the identity and no
+  /// spin, and an unreadable one leaves the body as it is.
   void restore(Map<String, Object?> from) {
     readVector(from['at'], collider.position);
     readVector(from['velocity'], velocity);

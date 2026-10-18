@@ -27,6 +27,7 @@ import 'host_field.dart';
 /// Each declaration a plugin makes is under its own id
 /// (`<pluginId>.<name>`) and taken back when the plugin is switched off.
 abstract base class FieldRegistry extends PluginRegistry {
+  /// A registry; the engine's subclass holds the fields.
   const FieldRegistry();
 
   /// Declares [field]. Throws an [ArgumentError] for a declaration with a

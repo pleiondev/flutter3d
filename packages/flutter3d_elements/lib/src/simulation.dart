@@ -74,6 +74,8 @@ final class ElementsListener {
     lost: bus.publish,
   );
 
+  /// A listener told what each callback given hears; one left null hears
+  /// nothing.
   const ElementsListener({
     this.caught,
     this.out,
@@ -113,6 +115,9 @@ final class ElementsListener {
   /// A fire came into the camera's picture, or left it — when
   /// `Elements.update` is given the camera.
   final void Function(ElementFireSeen event)? seen;
+
+  /// A fire left the camera's picture, or went out while in it — when
+  /// `Elements.update` is given the camera.
   final void Function(ElementFireLost event)? lost;
 }
 
@@ -120,6 +125,8 @@ final class ElementsListener {
 /// cell's corner at [origin], and each cell's ground over the origin's
 /// height, x fastest.
 final class ElementHeightfield {
+  /// The ground [heights] give, one per cell, x fastest; the list is copied
+  /// unmodifiable. Throws an [ArgumentError] unless there are `nx * nz`.
   ElementHeightfield.list({
     required this.origin,
     required this.cell,
@@ -167,17 +174,25 @@ final class ElementHeightfield {
     heights: List<double>.filled(nx * nz, 0.0),
   );
 
+  /// The first cell's corner, in world metres; [heights] are over its y.
   final Vector3 origin;
 
   /// The side of a cell, in metres.
   final double cell;
+
+  /// Cells along x and along z, each a count.
   final int nx, nz;
+
+  /// Each cell's ground over the [origin]'s height, in metres, x fastest:
+  /// `nx * nz` of them, unmodifiable.
   final List<double> heights;
 }
 
 /// What a water's bed holds it back with: Manning's roughness [roughness],
 /// s/m^(1/3).
 final class Bed {
+  /// A bed of Manning's n [roughness], s/m^(1/3): one of the constants
+  /// below, or a measured value.
   const Bed({required this.roughness});
 
   /// Normal values of Manning's n (Chow, Open-Channel Hydraulics, 1959,
@@ -281,6 +296,8 @@ final class Solid {
     );
   }
 
+  /// A box reaching [half] metres from its middle along each axis, of
+  /// [material] at [density] kg/m³.
   Solid.box(
     Vector3 half, {
     required NativeMaterial material,
@@ -292,6 +309,7 @@ final class Solid {
          density,
        );
 
+  /// A ball of [radius] metres, of [material] at [density] kg/m³.
   Solid.sphere(
     double radius, {
     required NativeMaterial material,
@@ -375,6 +393,8 @@ final class Solid {
   /// K it is put in the world at; null for the air's.
   final double? temperature;
 
+  /// The shape the core collides it as; a point for a compound, whose
+  /// [parts] are its shapes.
   final NativeShape shape;
 
   /// A compound's parts; null for one shape.
@@ -387,6 +407,7 @@ final class Solid {
   /// Its volume, in cubic metres.
   final double volume;
 
+  /// What it is made of: how it takes heat, burns and meets water.
   final NativeMaterial material;
 
   /// kg/m³.
@@ -502,6 +523,8 @@ final class Follower {
 /// The presets are flames that were measured; where a number was not,
 /// `doc/igniters.md` says how it was had.
 final class Igniter {
+  /// A flame of [flux] W/m² over [area] m², from gas at [temperature] K,
+  /// held for [seconds]. Checks nothing.
   const Igniter({
     required this.flux,
     required this.area,
@@ -557,6 +580,8 @@ final class Igniter {
     seconds: 300.0,
   );
 
+  /// The heat flux into the body, W/m²; the area it falls on, m²; the
+  /// flame gas's temperature, K; and how long it is held, seconds.
   final double flux, area, temperature, seconds;
 
   /// This flame with the values given changed: a torch held for half a
@@ -706,6 +731,7 @@ final class WaterBody {
 /// The water standing at a point, and which water it is —
 /// [ElementsSimulation.waterAt].
 final class WaterAtPoint {
+  /// The [sample] of [water] at a point.
   const WaterAtPoint({required this.water, required this.sample});
 
   /// The first water that holds the point.
@@ -1350,7 +1376,11 @@ final class ElementsSimulationPlugin extends Flutter3dPlugin {
   /// plugin id may take (`PluginManifest.reservedAreas`).
   ElementsSimulationPlugin(this.simulation, {this.id = 'flutter3d_elements'});
 
+  /// The simulation the plugin steps and snapshots.
   final ElementsSimulation simulation;
+
+  /// The plugin's id: `flutter3d_elements` unless given, and the namespace
+  /// of what it registers.
   final String id;
 
   @override

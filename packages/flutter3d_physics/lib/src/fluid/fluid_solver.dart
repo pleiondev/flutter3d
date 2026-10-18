@@ -46,6 +46,7 @@ import 'pipe.dart';
 /// **Every member defaults to the Dart reference**, so a solver that does one
 /// thing on its own hardware overrides that one and inherits the rest.
 abstract base class FluidSolver {
+  /// A solver that does every step in Dart until a subclass overrides it.
   const FluidSolver();
 
   /// Moves [motion]'s particles on by its substeps.
@@ -67,6 +68,7 @@ abstract base class FluidSolver {
 /// The reference: each solver in Dart, in double precision, as the pieces
 /// stepped themselves before there was a core to step them.
 final class DartFluid extends FluidSolver {
+  /// The reference; it holds no state, so one constant serves every world.
   const DartFluid();
 }
 
@@ -80,6 +82,8 @@ final class DartFluid extends FluidSolver {
 /// the [ParticleFluid] the particles are, and handed over with them, so
 /// every backend divides by the same numbers.
 final class ParticleMotion {
+  /// The particles in [state] and everything their solve reads; no walls
+  /// unless given. Copies nothing: [state] is moved in place.
   ParticleMotion({
     required this.state,
     required this.medium,
@@ -113,6 +117,8 @@ final class ParticleMotion {
   /// How long each substep is, in seconds.
   final double dt;
 
+  /// The gravity the particles feel, in metres per second squared, in the
+  /// world.
   final Vector3 gravity;
 
   /// Akinci's cohesion coefficient, for a work of cohesion of 2σ: in newton
@@ -131,6 +137,7 @@ final class ParticleMotion {
   /// The walls these particles could reach this step.
   final List<JetObstacle> walls;
 
+  /// How many particles [state] holds.
   int get count => state.length ~/ particleFloats;
 
   /// Doubles a particle takes in [state].
@@ -144,6 +151,8 @@ final class ParticleMotion {
 /// while it is in the air. Where it lands and whether it parts is the
 /// [Jet]'s to say, after.
 final class ParcelFlight {
+  /// The parcels in [parcels] and what their flight reads; no walls unless
+  /// given. Copies nothing: [parcels] is moved in place.
   ParcelFlight({
     required this.parcels,
     required this.dt,
@@ -159,13 +168,18 @@ final class ParcelFlight {
 
   /// How long the parcels fly for, in seconds.
   final double dt;
+
+  /// The gravity the parcels fall under, in metres per second squared, in
+  /// the world.
   final Vector3 gravity;
 
   /// The stream's liquid, which the cling speed answers for.
   final FluidMedium medium;
 
+  /// The walls the parcels could reach this step, which they run along.
   final List<JetObstacle> walls;
 
+  /// How many parcels [parcels] holds.
   int get count => parcels.length ~/ parcelFloats;
 
   /// Doubles a parcel takes in [parcels].
@@ -177,15 +191,38 @@ final class ParcelFlight {
   /// one when it is on a wall and nought when not, and its own liquid's
   /// density, surface tension and viscosity.
   static const int position = 0;
+
+  /// Offset of the velocity xyz, in metres per second.
   static const int velocity = 3;
+
+  /// Offset of the position xyz the parcel started the step at, in metres;
+  /// written by the flight.
   static const int previous = 6;
+
+  /// Offset of the parcel's volume, in cubic metres.
   static const int volume = 9;
+
+  /// Offset of the length of the step the parcel left the lip in, in
+  /// seconds: its volume over this and its speed is its section.
   static const int emittedIn = 10;
+
+  /// Offset of the parcel's age, in seconds since it left the lip.
   static const int age = 11;
+
+  /// Offset of how far its ripples have grown, in e-foldings.
   static const int growth = 12;
+
+  /// Offset of the wall flag: one while the parcel is on a wall, nought
+  /// when not.
   static const int onWall = 13;
+
+  /// Offset of its liquid's density, in kilograms per cubic metre.
   static const int density = 14;
+
+  /// Offset of its liquid's surface tension, in newtons per metre.
   static const int tension = 15;
+
+  /// Offset of its liquid's dynamic viscosity, in pascal seconds.
   static const int viscosity = 16;
 }
 
@@ -197,6 +234,8 @@ final class ParcelFlight {
 /// in place, and [omega2] and [decay] are written with what each mode rang
 /// at, which the force on the vessel reads.
 final class ModeRinging {
+  /// The [FreeSurface]'s mode arrays and what ringing them reads. Copies
+  /// nothing: the arrays are moved and written in place.
   ModeRinging({
     required this.k2,
     required this.norms,
@@ -217,9 +256,18 @@ final class ModeRinging {
   /// The most each mode stands anywhere on the surface, per unit amplitude.
   final Float64List norms;
 
+  /// Each mode's amplitude, the surface's height projected on its shape;
+  /// moved in place.
   final Float64List amplitude;
+
+  /// How fast each [amplitude] changes, per second; moved in place.
   final Float64List rate;
+
+  /// Each mode's angular frequency squared, in radians squared per second
+  /// squared, as it rang this step; written.
   final Float64List omega2;
+
+  /// Each mode's damping rate, per second, as it rang this step; written.
   final Float64List decay;
 
   /// How long to ring the modes for, in seconds.
@@ -237,6 +285,7 @@ final class ModeRinging {
   /// The liquid at the surface, for its viscosity and surface tension.
   final FluidMedium medium;
 
+  /// How many modes ring.
   int get count => k2.length;
 }
 
@@ -250,6 +299,8 @@ final class ModeRinging {
 /// The pressures are the [Pipe]'s to work out, layer by layer and less the
 /// pull of each meniscus; what the new flow carries through is its to move.
 final class PipeFlow {
+  /// The pipes in [pipes], run for [dt] seconds. Copies nothing: each
+  /// flow is moved in place.
   PipeFlow({required this.pipes, required this.dt});
 
   /// [pipeFloats] doubles a pipe, laid out as the offsets below say; the
@@ -259,6 +310,7 @@ final class PipeFlow {
   /// How long the flow runs for, in seconds.
   final double dt;
 
+  /// How many pipes [pipes] holds.
   int get count => pipes.length ~/ pipeFloats;
 
   /// Doubles a pipe takes in [pipes].
@@ -271,15 +323,37 @@ final class PipeFlow {
   /// length; the liquid's density and viscosity; and the loss where it
   /// enters and leaves, in velocity heads.
   static const int flow = 0;
+
+  /// Offset of the pressure at the first end less the second's, in
+  /// pascals.
   static const int drive = 1;
+
+  /// Offset of the first end's depth under its vessel's surface, in metres.
   static const int headFrom = 2;
+
+  /// Offset of the second end's depth under its vessel's surface, in
+  /// metres.
   static const int headTo = 3;
+
+  /// Offset of the first vessel's surface area, in square metres.
   static const int areaFrom = 4;
+
+  /// Offset of the second vessel's surface area, in square metres.
   static const int areaTo = 5;
+
+  /// Offset of the pipe's bore radius, in metres.
   static const int radius = 6;
+
+  /// Offset of the pipe's length, in metres.
   static const int length = 7;
+
+  /// Offset of the liquid's density, in kilograms per cubic metre.
   static const int density = 8;
+
+  /// Offset of the liquid's dynamic viscosity, in pascal seconds.
   static const int viscosity = 9;
+
+  /// Offset of the entry and exit loss, a unitless count of velocity heads.
   static const int minorLoss = 10;
 }
 
@@ -291,6 +365,8 @@ final class PipeFlow {
 /// How much of a body is under is the [FloatingBody]'s to work out: it is
 /// geometry, a cap or a cut, not stepped.
 final class FloatPush {
+  /// The bodies in [bodies] and the [pushes] on them, for [dt] seconds
+  /// under [gravity]. Copies nothing: velocities are moved in place.
   FloatPush({
     required this.bodies,
     required this.pushes,
@@ -308,18 +384,33 @@ final class FloatPush {
   /// the volume of it under, and the liquid's density and viscosity.
   final Float64List pushes;
 
+  /// The gravity the liquid feels, in metres per second squared, in the
+  /// world: the lift is against it.
   final Vector3 gravity;
 
   /// How long the pushes act for, in seconds.
   final double dt;
 
+  /// How many pushes [pushes] holds.
   int get count => pushes.length ~/ pushFloats;
 
+  /// Doubles a body takes in [bodies].
   static const int bodyFloats = 4;
+
+  /// Doubles a push takes in [pushes].
   static const int pushFloats = 8;
 
+  /// The shape kind of a sphere: its one size is the radius.
   static const int sphere = 0;
+
+  /// The shape kind of a box: its sizes are the half extents.
   static const int box = 1;
+
+  /// The shape kind of a capsule: its sizes are the radius and the half
+  /// height.
   static const int capsule = 2;
+
+  /// The shape kind of any other collider: it has no sizes and no frontal
+  /// area, so it is lifted by the volume under but not dragged.
   static const int other = 3;
 }

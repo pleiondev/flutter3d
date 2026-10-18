@@ -36,6 +36,7 @@ final class VoxelHit {
 /// One voxel of a [VoxelWorld]'s grid, by its whole-metre coordinates: what
 /// [VoxelHit.before] answers.
 final class VoxelCell {
+  /// The voxel at column [x], row [y] and layer [z], counted in voxels.
   const VoxelCell({required this.x, required this.y, required this.z});
 
   /// The voxel's column along X, in voxels (a voxel is a metre).

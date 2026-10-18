@@ -54,6 +54,9 @@ final class FieldRefusal {
 /// and goes on, and whatever only read the field is culled with it; a
 /// caller that placed the field itself catches this.
 final class FieldResidenceException extends CapabilityException {
+  /// The refusal of [field] in [residence] for [reason], with the missing
+  /// [capability], the refusing [backend] and the device's [cause] where
+  /// known.
   const FieldResidenceException({
     required this.field,
     required this.residence,

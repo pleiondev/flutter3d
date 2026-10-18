@@ -25,6 +25,7 @@ import 'package:vector_math/vector_math.dart';
 /// much do. A monotonically increasing query counter and one stamp per handle
 /// makes the deduplication O(1) per visit instead of a set allocated per query.
 final class SpatialGrid {
+  /// An empty grid of cells [cellSize] metres on a side, four by default.
   SpatialGrid({this.cellSize = 4.0});
 
   /// Side of a cell, in metres. About two corridor widths, so a query for a
@@ -41,8 +42,12 @@ final class SpatialGrid {
   Int32List _stamp = Int32List(0);
   int _query = 0;
 
+  /// Cells that have ever held a handle since the last [clear], a count;
+  /// [clearEntries] empties them without forgetting them.
   int get cellCount => _cells.length;
 
+  /// Files [handle] in every cell the XZ footprint of [bounds] covers. The
+  /// handle is a non-negative index; filing it twice lists it twice.
   void insert(int handle, Aabb3 bounds) {
     if (handle >= _stamp.length) _growStamps(handle + 1);
 

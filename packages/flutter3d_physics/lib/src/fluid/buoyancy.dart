@@ -119,8 +119,10 @@ double sphereDrag(double re) {
 /// liquid it pushes aside raises the level in the vessel by as much
 /// ([LiquidBody.displaced]).
 final class FloatingBody {
+  /// Floats [body]; `FluidWorld.float` makes one for each body it is given.
   FloatingBody(this.body);
 
+  /// The body the liquid pushes on and that pushes the liquid aside.
   final RigidBody body;
 
   /// The volume of it under the surface of [liquid] as it is now.

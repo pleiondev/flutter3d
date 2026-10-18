@@ -19,6 +19,8 @@ final class PlaneObstacle with JetObstacle {
   PlaneObstacle({required Vector3 normal, required this.offset, this.surface})
     : normal = normal.normalized();
 
+  /// The way out of the plane, a unit vector in world space: the given
+  /// normal, normalised.
   final Vector3 normal;
 
   /// The plane's distance from the origin along [normal], in metres.
@@ -43,6 +45,8 @@ final class PlaneObstacle with JetObstacle {
 /// Particles [ParticleFluid.retire] took out: where each was, and what they
 /// carried between them.
 final class RetiredParticles {
+  /// The particles at [positions], each [particleVolume] cubic metres,
+  /// carrying [amounts] between them and leaving as [drops].
   RetiredParticles({
     required this.positions,
     required this.particleVolume,
@@ -177,6 +181,9 @@ final class _Drop {
 /// [retire] takes out. So [volume] — the particles and the bank — is exactly
 /// what came in less what was [received] and [retired].
 final class ParticleFluid {
+  /// Particles of [medium] [spacing] metres apart at rest, their kernel
+  /// reaching twice that; four density passes and at least two substeps a
+  /// step, moved by the Dart reference, unless given otherwise.
   ParticleFluid({
     required this.medium,
     required this.spacing,
@@ -214,6 +221,8 @@ final class ParticleFluid {
   late final double _latticeSum;
   late final double _restStiffness;
 
+  /// The liquid the particles are: its density, viscosity and surface
+  /// tension.
   final FluidMedium medium;
 
   /// The particles' spacing at rest, metres.
@@ -221,6 +230,9 @@ final class ParticleFluid {
 
   /// Density passes per substep, and the fewest substeps per [step].
   final int iterations;
+
+  /// The fewest substeps a [step] is cut into, a count; more are taken
+  /// when [capillaryTime] asks for them.
   final int substeps;
 
   /// What moves the particles each step: the reference unless told

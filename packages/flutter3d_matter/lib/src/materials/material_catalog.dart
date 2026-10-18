@@ -20,6 +20,9 @@ import 'property_law.dart';
 /// water on clean glass — and a material's own numbers are only it against
 /// itself. A pair is unordered: rubber on concrete is concrete on rubber.
 final class MaterialPair {
+  /// The measured meeting of [first] and [second], from [source]. A number
+  /// left null is combined from the two materials' own. Checks nothing:
+  /// [problems] judges the numbers.
   const MaterialPair(
     this.first,
     this.second, {
@@ -174,6 +177,8 @@ final class MaterialPair {
 /// kind of number; [confidence] and [source] are what tell them apart, so
 /// what reads [friction] does not take the second for the first.
 final class ContactProperties {
+  /// A contact's three coefficients, how far to trust [friction] and where
+  /// it comes from.
   const ContactProperties({
     required this.friction,
     required this.restitution,
@@ -230,6 +235,7 @@ final class ContactProperties {
 /// materials come from plugins and a plugin manager reports it as the
 /// install that failed.
 final class MaterialRegistrationException extends PluginException {
+  /// A refusal saying what the catalogue would not take in `message`.
   const MaterialRegistrationException(super.message);
 
   @override
@@ -243,6 +249,8 @@ final class MaterialRegistrationException extends PluginException {
 /// **Names the plugin that is missing** ([plugin], the id's namespace), so a
 /// player is told what to install rather than that a number is wrong.
 final class UnknownMaterialException extends PluginException {
+  /// The refusal of [id], its message telling a player to update flutter3d
+  /// for an `f3d.` id and to install the plugin of its namespace otherwise.
   UnknownMaterialException(this.id)
     : plugin = _namespaceOf(id),
       super(

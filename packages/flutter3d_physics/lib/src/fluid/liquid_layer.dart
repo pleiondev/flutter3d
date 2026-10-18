@@ -11,12 +11,15 @@ import 'fluid_medium.dart';
 /// **Liquids that do not mix are separate layers**, one per medium, lying
 /// by density; see `LiquidBody.layers`.
 final class LiquidLayer {
+  /// [volume] cubic metres of [medium] holding a copy of [amounts], or
+  /// nothing dissolved.
   LiquidLayer({
     required this.medium,
     required this.volume,
     Map<String, double>? amounts,
   }) : amounts = {...?amounts};
 
+  /// The liquid the layer is; one medium per layer.
   final FluidMedium medium;
 
   /// Cubic metres.

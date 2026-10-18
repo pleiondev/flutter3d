@@ -18,8 +18,13 @@ final class MaterialPhase {
   /// A phase of a plugin's own, by its [name].
   const MaterialPhase.named(this.name);
 
+  /// Holds its shape: steel, wood, ice.
   static const MaterialPhase solid = MaterialPhase.named('solid');
+
+  /// Flows and keeps its volume: water, oil, molten rock. [isFluid].
   static const MaterialPhase liquid = MaterialPhase.named('liquid');
+
+  /// Flows and fills what holds it: air, steam. [isFluid].
   static const MaterialPhase gas = MaterialPhase.named('gas');
 
   /// Grains that pour and pile: sand, soil, gravel.
@@ -91,6 +96,12 @@ abstract final class ExternalIdSpace {
 /// in the format envelope, keeping the keys it does not know, so a file —
 /// a level, a `.f3d` section, a data plugin — can hold one.
 final class PhysicalMaterial {
+  /// The material [id], quoted at 20 °C and one standard atmosphere unless
+  /// [temperature] and [pressure] say otherwise, with every group absent
+  /// unless given.
+  ///
+  /// Checks nothing: [problems] judges the numbers, and
+  /// [PhysicalMaterial.fromJson] the id.
   const PhysicalMaterial({
     required this.id,
     required this.name,
@@ -215,6 +226,8 @@ final class PhysicalMaterial {
   /// What a person calls it.
   final String name;
 
+  /// The state it is in at [temperature] and [pressure]: a solid, a liquid,
+  /// a gas, grains, or a phase a plugin names.
   final MaterialPhase phase;
 
   /// The temperature its numbers are quoted at, K: 20 °C unless the entry
@@ -225,13 +238,27 @@ final class PhysicalMaterial {
   /// The pressure its numbers are quoted at, Pa: one standard atmosphere
   /// unless the entry says otherwise.
   final double pressure;
+
+  /// Its density, stiffness and contact with itself; null when unknown.
   final MechanicalProperties? mechanical;
+
+  /// How it flows, for a liquid or a gas; null when unknown or solid.
   final FluidProperties? fluid;
+
+  /// How it takes heat, changes phase and burns; null when unknown.
   final ThermalProperties? thermal;
+
+  /// What a surface of it absorbs of sound and how fast sound crosses it;
+  /// null when unknown.
   final AcousticProperties? acoustic;
+
+  /// What it bends, absorbs and reflects of light; null when unknown.
   final OpticalProperties? optical;
+
+  /// How it carries a current; null when unknown.
   final ElectricalProperties? electrical;
 
+  /// How it loses energy as it bends, creeps and flows; null when unknown.
   final InelasticProperties? inelastic;
 
   /// The ids other systems know it by, by the space they are in:

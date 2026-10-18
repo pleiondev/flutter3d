@@ -109,6 +109,7 @@ final class FluidWorld {
   /// unless it was given another), unless it was given a solver.
   final FluidSolver solver;
 
+  /// The vessels of liquid, stepped and filled in the order added.
   final List<LiquidBody> bodies = [];
 
   /// Rigid bodies the liquids push on: buoyed up, slowed, and taking up
@@ -117,6 +118,9 @@ final class FluidWorld {
 
   /// Adds [body] to [floating].
   void float(RigidBody body) => floating.add(FloatingBody(body));
+
+  /// The pipes joining vessels below their surfaces, each driven by the
+  /// difference of pressure between its ends.
   final List<Pipe> pipes = [];
 
   /// The stream from each vessel's lip, while there is one.

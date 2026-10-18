@@ -9,6 +9,8 @@ import 'particle_effect.dart';
 /// rather than a field read at the call site: it is a fact about one source's
 /// countdown, not part of what a particle effect is.
 final class Emission {
+  /// An emission of [effect] from [origin] at [perSecond], running until
+  /// stopped unless [remaining] gives it seconds.
   Emission({
     required this.effect,
     required this.origin,
@@ -17,6 +19,7 @@ final class Emission {
     this.remaining,
   });
 
+  /// The recipe each emitted particle is born from.
   final ParticleEffect effect;
 
   /// Where it emits from, in scene space (relative to `Scene.origin`).
@@ -24,6 +27,9 @@ final class Emission {
 
   /// How many particles it emits, per second.
   final double perSecond;
+
+  /// The way the emitter leans its particles, handed to it as
+  /// `ParticleBirth.direction`; null leaves the emitter's own shape.
   final Vector3? direction;
 
   /// Seconds of emission left, or null to run until stopped.

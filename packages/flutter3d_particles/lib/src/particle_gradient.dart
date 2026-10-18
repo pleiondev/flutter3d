@@ -7,15 +7,18 @@ import 'particle.dart';
 
 /// One point on a [ParticleGradient].
 final class GradientKey {
+  /// The key [color] at [at], left by [ease], straight by default.
   const GradientKey(this.at, this.color, {this.ease = KeyEase.linear});
 
   /// Where in the particle's life this key sits, in `[0, 1]`: a fraction of
   /// its life.
   final double at;
 
-  /// Linear RGB with alpha as brightness, written into [Particle.color].
+  /// Linear RGB with alpha as brightness, written into `Particle.linearRgba`.
   final LinearColor color;
 
+  /// How the colour leaves this key on its way to the next. Never read on
+  /// the last key.
   final KeyEase ease;
 }
 
@@ -26,16 +29,22 @@ final class GradientKey {
 /// how a colour ramp ends up with a grey frame in the middle that nobody put
 /// there. A gradient's keys are keys of the whole colour.
 final class ParticleGradient {
+  /// A gradient through [keys]. Asserts that there is at least one and
+  /// that they are ordered by [GradientKey.at].
   ParticleGradient(this.keys)
     : assert(keys.isNotEmpty, 'a gradient with no keys has no colour'),
       assert(_isSorted(keys), 'gradient keys must be ordered by `at`');
 
+  /// A gradient that is [color] all its life.
   ParticleGradient.constant(LinearColor color)
     : this(<GradientKey>[GradientKey(0.0, color)]);
 
+  /// A straight ramp from [from] at birth to [to] at death.
   ParticleGradient.linear(LinearColor from, LinearColor to)
     : this(<GradientKey>[GradientKey(0.0, from), GradientKey(1.0, to)]);
 
+  /// The keys, ordered by [GradientKey.at]; the colour holds the first
+  /// key's before it and the last key's after it.
   final List<GradientKey> keys;
 
   static bool _isSorted(List<GradientKey> keys) {

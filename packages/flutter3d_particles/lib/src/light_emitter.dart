@@ -76,12 +76,17 @@ final class ParticleGlow {
   double _rawPower = 0.0;
   final Vector3 _rawCentre = Vector3.zero();
 
+  /// Zeroes [count] and this step's raw sums. Called by the particle system
+  /// before it steps its particles; not for an owner to call.
   void beginStep() {
     _count = 0;
     _rawPower = 0.0;
     _rawCentre.setZero();
   }
 
+  /// Adds [particle] to this step's sums: one to [count], its luminance
+  /// times alpha times size squared to the raw power, its position to the
+  /// raw centre. Called by the particle system for each live particle.
   void accumulate(Particle particle) {
     _count++;
     final luminance =
@@ -93,6 +98,10 @@ final class ParticleGlow {
     _rawCentre.add(particle.position);
   }
 
+  /// Eases [power] and [center] towards this step's sums over [dt] seconds,
+  /// by [smoothing]. The first step with a particle sets [center] outright
+  /// and makes [isLocated] true; a step with none leaves [center] where it
+  /// was. Called by the particle system after it steps its particles.
   void endStep(double dt) {
     if (_count > 0) _rawCentre.scale(1.0 / _count);
     // Exponential and framerate independent: the same lag at sixty frames a

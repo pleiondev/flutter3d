@@ -28,6 +28,8 @@ import 'package:vector_math/vector_math.dart';
 /// An editor scrubbing a sequence with no player reads it by the step
 /// instead: [cameraAt], [fadeAt] and [subtitleAt].
 final class SequenceView {
+  /// A view of [sequence], fitting its camera curves once. A sequence with
+  /// fewer than two camera keys gets no curve.
   SequenceView(this.sequence)
     : _path = _curve(sequence.cameraKeys, (CameraKey k) => k.at),
       _looks = _curve(sequence.cameraKeys, (CameraKey k) => k.look);

@@ -48,6 +48,7 @@ abstract base class CameraFraming {
 /// every frame, so a frame allocates nothing for it; a framing reads it
 /// during [CameraFraming.frame] and does not keep it.
 final class FramingStep {
+  /// A step writing into [wanted], [dt] seconds after the last frame.
   FramingStep({required this.wanted, required this.dt});
 
   /// The shot the framing writes its wish into.

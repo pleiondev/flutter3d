@@ -11,6 +11,9 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
 /// result does not change with the substep count, which a spring constant's
 /// does — the whole reason the "X" is in XPBD.
 final class ClothSettings {
+  /// Settings for a cloth in standard gravity and still air: eight
+  /// substeps of two iterations, rigid edges, a soft bend, a softer shear,
+  /// one-centimetre collision thickness and self-collision on.
   const ClothSettings({
     this.gravity = standardGravity,
     this.substeps = 8,
@@ -236,6 +239,8 @@ final class ClothSettings {
 
 /// A uniform wind field, applied per triangle as drag along its own normal.
 final class WindSettings {
+  /// Still standard air with a drag of 0.3 newtons per square metre per
+  /// metre per second, waiting for a velocity.
   const WindSettings({
     this.velocityX = 0,
     this.velocityY = 0,
@@ -292,5 +297,7 @@ final class WindSettings {
   /// tens where it had tenths.
   final double drag;
 
+  /// Whether the wind does nothing: [drag] is zero. A still wind with drag
+  /// is not none, since it damps a moving cloth.
   bool get isNone => drag == 0;
 }

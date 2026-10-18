@@ -30,6 +30,8 @@ typedef SixWayField = double Function(double x, double y, double z, double t);
 
 /// A baked sheet: [columns] by [rows] cells of [cell] pixels, RGBA8.
 final class SixWaySheet {
+  /// A sheet of [columns] by [rows] cells of [cell] pixels, its textures
+  /// [positive] and [negative]. Checks nothing.
   const SixWaySheet({
     required this.columns,
     required this.rows,
@@ -38,8 +40,13 @@ final class SixWaySheet {
     required this.negative,
   });
 
+  /// Cells across the sheet, a count; the flipbook's columns.
   final int columns;
+
+  /// Cells down the sheet, a count; the flipbook's rows.
   final int rows;
+
+  /// The side of one square cell, in pixels.
   final int cell;
 
   /// Right, top, back, coverage.
@@ -48,7 +55,10 @@ final class SixWaySheet {
   /// Left, bottom, front, emission.
   final Uint8List negative;
 
+  /// The sheet's width in pixels: [columns] times [cell].
   int get width => columns * cell;
+
+  /// The sheet's height in pixels: [rows] times [cell].
   int get height => rows * cell;
 }
 

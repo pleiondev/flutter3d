@@ -60,6 +60,7 @@ extension type const ElementBody(int id) {
 /// member for — humidity, pressure, a concentration — arrives as a new
 /// [FieldQuantity] a backend answers, without a new member here.
 abstract base class ElementFields {
+  /// Fields that answer nothing; a subclass overrides what its world has.
   const ElementFields();
 
   /// The refusal of [member], which this backend does not answer.
@@ -92,6 +93,9 @@ abstract base class ElementFields {
   double surfaceTemperatureOf(ElementBody body) =>
       throw _refuse('surfaceTemperatureOf');
 
+  /// Sets [body]'s mean temperature to [kelvin], K, from the next step.
+  /// Throws an [UnsupportedCapabilityException] unless the backend
+  /// overrides it.
   void setTemperature(ElementBody body, double kelvin) =>
       throw _refuse('setTemperature');
 
@@ -187,6 +191,7 @@ abstract base class ElementFields {
 /// [ElementFields.quantityOf]. Two are the same field when their [name]s
 /// are. A [Capability], so a backend that lacks one refuses it by name.
 final class FieldQuantity extends Capability {
+  /// The field called [name], kept in [unit].
   const FieldQuantity(this.name, this.unit);
 
   /// A body's mean temperature, in kelvin.
@@ -246,6 +251,7 @@ final class _Member extends Capability {
 /// The physics core's world as [ElementFields], with what only the core
 /// has — its fires, its waters — beside them.
 final class NativeElementFields extends ElementFields {
+  /// The fields of the core's [world].
   const NativeElementFields(this.world);
 
   /// The core's world: for what the fields do not name.
@@ -365,6 +371,9 @@ final class NativeElementFields extends ElementFields {
 /// What an element's step is told: the fields, the step, and where to say
 /// what it did.
 final class ElementStep {
+  /// A step of [dt] seconds over [fields], numbered [step] (nought by
+  /// default), sending its events to [publish]; with no [publish], they
+  /// go nowhere.
   ElementStep({
     required this.fields,
     required this.dt,
@@ -373,6 +382,7 @@ final class ElementStep {
     void Function(ElementEvent event)? publish,
   }) : _publish = publish; // ignore: prefer_initializing_formals
 
+  /// The world's fields the element reads and writes this step.
   final ElementFields fields;
 
   /// Seconds this step covers: the world's fixed step.
@@ -400,6 +410,7 @@ final class ElementStep {
 
 /// What an element's view is told, once a frame.
 final class ElementFrame {
+  /// A frame [dt] seconds after the last, seen from [eye].
   const ElementFrame({
     required this.dt,
     required this.clock,
@@ -430,6 +441,7 @@ final class ElementFrame {
 
 /// A switch a plugin element answers to in [ElementsSteps], by [id].
 final class ElementSwitch {
+  /// The switch of the element [id], on unless said otherwise.
   const ElementSwitch(this.id, {this.onByDefault = true, this.description});
 
   /// The element's id, under which [ElementsSteps.isOn] is asked.
@@ -473,6 +485,7 @@ final class ElementSwitch {
 /// `base`, so a member added later arrives with a default: an element
 /// `extends` this and is itself `final` or `base`.
 abstract base class ElementHook {
+  /// An element; a subclass gives its [id] and its [step].
   const ElementHook();
 
   /// Lower case, unique among the elements of one world: `'frost'`, or
@@ -660,6 +673,7 @@ final class _Filed extends ElementHook {
 /// declares its switch when it is installed, and two elements may not
 /// declare one id.
 final class ElementSwitches extends PluginRegistry {
+  /// A registry with no switch declared.
   ElementSwitches();
 
   final List<({ElementSwitch declared, String owner})> _switches =

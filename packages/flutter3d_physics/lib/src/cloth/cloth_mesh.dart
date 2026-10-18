@@ -7,10 +7,14 @@ import 'package:flutter3d_matter/flutter3d_matter.dart'
 /// A grid of particles and the constraints between them, as flat arrays —
 /// the shape every hot loop in this package walks without an allocation.
 ///
-/// **Column-major in [cols]/[rows], row 0 pinned by [ClothMesh.grid].** A
+/// **Row-major in [cols]/[rows], row 0 pinned by [ClothMesh.grid].** A
 /// particle's own index is `row * cols + col`; three consecutive doubles in
 /// [positions]/[velocities] starting at `3 * index` are its own x/y/z.
 final class ClothMesh {
+  /// A mesh over the arrays given, held and not copied.
+  ///
+  /// Without shear pairs it has none and shears freely; without
+  /// [restPositions] the rest shape is a copy of [positions].
   ClothMesh({
     required this.cols,
     required this.rows,
@@ -149,9 +153,14 @@ final class ClothMesh {
       shearRestLength: Float64List.fromList(shearRestLength),
     );
   }
+
+  /// Particles along a row, a count.
   final int cols;
+
+  /// Rows of particles, a count; row 0 is the top.
   final int rows;
 
+  /// Particles in the mesh, a count: [cols] times [rows].
   final int particleCount;
 
   /// `3 * particleCount` doubles, x/y/z per particle.
@@ -171,6 +180,8 @@ final class ClothMesh {
   /// Structural (edge-length) constraints, particle index pairs.
   final Int32List structuralPairs;
 
+  /// The length each of [structuralPairs] rests at, in metres: one entry
+  /// per pair.
   final Float64List structuralRestLength;
 
   /// Cross-edge bending constraints: for a pair of grid quads sharing an
@@ -179,6 +190,8 @@ final class ClothMesh {
   /// its own, softer compliance.
   final Int32List bendPairs;
 
+  /// The distance each of [bendPairs] rests at, in metres: one entry per
+  /// pair.
   final Float64List bendRestLength;
 
   /// Shear constraints: both diagonals of every grid quad, solved with their
@@ -192,6 +205,8 @@ final class ClothMesh {
   /// without them, which then shears as before.
   final Int32List shearPairs;
 
+  /// The length each of [shearPairs] rests at, in metres: one entry per
+  /// pair, empty when there are none.
   final Float64List shearRestLength;
 
   /// Three particle indices per triangle, for wind's own drag-along-normal

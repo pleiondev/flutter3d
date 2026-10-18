@@ -29,6 +29,9 @@ import 'liquid_body.dart';
 /// curved: σ times the curvature at the middle of the meniscus, which is why
 /// a narrow tube joined to a wide one stands higher by Jurin's height.
 final class Pipe {
+  /// A pipe of [radius] and [length] metres from [from] at [at] to [to] at
+  /// [toAt], with an entry and exit loss coefficient of 1.5 and a bore
+  /// 1.5 micrometres rough unless given. Starts with no flow.
   Pipe({
     required this.from,
     required this.at,
@@ -40,10 +43,17 @@ final class Pipe {
     this.roughness = 1.5e-6,
   });
 
-  /// The two vessels, and where the pipe opens into each (vessel frame).
+  /// The vessel at the near end; a positive [flow] runs out of it, and its
+  /// liquid is the one the pipe carries.
   final LiquidBody from;
+
+  /// Where the pipe opens into [from], in metres in that vessel's frame.
   final Vector3 at;
+
+  /// The vessel at the far end; a positive [flow] runs into it.
   final LiquidBody to;
+
+  /// Where the pipe opens into [to], in metres in that vessel's frame.
   final Vector3 toAt;
 
   /// The pipe's bore and length, metres.

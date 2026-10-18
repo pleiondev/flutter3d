@@ -18,6 +18,7 @@ import 'rigid_body.dart';
 /// context that can grow ([BodyForceContext]), so a member added in a minor
 /// arrives with a default and every force keeps compiling.
 abstract base class BodyForce {
+  /// A force; a subclass says what it adds in [addForce].
   const BodyForce();
 
   /// Adds the force on [context]'s body, in newtons, at the state the

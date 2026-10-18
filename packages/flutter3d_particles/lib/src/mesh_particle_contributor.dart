@@ -38,7 +38,13 @@ import 'package:vector_math/vector_math.dart' as vm;
 
 import 'particle_system.dart';
 
+/// Draws every live particle of [particles] as a copy of [mesh], in one
+/// instanced call inside the scene pass: depth-tested, never depth-written,
+/// unculled, and blended by [blend]. The library comment says why this is
+/// a contributor of its own.
 final class MeshParticleContributor extends PassContributor {
+  /// A contributor drawing [particles] as copies of [mesh], adding light
+  /// unless [blend] is [darkening].
   MeshParticleContributor(
     this.particles, {
     required this.mesh,
@@ -74,6 +80,8 @@ final class MeshParticleContributor extends PassContributor {
     destinationAlphaFactor: BlendFactor.one,
   );
 
+  /// The pool drawn: one instance per live particle, placed, coloured and
+  /// sized from it each frame.
   final ParticleSystem particles;
 
   /// The shape every particle is a copy of, already on the device.

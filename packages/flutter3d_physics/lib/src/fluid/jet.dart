@@ -49,6 +49,8 @@ abstract base mixin class JetReceiver {
 /// lands, so a step allocates nothing for it; a receiver reads it during
 /// the call and does not keep it.
 final class JetLanding {
+  /// A landing; by default nothing of water carrying nothing, at rest at
+  /// the origin. A stream sets the fields before each parcel lands.
   JetLanding({
     this.volume = 0.0,
     Vector3? point,
@@ -81,6 +83,7 @@ final class JetLanding {
 /// surface it hit, its friction) without breaking an obstacle somebody
 /// wrote.
 final class ObstacleTouch {
+  /// A touch [depth] metres in, out along the unit vector [normal].
   const ObstacleTouch({required this.normal, required this.depth});
 
   /// The way out, a unit vector in world space.
@@ -140,6 +143,8 @@ List<JetObstacle> obstaclesNear(
 /// **A class, not a record**, so a field a later minor adds (a temperature,
 /// a charge) breaks no code that builds or reads one.
 final class JetDrop {
+  /// A drop of [volume] cubic metres of [medium] at [position], moving at
+  /// [velocity], carrying [concentrations] or nothing.
   JetDrop({
     required this.position,
     required this.velocity,
@@ -205,6 +210,9 @@ typedef JetSample = ({
 /// **Every cubic metre is somewhere**: emitted is the sum of what is in the
 /// air, what receivers have taken, and what left as drops.
 final class Jet {
+  /// A stream of [medium] parting after 12 e-foldings of growth unless
+  /// [breakupGrowth] says otherwise, flown by the Dart reference unless
+  /// given a [solver].
   Jet({
     required this.medium,
     this.breakupGrowth = 12.0,

@@ -19,6 +19,11 @@ export 'movement_tuning.dart';
 /// than to bounce. A general solver would give all three and be harder to tune
 /// into something that feels right.
 final class CharacterController {
+  /// A body in [world], registered there as a kinematic collider on
+  /// [layer] (bit one by default).
+  ///
+  /// The shape defaults to a box 0.7 metres wide and 1.8 metres tall, and
+  /// [position] to the origin; the position is copied.
   CharacterController({
     required this.world,
     CollisionShape? shape,
@@ -44,6 +49,8 @@ final class CharacterController {
     world.shiftsWithOrigin(this.position);
   }
 
+  /// The world the body moves through and is registered in, which shifts
+  /// [position] with its origin.
   final CollisionWorld world;
 
   /// The body's collision volume.
@@ -122,6 +129,7 @@ final class CharacterController {
   /// Centre of the box. The eye sits above this.
   final Vector3 position;
 
+  /// The body's velocity, in metres per second. Carried by [save].
   final Vector3 velocity = Vector3.zero();
 
   bool _grounded = false;
@@ -257,6 +265,11 @@ final class CharacterController {
     'jumpBuffer': _jumpBuffer,
   };
 
+  /// Puts back what [save] wrote in [from], moving the collider with it.
+  ///
+  /// Throws nothing: a missing or malformed vector leaves that vector as it
+  /// was, and a missing timer starts at nought. [groundBody] is cleared
+  /// until the next ground probe.
   void restore(Map<String, Object?> from) {
     readVector(from['at'], position);
     readVector(from['velocity'], velocity);

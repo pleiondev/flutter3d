@@ -15,6 +15,8 @@ import 'particle.dart';
 
 /// One cell of the sheet, in texture space.
 final class FlipbookCell {
+  /// The cell at [left], [top], [width] wide and [height] high, each a
+  /// fraction of the sheet.
   const FlipbookCell(this.left, this.top, this.width, this.height);
 
   /// The cell's left edge, in UV: a fraction of the sheet's width.
@@ -32,6 +34,10 @@ final class FlipbookCell {
 
 /// A grid of frames, played across a particle's life.
 final class Flipbook {
+  /// A sheet of [columns] by [rows] cells, every cell played once unless
+  /// [frames] and [loops] say otherwise.
+  ///
+  /// Asserts that [columns], [rows] and [loops] are at least one.
   Flipbook({
     required this.columns,
     required this.rows,
@@ -40,7 +46,11 @@ final class Flipbook {
   }) : assert(columns > 0 && rows > 0, 'a sheet has at least one cell'),
        assert(loops > 0, 'a flipbook plays at least once');
 
+  /// Cells across the sheet, a count of at least one. Frames run along a
+  /// row, left to right, then down.
   final int columns;
+
+  /// Cells down the sheet, a count of at least one.
   final int rows;
 
   /// How many cells are actually used, or null for all of them.
@@ -59,6 +69,8 @@ final class Flipbook {
   /// a story — a flame's flicker, a wisp turning.
   final int loops;
 
+  /// The count of cells played: [frames], held to the cells the sheet has,
+  /// or every cell when [frames] is null.
   int get frameCount {
     final all = columns * rows;
     final wanted = frames;

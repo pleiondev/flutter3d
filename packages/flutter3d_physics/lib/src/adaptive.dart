@@ -26,6 +26,8 @@ typedef Derivative = void Function(double t, Float64List y, Float64List dy);
 /// (`SimulationProfile.accurate`), and the tolerances are stated where the
 /// profile is documented.
 final class DormandPrince {
+  /// An integrator holding the accurate profile's tolerances unless given,
+  /// giving up after 100 000 steps of one [integrate].
   DormandPrince({
     this.relative = defaultRelative,
     this.absolute = defaultAbsolute,

@@ -16,7 +16,10 @@ import 'particle_affector.dart';
 ///
 /// An emitter's test, or an emitter of its own, makes one with `Particle()`.
 final class Particle {
+  /// Where it is, in scene space, in metres; moved by [velocity] each step.
   final Vector3 position = Vector3.zero();
+
+  /// How fast and which way it moves, in metres per second.
   final Vector3 velocity = Vector3.zero();
 
   /// The particle's colour as a linear RGBA buffer: linear RGB, and an alpha
@@ -87,6 +90,8 @@ final class Particle {
   /// [ParticleDrag] slows it against.
   final Vector3 wind = Vector3.zero();
 
+  /// Whether the slot holds a live particle: set when it is emitted,
+  /// cleared when its [age] reaches its [lifetime].
   bool isAlive = false;
 
   /// How far through its life, in `[0, 1]`: a fraction of [lifetime].
@@ -103,8 +108,10 @@ final class Particle {
 /// texture rather than as an effect — variation in size and lifetime is most of
 /// what makes a burst look like one.
 final class Range {
+  /// Values drawn evenly between [min] and [max]. Checks nothing.
   const Range(this.min, this.max);
 
+  /// Always [value]: no variation.
   const Range.exact(double value) : min = value, max = value;
 
   /// The least value drawn, in the units of the value it stands for.
@@ -113,6 +120,8 @@ final class Range {
   /// The most value drawn, in the units of the value it stands for.
   final double max;
 
+  /// Returns a value drawn evenly from [min] to [max] with [random], or [min]
+  /// without drawing when the two are equal.
   double sample(math.Random random) =>
       min == max ? min : min + random.nextDouble() * (max - min);
 }

@@ -7,6 +7,9 @@ part of 'collision_shape.dart';
 /// Upright rather than arbitrary, because everything that uses one stands on
 /// the floor. A monster falling over is an animation, not a physics event.
 final class CollisionCapsule extends CollisionShape {
+  /// A capsule of [radius] around a segment `2 * halfHeight` long. Asserts
+  /// that [radius] is positive and [halfHeight] not negative; nought makes
+  /// a sphere.
   CollisionCapsule({required this.radius, required this.halfHeight})
     : assert(radius > 0.0),
       assert(halfHeight >= 0.0);

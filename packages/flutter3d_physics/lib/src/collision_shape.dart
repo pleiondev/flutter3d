@@ -76,6 +76,7 @@ part 'custom_shape.dart';
 /// the door a shape with a dent in it comes in through, and [partSeams], which
 /// is how it says that the joins between its pieces are not surfaces.
 abstract base class CollisionShape {
+  /// A shape; a subclass gives its bounds, planes and supports.
   const CollisionShape();
 
   /// Half the size of the axis-aligned box containing this shape.

@@ -17,6 +17,7 @@
 /// Extended rather than held, so `tuning.distance` goes on meaning what it did
 /// at every call site in both games.
 base class RigSettings {
+  /// Settings with every field given; none has a default.
   const RigSettings({
     required this.distance,
     required this.height,

@@ -65,6 +65,9 @@ final class CameraDirector {
 
   /// How close to what it watches a blended shot may be pulled, in metres.
   final double minDistance;
+
+  /// Which collision layers a blended shot is kept out of; by default
+  /// `CollisionLayers.world`.
   final int wallMask;
 
   /// The impulses shaking the view.

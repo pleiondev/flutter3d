@@ -26,6 +26,8 @@ final class SurfaceModesRequest {
 
   /// Cells across, and cells along.
   final int columns;
+
+  /// Cells along the grid, a count.
   final int rows;
 
   /// A cell's side, in metres.
@@ -131,6 +133,8 @@ final class MeniscusRequest {
 /// starts no isolate; a solver in the background is another package's
 /// (`flutter3d_physics_native`'s `BackgroundShapeSolver`).
 abstract base class LiquidShapeSolver {
+  /// A solver that works answers out at once unless a subclass says
+  /// otherwise.
   const LiquidShapeSolver();
 
   /// The solver that works everything out when it is asked.

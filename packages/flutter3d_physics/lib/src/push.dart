@@ -14,9 +14,13 @@ import 'contact.dart';
 import 'rigid_dynamics.dart';
 import 'tolerances.dart';
 
+/// Gives the bodies of a [RigidDynamics] the speed a kinematic walker
+/// walks into them at: see [push].
 final class Pusher {
+  /// A pusher of [dynamics]' bodies.
   Pusher(this.dynamics);
 
+  /// The dynamics whose bodies are shoved.
   final RigidDynamics dynamics;
 
   final List<Collider> _nearby = <Collider>[];

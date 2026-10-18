@@ -17,6 +17,7 @@ import 'field.dart';
 /// later minor adds is one more subclass, and a member added here arrives
 /// with a default.
 abstract base class FieldStorage {
+  /// Storage; a subclass says where the values are held.
   const FieldStorage();
 
   /// The field these are the values of.

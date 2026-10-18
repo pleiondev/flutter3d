@@ -458,6 +458,9 @@ void _applyFriction(
 /// built from 10-bit masks and shifts, which give the same bits on a 64-bit
 /// VM and in JavaScript's 32-bit bitwise ops.
 final class ClothSelfCollision {
+  /// Self-collision for [mesh], keeping layers [thickness] metres apart
+  /// with [friction] between them. Holds the mesh's arrays, and gathers no
+  /// pairs until the first [update].
   ClothSelfCollision(ClothMesh mesh, this.thickness, this.friction)
     : n = mesh.particleCount,
       rest = mesh.restPositions,
@@ -475,6 +478,7 @@ final class ClothSelfCollision {
   /// How far past the thickness the pairs are gathered, in thicknesses.
   static const double _skin = 0.5;
 
+  /// Particles in the mesh, a count.
   final int n;
 
   /// How far apart two layers are kept, in metres.
@@ -483,7 +487,13 @@ final class ClothSelfCollision {
   /// Coulomb friction between layers, a unitless coefficient; see
   /// `ClothSettings.friction`.
   final double friction;
+
+  /// The mesh's rest positions, x/y/z per particle in metres: two
+  /// particles closer than [thickness] here are never pushed apart.
   final Float64List rest;
+
+  /// The mesh's inverse masses, one per particle, in reciprocal kilograms;
+  /// a pair of two pinned particles is never listed.
   final Float64List invMass;
 
   /// The mesh's positions, which until `_integrate` still hold the start of
@@ -493,15 +503,31 @@ final class ClothSelfCollision {
   /// How far apart two particles may be and still be listed; also the width
   /// of a hash cell, so every listed pair is in neighbouring cells.
   final double reach;
+
+  /// Buckets in the spatial hash, a count: twice the particles, plus one.
   final int tableSize;
+
+  /// Where each bucket's particles begin in [cellEntries], one more entry
+  /// than [tableSize] so the last bucket has an end.
   final Int32List cellStart;
+
+  /// Particle indices sorted by bucket, each bucket in index order.
   final Int32List cellEntries;
+
+  /// Each particle's hash cell, three integers per particle, from the last
+  /// gathering.
   final Int32List cells;
 
   /// Where each particle was when the pairs were last gathered.
   final Float64List builtAt;
   bool _built = false;
+
+  /// Where particle `i`'s partners begin in [pairs]; entry `n` is the
+  /// count of pairs.
   final Int32List pairStart;
+
+  /// The partner of each listed pair, grouped by the lower-numbered
+  /// particle as [pairStart] says. Doubled in length when it fills.
   Int32List pairs;
 
   /// Gathers the pairs again from [x] unless nothing has moved half the

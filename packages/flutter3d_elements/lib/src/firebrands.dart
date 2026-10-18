@@ -33,6 +33,11 @@ import 'smoke_plume.dart';
 /// Stepped by the game before its world, saved in its save beside the
 /// world's snapshot ([save], [restore]).
 final class Firebrands {
+  /// Brands of [brand] lofted from [world]'s fires, [share] kilograms per
+  /// kilogram burnt, at most [most] (eight by default) alight at once.
+  ///
+  /// Throws an [ArgumentError] for a negative or NaN [share], or a [brand]
+  /// with no mass.
   Firebrands(
     this.world, {
     required this.brand,

@@ -37,6 +37,7 @@ export 'particle_gradient.dart';
 
 /// One point on a [ParticleCurve].
 final class CurveKey {
+  /// The key [value] at [at], left by [ease], straight by default.
   const CurveKey(this.at, this.value, {this.ease = KeyEase.linear});
 
   /// Where in the particle's life this key sits, in `[0, 1]`: a fraction of
@@ -72,6 +73,8 @@ final class ParticleCurve {
   ParticleCurve.linear(double from, double to)
     : this(<CurveKey>[CurveKey(0.0, from), CurveKey(1.0, to)]);
 
+  /// The keys, ordered by [CurveKey.at]; the curve holds the first key's
+  /// value before it and the last key's after it.
   final List<CurveKey> keys;
 
   static bool _isSorted(List<CurveKey> keys) {

@@ -18,6 +18,8 @@ import 'wetting.dart';
 
 /// What ran over a vessel's lip in one step, in the world.
 final class Spill {
+  /// A spill of [flow] cubic metres a second of [medium], [width] metres
+  /// wide, leaving [point] at [velocity] and carrying [concentrations].
   const Spill({
     required this.flow,
     required this.point,
@@ -38,6 +40,9 @@ final class Spill {
 
   /// Which liquid ran out — the top layer's — and what was dissolved in it.
   final FluidMedium medium;
+
+  /// What the top layer carried as it ran out, by name, in amount per cubic
+  /// metre; empty for nothing dissolved.
   final Map<String, double> concentrations;
 
   /// Cubic metres a second.
@@ -72,6 +77,9 @@ final class Spill {
 /// runs over the lip is the top layer, and a pipe draws on the layer at its
 /// opening.
 final class LiquidBody with JetReceiver {
+  /// [volume] cubic metres of [medium] carrying [concentrations] in
+  /// [shape], its surface on a grid [surfaceCells] across keeping [modes]
+  /// wave shapes. Starts upright at the origin, the surface at rest.
   LiquidBody({
     required this.shape,
     required FluidMedium medium,
@@ -89,7 +97,11 @@ final class LiquidBody with JetReceiver {
     surface.layOut(shape, _up, shape.surfaceFor(_up, volume + displaced));
   }
 
+  /// The inside of the vessel, in its own frame: what holds the liquid and
+  /// where its lip is.
   final VesselShape shape;
+
+  /// The top liquid's surface and the waves on it.
   final FreeSurface surface;
 
   /// The liquids in it, bottom first.
@@ -150,6 +162,9 @@ final class LiquidBody with JetReceiver {
 
   /// The vessel's turn and place in the world, as last [place]d.
   final Matrix3 rotation = Matrix3.identity();
+
+  /// Where the vessel's frame stands in the world, in metres, as last
+  /// [place]d.
   final Vector3 position = Vector3.zero();
   final List<({double time, Vector3 at})> _history = [];
 
@@ -702,8 +717,11 @@ final class LiquidBody with JetReceiver {
 /// a [RevolvedVessel], the side and the floor; another shape has no walls
 /// yet, and a stream passes through it.
 final class InsideWalls with JetObstacle {
+  /// The inside of [body]'s vessel.
   InsideWalls(this.body);
 
+  /// The liquid whose vessel this is; its shape, place and wall thickness
+  /// are read at every touch.
   final LiquidBody body;
 
   /// Laboratory glass.
@@ -747,8 +765,12 @@ final class InsideWalls with JetObstacle {
 /// as a wall a stream runs along: what a slow pour clings to below the lip.
 /// For a [RevolvedVessel]; another shape has none yet.
 final class OutsideWalls with JetObstacle {
+  /// The outside of [body]'s vessel, [thickness] metres out from its
+  /// inside.
   OutsideWalls(this.body, {required this.thickness});
 
+  /// The liquid whose vessel this is; its shape and place are read at
+  /// every touch.
   final LiquidBody body;
 
   /// How far out from the vessel's inside the outside is, in metres.

@@ -29,6 +29,7 @@ import 'rigid_body.dart';
 /// of `tasks/1.0-api-review.md`), so a member added in a minor arrives with a
 /// default body and every implementation keeps compiling.
 abstract base class RigidDynamics {
+  /// Dynamics; a subclass steps the bodies of its [world].
   const RigidDynamics();
 
   /// The world the bodies' colliders are in.
@@ -106,6 +107,7 @@ abstract base class RigidDynamics {
 /// the call; a backend reads it during [RigidDynamics.push] and does not
 /// keep it.
 final class CharacterPush {
+  /// A push by [by] walking at [velocity], at full [strength] unless given.
   CharacterPush({
     required this.by,
     required this.velocity,

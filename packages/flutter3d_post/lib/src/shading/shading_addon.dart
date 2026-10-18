@@ -16,6 +16,8 @@ import 'package:flutter3d_core/flutter3d_core.dart';
 /// Switched off, the temporal resolve's occlusion history has nothing to
 /// blend and starves with it; the resolve itself stays.
 final class AmbientOcclusionAddon extends RenderStepAddon {
+  /// The plugin `flutter3d_post.ambient_occlusion`, which owns the switch of
+  /// [RenderStep.ambientOcclusion].
   const AmbientOcclusionAddon()
     : super(
         id: 'flutter3d_post.ambient_occlusion',
@@ -28,6 +30,8 @@ final class AmbientOcclusionAddon extends RenderStepAddon {
 /// The short march towards the sun at every pixel, and its resolve —
 /// `RenderSettings.contactShadows`.
 final class ContactShadowsAddon extends RenderStepAddon {
+  /// The plugin `flutter3d_post.contact_shadows`, which owns the switch of
+  /// [RenderStep.contactShadows].
   const ContactShadowsAddon()
     : super(
         id: 'flutter3d_post.contact_shadows',

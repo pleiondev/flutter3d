@@ -29,6 +29,8 @@ import 'tolerances.dart';
 
 /// Two shapes, overlapping.
 final class Contact {
+  /// A contact touching nothing, to be filled by `contactBetween` and
+  /// reused.
   Contact();
 
   /// Points from A out of B — the direction A must move to separate.
@@ -45,6 +47,8 @@ final class Contact {
   /// what the first version did, once every sixteen steps.
   double depth = 0.0;
 
+  /// Whether the last `contactBetween` found the shapes within [margin] of
+  /// each other; [normal] and [depth] mean nothing when false.
   bool isTouching = false;
 
   /// How close counts as a contact, in metres. See [depth].

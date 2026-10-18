@@ -10,16 +10,6 @@ import 'flipbook.dart';
 import 'particle_system.dart';
 import 'six_way.dart';
 
-/// Draws every live particle as one batch of camera-facing quads.
-///
-/// inside the scene pass rather than after it, so particles are depth-tested
-/// against the world — a spark behind a pillar has to be hidden by it — and so
-/// they land in the HDR target where the bloom can pick the bright ones up,
-/// which is most of what makes an explosion read as light.
-///
-/// Depth write is off and blending is additive. Additive is what removes the
-/// need to sort: addition is commutative, so a thousand particles in one
-/// unsorted batch composite correctly, and one draw call covers all of them.
 /// How particles are drawn: additive, unculled, depth-tested but never written.
 ///
 /// Depth write off, and it means it. That sentence was untrue for most of this
@@ -56,7 +46,23 @@ const PassState _kSixWayState = PassState(
   depthCompare: CompareFunction.less,
 );
 
+/// Draws every live particle of [particles] as one batch of camera-facing
+/// quads inside the scene pass, depth-tested against the world and never
+/// depth-written: added unsorted, or with a [sixWay] sheet lit and drawn
+/// over what is behind it, farthest first.
+///
+/// Inside the scene pass rather than after it, so particles are depth-tested
+/// against the world — a spark behind a pillar has to be hidden by it — and so
+/// they land in the HDR target where the bloom can pick the bright ones up,
+/// which is most of what makes an explosion read as light.
+///
+/// Depth write is off and blending is additive. Additive is what removes the
+/// need to sort: addition is commutative, so a thousand particles in one
+/// unsorted batch composite correctly, and one draw call covers all of them.
 final class ParticleContributor extends PassContributor {
+  /// A contributor drawing [particles] as procedural discs unless given a
+  /// [texture], a [flipbook] or a [sixWay] sheet, with hard edges unless
+  /// [softness] says. Asserts that [softness] is not negative.
   ParticleContributor(
     this.particles, {
     this.texture,
@@ -65,6 +71,7 @@ final class ParticleContributor extends PassContributor {
     this.softness = 0.0,
   }) : assert(softness >= 0.0, 'a softness is a distance, and never below 0');
 
+  /// The pool drawn: four vertices per live particle, rebuilt each frame.
   final ParticleSystem particles;
 
   /// A sprite for every particle, or null for the procedural disc.

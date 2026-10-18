@@ -18,6 +18,8 @@ import 'materials.g.dart';
 /// light came, [backscatter], 1/m. The surface ([LiquidLook]) and the floor
 /// under it ([SeabedLook]) are coloured by the same pair.
 final class LiquidOptics {
+  /// Optics of [absorb] and [backscatter], each per metre for red, green
+  /// and blue. The vectors are held, not copied.
   const LiquidOptics({required this.absorb, required this.backscatter});
 
   /// Pure water: its absorption at 610, 550 and 470 nm (Pope and Fry,

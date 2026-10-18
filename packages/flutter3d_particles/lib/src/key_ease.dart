@@ -9,6 +9,8 @@
 ///
 /// `base` so a shape added here later is inherited rather than missing.
 final class KeyEase {
+  /// The ease called [name] that travels by [shape]. Equal to every other
+  /// ease of the same [name], whatever its shape.
   const KeyEase(this.name, this.shape);
 
   /// What it is called, in a saved effect and in a debug overlay. Identity:

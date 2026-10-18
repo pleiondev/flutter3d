@@ -34,6 +34,8 @@ double jurinHeight(FluidMedium medium, double radius, double g) =>
 /// it is flat across the middle and climbs only near the wall — which is the
 /// shape a liquid in a test tube actually has.
 final class TubeMeniscus {
+  /// Solves the meniscus of [medium] in a tube of [radius] metres under
+  /// [g] metres per second squared, keeping [samples] points of it.
   TubeMeniscus({
     required this.medium,
     required this.radius,
@@ -43,6 +45,8 @@ final class TubeMeniscus {
     _solve();
   }
 
+  /// The liquid: its density, surface tension and contact angle with the
+  /// wall.
   final FluidMedium medium;
 
   /// The tube's inner radius, in metres.
@@ -50,6 +54,9 @@ final class TubeMeniscus {
 
   /// Gravity's pull, in metres per second squared.
   final double g;
+
+  /// How many points of the surface are kept from the axis to the wall, a
+  /// count; 64 unless given. The solve takes two steps per point.
   final int samples;
 
   /// The curvature at the middle, per metre.

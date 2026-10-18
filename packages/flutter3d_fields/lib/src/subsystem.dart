@@ -25,6 +25,9 @@ import 'host_field.dart';
 /// of its profiles it runs, and `SimulationVersion.subsystems` names it at
 /// [version].
 final class SubsystemDeclaration {
+  /// A subsystem [id] at [version], in the fields phase and reading and
+  /// writing nothing unless told otherwise. Checks nothing: [problem] says
+  /// what is wrong, and `SubsystemRegistry.register` refuses it.
   const SubsystemDeclaration({
     required this.id,
     required this.version,
@@ -142,6 +145,7 @@ final class SubsystemDeclaration {
 /// does. Made by the engine: `base`, so a member added later arrives with a
 /// default.
 abstract base class SubsystemContext {
+  /// A context; the engine's subclass answers for the running step.
   const SubsystemContext();
 
   /// The subsystem's own declaration.
@@ -180,6 +184,7 @@ abstract base class SubsystemContext {
 /// method taking one context, and a member added later arrives with a
 /// default body.
 abstract base class Subsystem {
+  /// A subsystem; a subclass gives its declaration and its step.
   const Subsystem();
 
   /// A subsystem declared by [declaration] that runs [step].
@@ -224,6 +229,7 @@ final class _FunctionSubsystem extends Subsystem {
 /// **Extended by the engine, called by plugins.** A plugin's subsystems are
 /// under its own id and taken back when it is switched off.
 abstract base class SubsystemRegistry extends PluginRegistry {
+  /// A registry; the engine's subclass holds the subsystems.
   const SubsystemRegistry();
 
   /// Registers [subsystem]. Throws an [ArgumentError] for a declaration

@@ -7,9 +7,13 @@ import '../collision_shape.dart';
 
 /// One [CollisionShape], positioned, for a cloth to push itself out of.
 final class ClothObstacle {
+  /// The obstacle [shape], centred at [position].
   const ClothObstacle(this.shape, this.position);
 
+  /// The volume the cloth is pushed out of.
   final CollisionShape shape;
+
+  /// Where the shape's centre is, in world metres. Held, not copied.
   final Vector3 position;
 }
 

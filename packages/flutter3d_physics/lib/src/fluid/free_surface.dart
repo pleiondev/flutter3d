@@ -37,6 +37,8 @@ import 'vessel_shape.dart';
 /// 2νk², which is what quickly kills short ripples. A vessel that is not
 /// round is given the radius of the round one with its surface's area.
 final class FreeSurface {
+  /// The surface of [medium] on a grid [cells] across, keeping the
+  /// [modeCount] lowest shapes; 40 cells and 12 shapes unless given.
   FreeSurface({required this.medium, this.cells = 40, this.modeCount = 12});
 
   /// The liquid at the surface: the top one, when there are layers.

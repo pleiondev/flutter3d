@@ -15,9 +15,16 @@ part of 'collision_shape.dart';
 /// what the type means, so it stays an enum and a `switch` over it may name
 /// every case.
 enum WedgeUphill {
+  /// Low at negative x, full height at positive x.
   positiveX(1.0, 0.0),
+
+  /// Low at positive x, full height at negative x.
   negativeX(-1.0, 0.0),
+
+  /// Low at negative z, full height at positive z.
   positiveZ(0.0, 1.0),
+
+  /// Low at positive z, full height at negative z.
   negativeZ(0.0, -1.0);
 
   const WedgeUphill(this.x, this.z);
@@ -50,12 +57,17 @@ enum WedgeUphill {
 /// simplification: it is what makes the ramp's steepness readable from the size
 /// a level author typed.
 final class CollisionWedge extends CollisionShape {
+  /// A wedge cut from the box reaching [halfExtents] from its centre,
+  /// rising towards [uphill] (positive x by default). The vector is held,
+  /// not copied. Asserts that every half-extent is positive.
   CollisionWedge(this.halfExtents, {this.uphill = WedgeUphill.positiveX})
     : boundsHalfExtents = halfExtents,
       assert(halfExtents.x > 0.0),
       assert(halfExtents.y > 0.0),
       assert(halfExtents.z > 0.0);
 
+  /// A wedge cut from a box whose full width, height and depth are [size],
+  /// in metres.
   CollisionWedge.size(
     Vector3 size, {
     WedgeUphill uphill = WedgeUphill.positiveX,
@@ -64,6 +76,8 @@ final class CollisionWedge extends CollisionShape {
   /// Half the box this wedge is cut from.
   final Vector3 halfExtents;
 
+  /// The direction the sloping face rises towards; the wedge is full
+  /// height on that side and an edge on the other.
   final WedgeUphill uphill;
 
   /// [halfExtents] itself, in metres: the wedge fills the box it is cut
