@@ -45,6 +45,9 @@ final class _Wading {
 
 /// The crypt's elements, drawn into each level's scene.
 final class CryptElements {
+  /// The crypt's elements over [elements], drawing their particles into
+  /// [particles] and their wooden props through [props]. [light] is the
+  /// phone's lighter detail.
   CryptElements({
     required this.elements,
     required this._device,
@@ -315,6 +318,8 @@ final class CryptElements {
     particles.burst(splash, feet, direction: Vector3(0.0, 1.0, 0.0));
   }
 
+  /// Takes every element's drawing out of the level's scene and lets go of
+  /// [elements].
   void dispose() {
     _clear();
     elements.dispose();

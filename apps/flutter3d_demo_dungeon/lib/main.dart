@@ -101,15 +101,17 @@ Future<void> main() async {
       unread.add(reported);
     },
   ).read();
-  runApp(DungeonApp(config: config, configIssue: unread.lastOrNull?.message));
+  runApp(_DungeonApp(config: config, configIssue: unread.lastOrNull?.message));
 }
 
 /// How this build is played — fingers or keys, a pointer that can be taken
 /// — asked of the platform once, for the whole game.
 final Playing _playing = Playing.ofPlatform();
 
-class DungeonApp extends StatelessWidget {
-  const DungeonApp({super.key, this.config, this.configIssue});
+/// The app around the game: its title, the game's own strings, and the one
+/// screen.
+class _DungeonApp extends StatelessWidget {
+  const _DungeonApp({this.config, this.configIssue});
 
   /// What the player changed, read before the first frame; the defaults
   /// when null.
@@ -128,25 +130,27 @@ class DungeonApp extends StatelessWidget {
         DefaultMaterialLocalizations.delegate,
         DefaultWidgetsLocalizations.delegate,
       ],
-      home: GameScreen(config: config, configIssue: configIssue),
+      home: _GameScreen(config: config, configIssue: configIssue),
     );
   }
 }
 
-class GameScreen extends StatefulWidget {
-  const GameScreen({super.key, this.config, this.configIssue});
+/// The crypt being played: the view, the HUD over it, the touch controls
+/// where there are no keys, and the menus.
+class _GameScreen extends StatefulWidget {
+  const _GameScreen({this.config, this.configIssue});
 
-  /// See [DungeonApp.config].
+  /// See [_DungeonApp.config].
   final GameSettings? config;
 
-  /// See [DungeonApp.configIssue].
+  /// See [_DungeonApp.configIssue].
   final String? configIssue;
 
   @override
-  State<GameScreen> createState() => _GameScreenState();
+  State<_GameScreen> createState() => _GameScreenState();
 }
 
-class _GameScreenState extends State<GameScreen>
+class _GameScreenState extends State<_GameScreen>
     with SingleTickerProviderStateMixin {
   /// Radians of view movement per unit of mouse motion.
   ///

@@ -30,6 +30,9 @@ final class FrameEffects {
 
   /// The last thing the level said, and how long it has left on screen.
   String message = '';
+
+  /// How long [message] has left on screen, in seconds: three when it is
+  /// said, counted down each frame, faded out over its last 0.6.
   double messageFor = 0.0;
 
   /// Every message the level has said, capped at [logCapacity] — `wg-02`'s
@@ -45,6 +48,7 @@ final class FrameEffects {
     const <String>[],
   );
 
+  /// How many lines [log] keeps; the oldest goes when a ninth is said.
   static const int logCapacity = 8;
 
   /// Held while a mover is travelling, stopped when it arrives. A one-shot
@@ -71,6 +75,8 @@ final class FrameEffects {
     if (messageFor > 0.0) messageFor = math.max(0.0, messageFor - dt);
   }
 
+  /// Shows [said] as [message] for three seconds and adds it to [log]; a null
+  /// says nothing.
   void say(String? said) {
     if (said == null) return;
     message = said;

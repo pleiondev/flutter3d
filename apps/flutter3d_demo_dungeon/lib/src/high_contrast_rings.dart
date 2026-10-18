@@ -14,6 +14,7 @@ import 'hud.dart';
 /// Read from [settings] every frame, so a role colour the player changes in the
 /// settings is the ring's colour on the next one.
 final class CryptRings {
+  /// Rings in the role colours [settings] gives, read again every frame.
   CryptRings(this.settings) : _rings = RoleRings(dungeonColours, settings);
 
   /// The player's settings as they are now.

@@ -47,6 +47,8 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 /// Everything the crypt can be played with, on a device with no keyboard.
 class TouchCrypt extends StatelessWidget {
+  /// The touch controls writing [state], showing [arsenal]'s slots, and the
+  /// map button that calls [onMap].
   const TouchCrypt({
     super.key,
     required this.state,
@@ -55,6 +57,7 @@ class TouchCrypt extends StatelessWidget {
     required this.onMap,
   });
 
+  /// What the sticks and buttons write, and the player's body reads.
   final InputState state;
 
   /// What the player is holding and what they own, so the slot row can say
@@ -66,6 +69,8 @@ class TouchCrypt extends StatelessWidget {
   /// [TouchToggle], which is stateless for exactly this reason.
   final bool mapOn;
 
+  /// Called when the map button is pressed; the screen above turns the map on
+  /// or off.
   final VoidCallback onMap;
 
   /// The four slots, shortened to something legible in a 62-point button.

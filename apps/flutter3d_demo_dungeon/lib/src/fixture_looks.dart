@@ -12,6 +12,7 @@ import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
 /// pane. Move those into the bridge and the next game gets torches whether it
 /// wants them or not.
 final class DungeonFixtures with FixtureAppearance {
+  /// The crypt's fixture looks; they hold nothing.
   const DungeonFixtures();
 
   /// Builds the visible part of a torch, a lamp or a window.

@@ -23,4 +23,7 @@ export 'package:flutter3d_app/flutter3d_app.dart';
 /// Read only when [fixedResolution]; a desktop build draws at whatever size the
 /// widget was laid out at.
 const int kRenderWidth = 1280;
+
+/// The height of the frame a browser build draws, in pixels. See
+/// [kRenderWidth].
 const int kRenderHeight = 720;

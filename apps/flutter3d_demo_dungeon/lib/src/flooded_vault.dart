@@ -21,6 +21,9 @@ import 'wooden_props.dart';
 
 /// The run's flooded vault, drawn into a level's scene.
 final class FloodedVault {
+  /// The vault's water over [vault] in [world], its look read from
+  /// [liquidBundle], drawn into the scene on the device with [stone] as its
+  /// walls. [light] is the phone's lighter detail.
   FloodedVault({
     required this.world,
     required this.vault,
@@ -62,6 +65,8 @@ final class FloodedVault {
 
   /// The water, as the run has it.
   final CryptVault vault;
+
+  /// Where the vault floods and how deep, as the run planned it.
   FloodPlan get plan => vault.plan;
 
   final GraphicsDevice _device;
@@ -69,6 +74,9 @@ final class FloodedVault {
 
   /// The surface's look, and what draws it.
   late final LiquidLook look;
+
+  /// What draws the water's surface into the level's scene, with [look]'s
+  /// material.
   late final LiquidView view;
 
   /// **Murky, not clear.** Standing water in a crypt is silt and leaf

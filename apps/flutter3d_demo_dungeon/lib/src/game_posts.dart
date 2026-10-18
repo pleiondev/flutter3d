@@ -20,8 +20,10 @@ import 'run_cubit.dart';
 /// what the soundtrack plays the pickup chime from; these are the same
 /// moments, posted once more for somebody who is not looking at the screen.
 final class GamePosts {
+  /// Posts for [run].
   GamePosts(this.run);
 
+  /// The run whose status and steps are posted.
   final DungeonRun run;
 
   /// The status before the one being told, to tell a level coming up from a

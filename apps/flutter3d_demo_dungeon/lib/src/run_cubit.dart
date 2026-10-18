@@ -27,6 +27,9 @@ import 'staging.dart';
 /// times a second, and putting their contents in a state class would mean
 /// emitting one per frame.
 final class LevelReady {
+  /// A loaded level with its staged simulation and the visuals built for it;
+  /// [exitModel] and [crypt] are null where the level or the backend has
+  /// none.
   const LevelReady({
     required this.loaded,
     required this.staged,
@@ -37,9 +40,18 @@ final class LevelReady {
     this.crypt,
   });
 
+  /// The level as the loader built it: its scene, its collision and its
+  /// entities.
   final LoadedLevel loaded;
+
+  /// The level's simulation, staged: the player, the actors and the mechanisms
+  /// in the run's world.
   final Staged staged;
+
+  /// How the level's monsters are drawn.
   final ActorVisuals actorVisuals;
+
+  /// How the level's torches, lamps and windows are drawn.
   final FixtureVisuals fixtureVisuals;
 
   /// `wg-02`: every `widget_surface` entity this level named, resolved
@@ -74,6 +86,7 @@ final class LevelReady {
 /// has come to — so [levels] counts levels finished *this sitting*, and the
 /// screen that shows it says so.
 final class Crawl {
+  /// Monsters killed this sitting, across every level.
   int kills = 0;
 
   /// Simulated seconds, which is what the crypt's clock is made of and is not
@@ -117,6 +130,7 @@ final class Crawl {
     if (streak > bestStreak) bestStreak = streak;
   }
 
+  /// Puts every count back to nought, for a crawl begun again.
   void reset() {
     kills = 0;
     seconds = 0.0;
@@ -134,6 +148,8 @@ final class Crawl {
 /// only this game can answer: how a crypt is read, what "the run is over" means
 /// in a shooter's words, and that keys do not travel between levels.
 final class DungeonRun extends RunSession<LevelReady> {
+  /// A run from [firstLevel], kept in [saves], read through [registry] on
+  /// [device], with [inventory] carried from level to level.
   DungeonRun({
     required super.firstLevel,
     required super.saves,
@@ -163,6 +179,8 @@ final class DungeonRun extends RunSession<LevelReady> {
   /// settled on.
   final Map<String, WidgetBuilder> widgetRegistry;
 
+  /// What the player's body reads each step, written by the keyboard, the pad
+  /// or the touch controls.
   final InputState input;
 
   /// What the player is carrying.
@@ -186,7 +204,10 @@ final class DungeonRun extends RunSession<LevelReady> {
   /// and there is now one of it.
   final GraphicsDevice device;
 
+  /// How far the eye sits above the centre of the player's box, in metres.
   final double eyeOffset;
+
+  /// Radians the view turns per unit of mouse motion.
   final double lookSensitivity;
 
   /// The seed the depths begin at, so each level of them knows how deep it
@@ -508,6 +529,7 @@ final class DungeonRun extends RunSession<LevelReady> {
 /// is telling [posts] what it emits, so the moments the screen reacts to are
 /// the moments posted for whoever watches from outside.
 final class RunCubit extends Cubit<RunStatus<LevelReady>> {
+  /// A cubit over [run], starting at its status and emitting each change.
   RunCubit(this.run) : posts = GamePosts(run), super(run.status) {
     run.onChanged = (RunStatus<LevelReady> status) {
       emit(status);
@@ -515,18 +537,35 @@ final class RunCubit extends Cubit<RunStatus<LevelReady>> {
     };
   }
 
+  /// The run this cubit reports.
   final DungeonRun run;
 
   /// What the run posts about itself — see [GamePosts].
   final GamePosts posts;
 
+  /// What the player is carrying. See [DungeonRun.inventory].
   Inventory get inventory => run.inventory;
+
+  /// The level being played, or null while none is up.
   LevelReady? get level => run.level;
+
+  /// Whether the run has ended. See [DungeonRun.isOver].
   bool get isOver => run.isOver;
 
+  /// Starts the saved run if there is one, otherwise the first level, and
+  /// answers whether it resumed. See [DungeonRun.begin].
   Future<bool> begin() => run.begin();
+
+  /// Puts the level that is up back the way it started. See
+  /// [DungeonRun.restart].
   Future<void> restart() => run.restart();
+
+  /// Throws the run away and starts again from the first level, the save
+  /// cleared. See [DungeonRun.startOver].
   Future<void> startOver() => run.startOver();
+
+  /// Moves on if the level said there is somewhere to move on to. See
+  /// [DungeonRun.advance].
   Future<void> advance() => run.advance();
 
   /// Once per step, after it: what the step took off the floor is posted,
@@ -538,6 +577,8 @@ final class RunCubit extends Cubit<RunStatus<LevelReady>> {
     run.observe();
   }
 
+  /// Writes where the player is to the save, without waiting for the write.
+  /// See [DungeonRun.save].
   void save() => run.save();
 
   @override

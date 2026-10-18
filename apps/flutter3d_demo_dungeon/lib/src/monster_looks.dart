@@ -6,6 +6,7 @@ import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
 /// The mesh, the placement and the death pose are the bridge's; the models, the
 /// clips and the three colours are this game's.
 final class DungeonMonsters with ActorAppearance {
+  /// The crypt's monster looks; they hold nothing.
   const DungeonMonsters();
 
   /// The engine hands over an `Actor`; what kind of thing it is lives on its

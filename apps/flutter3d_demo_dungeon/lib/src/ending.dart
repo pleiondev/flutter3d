@@ -35,6 +35,9 @@ String crawlAgain({required bool touch}) =>
 
 /// The end of the crypt: what the crawl came to, and who made it.
 class CryptEnding extends StatelessWidget {
+  /// The ending for a crawl of [kills] kills over [seconds] simulated seconds
+  /// and [levels] levels, its longest run of kills [bestStreak]; [touch] says
+  /// the way to go down again with a tap rather than a key.
   const CryptEnding({
     super.key,
     required this.kills,

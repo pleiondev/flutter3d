@@ -47,7 +47,12 @@ final ColorRoles dungeonColours = ColorRoles(<ColorRole>[
   const ColorRole('pickup', 'Pickups', Color(0xFF009E73)),
 ]);
 
+/// The heads-up display: health, armour, the weapon and its ammunition, the
+/// keys carried, the kills and the level's last message, with a debug line
+/// of the frame rate, the steps and the voices.
 class Hud extends StatelessWidget {
+  /// A display of what the screen hands it this frame; it reads nothing
+  /// itself.
   const Hud({
     super.key,
     required this.captured,
@@ -75,9 +80,17 @@ class Hud extends StatelessWidget {
     this.keyColours = keyPipColours,
   });
 
+  /// Whether the pointer is captured, or needs no capturing; while it is not,
+  /// the display asks for a click to play.
   final bool captured;
+
+  /// Frames drawn a second, smoothed, for the debug line.
   final double fps;
+
+  /// Simulation steps taken since the level began, for the debug line.
   final int steps;
+
+  /// Steps the loop dropped rather than simulated, for the debug line.
   final int dropped;
 
   /// Whether the machine is not keeping up.
@@ -95,8 +108,14 @@ class Hud extends StatelessWidget {
   /// Particles alive. The same job the voice count does for sound: the only
   /// number that separates "never emitted" from "emitted and not drawn".
   final int particles;
+
+  /// Where the player's body is, in metres, for the debug line.
   final Vector3 position;
+
+  /// Whether the player's body is standing on something, for the debug line.
   final bool grounded;
+
+  /// The weapon in hand.
   final WeaponDef weapon;
 
   /// Negative when the weapon needs none.
@@ -105,9 +124,17 @@ class Hud extends StatelessWidget {
   /// Fades from one to zero after a shot connected.
   final double hitFlash;
 
+  /// Fades from one to zero after the player was hurt; the red over the
+  /// screen.
   final double painFlash;
+
+  /// The player's health, drawn as a bar and a number.
   final Health health;
+
+  /// Everything the crawl has killed, across every level of it.
   final int kills;
+
+  /// Monsters still alive on this level.
   final int monstersLeft;
 
   /// The last thing the level said — a locked door, a key collected.
@@ -119,6 +146,7 @@ class Hud extends StatelessWidget {
   /// What the player is carrying, drawn as coloured pips.
   final Set<String> keys;
 
+  /// The player's armour, drawn beside [health].
   final double armor;
 
   /// Every pouch, not only the one in use: a player deciding whether to switch

@@ -122,6 +122,8 @@ final class WoodenProps {
   /// A broken crate's planks and a broken barrel's staves, as boxes: their
   /// half-sizes.
   static Vector3 get plankHalf => CryptWood.plankHalf;
+
+  /// A broken barrel's staves, as boxes: their half-sizes. See [plankHalf].
   static Vector3 get staveHalf => CryptWood.staveHalf;
 
   final TextureHandle? _boards, _relief, _iron, _ironRelief;

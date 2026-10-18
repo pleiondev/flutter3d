@@ -18,7 +18,11 @@ final class MonsterGraphs with ActorGraphs {
   /// is none near; without it the feet stay where the clips put them.
   MonsterGraphs({this.lookAt, this.groundAt});
 
+  /// Where a watching monster looks, in the world; see the constructor.
   final Vector3? Function()? lookAt;
+
+  /// The floor's height under a point in the world, in metres; see the
+  /// constructor.
   final double? Function(Vector3 at)? groundAt;
 
   /// The most a foot is put up or down, m: a stair's riser. Past it the
@@ -42,6 +46,8 @@ final class MonsterGraphs with ActorGraphs {
   /// How far a head turns from the body's facing to watch, radians, and
   /// how long it takes to turn to it and away.
   static const double lookLimit = 1.0;
+
+  /// How long a head takes to turn to [lookLimit] and back, in seconds.
   static const double lookSeconds = 0.3;
 
   /// The clips a cutscene may ask a monster to play once, where its model
@@ -79,6 +85,8 @@ final class MonsterGraphs with ActorGraphs {
   /// it is all run: the runner's own chasing speed. Between, the blend space
   /// mixes the two by speed, one stride at one phase.
   static const double walkAt = 1.5;
+
+  /// The speed a monster is all run at, in metres a second. See [walkAt].
   static const double runAt = 5.4;
 
   /// The machine for a monster drawn with [clips]: idle, and moving while it

@@ -22,6 +22,7 @@ import 'sounds.dart';
 ///
 /// Playing, stopping and repositioning are somebody else's. This decides.
 final class Soundtrack {
+  /// A soundtrack whose footsteps fall every [stride] metres walked.
   Soundtrack({this.stride = 1.9}) : _feet = Footsteps(stride: stride) {
     _cues
       ..on<ShotFired>((cue) {

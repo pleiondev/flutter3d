@@ -71,11 +71,13 @@ final class CryptReplay {
     return CryptReplay._(state.level, input, renderer, camera);
   }
 
+  /// The level as the run loaded it, the camera added to its scene.
   final LevelReady level;
 
   /// What the tape is played into.
   final InputState input;
 
+  /// What draws [level]'s scene from [camera].
   final Renderer renderer;
 
   /// The player's eye, placed by [draw].

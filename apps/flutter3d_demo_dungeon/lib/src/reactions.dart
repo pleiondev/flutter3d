@@ -24,6 +24,7 @@ import 'effects.dart';
 /// torch is not a reaction to an event, it is a continuous emission from a
 /// fixture that also drives a light, and it has no step to be a function of.
 final class Reactions {
+  /// The table of what each event bursts, filled once here.
   Reactions() {
     _table
       ..on<ShotFired>(_unlessQuiet<ShotFired>(_muzzle))
