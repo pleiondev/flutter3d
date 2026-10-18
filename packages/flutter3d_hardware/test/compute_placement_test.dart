@@ -27,6 +27,7 @@ void main() {
       'device',
       'sidecar',
       'cpu',
+      'nativeSimd',
     ]);
     expect(ComputePlacement.byName('cpu'), same(ComputePlacement.cpu));
     expect(ComputePlacement.byName('a placement from a newer version'), isNull);
@@ -84,6 +85,28 @@ void main() {
       ComputePlacement.device,
       ComputePlacement.sidecar,
     ]);
+  });
+
+  test('the native lanes are a placement no step is placed on', () {
+    // Mutation: try nativeSimd in `place`, and every refusal gains a line
+    // for an executor that is no device.
+    expect(ComputePlacement.values.last, ComputePlacement.nativeSimd);
+    expect(
+      ComputePlacement.byName('nativeSimd'),
+      same(ComputePlacement.nativeSimd),
+    );
+    final executors = ComputeExecutors(device: FakeBackend());
+    expect(executors.executorFor(ComputePlacement.nativeSimd), isNull);
+    expect(
+      () => executors.place(step: 'blur'),
+      throwsA(
+        isA<ComputePlacementException>().having(
+          (e) => e.tried.any((line) => line.contains('nativeSimd')),
+          'names nativeSimd',
+          isFalse,
+        ),
+      ),
+    );
   });
 
   test('a workload binding says where it landed and what it draws', () {

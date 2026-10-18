@@ -63,12 +63,27 @@ final class ComputePlacement {
   /// rasteriser's compute as a device of its own, which every machine has.
   static const ComputePlacement cpu = ComputePlacement._('cpu');
 
-  /// Every placement this version names, in the order a step that demands
-  /// none is placed. A later version appends.
+  /// The work's own native code on the running processor's vector lanes
+  /// (NEON, AVX2, AVX-512): an executor on the CPU beside the kernels, and
+  /// no device — since 1.0.0-rc.1.
+  ///
+  /// Only work that brings such code reaches it, saying so with a
+  /// [NativeLanes] to [FrameCompute.placeHosted], and the rule puts it
+  /// there after the GPUs and ahead of the CPU executor. It is **refused
+  /// under [ComputeRequirement.bitExact]**: the lanes add in another order
+  /// than the kernel, so their bytes are not the CPU kernel's, only within
+  /// the tolerance the work states ([NativeLanes.tolerance]) and holds its
+  /// tests to. A step placed by [ComputeExecutors.place] never lands here.
+  static const ComputePlacement nativeSimd = ComputePlacement._('nativeSimd');
+
+  /// Every placement this version names. A later version appends. The
+  /// first three, the devices, are also the order a step is placed in;
+  /// [nativeSimd] is reached only by work with native lanes.
   static const List<ComputePlacement> values = <ComputePlacement>[
     device,
     sidecar,
     cpu,
+    nativeSimd,
   ];
 
   /// The placement called [name], or null for one this version does not
@@ -284,7 +299,7 @@ final class ComputeExecutors {
     bool Function(ComputeExecutor executor)? accepts,
   }) {
     final tried = <String>[];
-    for (final placement in ComputePlacement.values) {
+    for (final placement in _devicePlacements) {
       final executor = executorFor(placement);
       if (executor == null) {
         tried.add(_why(placement));
@@ -311,6 +326,14 @@ final class ComputeExecutors {
   static const List<ComputePlacement> aheadOfHost = <ComputePlacement>[
     ComputePlacement.device,
     ComputePlacement.sidecar,
+  ];
+
+  /// The placements that are devices, in the order a step is placed on
+  /// them: what [place] tries. `nativeSimd` is no device.
+  static const List<ComputePlacement> _devicePlacements = <ComputePlacement>[
+    ComputePlacement.device,
+    ComputePlacement.sidecar,
+    ComputePlacement.cpu,
   ];
 
   /// Where the workload called [step] runs: an executor, or null for its
@@ -638,16 +661,28 @@ final class FrameCompute {
   /// code is to run it. [needs] as for [place]; the work's own host code
   /// meets every requirement, being the work's own reference.
   ///
+  /// **Native lanes** ([lanes], `ComputePlacement.nativeSimd`): work that
+  /// brings its own code on the processor's vector lanes, built here, says
+  /// so, and the lanes take the place of host code — after the GPUs, ahead
+  /// of the CPU executor — wherever [needs] admit them
+  /// ([NativeLanes.admits]); under [ComputeRequirement.bitExact] they are
+  /// refused and the work is placed as work without them. Null then means
+  /// the lanes are to run it, or its host code where it has that too and
+  /// the lanes were refused.
+  ///
   /// Throws [ComputePlacementException] when nothing takes it.
   Future<PlacedWork<T>?> placeHosted<T>(
     String step,
     Future<T> Function(GraphicsDevice device) load, {
     required bool hasHost,
+    NativeLanes? lanes,
     ComputeNeeds needs = ComputeNeeds.none,
   }) async {
     final executors = await _resolve();
+    final onLanes = lanes != null && lanes.admits(needs);
+    final ownCode = hasHost || onLanes;
     final tried = await _loadOnFirst(
-      executors.workloadCandidates(hasHost: hasHost),
+      executors.workloadCandidates(hasHost: ownCode),
       load,
       needs,
     );
@@ -655,7 +690,7 @@ final class FrameCompute {
     try {
       chosen = executors.placeWorkload(
         step: step,
-        hasHost: hasHost,
+        hasHost: ownCode,
         accepts: tried.loaded.containsKey,
       );
     } on ComputePlacementException catch (refused, stack) {
@@ -664,7 +699,10 @@ final class FrameCompute {
     _reportFallback(
       step,
       tried.passed,
-      chosen?.device.backendName ?? 'its own host code',
+      chosen?.device.backendName ??
+          (onLanes && !hasHost
+              ? 'its native lanes (${ComputePlacement.nativeSimd.name})'
+              : 'its own host code'),
     );
     if (chosen == null) return null;
     return PlacedWork._(

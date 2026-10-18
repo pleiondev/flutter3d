@@ -284,8 +284,9 @@ final class ComputePipelineHandle
   static ComputePlacement? byName(String name)
   static const ComputePlacement cpu = ComputePlacement._('cpu')
   static const ComputePlacement device = ComputePlacement._('device')
+  static const ComputePlacement nativeSimd = ComputePlacement._('nativeSimd')
   static const ComputePlacement sidecar = ComputePlacement._('sidecar')
-  static const List<ComputePlacement> values = <ComputePlacement>[device, sidecar, cpu]
+  static const List<ComputePlacement> values = <ComputePlacement>[device, sidecar, cpu, nativeSimd]
 
 final class ComputePlacementException extends CapabilityException
   String get message
@@ -616,7 +617,7 @@ final class FrameCompute
   ComputeSite? placeOnFrame(String step, bool Function(GraphicsDevice device) takes)
   Future<ComputeSite> placeStorage(String step, bool Function(GraphicsDevice device) holds)
   Future<PlacedWork<T>> place<T>(String step, Future<T> Function(GraphicsDevice device) load, {bool besideFrame = true, ComputeNeeds needs = ComputeNeeds.none})
-  Future<PlacedWork<T>?> placeHosted<T>(String step, Future<T> Function(GraphicsDevice device) load, {required bool hasHost, ComputeNeeds needs = ComputeNeeds.none})
+  Future<PlacedWork<T>?> placeHosted<T>(String step, Future<T> Function(GraphicsDevice device) load, {required bool hasHost, NativeLanes? lanes, ComputeNeeds needs = ComputeNeeds.none})
   Future<T> cached<T>(GraphicsDevice on, Object key, Future<T> Function() make, {void Function(T value)? release})
   Stream<ComputeFallback> get fallbacks
   bool get isDisposed
@@ -868,6 +869,14 @@ final class MipFilter
   static const NativeHandleKind vulkanMemoryWin32 = NativeHandleKind._('vulkanMemoryWin32')
   static const NativeHandleKind vulkanSemaphoreFd = NativeHandleKind._('vulkanSemaphoreFd')
   static const NativeHandleKind vulkanSemaphoreWin32 = NativeHandleKind._('vulkanSemaphoreWin32')
+
+@immutable final class NativeLanes
+  String toString()
+  bool admits(ComputeNeeds needs)
+  bool operator ==(Object other)
+  const NativeLanes({required this.tolerance})
+  final double tolerance
+  int get hashCode
 
 abstract base mixin class PassEncoder
   PassEncoder()

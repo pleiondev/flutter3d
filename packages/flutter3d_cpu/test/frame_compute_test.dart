@@ -146,4 +146,48 @@ void main() {
     );
     expect(computePlacementOf(placed!.site), ComputePlacement.cpu);
   });
+
+  test('native lanes run work where it may, and never bit-exact', () async {
+    // Mutation: admit the lanes under bitExact, and a deterministic run's
+    // bytes are the lanes' order of additions rather than the CPU kernel's.
+    final registry = DeviceRegistry<Object>();
+    registry.addComputeDevice(
+      ComputePlacement.cpu,
+      'cpu',
+      (_) async => cpuComputeDevice(),
+    );
+    final drawing = FakeBackend();
+    registry.adopt(drawing);
+    final compute = FrameCompute.of(drawing);
+    const lanes = NativeLanes(tolerance: 1e-4);
+    expect(
+      await compute.placeHosted(
+        'pairs',
+        (GraphicsDevice d) async => true,
+        hasHost: false,
+        lanes: lanes,
+      ),
+      isNull,
+      reason: 'the lanes come ahead of the CPU executor',
+    );
+    final strict = await compute.placeHosted(
+      'pairs',
+      (GraphicsDevice d) async => true,
+      hasHost: false,
+      lanes: lanes,
+      needs: const ComputeNeeds(
+        requirements: <ComputeRequirement>{ComputeRequirement.bitExact},
+      ),
+    );
+    expect(computePlacementOf(strict!.site), ComputePlacement.cpu);
+    expect(
+      lanes.admits(
+        const ComputeNeeds(
+          requirements: <ComputeRequirement>{ComputeRequirement.bitExact},
+        ),
+      ),
+      isFalse,
+    );
+    expect(lanes.admits(ComputeNeeds.none), isTrue);
+  });
 }

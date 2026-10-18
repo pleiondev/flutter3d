@@ -3530,6 +3530,7 @@ const List<String> _computeDoor = <String>[
   'ComputeFallbackError',
   'ComputeNeeds',
   'FrameCompute',
+  'NativeLanes',
   'PassedOver',
   'PlacedWork',
 ];

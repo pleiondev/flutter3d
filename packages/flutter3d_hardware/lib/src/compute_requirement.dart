@@ -164,6 +164,49 @@ final class ComputeNeeds {
       '${inexactOperations.isEmpty ? '' : '; ${inexactOperations.join(', ')}'})';
 }
 
+/// A piece of work's own native code on the running processor's vector
+/// lanes, which `FrameCompute.placeHosted` may run it on as
+/// `ComputePlacement.nativeSimd` — since 1.0.0-rc.1.
+///
+/// **A fact about the work, never a placement**, as [ComputeNeeds] is: the
+/// work says it has lanes built here and how far from the CPU kernel they
+/// land, and the hardware layer's rule decides whether they run. They are
+/// refused under [ComputeRequirement.bitExact] ([admits]); otherwise they
+/// come after the GPUs and ahead of the CPU executor, as the work's own
+/// host code does.
+///
+/// Any work may bring lanes: the liquid's pair loops are the first.
+@immutable
+final class NativeLanes {
+  /// Lanes whose every result lands within [tolerance] of the CPU
+  /// kernel's.
+  const NativeLanes({required this.tolerance});
+
+  /// How far a result of the lanes may land from the CPU kernel's, as a
+  /// fraction of the quantity's own scale (the work says which: the
+  /// liquid's is the particles' spacing for a position, the fastest
+  /// particle for a velocity). Stated by the work and held by its tests:
+  /// the lanes run in their own order of additions, which a GPU's tolerance
+  /// on single operations does not cover.
+  final double tolerance;
+
+  /// Whether work that [needs] what it does may run on these lanes: not
+  /// under [ComputeRequirement.bitExact], whose bytes must be the CPU
+  /// kernel's on every machine.
+  bool admits(ComputeNeeds needs) =>
+      !needs.requirements.contains(ComputeRequirement.bitExact);
+
+  @override
+  bool operator ==(Object other) =>
+      other is NativeLanes && other.tolerance == tolerance;
+
+  @override
+  int get hashCode => tolerance.hashCode;
+
+  @override
+  String toString() => 'NativeLanes(within $tolerance)';
+}
+
 /// What a kernel may use and run on every device that computes, with no
 /// requirement declared: the guarantees of Vulkan and OpenGL ES 3.1, which
 /// are below WebGPU's defaults.

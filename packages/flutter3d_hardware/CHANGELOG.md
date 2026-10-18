@@ -1,5 +1,15 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `ComputePlacement` gains `nativeSimd`, work's own native
+  lanes.** `ComputePlacement.values` ends with it, so code that listed the
+  three devices from `values` reads a fourth. Work that brings its own code on the processor's vector
+  lanes hands `FrameCompute.placeHosted` a `NativeLanes` (new), stating
+  how far from the CPU kernel the lanes land (`tolerance`); the rule runs
+  them after the GPUs and ahead of the CPU executor, refuses them under
+  `ComputeRequirement.bitExact` (`NativeLanes.admits`), and answers null
+  when they are to run. It is no device: `ComputeExecutors.place` never
+  lands a step there, and a refusal names only the three devices. The
+  liquid's pair loops are the first work with lanes.
 - **Direct3D 12 is the fourth standard the HAL answers to**, beside
   Vulkan, Metal and WebGPU. HAL.md's new "The reference standards" maps
   the vocabulary and every `DeviceFeature` onto it, and each feature a

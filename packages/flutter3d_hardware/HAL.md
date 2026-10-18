@@ -716,10 +716,17 @@ above, `CommandEncoder.submit`, and the semantics in §7.2.
 
 A compute step is encoded the same way wherever it runs, because each place
 it can run is a `GraphicsDevice` with `compute`. `ComputePlacement` (an open
-class) names three: `device` (the device that draws the frame), `sidecar` (a
-compute-only device beside it, `flutter3d_wgpu`) and `cpu` (the software
-rasteriser's compute as a device of its own). `values` is also the order a
-step is placed in.
+class) names three devices: `device` (the device that draws the frame),
+`sidecar` (a compute-only device beside it, `flutter3d_wgpu`) and `cpu` (the
+software rasteriser's compute as a device of its own), in the order a step
+is placed in. A fourth, `nativeSimd` (since 1.0.0-rc.1), is no device: it is
+work's own native code on the processor's vector lanes (NEON, AVX2,
+AVX-512), which work brings as `NativeLanes` to `placeHosted`, stating how
+far from the CPU kernel it lands (`NativeLanes.tolerance`). The rule runs
+the lanes after the GPUs and ahead of the CPU executor, and refuses them
+under `bitExact`, since they add in another order. `place` never lands a
+step there. It is not a device, so it has no row on Direct3D 12 or the
+other three standards.
 
 **Where compute runs is decided here and nowhere else.** Nothing above this
 layer chooses, demands, names or reports a placement; a structure rule
@@ -730,8 +737,8 @@ frame's, and `beginPass`, the one door to a compute pass above this layer
 (a structure rule holds every `lib/` but this layer's and the backends' to
 it). `place(step, load, {besideFrame, needs})` loads a step's work on each
 device in the rule's order and answers the first that takes it;
-`placeHosted(step, load, hasHost:, needs:)` is the workload rule for work
-with host code of its own; `placeOnFrame(step, takes)` answers at once for
+`placeHosted(step, load, hasHost:, lanes:, needs:)` is the workload rule for
+work with host code or native lanes of its own; `placeOnFrame(step, takes)` answers at once for
 work only the drawing device can run (the splat sort); `placeStorage(step,
 holds)` puts a buffer.
 
