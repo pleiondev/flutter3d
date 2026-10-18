@@ -30,6 +30,8 @@ import 'project_format.dart' show ProjectFormatException;
 /// which is the whole reason `run` can hand this to `editInIsolate` rather
 /// than running it here.
 final class JobRequest {
+  /// A request for object [objectId] at [baseVersion], running [modifiers] over
+  /// [meshBytes].
   const JobRequest({
     required this.objectId,
     required this.baseVersion,
@@ -69,6 +71,7 @@ final class JobRequest {
     );
   }
 
+  /// The request as JSON, [meshBytes] base64-encoded; [fromJson] reads it back.
   Map<String, Object?> toJson() => <String, Object?>{
     'objectId': objectId,
     'baseVersion': baseVersion,
@@ -117,16 +120,26 @@ List<Modifier>? _modifiersFrom(List<Object?> json) {
 
 /// What [JobRequest.run] answered.
 final class JobResult {
+  /// A result for object [objectId], built from version [baseVersion], holding
+  /// [meshBytes].
   const JobResult({
     required this.objectId,
     required this.baseVersion,
     required this.meshBytes,
   });
 
+  /// The object the result answers for, as [JobRequest.objectId].
   final int objectId;
+
+  /// The object's [ModelObject.version] when the job started, as
+  /// [JobRequest.baseVersion]; [ApplyJobResult] refuses once the object has
+  /// moved past it.
   final int baseVersion;
+
+  /// The mesh with every modifier folded in, as [EditMesh.toBytes] wrote it.
   final Uint8List meshBytes;
 
+  /// The result as JSON, [meshBytes] base64-encoded; [fromJson] reads it back.
   Map<String, Object?> toJson() => <String, Object?>{
     'objectId': objectId,
     'baseVersion': baseVersion,

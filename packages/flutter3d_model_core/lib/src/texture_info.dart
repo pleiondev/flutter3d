@@ -37,6 +37,9 @@ import 'image_dimensions.dart';
 
 /// What a texture panel needs before anything decodes a pixel.
 final class TextureInfo {
+  /// Information for a texture [width] by [height] texels in [format], costing
+  /// [bytesOnDevice] bytes uploaded, with [hasOwnMips] saying whether the file
+  /// carries a mip chain.
   const TextureInfo({
     required this.width,
     required this.height,
@@ -45,8 +48,13 @@ final class TextureInfo {
     required this.hasOwnMips,
   });
 
+  /// Width of the top level in texels, as the header states it.
   final int width;
+
+  /// Height of the top level in texels, as the header states it.
   final int height;
+
+  /// The format the texture is uploaded in, the badge a texture panel shows.
   final TextureFileFormat format;
 
   /// How many bytes this costs once uploaded — see the library doc comment
@@ -54,6 +62,8 @@ final class TextureInfo {
   /// instead.
   final int bytesOnDevice;
 
+  /// Whether the file carries more than one mip level of its own. Always false
+  /// for PNG and JPEG.
   final bool hasOwnMips;
 
   @override
@@ -87,14 +97,21 @@ final class TextureFileFormat {
   /// chain of its own.
   static const TextureFileFormat rgba8 = TextureFileFormat._('rgba8');
 
+  /// BC1: four by four texels in eight bytes, colour with one-bit alpha.
   static const TextureFileFormat bc1 = TextureFileFormat._('bc1');
 
+  /// BC3: four by four texels in sixteen bytes, colour with smooth alpha.
   static const TextureFileFormat bc3 = TextureFileFormat._('bc3');
 
+  /// BC7: four by four texels in sixteen bytes, the high-quality desktop
+  /// format.
   static const TextureFileFormat bc7 = TextureFileFormat._('bc7');
 
+  /// ETC2 RGBA8: four by four texels in sixteen bytes, the format WebGL2 can
+  /// assume broadly.
   static const TextureFileFormat etc2Rgba8 = TextureFileFormat._('etc2Rgba8');
 
+  /// ASTC 4×4: four by four texels in sixteen bytes, the format phones carry.
   static const TextureFileFormat astc4x4 = TextureFileFormat._('astc4x4');
 
   /// A KTX2 `vkFormat` this reader has no badge for. See the library doc

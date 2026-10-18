@@ -13,10 +13,18 @@ part of 'command.dart';
 /// why a digest and not a timestamp. Which digest is the caller's business;
 /// this command only stores what it is given.
 final class LinkToSource extends ModelCommand {
+  /// A step linking object [id] to the file at [path], read with digest [sha].
   const LinkToSource({required this.id, required this.path, required this.sha});
 
+  /// The object being linked. [apply] refuses when the project has no such
+  /// object.
   final int id;
+
+  /// Where the file lives, as the caller names it; stored trimmed. [apply]
+  /// refuses a blank path.
   final String path;
+
+  /// Digest of the file's bytes as they were read, stored as given.
   final String sha;
 
   @override
@@ -54,8 +62,11 @@ final class LinkToSource extends ModelCommand {
 /// the file last gave it, and forgetting where that came from is the whole
 /// of what unlinking means.
 final class UnlinkSource extends ModelCommand {
+  /// A step unlinking object [id].
   const UnlinkSource({required this.id});
 
+  /// The object taken off its file. [apply] refuses when the project has no
+  /// such object or the object is not linked.
   final int id;
 
   @override
@@ -95,17 +106,23 @@ final class UnlinkSource extends ModelCommand {
 /// which is also what makes the new geometry editable rather than an opaque
 /// buffer.
 final class Reimport extends ModelCommand {
+  /// A step replacing object [id]'s geometry with [meshBytes], read from a file
+  /// with digest [sha].
   const Reimport({
     required this.id,
     required this.sha,
     required this.meshBytes,
   });
 
+  /// The linked object read again. [apply] refuses when the project has no such
+  /// object or the object is not linked.
   final int id;
 
   /// The digest of the file as it has just been read.
   final String sha;
 
+  /// The new mesh as [EditMesh.toBytes] writes it. [apply] refuses bytes that
+  /// do not read as a mesh.
   final Uint8List meshBytes;
 
   @override

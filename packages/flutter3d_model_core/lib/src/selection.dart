@@ -26,8 +26,11 @@ import 'project_wire.dart';
 final class SelectionMode {
   const SelectionMode._(this.name);
 
+  /// Whole objects are picked; [ProjectSelection.objects] is what counts.
   static const SelectionMode object = SelectionMode._('object');
 
+  /// Vertices, edges or faces of the active object are picked;
+  /// [ProjectSelection.elements] is what counts.
   static const SelectionMode mesh = SelectionMode._('mesh');
 
   /// Every value this version names, in declaration order. A later version
@@ -53,6 +56,8 @@ final class SelectionMode {
 
 /// Everything selected, in one value.
 final class ProjectSelection {
+  /// A selection in [mode] of [objects] and, at [level], of [elements]. The
+  /// default is nothing selected in object mode at vertex level.
   const ProjectSelection({
     this.mode = SelectionMode.object,
     this.objects = const <int>[],
@@ -63,6 +68,8 @@ final class ProjectSelection {
   /// Nothing selected, in the mode a project opens in.
   static const ProjectSelection none = ProjectSelection();
 
+  /// Whether [objects] or [elements] is the selection that counts,
+  /// [SelectionMode.object] by default.
   final SelectionMode mode;
 
   /// Object ids, in the order they were picked, so the last one is the one a
@@ -76,6 +83,8 @@ final class ProjectSelection {
   /// Element ids within [objects]`.last`, ascending.
   final List<int> elements;
 
+  /// Whether nothing is selected in the current [mode]: no object in object
+  /// mode, no element in mesh mode.
   bool get isEmpty =>
       mode == SelectionMode.object ? objects.isEmpty : elements.isEmpty;
 
@@ -97,6 +106,8 @@ final class ProjectSelection {
   /// `flutter3d_mesh` and know nothing about objects or modes.
   Selection get asMeshSelection => Selection.of(level, elements);
 
+  /// Returns a copy with the given fields replaced; null leaves a field as it
+  /// is.
   ProjectSelection copyWith({
     SelectionMode? mode,
     List<int>? objects,
@@ -138,6 +149,8 @@ final class ProjectSelection {
     _ => 'a ${mode.name} selection',
   };
 
+  /// The selection as JSON, with the mode and level as wire words; [fromJson]
+  /// reads it back.
   Map<String, Object?> toJson() => <String, Object?>{
     'mode': selectionModeWord(mode),
     'objects': objects,

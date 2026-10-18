@@ -88,6 +88,10 @@ final class ImpostorPick {
 
 /// The angles an impostor holds and where each of them lives in its atlas.
 final class ImpostorAtlas {
+  /// An atlas of [angles] views, eight by default, on a square of [size]
+  /// texels, 1024 by default.
+  ///
+  /// Asserts that [angles] is positive.
   ImpostorAtlas({this.angles = 8, this.size = 1024})
     : assert(angles > 0, 'an impostor of no angles is a blank card'),
       columns = _columnsFor(angles);
@@ -105,6 +109,7 @@ final class ImpostorAtlas {
   /// not fill.
   final int columns;
 
+  /// How many cells down, enough rows of [columns] cells to hold every angle.
   int get rows => (angles / columns).ceil();
 
   /// The side of one cell, in texels.
@@ -188,6 +193,7 @@ final class ImpostorAtlas {
 /// them from the model's own bounds, so the card covers the silhouette it
 /// replaced.
 final class ImpostorCard {
+  /// A card [width] by [height] metres.
   const ImpostorCard({required this.width, required this.height});
 
   /// The card a bake at [distance] through [fovY] actually fills.
@@ -242,6 +248,7 @@ final class ImpostorCard {
 /// A class rather than a record, so a bake can later carry more maps
 /// without breaking a reader.
 final class ImpostorBake {
+  /// A bake of [atlas] laid out on [size] by [size] pixels held in [rgba].
   const ImpostorBake({
     required this.atlas,
     required this.size,

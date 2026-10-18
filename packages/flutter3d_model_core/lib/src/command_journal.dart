@@ -55,6 +55,7 @@ import 'project_wire.dart';
 /// One JSON Lines record, and the one way back into a project from nothing
 /// but that record.
 final class CommandJournal {
+  /// An empty journal, before its first line.
   CommandJournal();
 
   final List<String> _lines = <String>[];
@@ -314,13 +315,20 @@ final class CommandJournal {
 final class JournalReplay {
   const JournalReplay._(this.history, this.refused);
 
+  /// A replay that ended in [history].
   factory JournalReplay.ok(ModelHistory history) =>
       JournalReplay._(history, null);
 
+  /// A replay that stopped, with [said] naming the line and why.
   factory JournalReplay.refused(String said) => JournalReplay._(null, said);
 
+  /// What the replay built, undo stack included, or null when it was refused.
   final ModelHistory? history;
+
+  /// The sentence naming the line that stopped the replay and why, or null when
+  /// every line replayed.
   final String? refused;
 
+  /// Whether every line replayed, so [history] is not null.
   bool get isOk => refused == null;
 }

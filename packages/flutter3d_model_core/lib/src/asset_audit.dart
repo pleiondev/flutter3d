@@ -98,9 +98,13 @@ final class AuditCheck {
 
 /// One thing wrong with an asset, in a sentence with its numbers in it.
 final class AuditFinding {
+  /// A finding of [check] saying [message].
   const AuditFinding(this.check, this.message);
 
+  /// Which check found it, the stable name a report or snapshot writes.
   final AuditCheck check;
+
+  /// A sentence naming what is wrong, with its numbers in it.
   final String message;
 
   @override
@@ -110,6 +114,8 @@ final class AuditFinding {
 /// What rebuilding one imported object's topology had to decide — the counts
 /// from `importMeshData`'s own `MeshImportReport`, at its default weld.
 final class MeshAudit {
+  /// The counts for [object]: [degenerate] triangles, [nonManifold] edges and
+  /// [flipped] faces.
   const MeshAudit({
     required this.object,
     required this.degenerate,
@@ -117,6 +123,7 @@ final class MeshAudit {
     required this.flipped,
   });
 
+  /// The imported object the counts are about.
   final ModelObject object;
 
   /// Triangles that name one vertex twice once coincident vertices are

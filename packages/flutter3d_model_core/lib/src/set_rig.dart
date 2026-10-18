@@ -52,6 +52,7 @@ part of 'command.dart';
 /// instead of duplicated as a second field on [SetRig] itself.** See this
 /// file's own library comment for what [SetRig.apply] does with it.
 final class SkinWeightsBlob {
+  /// A blob of weights in [data], built against object version [baseVersion].
   const SkinWeightsBlob({required this.baseVersion, required this.data});
 
   /// The skinned object's own [ModelObject.version] when the job that built
@@ -64,6 +65,7 @@ final class SkinWeightsBlob {
   /// leaving the tail of a longer mesh untouched.
   final Float32List data;
 
+  /// The blob as JSON, [data] base64-encoded; [fromJson] reads it back.
   Map<String, Object?> toJson() => <String, Object?>{
     'baseVersion': baseVersion,
     'data': base64Encode(
@@ -88,6 +90,8 @@ final class SkinWeightsBlob {
 /// One history step for a whole auto-rig result. See this file's own library
 /// comment for the shape and what each field is for.
 final class SetRig extends ModelCommand {
+  /// A step adding [skeleton] and its [jointObjects], binding [skinObjectId]
+  /// with [weights] when given, offered for undo as [label].
   const SetRig({
     required this.jointObjects,
     required this.skeleton,

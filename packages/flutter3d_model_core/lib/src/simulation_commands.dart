@@ -13,6 +13,8 @@ part of 'command.dart';
 /// applied" — so whoever asked for the bake can ask again against the
 /// object as it now stands.
 final class ApplySimulationCache extends ModelCommand {
+  /// A step writing [cache] into object [objectId], valid while the object is
+  /// still at [baseVersion].
   const ApplySimulationCache({
     required this.objectId,
     required this.baseVersion,
@@ -28,9 +30,17 @@ final class ApplySimulationCache extends ModelCommand {
         baseVersion: bake.baseVersion,
         cache: bake.buildCache(),
       );
+
+  /// The object the cache is written into. [apply] refuses when the project has
+  /// no such object.
   final int objectId;
+
+  /// The object's [ModelObject.version] when the bake started; [apply] refuses
+  /// once the object has moved past it.
   final int baseVersion;
 
+  /// The baked frames, however many finished, written as the object's
+  /// [ModelObject.simulationCache].
   final SimulationCache cache;
 
   @override
@@ -115,9 +125,18 @@ int _evenlySpacedFrame(int k, int keyCount, int frameCount) =>
 /// since gained or lost vertices would blend a stranger's positions onto
 /// this one's topology; refusing says why instead of drawing it wrong.
 final class BakeSimulationToShapes extends ModelCommand {
+  /// A step turning object [id]'s cache into at most [maxKeys] keys, eight
+  /// unless given.
   const BakeSimulationToShapes({required this.id, this.maxKeys = 8});
 
+  /// The object whose cache is read and whose [ShapeSet] the keys are appended
+  /// to. [apply] refuses when it has no cache, no edited mesh, or a mesh whose
+  /// vertex count differs from the cache's.
   final int id;
+
+  /// Most keys to add, a count; a cache with fewer frames adds one key per
+  /// frame. A value below one is not refused: it throws an [ArgumentError] from
+  /// [simulationCacheToShapeKeys].
   final int maxKeys;
 
   @override

@@ -19,9 +19,15 @@
 /// no longer refuses for want of a name this build did not know.
 part of 'command.dart';
 
+/// Writes a clip a background rig job baked into [ModelProject.clips],
+/// appending it or replacing one at [clipIndex].
+///
+/// Refused when [clipIndex] names no clip of the project.
 final class ApplyClipResult extends ModelCommand {
+  /// A step writing [clip], appended when [clipIndex] is null.
   const ApplyClipResult({required this.clip, this.clipIndex});
 
+  /// The baked clip as the job answered it.
   final ProjectClip clip;
 
   /// Null appends [clip] as a new one; given, replaces the clip already at

@@ -20,16 +20,24 @@ import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 /// set does not yet do is stay in step with a topology-changing edit on
 /// its own — the same, already-declared gap `mesh-61` left open.
 final class ShapeSet {
+  /// A set of [keys] at [weights], both empty unless given.
   const ShapeSet({
     this.keys = const <ShapeKey>[],
     this.weights = const <double>[],
   });
 
+  /// The object's shape keys, each a sculpted offset from the base mesh.
   final List<ShapeKey> keys;
+
+  /// How much each key pulls toward its shape, index-aligned with [keys]:
+  /// nought leaves the base mesh, one reaches the key's full shape.
   final List<double> weights;
 
+  /// Whether the object has no shape key at all.
   bool get isEmpty => keys.isEmpty;
 
+  /// Returns a copy with the given fields replaced; null leaves a field as it
+  /// is. Keep the two lists the same length.
   ShapeSet copyWith({List<ShapeKey>? keys, List<double>? weights}) =>
       ShapeSet(keys: keys ?? this.keys, weights: weights ?? this.weights);
 

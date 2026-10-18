@@ -41,6 +41,10 @@ List<Vector3> _boxCorners(Vector3 halfExtents) => <Vector3>[
 /// подписью" — what a cache-status strip shows for a bake nothing else here
 /// distinguishes from another rigid body's.
 final class BakeRigidBodyJobRequest with SimulationBakeRequest {
+  /// A drop of a box of [halfExtents] from [startPosition] for object
+  /// [objectId] at version [baseVersion]: 180 frames of a sixtieth of a second
+  /// for a body of one kilogram unless given. [dynamicsFor] null steps it with
+  /// the Dart `Dynamics`.
   BakeRigidBodyJobRequest({
     required this.objectId,
     required this.baseVersion,
@@ -62,7 +66,12 @@ final class BakeRigidBodyJobRequest with SimulationBakeRequest {
   final int objectId;
   @override
   final int baseVersion;
+
+  /// Half the box's size along each of its own axes, in metres.
   final Vector3 halfExtents;
+
+  /// Where the box's centre starts, in world metres; the floor sits under it at
+  /// `y = 0`.
   final Vector3 startPosition;
 
   /// In kilograms.
@@ -72,6 +81,8 @@ final class BakeRigidBodyJobRequest with SimulationBakeRequest {
 
   /// In seconds.
   final double dt;
+
+  /// What a cache-status strip calls this bake, `Rigid body` by default.
   final String label;
 
   /// Always eight — the box's own corners, never resampled.

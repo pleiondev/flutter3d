@@ -29,6 +29,9 @@ import 'texture_info.dart';
 /// A preset for how big a texture may be on one export target, and what
 /// format it should end up encoded as.
 final class TextureBudget {
+  /// A budget of [maxSide] pixels per side and [maxBytesOnDevice] bytes in all,
+  /// encoded as [targetFormat], with power-of-two sides not required unless
+  /// [requirePowerOfTwo] says so.
   const TextureBudget({
     required this.maxSide,
     required this.maxBytesOnDevice,
@@ -47,7 +50,12 @@ final class TextureBudget {
   /// checked against a project's summed triangle count.
   final int maxBytesOnDevice;
 
+  /// The format every image is recomputed under when [maxBytesOnDevice] is
+  /// checked, and the one an export should encode to.
   final TextureFileFormat targetFormat;
+
+  /// Whether an image whose width or height is not a power of two is over the
+  /// budget. False for the shipped presets.
   final bool requirePowerOfTwo;
 
   /// Ж5's desktop figures: 2048px, 256MB, BC7.
@@ -91,6 +99,8 @@ final class TextureBudget {
 /// What [measure] found: the project's images, recomputed under one
 /// [TextureBudget].
 final class TextureBudgetUsage {
+  /// The usage of [totalBytes] in all, with [overs] listing the images wider or
+  /// taller than the budget allows.
   const TextureBudgetUsage({required this.totalBytes, required this.overs});
 
   /// The sum of every image in `project.images`, each counted once no matter

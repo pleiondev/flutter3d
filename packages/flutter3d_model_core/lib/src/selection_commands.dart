@@ -162,6 +162,8 @@ OpResult _fromEdge(
 
 /// Everything there is, at whatever the modeller is pointing at.
 final class SelectAll extends ModelCommand {
+  /// A step selecting every object in object mode, or every element at the live
+  /// level in mesh mode. Refused when there is nothing to select.
   const SelectAll();
 
   @override
@@ -216,6 +218,7 @@ final class SelectAll extends ModelCommand {
 /// because the geometry cannot be edited would be a refusal with nothing behind
 /// it.
 final class SelectNone extends ModelCommand {
+  /// A step clearing the objects in object mode, or the elements in mesh mode.
   const SelectNone();
 
   @override
@@ -241,6 +244,8 @@ final class SelectNone extends ModelCommand {
 
 /// Everything that was not selected, and nothing that was.
 final class InvertSelection extends ModelCommand {
+  /// A step swapping selected and unselected objects or elements. Refused when
+  /// the project has no objects in object mode.
   const InvertSelection();
 
   @override
@@ -286,6 +291,8 @@ final class InvertSelection extends ModelCommand {
 
 /// The selection plus everything touching it.
 final class GrowSelection extends ModelCommand {
+  /// A step adding every element touching the selection. Refused in object mode
+  /// and when nothing is selected.
   const GrowSelection();
 
   @override
@@ -319,6 +326,8 @@ final class GrowSelection extends ModelCommand {
 
 /// The selection minus everything on its edge.
 final class ShrinkSelection extends ModelCommand {
+  /// A step dropping every element on the selection's border. Refused in object
+  /// mode and when nothing is selected.
   const ShrinkSelection();
 
   @override
@@ -352,6 +361,8 @@ final class ShrinkSelection extends ModelCommand {
 
 /// Everything joined to the selection by a chain of edges.
 final class SelectLinked extends ModelCommand {
+  /// A step adding every element joined to the selection by edges. Refused in
+  /// object mode and when nothing is selected.
   const SelectLinked();
 
   @override
@@ -390,6 +401,8 @@ final class SelectLinked extends ModelCommand {
 /// pick a different loop. It is also what makes the command answerable by an
 /// agent, which has a mesh and a number and no pointer.
 final class SelectEdgeLoop extends ModelCommand {
+  /// A step selecting the loop through half-edge [edge]. Refused in object
+  /// mode.
   const SelectEdgeLoop(this.edge);
 
   /// The half-edge to walk from, as `EditMesh.edgeOf` numbers them — which is
@@ -425,6 +438,7 @@ final class SelectEdgeLoop extends ModelCommand {
 
 /// The edges across the strip of quads one edge runs through.
 final class SelectEdgeRing extends ModelCommand {
+  /// A step selecting the ring across half-edge [edge]. Refused in object mode.
   const SelectEdgeRing(this.edge);
 
   /// The half-edge to walk from. See [SelectEdgeLoop.edge].
@@ -459,6 +473,7 @@ final class SelectEdgeRing extends ModelCommand {
 
 /// Every face on one material slot.
 final class SelectByMaterial extends ModelCommand {
+  /// A step selecting every face on material [slot] of the active object.
   const SelectByMaterial(this.slot);
 
   /// The slot, as the mesh numbers them: an index into the object's
@@ -516,6 +531,8 @@ final class SelectByMaterial extends ModelCommand {
 /// back out with the elements, so a caller in vertex mode lands in face mode
 /// holding faces rather than holding face numbers under a vertex level.
 final class SelectFacing extends ModelCommand {
+  /// A step selecting the faces pointing along [axis], within [within] degrees:
+  /// 45 unless given.
   const SelectFacing({required this.axis, this.within = 45.0});
 
   /// The direction to face, in the object's own space. `[0, 1, 0]` is up.
@@ -594,8 +611,10 @@ final class SelectFacing extends ModelCommand {
 /// the one the person asking that level's question wants: a vertex's position,
 /// an edge's midpoint, a face's centroid.
 final class SelectNear extends ModelCommand {
+  /// A step selecting what lies within [radius] metres of [point].
   const SelectNear({required this.point, required this.radius});
 
+  /// The centre of the region, in the object's own space.
   final Vector3 point;
 
   /// In metres, in the object's own space.
@@ -664,6 +683,8 @@ final class SelectNear extends ModelCommand {
 /// ([apply]'s own "is not a level"), not a decode failure a caller never
 /// sees.
 final class SelectElements extends ModelCommand {
+  /// A step selecting [objects] in object mode, or, when [object] is given,
+  /// [elements] of it at [level] in mesh mode.
   const SelectElements({this.objects, this.object, this.level, this.elements});
 
   /// Object ids to select, in object mode. Ignored when [object] is given.

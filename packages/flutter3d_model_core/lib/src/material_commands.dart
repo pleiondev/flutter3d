@@ -16,6 +16,8 @@ part of 'command.dart';
 /// its row, and a row that is always appended is a row a caller can predict
 /// without being handed one back.
 final class AddMaterial extends ModelCommand {
+  /// A step appending a blank material called [materialName], painting object
+  /// [assignTo] with it when one is given.
   const AddMaterial({this.materialName, this.assignTo});
 
   /// What the table shows for it.
@@ -79,8 +81,11 @@ final class AddMaterial extends ModelCommand {
 /// [ModelObject], `identical` to the one before, the way every other edit here
 /// leaves what it did not touch alone.
 final class RemoveMaterial extends ModelCommand {
+  /// A step removing material [index]; every later material moves down one row.
   const RemoveMaterial(this.index);
 
+  /// Row of the material in [ModelProject.materials]. [apply] refuses a row
+  /// with no material.
   final int index;
 
   @override
@@ -137,8 +142,10 @@ final class RemoveMaterial extends ModelCommand {
 
 /// Copies a material to a new row, for a variant that starts from it.
 final class DuplicateMaterial extends ModelCommand {
+  /// A step appending a copy of material [index].
   const DuplicateMaterial(this.index);
 
+  /// Row of the material copied. [apply] refuses a row with no material.
   final int index;
 
   @override
@@ -177,6 +184,8 @@ final class DuplicateMaterial extends ModelCommand {
 /// Texture slots are not among them; those are [SetTexture]'s, because a slot
 /// takes an image and a sampler together and a single value cannot carry both.
 final class SetMaterialField extends ModelCommand {
+  /// A step setting [field] of material [index] to [value], looking a
+  /// `lightingModel` up in [lightingModels] when given.
   const SetMaterialField({
     required this.index,
     required this.field,
@@ -184,7 +193,12 @@ final class SetMaterialField extends ModelCommand {
     this.lightingModels,
   });
 
+  /// Row of the material in [ModelProject.materials]. [apply] refuses a row
+  /// with no material.
   final int index;
+
+  /// Name of the field, as `.fmat` spells it. [apply] refuses a name that is
+  /// not a material field, or a [value] of the wrong shape for it.
   final String field;
 
   /// A number, a string, a bool, or a list of three or four numbers,
@@ -249,8 +263,12 @@ final class SetMaterialField extends ModelCommand {
 /// [AddMaterial] hands a material a blank [SurfaceMaterial] before anything
 /// edits it field by field.
 final class SetMaterialGraph extends ModelCommand {
+  /// A step putting [graph] on material [materialIndex], or taking its graph
+  /// off when [graph] is null.
   const SetMaterialGraph({required this.materialIndex, this.graph});
 
+  /// Row of the material in [ModelProject.materials]. [apply] refuses a row
+  /// with no material.
   final int materialIndex;
 
   /// The new graph, or null to take one off a material entirely.
@@ -305,8 +323,13 @@ final class SetMaterialGraph extends ModelCommand {
 /// both times, and the second bake reuses the first's row rather than
 /// appending a duplicate the file would carry forever.
 final class BakeTextureGraph extends ModelCommand {
+  /// A step baking material [materialIndex]'s graph at [size] texels a side,
+  /// 1024 unless given.
   const BakeTextureGraph({required this.materialIndex, this.size = 1024});
 
+  /// Row of the material in [ModelProject.materials]. [apply] refuses a row
+  /// with no material, a material with no graph, an invalid graph and one that
+  /// feeds no slot.
   final int materialIndex;
 
   /// The square a graph bakes to. Synchronous — a command's own [apply]
@@ -447,6 +470,8 @@ const List<String> _textureSlots = <String>[
 
 /// Points a material's texture slot at an image, or clears it.
 final class SetTexture extends ModelCommand {
+  /// A step pointing [slot] of material [materialIndex] at image [imageIndex]
+  /// with [sampling], or clearing the slot when [imageIndex] is null.
   const SetTexture({
     required this.materialIndex,
     required this.slot,
@@ -454,6 +479,8 @@ final class SetTexture extends ModelCommand {
     this.sampling = const TextureSampling(),
   });
 
+  /// Row of the material in [ModelProject.materials]. [apply] refuses a row
+  /// with no material, an image index with no image and an unknown [slot].
   final int materialIndex;
 
   /// One of [_textureSlots].
@@ -463,6 +490,8 @@ final class SetTexture extends ModelCommand {
   /// paint the slot with nothing.
   final int? imageIndex;
 
+  /// How the slot samples the image: linear, mipmapped and repeating unless
+  /// given.
   final TextureSampling sampling;
 
   @override
@@ -550,13 +579,19 @@ final class SetTexture extends ModelCommand {
 /// `toModelDocument` then writes out unchanged: the table it copies across
 /// never held a duplicate to begin with.
 final class AddImage extends ModelCommand {
+  /// A step adding [bytes] as an image called [imageName] of [mimeType].
   const AddImage({required this.bytes, this.imageName, this.mimeType});
 
+  /// The encoded image, as a file holds it. [apply] refuses empty bytes, and
+  /// adds nothing when an identical image is already in the project.
   final Uint8List bytes;
 
   /// Not `name` in [arguments], for the reason [AddMaterial.materialName]
   /// gives.
   final String? imageName;
+
+  /// The image's media type, such as `image/png`, or null to leave it to the
+  /// bytes.
   final String? mimeType;
 
   @override
@@ -592,8 +627,12 @@ final class AddImage extends ModelCommand {
 
 /// Paints one object with a material, or takes its paint off.
 final class AssignMaterial extends ModelCommand {
+  /// A step painting object [id] with material [to], or unpainting it when [to]
+  /// is null.
   const AssignMaterial({required this.id, required this.to});
 
+  /// The object painted. [apply] refuses when the project has no such object or
+  /// [to] names no material.
   final int id;
 
   /// The material's row, or null to leave the object unpainted.
@@ -654,6 +693,8 @@ final class AssignMaterial extends ModelCommand {
 /// edits by the same names, and "link" ought to mean the file's whole look,
 /// minus only the one part this row does not resolve.
 final class LinkMaterialFile extends ModelCommand {
+  /// A step linking material [index] to the `.fmat` at [path], adopting the
+  /// look in [bytes] when given.
   const LinkMaterialFile({
     required this.index,
     required this.path,
@@ -661,7 +702,11 @@ final class LinkMaterialFile extends ModelCommand {
     this.lightingModels,
   });
 
+  /// Row of the material in [ModelProject.materials]. [apply] refuses a row
+  /// with no material, and [bytes] that do not read as a material.
   final int index;
+
+  /// Where the `.fmat` lives, relative to the project, stored as given.
   final String path;
 
   /// The `.fmat` already read from disk, or null to link without adopting a
@@ -750,8 +795,12 @@ final class LinkMaterialFile extends ModelCommand {
 /// commands ever touch it. Only [ProjectMaterial.fmat] is cleared, the same
 /// null [ProjectMaterial.withFmat]'s own doc comment already describes.
 final class EmbedMaterial extends ModelCommand {
+  /// A step embedding material [index], keeping its look and forgetting its
+  /// file.
   const EmbedMaterial(this.index);
 
+  /// Row of the material in [ModelProject.materials]. [apply] refuses a row
+  /// with no material, and a material not linked to a file.
   final int index;
 
   @override

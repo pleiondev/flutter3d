@@ -27,6 +27,9 @@ import 'package:vector_math/vector_math.dart';
 /// collapsed, and every command that names one takes the index it is at
 /// right now.
 final class ProjectLight {
+  /// A light: directional, white, at `LightNode.defaultIntensity`, with
+  /// unbounded range, no shadow, a quarter-pi outer cone and an identity
+  /// transform unless given.
   ProjectLight({
     this.type = LightType.directional,
     this.color = LinearColor.white,
@@ -38,6 +41,8 @@ final class ProjectLight {
     Matrix4? transform,
   }) : transform = transform ?? Matrix4.identity();
 
+  /// Whether the light is directional, a point or a spot, which decides how
+  /// [intensity] is read and whether the cone angles mean anything.
   final LightType type;
 
   /// The light's colour, linear, as `LightNode.color` is.
@@ -73,6 +78,8 @@ final class ProjectLight {
   /// leave every light in before `mat-24` closed it.
   final Matrix4 transform;
 
+  /// Returns a copy with the given fields replaced; null leaves a field as it
+  /// is.
   ProjectLight copyWith({
     LightType? type,
     LinearColor? color,
@@ -111,19 +118,30 @@ final class ProjectLight {
 final class SceneEnvironmentPreset {
   const SceneEnvironmentPreset._(this.name);
 
+  /// What the preset is called in a project file and a command's arguments.
   final String name;
 
+  /// No built-in sky: the scene is lit by its own lights and the ambient term
+  /// alone.
   static const SceneEnvironmentPreset none = SceneEnvironmentPreset._('none');
+
+  /// A studio sky, from the vocabulary of `RenderMaterial Studio`. Saved and
+  /// read back; nothing maps it to a picture yet.
   static const SceneEnvironmentPreset studio = SceneEnvironmentPreset._(
     'studio',
   );
+
+  /// A daylight sky. Saved and read back; nothing maps it to a picture yet.
   static const SceneEnvironmentPreset daylight = SceneEnvironmentPreset._(
     'daylight',
   );
+
+  /// A low evening sky. Saved and read back; nothing maps it to a picture yet.
   static const SceneEnvironmentPreset sunset = SceneEnvironmentPreset._(
     'sunset',
   );
 
+  /// Every preset, in declaration order.
   static const List<SceneEnvironmentPreset> values = <SceneEnvironmentPreset>[
     none,
     studio,
@@ -146,10 +164,13 @@ final class SceneEnvironmentPreset {
 /// is likely to want per project rather than per session; the rest stays a
 /// viewport setting until a row asks for more of it by name.
 final class ScenePostSettings {
+  /// Post-processing settings, with bloom on unless [bloomEnabled] is false.
   const ScenePostSettings({this.bloomEnabled = true});
 
+  /// Whether the viewport draws bloom for this project, true by default.
   final bool bloomEnabled;
 
+  /// Returns a copy with the given field replaced; null leaves it as it is.
   ScenePostSettings copyWith({bool? bloomEnabled}) =>
       ScenePostSettings(bloomEnabled: bloomEnabled ?? this.bloomEnabled);
 }
@@ -158,6 +179,9 @@ final class ScenePostSettings {
 /// post-processing — everything `mat-23`'s own row names, held as one value
 /// on [ModelProject.lighting].
 final class SceneLighting {
+  /// Lighting of [lights] against [environment]: no light, no sky, ambient at
+  /// 0.3, no shadows, the default exposure, bloom on and no panorama unless
+  /// given.
   const SceneLighting({
     this.lights = const <ProjectLight>[],
     this.environment = SceneEnvironmentPreset.none,
@@ -168,7 +192,11 @@ final class SceneLighting {
     this.panorama,
   });
 
+  /// The project's lights, addressed by their index in the list.
   final List<ProjectLight> lights;
+
+  /// The built-in sky the scene is lit against while [panorama] is null,
+  /// [SceneEnvironmentPreset.none] by default.
   final SceneEnvironmentPreset environment;
 
   /// A flat ambient term, applied the way a viewport's own hemispheric
@@ -188,6 +216,7 @@ final class SceneLighting {
   /// A unitless linear multiplier applied before tone mapping.
   final double exposure;
 
+  /// The post-processing the project asks for, bloom on by default.
   final ScenePostSettings post;
 
   /// An index into [ModelProject.images], or null — `ux-49`.
@@ -207,6 +236,8 @@ final class SceneLighting {
   /// that is not twice as wide as it is tall — see that command for why.
   final int? panorama;
 
+  /// Returns a copy with the given fields replaced; null leaves a field as it
+  /// is, and [clearPanorama] sets [panorama] to null.
   SceneLighting copyWith({
     List<ProjectLight>? lights,
     SceneEnvironmentPreset? environment,

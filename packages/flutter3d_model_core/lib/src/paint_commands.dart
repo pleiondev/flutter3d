@@ -29,6 +29,7 @@ part of 'command.dart';
 /// One dab of a texture-painting stroke: where the brush touched the
 /// surface, and how far it reached.
 final class PaintSample {
+  /// A dab at [center] reaching [radius] metres.
   const PaintSample({required this.center, required this.radius});
 
   /// In the object's own space — the same space `SculptStroke.points` are
@@ -38,6 +39,8 @@ final class PaintSample {
   /// In metres, in the object's own space.
   final double radius;
 
+  /// The sample as JSON, the centre written under `centre`; [fromJson] reads it
+  /// back.
   Map<String, Object?> toJson() => <String, Object?>{
     'centre': <double>[center.x, center.y, center.z],
     'radius': radius,
@@ -74,6 +77,8 @@ final class PaintSample {
 
 /// Paints [samples] onto the object's own texture, as one step.
 final class PaintStroke extends ModelCommand {
+  /// A stroke of [samples] in [color] on object [objectId]: onto layer nought
+  /// at full strength on a 1024-texel canvas, with no mask, unless given.
   const PaintStroke({
     required this.objectId,
     required this.samples,
@@ -89,6 +94,7 @@ final class PaintStroke extends ModelCommand {
   /// slot carries the layers.
   final int objectId;
 
+  /// Where the brush touched, in stroke order. [apply] refuses an empty list.
   final List<PaintSample> samples;
 
   /// Straight-alpha RGBA, `0..1` each.
@@ -365,8 +371,14 @@ List<PaintSample>? _paintSamplesFrom(List<Object?> json) {
 /// holding tiles would need two paths through every operation on it; the
 /// decode is once, when a person first paints on an imported material.
 final class AdoptTexture extends ModelCommand {
+  /// A step adopting the base-colour texture of material [materialIndex] at
+  /// [size] texels a side, or at the image's own width when [size] is null.
   const AdoptTexture({required this.materialIndex, this.size});
 
+  /// Index of the material into [ModelProject.materials]. [apply] refuses an
+  /// index with no material, a material already painted on, one with no
+  /// base-colour texture, a texture that is not a decodable PNG and a canvas
+  /// outside 16 to 4096 texels.
   final int materialIndex;
 
   /// The canvas to lay the texture into, or null to take the image's own
@@ -492,6 +504,8 @@ final class AdoptTexture extends ModelCommand {
 /// every corner meeting a painted vertex takes the colour, which is the
 /// soft-edge answer and the one a mask wants.
 final class PaintVertexColor extends ModelCommand {
+  /// A stroke of [samples] in [color] on object [objectId]'s vertex colours, at
+  /// full strength unless given.
   const PaintVertexColor({
     required this.objectId,
     required this.samples,
@@ -499,6 +513,8 @@ final class PaintVertexColor extends ModelCommand {
     this.strength = 1.0,
   });
 
+  /// The object whose corners are painted. [apply] refuses when the project has
+  /// no such object or the object has no edited mesh.
   final int objectId;
 
   /// Where the brush touched, in the object's own space — the same

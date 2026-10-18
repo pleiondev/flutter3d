@@ -106,8 +106,11 @@ final class ExportFormat {
   /// writes for this value. Never renamed within a major.
   final String name;
 
+  /// The writer that turns a project into this format's bytes.
   final ModelWriter writer;
 
+  /// The file suffix the writer gives its main file, dot included, such as
+  /// `.glb`.
   String get suffix => writer.suffix;
 
   /// What a picker calls this one — `ux-18`.
@@ -195,11 +198,13 @@ final class TextureEncoding {
 
 /// One file an export produced.
 final class ExportFile {
+  /// A file called [name] holding [bytes].
   const ExportFile(this.name, this.bytes);
 
   /// The name to offer the save panel, suffix and all.
   final String name;
 
+  /// The file's whole contents, ready to write as they are.
   final Uint8List bytes;
 
   @override
@@ -219,6 +224,7 @@ abstract final class ExportResult {
 
 /// The bytes, and what was lost on the way.
 final class ExportWritten extends ExportResult {
+  /// A written export of [files], with [warnings] naming what was lost.
   const ExportWritten(this.files, this.warnings);
 
   /// One for `.f3d`, two for OBJ — the `.obj` and its `.mtl`. In the order they
@@ -231,8 +237,10 @@ final class ExportWritten extends ExportResult {
 
 /// Nothing to write, and why.
 final class ExportRefused extends ExportResult {
+  /// A refusal saying [because].
   const ExportRefused(this.because);
 
+  /// One sentence saying why there is nothing to write.
   final String because;
 
   @override
@@ -245,6 +253,7 @@ final class ExportRefused extends ExportResult {
 /// A refusal that could not be overridden would be this file deciding what
 /// somebody's model is for.
 final class ExportBlocked extends ExportResult {
+  /// A blocked export listing [issues].
   const ExportBlocked(this.issues);
 
   /// The errors from `ExportReadiness`, worst first. Warnings are not here —

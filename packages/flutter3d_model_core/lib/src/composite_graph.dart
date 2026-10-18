@@ -53,24 +53,37 @@ final class CompositePass {
   /// drawing them without one.
   final bool fixed;
 
+  /// Draws the scene itself. Always runs.
   static const CompositePass scene = CompositePass._('scene', 0, fixed: true);
+
+  /// Screen-space ambient occlusion, named `ssao`.
   static const CompositePass ambientOcclusion = CompositePass._(
     'ssao',
     1,
     fixed: false,
   );
+
+  /// Screen-space reflections.
   static const CompositePass reflections = CompositePass._(
     'reflections',
     2,
     fixed: false,
   );
+
+  /// Bloom: the bright parts bleed light into their neighbours.
   static const CompositePass bloom = CompositePass._('bloom', 3, fixed: false);
+
+  /// Tonemapping from linear light to the display's range.
   static const CompositePass tonemap = CompositePass._(
     'tonemap',
     4,
     fixed: false,
   );
+
+  /// The look: contrast, saturation and colour temperature.
   static const CompositePass look = CompositePass._('look', 5, fixed: false);
+
+  /// Writes the frame out. Always runs.
   static const CompositePass output = CompositePass._('output', 6, fixed: true);
 
   /// The chain, in the order it runs.
@@ -99,6 +112,7 @@ final class CompositePass {
 /// Which passes of the chain are on, and what an edit to one of them
 /// reached.
 final class CompositeGraph {
+  /// A chain running [enabled], with [dirty] empty unless given.
   const CompositeGraph({
     required this.enabled,
     this.dirty = const <CompositePass>{},
@@ -129,6 +143,8 @@ final class CompositeGraph {
   /// edited. See the library comment.
   final Set<CompositePass> dirty;
 
+  /// Whether [pass] runs: always for a fixed pass, otherwise when it is in
+  /// [enabled].
   bool isOn(CompositePass pass) => pass.fixed || enabled.contains(pass);
 
   /// This chain written back into [settings].

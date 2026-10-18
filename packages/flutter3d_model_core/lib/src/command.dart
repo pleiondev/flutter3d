@@ -120,8 +120,15 @@ final class Outcome {
   factory Outcome.refused(String said) =>
       Outcome._(null, null, said, null, const <EditMesh>[]);
 
+  /// The project after the command, or null when it was refused.
   final ModelProject? project;
+
+  /// What should be selected afterwards, or null to keep the selection as it
+  /// was. Always null for a refusal.
   final ProjectSelection? selection;
+
+  /// The sentence to tell somebody why the command was refused, or null when it
+  /// worked.
   final String? refused;
 
   /// The mesh whose journal moved on, or null when the command only touched
@@ -132,6 +139,7 @@ final class Outcome {
   /// history rolls. Empty for a command that only touched the document.
   final List<EditMesh> meshesTouched;
 
+  /// Whether the command worked, so [project] is not null.
   bool get isOk => refused == null;
 }
 
@@ -316,6 +324,7 @@ abstract final class ModelCommand {
   /// of thing this row exists to stop depending on.
   bool get isJournaled => true;
 
+  /// The command as one journal line: its [name] beside its [arguments].
   Map<String, Object?> toJson() => <String, Object?>{
     'name': name,
     ...arguments,
@@ -341,8 +350,11 @@ abstract final class ModelCommand {
 /// needing a second, private way to push a step that every other command
 /// already has for free.
 final class ReplaceDocument extends ModelCommand {
+  /// A step replacing the whole project with [next], offered for undo as
+  /// [says].
   const ReplaceDocument(this.next, this.says);
 
+  /// The project that replaces the current one, whole.
   final ModelProject next;
 
   @override
@@ -364,9 +376,13 @@ final class ReplaceDocument extends ModelCommand {
 
 /// Renames one object.
 final class Rename extends ModelCommand {
+  /// A step renaming object [id] to [to].
   const Rename({required this.id, required this.to});
 
+  /// The object renamed. [apply] refuses when the project has no such object.
   final int id;
+
+  /// The new name. [apply] refuses a blank one.
   final String to;
 
   @override
@@ -393,9 +409,13 @@ final class Rename extends ModelCommand {
 
 /// Puts a transform on one object, replacing whatever it had.
 final class SetTransform extends ModelCommand {
+  /// A step putting transform [to] on object [id].
   const SetTransform({required this.id, required this.to});
 
+  /// The object moved. [apply] refuses when the project has no such object.
   final int id;
+
+  /// The new transform, relative to the object's parent, copied in whole.
   final Matrix4 to;
 
   @override
@@ -428,8 +448,12 @@ final class SetTransform extends ModelCommand {
 /// what they mean. `ModelHistory.transaction` does the collapsing and this is
 /// the shape that lets it.
 final class MoveBy extends ModelCommand {
+  /// A step moving the selected objects by [by], along the world axes unless
+  /// [space] says otherwise.
   const MoveBy(this.by, {this.space = TransformSpace.global});
 
+  /// How far to move, in metres along each axis of [space]. [apply] refuses
+  /// when no object is selected.
   final Vector3 by;
 
   /// Whose axes [by] is measured along — `ux-12`.
@@ -496,6 +520,8 @@ final class MoveBy extends ModelCommand {
 
 /// Deletes everything selected, and everything under it.
 final class DeleteObjects extends ModelCommand {
+  /// A step deleting the selected objects and their descendants, then clearing
+  /// the selection. Refused when no object is selected.
   const DeleteObjects();
 
   @override
@@ -525,6 +551,8 @@ final class DeleteObjects extends ModelCommand {
 
 /// Copies everything selected, offset by nothing, and selects the copies.
 final class DuplicateObjects extends ModelCommand {
+  /// A step copying the selected objects in place and selecting the copies.
+  /// Refused when no object is selected.
   const DuplicateObjects();
 
   @override

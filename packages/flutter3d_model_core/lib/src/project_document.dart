@@ -585,6 +585,7 @@ final class UpAxis {
 /// children inherit the correction by inheriting the root's transform, the
 /// same way they inherit everything else about where it sits.
 final class ImportSettings {
+  /// Settings leaving the file as it is: scale one and Y up.
   const ImportSettings({this.scale = 1.0, this.upAxis = UpAxis.y});
 
   /// A copy with the given fields replaced.
@@ -596,6 +597,8 @@ final class ImportSettings {
   /// metres, the unit every other placement in this project is already in.
   final double scale;
 
+  /// Which axis the file treats as up. [UpAxis.z] rotates every root so that up
+  /// becomes Y; [UpAxis.y], the default, changes nothing.
   final UpAxis upAxis;
 }
 
@@ -745,6 +748,7 @@ ModelProject fromModelDocument(
 /// A tally of what an import actually produced, for a screen that wants to say
 /// "312 objects, 4 materials" before anyone opens the outliner to count.
 final class ImportCounts {
+  /// A tally of [objects], [materials], [images] and [triangles].
   const ImportCounts({
     required this.objects,
     required this.materials,
@@ -752,9 +756,16 @@ final class ImportCounts {
     required this.triangles,
   });
 
+  /// Number of objects in the imported project.
   final int objects;
+
+  /// Number of materials in the imported project.
   final int materials;
+
+  /// Number of images in the imported project.
   final int images;
+
+  /// Triangles summed across every object's geometry, a count.
   final int triangles;
 
   @override
@@ -784,12 +795,15 @@ final class ImportCounts {
 /// project, plus [issues] and [counts] for a caller that wants them, so
 /// nothing that already calls `fromModelDocument` has to change.
 final class ImportReport {
+  /// A report of [project] with the decoder's [issues] and the tally in
+  /// [counts].
   const ImportReport({
     required this.project,
     required this.issues,
     required this.counts,
   });
 
+  /// The project [fromModelDocument] built.
   final ModelProject project;
 
   /// The decoder's own [ModelDocument.warnings], passed through verbatim — an
@@ -798,6 +812,7 @@ final class ImportReport {
   /// the wording wrong.
   final List<String> issues;
 
+  /// What the import produced, counted.
   final ImportCounts counts;
 }
 

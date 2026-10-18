@@ -19,6 +19,8 @@ import 'dart:convert';
 /// session of continuous small edits — each one going quiet for a moment —
 /// does not autosave every couple of seconds regardless. Both have to pass.
 final class AutosavePolicy {
+  /// A policy waiting [debounce] after the last edit and [minInterval] after
+  /// the last write: two seconds and fifteen seconds unless given.
   const AutosavePolicy({
     this.debounce = const Duration(seconds: 2),
     this.minInterval = const Duration(seconds: 15),

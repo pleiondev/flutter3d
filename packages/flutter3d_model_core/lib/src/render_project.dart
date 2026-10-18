@@ -51,6 +51,7 @@ import 'selection_tint.dart';
 final class RenderProjectView {
   const RenderProjectView._(this.name, this.yaw, this.pitch);
 
+  /// What the view is called in a request and in a tool's arguments.
   final String name;
 
   /// Camera placement, in the same `yaw`/`pitch` vocabulary
@@ -61,38 +62,53 @@ final class RenderProjectView {
   /// In radians.
   final double pitch;
 
+  /// Square on to the model's front.
   static const RenderProjectView front = RenderProjectView._('front', 0.0, 0.0);
+
+  /// Square on to the model's back, turned half a circle from [front].
   static const RenderProjectView back = RenderProjectView._(
     'back',
     math.pi,
     0.0,
   );
+
+  /// From the model's right, turned a quarter circle from [front].
   static const RenderProjectView right = RenderProjectView._(
     'right',
     math.pi / 2,
     0.0,
   );
+
+  /// From the model's left, turned a quarter circle the other way.
   static const RenderProjectView left = RenderProjectView._(
     'left',
     -math.pi / 2,
     0.0,
   );
+
+  /// From above, just short of straight down so the up vector stays defined.
   static const RenderProjectView top = RenderProjectView._(
     'top',
     0.0,
     _maxPitch,
   );
+
+  /// From below, just short of straight up.
   static const RenderProjectView bottom = RenderProjectView._(
     'bottom',
     0.0,
     -_maxPitch,
   );
+
+  /// Three-quarter view from above: an eighth of a circle round and thirty
+  /// degrees up, so no face is square-on. The default.
   static const RenderProjectView iso = RenderProjectView._(
     'iso',
     math.pi / 4,
     math.pi / 6,
   );
 
+  /// Every view, in the order a tool lists them.
   static const List<RenderProjectView> values = <RenderProjectView>[
     front,
     back,
@@ -126,9 +142,13 @@ const double _maxPitch = math.pi / 2 - 0.01;
 final class RenderShading {
   const RenderShading._(this.name);
 
+  /// What the shading is called in a request and in a tool's arguments.
   final String name;
 
+  /// The project's own materials, lit. The default.
   static const RenderShading material = RenderShading._('material');
+
+  /// Each surface coloured by its normal, unlit, to show which way faces point.
   static const RenderShading normals = RenderShading._('normals');
 
   /// The weight-paint gradient — `tut-11`'s own row. Every object with an
@@ -163,6 +183,7 @@ final class RenderShading {
   /// a bug, it is a mesh with no topology behind it.
   static const RenderShading wireframe = RenderShading._('wireframe');
 
+  /// Every shading, in declaration order.
   static const List<RenderShading> values = <RenderShading>[
     material,
     normals,
@@ -176,6 +197,9 @@ final class RenderShading {
 
 /// What [renderProject] draws, and how.
 final class RenderRequest {
+  /// A request to draw [project] from [view] at [width] by [height] pixels with
+  /// [shading]: iso, 512 by 512 and the materials unless given, with nothing
+  /// tinted and no weights joint.
   RenderRequest({
     required this.project,
     this.view = RenderProjectView.iso,
@@ -186,10 +210,21 @@ final class RenderRequest {
     this.weightsJoint,
   });
 
+  /// The project drawn, as it was when the request was built.
   final ModelProject project;
+
+  /// Where the camera sits, [RenderProjectView.iso] by default.
   final RenderProjectView view;
+
+  /// Width of the picture in pixels, 512 by default. [renderProject] refuses
+  /// anything outside 1 to 1024.
   final int width;
+
+  /// Height of the picture in pixels, 512 by default. [renderProject] refuses
+  /// anything outside 1 to 1024.
   final int height;
+
+  /// How surfaces are drawn, [RenderShading.material] by default.
   final RenderShading shading;
 
   /// Object ids drawn tinted towards orange — an agent's own "this is the
@@ -212,6 +247,7 @@ final class RenderRequest {
 /// for "a refusal that names the limit," which a caller reads out of
 /// [message] without parsing an arbitrary error string.
 final class RenderRefusalException extends CapabilityException {
+  /// A refusal saying [message].
   RenderRefusalException(this.message);
 
   @override

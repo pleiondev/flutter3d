@@ -38,8 +38,11 @@ import 'texture_budget.dart';
 
 /// One thing wrong with a project, before it leaves.
 final class ExportIssue {
+  /// An issue of [severity] saying [message], about [object] or about the whole
+  /// project when that is null.
   const ExportIssue(this.severity, this.message, {this.object});
 
+  /// Whether the issue blocks the export (an error) or only warns about it.
   final Severity severity;
 
   /// A sentence naming what is wrong and what to do, with the count in it.

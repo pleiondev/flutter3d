@@ -60,9 +60,15 @@ part of 'command.dart';
 /// extracting twice would overwrite the real motion sitting in `extras`
 /// with the already-flattened values this command itself just wrote.
 final class ExtractRootMotion extends ModelCommand {
+  /// A step flattening the root motion of [rootJoint] in clip [clipIndex].
   const ExtractRootMotion({required this.clipIndex, required this.rootJoint});
 
+  /// Index of the clip into [ModelProject.clips]. [apply] refuses an index the
+  /// project has no clip at.
   final int clipIndex;
+
+  /// Object id of the joint whose translation track carries the root motion.
+  /// [apply] refuses when the clip has no translation track for it.
   final int rootJoint;
 
   @override
@@ -135,12 +141,18 @@ final class ExtractRootMotion extends ModelCommand {
 /// keyframe command after extraction is a track this cannot honestly put
 /// back together.
 final class BakeRootMotionIntoClip extends ModelCommand {
+  /// A step putting back the root motion of [rootJoint] in clip [clipIndex].
   const BakeRootMotionIntoClip({
     required this.clipIndex,
     required this.rootJoint,
   });
 
+  /// Index of the clip into [ModelProject.clips]. [apply] refuses an index the
+  /// project has no clip at.
   final int clipIndex;
+
+  /// Object id of the joint whose translation track [ExtractRootMotion]
+  /// flattened. [apply] refuses when the clip has no translation track for it.
   final int rootJoint;
 
   @override

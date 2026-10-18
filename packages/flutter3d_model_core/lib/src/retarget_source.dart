@@ -24,6 +24,8 @@ import 'project_document.dart';
 /// A file opened for retargeting alone — [project] and [skeleton] are read
 /// by [retargetClip], never merged into the document being edited.
 final class RetargetSource {
+  /// A source named [name] reading skeleton [skeletonIndex] of [project], with
+  /// [warning] set when that skeleton had to be synthesised.
   const RetargetSource({
     required this.name,
     required this.project,
@@ -99,6 +101,9 @@ final class RetargetSource {
   /// that named a real skin, which is the ordinary case.
   final String? warning;
 
+  /// The skeleton the retarget reads from, [skeletonIndex] of
+  /// [ModelProject.skeletons]. Throws a [RangeError] when [skeletonIndex] is
+  /// out of range.
   ProjectSkeleton get skeleton => project.skeletons[skeletonIndex];
 
   /// Every clip [project] carries — the clip library's own card list.

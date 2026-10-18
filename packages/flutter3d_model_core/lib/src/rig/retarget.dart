@@ -21,6 +21,7 @@ import 'two_bone_ik.dart';
 
 /// One node of a rig as retargeting reads it.
 final class RigNode {
+  /// The node [id] called [name], resting at [restLocal] under [parent].
   const RigNode({
     required this.id,
     required this.name,
@@ -37,6 +38,7 @@ final class RigNode {
   /// The rest pose, relative to [parent].
   final Matrix4 restLocal;
 
+  /// The [id] of the node this one hangs from, or null for a root.
   final int? parent;
 }
 
@@ -48,6 +50,8 @@ final class RigNode {
 /// armature root, an empty the whole rig is parented to. Retargeting walks
 /// those parents for heights and for the foot lock, so a rig carries them.
 final class RetargetRig {
+  /// A rig of [nodes] whose ids in [joints] are the skeleton's joints. A node
+  /// id given twice keeps the last node with it.
   RetargetRig({required Iterable<RigNode> nodes, required List<int> joints})
     : _nodes = <int, RigNode>{for (final RigNode node in nodes) node.id: node},
       joints = List<int>.unmodifiable(joints);
@@ -63,10 +67,13 @@ final class RetargetRig {
 
 /// A track and the node it moves.
 final class RigTrack {
+  /// The [track] moving node [nodeId].
   const RigTrack({required this.nodeId, required this.track});
 
+  /// The [RigNode.id] of the node the track moves.
   final int nodeId;
 
+  /// The keyframes, in the node's local space as glTF writes them.
   final AnimationTrack track;
 }
 

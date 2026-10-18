@@ -25,13 +25,19 @@ part of 'command.dart';
 /// object is drawn, not a keyframe; [KeyShape] is what records one of
 /// those, from whatever this last set.
 final class SetShapeWeight extends ModelCommand {
+  /// A step setting shape [shapeIndex] of object [id] to [weight].
   const SetShapeWeight({
     required this.id,
     required this.shapeIndex,
     required this.weight,
   });
 
+  /// The object whose shape set changes. [apply] refuses when the project has
+  /// no such object.
   final int id;
+
+  /// Index of the key in the object's [ShapeSet.keys]. [apply] refuses an index
+  /// with no key.
   final int shapeIndex;
 
   /// A unitless blend weight: 0 is the base shape, 1 the whole key.
@@ -76,9 +82,14 @@ final class SetShapeWeight extends ModelCommand {
 /// [EditMesh.positionOf] rather than from anywhere a caller has to build a
 /// `Float32List` by hand first.
 final class AddShapeFromMesh extends ModelCommand {
+  /// A step capturing object [id]'s current mesh as a key called [shapeName].
   const AddShapeFromMesh({required this.id, required this.shapeName});
 
+  /// The object the key is captured from and added to. [apply] refuses when the
+  /// project has no such object or it has no edited mesh.
   final int id;
+
+  /// What the new key is called; it starts at weight nought.
   final String shapeName;
 
   @override
@@ -126,14 +137,22 @@ final class AddShapeFromMesh extends ModelCommand {
 
 /// Renames [shapeIndex] in [id]'s own shape set.
 final class RenameShape extends ModelCommand {
+  /// A step renaming shape [shapeIndex] of object [id] to [to].
   const RenameShape({
     required this.id,
     required this.shapeIndex,
     required this.to,
   });
 
+  /// The object whose key is renamed. [apply] refuses when the project has no
+  /// such object.
   final int id;
+
+  /// Index of the key in the object's [ShapeSet.keys]. [apply] refuses an index
+  /// with no key.
   final int shapeIndex;
+
+  /// The new name. [apply] refuses a blank one.
   final String to;
 
   @override
@@ -196,9 +215,16 @@ final class RenameShape extends ModelCommand {
 /// driver leave the document in one undo step, never a shape gone and a
 /// driver still pointing at whatever now sits in its old slot.
 final class DeleteShape extends ModelCommand {
+  /// A step deleting shape [shapeIndex] of object [id], with its weights
+  /// component and the drivers that drove it.
   const DeleteShape({required this.id, required this.shapeIndex});
 
+  /// The object whose key is deleted. [apply] refuses when the project has no
+  /// such object.
   final int id;
+
+  /// Index of the key in the object's [ShapeSet.keys]. [apply] refuses an index
+  /// with no key; every later key moves down one.
   final int shapeIndex;
 
   @override
@@ -311,13 +337,20 @@ List<ProjectTrack>? _withComponentDropped(ProjectTrack track, int dropped) {
 /// Creates the object's `weights` track in that clip when it does not have
 /// one yet, sized to the shape set's own current key count.
 final class KeyShape extends ModelCommand {
+  /// A step keying object [id]'s current shape weights in clip [clipIndex] at
+  /// [time] seconds.
   const KeyShape({
     required this.id,
     required this.clipIndex,
     required this.time,
   });
 
+  /// The object whose weights are keyed. [apply] refuses when the project has
+  /// no such object or the object has no shape keys.
   final int id;
+
+  /// Index of the clip in [ModelProject.clips]. [apply] refuses an index with
+  /// no clip, and a weights track whose width no longer matches the key count.
   final int clipIndex;
 
   /// In seconds.
@@ -392,9 +425,15 @@ final class KeyShape extends ModelCommand {
 /// live clip (`shape_driver.dart`'s own `evaluateShapeDriversLive`) would
 /// otherwise silently read as "nothing" for.
 final class AddShapeDriver extends ModelCommand {
+  /// A step adding [driver] to object [id].
   const AddShapeDriver({required this.id, required this.driver});
 
+  /// The object whose shape the driver sets. [apply] refuses when the project
+  /// has no such object.
   final int id;
+
+  /// The driver added. [apply] refuses one whose [ShapeDriver.shapeIndex] names
+  /// no key of the object or whose [ShapeDriver.jointId] names no object.
   final ShapeDriver driver;
 
   @override
@@ -439,9 +478,15 @@ final class AddShapeDriver extends ModelCommand {
 /// stacks. Unlike [DeleteShape], nothing else in the document names a
 /// driver by its position, so there is nothing further to shift.
 final class RemoveShapeDriver extends ModelCommand {
+  /// A step removing driver [index] from object [id].
   const RemoveShapeDriver({required this.id, required this.index});
 
+  /// The object whose driver is removed. [apply] refuses when the project has
+  /// no such object.
   final int id;
+
+  /// Index of the driver in [ModelObject.shapeDrivers]. [apply] refuses an
+  /// index with no driver; every later driver moves down one.
   final int index;
 
   @override
@@ -511,6 +556,7 @@ ShapeDriver? _shapeDriverFieldSet(
 /// than this command ever holding, journaling or replaying anything but the
 /// angle the maths itself uses.
 final class SetShapeDriverField extends ModelCommand {
+  /// A step setting [field] of driver [index] on object [id] to [value].
   const SetShapeDriverField({
     required this.id,
     required this.index,
@@ -518,9 +564,20 @@ final class SetShapeDriverField extends ModelCommand {
     required this.value,
   });
 
+  /// The object whose driver changes. [apply] refuses when the project has no
+  /// such object.
   final int id;
+
+  /// Index of the driver in [ModelObject.shapeDrivers]. [apply] refuses an
+  /// index with no driver.
   final int index;
+
+  /// Name of the field: `shapeIndex`, `jointId`, `axis`, `from` or `to`.
+  /// [apply] refuses any other name, or a [value] of the wrong shape for it.
   final String field;
+
+  /// An int for `shapeIndex` and `jointId`, the word `x`, `y` or `z` for
+  /// `axis`, and a number of radians for `from` and `to`.
   final Object? value;
 
   @override

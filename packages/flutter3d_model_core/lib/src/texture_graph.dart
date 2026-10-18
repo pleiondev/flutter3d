@@ -41,6 +41,7 @@ import 'project_wire.dart';
 /// A texture node or graph that is not one: a missing or mistyped field, a
 /// kind or a word this build does not know.
 final class TextureGraphFormatException extends Flutter3dFormatException {
+  /// An exception saying [message].
   const TextureGraphFormatException(this.message);
 
   @override
@@ -92,6 +93,7 @@ final class TextureValueType {
 /// One thing [TextureGraph.validate] found wrong, named by the node it is
 /// about.
 final class TextureGraphIssue {
+  /// An issue on node [nodeId] saying [message].
   const TextureGraphIssue(this.nodeId, this.message);
 
   /// The node this is about. Always one of [TextureGraph.nodes]' own ids —
@@ -99,6 +101,8 @@ final class TextureGraphIssue {
   /// on the id that does not exist.
   final int nodeId;
 
+  /// What is wrong, in a sentence that starts after the node's name: `is part
+  /// of a cycle`, a dangling input or a type mismatch.
   final String message;
 
   @override
@@ -112,6 +116,7 @@ final class TextureGraphIssue {
 /// sockets** ([TextureNode.inputs]): a record could never carry the default
 /// or the label a later inspector wants beside the type.
 final class TextureInputSocket {
+  /// A socket taking [type], wired to node [from] or to nothing.
   const TextureInputSocket({required this.type, this.from});
 
   /// The type the socket takes.
@@ -141,6 +146,7 @@ final class TextureInputSocket {
 /// whose [TextureNodeVisitor.visitUnknown] answers for a kind it has no
 /// method for. A `switch` over nodes ends with a wildcard.
 abstract base class TextureNode {
+  /// A node with [id], unique within its graph.
   const TextureNode({required this.id});
 
   /// Stable within one [TextureGraph], the way `ModelObject.id` is stable
@@ -266,29 +272,42 @@ abstract base class TextureNode {
 /// which keeps compiling and decides in one place what an unknown kind means
 /// to it: skip it, draw it blank, or refuse.
 abstract base class TextureNodeVisitor<R> {
+  /// A visitor; a subclass overrides the kinds it handles.
   const TextureNodeVisitor();
 
+  /// Visits an image node; answers [visitUnknown] unless overridden.
   R visitImage(ImageTextureNode node) => visitUnknown(node);
 
+  /// Visits a colour node; answers [visitUnknown] unless overridden.
   R visitColor(ColorTextureNode node) => visitUnknown(node);
 
+  /// Visits a blend node; answers [visitUnknown] unless overridden.
   R visitBlend(BlendTextureNode node) => visitUnknown(node);
 
+  /// Visits a channels node; answers [visitUnknown] unless overridden.
   R visitChannels(ChannelsTextureNode node) => visitUnknown(node);
 
+  /// Visits a levels node; answers [visitUnknown] unless overridden.
   R visitLevels(LevelsTextureNode node) => visitUnknown(node);
 
+  /// Visits an invert node; answers [visitUnknown] unless overridden.
   R visitInvert(InvertTextureNode node) => visitUnknown(node);
 
+  /// Visits a UV transform node; answers [visitUnknown] unless overridden.
   R visitUvTransform(UvTransformTextureNode node) => visitUnknown(node);
 
+  /// Visits a checker node; answers [visitUnknown] unless overridden.
   R visitChecker(CheckerTextureNode node) => visitUnknown(node);
 
+  /// Visits a noise node; answers [visitUnknown] unless overridden.
   R visitNoise(NoiseTextureNode node) => visitUnknown(node);
 
+  /// Visits a normal-from-height node; answers [visitUnknown] unless
+  /// overridden.
   R visitNormalFromHeight(NormalFromHeightTextureNode node) =>
       visitUnknown(node);
 
+  /// Visits an output node; answers [visitUnknown] unless overridden.
   R visitOutput(OutputTextureNode node) => visitUnknown(node);
 
   /// A node this visitor has no method of its own for: a kind a later release
@@ -362,6 +381,7 @@ List<double> _vec2Json(Vector2 v) => <double>[v.x, v.y];
 
 /// A texture, or a solid colour, sampled as-is. No inputs.
 final class ImageTextureNode extends TextureNode {
+  /// A node [id] sampling image [imageId].
   const ImageTextureNode({required super.id, required this.imageId});
 
   /// Into `ModelProject.images` — this class does not decode it, the same
@@ -391,6 +411,7 @@ final class ImageTextureNode extends TextureNode {
 
 /// A flat colour, painted everywhere. No inputs.
 final class ColorTextureNode extends TextureNode {
+  /// A node [id] painting [value] everywhere.
   const ColorTextureNode({required super.id, required this.value});
 
   /// Linear RGBA, as a shader uniform reads it.
@@ -425,12 +446,16 @@ final class ColorTextureNode extends TextureNode {
 final class TextureBlendMode {
   const TextureBlendMode._(this.name);
 
+  /// The overlay replaces the base.
   static const TextureBlendMode normal = TextureBlendMode._('normal');
 
+  /// The base times the overlay, channel by channel: always darker.
   static const TextureBlendMode multiply = TextureBlendMode._('multiply');
 
+  /// The base plus the overlay, channel by channel: always lighter.
   static const TextureBlendMode add = TextureBlendMode._('add');
 
+  /// One minus the product of the two inverses: lighter, never past one.
   static const TextureBlendMode screen = TextureBlendMode._('screen');
 
   /// Every value this version names, in declaration order. A later version
@@ -461,6 +486,8 @@ final class TextureBlendMode {
 
 /// Two colours combined by [mode], mixed by [factor].
 final class BlendTextureNode extends TextureNode {
+  /// A node [id] blending [overlay] onto [base] by [mode] at [factor]: normal
+  /// at full strength unless given.
   const BlendTextureNode({
     required super.id,
     this.base,
@@ -469,8 +496,16 @@ final class BlendTextureNode extends TextureNode {
     this.factor = 1.0,
   });
 
+  /// Id of the node feeding the colour underneath, or null for transparent
+  /// black.
   final int? base;
+
+  /// Id of the node feeding the colour laid on top, or null for transparent
+  /// black.
   final int? overlay;
+
+  /// How the two colours combine before [factor] mixes the result in,
+  /// [TextureBlendMode.normal] by default.
   final TextureBlendMode mode;
 
   /// 0 keeps [base] unchanged; 1 is [mode] at full strength.
@@ -517,17 +552,33 @@ final class BlendTextureNode extends TextureNode {
 /// **Closed for good**: r, g, b and a: the four channels of an RGBA colour. No
 /// member can be added without changing what the type means, so it stays an
 /// enum and a `switch` over it may name every case.
-enum TextureChannel { r, g, b, a }
+enum TextureChannel {
+  /// The red channel.
+  r,
+
+  /// The green channel.
+  g,
+
+  /// The blue channel.
+  b,
+
+  /// The alpha channel, coverage rather than colour.
+  a,
+}
 
 /// One channel of a colour input, alone, as a mask.
 final class ChannelsTextureNode extends TextureNode {
+  /// A node [id] reading [channel] of [source], red unless given.
   const ChannelsTextureNode({
     required super.id,
     this.source,
     this.channel = TextureChannel.r,
   });
 
+  /// Id of the node feeding the colour read, or null for transparent black.
   final int? source;
+
+  /// Which channel becomes the mask, [TextureChannel.r] by default.
   final TextureChannel channel;
 
   @override
@@ -563,6 +614,8 @@ final class ChannelsTextureNode extends TextureNode {
 
 /// A mask remapped between [blackPoint] and [whitePoint], then [gamma].
 final class LevelsTextureNode extends TextureNode {
+  /// A node [id] remapping [source] from [blackPoint] and [whitePoint], then by
+  /// [gamma]: nought, one and one, an identity, unless given.
   const LevelsTextureNode({
     required super.id,
     this.source,
@@ -571,6 +624,7 @@ final class LevelsTextureNode extends TextureNode {
     this.gamma = 1.0,
   });
 
+  /// Id of the node feeding the mask, or null for an all-nought mask.
   final int? source;
 
   /// On the 0..1 mask scale.
@@ -614,8 +668,11 @@ final class LevelsTextureNode extends TextureNode {
 
 /// A mask flipped: 1 minus its input.
 final class InvertTextureNode extends TextureNode {
+  /// A node [id] inverting [source].
   const InvertTextureNode({required super.id, this.source});
 
+  /// Id of the node feeding the mask, or null for an all-nought mask, which
+  /// inverts to all one.
   final int? source;
 
   @override
@@ -641,6 +698,8 @@ final class InvertTextureNode extends TextureNode {
 
 /// A colour input resampled at a moved, scaled and turned UV.
 final class UvTransformTextureNode extends TextureNode {
+  /// A node [id] resampling [source] moved by [offset], scaled by [scale] and
+  /// turned by [rotation]: no offset, scale one and no turn unless given.
   UvTransformTextureNode({
     required super.id,
     this.source,
@@ -650,8 +709,16 @@ final class UvTransformTextureNode extends TextureNode {
   }) : offset = offset ?? Vector2(0, 0),
        scale = scale ?? Vector2(1, 1);
 
+  /// Id of the node feeding the colour resampled, or null for transparent
+  /// black.
   final int? source;
+
+  /// How far the source moves, in UV units: one is the texture's whole width or
+  /// height.
   final Vector2 offset;
+
+  /// How much the source is stretched along U and V, a factor each; a zero
+  /// component counts as one.
   final Vector2 scale;
 
   /// Radians.
@@ -687,6 +754,8 @@ final class UvTransformTextureNode extends TextureNode {
 
 /// A flat two-colour grid, [scale] squares across. No inputs.
 final class CheckerTextureNode extends TextureNode {
+  /// A node [id] of [scale] squares across in [colorA] and [colorB]: eight
+  /// black and white squares unless given.
   const CheckerTextureNode({
     required super.id,
     this.colorA = LinearColor.black,
@@ -733,8 +802,12 @@ final class CheckerTextureNode extends TextureNode {
 /// Deterministic noise, by [seed] — never `Random`, the same reason
 /// `mat-11`'s own row rules it out for baking. No inputs.
 final class NoiseTextureNode extends TextureNode {
+  /// A node [id] of noise from [seed], [scale] cells across: seed nought and
+  /// one cell unless given.
   const NoiseTextureNode({required super.id, this.seed = 0, this.scale = 1.0});
 
+  /// The value the noise is derived from; the same seed bakes the same pixels
+  /// on every machine.
   final int seed;
 
   /// Noise lattice cells across the texture.
@@ -763,12 +836,15 @@ final class NoiseTextureNode extends TextureNode {
 
 /// A height mask read as a slope and written back as a tangent-space normal.
 final class NormalFromHeightTextureNode extends TextureNode {
+  /// A node [id] turning [height] into normals at [strength], one unless given.
   const NormalFromHeightTextureNode({
     required super.id,
     this.height,
     this.strength = 1.0,
   });
 
+  /// Id of the node feeding the height mask, or null for a flat height, which
+  /// gives a straight-up normal.
   final int? height;
 
   /// A unitless multiplier on the height's slope.
@@ -803,8 +879,11 @@ final class NormalFromHeightTextureNode extends TextureNode {
 /// question, answered by [slot] rather than by this file adding a second way
 /// to address a texture slot next to `SetTexture`'s own five names.
 final class OutputTextureNode extends TextureNode {
+  /// A node [id] passing [result] to material slot [slot], or to no slot when
+  /// [slot] is null.
   const OutputTextureNode({required super.id, this.result, this.slot});
 
+  /// Id of the node feeding the colour baked, or null for transparent black.
   final int? result;
 
   /// One of `SetTexture`'s own slot names (`albedo`, `normal`,
@@ -863,11 +942,14 @@ final class NodePosition {
 
 /// An immutable network of [TextureNode]s.
 final class TextureGraph {
+  /// A graph of [nodes] drawn at [positions], both empty unless given.
   const TextureGraph({
     this.nodes = const <TextureNode>[],
     this.positions = const <int, NodePosition>{},
   });
 
+  /// The nodes, each with an id unique in the graph; inputs name nodes by id,
+  /// so their order here does not matter.
   final List<TextureNode> nodes;
 
   /// Where `TextureGraphPanel` (`mat-13`) draws each node, by id — a
@@ -955,6 +1037,8 @@ final class TextureGraph {
     return issues;
   }
 
+  /// The graph as JSON, each node with its id and kind; [fromJson] reads it
+  /// back.
   Map<String, Object?> toJson() => {
     'nodes': <Map<String, Object?>>[
       for (final node in nodes)
@@ -971,6 +1055,9 @@ final class TextureGraph {
       },
   };
 
+  /// Reads a graph back from [toJson]'s output. Throws a
+  /// [TextureGraphFormatException] for a missing or mistyped field, or a kind
+  /// or word this build does not know.
   static TextureGraph fromJson(Map<String, Object?> json) {
     final entries = switch (json['nodes']) {
       final List<Object?> value => value,

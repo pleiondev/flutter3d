@@ -25,6 +25,8 @@ import 'project_wire.dart';
 /// viewport and [inExport] is the file, and a modifier can be either, both
 /// or neither.
 final class ModifierSlot {
+  /// A slot running [modifier], on in the viewport and in the export unless
+  /// [enabled] or [inExport] says otherwise.
   const ModifierSlot({
     required this.modifier,
     this.enabled = true,
@@ -41,8 +43,11 @@ final class ModifierSlot {
   /// unless they say otherwise.
   final bool inExport;
 
+  /// The step itself: the function from a mesh to a mesh the stack runs.
   final Modifier modifier;
 
+  /// Returns a copy with the given fields replaced; null leaves a field as it
+  /// is.
   ModifierSlot copyWith({Modifier? modifier, bool? enabled, bool? inExport}) =>
       ModifierSlot(
         modifier: modifier ?? this.modifier,
@@ -50,6 +55,8 @@ final class ModifierSlot {
         inExport: inExport ?? this.inExport,
       );
 
+  /// The slot as JSON, `inExport` written only when it is false; [fromJson]
+  /// reads it back.
   Map<String, Object?> toJson() => <String, Object?>{
     'modifier': modifier.toJson(),
     'enabled': enabled,

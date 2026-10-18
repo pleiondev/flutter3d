@@ -12,6 +12,8 @@ import 'package:flutter3d_core/formats.dart';
 /// linear for a moment still has its tangents when the table switches back,
 /// rather than losing the curve shape a person spent time shaping.
 final class Keyframe {
+  /// A key at [time] seconds holding [values], with flat tangents unless
+  /// [inTangent] or [outTangent] is given.
   const Keyframe({
     required this.time,
     required this.values,
@@ -30,8 +32,12 @@ final class Keyframe {
   /// which is a flat tangent — the ordinary shape a key gets the moment a
   /// table switches into cubic mode and nobody has sculpted this one yet.
   final List<double>? inTangent;
+
+  /// The tangent leaving the key, one value per component. Read and treated
+  /// like [inTangent].
   final List<double>? outTangent;
 
+  /// Returns a copy moved to [newTime] seconds, values and tangents kept.
   Keyframe withTime(double newTime) => Keyframe(
     time: newTime,
     values: values,
@@ -39,6 +45,8 @@ final class Keyframe {
     outTangent: outTangent,
   );
 
+  /// Returns a copy with the given tangents replaced; null leaves a tangent as
+  /// it is, so this cannot clear one.
   Keyframe withTangents({List<double>? inTangent, List<double>? outTangent}) =>
       Keyframe(
         time: time,
@@ -67,6 +75,8 @@ final class Keyframe {
 /// track that silently samples the wrong key. Every mutator here restores
 /// the order before returning rather than trusting a caller to have kept it.
 final class KeyTable {
+  /// A table of [componentCount] components per key, linear unless
+  /// [interpolation] says otherwise. [keys] is copied and sorted by time.
   KeyTable({
     required this.componentCount,
     this.interpolation = AnimationInterpolation.linear,
@@ -109,8 +119,13 @@ final class KeyTable {
       keys: keys,
     );
   }
+
+  /// How many numbers one key holds: three for a translation or a scale, four
+  /// for a rotation, one per morph target for weights.
   final int componentCount;
 
+  /// How [toAnimationTrack] reads the keys, linear or cubic. Changing it never
+  /// touches a key's tangents; see [setInterpolation].
   AnimationInterpolation interpolation;
 
   final List<Keyframe> _keys;
@@ -138,6 +153,7 @@ final class KeyTable {
   /// the one way to change what is here.
   List<Keyframe> get keys => List<Keyframe>.unmodifiable(_keys);
 
+  /// Number of keys in the table.
   int get keyCount => _keys.length;
 
   /// The last key's time, in seconds.

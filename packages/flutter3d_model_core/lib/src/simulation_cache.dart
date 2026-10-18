@@ -85,6 +85,7 @@ final class SimulationCache {
   /// knows on its own. See [coverage] for that comparison.
   int get frameCount => frames.length;
 
+  /// Whether the cache holds no frame at all, as before the first baked frame.
   bool get isEmpty => frames.isEmpty;
 
   /// Frame [index]'s own vertex positions.
@@ -101,6 +102,7 @@ final class SimulationCache {
     return (frameCount / targetFrameCount).clamp(0.0, 1.0);
   }
 
+  /// The cache as JSON, each frame base64-encoded; [fromJson] reads it back.
   Map<String, Object?> toJson() => <String, Object?>{
     'vertexCount': vertexCount,
     'frames': <String>[for (final Float32List f in frames) _encodeFrame(f)],

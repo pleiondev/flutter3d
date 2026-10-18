@@ -61,9 +61,14 @@ import 'project_animation.dart';
 final class RigTemplate {
   const RigTemplate._(this.name);
 
+  /// What the template is called in a command's arguments.
   final String name;
 
+  /// A standing biped: spine through wrists and ankles, with fingers, toes and
+  /// a face added only when [RigBuildSettings] asks for them.
   static const RigTemplate humanoid = RigTemplate._('humanoid');
+
+  /// A four-legged animal: spine, tail and four legs.
   static const RigTemplate quadruped = RigTemplate._('quadruped');
 
   /// The templates [buildSkeleton] knows today.
@@ -81,12 +86,19 @@ final class RigTemplate {
 final class RigMirrorAxis {
   const RigMirrorAxis._(this.name);
 
+  /// What the axis is called in a command's arguments.
   final String name;
 
+  /// Mirrors left and right across the plane `x = 0`, the default.
   static const RigMirrorAxis x = RigMirrorAxis._('x');
+
+  /// Mirrors left and right across the plane `y = 0`.
   static const RigMirrorAxis y = RigMirrorAxis._('y');
+
+  /// Mirrors left and right across the plane `z = 0`.
   static const RigMirrorAxis z = RigMirrorAxis._('z');
 
+  /// Every axis, in declaration order.
   static const List<RigMirrorAxis> values = <RigMirrorAxis>[x, y, z];
 
   @override
@@ -97,6 +109,8 @@ final class RigMirrorAxis {
 /// themselves — `anim-33d`'s own row, screen 16's rig-composition switches
 /// given a backend.
 final class RigBuildSettings {
+  /// Settings building a plain rig mirrored across X: one spine segment and no
+  /// fingers, toes, face bones, IK chains or controller unless asked for.
   const RigBuildSettings({
     this.mirrorAxis = RigMirrorAxis.x,
     this.spineCount = 1,
@@ -126,6 +140,8 @@ final class RigBuildSettings {
     controllers: controllers ?? this.controllers,
   );
 
+  /// The axis whose zero plane separates left from right, [RigMirrorAxis.x] by
+  /// default.
   final RigMirrorAxis mirrorAxis;
 
   /// How many segments the spine chain between `hips`/`pelvis` and `chest`
@@ -188,9 +204,14 @@ final class RigBuildSettings {
 /// still naming an earlier list entry — it is simply never one of
 /// [skeleton]'s own [ProjectSkeleton.joints].
 final class BuiltRig {
+  /// A rig of [objects] making up [skeleton].
   const BuiltRig({required this.objects, required this.skeleton});
 
+  /// Every object built: the controller first when one was asked for, then the
+  /// joints, each parent ahead of its children.
   final List<ModelObject> objects;
+
+  /// The skeleton the joints form, ready to append to [ModelProject.skeletons].
   final ProjectSkeleton skeleton;
 }
 
@@ -203,6 +224,8 @@ final class BuiltRig {
 /// A class rather than a record, so a preview can later count more without
 /// breaking a reader.
 final class RigPreview {
+  /// A preview of [jointCount] joints, [deformingCount] of them deforming,
+  /// with [controllerCount] controllers and [ikChainCount] IK chains.
   const RigPreview({
     required this.jointCount,
     required this.deformingCount,

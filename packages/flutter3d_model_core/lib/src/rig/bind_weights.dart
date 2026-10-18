@@ -50,9 +50,16 @@ const int maxSkinInfluences = 4;
 /// world position as [head] and its child's as [tail], one per non-root
 /// joint — without the algorithm reaching for `ModelProject` itself.
 final class BoneSegment {
+  /// The bone from [head] to [tail], named [name] when the caller has a naming
+  /// scheme.
   const BoneSegment(this.head, this.tail, {this.name});
 
+  /// Bind-pose world position where the bone starts, ordinarily the parent
+  /// joint's.
   final Vector3 head;
+
+  /// Bind-pose world position where the bone ends, ordinarily the child
+  /// joint's.
   final Vector3 tail;
 
   /// This bone's own name, in `bone_map.dart`'s own left/right convention

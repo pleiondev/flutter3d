@@ -50,10 +50,13 @@ import 'texture_budget.dart';
 final class ProfileTarget {
   const ProfileTarget._(this.name);
 
+  /// A desktop or laptop build, the default target.
   static const ProfileTarget desktop = ProfileTarget._('desktop');
 
+  /// A phone or tablet build; [ProjectProfile.mobile] is its preset.
   static const ProfileTarget mobile = ProfileTarget._('mobile');
 
+  /// A browser build; a profile for it sets [TextureBudget.web] alongside.
   static const ProfileTarget web = ProfileTarget._('web');
 
   /// Every value this version names, in declaration order. A later version
@@ -89,6 +92,9 @@ final class ProfileTarget {
 /// warns by one fixed number is a modeller that either cries wolf or says
 /// nothing. `ExportReadiness` measures the project against this.
 final class ProjectProfile {
+  /// A profile with the desktop limits: 500 000 triangles, 64 joints, four
+  /// influences per vertex, 4096-texel textures, triangles required and the
+  /// desktop texture budget, unless given.
   const ProjectProfile({
     this.name = 'desktop',
     this.target = ProfileTarget.desktop,
@@ -131,11 +137,26 @@ final class ProjectProfile {
     textures: TextureBudget.mobile,
   );
 
+  /// What a person called the profile, as readiness messages quote it.
   final String name;
+
+  /// The kind of machine the profile is for, the word a rule switches on.
   final ProfileTarget target;
+
+  /// Triangles the whole project may draw, a count; above it readiness warns.
   final int maxTriangles;
+
+  /// Joints one skeleton may hold, a count no higher than the skinning shader's
+  /// 64.
   final int maxJoints;
+
+  /// Joint influences one vertex may carry, a count no higher than the four a
+  /// vertex stores.
   final int maxInfluences;
+
+  /// Widest or tallest texture the target device creates, in texels. Readiness
+  /// warns about a morphing mesh with more vertices than this, since its morph
+  /// texture needs one column per vertex.
   final int maxTextureSize;
 
   /// A budget in bytes across every texture at once, or null for none
@@ -367,8 +388,11 @@ abstract final class Geometry {
 
 /// A shape that still knows its own parameters.
 final class ParametricGeometry extends Geometry {
+  /// A geometry built from [shape].
   ParametricGeometry(this.shape);
 
+  /// The shape and the parameters it is built from; the triangle and vertex
+  /// counts are cached from it.
   final ParametricShape shape;
 
   int? _triangles;
@@ -383,8 +407,10 @@ final class ParametricGeometry extends Geometry {
 
 /// A mesh with its topology, being edited.
 final class EditedGeometry extends Geometry {
+  /// A geometry holding [mesh].
   const EditedGeometry(this.mesh);
 
+  /// The editable mesh, a journal mutated in place by mesh commands.
   final EditMesh mesh;
 
   /// Faces rather than triangles would be the cheaper answer and the wrong one:
@@ -408,8 +434,10 @@ final class EditedGeometry extends Geometry {
 
 /// Buffers as they arrived, with no topology behind them.
 final class ImportedGeometry extends Geometry {
+  /// A geometry holding [data] as it was read.
   const ImportedGeometry(this.data);
 
+  /// The buffers as the file gave them, never written to.
   final MeshData data;
 
   @override
@@ -429,6 +457,7 @@ final class ImportedGeometry extends Geometry {
 /// purpose, and a file's own empty group now reads back as one too, since
 /// there is nothing left to tell the two apart once the mesh is gone.
 final class SocketGeometry extends Geometry {
+  /// An empty geometry: a socket draws nothing.
   const SocketGeometry();
 
   @override
@@ -446,6 +475,9 @@ final class SocketGeometry extends Geometry {
 /// it a viewport either re-uploads everything every frame or compares meshes to
 /// find out, and the second is more expensive than the upload.
 final class ModelObject {
+  /// An object [id] called [name] with [geometry] at [transform], at version
+  /// one, at the top level and with every list empty and every flag at its
+  /// default unless given.
   const ModelObject({
     required this.id,
     required this.name,
@@ -522,7 +554,11 @@ final class ModelObject {
   /// Stable for the life of the object, and not reused after a delete.
   final int id;
 
+  /// What the outliner shows and a command can find the object by.
   final String name;
+
+  /// What the object draws: a parametric shape, an edited mesh, imported
+  /// buffers or nothing.
   final Geometry geometry;
 
   /// Local to [parent], or to the world when there is none.
@@ -657,6 +693,7 @@ typedef SourceLink = ({String path, String sha});
 /// a licence asks for (a copyright line, the changes made) without
 /// breaking a reader.
 final class ModelCredit {
+  /// A credit for [title] by [author] under [license], found at [url].
   const ModelCredit({
     required this.title,
     required this.author,
@@ -702,6 +739,8 @@ final class ModelCredit {
 /// directory carries them; without, a project writes version 2, which every
 /// 1.0 reader opens.
 final class ProjectExtraSection {
+  /// A section of [kind] holding a copy of [bytes], with [count] and [flags]
+  /// nought unless given.
   ProjectExtraSection({
     required this.kind,
     required Uint8List bytes,
@@ -748,6 +787,8 @@ final class ProjectExtraSection {
 
 /// The document.
 final class ModelProject with ModelProjectView {
+  /// A project with the desktop profile and nothing in it, next id one, unless
+  /// given.
   const ModelProject({
     this.profile = const ProjectProfile(),
     this.objects = const <ModelObject>[],
@@ -763,6 +804,8 @@ final class ModelProject with ModelProjectView {
     this.rights,
   });
 
+  /// The limits the project is measured against, the desktop profile by
+  /// default.
   final ProjectProfile profile;
 
   /// Who made the project and on what terms: its copyright, its author and
@@ -867,6 +910,8 @@ final class ModelProject with ModelProjectView {
     return true;
   }
 
+  /// Triangles drawn across every object, a count, as
+  /// [ProjectProfile.maxTriangles] is measured.
   int get triangleCount => objects.fold(
     0,
     (int sum, ModelObject o) => sum + o.geometry.triangleCount,
@@ -982,6 +1027,9 @@ final class ModelProject with ModelProjectView {
     );
   }
 
+  /// Returns a copy with the given fields replaced; null leaves a field as it
+  /// is and [clearRights] sets [rights] to null. Objects and [nextId] are not
+  /// here: they change through [added], [withObject] and [removed].
   // ignore: avoid-incomplete-copy-with, objects change through added, withObject and removed, which keep nextId honest.
   ModelProject copyWith({
     ProjectProfile? profile,

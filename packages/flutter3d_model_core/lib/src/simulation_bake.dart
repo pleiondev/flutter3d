@@ -33,6 +33,11 @@ import 'simulation_cache.dart';
 /// the scale this cache is meant for, to fit inside a `Job` chunk's own per-step time budget on the
 /// web without batching several frames into one chunk.
 final class BakeClothJobRequest with SimulationBakeRequest {
+  /// A bake of [frameCount] frames of [dt] seconds each for object [objectId]
+  /// at version [baseVersion], stepping [mesh] through [physics]' cloth. The
+  /// default backend is [DartPhysics].
+  ///
+  /// Asserts that [frameCount] is positive.
   BakeClothJobRequest({
     required this.objectId,
     required this.baseVersion,
@@ -59,6 +64,7 @@ final class BakeClothJobRequest with SimulationBakeRequest {
   @override
   final int baseVersion;
 
+  /// Cloth parameters every step runs with.
   final ClothSettings settings;
 
   /// Seconds one frame advances the solver by.
@@ -69,6 +75,7 @@ final class BakeClothJobRequest with SimulationBakeRequest {
   @override
   final int frameCount;
 
+  /// Colliders the cloth is kept out of on every step, none by default.
   final List<ClothObstacle> obstacles;
 
   /// Every frame's step, the same each frame.

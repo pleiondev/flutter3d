@@ -150,6 +150,8 @@ const Set<String> _manifestKeys = <String>{
   'rights',
 };
 
+/// Size of a version 2 header in bytes: magic, version, section count and the
+/// CRC-32 of the checksum section, four bytes each.
 const int projectHeaderBytes = 16;
 
 /// Where the header keeps the CRC-32 of the checksum section itself.
@@ -161,6 +163,9 @@ const int projectHeaderBytes = 16;
 /// which were reserved and zero, close that: zero still means "no checksums",
 /// so nothing about an older file changes meaning.
 const int projectChecksumOffset = 12;
+
+/// Size of a version 2 directory entry in bytes: kind, offset, length and
+/// count, four bytes each.
 const int projectSectionEntryBytes = 16;
 
 /// The header of a version 3 file: the four words of version 2 and the size
@@ -368,12 +373,16 @@ sealed class ProjectRead {
 
 /// The file read.
 final class ProjectOpened extends ProjectRead {
+  /// The file read as [project], with [warnings] and [history] empty unless
+  /// given.
   const ProjectOpened(
     this.project, {
     this.warnings = const <String>[],
     this.history = const <HistoryStep>[],
   });
 
+  /// The project the file holds, its unknown sections and keys kept for the
+  /// next write.
   final ModelProject project;
 
   /// What the file held that this build read rather than refused, in its own
@@ -399,8 +408,10 @@ final class ProjectOpened extends ProjectRead {
 /// 200 for 64 bytes, past the end of a 220-byte file" is a thing somebody can
 /// take to whoever wrote the file.
 final class ProjectRefused extends ProjectRead {
+  /// A refusal saying [because].
   const ProjectRefused(this.because);
 
+  /// One sentence naming the number that was wrong and what was expected.
   final String because;
 
   /// The refusal as an exception, for a caller with nobody to show the
@@ -414,6 +425,7 @@ final class ProjectRefused extends ProjectRead {
 /// A `.f3dproj` that will not open, thrown by a caller that cannot go on
 /// without it — [readProject] itself answers [ProjectRefused] instead.
 final class ProjectFormatException extends Flutter3dFormatException {
+  /// An exception carrying [message], usually [ProjectRefused.because].
   const ProjectFormatException(this.message);
 
   @override

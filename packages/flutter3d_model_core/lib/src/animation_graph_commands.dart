@@ -12,9 +12,15 @@ part of 'command.dart';
 /// have is a character frozen in the game, and the sentence is cheaper
 /// here.
 final class SetAnimationGraph extends ModelCommand {
+  /// A step setting graph [graphName] to [graph].
   const SetAnimationGraph({required this.graphName, required this.graph});
 
+  /// Name of the graph in [ModelProject.animationGraphs]. [apply] refuses an
+  /// empty name.
   final String graphName;
+
+  /// The graph as `AnimationGraphJson` writes one. [apply] refuses a graph that
+  /// does not decode or that plays a clip the project lacks.
   final Map<String, Object?> graph;
 
   @override
@@ -59,8 +65,10 @@ final class SetAnimationGraph extends ModelCommand {
 
 /// Removes graph [graphName]; refused when there is none of that name.
 final class RemoveAnimationGraph extends ModelCommand {
+  /// A step removing graph [graphName].
   const RemoveAnimationGraph({required this.graphName});
 
+  /// Name of the graph to remove from [ModelProject.animationGraphs].
   final String graphName;
 
   @override

@@ -58,8 +58,13 @@ final class DriverAxis {
   /// The unit axis this instance names.
   Vector3 get vector => Vector3(_x, _y, _z);
 
+  /// The joint's local X axis.
   static const DriverAxis x = DriverAxis._('x', 1, 0, 0);
+
+  /// The joint's local Y axis.
   static const DriverAxis y = DriverAxis._('y', 0, 1, 0);
+
+  /// The joint's local Z axis.
   static const DriverAxis z = DriverAxis._('z', 0, 0, 1);
 
   @override
@@ -77,13 +82,17 @@ final class DriverAxis {
 final class ShapeDriverCurve {
   const ShapeDriverCurve._(this.name, this._apply);
 
+  /// What the curve is called in a project file and in a command's arguments.
   final String name;
   final double Function(double t) _apply;
 
+  /// Returns [t], a fraction from nought to one, remapped by this curve; still
+  /// a fraction from nought to one.
   double apply(double t) => _apply(t);
 
   static double _linear(double t) => t;
 
+  /// The output equals the input: half the span reads as half the weight.
   static const ShapeDriverCurve linear = ShapeDriverCurve._('linear', _linear);
 
   @override
@@ -94,6 +103,9 @@ final class ShapeDriverCurve {
 /// person's own slider — the project-side half of a face that flinches when
 /// an elbow locks, without anyone keying the flinch by hand.
 final class ShapeDriver {
+  /// A driver setting shape [shapeIndex] from joint [jointId]'s turn about
+  /// [axis], nought at [from] radians and one at [to], remapped linearly unless
+  /// [curve] says otherwise.
   const ShapeDriver({
     required this.shapeIndex,
     required this.jointId,
@@ -110,6 +122,7 @@ final class ShapeDriver {
   /// [ProjectSkeleton.joints] and [ProjectTrack.objectId] already use.
   final int jointId;
 
+  /// Which local axis of the joint's rotation is read, as the twist about it.
   final DriverAxis axis;
 
   /// The [axis] angle, in radians, that maps to an output of 0.
@@ -118,6 +131,8 @@ final class ShapeDriver {
   /// The [axis] angle, in radians, that maps to an output of 1.
   final double to;
 
+  /// How the clamped fraction is remapped before it becomes the weight,
+  /// [ShapeDriverCurve.linear] by default.
   final ShapeDriverCurve curve;
 
   /// A copy with some fields replaced — the same shape [ShapeSet.copyWith]

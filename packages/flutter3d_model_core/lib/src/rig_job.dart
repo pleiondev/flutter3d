@@ -57,6 +57,8 @@ import 'shape_driver.dart';
 /// [meshBytes] conversion exists to avoid for the very different, journal-
 /// mutable [EditMesh].
 final class BakeIkJobRequest {
+  /// A request baking [constraint] into [clip], clip [clipIndex] of [project],
+  /// at [fps] frames per second.
   const BakeIkJobRequest({
     required this.project,
     required this.clipIndex,
@@ -65,18 +67,26 @@ final class BakeIkJobRequest {
     required this.fps,
   });
 
+  /// The project the clip's joints are read from, as it was when the request
+  /// was built.
   final ModelProject project;
 
   /// Which of [project]'s own clips [clip] was read from — where
   /// [ApplyClipResult] writes the answer back.
   final int clipIndex;
 
+  /// The clip baked, as it was read from [project].
   final ProjectClip clip;
+
+  /// The two-bone constraint whose solution replaces the root and middle
+  /// joints' rotation tracks.
   final IkConstraint constraint;
 
   /// In frames per second.
   final double fps;
 
+  /// Returns [clip] with the constraint baked in, sampled every `1/fps`
+  /// seconds.
   Future<ProjectClip> run() async =>
       bakeIk(project: project, clip: clip, constraint: constraint, fps: fps);
 }
@@ -101,6 +111,8 @@ BakeIkJobRequest? bakeIkJobRequestFor(
 
 /// `bakeShapeDrivers` (`anim-20`'s own row) through the same job shape.
 final class BakeDriversJobRequest {
+  /// A request baking [drivers] into [clip], clip [clipIndex], as a weights
+  /// track of [shapeCount] components on object [shapeTargetObjectId].
   const BakeDriversJobRequest({
     required this.clipIndex,
     required this.clip,
@@ -109,12 +121,26 @@ final class BakeDriversJobRequest {
     required this.shapeCount,
   });
 
+  /// Index of the clip in [ModelProject.clips], where [ApplyClipResult] writes
+  /// the answer back.
   final int clipIndex;
+
+  /// The clip baked, as it was read from the project.
   final ProjectClip clip;
+
+  /// The drivers whose combined output becomes the weights track.
   final List<ShapeDriver> drivers;
+
+  /// [ModelObject.id] of the object whose shape keys the drivers set; the baked
+  /// track drives it.
   final int shapeTargetObjectId;
+
+  /// How many shape keys the target object has, the width of the weights track;
+  /// a driver naming a key past it is skipped.
   final int shapeCount;
 
+  /// Returns [clip] with one weights track added, or [clip] unchanged when no
+  /// driver names a joint the clip animates.
   Future<ProjectClip> run() async => bakeShapeDrivers(
     clip: clip,
     drivers: drivers,
@@ -159,14 +185,20 @@ BakeDriversJobRequest? bakeDriversJobRequestFor(
 /// request/run/apply shape its four siblings do; the "job" is the command
 /// itself, handed back rather than built fresh by whoever applies it.
 final class BakeRootMotionJobRequest {
+  /// A request extracting the root motion of [rootJoint] in clip [clipIndex].
   const BakeRootMotionJobRequest({
     required this.clipIndex,
     required this.rootJoint,
   });
 
+  /// Index of the clip in [ModelProject.clips].
   final int clipIndex;
+
+  /// Object id of the joint whose translation track carries the root motion.
   final int rootJoint;
 
+  /// Returns the [ExtractRootMotion] command; there is nothing to compute ahead
+  /// of applying it.
   Future<ExtractRootMotion> run() async =>
       ExtractRootMotion(clipIndex: clipIndex, rootJoint: rootJoint);
 }
@@ -176,6 +208,9 @@ final class BakeRootMotionJobRequest {
 /// result)` (append — a retarget always lands as a new clip on the target
 /// project, never a replacement of the source it read).
 final class RetargetClipJobRequest {
+  /// A request retargeting [sourceClip] from [sourceSkeleton] onto
+  /// [targetSkeleton] through [boneMap], locking the feet to height nought
+  /// within a millimetre unless given.
   const RetargetClipJobRequest({
     required this.sourceProject,
     required this.sourceSkeleton,
@@ -188,12 +223,27 @@ final class RetargetClipJobRequest {
     this.footTolerance = 1e-3,
   });
 
+  /// The project the source clip and skeleton come from.
   final ModelProject sourceProject;
+
+  /// The skeleton the source clip animates.
   final ProjectSkeleton sourceSkeleton;
+
+  /// The clip retargeted.
   final ProjectClip sourceClip;
+
+  /// The project the retargeted clip is built for.
   final ModelProject targetProject;
+
+  /// The skeleton the retargeted clip animates.
   final ProjectSkeleton targetSkeleton;
+
+  /// Which source bone drives which target bone; a source bone it does not map
+  /// is dropped.
   final BoneMap boneMap;
+
+  /// Whether each humanoid foot is snapped back to [groundY] by two-bone IK
+  /// after retargeting. True by default.
   final bool lockFeet;
 
   /// In metres.
@@ -202,6 +252,7 @@ final class RetargetClipJobRequest {
   /// In metres.
   final double footTolerance;
 
+  /// Returns the retargeted clip, for [ApplyClipResult] to append.
   Future<ProjectClip> run() async => retargetClip(
     sourceClip: sourceClip,
     sourceProject: sourceProject,
@@ -280,6 +331,9 @@ RetargetClipJobRequest? retargetClipJobRequestFor({
 /// [EditMesh.setSkin]/`toVertexAttributes`, one journal step for the whole
 /// mesh rather than one per vertex.
 final class BindWeightsJobRequest {
+  /// A request binding [bones] to [meshBytes] for object [objectId] at version
+  /// [baseVersion]: inverse-square falloff with visibility, at most
+  /// [maxSkinInfluences] influences, unless given.
   const BindWeightsJobRequest({
     required this.objectId,
     required this.baseVersion,
@@ -303,14 +357,22 @@ final class BindWeightsJobRequest {
   /// The base mesh, as [EditMesh.toBytes] wrote it when this was built.
   final Uint8List meshBytes;
 
+  /// The bones weighed against, one [BoneSegment] per skin joint in local joint
+  /// order.
   final List<BoneSegment> bones;
 
   /// A unitless exponent on distance.
   final double falloffPower;
+
+  /// Whether a bone the vertex has no line of sight to is dropped, tested
+  /// against the mesh's own triangles. True by default.
   final bool useVisibility;
 
   /// In metres, added to every distance.
   final double epsilon;
+
+  /// Most influences a vertex keeps after pruning, a count; [maxSkinInfluences]
+  /// by default.
   final int maxInfluences;
 
   /// Compared with the raw weight, 1 / (distance in metres + [epsilon]) to the

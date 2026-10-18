@@ -12,6 +12,8 @@ part of 'command.dart';
 /// and every other command here already refuses with, so whoever asked for
 /// the bake can ask again against the object as it now stands.
 final class ApplyJobResult extends ModelCommand {
+  /// A step writing [meshBytes] into object [objectId], valid while the object
+  /// is still at [baseVersion].
   const ApplyJobResult({
     required this.objectId,
     required this.baseVersion,
@@ -24,9 +26,17 @@ final class ApplyJobResult extends ModelCommand {
     baseVersion: result.baseVersion,
     meshBytes: result.meshBytes,
   );
+
+  /// The object the result is written into. [apply] refuses when the project
+  /// has no such object.
   final int objectId;
+
+  /// The object's [ModelObject.version] when the job started; [apply] refuses
+  /// once the object has moved past it.
   final int baseVersion;
 
+  /// The finished mesh as [EditMesh.toBytes] wrote it, replacing the object's
+  /// geometry.
   final Uint8List meshBytes;
 
   @override

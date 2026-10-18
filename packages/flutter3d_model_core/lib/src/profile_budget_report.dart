@@ -24,9 +24,15 @@ import 'texture_budget.dart';
 /// One bar's own number: how much of a profile's limit is spent, in the
 /// unit the limit is named in — triangles, joints, influences, bytes.
 final class BudgetUsage {
+  /// A usage of [used] against [limit], both in the limit's own unit.
   const BudgetUsage({required this.used, required this.limit});
 
+  /// How much is spent, a count in the limit's unit: triangles, joints,
+  /// influences or bytes.
   final int used;
+
+  /// The profile's limit, a count in the same unit as [used]. A limit of nought
+  /// reads as spent the moment anything is used.
   final int limit;
 
   /// `used / limit` — the number a bar's width or colour reads, never
@@ -47,6 +53,8 @@ final class BudgetUsage {
 /// Every "Screen 19" bar's own number, measured once against [project]'s
 /// own [ProjectProfile].
 final class ProfileBudgetReport {
+  /// A report of the four bars, with [wireframeDeclined] saying the wireframe
+  /// toggle is not built.
   const ProfileBudgetReport({
     required this.triangles,
     required this.joints,
@@ -98,9 +106,18 @@ final class ProfileBudgetReport {
     );
   }
 
+  /// Triangles across every object against [ProjectProfile.maxTriangles].
   final BudgetUsage triangles;
+
+  /// Joints in the largest skeleton against [ProjectProfile.maxJoints].
   final BudgetUsage joints;
+
+  /// Most joint influences on any one vertex against
+  /// [ProjectProfile.maxInfluences].
   final BudgetUsage influences;
+
+  /// Bytes the project's images cost on the device, recomputed under the
+  /// profile's texture budget, against its `maxBytesOnDevice`.
   final BudgetUsage textureBytes;
 
   /// `Screen 19` names a wireframe toggle among its budget bars; nothing

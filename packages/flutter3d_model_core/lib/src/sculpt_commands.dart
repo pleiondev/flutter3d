@@ -85,6 +85,10 @@ SculptMesh _sculptFor(EditMesh mesh) {
 /// [MeshBrush.strength] per point — a tablet's own reading, or a list of ones for
 /// a mouse, which is also what an empty [pressures] means.
 final class SculptStroke extends ModelCommand {
+  /// A stroke of brush [kind] on object [objectId], dragged through [points].
+  /// With no [pressures] every point is at full pressure; [falloff] defaults to
+  /// [BrushFalloff.smooth] and the stroke is not mirrored unless [symmetryX] is
+  /// set.
   const SculptStroke({
     required this.objectId,
     required this.kind,
@@ -116,6 +120,8 @@ final class SculptStroke extends ModelCommand {
   /// full pressure throughout, which is what a mouse gives.
   final List<double> pressures;
 
+  /// How the brush's effect fades from its centre to [radius], smooth by
+  /// default.
   final BrushFalloff falloff;
 
   /// Whether the same stroke is applied mirrored across `x = 0` — see

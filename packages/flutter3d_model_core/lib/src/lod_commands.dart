@@ -32,12 +32,17 @@ part of 'command.dart';
 /// order `package:flutter3d`'s own `LodGroup` sorts into regardless, can
 /// simply add them that way; nothing here re-sorts on its behalf.
 final class AddLod extends ModelCommand {
+  /// A step appending a level at [ratio], used below [maxScreenFraction], to
+  /// object [id].
   const AddLod({
     required this.id,
     required this.ratio,
     required this.maxScreenFraction,
   });
 
+  /// The object the level is added to. [apply] refuses when the project has no
+  /// such object, a [ratio] outside `(0, 1]` and a [maxScreenFraction] that is
+  /// not positive.
   final int id;
 
   /// Target triangle count as a fraction of the base mesh's, in (0, 1].
@@ -98,13 +103,19 @@ final class AddLod extends ModelCommand {
 /// the same way [Rename] does not have to tell `ModifierEvaluationCache`
 /// that nothing it holds went stale.
 final class SetLodRatio extends ModelCommand {
+  /// A step setting level [lodIndex] of object [id] to [ratio].
   const SetLodRatio({
     required this.id,
     required this.lodIndex,
     required this.ratio,
   });
 
+  /// The object whose level changes. [apply] refuses when the project has no
+  /// such object.
   final int id;
+
+  /// Index of the level in [ModelObject.lods]. [apply] refuses an index the
+  /// object has no level at, and a [ratio] outside `(0, 1]`.
   final int lodIndex;
 
   /// Target triangle count as a fraction of the base mesh's, in (0, 1].
@@ -157,8 +168,11 @@ final class SetLodRatio extends ModelCommand {
 /// same separation `ReadinessCache` and `ModifierEvaluationCache` already
 /// keep from the commands that might make their own answers stale.
 final class RegenerateLods extends ModelCommand {
+  /// A step regenerating every level of object [id].
   const RegenerateLods(this.id);
 
+  /// The object whose levels regenerate. [apply] refuses when the project has
+  /// no such object or the object has no level of detail.
   final int id;
 
   @override

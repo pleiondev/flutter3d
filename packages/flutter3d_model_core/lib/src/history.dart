@@ -52,8 +52,11 @@ import 'selection.dart';
 final class StepAuthor {
   const StepAuthor._(this.name);
 
+  /// A step a person made at the app. Every undo takes it back.
   static const StepAuthor person = StepAuthor._('person');
 
+  /// A step an agent made over MCP. An agent's undo passing this author takes
+  /// back only steps of its own.
   static const StepAuthor agent = StepAuthor._('agent');
 
   /// Every value this version names, in declaration order. A later version
@@ -115,6 +118,8 @@ final class StepAuthorship {
 
 /// One entry: what was done, and what the document was before it.
 final class HistoryStep {
+  /// A step running [command] on [before] with [selectionBefore] selected, made
+  /// by a person through no named client unless given.
   const HistoryStep({
     required this.command,
     required this.before,
@@ -124,6 +129,7 @@ final class HistoryStep {
     this.client,
   });
 
+  /// The command that was run, kept so a redo runs it again.
   final ModelCommand command;
 
   /// The project as it was. See the library comment.
@@ -169,6 +175,9 @@ final class HistoryStep {
 
 /// A project, the changes made to it, and the way back.
 final class ModelHistory {
+  /// A history starting at the project given, keeping up to [depth] steps and
+  /// [historyBudgetBytes] bytes of mesh journal, with nothing selected unless
+  /// [selection] is given and no recovery journal unless [recoveryJournal] is.
   ModelHistory(
     this._project, {
     this.depth = 64,
@@ -254,6 +263,7 @@ final class ModelHistory {
   final List<HistoryStep> _done = <HistoryStep>[];
   final List<HistoryStep> _undone = <HistoryStep>[];
 
+  /// The project as it stands after every step not undone.
   ModelProject get project => _project;
 
   /// What is selected, filtered to what the project still holds.
@@ -265,7 +275,11 @@ final class ModelHistory {
 
   set selection(ProjectSelection to) => _selection = to;
 
+  /// Whether [undo] has a step to take back.
   bool get canUndo => _done.isNotEmpty;
+
+  /// Whether [redo] has a step to put back. Running a new command empties the
+  /// redo stack.
   bool get canRedo => _undone.isNotEmpty;
 
   /// What ⌘Z would take back, for the menu item, or null.

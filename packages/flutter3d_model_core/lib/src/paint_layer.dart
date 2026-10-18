@@ -115,6 +115,10 @@ final class PaintBlendMode {
 /// a mutation of this one, which is the fact [PaintLayer.paintTile]'s own
 /// copy-on-write rests on.
 final class PaintTile {
+  /// A tile holding [pixels].
+  ///
+  /// Asserts that [pixels] is exactly [paintTileSize] squared times four bytes
+  /// long.
   PaintTile(this.pixels)
     : assert(
         pixels.length == paintTileSize * paintTileSize * 4,
@@ -131,6 +135,9 @@ const List<double> _transparent = <double>[0, 0, 0, 0];
 /// One layer of a [PaintStack]: a sparse grid of [PaintTile]s and the
 /// [PaintBlendMode] it composites with.
 final class PaintLayer {
+  /// A layer [tilesX] by [tilesY] tiles composited by [blendMode], normal
+  /// unless given. [tiles] is copied, so the caller's map stays its own; null
+  /// starts the layer blank.
   PaintLayer({
     required this.tilesX,
     required this.tilesY,
@@ -143,8 +150,12 @@ final class PaintLayer {
   /// How many tiles wide/tall this layer is. A tile not present in [tiles]
   /// is fully transparent, so a blank layer need not allocate any of them.
   final int tilesX;
+
+  /// How many tiles tall this layer is. See [tilesX].
   final int tilesY;
 
+  /// How this layer's colour combines with what is under it in the stack,
+  /// [PaintBlendMode.normal] by default.
   final PaintBlendMode blendMode;
 
   /// Keyed by `ty * tilesX + tx`. Read through [tileAt] rather than
@@ -292,8 +303,10 @@ TexelRect? dirtyRectOf(List<TileCoord> tiles, int canvas) {
 
 /// An ordered stack of [PaintLayer]s, bottom ([layers] index 0) to top.
 final class PaintStack {
+  /// A stack of [layers], bottom first.
   const PaintStack(this.layers);
 
+  /// The layers, bottom (index nought) to top.
   final List<PaintLayer> layers;
 
   /// [top] composited over [bottom] by straight-alpha "over" — each color

@@ -35,9 +35,21 @@ final class BakeMapKind {
   /// The material slot it binds to, or null where the format has none.
   final String? slot;
 
+  /// Tangent-space normals of the high mesh, bound to the material's `normal`
+  /// slot.
   static const BakeMapKind normal = BakeMapKind._('normal', 'normal');
+
+  /// How much of the hemisphere above each texel the high mesh shades, named
+  /// `ao` and bound to the material's `occlusion` slot.
   static const BakeMapKind ambientOcclusion = BakeMapKind._('ao', 'occlusion');
+
+  /// How convex or concave the high mesh is at each texel. No material slot
+  /// takes it; the image is added unbound, for a texture graph to read as a
+  /// mask.
   static const BakeMapKind curvature = BakeMapKind._('curvature', null);
+
+  /// How thick the high mesh is behind each texel. No material slot takes it;
+  /// the image is added unbound, for a texture graph to read as a mask.
   static const BakeMapKind thickness = BakeMapKind._('thickness', null);
 
   /// Every map this build can bake, in the order a command lists them.
@@ -62,6 +74,8 @@ final class BakeMapKind {
 
 /// Bakes [maps] from [sourceId]'s surface onto [targetId]'s UVs.
 final class BakeMaps extends ModelCommand {
+  /// A bake of [maps] from [sourceId] onto [targetId]: the normal map at 1024
+  /// texels a side with a shell of a tenth of a metre unless given.
   const BakeMaps({
     required this.sourceId,
     required this.targetId,

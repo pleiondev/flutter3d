@@ -44,6 +44,9 @@ String mirrorBoneName(String name) {
 /// find, for each animated source bone, which bone (if any) on the target
 /// skeleton it drives.
 final class BoneMap {
+  /// A map from source bone names to target bone names, taken as given. Keep
+  /// the map unchanged afterwards, since the [BoneMap] holds it rather than a
+  /// copy.
   const BoneMap(Map<String, String> map) : _map = map;
 
   final Map<String, String> _map;
@@ -63,8 +66,10 @@ final class BoneMap {
   /// two `BoneMap`s share one, and a "change one row" that edited both.
   Map<String, String> get pairs => Map<String, String>.unmodifiable(_map);
 
+  /// Number of source bones mapped.
   int get length => _map.length;
 
+  /// Whether no source bone maps to anything, so a retarget drives nothing.
   bool get isEmpty => _map.isEmpty;
 
   @override

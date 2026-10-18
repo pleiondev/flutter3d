@@ -28,6 +28,8 @@ import 'texture_graph.dart';
 /// materials — five texture bindings, a sampler each — costs more than the
 /// upload it would save.
 final class ProjectMaterial {
+  /// A material looking like [surface], at [version] one unless given, with
+  /// no `.fmat`, graph or paint stack unless those are given.
   const ProjectMaterial({
     required this.surface,
     this.version = 1,
@@ -107,9 +109,6 @@ final class ProjectMaterial {
     paint: paint,
   );
 
-  /// A copy naming (or clearing) [graph], with [version] moved on — so a
-  /// graph just handed to a material reads [isGraphStale] true until
-  /// `BakeTextureGraph` runs against it, the same as any other edit would.
   /// A copy carrying [next] as what has been painted onto it, with
   /// [version] moved on the same way [withSurface] does.
   ProjectMaterial withPaint(PaintStack? next) => ProjectMaterial(
@@ -121,6 +120,9 @@ final class ProjectMaterial {
     paint: next,
   );
 
+  /// A copy naming (or clearing) [graph], with [version] moved on — so a
+  /// graph just handed to a material reads [isGraphStale] true until
+  /// `BakeTextureGraph` runs against it, the same as any other edit would.
   ProjectMaterial withGraph(TextureGraph? next) => ProjectMaterial(
     surface: surface,
     version: version + 1,

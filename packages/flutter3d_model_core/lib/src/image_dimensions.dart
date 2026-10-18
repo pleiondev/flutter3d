@@ -19,9 +19,13 @@ import 'dart:typed_data';
 
 /// The width and height an encoded image's own header names.
 final class ImageDimensions {
+  /// Dimensions of [width] by [height] pixels.
   const ImageDimensions(this.width, this.height);
 
+  /// Width of the image in pixels, as its header states it.
   final int width;
+
+  /// Height of the image in pixels, as its header states it.
   final int height;
 
   @override

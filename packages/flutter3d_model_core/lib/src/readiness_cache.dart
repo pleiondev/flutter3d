@@ -30,6 +30,7 @@ import 'readiness.dart';
 
 /// Readiness for a project, recomputed only where the project moved.
 final class ReadinessCache {
+  /// An empty cache; the first call to [of] computes every object.
   ReadinessCache();
 
   final Map<int, _Cached> _byObject = <int, _Cached>{};

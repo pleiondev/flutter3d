@@ -17,6 +17,8 @@ library;
 /// made, where `LodLevel` is the viewport-side half that only cares what it
 /// looks like once made.
 final class LodSettings {
+  /// A level reducing to [ratio] of the base triangles, used below
+  /// [maxScreenFraction] of the viewport's height.
   const LodSettings({required this.ratio, required this.maxScreenFraction});
 
   /// Target triangle count against the base mesh's own, as a fraction in
@@ -31,6 +33,8 @@ final class LodSettings {
   /// depending on the engine that consumes it.
   final double maxScreenFraction;
 
+  /// Returns a copy with the given fields replaced; null leaves a field as it
+  /// is.
   LodSettings copyWith({double? ratio, double? maxScreenFraction}) =>
       LodSettings(
         ratio: ratio ?? this.ratio,

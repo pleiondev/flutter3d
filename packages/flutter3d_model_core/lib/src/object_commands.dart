@@ -22,6 +22,9 @@ part of 'command.dart';
 /// the handful of numbers it takes is the only form that survives both, and it
 /// is the same form the `Add` menu offers.
 final class AddPrimitive extends ModelCommand {
+  /// A step adding a [kind] primitive [size] across with [segments] round, at
+  /// [at] or the origin: one unit and 32 segments unless given. [apply] refuses
+  /// an unknown kind and a size that is not positive.
   const AddPrimitive({
     required this.kind,
     this.size = 1.0,
@@ -132,6 +135,10 @@ final class AddPrimitive extends ModelCommand {
 /// the profile is exactly the operation somebody wants to adjust after seeing
 /// it, and a parametric object is the only kind that can be adjusted.
 final class AddLathe extends ModelCommand {
+  /// A step adding a lathe turning [profile] through [segments], called
+  /// [shapeName], at [at] or the origin: 32 segments, an open profile and the
+  /// name `lathe` unless given. [apply] refuses fewer than two points, fewer
+  /// than three segments and a point at a negative radius.
   const AddLathe({
     required this.profile,
     this.segments = 32,
@@ -142,6 +149,9 @@ final class AddLathe extends ModelCommand {
 
   /// Points in the (radius, height) half-plane, bottom to top.
   final List<Vector2> profile;
+
+  /// How many steps the turn takes round the axis, a count of at least three;
+  /// 32 by default.
   final int segments;
 
   /// Whether the last point joins back to the first, as a torus's does.
@@ -226,6 +236,7 @@ final class AddLathe extends ModelCommand {
 /// why it shares its type with what an imported empty group already
 /// becomes.
 final class AddSocket extends ModelCommand {
+  /// A step adding a socket called [label] at [at] or the origin.
   const AddSocket({this.label = 'socket', this.at});
 
   /// What the object is called. `label` and not `name`, for the reason
@@ -278,9 +289,14 @@ final class AddSocket extends ModelCommand {
 /// no longer holds, and quietly replacing their edited geometry with a fresh
 /// primitive would throw the edit away with no step of history to say so.
 final class SetParametric extends ModelCommand {
+  /// A step replacing object [id]'s shape with [to].
   const SetParametric({required this.id, required this.to});
 
+  /// The object changed. [apply] refuses when the project has no such object or
+  /// its geometry is not parametric.
   final int id;
+
+  /// The new shape, parameters and all.
   final ParametricShape to;
 
   @override
@@ -329,8 +345,11 @@ final class SetParametric extends ModelCommand {
 /// that turns an edited mesh into a cylinder, and there should not be one that
 /// pretends.
 final class BakeToMesh extends ModelCommand {
+  /// A step turning object [id]'s parametric shape into an editable mesh.
   const BakeToMesh(this.id);
 
+  /// The object converted. [apply] refuses when the project has no such object
+  /// or its geometry is not parametric.
   final int id;
 
   @override
@@ -386,8 +405,12 @@ final class BakeToMesh extends ModelCommand {
 /// a weld, and a weld at the wrong distance is a model with seams that will
 /// not extrude or one whose sharp edges have been fused.
 final class BuildTopology extends ModelCommand {
+  /// A step welding object [id]'s imported buffers into topology, at [weld]
+  /// metres or the import's own default.
   const BuildTopology({required this.id, this.weld});
 
+  /// The object welded. [apply] refuses when the project has no such object or
+  /// its geometry is not imported.
   final int id;
 
   /// How close two vertices have to be to become one, or null for the
@@ -443,8 +466,13 @@ final class BuildTopology extends ModelCommand {
 
 /// Hangs one object under another.
 final class SetParent extends ModelCommand {
+  /// A step hanging object [id] under object [to], or at the top level when
+  /// [to] is null.
   const SetParent({required this.id, required this.to});
 
+  /// The object reparented. [apply] refuses when the project has no such
+  /// object, when [to] is the object itself or names no object, and when [to]
+  /// already hangs under it.
   final int id;
 
   /// The new parent, or null for the top level.
@@ -487,6 +515,8 @@ final class SetParent extends ModelCommand {
 
 /// Turns everything selected.
 final class RotateBy extends ModelCommand {
+  /// A step turning the selected objects [radians] about [axis], about [pivot]
+  /// in [space]: the selection's median and the world axes unless given.
   const RotateBy({
     required this.axis,
     required this.radians,
@@ -494,6 +524,8 @@ final class RotateBy extends ModelCommand {
     this.space = TransformSpace.global,
   });
 
+  /// The axis turned about, in the axes of [space]; normalised before use.
+  /// [apply] refuses when no object is selected.
   final Vector3 axis;
 
   /// The turn about [axis], in radians.
@@ -556,6 +588,9 @@ final class RotateBy extends ModelCommand {
 /// provably cannot change the answer is one an agent would set and then wonder
 /// why nothing moved. The day a scale takes three numbers it will need one.
 final class ScaleBy extends ModelCommand {
+  /// A step scaling the selected objects by [by] about [pivot], the selection's
+  /// median unless given. [apply] refuses a scale of nought and an empty
+  /// selection.
   const ScaleBy(this.by, {this.pivot = TransformPivot.median});
 
   /// A unitless multiplier on size.
@@ -677,16 +712,21 @@ Outcome _aboutThePivot(
 final class OriginPlacement {
   const OriginPlacement._(this.name, this.wire);
 
+  /// The middle of the mesh's bounds, what a spin wants.
   static const OriginPlacement boundsCenter = OriginPlacement._(
     'boundsCenter',
     'boundsCentre',
   );
 
+  /// The middle of the bottom of the bounds, what a prop standing on a floor
+  /// wants.
   static const OriginPlacement boundsBottom = OriginPlacement._(
     'boundsBottom',
     'boundsBottom',
   );
 
+  /// The world origin, putting a model authored off-centre back where an
+  /// exporter expects it.
   static const OriginPlacement worldOrigin = OriginPlacement._(
     'worldOrigin',
     'worldOrigin',
@@ -740,9 +780,16 @@ final class OriginPlacement {
 /// moving the vertices out from under the radius leaves a description that no
 /// longer describes the thing.
 final class SetOrigin extends ModelCommand {
+  /// A step moving object [id]'s origin to [to], the middle of its bounds
+  /// unless given.
   const SetOrigin({required this.id, this.to = OriginPlacement.boundsCenter});
 
+  /// The object whose origin moves. [apply] refuses when the project has no
+  /// such object, it holds no edited mesh, the mesh is empty or the origin is
+  /// already there.
   final int id;
+
+  /// Where the origin goes, [OriginPlacement.boundsCenter] by default.
   final OriginPlacement to;
 
   @override
@@ -832,8 +879,12 @@ final class SetOrigin extends ModelCommand {
 /// the transform is still being applied, and inside out the moment anything
 /// reads the vertices on their own.
 final class ApplyTransform extends ModelCommand {
+  /// A step baking object [id]'s transform into its vertices.
   const ApplyTransform(this.id);
 
+  /// The object whose transform is baked. [apply] refuses when the project has
+  /// no such object, it holds no edited mesh, its transform is already the
+  /// identity or the mesh is empty.
   final int id;
 
   @override
@@ -942,9 +993,14 @@ ModelProject _compensateChildren(ModelProject project, int parent, Matrix4 by) {
 /// an edit somebody comes back to tomorrow; a session-local flag would lose
 /// it on the way.
 final class SetObjectVisible extends ModelCommand {
+  /// A step showing object [id] when [to] is true and hiding it otherwise.
   const SetObjectVisible({required this.id, required this.to});
 
+  /// The object shown or hidden. [apply] refuses when the project has no such
+  /// object or it is already in that state.
   final int id;
+
+  /// True to show the object, false to hide it.
   final bool to;
 
   @override
@@ -975,9 +1031,14 @@ final class SetObjectVisible extends ModelCommand {
 /// has to stay on screen and stop answering it. What honours the flag is the
 /// application's own picking, since the document has no pointer.
 final class SetObjectLocked extends ModelCommand {
+  /// A step locking object [id] when [to] is true and unlocking it otherwise.
   const SetObjectLocked({required this.id, required this.to});
 
+  /// The object locked or unlocked. [apply] refuses when the project has no
+  /// such object or it is already in that state.
   final int id;
+
+  /// True to lock the object against picking, false to unlock it.
   final bool to;
 
   @override

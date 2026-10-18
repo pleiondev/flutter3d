@@ -90,6 +90,8 @@ ModelProject _withMaterial(
 /// own `mode`) refuses the command when [fields] leaves it out, the same way
 /// leaving it out of a hand-written `.json` file would.
 final class AddNode extends ModelCommand {
+  /// A step adding a [kind] node built from [fields] to material
+  /// [materialIndex]'s graph at [position], the canvas origin unless given.
   const AddNode({
     required this.materialIndex,
     required this.kind,
@@ -97,6 +99,9 @@ final class AddNode extends ModelCommand {
     this.position = NodePosition.origin,
   });
 
+  /// Row of the material in [ModelProject.materials]; a material with no graph
+  /// gets one. [apply] refuses a row with no material, and a [kind] or [fields]
+  /// that do not make a node.
   final int materialIndex;
 
   /// [TextureNode.kind]'s own word: `image`, `color`, `blend`, `channels`,
@@ -179,6 +184,8 @@ final class AddNode extends ModelCommand {
 /// before it bakes, so a panel never shows a link [TextureGraph.validate]
 /// would have complained about.
 final class Link extends ModelCommand {
+  /// A step wiring node [from] into socket [input] of node [nodeId] in material
+  /// [materialIndex]'s graph.
   const Link({
     required this.materialIndex,
     required this.nodeId,
@@ -186,7 +193,13 @@ final class Link extends ModelCommand {
     required this.from,
   });
 
+  /// Row of the material in [ModelProject.materials]. [apply] refuses a row
+  /// with no material, and a material with no graph.
   final int materialIndex;
+
+  /// Id of the node whose socket is wired. [apply] refuses an id with no node,
+  /// an [input] it does not have, a [from] with no node and a link of the wrong
+  /// type.
   final int nodeId;
 
   /// One of the target node's own [TextureNode.inputs] keys.
@@ -247,14 +260,24 @@ final class Link extends ModelCommand {
 
 /// Takes whatever is wired into [nodeId]'s [input] socket back off it.
 final class Unlink extends ModelCommand {
+  /// A step clearing socket [input] of node [nodeId] in material
+  /// [materialIndex]'s graph.
   const Unlink({
     required this.materialIndex,
     required this.nodeId,
     required this.input,
   });
 
+  /// Row of the material in [ModelProject.materials]. [apply] refuses a row
+  /// with no material, and a material with no graph.
   final int materialIndex;
+
+  /// Id of the node whose socket is cleared. [apply] refuses an id with no
+  /// node.
   final int nodeId;
+
+  /// Name of the socket, one of the node's [TextureNode.inputs] keys. [apply]
+  /// refuses a name the node does not have.
   final String input;
 
   @override
@@ -304,6 +327,8 @@ final class Unlink extends ModelCommand {
 /// naming one of them is refused rather than quietly rewiring the graph
 /// through the wrong verb.
 final class SetNodeField extends ModelCommand {
+  /// A step setting [field] of node [nodeId] in material [materialIndex]'s
+  /// graph to [value].
   const SetNodeField({
     required this.materialIndex,
     required this.nodeId,
@@ -311,8 +336,16 @@ final class SetNodeField extends ModelCommand {
     required this.value,
   });
 
+  /// Row of the material in [ModelProject.materials]. [apply] refuses a row
+  /// with no material, and a material with no graph.
   final int materialIndex;
+
+  /// Id of the node changed. [apply] refuses an id with no node.
   final int nodeId;
+
+  /// Name of the field, as [TextureNode.toJson] writes it. [apply] refuses a
+  /// socket's name, a name the kind does not have and a [value] of the wrong
+  /// shape.
   final String field;
 
   /// A number, a string, a bool, or a list of two, three or four numbers,
@@ -371,6 +404,8 @@ final class SetNodeField extends ModelCommand {
 /// position is not part of what [BakeTextureGraph] reads, so a drag leaves
 /// [ProjectMaterial.isGraphStale] exactly as it was.
 final class MoveNode extends ModelCommand {
+  /// A step moving node [nodeId] in material [materialIndex]'s graph to ([x],
+  /// [y]) on the panel's canvas.
   const MoveNode({
     required this.materialIndex,
     required this.nodeId,
@@ -378,7 +413,11 @@ final class MoveNode extends ModelCommand {
     required this.y,
   });
 
+  /// Row of the material in [ModelProject.materials]. [apply] refuses a row
+  /// with no material, and a material with no graph.
   final int materialIndex;
+
+  /// Id of the node moved. [apply] refuses an id with no node.
   final int nodeId;
 
   /// In logical pixels of the panel's canvas.
@@ -458,9 +497,15 @@ TextureNode _withoutLinksTo(TextureNode node, int removedId) {
 /// one [TextureGraph.validate] would call out for reading a node that is no
 /// longer there.
 final class RemoveNode extends ModelCommand {
+  /// A step removing node [nodeId] from material [materialIndex]'s graph, with
+  /// every link that read it.
   const RemoveNode({required this.materialIndex, required this.nodeId});
 
+  /// Row of the material in [ModelProject.materials]. [apply] refuses a row
+  /// with no material, and a material with no graph.
   final int materialIndex;
+
+  /// Id of the node removed. [apply] refuses an id with no node.
   final int nodeId;
 
   @override

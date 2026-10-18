@@ -24,13 +24,18 @@ import 'package:vector_math/vector_math.dart';
 /// for `root` and `mid` — `tip` never rotates, the same convention its own
 /// engine namesake uses.
 final class TwoBoneIkResult {
+  /// A result rotating `root` by [rootLocalRotation] and `mid` by
+  /// [midLocalRotation], missing the target by [reachError] metres.
   const TwoBoneIkResult({
     required this.rootLocalRotation,
     required this.midLocalRotation,
     required this.reachError,
   });
 
+  /// New rotation of `root` relative to its parent.
   final Quaternion rootLocalRotation;
+
+  /// New rotation of `mid` relative to `root`.
   final Quaternion midLocalRotation;
 
   /// Distance between where `tip` actually lands and the requested target —
