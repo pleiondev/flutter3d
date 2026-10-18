@@ -188,7 +188,7 @@ too.
 
 ## Coming from 0.8
 
-From 0.8 to this release the API changed in 2369 places, 323 of them left
+From 0.8 to this release the API changed in 2503 places, 324 of them left
 to you; 380 are backend internals no application called. One command does the rest:
 
 ```bash
@@ -272,7 +272,7 @@ Or one package at a time:
 (cd packages/flutter3d_physics && dart test)   # plain Dart, no Flutter needed
 ```
 
-There are 15266 tests across 62 packages and 18 applications. The
+There are 15282 tests across 62 packages and 18 applications. The
 only ones that need a GPU are the Impeller half of the golden set. The other
 half is rendered by the software backend, which is what makes 96 scenes
 checkable in a headless run.
@@ -324,7 +324,7 @@ binary has not got, and binding a slot a compiled shader does not have takes
 the frame down. The message names nothing that leads back to the file that was
 edited.
 
-So `dart run tool/structure.dart` checks it: one of its 139 rules compares
+So `dart run tool/structure.dart` checks it: one of its 144 rules compares
 the bundle against the sources it was built from and says which of them are
 newer. The rule skips when there is no bundle at all, which is every fresh
 checkout and every CI run. `impellerc` is not there to build one, and a rule

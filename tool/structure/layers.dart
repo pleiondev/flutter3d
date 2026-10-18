@@ -404,7 +404,7 @@ List<(String, String, List<String>)> simulationClosureProblems(
       for (final next
           in (dependencies[at] ?? const <String>{}).toList()..sort()) {
         if (via.containsKey(next)) continue;
-        via[next] = <String>[...via[at]!, next];
+        via[next] = <String>[...?via[at], next];
         if (forbidden.contains(next)) {
           problems.add((start, next, via[next]!));
         } else {

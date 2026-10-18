@@ -3795,146 +3795,16 @@ const Map<String, String> recordInResultAllowed = <String, String>{
 /// `interface`.
 const Map<String, String> plainClassAllowed = <String, String>{};
 
-/// Open sets that do not carry `values` and `byName` yet, by name. A list
-/// that only shrinks: each one gains the two in a minor (an addition), and
-/// leaves the list.
-final Map<String, String> openSetShapePending = <String, String>{
-  for (final name in _openSetsWithoutShape)
-    name:
-        'an open set from before the rule; it gains `values` and `byName` in '
-        'a minor (an addition), and leaves the list',
+/// Types the open-set rule reads as sets and that are not, each with why.
+/// Every one of the hundred and three sets that predated the rule has
+/// `values` and `byName` now, and the types that only looked like sets (a
+/// colour's presets, a sampler, a usage bit set) are no longer read as sets.
+const Map<String, String> openSetShapePending = <String, String>{
+  'Unit':
+      'a value, not a set: a symbol with a dimension and a scale that `*` and '
+      '`/` compose, and `Unit.parse` reads any unit written, not only the '
+      'constants',
 };
-
-const List<String> _openSetsWithoutShape = <String>[
-  'ActorCueKind',
-  'AmbientOcclusionMethod',
-  'AmmoType',
-  'AnimationBlend',
-  'AnimationComparison',
-  'AnimationParameterType',
-  'AudioBus',
-  'BakeMapKind',
-  'BlendState',
-  'BrushFalloff',
-  'BrushKind',
-  'BufferUsage',
-  'BusChannel',
-  'CloudProvider',
-  'ColorVisionDeficiency',
-  'ColorWriteMask',
-  'CompositePass',
-  'Confidence',
-  'ConversionTarget',
-  'ConvertOutcome',
-  'DebugViewKind',
-  'DebugWipeSide',
-  'DeviceClass',
-  'DeviceClassBudget',
-  'Difficulty',
-  'DiffuseModel',
-  'Dimension',
-  'DockSide',
-  'DoctorStatus',
-  'DriverAxis',
-  'DualAxisAction',
-  'EdgeSmoothing',
-  'EffectBlend',
-  'EffectDrawing',
-  'EffectSpawn',
-  'ElementCues',
-  'ElementsSteps',
-  'ExpressionBuiltin',
-  'ExpressionType',
-  'Eye',
-  'FieldQuantity',
-  'FireDetail',
-  'FireSteps',
-  'FuelCell',
-  'GameAction',
-  'GamePadButton',
-  'GridSide',
-  'Haptic',
-  'HubCachePolicy',
-  'Igniter',
-  'InputSource',
-  'JointGroup',
-  'JointType',
-  'Jolt',
-  'KeyEase',
-  'LawInput',
-  'LevelBatching',
-  'LightingModel',
-  'LinearColor',
-  'LiquidDetail',
-  'LiquidSteps',
-  'LoopPhase',
-  'MaterialAlphaMode',
-  'MaterialBlend',
-  'MaterialBlendMode',
-  'MaterialPhase',
-  'MaterialStageKind',
-  'MemoryCategory',
-  'MeshIssueKind',
-  'ModelFormat',
-  'MonsterState',
-  'MoverState',
-  'NativeBodyType',
-  'NativeEdgeFlow',
-  'NativeEventKind',
-  'NativeJointType',
-  'NativeLawProperty',
-  'PadButton',
-  'PaintBlendMode',
-  'PaintWeightsMode',
-  'PhaseKind',
-  'PhotoFilter',
-  'PipelineGeometry',
-  'PluginKind',
-  'PluginPermission',
-  'PluginTouches',
-  'ProjectKind',
-  'RaceMode',
-  'ReadingKind',
-  'ReadingQuality',
-  'RenderAnchor',
-  'RenderProjectView',
-  'RenderShading',
-  'RenderStep',
-  'ResourcePriority',
-  'RigMirrorAxis',
-  'RigTemplate',
-  'SamplerDescriptor',
-  'SceneEnvironmentPreset',
-  'ShaderBuildTarget',
-  'ShaderStageNeed',
-  'ShadowCastingMode',
-  'ShadowFilter',
-  'ShareStatus',
-  'SimulationProfile',
-  'SolidColorTexture',
-  'SortMode',
-  'SplatAxes',
-  'StereoViewer',
-  'SyncOutcome',
-  'TangentMethod',
-  'TelemetryLevel',
-  'TextureBudget',
-  'TextureFamily',
-  'TextureUsage',
-  'TimeLostReason',
-  'TonemapCurve',
-  'ToolHints',
-  'TraceLabeled',
-  'Unit',
-  'UnitType',
-  'UniversalTarget',
-  'UvProjection',
-  'VertexLayout',
-  'ViewportShading',
-  'Voice',
-  'WadingHearing',
-  'WireState',
-];
 
 /// Constructors that keep optional positional parameters, as `Type.Type`
 /// or `Type.named`, each with why it never grows (E.5).
@@ -4097,6 +3967,52 @@ const Map<String, String> booleanAllowed = <String, String>{
   'require':
       'an assertion: the condition is the subject of the call, as in '
       '`expect` and `assert`',
+};
+
+/// Time names the time-vocabulary rule lets stand, each with why it is not
+/// seconds in a `double` or not the engine's clock.
+const Map<String, String> timeNameAllowed = <String, String>{
+  'AnimationGraph.normalizedTime':
+      'a count of clip lengths, unitless: how far into the state, which an '
+      'exit time is compared against',
+  'AnimationTransition.exitTime':
+      'a fraction of the clip\'s length, nought to one, as the state '
+      'machines it is read from name it',
+  'AtmosphereCycle.period':
+      'in the cycle\'s own unit, which the caller chooses: seconds only for '
+      'a clock that adds its `dt`, hours for one that keeps the time of day',
+  'AtmosphereKey.time':
+      'in the unit of its cycle\'s `period`, whatever the caller chose',
+  'AtmosphereComponent.time':
+      'in the unit of its cycle\'s `period`, as `AtmosphereKey.time`',
+  'LiquidParameters.time':
+      'the generated accessor of the `.f3dmat` uniform `time`, named as the '
+      'material names it',
+  'SeabedParameters.time':
+      'the generated accessor of the `.f3dmat` uniform `time`, as '
+      '`LiquidParameters.time`',
+};
+
+/// The process-wide singletons of the published packages, each with why
+/// the engine cannot own it. Each one's doc says "process-wide"; the
+/// engine reaches each through a reference a game or a test can replace
+/// (`PadDevice`, `MouseCapture`, `replayAfterHotSwap(hotSwap:)`).
+const Map<String, String> processWideSingletons = <String, String>{
+  'Gamepad.instance':
+      'the platform plugin\'s channel to the controllers, one per process; '
+      'the game reads it through `PadDevice`, which a test replaces',
+  'GamepadPlatform.instance':
+      'the federated plugin\'s platform interface, which the platform '
+      'package sets once at registration',
+  'PointerLock.instance':
+      'the platform plugin\'s channel to the pointer, one per process; the '
+      'game reads it through `MouseCapture`, which a test replaces',
+  'PointerLockPlatform.instance':
+      'the federated plugin\'s platform interface, which the platform '
+      'package sets once at registration',
+  'HotSwap.instance':
+      'hot reload is process-wide, and so is what it reloads; a replay reads '
+      'it through `replayAfterHotSwap(hotSwap:)`, which a test replaces',
 };
 
 /// Settings-like types the settings rule lets stand.

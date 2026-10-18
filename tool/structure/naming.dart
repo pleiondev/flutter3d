@@ -820,8 +820,11 @@ List<NamingProblem> plainClassesIn(String snapshot) {
 }
 
 /// Each open set in [snapshot] that lacks the shape `DeviceFeature` has: a
-/// `final class` with `static const` members of its own type must also
-/// carry `values` and `byName` (CONTRIBUTING, "The API is a snapshot").
+/// `final class` with two or more `static const` members of its own type,
+/// each made with the string it is called by, must also carry `values` and
+/// `byName`
+/// (CONTRIBUTING, "The API is a snapshot"). A value type with presets and
+/// no name (`LinearColor`, `Dimension`, `SamplerDescriptor`) is not a set.
 ///
 /// **One shape, so a tool reads every set the same way.** A set that names
 /// its lookup `named`, `fromWireName` or nothing at all makes every writer
@@ -840,6 +843,20 @@ List<NamingProblem> openSetShapeIn(String snapshot) {
         ).hasMatch(splitAnnotations(m).rest),
       );
       if (constants.length < 2) continue;
+      // A set is its constants' names: each constant is made from the
+      // string it is called by (`X._('box')`, `PadButton('back')`,
+      // `TonemapCurve._('aces', 2.0)`, `PhotoFilter(name: 'warm')`): the
+      // string is an argument of its own, not a key inside one
+      // (`Dimension(<String, int>{'m': 1})`). Two presets of a value type
+      // (`LinearColor.white`, `.black`) are not a set, and `byName` would
+      // have nothing to read.
+      final named = constants.where(
+        (String m) => RegExp(
+          '=\\s*${RegExp.escape(type)}(?:\\.[\\w\$]+)?'
+          '\\((?:[^{\\[(]*,\\s*)?(?:[\\w\$]+:\\s*)?\'[^\']*\'.*\\)\$',
+        ).hasMatch(m),
+      );
+      if (named.length < 2) continue;
       final names = <String>{for (final m in block.members) memberName(m)};
       final missing = <String>[
         if (!names.contains('values')) '`values`',
@@ -1534,7 +1551,8 @@ final RegExp settingsSuffix = RegExp(r'(Options|Config|Tuning|Params|Spec)$');
 /// The settings problems in [snapshot] of [package]: a type with another
 /// suffix, a `Descriptor` outside the HAL, and a `…Settings` class that is
 /// not `final`, has no `const` constructor, or has a `copyWith` that misses
-/// a field its constructor sets or a `clear…` flag for a nullable one.
+/// a field its constructor sets or a `clear…` flag for a nullable one; and a
+/// `…Settings` or `…Rect` class without `==` and `hashCode` (item 70).
 List<NamingProblem> settingsProblemsIn(String snapshot, String package) {
   final out = <NamingProblem>[];
   for (final library in parseApi(snapshot).values) {
@@ -1561,7 +1579,27 @@ List<NamingProblem> settingsProblemsIn(String snapshot, String package) {
           what: 'is a `…Descriptor` outside the HAL: call it `…Settings`',
         ));
       }
-      if (!isClass || !type.endsWith('Settings')) continue;
+      if (!isClass) continue;
+      // A settings class, or a rectangle (`ViewportRect`), is a value: a
+      // widget's `didUpdateWidget` compares the old one with the new, and
+      // without `==` it can only compare identity, so an equal value
+      // rebuilt every frame reads as a change every frame. Adding `==`
+      // later changes what a `Set` or a `Map` keyed on one holds.
+      if (type.endsWith('Settings') || type.endsWith('Rect')) {
+        final names = <String>{
+          for (final m in block.members) splitAnnotations(m).rest,
+        };
+        if (!names.contains('bool operator ==(Object other)') ||
+            !names.contains('int get hashCode')) {
+          out.add((
+            subject: type,
+            what:
+                'has no `==` and `hashCode`: a settings class or a rectangle '
+                'is a value, compared field by field',
+          ));
+        }
+      }
+      if (!type.endsWith('Settings')) continue;
       final modifiers = bare.substring(0, bare.indexOf('class ')).trim();
       if (!RegExp(r'\b(final|base|sealed)\b').hasMatch(modifiers)) {
         out.add((
@@ -1676,6 +1714,226 @@ List<String> undocumentedUnitsIn(String source) {
     if (!unitWords.hasMatch(doc.toString())) out.add(m.group(1)!);
   }
   return out;
+}
+
+// ------------------------------------------------------------ late finals
+
+/// The public `late final` fields and top-level variables of a library's
+/// source that have no initialiser, by name (item 71).
+///
+/// **A one-shot setter nobody meant to publish.** `late final x;` gives a
+/// public setter that works once and throws `LateInitializationError` the
+/// second time, so `loop.plugins = …` compiles and then fails at run time;
+/// removing the setter later is a break. The shape is a private
+/// `late final _x` with a public getter. A `late final x = …;` has no
+/// setter and is not this, and neither is a field of a private class, which
+/// nobody outside the library can name.
+List<String> publicLateFinalsIn(String source) {
+  final out = <String>[];
+  var privateType = false;
+  for (final line in source.split('\n')) {
+    final type = RegExp(
+      r'^(?:(?:abstract|base|final|sealed|interface|mixin)\s+)*'
+      r'(?:class|mixin|enum|extension(?:\s+type)?)\s+([\w$]+)',
+    ).firstMatch(line);
+    if (type != null) privateType = type.group(1)!.startsWith('_');
+    final field = RegExp(
+      r'^(  )?(?:static\s+)?late\s+final\s+[\w$<>?,\s.]*?\b([a-z][\w$]*)\s*;',
+    ).firstMatch(line);
+    if (field == null) continue;
+    if (field.group(1) != null && privateType) continue;
+    out.add(field.group(2)!);
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------- time
+
+/// The words that name a span or a moment of time, as the last word of a
+/// name: `duration`, `coyoteTime`, `attackCooldown`.
+final RegExp _timeWord = RegExp(
+  r'^(?:duration|time|delay|interval|timeout|period|elapsed|cooldown|'
+  r'lifetime|age|[a-z][\w$]*(?:Duration|Time|Delay|Interval|Timeout|Period|'
+  r'Elapsed|Cooldown|Lifetime|Age))$',
+);
+
+/// What breaks the time vocabulary in [snapshot] (item 77): a member called
+/// `tick`, and a `double` field, getter or named parameter that holds a time
+/// without `Seconds` at the end of its name.
+///
+/// **One verb per clock, one unit per number.** `step(dt)` is the fixed
+/// simulation step, `update(dt)` the variable frame, `advance` playback; a
+/// fourth verb for the same thing makes a reader ask which clock it is on.
+/// A time held in a `double` is seconds, and its name says so
+/// (`coyoteSeconds`), except `dt`, which every loop in the engine names;
+/// a time a widget or a setting takes may be a `Duration`, which needs no
+/// suffix. Positional parameters are not checked: their names are not API.
+List<NamingProblem> timeVocabularyIn(String snapshot) {
+  final out = <NamingProblem>[];
+  for (final library in parseApi(snapshot).values) {
+    for (final MapEntry(key: type, value: block)
+        in library.declarations.entries) {
+      for (final line in <String>[block.header, ...block.members]) {
+        final bare = splitAnnotations(line).rest;
+        final name = memberName(line);
+        final subject = identical(line, block.header) ? name : '$type.$name';
+        if (name == 'tick' && bare.contains('(')) {
+          out.add((
+            subject: subject,
+            what:
+                'advances time with `tick`: `step(dt)` is the fixed step, '
+                '`update(dt)` the frame and `advance` playback',
+          ));
+        }
+        final field = RegExp(
+          r'^(?:static\s+)?(?:final\s+|const\s+)?double\??\s+(?:get\s+)?'
+          r'([\w$]+)$',
+        ).firstMatch(bare.replaceFirst(RegExp(r'\s*=.*$'), ''));
+        if (field != null && _timeWord.hasMatch(field.group(1)!)) {
+          final named = field.group(1)!;
+          out.add((
+            subject: identical(line, block.header) ? named : '$type.$named',
+            what:
+                'is a time in a `double` and its name does not say seconds: '
+                '`${named}Seconds`, or a `Duration`',
+          ));
+        }
+        for (final p in parametersOf(line)) {
+          if (!p.named || p.name == 'dt') continue;
+          if (!RegExp(r'^double\??$').hasMatch(p.type)) continue;
+          if (!_timeWord.hasMatch(p.name)) continue;
+          out.add((
+            subject: '$subject(${p.name})',
+            what:
+                'takes a time in a `double` named without seconds: '
+                '`${p.name}Seconds`, or a `Duration`',
+          ));
+        }
+      }
+    }
+  }
+  return out;
+}
+
+// ------------------------------------------------------------ singletons
+
+/// The process-wide singletons in [snapshot]: a static `instance` getter or
+/// field, as `Type.instance` (item 82).
+///
+/// **Global state the engine cannot own.** `Gamepad.instance` and
+/// `PointerLock.instance` are a platform plugin's channel, one per process;
+/// `HotSwap.instance` follows hot reload, which is process-wide. Each is
+/// named in `processWideSingletons` with why, and its doc says
+/// "process-wide"; a new one is a finding until somebody says why the
+/// engine cannot hold it instead.
+List<String> singletonsIn(String snapshot) => <String>[
+  for (final library in parseApi(snapshot).values)
+    for (final MapEntry(key: type, value: block)
+        in library.declarations.entries)
+      for (final m in block.members)
+        if (RegExp(
+          r'^static\s+(?:final\s+)?[\w$<>?]+\s+(?:get\s+)?instance$',
+        ).hasMatch(
+          splitAnnotations(m).rest.replaceFirst(RegExp(r'\s*=.*$'), ''),
+        ))
+          '$type.instance',
+];
+
+// ------------------------------------------------------------- backends
+
+/// The members in [snapshot] that name a device's backend as a bare
+/// `String` where `BackendId` is the type (item 72): a `backendId` getter.
+///
+/// **One spelling for five names.** A backend's id is compared in plugin
+/// manifests, shader sections and conformance reports; as a `String`, a
+/// typo is a backend nobody has, found at run time. `BackendId` is an
+/// extension type over the string, so a `BackendId` passes wherever a
+/// `String` is taken and the constants are the spellings.
+List<NamingProblem> backendIdProblemsIn(String snapshot) => <NamingProblem>[
+  for (final library in parseApi(snapshot).values)
+    for (final MapEntry(key: type, value: block)
+        in library.declarations.entries)
+      for (final m in block.members)
+        if (RegExp(
+          r'^String\s+get\s+backendId$',
+        ).hasMatch(splitAnnotations(m).rest))
+          (
+            subject: '$type.backendId',
+            what:
+                'is a `String`: a backend is named by a `BackendId`, whose '
+                'constants are the spellings',
+          ),
+];
+
+// ------------------------------------------------------- value equality
+
+/// The `…Settings` and `…Rect` classes in a library's [source] whose `==`
+/// or `hashCode` leaves out an instance field the class holds (item 70), as
+/// the class, the member (`==` or `hashCode`) and the fields left out.
+///
+/// A field counts as compared when its name appears in the member's body.
+/// A class with no `==` at all is not here: the snapshot rule asks for one.
+List<({String type, String member, List<String> fields})> equalityGapsIn(
+  String source,
+) {
+  final out = <({String type, String member, List<String> fields})>[];
+  for (final m in RegExp(
+    r'^(?:final |base |sealed )*class (\w+(?:Settings|Rect))\b[^{]*\{',
+    multiLine: true,
+  ).allMatches(source)) {
+    final body = source.substring(m.end, _closing(source, m.end - 1));
+    final fields = <String>[
+      for (final f in RegExp(
+        r'^  final [^=;(]+?\s([a-z][\w$]*);',
+        multiLine: true,
+      ).allMatches(body))
+        f.group(1)!,
+    ];
+    for (final (member, head) in <(String, String)>[
+      ('==', 'bool operator ==('),
+      ('hashCode', 'int get hashCode'),
+    ]) {
+      final at = body.indexOf(head);
+      if (at < 0) continue;
+      final text = _memberText(body, at);
+      final missing = <String>[
+        for (final f in fields)
+          if (!RegExp('\\b${RegExp.escape(f)}\\b').hasMatch(text)) f,
+      ];
+      if (missing.isNotEmpty) {
+        out.add((type: m.group(1)!, member: member, fields: missing));
+      }
+    }
+  }
+  return out;
+}
+
+/// The offset of the brace that closes the one at [open] in [source].
+int _closing(String source, int open) {
+  var depth = 0;
+  for (var i = open; i < source.length; i++) {
+    if (source[i] == '{') depth++;
+    if (source[i] == '}' && --depth == 0) return i;
+  }
+  return source.length;
+}
+
+/// The text of the member starting at [at] in [body]: up to the `;` that
+/// ends an expression body, or the brace that closes a block body.
+String _memberText(String body, int at) {
+  final arrow = body.indexOf('=>', at);
+  final brace = body.indexOf('{', at);
+  if (brace >= 0 && (arrow < 0 || brace < arrow)) {
+    return body.substring(at, _closing(body, brace) + 1);
+  }
+  var depth = 0;
+  for (var i = at; i < body.length; i++) {
+    final c = body[i];
+    if (c == '(' || c == '[' || c == '{') depth++;
+    if (c == ')' || c == ']' || c == '}') depth--;
+    if (c == ';' && depth == 0) return body.substring(at, i + 1);
+  }
+  return body.substring(at);
 }
 
 // --------------------------------------------------------------- proofs
@@ -2068,7 +2326,12 @@ List<(String, String)> proveNamingDetectorsWork() {
         'class LooseSettings\n  LooseSettings({this.a = 1})\n  final int a\n\n'
         'final class GoodSettings\n'
         '  GoodSettings copyWith({LinearColor? tint, bool clearTint = false})\n'
-        '  const GoodSettings({this.tint})\n  final LinearColor? tint\n\n'
+        '  bool operator ==(Object other)\n'
+        '  const GoodSettings({this.tint})\n  final LinearColor? tint\n'
+        '  int get hashCode\n\n'
+        'final class ViewportRect\n'
+        '  const ViewportRect(this.x, this.y)\n  final double x\n'
+        '  final double y\n\n'
         'final class AiTuning\n\nfinal class BufferDescriptor\n',
     'p',
   ).map((NamingProblem p) => '${p.subject}: ${p.what}').toList();
@@ -2082,8 +2345,11 @@ List<(String, String)> proveNamingDetectorsWork() {
         says('LooseSettings', 'no `const`') &&
         says('LooseSettings', 'no `copyWith`') &&
         says('AiTuning', 'suffix') &&
-        says('BufferDescriptor', 'outside the HAL'),
-    'a copyWith missing fields, a loose class, a Tuning, a Descriptor outside the HAL',
+        says('BufferDescriptor', 'outside the HAL') &&
+        says('FogSettings', '`==` and `hashCode`') &&
+        says('ViewportRect', '`==` and `hashCode`'),
+    'a copyWith missing fields, a loose class, a Tuning, a Descriptor outside '
+        'the HAL, a settings class and a rectangle without equality',
   );
   quiet(
     'settings',
@@ -2339,7 +2605,14 @@ List<(String, String)> proveNamingDetectorsWork() {
     '  static RenderAnchor named(String name)\n'
     '  static const RenderAnchor opaque = RenderAnchor._(\'opaque\')\n'
     '  static const RenderAnchor post = RenderAnchor._(\'post\')\n'
-    '  static const List<RenderAnchor> values = <RenderAnchor>[]\n',
+    '  static const List<RenderAnchor> values = <RenderAnchor>[]\n\n'
+    'final class LinearColor\n'
+    '  static const LinearColor black = LinearColor(0, 0, 0)\n'
+    '  static const LinearColor white = LinearColor(1, 1, 1)\n'
+    '  final double r\n\n'
+    'final class Dimension\n'
+    "  static const Dimension length = Dimension(<String, int>{'m': 1})\n"
+    "  static const Dimension mass = Dimension(<String, int>{'kg': 1})\n",
   ).map((NamingProblem p) => p.subject).toSet();
   fires(
     'open set shape',
@@ -2350,8 +2623,9 @@ List<(String, String)> proveNamingDetectorsWork() {
   quiet(
     'open set shape',
     sets.length == 2,
-    '`DeviceFeature`, and a class with one constant',
-    'the first is the shape, and one preset is not a set',
+    '`DeviceFeature`, a class with one constant, and a colour with presets',
+    'the first is the shape, one preset is not a set, and a value type with '
+        'no name has nothing to look up',
   );
 
   // Units in docs.
@@ -2373,6 +2647,140 @@ List<(String, String)> proveNamingDetectorsWork() {
         undocumented.length == 2,
     'metres and seconds named, and a private field',
     'a doc that names its unit is what the rule asks for',
+  );
+
+  // Public late finals.
+  final lates = publicLateFinalsIn(
+    '  late final PluginManager plugins;\n'
+    '  late final Map<String, int> table;\n'
+    '  late final _device;\n'
+    '  late final int counted = 3;\n'
+    '  late final GraphicsDevice _device2;\n'
+    '  static late final Clock clock;\n'
+    'final class _Decoder {\n  late final int raw;\n}\n',
+  );
+  fires(
+    'public late finals',
+    lates.contains('plugins') &&
+        lates.contains('table') &&
+        lates.contains('clock'),
+    'a field, a generic field and a static, none initialised',
+  );
+  quiet(
+    'public late finals',
+    lates.length == 3,
+    'a private late final, one with an initialiser and a private class\'s',
+    'neither has a public setter',
+  );
+
+  // The time vocabulary.
+  final times = timeVocabularyIn(
+    '${lib}final class Racer\n'
+    '  void tick(double dt)\n'
+    '  final double lapTime\n'
+    '  double get elapsed\n'
+    '  void hold({double delay = 0.0, double dt = 0.0})\n'
+    '  void step(double dt)\n'
+    '  final double lapSeconds\n'
+    '  final Duration fade\n'
+    '  final double threshold\n'
+    '  void play(double time)\n',
+  ).map((NamingProblem p) => p.subject).toSet();
+  fires(
+    'time vocabulary',
+    times.containsAll(<String>{
+      'Racer.tick',
+      'Racer.lapTime',
+      'Racer.elapsed',
+      'Racer.hold(delay)',
+    }),
+    'a tick, a double time field, a getter and a named parameter',
+  );
+  quiet(
+    'time vocabulary',
+    times.length == 4,
+    '`step(dt)`, a field in seconds, a Duration, a threshold and a '
+        'positional time',
+    'the first three say their clock or unit, a threshold is no time, and '
+        'a positional name is not API',
+  );
+
+  // Singletons.
+  final singletons = singletonsIn(
+    '${lib}final class Gamepad\n  static Gamepad get instance\n\n'
+    'final class HotSwap\n  static final HotSwap instance\n\n'
+    'final class Pool\n  static Pool get shared\n  final int instance\n',
+  ).toSet();
+  fires(
+    'singletons',
+    singletons.containsAll(<String>{'Gamepad.instance', 'HotSwap.instance'}),
+    'a static getter and a static field named instance',
+  );
+  quiet(
+    'singletons',
+    singletons.length == 2,
+    'a static under another name and an instance field called instance',
+    'the rule is about the one spelling a singleton has here',
+  );
+
+  // Backend ids.
+  final backends = backendIdProblemsIn(
+    '${lib}final class CpuDevice\n  String get backendId\n'
+    '  String get backendName\n\n'
+    'final class WebGlDevice\n  BackendId get backendId\n',
+  ).map((NamingProblem p) => p.subject).toSet();
+  fires(
+    'backend ids',
+    backends.contains('CpuDevice.backendId'),
+    'a device whose id is a String',
+  );
+  quiet(
+    'backend ids',
+    backends.length == 1,
+    'a BackendId and a display name',
+    'the first is the type, and a name shown to a person is free text',
+  );
+
+  // Value equality.
+  final equalityGaps = equalityGapsIn(
+    'final class FogSettings {\n'
+    '  const FogSettings({this.density = 0.1, this.near = 1.0});\n'
+    '  final double density;\n'
+    '  final double near;\n'
+    '  static const double far = 10.0;\n'
+    '  @override\n'
+    '  bool operator ==(Object other) =>\n'
+    '      other is FogSettings && other.density == density;\n'
+    '  @override\n'
+    '  int get hashCode => Object.hash(density, near);\n'
+    '}\n'
+    'final class ViewportRect {\n'
+    '  const ViewportRect(this.x, this.y);\n'
+    '  final double x;\n'
+    '  final double y;\n'
+    '  @override\n'
+    '  bool operator ==(Object other) {\n'
+    '    return other is ViewportRect && other.x == x && other.y == y;\n'
+    '  }\n'
+    '  @override\n'
+    '  int get hashCode => Object.hash(x, y);\n'
+    '}\n',
+  );
+  fires(
+    'value equality',
+    equalityGaps.length == 1 &&
+        equalityGaps.single.type == 'FogSettings' &&
+        equalityGaps.single.member == '==' &&
+        equalityGaps.single.fields.join() == 'near',
+    'an `==` that forgets a field its hashCode has',
+  );
+  quiet(
+    'value equality',
+    !equalityGaps.any(
+      (g) => g.type == 'ViewportRect' || g.fields.contains('far'),
+    ),
+    'a block-bodied `==` over every field, and a static constant',
+    'a static is not an instance field',
   );
   return broken;
 }

@@ -2002,6 +2002,12 @@ final RegExp deprecationVersions = RegExp(
 
 /// What is wrong with a deprecation [message] in a package now at
 /// [current], or null when nothing is.
+///
+/// **A deprecation starts strictly after a major's first release.** X.0.0
+/// (and its pre-releases) is where the major's API is set; a name it ships
+/// already deprecated is one that should have gone before it, as a break
+/// the major is there to carry. So `Deprecated in 1.0.0` is refused, and the
+/// first version a 1.x name can be deprecated in is 1.1.0.
 String? deprecationProblem(String message, Version current) {
   final m = deprecationVersions.firstMatch(message.trim());
   if (m == null) {
@@ -2012,6 +2018,11 @@ String? deprecationProblem(String message, Version current) {
   }
   final since = parseVersion(m.group(1)!)!;
   final removed = parseVersion(m.group(2)!)!;
+  if (since.major > 0 && since.minor == 0 && since.patch == 0) {
+    return 'is deprecated in ${m.group(1)}, the release that first sets the '
+        '${since.major}.x API: a name not wanted in it is removed before it '
+        'ships, and a deprecation starts at ${since.major}.1.0 at the earliest';
+  }
   if (removed.minor != 0 || removed.patch != 0) {
     return 'is removed in ${m.group(2)}, which is not a major release';
   }
@@ -2588,7 +2599,7 @@ List<(String, String)> proveApiDetectorsWork() {
 
   // Deprecations.
   const v090 = (major: 0, minor: 9, patch: 0);
-  const good = 'Use g(). Deprecated in 1.0.0, removed in 2.0.0.';
+  const good = 'Use g(). Deprecated in 1.1.0, removed in 2.0.0.';
   if (deprecationProblem(good, v090) != null) {
     broken.add(('deprecation message', 'refused "$good"'));
   }
@@ -2597,6 +2608,8 @@ List<(String, String)> proveApiDetectorsWork() {
     'Deprecated in 1.0.0, removed in 2.0.0.',
     'Use g(). Deprecated in 1.0.0, removed in 1.5.0.',
     'Use g(). Deprecated in 1.0.0, removed in 1.0.0.',
+    // Inside the release that sets the 1.x API (item 79).
+    'Use g(). Deprecated in 1.0.0, removed in 2.0.0.',
   ]) {
     if (deprecationProblem(bad, v090) == null) {
       broken.add(('deprecation message', 'accepted "$bad"'));
@@ -2610,7 +2623,7 @@ List<(String, String)> proveApiDetectorsWork() {
     'class Ab {\n'
     '  @Deprecated(\n'
     "    'Use g(). '\n"
-    "    'Deprecated in 1.0.0, removed in 2.0.0.',\n"
+    "    'Deprecated in 1.1.0, removed in 2.0.0.',\n"
     '  )\n'
     '  void f() {}\n'
     '  @deprecated\n'

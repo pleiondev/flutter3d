@@ -59,7 +59,7 @@ number should be.
 
 ## Architecture is checked by scans, not by review
 
-`dart run tool/structure.dart` holds 139 rules about how the repository is
+`dart run tool/structure.dart` holds 144 rules about how the repository is
 arranged — that a genre package names no other genre, that the hardware layer
 names no graphics API, that the engine names no backend, that a simulation step
 reaches for no clock and no loose dice. It runs first in CI and takes under a
@@ -328,6 +328,9 @@ The replacement is a sentence beginning `Use ` (or `No replacement`, with
 why); the last sentence is `Deprecated in X.Y.Z, removed in N.0.0.`, where
 the removal is a major after the deprecation. A bare `@deprecated` says none
 of it and fails, and so does one still here at or past its removal version.
+So does one deprecated in an X.0.0 (or a pre-release of it): that release
+sets the major's API, and a name it does not want is removed before it
+rather than shipped deprecated. The first 1.x deprecation is in 1.1.0.
 
 ### The hardware interface
 

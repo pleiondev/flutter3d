@@ -565,10 +565,39 @@ List<Rule> get allRules => <Rule>[
     ),
   ),
   (
-    name: 'a settings class is final, const, and copies every field',
+    name:
+        'a settings class is final, const, compared by value, and copies every field',
     run: () => _namingRule(settingsProblemsIn, settingsAllowed),
   ),
   (name: 'every public number says its unit in its doc', run: _unitsDocumented),
+  (
+    name: 'a settings class compares every field it holds',
+    run: _settingsCompareEveryField,
+  ),
+  (
+    name: 'no public field is a late final without an initialiser',
+    run: _noPublicLateFinals,
+  ),
+  (
+    name:
+        'time is stepped, updated or advanced, and a double time says '
+        'seconds',
+    run: () => _namingRule(
+      (String snapshot, String package) => timeVocabularyIn(snapshot),
+      timeNameAllowed,
+    ),
+  ),
+  (
+    name: 'a singleton is process-wide, named, and says so',
+    run: _singletonsNamed,
+  ),
+  (
+    name: 'a device names its backend with a BackendId',
+    run: () => _namingRule(
+      (String snapshot, String package) => backendIdProblemsIn(snapshot),
+      const <String, String>{},
+    ),
+  ),
   (
     name: 'a render name carries its namespace, f3d. for the engine',
     run: _renderNamesNamespaced,
@@ -1266,8 +1295,13 @@ List<Finding> _flatDartNamesNoFlutter() {
   // `package:flutter/`, `dart:ui` and `flutter_test` together, for the reason
   // `hardwareMayUseFlutter` gives about the first two: widgets re-export half
   // of `dart:ui`, so naming one without the other is a rule with a door in it.
+  // A directive, or a conditional import's `if (…)` arm: `flutter3d_lints`
+  // holds Flutter's library URIs as data (the libraries that export
+  // `widgets.dart`'s `Matrix4`), and a string it compares is no import.
   final forbidden = RegExp(
+    r"^\s*(?:import|export|part|if\s*\([^)]*\))\s*"
     r"'(package:flutter/|package:flutter_test/|dart:ui)",
+    multiLine: true,
   );
 
   final found = <Finding>[];
@@ -8799,6 +8833,122 @@ List<Finding> _unitsDocumented() {
   return found;
 }
 
+/// Every `…Settings` and `…Rect` class in a published package's `lib/`
+/// names each of its instance fields in its `==` and in its `hashCode`
+/// (item 70).
+///
+/// **The snapshot shows that `==` is there, not what it compares.** A field
+/// added to a settings class and forgotten in `==` makes two different
+/// settings equal, and a widget that compares them in `didUpdateWidget`
+/// keeps the old frame. This reads the source, where the bodies are.
+///
+/// Mutation: drop `other.bloom == bloom &&` from `RenderSettings.==`, and
+/// this names `RenderSettings` and `bloom`.
+List<Finding> _settingsCompareEveryField() {
+  final found = <Finding>[];
+  for (final MapEntry(key: package, value: dir) in _publishedPackages.entries) {
+    final lib = Directory('${dir.path}/lib');
+    if (!lib.existsSync()) continue;
+    for (final file in dartFilesIn(lib)) {
+      for (final gap in equalityGapsIn(file.readAsStringSync())) {
+        found.add(
+          Finding(
+            '$package/${relative(file, dir)}',
+            '`${gap.type}` leaves ${gap.fields.map((String f) => '`$f`').join(', ')} '
+                'out of its `${gap.member}`: a value compares every field '
+                'it holds',
+          ),
+        );
+      }
+    }
+  }
+  return found;
+}
+
+/// No published package has a public `late final` field or top-level
+/// variable without an initialiser (item 71): it is a setter that works
+/// once and throws after.
+///
+/// Mutation: make `EngineLoop`'s `_plugins` public again as
+/// `late final PluginManager plugins;`, and this names the file.
+List<Finding> _noPublicLateFinals() {
+  final found = <Finding>[];
+  for (final MapEntry(key: package, value: dir) in _publishedPackages.entries) {
+    final lib = Directory('${dir.path}/lib');
+    if (!lib.existsSync()) continue;
+    for (final file in dartFilesIn(lib)) {
+      for (final name in publicLateFinalsIn(file.readAsStringSync())) {
+        found.add(
+          Finding(
+            '$package/${relative(file, dir)}',
+            '`$name` is a public `late final` with no initialiser, so a '
+                'caller can assign it once and fails the second time: a '
+                'private `late final _$name` with a getter',
+          ),
+        );
+      }
+    }
+  }
+  return found;
+}
+
+/// Every process-wide singleton of a published package (`static … instance`)
+/// is named in `processWideSingletons` with why the engine cannot hold it,
+/// and its doc says "process-wide" (item 82).
+///
+/// Mutation: add a `static Foo get instance` to any published class, or
+/// take "process-wide" out of `HotSwap.instance`'s doc, and this names it.
+List<Finding> _singletonsNamed() {
+  final found = _namingRule(
+    (String snapshot, String package) => <NamingProblem>[
+      for (final s in singletonsIn(snapshot))
+        (
+          subject: s,
+          what:
+              'is a process-wide singleton nobody named: hand the engine a '
+              'reference it can replace, or name it in '
+              '`processWideSingletons` with why',
+        ),
+    ],
+    processWideSingletons,
+  );
+  for (final subject in processWideSingletons.keys) {
+    final type = subject.split('.').first;
+    var documented = false;
+    for (final dir in _publishedPackages.values) {
+      final lib = Directory('${dir.path}/lib');
+      if (!lib.existsSync()) continue;
+      for (final file in dartFilesIn(lib)) {
+        final source = file.readAsStringSync();
+        if (!RegExp('class $type\\b').hasMatch(source)) continue;
+        final lines = source.split('\n');
+        for (var i = 0; i < lines.length; i++) {
+          if (!RegExp(r'^\s+static\s.*\binstance\b').hasMatch(lines[i])) {
+            continue;
+          }
+          final doc = StringBuffer();
+          for (var j = i - 1; j >= 0; j--) {
+            final t = lines[j].trimLeft();
+            if (!t.startsWith('///') && !t.startsWith('@')) break;
+            doc.write(' $t');
+          }
+          if (doc.toString().contains('process-wide')) documented = true;
+        }
+      }
+    }
+    if (!documented) {
+      found.add(
+        Finding(
+          'tool/structure/repository.dart',
+          '`$subject` is named process-wide here and its doc does not say '
+              '"process-wide": a caller should read it where they meet it',
+        ),
+      );
+    }
+  }
+  return found;
+}
+
 // ------------------------------------------------------------------ layers
 
 /// Every package depends at run time only on packages in the layers below
@@ -9171,7 +9321,7 @@ List<Finding> _pluginContract() {
   final reexported = <String>{
     for (final block in library.exports.values)
       if (RegExp(r' show (.*)$').firstMatch(block.header) case final match?)
-        ...match.group(1)!.split(',').map((String n) => n.trim()),
+        ...?match.group(1)?.split(',').map((String n) => n.trim()),
   };
   final found = <Finding>[
     for (final name in unreachableContractTypes(

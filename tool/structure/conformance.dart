@@ -230,7 +230,7 @@ List<String> outputCheckProblemsIn({
     for (final (:dartName, :wireName) in features)
       ...switch ((outputChecks[wireName], unmeasured[wireName])) {
         (null, null) => <String>[unchecked(wireName)],
-        (final String _, final String _) => <String>[twice(wireName)],
+        (String _, String _) => <String>[twice(wireName)],
         (null, final String why) => <String>[
           if (why.trim().length < 20) unreasoned(wireName),
         ],

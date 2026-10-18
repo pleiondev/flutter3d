@@ -83,6 +83,10 @@ const int manualCeiling = 308;
 /// `manual` entries past [manualCeiling], each with why no kind carries it
 /// out. Entry id to reason. Empty: the ceiling holds the whole count.
 const Map<String, String> manualAllowlist = <String, String>{
+  'hardware-GraphicsDevice-backendId':
+      'an override\'s return type, `String` to `BackendId`, in an outside '
+      'backend: no kind rewrites a declaration\'s type, and the string it '
+      'returns is the backend\'s own name, which only its author knows',
   'cpu-CpuDevice-new-standInForGpu':
       'a device made to stand in for a GPU is made by another function, '
       '`cpuComputeDeviceStandingInForGpu` in `testing.dart`, and which one '
@@ -1301,6 +1305,9 @@ entries:
       ));
     }
   }
+  // The same call twice on purpose: a stamp read from anything but the text
+  // (a clock, a counter) would differ between them.
+  // ignore: avoid-self-compare
   if (tableStamp('a') == tableStamp('b') || tableStamp('') != tableStamp('')) {
     broken.add(('table stamp', 'is not a function of the text alone'));
   }
