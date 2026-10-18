@@ -8,6 +8,9 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `backend-webgpu` page: the lit ball drawn through WebGPU. Its check
+/// fails if the device offers fewer colour attachments than the page says a
+/// modern backend does.
 final class BackendWebgpuDemo extends ShowcaseDemo {
   late final GraphicsDevice _device;
 

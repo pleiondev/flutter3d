@@ -19,6 +19,7 @@ typedef DemoBuilder = ShowcaseDemo Function();
 
 /// What a demo is given to build itself with.
 final class DemoContext {
+  /// A context holding what `DemoRun.start` made for one visit to a page.
   const DemoContext({
     required this.device,
     required this.renderer,
@@ -28,16 +29,27 @@ final class DemoContext {
     required this.caps,
   });
 
+  /// The app's one device, lent to the page: what a page uploads meshes and
+  /// textures to. The page does not dispose of it.
   final GraphicsDevice device;
+
+  /// The renderer made for this visit, on [device]; `DemoRun.dispose` disposes
+  /// of it when the page is left.
   final Renderer renderer;
 
   /// The camera the viewport draws through. The host adds it to the scene.
   final CameraNode camera;
+
+  /// The view of [camera] the viewport draws, cleared to a near-black. What
+  /// [ShowcaseDemo.views] returns unless a page draws several.
   final CameraView view;
 
   /// Turns [camera] as the pointer drags. A demo that wants a different start
   /// sets it in [ShowcaseDemo.configureView].
   final OrbitController orbit;
+
+  /// What this device can do, for a page that offers a control only where it
+  /// works or says in its scene what it cannot show.
   final CapabilityReport caps;
 }
 
@@ -46,12 +58,18 @@ final class DemoContext {
 /// Descriptors and not widgets: the page says what can be changed and the host
 /// draws it the same way on every page, so the panel looks like one panel.
 sealed class DemoControl {
+  /// A control labelled [label].
   const DemoControl(this.label);
 
+  /// What the panel prints beside the control, in sentence case.
   final String label;
 }
 
+/// A slider over a number between [min] and [max].
 final class SliderControl extends DemoControl {
+  /// A slider labelled [label] over [min] to [max], reading [value] and
+  /// writing [onChanged]; continuous unless [divisions] is given, and printed
+  /// with two decimals unless [format] says otherwise.
   const SliderControl(
     super.label, {
     required this.min,
@@ -62,26 +80,49 @@ final class SliderControl extends DemoControl {
     this.format,
   });
 
+  /// The left end of the slider, in the unit of the value it drives.
   final double min;
+
+  /// The right end of the slider. A [value] outside [min] to [max] is drawn
+  /// clamped to them.
   final double max;
+
+  /// How many steps the slider snaps to between [min] and [max], or null for a
+  /// continuous one.
   final int? divisions;
+
+  /// Reads the value from the demo each time the panel is built.
   final double Function() value;
+
+  /// Writes a new value into the demo as the slider is dragged; the demo reads
+  /// it on the next frame.
   final void Function(double value) onChanged;
+
+  /// How the value is printed beside the label, with its unit; null prints it
+  /// with two decimals.
   final String Function(double value)? format;
 }
 
+/// A switch for something that is on or off.
 final class ToggleControl extends DemoControl {
+  /// A switch labelled [label], reading [value] and writing [onChanged].
   const ToggleControl(
     super.label, {
     required this.value,
     required this.onChanged,
   });
 
+  /// Reads whether the switch is on from the demo each time the panel is built.
   final bool Function() value;
+
+  /// Writes the new state into the demo when the switch is flipped.
   final void Function(bool value) onChanged;
 }
 
+/// A choice of one of several named options, drawn as a row of chips.
 final class ChoiceControl extends DemoControl {
+  /// A choice labelled [label] among [options], reading the chosen one from
+  /// [index] and writing it with [onChanged].
   const ChoiceControl(
     super.label, {
     required this.options,
@@ -89,13 +130,21 @@ final class ChoiceControl extends DemoControl {
     required this.onChanged,
   });
 
+  /// The name of each option, in the order their indices count.
   final List<String> options;
+
+  /// Reads the index into [options] of the chosen one from the demo each time
+  /// the panel is built.
   final int Function() index;
+
+  /// Writes the index of the option picked into the demo.
   final void Function(int index) onChanged;
 }
 
 /// A page that draws a scene.
 abstract class ShowcaseDemo {
+  /// A demo holds nothing until [build]; a page's fields are its controls'
+  /// values.
   const ShowcaseDemo();
 
   /// Where the camera starts, if not at the default distance and angle.
@@ -124,6 +173,9 @@ abstract class ShowcaseDemo {
   /// setting only has to change a field.
   RenderSettings settings(DemoContext context) => const RenderSettings();
 
+  /// The sliders, switches and choices in the panel beside the viewport, asked
+  /// for each time the panel is built. None by default, and then no panel is
+  /// drawn.
   List<DemoControl> controls(DemoContext context) => const <DemoControl>[];
 
   /// A body of the page's own instead of the viewport, for a capability that

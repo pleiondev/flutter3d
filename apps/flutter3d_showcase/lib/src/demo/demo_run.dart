@@ -11,6 +11,8 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/capability_report.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// One visit to a page, started: the demo, the context it was given and the
+/// scene it built, ready to be stepped and drawn.
 final class DemoRun {
   DemoRun._(this.demo, this.context, this.scene);
 
@@ -52,10 +54,17 @@ final class DemoRun {
     return DemoRun._(demo, context, scene);
   }
 
+  /// The page being shown.
   final ShowcaseDemo demo;
+
+  /// What [demo] was given to build itself with; the same context is handed to
+  /// every call on it for the whole visit.
   final DemoContext context;
+
+  /// The scene [demo] built, with the context's camera added to it.
   final Scene scene;
 
+  /// Steps the page by [dt] seconds, before the next [render].
   void update(double dt) => demo.update(context, dt);
 
   /// One frame at [width] by [height] pixels.

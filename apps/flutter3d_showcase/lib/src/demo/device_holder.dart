@@ -11,7 +11,11 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 
+/// Opens the app's device on first use and lends the same one to every page
+/// after.
 final class DeviceHolder {
+  /// A holder that opens a 1280 by 720 device through `openDevice`, or calls
+  /// [open] instead, for a test that brings its own device.
   DeviceHolder({Future<GraphicsDevice> Function()? open})
     : _open = open ?? (() => openDevice(width: 1280, height: 720));
 
@@ -26,10 +30,14 @@ final class DeviceHolder {
 
 /// Makes the [DeviceHolder] reachable from any page.
 final class DeviceScope extends InheritedWidget {
+  /// A scope lending [holder] to everything under [child].
   const DeviceScope({super.key, required this.holder, required super.child});
 
+  /// The holder every page under this scope borrows its device from.
   final DeviceHolder holder;
 
+  /// The holder of the nearest [DeviceScope] above [context]. Asserts there is
+  /// one; the app puts it above every page.
   static DeviceHolder of(BuildContext context) {
     final DeviceScope? scope = context
         .getInheritedWidgetOfExactType<DeviceScope>();

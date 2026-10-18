@@ -13,24 +13,35 @@ import 'package:flutter3d_showcase/src/catalog/feature.dart';
 /// A page's source and its guide, and the source of any other page the guide
 /// quotes from.
 final class Guide {
+  /// A guide with its page's source and the sources it quotes from other
+  /// pages; [loadGuide] is how the app makes one.
   const Guide({
     required this.markdown,
     required this.pageSource,
     required this.others,
   });
 
+  /// The guide's Markdown as written, its `{{code …}}` lines not yet expanded.
   final String markdown;
+
+  /// The source of the page the guide belongs to, region markers and all.
   final String pageSource;
 
   /// The source of every other page the guide points into, by id.
   final Map<String, String> others;
 
+  /// The source of page [id], for a `{{code id#region}}` line. Throws a
+  /// [StateError] for a page [loadGuide] did not read, which is a guide
+  /// quoting a page it never named.
   String sourceOf(String id) =>
       others[id] ?? (throw StateError('the guide never loaded "$id"'));
 }
 
 final RegExp _otherPage = RegExp(r'\{\{\s*code\s+([a-z0-9-]+)#');
 
+/// Reads [feature]'s guide and page source from [bundle], and the source of
+/// every other page the guide quotes. Throws a [StateError] when the guide
+/// names a page the catalog does not have.
 Future<Guide> loadGuide(AssetBundle bundle, Feature feature) async {
   final String markdown = await bundle.loadString(feature.tutorialFile);
   final Map<String, String> others = <String, String>{};

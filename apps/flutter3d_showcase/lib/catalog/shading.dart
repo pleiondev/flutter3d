@@ -7,6 +7,8 @@ library;
 
 import 'package:flutter3d_showcase/src/catalog/feature.dart';
 
+/// The `shading` category's pages, materials, lights and how a surface takes light, in the order the tree
+/// lists them; `kCatalog` joins this list with the other twelve.
 const List<Feature> shadingFeatures = <Feature>[
   Feature(
     id: 'lighting-models',

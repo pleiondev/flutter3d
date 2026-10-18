@@ -7,6 +7,8 @@ library;
 
 import 'package:flutter3d_showcase/src/catalog/feature.dart';
 
+/// The `flame` category's pages, a Flame game and a flutter3d scene in one widget tree, in the order the tree
+/// lists them; `kCatalog` joins this list with the other twelve.
 const List<Feature> flameFeatures = <Feature>[
   Feature(
     id: 'flame-overview',

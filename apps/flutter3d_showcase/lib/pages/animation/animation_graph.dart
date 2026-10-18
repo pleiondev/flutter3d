@@ -14,6 +14,9 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `animation-graph` page: `RobotExpressive.glb` walking a circle of radius
+/// 3 m, driven by one `AnimationGraph`. Its check follows the graph from idle
+/// into the move state and through the crossfade between them.
 final class AnimationGraphDemo extends ShowcaseDemo {
   late final ModelAsset _asset;
   late final ModelInstance _model;
@@ -25,10 +28,23 @@ final class AnimationGraphDemo extends ShowcaseDemo {
   /// Node indices in the robot's file, found by name.
   late final int _body, _shoulder, _head, _thigh;
 
-  /// The speed the graph is told, m/s, and whether it changes by itself.
+  /// The speed the graph is told, in m/s: it picks the place in the walk-to-run
+  /// blend space. The "Speed" slider writes it, and so does [wandering] while
+  /// it is on.
   double speed = 0.0;
+
+  /// Whether [speed] drifts between standing and running on its own. Dragging
+  /// the speed slider turns it off, and the "Speed changes by itself" switch
+  /// turns it back on.
   bool wandering = true;
+
+  /// Whether the right arm waves: the masked wave layer fades in over 0.3
+  /// seconds when this turns on, and out when it turns off, while the rest of
+  /// the body keeps walking.
   bool waving = false;
+
+  /// Whether the head turns to the camera: the look goal fades in or out over
+  /// 0.3 seconds as this changes.
   bool watching = true;
 
   double _clock = 0.0;
@@ -40,8 +56,12 @@ final class AnimationGraphDemo extends ShowcaseDemo {
   static const double _modelHeight = 4.461221901699901;
   static const double _scale = 1.8 / _modelHeight;
 
-  /// Where the blend space is all walk and all run, m/s.
+  /// The speed at which the blend space is all walk, in m/s; between it and
+  /// [runAt] the two clips are mixed.
   static const double walkAt = 1.5;
+
+  /// The speed at which the blend space is all run, in m/s; past it the run
+  /// clip plays alone.
   static const double runAt = 4.0;
 
   /// The circle the robot walks round, m.

@@ -10,7 +10,13 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `two-bone-ik` page: an arm solved by `TwoBoneIk` towards a target down
+/// and out along one fixed direction. Its check fails if the wrist misses the
+/// target.
 final class TwoBoneIkDemo extends ShowcaseDemo {
+  /// How far out the target sits, as a fraction from 0 to 1 of 80% of the arm's
+  /// full length, so the elbow always has to bend. The "Reach" slider writes
+  /// it.
   double reach = 0.5;
 
   late final AnimationPose _pose;

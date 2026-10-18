@@ -22,9 +22,14 @@ import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/demo_run.dart';
 import 'package:flutter3d_showcase/src/demo/device_holder.dart';
 
+/// The page's Demo tab: starts a fresh demo on the app's device, draws it
+/// every frame, and puts the controls panel beside it.
 class DemoStage extends StatefulWidget {
+  /// A stage running what [build] makes and reporting into [declined].
   const DemoStage({super.key, required this.build, required this.declined});
 
+  /// Makes the demo; called once when the stage starts, so each visit starts
+  /// from a fresh one.
   final DemoBuilder build;
 
   /// What the last frame declined. Set from here, read by the page's chrome.

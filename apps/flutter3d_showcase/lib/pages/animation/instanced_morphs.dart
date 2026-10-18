@@ -10,7 +10,13 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `instanced-morphs` page: six faces in one instanced draw, each given its
+/// own bump weight. Its check fails if every instance ends up with the same
+/// weight.
 final class InstancedMorphsDemo extends ShowcaseDemo {
+  /// The largest bump weight, the one the last face gets; the faces between
+  /// ramp evenly up to it from 0. At 0 all six are flat and alike. The "Spread"
+  /// slider writes it.
   double spread = 1.0;
 
   static const int _count = 6;

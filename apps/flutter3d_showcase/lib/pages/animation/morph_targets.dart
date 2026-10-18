@@ -10,7 +10,12 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `morph-targets` page: a 2 m grid with one morph target that raises a
+/// bump in the middle. Its check fails if the weighted target does not push the
+/// mesh upward.
 final class MorphTargetsDemo extends ShowcaseDemo {
+  /// How much of the bump is added, from 0 (the flat grid) to 1 (the whole 0.9
+  /// m target). The "Weight" slider writes it.
   double weight = 0.7;
 
   MeshNode? _sheet;

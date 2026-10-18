@@ -10,10 +10,14 @@ import 'package:flutter3d_showcase/src/shell/home_view.dart';
 import 'package:flutter3d_showcase/src/shell/nav_tree.dart';
 import 'package:flutter3d_showcase/src/shell/page_screen.dart';
 
+/// The showcase app: the theme, the routes that put an address in the URL,
+/// and the one device every page borrows.
 class ShowcaseApp extends StatefulWidget {
   /// [holder] is for a test that brings a device of its own.
   const ShowcaseApp({super.key, this.holder});
 
+  /// A device holder the test made, or null for the app's own, which opens the
+  /// device on first use.
   final DeviceHolder? holder;
 
   @override
@@ -149,6 +153,7 @@ class _PageBody extends StatelessWidget {
 /// The tree on the left and the page on the right; the tree in a drawer on a
 /// narrow screen.
 class Shell extends StatelessWidget {
+  /// A shell around [body] with [current] marked in the tree.
   const Shell({
     super.key,
     required this.current,
@@ -156,8 +161,14 @@ class Shell extends StatelessWidget {
     required this.body,
   });
 
+  /// Where the app is, which the tree marks.
   final ShowcaseAddress current;
+
+  /// Called with the address a row of the tree asks for; on a narrow screen
+  /// the drawer closes first.
   final ValueChanged<ShowcaseAddress> onOpen;
+
+  /// The page or the home view, beside the tree or under the app bar.
   final Widget body;
 
   @override

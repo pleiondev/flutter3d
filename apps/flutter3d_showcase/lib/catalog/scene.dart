@@ -7,6 +7,8 @@ library;
 
 import 'package:flutter3d_showcase/src/catalog/feature.dart';
 
+/// The `scene` category's pages, what a frame is built from: nodes, meshes, instances, culling and splats, in the order the tree
+/// lists them; `kCatalog` joins this list with the other twelve.
 const List<Feature> sceneFeatures = <Feature>[
   Feature(
     id: 'scene-graph',

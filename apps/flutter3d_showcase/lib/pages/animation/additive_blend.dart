@@ -12,6 +12,9 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `additive-blend` page: one turn clip on three heads, and the nod laid
+/// over two of them every 2.2 seconds. Its check fails unless the middle head
+/// reads as the turn with the nod on top and the right one as the nod alone.
 final class AdditiveBlendDemo extends ShowcaseDemo {
   late final AnimationTrack _turnTrack;
   late final AnimationTrack _nodTrack;
@@ -23,6 +26,9 @@ final class AdditiveBlendDemo extends ShowcaseDemo {
   AnimationLayer? _additiveNod;
   AnimationLayer? _overrideNod;
 
+  /// How fast the three heads turn, as a multiple of the turn clip's own speed:
+  /// 0 stops them, 2 is twice as fast. The "Turn speed" slider writes it, and
+  /// the nod keeps its own pace whatever it is.
   double turnSpeed = 1.0;
   double _sinceNod = 0.0;
 

@@ -14,28 +14,40 @@ library;
 sealed class Inline {
   const Inline(this.text);
 
+  /// The run's text, without the Markdown that marked it.
   final String text;
 }
 
+/// Text with no emphasis.
 final class Plain extends Inline {
+  /// A plain run of [text].
   const Plain(super.text);
 }
 
+/// `**text**`.
 final class Bold extends Inline {
+  /// A bold run of [text].
   const Bold(super.text);
 }
 
+/// `*text*`.
 final class Italic extends Inline {
+  /// An italic run of [text].
   const Italic(super.text);
 }
 
+/// `` `code` ``, set in the code font.
 final class CodeSpan extends Inline {
+  /// A code run of [text].
   const CodeSpan(super.text);
 }
 
+/// `[text](url)`.
 final class Link extends Inline {
+  /// A link reading [text] that opens [url].
   const Link(super.text, this.url);
 
+  /// Where the link goes, as written between the parentheses.
   final String url;
 }
 
@@ -44,47 +56,72 @@ sealed class Block {
   const Block();
 }
 
+/// A `#` to `####` heading.
 final class Heading extends Block {
+  /// A heading of [level] reading [text].
   const Heading(this.level, this.text);
 
+  /// How many `#` it had, from 1 to 4.
   final int level;
+
+  /// The heading's text, as written after the hashes.
   final String text;
 }
 
+/// Consecutive lines of text, joined.
 final class Paragraph extends Block {
+  /// A paragraph made of [inlines].
   const Paragraph(this.inlines);
 
+  /// The paragraph's runs, in order.
   final List<Inline> inlines;
 }
 
+/// A bulleted or numbered list.
 final class ListBlock extends Block {
+  /// A list of [items], numbered when [ordered].
   const ListBlock({required this.ordered, required this.items});
 
+  /// Whether the items were written `1.`, rather than `-` or `*`.
   final bool ordered;
+
+  /// Each item's runs, in order.
   final List<List<Inline>> items;
 }
 
+/// A fenced code block.
 final class CodeBlock extends Block {
+  /// A block of [code] in [language].
   const CodeBlock(this.language, this.code);
 
+  /// The word after the opening fence, or empty when there is none.
   final String language;
+
+  /// The lines between the fences, as written.
   final String code;
 }
 
 /// A `>` block. [kind] is the word in a leading `**Note**` or `**Warning**`,
 /// lower-cased, or `note` when there is none.
 final class Callout extends Block {
+  /// A callout of [kind] made of [inlines].
   const Callout(this.kind, this.inlines);
 
+  /// The word of a leading `**Note**` or `**Warning**`, lower-cased, or
+  /// `note` when the callout has none.
   final String kind;
+
+  /// The callout's runs, in order, the marker taken out.
   final List<Inline> inlines;
 }
 
 /// A `{{demo}}` or `{{shot}}` line: what it becomes depends on where the guide
 /// is being shown.
 final class DirectiveBlock extends Block {
+  /// A directive called [name].
   const DirectiveBlock(this.name);
 
+  /// `demo` or `shot`: which of the two stand-alone directives this is.
   final String name;
 }
 

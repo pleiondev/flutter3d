@@ -10,8 +10,16 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `skeleton-debug` page: the two-joint banner from `skinning` with its
+/// bones drawn by the debug overlay. Its check fails if the overlay draws no
+/// lines.
 final class SkeletonDebugDemo extends ShowcaseDemo {
+  /// Whether the debug overlay draws the skeleton, through
+  /// `DebugDrawSettings.skeletons`. The "Show skeleton" switch writes it.
   bool showSkeleton = true;
+
+  /// How far the tip joint bends, from 0 to 1, where 1 is 1.2 radians about the
+  /// x axis. The "Bend" slider writes it.
   double bend = 0.6;
 
   static const double _depth = 2.4;

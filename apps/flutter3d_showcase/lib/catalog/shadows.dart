@@ -7,6 +7,8 @@ library;
 
 import 'package:flutter3d_showcase/src/catalog/feature.dart';
 
+/// The `shadows` category's pages, each kind of shadow map and the settings that tune it, in the order the tree
+/// lists them; `kCatalog` joins this list with the other twelve.
 const List<Feature> shadowsFeatures = <Feature>[
   Feature(
     id: 'shadow-settings',

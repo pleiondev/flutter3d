@@ -19,6 +19,7 @@ import 'package:flutter3d_showcase/src/demo/demo.dart';
 /// A square map in the top-right corner of the game, [meters] pixels to the
 /// metre, centred on the origin of the plane.
 final class FlameMinimap extends PositionComponent {
+  /// A map [side] pixels square at [meters] pixels to the metre.
   FlameMinimap({this.meters = 24.0, double side = 240.0})
     : world = PositionComponent(
         position: Vector2.all(side / 2),

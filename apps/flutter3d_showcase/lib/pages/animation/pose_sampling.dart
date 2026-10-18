@@ -11,6 +11,9 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `pose-sampling` page: a two-joint pendulum whose swing clip is sampled
+/// into an `AnimationPose` with no player or scene node involved. Its check
+/// fails if the tip never leaves its rest position.
 final class PoseSamplingDemo extends ShowcaseDemo {
   double _time = 0.3;
 

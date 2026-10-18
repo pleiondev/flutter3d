@@ -9,6 +9,9 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `interpolation` page: three cubes on the same bounce keys, through step,
+/// linear and cubic spline. Its check reads all three just after the first key,
+/// where they must already disagree.
 final class InterpolationDemo extends ShowcaseDemo {
   late final AnimationPlayer _player;
   late final MeshNode _stepCube;

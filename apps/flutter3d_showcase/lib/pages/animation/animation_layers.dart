@@ -10,6 +10,9 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `animation-layers` page: a body walking on its base clip, with a wave on
+/// a layer whose mask names only the arm. Its check fails if the mask reaches
+/// past the arm or the base clip stops moving the body.
 final class AnimationLayersDemo extends ShowcaseDemo {
   late final AnimationPlayer _player;
   late final AnimationLayer _wave;

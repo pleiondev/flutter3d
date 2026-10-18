@@ -13,6 +13,10 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `root-motion` page: a walker whose clip stands still, carried up and
+/// down a floor by a controller node that takes the clip's root motion. Its
+/// check fails if the controller does not move forward, or moves further than
+/// one frame of the walk allows.
 final class RootMotionDemo extends ShowcaseDemo {
   late final AnimationPlayer _player;
   late final SceneNode _controller;

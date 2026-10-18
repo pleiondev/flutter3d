@@ -7,6 +7,8 @@ library;
 
 import 'package:flutter3d_showcase/src/catalog/feature.dart';
 
+/// The `physics_particles` category's pages, bodies, joints, cloth and particle systems, in the order the tree
+/// lists them; `kCatalog` joins this list with the other twelve.
 const List<Feature> physicsParticlesFeatures = <Feature>[
   Feature(
     id: 'particle-pool',

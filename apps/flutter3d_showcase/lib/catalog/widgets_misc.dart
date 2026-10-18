@@ -7,6 +7,8 @@ library;
 
 import 'package:flutter3d_showcase/src/catalog/feature.dart';
 
+/// The `widgets_misc` category's pages, the widgets, saves, tooling and whatever fits no other category, in the order the tree
+/// lists them; `kCatalog` joins this list with the other twelve.
 const List<Feature> widgetsMiscFeatures = <Feature>[
   Feature(
     id: 'widget-surface',

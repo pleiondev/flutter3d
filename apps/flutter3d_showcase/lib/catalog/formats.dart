@@ -7,6 +7,8 @@ library;
 
 import 'package:flutter3d_showcase/src/catalog/feature.dart';
 
+/// The `formats` category's pages, the files the engine reads, writes and converts, in the order the tree
+/// lists them; `kCatalog` joins this list with the other twelve.
 const List<Feature> formatsFeatures = <Feature>[
   Feature(
     id: 'gltf-load',

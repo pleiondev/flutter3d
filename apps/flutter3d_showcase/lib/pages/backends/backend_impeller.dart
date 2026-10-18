@@ -8,6 +8,9 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `backend-impeller` page: the lit ball drawn through `flutter_gpu`. Its
+/// check also holds the device to its word on wireframe: declined exactly when
+/// it does not support it.
 final class BackendImpellerDemo extends ShowcaseDemo {
   late final GraphicsDevice _device;
 

@@ -7,6 +7,8 @@ library;
 
 import 'package:flutter3d_showcase/src/catalog/feature.dart';
 
+/// The `animation` category's pages, skinning, morph targets, clips, layers, IK and the graphs that blend them, in the order the tree
+/// lists them; `kCatalog` joins this list with the other twelve.
 const List<Feature> animationFeatures = <Feature>[
   Feature(
     id: 'skinning',

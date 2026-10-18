@@ -19,21 +19,26 @@ const String kRepository = String.fromEnvironment(
   defaultValue: 'https://github.com/pleiondev/flutter3d',
 );
 
-/// Where the guide and the source of [feature] live on the documentation
-/// site, which is the address of the app's own host. Null on a build that is
-/// not served from one.
+/// The showcase's part of the documentation site, where [guideOf] finds a
+/// page's guide. The public site unless `SHOWCASE_DOCS` names another at
+/// build time.
 String kDocsBase = const String.fromEnvironment(
   'SHOWCASE_DOCS',
   defaultValue: 'https://flutter3d.pleion.dev/showcase',
 );
 
+/// [feature]'s page file on the repository's `main` branch.
 Uri githubFileOf(Feature feature) => Uri.parse(
   '$kRepository/blob/main/apps/flutter3d_showcase/${feature.pageFile}',
 );
 
+/// [feature]'s guide on the documentation site, under [kDocsBase].
 Uri guideOf(Feature feature) => Uri.parse('$kDocsBase/learn/${feature.id}/');
 
+/// The page's Source tab: the file with its markers stripped, numbered, with
+/// buttons to copy it and to open it on GitHub.
 class SourceView extends StatelessWidget {
+  /// A view of [source], marking the region [highlight] when one is given.
   const SourceView({
     super.key,
     required this.feature,
@@ -41,6 +46,8 @@ class SourceView extends StatelessWidget {
     this.highlight,
   });
 
+  /// The page whose file this is: its path heads the view and its GitHub
+  /// address is what the button opens.
   final Feature feature;
 
   /// The page file as written, markers included.

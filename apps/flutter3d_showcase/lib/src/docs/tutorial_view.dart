@@ -14,7 +14,11 @@ import 'package:flutter3d_showcase/src/docs/regions.dart';
 import 'package:flutter3d_showcase/src/docs/tutorial.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+/// The page's Step by step tab: the guide, its code filled in from the page,
+/// drawn as headings, paragraphs, lists, code and callouts.
 class TutorialView extends StatelessWidget {
+  /// A view of [markdown], quoting [pageSource], and other pages through
+  /// [sourceOf].
   const TutorialView({
     super.key,
     required this.markdown,

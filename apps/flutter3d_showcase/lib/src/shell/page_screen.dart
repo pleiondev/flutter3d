@@ -20,10 +20,17 @@ import 'package:flutter3d_showcase/src/registry/registry.dart';
 import 'package:flutter3d_showcase/src/shell/chips.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+/// One capability's page: its header and chips, and the Demo, Step by step
+/// and Source tabs.
 class PageScreen extends StatefulWidget {
+  /// A page for [feature] opened at [route].
   const PageScreen({super.key, required this.feature, required this.route});
 
+  /// The capability shown: its title, version, guide and page file.
   final Feature feature;
+
+  /// The address the page was opened at, which picks the tab it starts on and
+  /// the step of the guide.
   final PageAddress route;
 
   @override

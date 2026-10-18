@@ -78,6 +78,9 @@ Scene sceneOf(Iterable<SceneNode> nodes) {
 /// otherwise lying on the floor and growing along +x, which is the one to use
 /// under a camera looking down.
 final class BarGauge {
+  /// A gauge called [name] in [color], its foot at [at], [height] metres long
+  /// at full and [width] metres thick, lying down unless [vertical]. The bar
+  /// takes its length from the first call to [set].
   BarGauge(
     DemoContext context,
     String name,
@@ -103,6 +106,8 @@ final class BarGauge {
 
   /// How long the bar is at 1.
   final double height;
+
+  /// Whether the bar stands up along +y; false lays it on the floor along +x.
   final bool vertical;
   final double _width;
   final MeshNode _bar;
@@ -130,6 +135,8 @@ final class BarGauge {
 
 /// A horizontal rail with a knob on it that slides from -1 to 1.
 final class RailGauge {
+  /// A rail called [name], [length] metres long and centred on [at], with a
+  /// knob in [color] that [set] slides along it.
   RailGauge(
     DemoContext context,
     String name,
@@ -146,6 +153,7 @@ final class RailGauge {
        ),
        _at = at.clone();
 
+  /// The rail's length in metres; the knob travels half of it each way.
   final double length;
   final MeshNode _knob;
   final MeshNode _rail;

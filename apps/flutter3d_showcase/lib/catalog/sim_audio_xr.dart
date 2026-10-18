@@ -7,6 +7,8 @@ library;
 
 import 'package:flutter3d_showcase/src/catalog/feature.dart';
 
+/// The `sim_audio_xr` category's pages, the simulation and its gameplay systems, positional audio and the stereo rig, in the order the tree
+/// lists them; `kCatalog` joins this list with the other twelve.
 const List<Feature> simAudioXrFeatures = <Feature>[
   Feature(
     id: 'fixed-step',

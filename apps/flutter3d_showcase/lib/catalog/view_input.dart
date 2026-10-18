@@ -7,6 +7,8 @@ library;
 
 import 'package:flutter3d_showcase/src/catalog/feature.dart';
 
+/// The `view_input` category's pages, cameras, projections, picking and input, in the order the tree
+/// lists them; `kCatalog` joins this list with the other twelve.
 const List<Feature> viewInputFeatures = <Feature>[
   Feature(
     id: 'projections',

@@ -20,6 +20,8 @@ import 'package:flutter3d_showcase/pages/animation/skinning.dart';
 import 'package:flutter3d_showcase/pages/animation/two_bone_ik.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `animation` category's pages, by the page id in the route, each with the
+/// builder the host calls when the page opens.
 final Map<String, DemoBuilder> animationDemos = <String, DemoBuilder>{
   'skinning': SkinningDemo.new,
   'clip-playback': ClipPlaybackDemo.new,

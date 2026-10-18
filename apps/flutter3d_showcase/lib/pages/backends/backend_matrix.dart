@@ -9,6 +9,9 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/capability_report.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `backend-matrix` page: the lit ball beside a table of the open device's
+/// capabilities. Its check fails if the device answers any of them differently
+/// after a frame.
 final class BackendMatrixDemo extends ShowcaseDemo {
   late final GraphicsDevice _device;
   late final CapabilityReport _atBuild;

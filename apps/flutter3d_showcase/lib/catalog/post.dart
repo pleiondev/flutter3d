@@ -13,6 +13,8 @@ const String _frameNodes =
     'packages/flutter3d_core/lib/src/engine/render/renderer_frame_nodes.dart';
 const String _coreChangelog = 'packages/flutter3d_core/CHANGELOG.md';
 
+/// The `post` category's pages, the passes that run on the finished frame: exposure, bloom, grading, anti-aliasing and the debug views, in the order the tree
+/// lists them; `kCatalog` joins this list with the other twelve.
 const List<Feature> postFeatures = <Feature>[
   Feature(
     id: 'bloom',

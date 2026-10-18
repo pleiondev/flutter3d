@@ -10,7 +10,13 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `fabrik-ik` page: a four-joint chain of 0.7 m bones solved by `FabrikIk`
+/// towards a target down and out along one fixed direction. Its check fails if
+/// the last bead ends outside the solver's tolerance of the target.
 final class FabrikIkDemo extends ShowcaseDemo {
+  /// How far out the target sits, as a fraction from 0 to 1 of 85% of the
+  /// chain's full 2.1 m, so even 1 stays reachable. The "Reach" slider writes
+  /// it.
   double reach = 0.6;
 
   late final AnimationPose _pose;

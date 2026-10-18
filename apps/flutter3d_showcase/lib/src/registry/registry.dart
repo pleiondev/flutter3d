@@ -20,6 +20,9 @@ import 'package:flutter3d_showcase/pages/view_input/registry.dart';
 import 'package:flutter3d_showcase/pages/widgets_misc/registry.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// How to build every page, by page id: each category's own map under
+/// `lib/pages/`, joined. A catalog id with no entry here is a page that
+/// cannot be run, which the tests refuse.
 final Map<String, DemoBuilder> kDemos = <String, DemoBuilder>{
   ...animationDemos,
   ...backendsDemos,

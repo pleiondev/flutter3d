@@ -2,8 +2,7 @@
 ///
 /// **Asked of the device, never of its name.** There is no "backend" value to
 /// switch on, and a badge that said "not on WebGL" would be wrong the day that
-/// backend learns the feature. The `supports*` getters of `GraphicsDevice` say
-/// what is true now, and `FrameResult` says, after a frame, what was asked for
+/// backend learns the feature. The device's `features` say what is true now, and `FrameResult` says, after a frame, what was asked for
 /// and not done. The page reports both and lets the person read the reason.
 library;
 
@@ -12,11 +11,15 @@ import 'package:flutter3d_showcase/src/catalog/feature.dart';
 
 /// The needs a device meets.
 final class CapabilityReport {
+  /// A report that [met] exactly the needs given; [CapabilityReport.of] is how
+  /// the app makes one from its device.
   const CapabilityReport(this.met);
 
   /// A device that meets everything, for a test that is not about a backend.
   const CapabilityReport.all() : met = const <Need>{...Need.values};
 
+  /// What [device] can do, read from its `features`, one [Need] per
+  /// `DeviceFeature` a page can ask for.
   factory CapabilityReport.of(GraphicsDevice device) => CapabilityReport(<Need>{
     if (device.features.has(DeviceFeature.wireframe)) Need.wireframe,
     if (device.features.has(DeviceFeature.cubeTextures)) Need.cubeTextures,
@@ -28,6 +31,8 @@ final class CapabilityReport {
       Need.offscreenMsaa,
   });
 
+  /// The needs this device meets; anything in [Need] that is not here is what
+  /// [missing] and [sentenceFor] report.
   final Set<Need> met;
 
   /// What [needs] asks for that this device lacks.

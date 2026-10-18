@@ -22,6 +22,9 @@ import 'package:flutter3d_showcase/catalog/view_input.dart';
 import 'package:flutter3d_showcase/catalog/widgets_misc.dart';
 import 'package:flutter3d_showcase/src/catalog/feature.dart';
 
+/// Every page, category by category in the order of `Category`, each
+/// category's pages in the order its own file under `lib/catalog/` lists them.
+/// The navigation tree, the search and the site's index all read this list.
 const List<Feature> kCatalog = <Feature>[
   ...shadingFeatures,
   ...environmentFeatures,

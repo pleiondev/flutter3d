@@ -8,14 +8,21 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The "Try it" panel: [controls], drawn in order as sliders, switches and
+/// choice chips.
 class ControlsPanel extends StatelessWidget {
+  /// A panel drawing [controls] that calls [onChanged] after each change.
   const ControlsPanel({
     super.key,
     required this.controls,
     required this.onChanged,
   });
 
+  /// The page's controls, as `ShowcaseDemo.controls` returned them.
   final List<DemoControl> controls;
+
+  /// Called after a control has written its new value into the demo, so the
+  /// stage rebuilds the panel with the values the demo now holds.
   final VoidCallback onChanged;
 
   @override

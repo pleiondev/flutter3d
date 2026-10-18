@@ -10,7 +10,12 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `clip-playback` page: a cube that spins on one clip and crossfades into
+/// a nod on another. Its check catches the crossfade partway through.
 final class ClipPlaybackDemo extends ShowcaseDemo {
+  /// Which wrap mode the player uses, as an index into loop, once and
+  /// ping-pong. The "Wrap" choice writes it and hands the player the mode at
+  /// once.
   int wrapIndex = 0;
 
   late final AnimationPlayer _player;

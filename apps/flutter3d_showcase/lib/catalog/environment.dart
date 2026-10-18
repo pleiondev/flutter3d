@@ -7,6 +7,8 @@ library;
 
 import 'package:flutter3d_showcase/src/catalog/feature.dart';
 
+/// The `environment` category's pages, skies, image-based lighting, fog, probes and the light that bounces, in the order the tree
+/// lists them; `kCatalog` joins this list with the other twelve.
 const List<Feature> environmentFeatures = <Feature>[
   Feature(
     id: 'procedural-sky',

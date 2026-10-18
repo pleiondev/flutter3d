@@ -17,6 +17,9 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `baked-crowd` page: six figures reading their arm's pose out of one
+/// `BakedPoses` table of two clips, 32 frames each, each figure at its own clip
+/// and phase.
 final class BakedCrowdDemo extends ShowcaseDemo {
   double _time = 0.0;
   static const int _framesPerClip = 32;
