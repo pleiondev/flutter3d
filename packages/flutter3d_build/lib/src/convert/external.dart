@@ -11,6 +11,9 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
 
 /// A program found or not, with what installs it.
 final class ExternalTool {
+  /// The tool [name], looked up as [executables] on `PATH` and then at
+  /// [knownLocations], asked its version with `--version` unless told
+  /// otherwise.
   const ExternalTool({
     required this.name,
     required this.executables,
@@ -123,6 +126,7 @@ String? findOnPath(String executable, {Map<String, String>? environment}) {
 
 /// A tool was needed and is not installed.
 final class MissingToolException extends ResourceException {
+  /// The missing tool, with [message] naming it and how to install it.
   const MissingToolException(this.message);
 
   @override
@@ -134,6 +138,7 @@ final class MissingToolException extends ResourceException {
 
 /// A tool ran and refused.
 final class ToolFailedException extends ResourceException {
+  /// The refusal, with [message] saying what the tool answered.
   const ToolFailedException(this.message);
 
   @override

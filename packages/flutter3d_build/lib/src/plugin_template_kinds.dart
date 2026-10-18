@@ -30,6 +30,9 @@ material {{pascal}} {
 }
 ''';
 
+/// A material plugin's `lib/<name>.dart`: the material's source as a
+/// constant, and a view plugin that hands it to `RuntimeShaders` where the
+/// engine compiles at run time.
 const String materialLib = r'''
 /// {{name}}: a material injecting into the engine's standard model.
 ///
@@ -83,6 +86,8 @@ final class {{class}} extends Flutter3dPlugin {
 }
 ''';
 
+/// A material plugin's unit test: the source parses as the standard model,
+/// matches `assets_src/`, and compiles on the fake device.
 const String materialTest = r'''
 /// {{name}}'s material reads as the standard model with its two injection
 /// points, compiles where the engine compiles at run time, and is the file
@@ -137,6 +142,8 @@ void main() {
 }
 ''';
 
+/// A material plugin's `test/conformance_test.dart`: the plugin suite over
+/// a fake-device renderer and its run-time shaders.
 const String materialConformance = r'''
 /// flutter3d_conformance's plugin suite, over a renderer drawn with the
 /// hardware layer's fake device and the run-time shaders the material
@@ -174,6 +181,9 @@ void main() {
 
 // ----------------------------------------------------------------- compute
 
+/// A compute plugin's `lib/<name>.dart`: a compute step whose kernel moves
+/// a 256-value buffer halfway to one each frame, the node that reads it,
+/// and the view plugin that adds both.
 const String computeLib = r'''
 /// {{name}}: a compute step of its own, in the frame.
 ///
@@ -341,6 +351,8 @@ final class {{class}} extends Flutter3dPlugin {
 }
 ''';
 
+/// A compute plugin's unit test: the step is among the renderer's nodes
+/// while the plugin is on and gone once it is disabled.
 const String computeTest = r'''
 /// {{name}}'s step is in the frame while the plugin is on, and gone after.
 library;
@@ -369,6 +381,8 @@ void main() {
 }
 ''';
 
+/// A compute plugin's `test/conformance_test.dart`: the plugin suite, and
+/// the render checks on a 32 by 32 software device.
 const String computeConformance = r'''
 /// flutter3d_conformance's plugin suite, and the render checks on the
 /// software backend: the plugin places a node in the frame, so both are
@@ -411,6 +425,9 @@ void main() {
 
 // ------------------------------------------------------------------- codec
 
+/// A codec plugin's `lib/<name>.dart`: a texture codec for a toy format
+/// (magic `F3DI`, a byte each of width and height, RGBA8 texels), its
+/// encoder, and the plugin that registers it.
 const String codecLib = r'''
 /// {{name}}: an image format of its own, read wherever the engine loads a
 /// texture.
@@ -496,6 +513,8 @@ final class {{class}} extends Flutter3dPlugin {
 }
 ''';
 
+/// A codec plugin's unit test: an encoded file uploads as a texture of its
+/// size, and the codec is gone once the plugin is disabled.
 const String codecTest = r'''
 /// {{name}}'s format is read by the engine's texture loading while the
 /// plugin is on.
@@ -533,6 +552,8 @@ void main() {
 }
 ''';
 
+/// A codec plugin's `test/conformance_test.dart`: the plugin suite with
+/// the engine's decoders, and `render.codec` on the software backend.
 const String codecConformance = r'''
 /// flutter3d_conformance's plugin suite with the engine's decoders, and
 /// the render suite's `render.codec` on the software backend.
@@ -575,6 +596,9 @@ void main() {
 
 // ------------------------------------------------------------------ editor
 
+/// An editor plugin's `lib/<name>.dart`: a command that raises the
+/// selection, with a menu entry, a shortcut, a toolbar button and a tool
+/// mode that run it.
 const String editorLib = r'''
 /// {{name}}: an editor plugin — a command, a menu entry with a key, a
 /// toolbar button and a tool mode.
@@ -688,6 +712,8 @@ final class {{class}} extends Flutter3dPlugin {
 }
 ''';
 
+/// An editor plugin's unit test: its pieces are filed under its namespace,
+/// the menu entry runs the command, and all of it goes with the plugin.
 const String editorTest = r'''
 /// {{name}}'s pieces are the editor's while the plugin is on, under its
 /// namespace, and its menu entry runs its command.
@@ -723,6 +749,8 @@ void main() {
 }
 ''';
 
+/// An editor plugin's `test/conformance_test.dart`: the plugin suite with
+/// an editor's pieces to add to.
 const String editorConformance = r'''
 /// flutter3d_conformance's plugin suite, with an editor's pieces for the
 /// plugin to add to.
@@ -790,6 +818,8 @@ const List<int> dataWasm = <int>[
   0x10, 0x00, 0x0b, 0x0b,
 ];
 
+/// A data plugin's `plugin/<name>.f3dplugin`: the manifest, the `tick`
+/// event, and the Wasm system in the `rules` phase with 10000 fuel a step.
 const String dataPluginDocument = '''
 {
   "format": "f3d.plugin",
@@ -816,6 +846,8 @@ const String dataPluginDocument = '''
 }
 ''';
 
+/// A data plugin's `lib/<name>.dart`: the module's bytes, the system's
+/// declaration, and a plugin that installs the same system from Dart.
 const String dataLib = r'''
 /// {{name}}: a data plugin — a `.f3dplugin` document and the Wasm module it
 /// names — and the same system installed from Dart.
@@ -893,6 +925,8 @@ final class {{class}} extends Flutter3dPlugin {
 }
 ''';
 
+/// A data plugin's unit test: the document loads with its module, and it
+/// and the Dart install both tick three times in 121 steps.
 const String dataTest = r'''
 /// {{name}}'s document loads with the runtime and ticks every sixtieth
 /// step, as the plugin installed from Dart does.
@@ -945,6 +979,8 @@ void main() {
 }
 ''';
 
+/// A data plugin's `test/conformance_test.dart`: the plugin suite alone,
+/// the module's memory carried by the loop's snapshots.
 const String dataConformance = r'''
 /// flutter3d_conformance's plugin suite. The module's memory is in the
 /// loop's snapshots from the plugin's install, so the determinism check

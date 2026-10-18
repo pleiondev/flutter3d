@@ -21,6 +21,7 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
 /// The converter catches it per input and writes [message] into that input's
 /// report, so one unreadable file does not stop a directory.
 final class SourceFormatException extends Flutter3dFormatException {
+  /// An unreadable source, with [message] saying what is wrong with it.
   const SourceFormatException(this.message);
 
   @override
@@ -36,6 +37,7 @@ final class SourceFormatException extends Flutter3dFormatException {
 /// `runConvertCommand` answers it with the usage text and exit code 2, or,
 /// when [isHelp], with the usage on stdout and exit code 0.
 final class ConvertUsageException extends Flutter3dFormatException {
+  /// A wrong command line, with [message] naming the mistake.
   const ConvertUsageException(this.message) : isHelp = false;
 
   /// `-h` or `--help`: not a mistake, but the parse still has no settings to
@@ -57,6 +59,7 @@ final class ConvertUsageException extends Flutter3dFormatException {
 
 /// A migration table (`lib/migrations/<from>_to_<to>.yaml`) that is not one.
 final class MigrationTableException extends Flutter3dFormatException {
+  /// A broken table, with [message] naming the file and what is wrong.
   const MigrationTableException(this.message);
 
   @override

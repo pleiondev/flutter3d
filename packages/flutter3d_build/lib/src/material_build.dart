@@ -46,6 +46,8 @@ import 'uniform_blocks.dart';
 
 /// What one call to [runMaterialBuild] did.
 final class MaterialBuildReport {
+  /// The materials [built] and [skipped], and the [dependencies] the hook
+  /// declares.
   const MaterialBuildReport({
     required this.built,
     required this.skipped,

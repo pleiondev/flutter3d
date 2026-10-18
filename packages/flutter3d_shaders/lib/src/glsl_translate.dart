@@ -34,6 +34,7 @@ typedef GlslSources = Map<String, String>;
 /// because an error naming only a line number is an error in nineteen hundred
 /// lines of identical-looking GLSL.
 final class GlslTranslateException extends Flutter3dFormatException {
+  /// The failure [message], naming the file it happened in.
   const GlslTranslateException(this.message);
 
   @override

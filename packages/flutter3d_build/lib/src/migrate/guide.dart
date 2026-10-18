@@ -10,6 +10,8 @@ import 'table.dart';
 
 /// The markers the generated part sits between in the guide's Markdown.
 const String guideStart = '<!-- migration-table:start -->';
+
+/// The marker that closes the generated part, after [guideStart].
 const String guideEnd = '<!-- migration-table:end -->';
 
 /// How an entry is carried out, in the guide's words.

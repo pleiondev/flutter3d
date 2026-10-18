@@ -33,6 +33,7 @@ import '../flutter3d_shaders.dart' show requiredShaders;
 /// An open set: a minor release may add an engine need, and nothing switches
 /// over the constants.
 final class ShaderStageNeed {
+  /// The need [name], bringing the entry points [stages].
   const ShaderStageNeed(this.name, this.stages);
 
   /// The need's wire name: what a manifest lists and a refusal names.
@@ -139,6 +140,8 @@ final class ShaderStageNeed {
 /// the declaration that would have brought it, when the engine knows one: the
 /// word to add under `shaders:` in `flutter3d_assets.yaml`.
 final class MissingShaderStageException extends ResourceException {
+  /// The refusal for [stage], naming [need], [backend] and [detail] where
+  /// they are known.
   const MissingShaderStageException(
     this.stage, {
     this.need,

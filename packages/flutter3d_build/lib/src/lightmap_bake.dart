@@ -50,6 +50,9 @@ const double _legacyLightUnit = LevelLight.defaultIntensity;
 /// is committed beside the level; [Lightmap], the format it writes, stays in
 /// `flutter3d_sim` beside the level document, where the loader reads it.
 final class LightmapBaker {
+  /// A baker of four texels per metre, two bounces of 64 rays per texel,
+  /// seed 1, indirect light only, and a textured albedo of 0.5 unless
+  /// given. Asserts [bounces] is not negative and [samples] is positive.
   const LightmapBaker({
     this.texelsPerMeter = 4.0,
     this.bounces = 2,
@@ -70,6 +73,8 @@ final class LightmapBaker {
   /// Rays per texel per bounce.
   final int samples;
 
+  /// Mixed with each texel's index to seed that texel's ray directions: the
+  /// same seed bakes the same bytes, another one different noise.
   final int seed;
 
   /// Whether the direct light and its shadows go into the map as well.

@@ -6,9 +6,14 @@ import '../build_exceptions.dart';
 
 /// A constructor value: `Vector3(1, 2, 3)`, `ExtResource("1_ab")`.
 final class GodotCall {
+  /// The call of [name] with [arguments].
   const GodotCall(this.name, this.arguments);
 
+  /// The constructor's name: `Vector3`, `Transform3D`, `ExtResource`.
   final String name;
+
+  /// The values between the parentheses, in order, each read as any other
+  /// value is: a number as a double, a string, a call, a list or a map.
   final List<Object?> arguments;
 
   /// The arguments that are numbers, in order.
@@ -23,13 +28,22 @@ final class GodotCall {
 
 /// A `[section attrs]` and the `key = value` lines under it.
 final class GodotSection {
+  /// The section [kind] with the [attributes] inside its brackets, and no
+  /// properties yet.
   GodotSection(this.kind, this.attributes);
 
   /// `gd_scene`, `ext_resource`, `sub_resource`, `node`, `resource`.
   final String kind;
+
+  /// The `key=value` pairs inside the brackets: `type`, `id`, `name`,
+  /// `parent`, `path`.
   final Map<String, Object?> attributes;
+
+  /// The `key = value` lines under the section header, by key.
   final Map<String, Object?> properties = <String, Object?>{};
 
+  /// Returns the attribute [key] as text: a string as written, a whole
+  /// number without its decimal point; null when it is absent or neither.
   String? text(String key) => switch (attributes[key]) {
     final String s => s,
     final double d => d == d.roundToDouble() ? '${d.toInt()}' : '$d',

@@ -78,6 +78,8 @@ const String gitignoreEntry = '/flutter3d_generated/';
 /// One change [planInit] found `init` would make, or one it refuses to
 /// make without `--force`.
 final class InitStep {
+  /// The change [description] names, done by [apply]; a [blocked] one
+  /// carries no [apply].
   const InitStep({required this.description, this.blocked = false, this.apply});
 
   /// What this step does, or — for a [blocked] step — why it did not.

@@ -12,6 +12,8 @@ import '../build_exceptions.dart';
 final class AttributeRate {
   const AttributeRate._(this.name);
 
+  /// The rate's word, for a message: `point`, `corner`, `face` or
+  /// `constant`.
   final String name;
 
   /// One value per point, shared by every corner on it.
@@ -30,10 +32,18 @@ final class AttributeRate {
 /// One attribute: values, where they sit, and an optional index list into
 /// them (USD's `primvars:st:indices`).
 final class PolygonAttribute<T> {
+  /// The attribute of [values] at [rate], reached through [indices] when
+  /// given.
   const PolygonAttribute(this.values, this.rate, {this.indices});
 
+  /// The distinct values; [at] answers null for a slot beyond them.
   final List<T> values;
+
+  /// Whether a value belongs to a point, a corner, a face or the mesh.
   final AttributeRate rate;
+
+  /// The index into [values] for each slot of [rate]; null when the slots
+  /// index [values] directly.
   final List<int>? indices;
 
   /// The value for [point], corner number [corner] and face [face].
@@ -54,6 +64,8 @@ final class PolygonAttribute<T> {
 /// Polygons over [points]: [counts] corners each, their point numbers in
 /// [indices].
 final class PolygonMesh {
+  /// The mesh of [points] and its polygons, with the attributes the source
+  /// gives; wound counter-clockwise unless [flipWinding].
   const PolygonMesh({
     required this.points,
     required this.counts,
@@ -64,17 +76,31 @@ final class PolygonMesh {
     this.flipWinding = false,
   });
 
+  /// The positions [indices] number, in the mesh's own frame.
   final List<Vector3> points;
+
+  /// How many corners each polygon has, in face order; one under three
+  /// makes no triangle.
   final List<int> counts;
+
+  /// Every polygon's corners as point numbers, face after face.
   final List<int> indices;
+
+  /// The source's normals; null to compute them from the faces.
   final PolygonAttribute<Vector3>? normals;
+
+  /// The texture coordinates; null when the source gives none.
   final PolygonAttribute<Vector2>? uvs;
+
+  /// The vertex colours, RGBA; null when the source gives none.
   final PolygonAttribute<Vector4>? colors;
 
   /// Whether the source winds its front faces clockwise — USD's
   /// `orientation = "leftHanded"`.
   final bool flipWinding;
 
+  /// How many triangles [build] fans the polygons into: corners minus two
+  /// for each polygon of three or more.
   int get triangleCount {
     var total = 0;
     for (final n in counts) {

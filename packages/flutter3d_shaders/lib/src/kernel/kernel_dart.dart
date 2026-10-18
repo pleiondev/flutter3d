@@ -126,10 +126,19 @@ double roundHalfEven(double x) {
 
 /// What one dispatch is handed: a binding's resource by its index.
 final class KernelResources {
+  /// The resources of one dispatch: three lists, each one long per binding.
   KernelResources(this.buffers, this.textures, this.images);
 
+  /// Each binding's buffer, by binding index; null for a binding that is
+  /// not a buffer or was not handed one.
   final List<ByteData?> buffers;
+
+  /// Each binding's texture, by binding index; null for a binding that is
+  /// not a texture or was not handed one.
   final List<KernelTexture?> textures;
+
+  /// Each binding's storage image, by binding index; null for a binding
+  /// that is not an image or was not handed one.
   final List<KernelImage?> images;
 }
 
@@ -156,10 +165,13 @@ typedef _Exec = int Function(_Frame f);
 
 /// [kernel] as something that runs a workgroup.
 final class CompiledKernel {
+  /// Compiles [kernel]'s body into closures once, for every workgroup to
+  /// run.
   CompiledKernel(this.kernel) {
     _body = _block(kernel.body);
   }
 
+  /// The checked tree it was compiled from.
   final KKernel kernel;
   final Map<KLocal, int> _slots = <KLocal, int>{};
   late final _Exec _body;

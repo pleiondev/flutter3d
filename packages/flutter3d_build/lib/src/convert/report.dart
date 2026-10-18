@@ -62,6 +62,7 @@ int exitCodeFor(Iterable<ConvertOutcome> outcomes) {
 /// order is not meaning, so two runs over the same input write the same
 /// bytes.
 final class ConvertReport {
+  /// The report of [input], read as [format], with nothing collected yet.
   ConvertReport(this.input, this.format);
 
   /// The input as it was named on the command line, or found by a glob.

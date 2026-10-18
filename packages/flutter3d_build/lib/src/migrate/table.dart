@@ -20,12 +20,18 @@ const String unchosenRelease = 'unchosen';
 
 /// One entry of a migration table.
 final class MigrationEntry {
+  /// Wraps the keys of one entry, as [MigrationTable.parse] read them.
   MigrationEntry(this.fields);
 
   /// Every key of the entry, as the YAML gave it: strings, lists, maps.
   final Map<String, Object?> fields;
 
+  /// The entry's unique `id:`, never renumbered once written.
   String get id => fields['id']! as String;
+
+  /// The entry's `kind:` (`rename`, `moved`, `parameters`, `rewrite`,
+  /// `import`, `manual`, `none`…), which decides what the other keys mean
+  /// and which tool acts on it.
   String get kind => fields['kind']! as String;
 
   /// The package that declared [symbol] at the release migrated from.
@@ -44,12 +50,32 @@ final class MigrationEntry {
     return dot < 0 ? null : symbol.substring(dot + 1);
   }
 
+  /// The entry's `to:`: a `rename`'s new name, a `moved` or `import`
+  /// entry's new library URI, a `subclassModifier`'s modifier, an
+  /// `argument`'s new name. Null when the entry has none.
   String? get to => fields['to'] as String?;
+
+  /// An `import` entry's old library URI; null for every other kind.
   String? get from => fields['from'] as String?;
+
+  /// A `moved` entry's name in its new library, when it changed there;
+  /// null when it kept its name.
   String? get name => fields['name'] as String?;
+
+  /// The code a `rewrite` or `argument` entry writes, with `{target}`,
+  /// `{0}`, `{value}` and the like for what it substitutes; null when the
+  /// entry has none.
   String? get template => fields['template'] as String?;
+
+  /// The text shown in the guide, the report and a `manual` entry's TODO;
+  /// null when the entry gives none.
   String? get guidance => fields['guidance'] as String?;
+
+  /// A `none` entry's word on why no caller has to act; null otherwise.
   String? get reason => fields['reason'] as String?;
+
+  /// Which piece of the 1.0 work added the entry, a count; null when the
+  /// entry names none. Never shown to a person.
   int? get wave => fields['wave'] as int?;
 
   /// An `internal` entry's word on what stays public in its place.
@@ -112,6 +138,8 @@ final class MigrationEntry {
 
 /// A whole migration table.
 final class MigrationTable {
+  /// Builds a table from its parts; [MigrationTable.parse] reads one from
+  /// its YAML and [merge] folds a chain into one.
   MigrationTable({
     required this.format,
     required this.from,
@@ -291,7 +319,12 @@ final class MigrationTable {
     return at;
   }
 
+  /// The layout version of the file, its `format:`; 1 when the file
+  /// leaves it out.
   final int format;
+
+  /// The release the table starts at: code written against it is what the
+  /// table migrates.
   final String from;
 
   /// The release the table ends at, or [unchosenRelease].
@@ -317,8 +350,16 @@ final class MigrationTable {
   /// Packages not on the engine's number, and what a dependency on each
   /// moves to.
   final Map<String, String> versions;
+
+  /// Packages renamed at this release, old name to new; `migrate` moves a
+  /// dependency and its imports to the new name.
   final Map<String, String> renamedPackages;
+
+  /// Packages gone at this release, each name to the word on what to use
+  /// instead.
   final Map<String, String> removedPackages;
+
+  /// The table's entries, in the order the file lists them.
   final List<MigrationEntry> entries;
 
   /// Whether [package] is one of this repository's: a dependency on it

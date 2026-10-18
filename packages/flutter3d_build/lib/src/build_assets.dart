@@ -30,6 +30,8 @@ import 'user_defines.dart';
 /// What one call to [runAssetBuild] did, for a hook's own log line and for
 /// a test to assert against without parsing stdout.
 final class AssetBuildReport {
+  /// The report of one run: what it [converted], what it [skipped], and the
+  /// [dependencies] it declares.
   const AssetBuildReport({
     required this.converted,
     required this.skipped,

@@ -11,6 +11,9 @@ library;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart'
     show UniformMemberLayout;
 
+/// Stage name to block name to member name to the member's
+/// layout, members in declaration order; impellerc's own
+/// `_PADDING_` members are left out.
 const Map<String, Map<String, Map<String, UniformMemberLayout>>> uniformBlocks =
     <String, Map<String, Map<String, UniformMemberLayout>>>{
       'BlinnPhong': <String, Map<String, UniformMemberLayout>>{

@@ -27,10 +27,13 @@ abstract final class OutputLayout {
 
 /// What a file in the plan would do to the disk.
 final class PlannedWrite {
+  /// The write of [bytes] at [path], for the input [owner].
   const PlannedWrite(this.path, this.bytes, this.owner);
 
   /// Relative to the output directory, `/`-separated.
   final String path;
+
+  /// The file's whole contents, as they will be written.
   final Uint8List bytes;
 
   /// The input that produced it.
@@ -45,6 +48,7 @@ final class PlannedWrite {
 /// and the later file gets a numbered name rather than replacing the first
 /// one silently.
 final class OutputPlan {
+  /// An empty plan for writing under [root].
   OutputPlan(this.root);
 
   /// The output directory.

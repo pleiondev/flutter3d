@@ -20,8 +20,11 @@ sealed class InputValue {
 
 /// A number or a tuple, as authored.
 final class ConstantInput extends InputValue {
+  /// The constant [values].
   const ConstantInput(this.values);
 
+  /// The components as authored: one for a scalar, three for a colour or a
+  /// vector.
   final List<double> values;
 
   /// The first of [values], in whatever unit the input was authored in; 0
@@ -31,6 +34,8 @@ final class ConstantInput extends InputValue {
 
 /// An image, read through one channel or several.
 final class TextureInput extends InputValue {
+  /// The image [name] with its [bytes], read through [channel] (`rgb` by
+  /// default) and repeating on both axes unless told otherwise.
   const TextureInput(
     this.name,
     this.bytes, {
@@ -53,12 +58,17 @@ final class TextureInput extends InputValue {
   /// MaterialX `multiply` by a constant), folded into the factor.
   final List<double>? scale;
 
+  /// How the image is addressed outside nought to one across (U).
   final SamplerAddressMode wrapS;
+
+  /// How the image is addressed outside nought to one down (V).
   final SamplerAddressMode wrapT;
 }
 
 /// An input computed by nodes that are neither a constant nor an image.
 final class GraphInput extends InputValue {
+  /// The input [description] computes, standing in as [fallback] when
+  /// there is one.
   const GraphInput(this.description, {this.fallback});
 
   /// What computes it, for the report.
@@ -93,23 +103,67 @@ final class ShadingVocabulary {
     required this.linearColours,
   });
 
+  /// The shading model's name, for the report: `UsdPreviewSurface` or
+  /// `standard_surface`.
   final String name;
+
+  /// The input holding the base colour, a constant or the base image;
+  /// light grey when it is absent.
   final String baseColor;
+
+  /// The input that scales the base colour; null when the model has none.
   final String? baseWeight;
+
+  /// The input holding metalness, a factor from nought to one.
   final String metallic;
+
+  /// The input holding perceptual roughness, a factor from nought to one.
   final String roughness;
+
+  /// The input holding the emitted colour.
   final String emissive;
+
+  /// The input that scales [emissive]; null when the model has none.
   final String? emissiveWeight;
+
+  /// The input holding opacity: a constant, or the base image's alpha.
   final String opacity;
+
+  /// The input whose value above nought makes the material alpha-masked at
+  /// that cutoff; null when the model has none.
   final String? opacityThreshold;
+
+  /// The input holding the tangent-space normal image.
   final String normal;
+
+  /// The input holding the ambient occlusion image; null when the model
+  /// has none.
   final String? occlusion;
+
+  /// The input holding the index of refraction, a ratio; 1.5 when absent.
   final String ior;
+
+  /// The input holding the clear coat's weight, a factor from nought to
+  /// one.
   final String coat;
+
+  /// The input holding the clear coat's roughness, a factor from nought to
+  /// one.
   final String coatRoughness;
+
+  /// The input holding transmission, a factor from nought to one; null
+  /// when the model has none.
   final String? transmission;
+
+  /// The input holding the sheen's weight, which scales [sheenColor]; null
+  /// when the model has none.
   final String? sheen;
+
+  /// The input holding the sheen's colour; null when the model has none.
   final String? sheenColor;
+
+  /// The input holding the sheen's roughness, 0.3 when absent; null when
+  /// the model has none.
   final String? sheenRoughness;
 
   /// Whether its colours are linear, as both of these are.

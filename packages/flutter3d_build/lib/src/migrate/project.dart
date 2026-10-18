@@ -359,8 +359,14 @@ final class MigrationReport {
   /// Entry id to the uses `flutter3d_lints:migrate` rewrote for it.
   final Map<String, int> rewritten = <String, int>{};
 
+  /// Whether a step [runStep] ran exited non-zero; `migrate` then exits
+  /// with a failure.
   bool failed = false;
 
+  /// The report as `migrate` prints it: the steps, the files changed, the
+  /// rewrites, the dependencies added, the names hidden, and what is left
+  /// to do by hand. [dryRun] words it as what would happen; [table] gives
+  /// the releases and the guide's link.
   String describe({required bool dryRun, required MigrationTable table}) {
     final out = StringBuffer()
       ..writeln(

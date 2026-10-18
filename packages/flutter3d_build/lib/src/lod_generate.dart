@@ -12,6 +12,8 @@ import 'build_exceptions.dart';
 
 /// What one generated level turned out to be, across every node that got one.
 final class LodLevelReport {
+  /// The level asked for at [ratio], aiming at [targetTriangles], reaching
+  /// [triangles] with the deviation [error].
   const LodLevelReport({
     required this.ratio,
     required this.targetTriangles,

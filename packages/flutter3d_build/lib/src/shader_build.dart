@@ -110,6 +110,8 @@ List<MaterialCompiler> _outsideCompilers(MaterialCompilerRegistry? registry) =>
 
 /// What one call to [runShaderBuild] did.
 final class ShaderBuildReport {
+  /// The report of a run; with only [ran] given, it is one that wrote
+  /// nothing.
   const ShaderBuildReport({
     required this.ran,
     this.stages = const <String>[],

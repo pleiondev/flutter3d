@@ -14,8 +14,11 @@ import '../build_exceptions.dart';
 
 /// A path, `</World/Chair>` or `</World/Looks/Red.outputs:surface>`.
 final class UsdPath {
+  /// The path [text], written without its angle brackets.
   const UsdPath(this.text);
 
+  /// The path between the angle brackets: `/World/Chair`, or a property's
+  /// `/World/Looks/Red.outputs:surface`.
   final String text;
 
   @override
@@ -24,8 +27,11 @@ final class UsdPath {
 
 /// An asset path, `@./chair.usda@`.
 final class UsdAsset {
+  /// The asset at [path], naming the prim [target] when given.
   const UsdAsset(this.path, {this.target});
 
+  /// The file between the `@` signs, as written: relative to the layer, or
+  /// absolute.
   final String path;
 
   /// The prim a reference names after the asset, `@chair.usda@</Chair>`.
@@ -37,8 +43,10 @@ final class UsdAsset {
 
 /// A named identifier value: `true`, `None`, a token written bare.
 final class UsdWord {
+  /// The bare identifier [word].
   const UsdWord(this.word);
 
+  /// The identifier as written: `true`, `None`, `leftHanded`.
   final String word;
 
   @override
@@ -47,6 +55,8 @@ final class UsdWord {
 
 /// One property of a prim: an attribute or a relationship.
 final class UsdProperty {
+  /// The property [name] of [typeName], holding [value]; an attribute with
+  /// no metadata unless told otherwise.
   UsdProperty({
     required this.name,
     required this.typeName,
@@ -69,7 +79,12 @@ final class UsdProperty {
   /// `String`, a `List`, a [UsdPath], a [UsdAsset], a [UsdWord] or null.
   final Object? value;
 
+  /// Whether it is a `rel`, whose [value] is the [UsdPath] it targets,
+  /// rather than an attribute.
   final bool isRelationship;
+
+  /// Declared `uniform`: one value for the whole prim, never sampled over
+  /// time.
   final bool uniform;
 
   /// Declared `custom`: not one of the prim's schema, but something its
@@ -85,6 +100,8 @@ final class UsdProperty {
 
 /// One prim: `def Xform "World" (…) { … }`.
 final class UsdPrim {
+  /// The prim [name] under [parent] (null for a top-level prim), with no
+  /// metadata, properties or children yet.
   UsdPrim({
     required this.specifier,
     required this.typeName,
@@ -97,11 +114,22 @@ final class UsdPrim {
 
   /// `Xform`, `Mesh`, `Material`, `Shader`, or empty for a typeless prim.
   final String typeName;
+
+  /// The prim's name, the last part of its [path].
   final String name;
+
+  /// The prim it is defined in; null for one of the layer's top-level
+  /// prims.
   final UsdPrim? parent;
 
+  /// What the parentheses after its name said: `kind`, `references`,
+  /// `payload`, `apiSchemas`.
   final Map<String, Object?> metadata = <String, Object?>{};
+
+  /// Its attributes and relationships, by [UsdProperty.name].
   final Map<String, UsdProperty> properties = <String, UsdProperty>{};
+
+  /// The prims defined inside it, in the order written.
   final List<UsdPrim> children = <UsdPrim>[];
 
   /// The absolute path, `/World/Chair`.
@@ -135,9 +163,14 @@ final class UsdPrim {
 
 /// A parsed `.usda` layer.
 final class UsdLayer {
+  /// An empty layer, for the parser to fill.
   UsdLayer();
 
+  /// What the parentheses at the top of the file said: `upAxis`,
+  /// `metersPerUnit`, `defaultPrim`.
   final Map<String, Object?> metadata = <String, Object?>{};
+
+  /// The layer's top-level prims, in the order written.
   final List<UsdPrim> prims = <UsdPrim>[];
 
   /// The prim at the absolute [path], or null.

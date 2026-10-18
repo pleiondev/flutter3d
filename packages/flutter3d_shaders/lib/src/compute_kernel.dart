@@ -217,6 +217,7 @@ final class WgslKernel {
 /// as bytes (little-endian, as a GPU lays them), textures and images
 /// through the backend's own [KernelTexture] and [KernelImage].
 final class KernelInputs {
+  /// The inputs of one dispatch; each map empty unless given.
   KernelInputs({
     this.buffers = const <String, ByteData>{},
     this.textures = const <String, KernelTexture>{},
@@ -225,7 +226,11 @@ final class KernelInputs {
 
   /// The bytes themselves, not copies: the kernel writes into them.
   final Map<String, ByteData> buffers;
+
+  /// The textures the kernel samples or loads, by binding name.
   final Map<String, KernelTexture> textures;
+
+  /// The storage images the kernel reads or writes, by binding name.
   final Map<String, KernelImage> images;
 }
 

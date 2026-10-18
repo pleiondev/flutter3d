@@ -34,11 +34,21 @@ import 'texture_encode.dart';
 final class TextureFamily {
   const TextureFamily._(this.name);
 
+  /// The word `--textures` and a manifest's `textures:` spell it with.
   final String name;
 
+  /// The family of the platform being built for, which only a build hook
+  /// knows; anywhere else it converts as [none] does.
   static const TextureFamily auto = TextureFamily._('auto');
+
+  /// BC1 for an opaque image and BC3 for one with alpha: desktop GPUs.
   static const TextureFamily bc = TextureFamily._('bc');
+
+  /// ETC2 for an opaque image, mobile GPUs; an image with alpha is left as
+  /// it arrived, since the EAC alpha block is not encoded.
   static const TextureFamily etc2 = TextureFamily._('etc2');
+
+  /// No compression: every image stays as the source encoded it.
   static const TextureFamily none = TextureFamily._('none');
 
   /// One cooked texture for every device family — `gfx-83n`. Not a GPU
@@ -46,6 +56,8 @@ final class TextureFamily {
   /// RGBA8 against what the device reports sampling.
   static const TextureFamily universal = TextureFamily._('universal');
 
+  /// Every family, in the order a usage text lists them; what [parse]
+  /// accepts.
   static const List<TextureFamily> values = <TextureFamily>[
     auto,
     bc,
@@ -143,7 +155,11 @@ Options:
   -h, --help                Show this text.
 ''';
 
+/// What [runConvert]'s arguments asked for: one input, where it goes, and
+/// the model steps it runs through.
 final class ConvertSettings {
+  /// The settings for [input]: `auto` textures with mips, and no levels of
+  /// detail, impostor, chunks or device classes unless given.
   const ConvertSettings({
     required this.input,
     this.output,
@@ -179,9 +195,20 @@ final class ConvertSettings {
     classes: classes ?? this.classes,
   );
 
+  /// The model file, or the directory whose recognised files are all
+  /// converted, recursively.
   final String input;
+
+  /// `--output`: the output file for a single input, or the directory that
+  /// mirrors a directory input. Null writes beside each source, with its
+  /// extension replaced by `.f3d`.
   final String? output;
+
+  /// `--textures`: the compression family converted images target.
   final TextureFamily textures;
+
+  /// Whether each compressed image carries its mip chain; `--no-mips`
+  /// keeps the base level alone.
   final bool mips;
 
   /// The triangle ratios `--lods` asked for, or empty for none — see
@@ -622,6 +649,7 @@ Future<bool> convertOne(
 /// A class rather than a record, so a conversion can later report more
 /// (what it dropped) without breaking a reader.
 final class F3dConversion {
+  /// The conversion of [document] into [bytes].
   const F3dConversion({required this.document, required this.bytes});
 
   /// The document as written.
@@ -633,6 +661,7 @@ final class F3dConversion {
 
 /// The written `.f3d` did not read back as the document it was written from.
 final class F3dRoundTripException extends Flutter3dFormatException {
+  /// The failed round trip, with every difference found in [problems].
   const F3dRoundTripException(this.problems);
 
   /// What differed, one line each.

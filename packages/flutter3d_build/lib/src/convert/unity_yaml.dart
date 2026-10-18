@@ -10,21 +10,44 @@ import '../build_exceptions.dart';
 
 /// Unity's class numbers for the objects a converter reads.
 abstract final class UnityClass {
+  /// `GameObject`: a node, holding its components by reference.
   static const int gameObject = 1;
+
+  /// `Transform`: a node's placement and its children.
   static const int transform = 4;
+
+  /// `Camera`.
   static const int camera = 20;
+
+  /// `Material`, in a `.mat` file.
   static const int material = 21;
+
+  /// `MeshRenderer`: the materials a static mesh wears.
   static const int meshRenderer = 23;
+
+  /// `MeshFilter`: the mesh a node draws.
   static const int meshFilter = 33;
+
+  /// `Light`.
   static const int light = 108;
+
+  /// `MonoBehaviour`: a script component.
   static const int monoBehaviour = 114;
+
+  /// `SkinnedMeshRenderer`: a skinned mesh and its materials.
   static const int skinnedMeshRenderer = 137;
+
+  /// `RectTransform`: a UI node's placement, read as a [transform].
   static const int rectTransform = 224;
+
+  /// `PrefabInstance`: another prefab placed here, with its modifications.
   static const int prefabInstance = 1001;
 }
 
 /// One object of a Unity file.
 final class UnityObject {
+  /// The object [fileId] of class [classId], a [type] document holding
+  /// [fields]; a [stripped] stand-in when its header says so.
   const UnityObject(
     this.classId,
     this.fileId,
@@ -33,7 +56,11 @@ final class UnityObject {
     this.stripped = false,
   });
 
+  /// The class number from the `--- !u!<class>` header; see [UnityClass].
   final int classId;
+
+  /// The object's id within its file, from the `&<fileID>` header: what a
+  /// reference's `fileID` names.
   final int fileId;
 
   /// The document's single top-level key: `GameObject`, `Transform`.
@@ -45,6 +72,7 @@ final class UnityObject {
   /// A stand-in for an object of a prefab this file instances.
   final bool stripped;
 
+  /// Returns the field [key] of [fields]; null when it is absent.
   Object? operator [](String key) => fields[key];
 }
 
@@ -165,6 +193,8 @@ final class UnityAssetIndex {
   /// The asset [guid] names, or null.
   String? path(String? guid) => guid == null ? null : _byGuid[guid];
 
+  /// How many assets the index found, a count of `.meta` files with a
+  /// GUID.
   int get length => _byGuid.length;
 
   static String? _guidOf(File meta) {

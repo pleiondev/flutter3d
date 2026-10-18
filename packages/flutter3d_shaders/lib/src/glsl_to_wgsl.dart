@@ -81,6 +81,7 @@ import 'stage_bindings.dart';
 /// Carries the file, because a message naming only a construct is a message
 /// about one of nineteen hundred lines of identical-looking GLSL.
 final class WgslPrepareException extends Flutter3dFormatException {
+  /// The failure [message], naming the file and the construct.
   const WgslPrepareException(this.message);
 
   @override
@@ -135,6 +136,8 @@ typedef PreparedSampler = ({
 /// already final, because the packer hands out the bindings rather than reading
 /// them back.
 final class PreparedStage {
+  /// The stage [glsl] with the [attributes], [blocks] and [samplers] the
+  /// packer gave it.
   const PreparedStage({
     required this.glsl,
     required this.attributes,
@@ -146,8 +149,13 @@ final class PreparedStage {
   /// `set`/`binding`/`std140`, and split samplers.
   final String glsl;
 
+  /// The vertex inputs, by location; empty for a fragment stage.
   final List<PreparedAttribute> attributes;
+
+  /// The uniform blocks, each with its group, binding and std140 members.
   final List<PreparedBlock> blocks;
+
+  /// The texture-and-sampler pairs, each with the two bindings it takes.
   final List<PreparedSampler> samplers;
 }
 

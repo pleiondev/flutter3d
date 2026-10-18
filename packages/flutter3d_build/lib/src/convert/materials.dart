@@ -25,6 +25,8 @@ import 'scene.dart';
 /// A material ready to be written: the surface, and the images its texture
 /// bindings index, as bytes with the names they arrived under.
 final class MaterialSource {
+  /// The material [id] with its [surface], the [images] its bindings index
+  /// (none by default), and its [program] when it is one.
   const MaterialSource(
     this.id,
     this.surface, {
@@ -38,6 +40,8 @@ final class MaterialSource {
   /// The parameters. Its bindings' `imageIndex` index [images].
   final SurfaceMaterial surface;
 
+  /// The images [surface]'s bindings index, in index order; written under
+  /// `textures/` beside the material.
   final List<MaterialImage> images;
 
   /// The material language source, when the material is a program; it is
@@ -48,10 +52,13 @@ final class MaterialSource {
 
 /// An image a material names.
 final class MaterialImage {
+  /// The image [name], encoded as [bytes].
   const MaterialImage(this.name, this.bytes);
 
   /// The file name it is written under in `textures/`.
   final String name;
+
+  /// The image file as it arrived (PNG, JPEG…), written unchanged.
   final Uint8List bytes;
 }
 

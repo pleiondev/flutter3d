@@ -28,6 +28,9 @@ import 'package:image/image.dart' as img;
 /// command line's) in place: the desktop preset does, so a desktop file is
 /// what the project built before classes existed.
 final class DeviceClassBudget {
+  /// The budget of [deviceClass]: 64-texel impostor views and a light-set
+  /// drift of 0.01 unless given, the rule's own chain and impostor while
+  /// [lods] and [impostor] are null.
   const DeviceClassBudget({
     required this.deviceClass,
     required this.textures,
@@ -37,6 +40,8 @@ final class DeviceClassBudget {
     this.lightDifference = 0.01,
   });
 
+  /// The class this budget cuts for; its `.f3d` lands at the class's path
+  /// beside the default one.
   final DeviceClass deviceClass;
 
   /// The triangle ratios of the chain every model of this class carries, or

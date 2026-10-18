@@ -18,6 +18,8 @@ import 'package:flutter3d_hardware/shader_bundle.dart';
 
 /// The stamp a project's engine bundle carries, in its [section].
 final class EngineBundleStamp {
+  /// The stamp of a build by [dart] with the engine revision [engine]; no
+  /// needs, not full and nought stages unless given.
   const EngineBundleStamp({
     required this.dart,
     required this.engine,
@@ -80,6 +82,8 @@ final class EngineBundleStamp {
   /// How many stages it holds.
   final int stages;
 
+  /// Returns the stamp as the bytes of [section]: UTF-8 JSON with `dart`,
+  /// `engine`, `needs`, `full` and `stages`, which [decode] reads back.
   ByteData encode() => Uint8List.fromList(
     utf8.encode(
       jsonEncode(<String, Object?>{

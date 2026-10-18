@@ -60,6 +60,7 @@ const int sectionVersion = 1;
 
 /// Raised when a prepared stage cannot be turned into a section entry.
 final class WgslSectionException extends Flutter3dFormatException {
+  /// The failure [message], naming the stage or the resource at fault.
   const WgslSectionException(this.message);
 
   @override

@@ -19,6 +19,8 @@ import 'report.dart';
 final class ConversionTarget {
   const ConversionTarget._(this.name, this._keeps);
 
+  /// The target's word, as a service names it in a request: `everything`,
+  /// `models`, `materials` or `scenes`.
   final String name;
   final bool Function(String path) _keeps;
 
@@ -43,6 +45,7 @@ final class ConversionTarget {
   /// the same files as [everything].
   static const ConversionTarget scenes = ConversionTarget._('scenes', _all);
 
+  /// Every target, [everything] first.
   static const List<ConversionTarget> values = <ConversionTarget>[
     everything,
     models,
@@ -69,6 +72,7 @@ final class ConversionTarget {
 
 /// What [convertFiles] made.
 final class ConversionResult {
+  /// The outputs [files] and the [reports] of the inputs.
   const ConversionResult(this.files, this.reports);
 
   /// The outputs, by path relative to the output root (`chair.f3d`,
@@ -81,6 +85,7 @@ final class ConversionResult {
   /// The exit code `flutter3d convert` would have given.
   int get exitCode => exitCodeFor(reports.map((ConvertReport r) => r.outcome));
 
+  /// Whether every input converted: [exitCode] is nought.
   bool get isOk => exitCode == 0;
 }
 

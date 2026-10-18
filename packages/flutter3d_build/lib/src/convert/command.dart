@@ -27,6 +27,9 @@ import 'usd_input.dart';
 
 /// The parsed command line.
 final class ConvertCommandSettings {
+  /// The settings for [inputs]: written to the current directory as one
+  /// bundle each, with materials, no report file and text output, unless
+  /// given.
   const ConvertCommandSettings({
     required this.inputs,
     this.output = '.',
@@ -68,14 +71,39 @@ final class ConvertCommandSettings {
     split: split ?? this.split,
   );
 
+  /// The inputs as given: files, directories (every recognised file under
+  /// them) or globs.
   final List<String> inputs;
+
+  /// `-o`: the directory every output is written under; `.` by default.
   final String output;
+
+  /// `--dry-run`: read everything and report what would be written, but
+  /// write nothing.
   final bool dryRun;
+
+  /// `--overwrite`: replace files that exist with different contents;
+  /// without it such a conflict writes nothing and exits 4.
   final bool overwrite;
+
+  /// `--asset-prefix`: what the paths a level document names start with;
+  /// null takes the output directory as given, when it is relative.
   final String? assetPrefix;
+
+  /// Whether a model's materials are also written as `.fmat` files;
+  /// `--no-materials` turns it off.
   final bool materials;
+
+  /// `--report`: a file the report is also written to as JSON; null for
+  /// none.
   final String? reportPath;
+
+  /// `--json`: print the report as JSON (format `f3d.cli`) instead of
+  /// text.
   final bool json;
+
+  /// The options passed to every `.f3d` written: textures, mips, levels of
+  /// detail, impostors, chunks.
   final ModelSettings models;
 
   /// Whether to keep the sidecar layout (`--split`): `.fmat`, `.f3dmat`,

@@ -35,6 +35,9 @@ final class DoctorStatus {
 
   /// What the terminal shows before the line.
   final String mark;
+
+  /// The word `--json` writes as the check's `status`: `ok`, `note`,
+  /// `missing` or `problem`.
   final String name;
 
   /// Found, and new enough.
@@ -52,15 +55,26 @@ final class DoctorStatus {
 
 /// One line of the doctor's report.
 final class DoctorCheck {
+  /// The check of the tool [name], which came out [status], with [detail]
+  /// and, when something can be done, [fix].
   const DoctorCheck(this.name, this.status, this.detail, {this.fix});
 
+  /// The tool checked, as the report's first column shows it: `Flutter`,
+  /// `impellerc`, `naga`.
   final String name;
+
+  /// How the check came out; a [DoctorStatus.problem] makes the command
+  /// exit 1.
   final DoctorStatus status;
+
+  /// What was found: a version, a path, or why nothing was.
   final String detail;
 
   /// What to do about it, when anything.
   final String? fix;
 
+  /// The check as one entry of `--json`'s `checks`: `name`, `status`,
+  /// `detail`, and `fix` only when there is one.
   Map<String, Object?> toJson() => <String, Object?>{
     'name': name,
     'status': status.name,

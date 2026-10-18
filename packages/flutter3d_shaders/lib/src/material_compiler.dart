@@ -53,6 +53,9 @@ final class MaterialStageSource {
 /// later minor that hands a compiler something more adds a member here and
 /// breaks no compiler.
 final class MaterialCompileRequest {
+  /// The request to compile [source], called [name] and from [from], as
+  /// [stages]; no engine headers, at build time and with no options unless
+  /// given.
   const MaterialCompileRequest({
     required this.name,
     required this.from,
@@ -98,6 +101,7 @@ final class MaterialCompileRequest {
 /// What a [MaterialCompiler] made of a [MaterialCompileRequest]: its bundle
 /// section's bytes.
 final class MaterialCompileResult {
+  /// The result [section], with [notes] for a person; none by default.
   const MaterialCompileResult({
     required this.section,
     this.notes = const <String>[],
@@ -115,6 +119,7 @@ final class MaterialCompileResult {
 /// A compiler that cannot compile what it was asked, with the sentence
 /// that says why and what to do instead.
 final class MaterialCompileException extends CapabilityException {
+  /// The refusal, with [message] saying why and what to do instead.
   const MaterialCompileException(this.message);
 
   @override
@@ -138,6 +143,7 @@ final class MaterialCompileException extends CapabilityException {
 /// added later arrives with a default, and [compile] takes one growing
 /// request rather than a list of parameters.
 abstract base class MaterialCompiler {
+  /// A compiler; `const` so a subclass can be a constant.
   const MaterialCompiler();
 
   /// The backend's id, exactly as its `GraphicsDevice.backendId` gives it:
@@ -180,6 +186,8 @@ abstract base class MaterialCompiler {
 /// registered for a backend that already has one replaces it until its
 /// registration is cancelled, so an application can swap the engine's.
 final class MaterialCompilerRegistry {
+  /// A registry holding [compilers], registered in order, so a later one
+  /// for the same backend wins.
   MaterialCompilerRegistry([Iterable<MaterialCompiler> compilers = const []]) {
     compilers.forEach(register);
   }

@@ -85,6 +85,7 @@ MeshSplit splitLargeMeshes(
 /// What [splitLargeMeshes] answers: the document with its huge static
 /// meshes cut into clusters, and how many meshes that was.
 final class MeshSplit {
+  /// The split [document] and the count [meshesSplit] of meshes cut.
   const MeshSplit({required this.document, required this.meshesSplit});
 
   /// The document after the split; the one given when nothing was split.

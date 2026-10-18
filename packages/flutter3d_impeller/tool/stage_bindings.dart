@@ -130,6 +130,9 @@ String uniformBlocksSource(
       'show UniformMemberLayout;',
     )
     ..writeln()
+    ..writeln('/// Stage name to block name to member name to the member\'s')
+    ..writeln('/// layout, members in declaration order; impellerc\'s own')
+    ..writeln('/// `_PADDING_` members are left out.')
     ..writeln(
       'const Map<String, Map<String, Map<String, UniformMemberLayout>>> '
       'uniformBlocks = '
@@ -217,6 +220,8 @@ String typedBlocksSource(
       ..writeln()
       ..writeln('/// `$block`.')
       ..writeln('final class ${block}Block extends UniformBlock {')
+      ..writeln('  /// A block with every member zeroed, bound by the name')
+      ..writeln("  /// `$block`.")
       ..writeln("  ${block}Block() : super('$block');");
     for (final MapEntry(key: name, value: m) in members) {
       final what = m.elements > 1 ? '${m.elements} × ${m.type}' : m.type;
@@ -268,6 +273,8 @@ String stageBindingsSource(Map<String, StageBindings> stages) {
       'show StageBindings;',
     )
     ..writeln()
+    ..writeln('/// Stage name to the uniform blocks and samplers its compiled')
+    ..writeln('/// Metal function has a slot for.')
     ..writeln(
       'const Map<String, StageBindings> '
       'stageBindings = <String, StageBindings>{',

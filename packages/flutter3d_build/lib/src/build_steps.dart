@@ -55,6 +55,7 @@ import 'shader_build.dart';
 ///
 /// `base`: extend it, so a member added later arrives with a default.
 abstract base class BuildStep {
+  /// A step; `const` so a subclass can be a constant.
   const BuildStep();
 
   /// The engine's model and texture conversion, `assets_src/` into
@@ -108,6 +109,9 @@ abstract base class BuildStep {
 /// What a [BuildStep] is handed: the project, where things go, and the
 /// target the build is for.
 final class BuildStepContext {
+  /// The context for a build of [projectRoot]: logging to stdout, `auto`
+  /// textures, every device class, only the stages the project needs, and
+  /// shaders for any backend unless told otherwise.
   BuildStepContext({
     required this.projectRoot,
     this.sink,
@@ -148,6 +152,7 @@ final class BuildStepContext {
 
 /// A build step that threw, named.
 final class BuildStepException extends ResourceException {
+  /// The failure of the step named [step], which threw [error].
   const BuildStepException(this.step, this.error);
 
   /// The step's name.
@@ -168,6 +173,8 @@ final class BuildStepException extends ResourceException {
 
 /// What [runBuildSteps] did.
 final class BuildStepsReport {
+  /// The steps that [ran], with the [dependencies] and [outputs] they
+  /// declared.
   const BuildStepsReport({
     required this.ran,
     required this.dependencies,

@@ -20,7 +20,11 @@ import 'table.dart';
 
 /// One library of an API snapshot, as far as a fix needs it.
 final class SnapshotLibrary {
+  /// The library [uri], with no declarations or exports read yet.
   SnapshotLibrary(this.uri);
+
+  /// The library's URI, as the snapshot's `library` line names it
+  /// (`package:flutter3d/flutter3d.dart`).
   final String uri;
 
   /// Declarations by name: (header, member lines).

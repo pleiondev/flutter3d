@@ -11,6 +11,8 @@ library;
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart' show StageBindings;
 
+/// Stage name to the uniform blocks and samplers its compiled
+/// Metal function has a slot for.
 const Map<String, StageBindings> stageBindings = <String, StageBindings>{
   'BlinnPhong': StageBindings(
     blocks: <String>{

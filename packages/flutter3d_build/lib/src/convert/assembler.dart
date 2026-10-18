@@ -11,10 +11,21 @@ import 'materials.dart';
 /// Collects nodes, surfaces, materials and images into one
 /// [PlainModelDocument].
 final class DocumentAssembler {
+  /// The drawable surfaces [surface] added, each indexed by its node.
   final List<ModelSurface> surfaces = <ModelSurface>[];
+
+  /// The nodes [node] added, roots and children alike; a parent lists its
+  /// children by index.
   final List<ModelNode> nodes = <ModelNode>[];
+
+  /// The materials [material] added, one per distinct key.
   final List<SurfaceMaterial> materials = <SurfaceMaterial>[];
+
+  /// Every material's images, appended in the order the materials came.
   final List<EncodedImage> images = <EncodedImage>[];
+
+  /// What the reader could not carry over, one sentence each; written into
+  /// the document and the conversion's report.
   final List<String> warnings = <String>[];
   final Map<String, int> _materials = <String, int>{};
 
@@ -85,6 +96,8 @@ final class DocumentAssembler {
     nodes[node].surfaces.add(surfaces.length - 1);
   }
 
+  /// Returns the document of everything added so far; it shares the lists,
+  /// so build once the reader is done.
   ModelDocument build() => PlainModelDocument(
     surfaces: surfaces,
     materials: materials,

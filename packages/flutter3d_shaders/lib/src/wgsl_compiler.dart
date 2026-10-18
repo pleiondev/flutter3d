@@ -61,6 +61,7 @@ const String nagaExecutable = 'naga';
 
 /// Raised when one of the two programs refuses, carrying what it said.
 final class WgslCompileException extends Flutter3dFormatException {
+  /// The refusal, with [message] carrying what the program said.
   const WgslCompileException(this.message);
 
   @override
@@ -80,6 +81,8 @@ final class WgslCompileException extends Flutter3dFormatException {
 /// [target] it asked for. A class rather than a record, so a later minor can
 /// hand over more — reflection, a source map — without changing its shape.
 final class CompiledStage {
+  /// The stage compiled to [spirv], translated into [target] as [text],
+  /// with glslang's [offsets].
   CompiledStage({
     required this.spirv,
     required this.target,

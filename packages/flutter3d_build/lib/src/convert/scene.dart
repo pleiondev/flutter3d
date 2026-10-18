@@ -36,16 +36,19 @@ const String kPropEntityType = 'prop';
 /// A primitive a source names instead of a mesh: Unity's built-in cube,
 /// Godot's `BoxMesh`, a USD `Cube` prim.
 final class PrimitiveShape {
+  /// A box of edge lengths [size], in metres.
   const PrimitiveShape.box(this.size)
     : shape = 'box',
       radius = null,
       height = null;
 
+  /// A sphere of [radius] metres.
   const PrimitiveShape.sphere(double this.radius)
     : shape = 'sphere',
       size = null,
       height = null;
 
+  /// A cylinder of [radius] and [height] metres, its axis along Y.
   const PrimitiveShape.cylinder(double this.radius, double this.height)
     : shape = 'cylinder',
       size = null;
@@ -87,6 +90,9 @@ final class PrimitiveShape {
     }
   }
 
+  /// Returns the shape as a `prop` row's properties: `shape`, and `size`,
+  /// `radius` or `height` where the shape has them, rounded to six
+  /// decimals.
   Map<String, Object?> toProperties() => <String, Object?>{
     'shape': shape,
     if (size case final Vector3 s) 'size': vectorJson(s),
@@ -97,6 +103,7 @@ final class PrimitiveShape {
 
 /// An instance of another prefab placed inside this one.
 final class NestedInstance {
+  /// An instance of [prefab], changed by [overrides]; none by default.
   const NestedInstance(this.prefab, {this.overrides = const {}});
 
   /// The prefab's id in the document's `prefabs`.
@@ -109,6 +116,8 @@ final class NestedInstance {
 
 /// One node of a converted scene.
 final class SceneItem {
+  /// The node [name], placed by [local] (identity when null), with no
+  /// children or properties unless given.
   SceneItem({
     required this.name,
     Matrix4? local,
@@ -141,6 +150,8 @@ final class SceneItem {
   /// The prefab it places instead of drawing anything itself.
   final NestedInstance? instance;
 
+  /// The nodes placed under it, each [local] to it; a reader appends to
+  /// it.
   final List<SceneItem> children;
 
   /// Anything else the row should carry.
@@ -150,21 +161,32 @@ final class SceneItem {
 /// A template: what one source file — a `.prefab`, a `.tscn`, a USD layer,
 /// a glTF scene — places.
 final class ScenePrefab {
+  /// The prefab [id], placing [roots].
   const ScenePrefab(this.id, this.roots);
 
+  /// The id the document's `prefabs` and a [NestedInstance] name it by.
   final String id;
+
+  /// The top-level nodes the source places, each with its subtree.
   final List<SceneItem> roots;
 }
 
 /// A material a level names: its id, the `.fmat` or `.f3dmat` it defers
 /// to, and the surface the level's own fields are filled from.
 final class SceneMaterial {
+  /// The material [id], deferring to [file], with its level fields filled
+  /// from [surface].
   const SceneMaterial(this.id, this.file, this.surface);
 
+  /// The id the document's `materials` and a [SceneItem]'s slots name it
+  /// by.
   final String id;
 
   /// Relative to the output directory.
   final String file;
+
+  /// The parameters the level's own fields of the material are filled
+  /// from.
   final SurfaceMaterial surface;
 }
 

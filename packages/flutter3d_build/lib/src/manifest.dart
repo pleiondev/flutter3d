@@ -53,6 +53,7 @@ import 'device_classes.dart';
 /// on, because a manifest's own author is the one who reads this, not a
 /// user of the finished game.
 final class ManifestFormatException extends Flutter3dFormatException {
+  /// The problem [message], found on the manifest's [line].
   const ManifestFormatException(this.message, this.line);
 
   @override
@@ -67,6 +68,8 @@ final class ManifestFormatException extends Flutter3dFormatException {
 
 /// What one glob in the manifest overrides for the files it matches.
 final class AssetRule {
+  /// The rule for files [glob] matches; every override left out keeps what
+  /// the build does without a rule.
   AssetRule({
     required this.glob,
     this.textures,
@@ -78,9 +81,21 @@ final class AssetRule {
     this.exclude = false,
   });
 
+  /// The rule's `glob:`, matched against a path relative to `assets_src/`;
+  /// the last rule whose glob matches is the one that applies.
   final Glob glob;
+
+  /// The rule's `textures:`, the compression family of a matched model's
+  /// images; null when the rule does not say. The asset build does not
+  /// apply it yet.
   final TextureFamily? textures;
+
+  /// The rule's `mips:`, whether compressed images keep mip chains; null
+  /// when the rule does not say. The asset build does not apply it yet.
   final bool? mips;
+
+  /// The rule's `objNormals:`, how an OBJ without normals gets them; null
+  /// when the rule does not say. The asset build does not apply it yet.
   final ObjNormals? objNormals;
 
   /// `C5`: the triangle ratios of the levels of detail a matched model gains
@@ -97,6 +112,9 @@ final class AssetRule {
   /// for another, the manifest's spelling of `convert --chunks`. Null splits
   /// nothing.
   final int? chunks;
+
+  /// The rule's `exclude: true`: a matched model or material is not
+  /// converted at all.
   final bool exclude;
 }
 
@@ -122,6 +140,7 @@ const Set<String> _topLevelKeys = <String>{
 /// shaders: full                 # every stage, as the editor carries
 /// ```
 final class ShaderSelection {
+  /// The selection of [needs], or of every stage when [full].
   const ShaderSelection({this.needs = const <String>[], this.full = false});
 
   /// Nothing declared: the base, and what materials and plugins bring.
@@ -156,12 +175,21 @@ const Set<String> _ruleKeys = <String>{
 /// one gets — the same object either way, so nothing downstream branches on
 /// whether a file existed.
 final class AssetBuildManifest {
+  /// The manifest of [rules], [classes] and [shaders]; all empty by
+  /// default, which is [empty].
   const AssetBuildManifest({
     this.rules = const <AssetRule>[],
     this.classes = const <DeviceClassBudget>[],
     this.shaders = ShaderSelection.none,
   });
 
+  /// [yamlText] read as a manifest; an empty document, or one with no
+  /// `rules:`, `classes:` or `shaders:`, is [empty].
+  ///
+  /// Throws a [ManifestFormatException] naming the line of a YAML error, a
+  /// top level that is not a mapping, an unknown key, a `format:` that is
+  /// not a whole number or is newer than [formatVersion], or a rule, class
+  /// or shader need that does not read.
   factory AssetBuildManifest.parse(String yamlText) {
     final YamlNode document;
     try {
@@ -240,6 +268,8 @@ final class AssetBuildManifest {
     );
   }
 
+  /// The manifest of a project without one: no rules, one `.f3d` per
+  /// source, and only the stages materials and plugins bring.
   static const AssetBuildManifest empty = AssetBuildManifest();
 
   /// The manifest's version, read from `format:`; absent is 1.
@@ -253,6 +283,7 @@ final class AssetBuildManifest {
     fixture: 'test/fixtures/v<N>/flutter3d_assets.yaml',
   );
 
+  /// The `rules:`, in file order; for a file, the last that matches wins.
   final List<AssetRule> rules;
 
   /// `N7`: the device classes a model is written for, one `.f3d` each —

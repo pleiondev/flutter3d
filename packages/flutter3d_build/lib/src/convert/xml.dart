@@ -6,12 +6,19 @@ import '../build_exceptions.dart';
 
 /// One element.
 final class XmlElement {
+  /// The element [name] with its [attributes], and no children yet.
   XmlElement(this.name, this.attributes);
 
+  /// The tag's name as written: `materialx`, `nodegraph`, `input`.
   final String name;
+
+  /// The attributes, entities already decoded.
   final Map<String, String> attributes;
+
+  /// The child elements, in document order; text is not kept.
   final List<XmlElement> children = <XmlElement>[];
 
+  /// Returns the value of [attribute]; null when the element has none.
   String? operator [](String attribute) => attributes[attribute];
 
   /// The children called [name].

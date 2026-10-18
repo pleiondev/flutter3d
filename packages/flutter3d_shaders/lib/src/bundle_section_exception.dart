@@ -10,6 +10,7 @@ import 'package:flutter3d_foundation/flutter3d_foundation.dart'
 /// The device that asked turns it into a `ShaderBundleException` naming the
 /// bundle; this is the sentence about the section that goes inside it.
 final class BundleSectionFormatException extends Flutter3dFormatException {
+  /// The unreadable section, with [message] saying what is wrong with it.
   const BundleSectionFormatException(this.message);
 
   @override

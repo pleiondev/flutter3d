@@ -59,6 +59,8 @@ import 'package:flutter3d_shaders/kernel.dart' show ComputeKernel, kernelBundle;
 /// too, and its own output names the line of the generated `.frag`, kept on
 /// disk at the path the message gives.
 final class MaterialBuildException extends Flutter3dFormatException {
+  /// The failure [message] in [source], at [line] and [column] when the
+  /// parser can place it.
   const MaterialBuildException(
     this.message, {
     required this.source,
@@ -73,7 +75,13 @@ final class MaterialBuildException extends Flutter3dFormatException {
   /// caused, such as no `impellerc` to run.
   @override
   final String source;
+
+  /// The line of [source] the parser placed the mistake on, as its syntax
+  /// error counts it; null when the failure has no place in the source.
   final int? line;
+
+  /// The column on [line], as the parser's syntax error counts it; null
+  /// when it gave none.
   final int? column;
 
   @override
@@ -101,6 +109,8 @@ typedef WgslStageCompiler =
 /// `impellerc` the way `flutter3d_impeller`'s own tests do, and so a build
 /// that needs none of them — a project without materials — never looks.
 final class MaterialCompilers {
+  /// The compilers at [impellerc], stamped [sdk]; no extra include roots,
+  /// no WebGPU compiler and no backend registry unless given.
   const MaterialCompilers({
     required this.impellerc,
     required this.sdk,

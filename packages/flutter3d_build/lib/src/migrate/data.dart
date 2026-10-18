@@ -556,6 +556,9 @@ DataMigration migrateData(
 /// The markers the generated table of data formats sits between in the
 /// migration guide.
 const String dataGuideStart = '<!-- data-formats:start -->';
+
+/// The marker that closes the generated table of data formats, after
+/// [dataGuideStart].
 const String dataGuideEnd = '<!-- data-formats:end -->';
 
 /// The Markdown between [dataGuideStart] and [dataGuideEnd]: every format

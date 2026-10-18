@@ -17,6 +17,8 @@ import 'scene.dart';
 
 /// The model-side options, passed to every `.f3d` written.
 final class ModelSettings {
+  /// The settings of a plain conversion: `auto` textures with mips, and no
+  /// levels of detail, impostor or chunks unless given.
   const ModelSettings({
     this.textures = TextureFamily.auto,
     this.mips = true,
@@ -42,15 +44,31 @@ final class ModelSettings {
     chunks: clearChunks ? null : (chunks ?? this.chunks),
   );
 
+  /// `--textures`: the compression family the images inside a `.f3d`
+  /// target.
   final TextureFamily textures;
+
+  /// Whether each compressed image carries its mip chain; `--no-mips`
+  /// turns it off.
   final bool mips;
+
+  /// `--lods`: the triangle ratios of the levels of detail each drawing
+  /// node gains, each strictly between nought and one; empty for none.
   final List<double> lods;
+
+  /// `--impostor`: whether each chain ends in a baked octahedral impostor.
   final bool impostor;
+
+  /// `--chunks`: the triangle count above which a static mesh is split
+  /// into clusters; null splits nothing.
   final int? chunks;
 }
 
 /// One run's shared state.
 final class ConvertContext {
+  /// The state of a run planning into [plan], with [assetPrefix] in front
+  /// of the paths documents name; materials written and external tools
+  /// allowed unless told otherwise.
   ConvertContext({
     required this.plan,
     required this.assetPrefix,
@@ -77,6 +95,7 @@ final class ConvertContext {
   /// What a document puts in front of an output's path.
   final String assetPrefix;
 
+  /// The options [planModel] passes to every `.f3d` it plans.
   final ModelSettings models;
 
   /// Whether a model's materials are also written as `.fmat` files.

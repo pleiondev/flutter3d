@@ -82,6 +82,8 @@ import 'package:yaml/yaml.dart';
 
 /// One plugin class a dependency declares.
 final class DiscoveredPlugin {
+  /// The class [className] of [package], reached through [import] and
+  /// constructed with [arguments]; no arguments by default.
   const DiscoveredPlugin({
     required this.package,
     required this.import,
@@ -118,6 +120,7 @@ final class DiscoveredPlugin {
 /// Thrown when discovery cannot say what the plugins are: no package
 /// config, a marker that cannot be read. The message names the file.
 final class PluginDiscoveryException extends PluginException {
+  /// The failure [message], naming the file discovery could not read.
   const PluginDiscoveryException(super.message);
 
   @override
@@ -145,6 +148,8 @@ const String backendMarkerKey = 'flutter3d_backend';
 /// A dependency that is a graphics backend from outside the engine with a
 /// material compiler: what its pubspec's [backendMarkerKey] says.
 final class BackendCompilerPackage {
+  /// The package [name] at [root], compiling [backend]'s [section] with the
+  /// Dart file [compiler].
   const BackendCompilerPackage({
     required this.name,
     required this.root,
@@ -216,6 +221,8 @@ const String _legacyPluginMarkerKey = 'flutter3d';
 
 /// What [discoverPlugins] found, and every file it read to find it.
 final class PluginDiscovery {
+  /// The [plugins] found and the [readFiles] read; every other list empty
+  /// unless given.
   const PluginDiscovery({
     required this.plugins,
     required this.readFiles,
@@ -274,6 +281,8 @@ final class PluginDiscovery {
 ///
 /// and the project's bundle carries them whatever the project declares.
 final class PluginPackage {
+  /// The package [name] at [root], declaring [shaderNeeds]; none by
+  /// default.
   const PluginPackage({
     required this.name,
     required this.root,
@@ -302,6 +311,8 @@ final class PluginPackage {
 /// allowed. A library is named as the marker imports it, relative to the
 /// package's `lib/`.
 final class PluginSelector {
+  /// The selector of [package], narrowed to [library] and then to
+  /// [className] when they are given.
   const PluginSelector({required this.package, this.library, this.className});
 
   /// Reads [text], or throws a [PluginDiscoveryException] naming [source]
@@ -337,6 +348,7 @@ final class PluginSelector {
     );
   }
 
+  /// The package's name, without a leading `package:`.
   final String package;
 
   /// The library relative to the package's `lib/`, or null for the whole
@@ -416,6 +428,8 @@ PluginSelection selectPlugins(
 /// What [selectPlugins] answers: the plugins the application's group holds,
 /// the ones its `without:` left out, and what it wrote that did nothing.
 final class PluginSelection {
+  /// The plugins [kept] and [excluded], with the [warnings] about what did
+  /// nothing.
   const PluginSelection({
     required this.kept,
     required this.excluded,
@@ -740,6 +754,7 @@ PluginMarker? markerOf(Map<Object?, Object?> pubspec) =>
 /// What [markerOf] answers: a pubspec's `plugin:` value, and whether it sat
 /// under the key from before 1.0.
 final class PluginMarker {
+  /// The marker [value], found under the pre-1.0 key when [legacy].
   const PluginMarker({required this.value, required this.legacy});
 
   /// The `plugin:` value as the pubspec wrote it: one string, a list of
@@ -883,18 +898,23 @@ String renderPluginsFile(List<DiscoveredPlugin> plugins) {
 
 /// What [writeDiscoveredPlugins] did.
 final class PluginsFileReport {
+  /// The file at [path], [written] or left alone, and the [discovery] it
+  /// was rendered from.
   const PluginsFileReport({
     required this.path,
     required this.written,
     required this.discovery,
   });
 
+  /// The application's `lib/plugins.g.dart`, whether or not it exists.
   final String path;
 
   /// Whether the file was written; false when it already said this, or
   /// when there was nothing to say and no file to keep current.
   final bool written;
 
+  /// What discovery found, including the files a hook declares as
+  /// dependencies.
   final PluginDiscovery discovery;
 }
 

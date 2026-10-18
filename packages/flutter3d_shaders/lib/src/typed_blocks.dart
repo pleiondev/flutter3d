@@ -13,6 +13,8 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 /// `AccumulateInfo`.
 final class AccumulateInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `AccumulateInfo`.
   AccumulateInfoBlock() : super('AccumulateInfo');
 
   /// `params`: Vector4, at byte 0.
@@ -26,6 +28,8 @@ final class AccumulateInfoBlock extends UniformBlock {
 
 /// `BloomInfo`.
 final class BloomInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `BloomInfo`.
   BloomInfoBlock() : super('BloomInfo');
 
   /// `params`: Vector4, at byte 0.
@@ -43,6 +47,8 @@ final class BloomInfoBlock extends UniformBlock {
 
 /// `CameraVelocityInfo`.
 final class CameraVelocityInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `CameraVelocityInfo`.
   CameraVelocityInfoBlock() : super('CameraVelocityInfo');
 
   /// `inverse_view_projection`: Matrix, at byte 0.
@@ -68,6 +74,8 @@ final class CameraVelocityInfoBlock extends UniformBlock {
 
 /// `CausticInfo`.
 final class CausticInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `CausticInfo`.
   CausticInfoBlock() : super('CausticInfo');
 
   /// `map_to_world`: Matrix, at byte 0.
@@ -113,6 +121,8 @@ final class CausticInfoBlock extends UniformBlock {
 
 /// `CompositeInfo`.
 final class CompositeInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `CompositeInfo`.
   CompositeInfoBlock() : super('CompositeInfo');
 
   /// `params`: Vector4, at byte 0.
@@ -162,6 +172,8 @@ final class CompositeInfoBlock extends UniformBlock {
 
 /// `ContactShadowInfo`.
 final class ContactShadowInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `ContactShadowInfo`.
   ContactShadowInfoBlock() : super('ContactShadowInfo');
 
   /// `inverse_view_projection`: Matrix, at byte 0.
@@ -195,6 +207,8 @@ final class ContactShadowInfoBlock extends UniformBlock {
 
 /// `ContactShadowResolveInfo`.
 final class ContactShadowResolveInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `ContactShadowResolveInfo`.
   ContactShadowResolveInfoBlock() : super('ContactShadowResolveInfo');
 
   /// `params`: Vector4, at byte 0.
@@ -208,6 +222,8 @@ final class ContactShadowResolveInfoBlock extends UniformBlock {
 
 /// `ContributorLightInfo`.
 final class ContributorLightInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `ContributorLightInfo`.
   ContributorLightInfoBlock() : super('ContributorLightInfo');
 
   /// `light_position`: 8 × Vector4, at byte 0.
@@ -237,6 +253,8 @@ final class ContributorLightInfoBlock extends UniformBlock {
 
 /// `ConvolveInfo`.
 final class ConvolveInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `ConvolveInfo`.
   ConvolveInfoBlock() : super('ConvolveInfo');
 
   /// `probe`: Vector4, at byte 0.
@@ -258,6 +276,8 @@ final class ConvolveInfoBlock extends UniformBlock {
 
 /// `DecalInfo`.
 final class DecalInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `DecalInfo`.
   DecalInfoBlock() : super('DecalInfo');
 
   /// `inverse_view_projection`: Matrix, at byte 0.
@@ -319,6 +339,8 @@ final class DecalInfoBlock extends UniformBlock {
 
 /// `DepthPyramidInfo`.
 final class DepthPyramidInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `DepthPyramidInfo`.
   DepthPyramidInfoBlock() : super('DepthPyramidInfo');
 
   /// `block`: Vector4, at byte 0.
@@ -336,6 +358,8 @@ final class DepthPyramidInfoBlock extends UniformBlock {
 
 /// `DofInfo`.
 final class DofInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `DofInfo`.
   DofInfoBlock() : super('DofInfo');
 
   /// `lens`: Vector4, at byte 0.
@@ -353,6 +377,8 @@ final class DofInfoBlock extends UniformBlock {
 
 /// `DofTileInfo`.
 final class DofTileInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `DofTileInfo`.
   DofTileInfoBlock() : super('DofTileInfo');
 
   /// `lens`: Vector4, at byte 0.
@@ -378,6 +404,8 @@ final class DofTileInfoBlock extends UniformBlock {
 
 /// `EasuInfo`.
 final class EasuInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `EasuInfo`.
   EasuInfoBlock() : super('EasuInfo');
 
   /// `source`: Vector4, at byte 0.
@@ -395,6 +423,8 @@ final class EasuInfoBlock extends UniformBlock {
 
 /// `EvsmFilterInfo`.
 final class EvsmFilterInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `EvsmFilterInfo`.
   EvsmFilterInfoBlock() : super('EvsmFilterInfo');
 
   /// `axis`: Vector4, at byte 0.
@@ -412,6 +442,8 @@ final class EvsmFilterInfoBlock extends UniformBlock {
 
 /// `FieldDecayInfo`.
 final class FieldDecayInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `FieldDecayInfo`.
   FieldDecayInfoBlock() : super('FieldDecayInfo');
 
   /// `params`: Vector4, at byte 0.
@@ -425,6 +457,8 @@ final class FieldDecayInfoBlock extends UniformBlock {
 
 /// `FogInfo`.
 final class FogInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `FogInfo`.
   FogInfoBlock() : super('FogInfo');
 
   /// `fog`: Vector4, at byte 0.
@@ -450,6 +484,8 @@ final class FogInfoBlock extends UniformBlock {
 
 /// `FogUpsampleInfo`.
 final class FogUpsampleInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `FogUpsampleInfo`.
   FogUpsampleInfoBlock() : super('FogUpsampleInfo');
 
   /// `size`: Vector4, at byte 0.
@@ -467,6 +503,8 @@ final class FogUpsampleInfoBlock extends UniformBlock {
 
 /// `FragCoordInfo`.
 final class FragCoordInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `FragCoordInfo`.
   FragCoordInfoBlock() : super('FragCoordInfo');
 
   /// `origin`: Vector4, at byte 0.
@@ -480,6 +518,8 @@ final class FragCoordInfoBlock extends UniformBlock {
 
 /// `FragInfo`.
 final class FragInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `FragInfo`.
   FragInfoBlock() : super('FragInfo');
 
   /// `light_position`: 8 × Vector4, at byte 0.
@@ -569,6 +609,8 @@ final class FragInfoBlock extends UniformBlock {
 
 /// `FrameInfo`.
 final class FrameInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `FrameInfo`.
   FrameInfoBlock() : super('FrameInfo');
 
   /// `mvp`: Matrix, at byte 0.
@@ -590,6 +632,8 @@ final class FrameInfoBlock extends UniformBlock {
 
 /// `FxaaInfo`.
 final class FxaaInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `FxaaInfo`.
   FxaaInfoBlock() : super('FxaaInfo');
 
   /// `params`: Vector4, at byte 0.
@@ -607,6 +651,8 @@ final class FxaaInfoBlock extends UniformBlock {
 
 /// `HighContrastInfo`.
 final class HighContrastInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `HighContrastInfo`.
   HighContrastInfoBlock() : super('HighContrastInfo');
 
   /// `look`: Vector4, at byte 0.
@@ -632,6 +678,8 @@ final class HighContrastInfoBlock extends UniformBlock {
 
 /// `IdInfo`.
 final class IdInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `IdInfo`.
   IdInfoBlock() : super('IdInfo');
 
   /// `id`: Vector4, at byte 0.
@@ -649,6 +697,8 @@ final class IdInfoBlock extends UniformBlock {
 
 /// `IrradianceInfo`.
 final class IrradianceInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `IrradianceInfo`.
   IrradianceInfoBlock() : super('IrradianceInfo');
 
   /// `origin`: Vector4, at byte 0.
@@ -678,6 +728,8 @@ final class IrradianceInfoBlock extends UniformBlock {
 
 /// `LayerInfo`.
 final class LayerInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `LayerInfo`.
   LayerInfoBlock() : super('LayerInfo');
 
   /// `specular`: Vector4, at byte 0.
@@ -735,6 +787,8 @@ final class LayerInfoBlock extends UniformBlock {
 
 /// `LensFlareInfo`.
 final class LensFlareInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `LensFlareInfo`.
   LensFlareInfoBlock() : super('LensFlareInfo');
 
   /// `params`: Vector4, at byte 0.
@@ -752,6 +806,8 @@ final class LensFlareInfoBlock extends UniformBlock {
 
 /// `LightListInfo`.
 final class LightListInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `LightListInfo`.
   LightListInfoBlock() : super('LightListInfo');
 
   /// `list`: Vector4, at byte 0.
@@ -789,6 +845,8 @@ final class LightListInfoBlock extends UniformBlock {
 
 /// `LineInfo`.
 final class LineInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `LineInfo`.
   LineInfoBlock() : super('LineInfo');
 
   /// `view_projection`: Matrix, at byte 0.
@@ -802,6 +860,8 @@ final class LineInfoBlock extends UniformBlock {
 
 /// `LocalExposureBlurInfo`.
 final class LocalExposureBlurInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `LocalExposureBlurInfo`.
   LocalExposureBlurInfoBlock() : super('LocalExposureBlurInfo');
 
   /// `step`: Vector4, at byte 0.
@@ -819,6 +879,8 @@ final class LocalExposureBlurInfoBlock extends UniformBlock {
 
 /// `LocalExposureInfo`.
 final class LocalExposureInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `LocalExposureInfo`.
   LocalExposureInfoBlock() : super('LocalExposureInfo');
 
   /// `stops`: Vector4, at byte 0.
@@ -836,6 +898,8 @@ final class LocalExposureInfoBlock extends UniformBlock {
 
 /// `LuminanceInfo`.
 final class LuminanceInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `LuminanceInfo`.
   LuminanceInfoBlock() : super('LuminanceInfo');
 
   /// `params`: Vector4, at byte 0.
@@ -849,6 +913,8 @@ final class LuminanceInfoBlock extends UniformBlock {
 
 /// `MaskInfo`.
 final class MaskInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `MaskInfo`.
   MaskInfoBlock() : super('MaskInfo');
 
   /// `mask`: Vector4, at byte 0.
@@ -862,6 +928,8 @@ final class MaskInfoBlock extends UniformBlock {
 
 /// `MaterialParams`.
 final class MaterialParamsBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `MaterialParams`.
   MaterialParamsBlock() : super('MaterialParams');
 
   /// `viewport`: Vector4, at byte 0.
@@ -875,6 +943,8 @@ final class MaterialParamsBlock extends UniformBlock {
 
 /// `MorphInfo`.
 final class MorphInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `MorphInfo`.
   MorphInfoBlock() : super('MorphInfo');
 
   /// `morph_weights`: 2 × Vector4, at byte 0.
@@ -892,6 +962,8 @@ final class MorphInfoBlock extends UniformBlock {
 
 /// `MorphInstanceInfo`.
 final class MorphInstanceInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `MorphInstanceInfo`.
   MorphInstanceInfoBlock() : super('MorphInstanceInfo');
 
   /// `instance_params`: Vector4, at byte 0.
@@ -905,6 +977,8 @@ final class MorphInstanceInfoBlock extends UniformBlock {
 
 /// `MotionBlurInfo`.
 final class MotionBlurInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `MotionBlurInfo`.
   MotionBlurInfoBlock() : super('MotionBlurInfo');
 
   /// `scene`: Vector4, at byte 0.
@@ -926,6 +1000,8 @@ final class MotionBlurInfoBlock extends UniformBlock {
 
 /// `NeighborMaxInfo`.
 final class NeighborMaxInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `NeighborMaxInfo`.
   NeighborMaxInfoBlock() : super('NeighborMaxInfo');
 
   /// `texel`: Vector4, at byte 0.
@@ -939,6 +1015,8 @@ final class NeighborMaxInfoBlock extends UniformBlock {
 
 /// `NoiseInfo`.
 final class NoiseInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `NoiseInfo`.
   NoiseInfoBlock() : super('NoiseInfo');
 
   /// `noise`: Vector4, at byte 0.
@@ -952,6 +1030,8 @@ final class NoiseInfoBlock extends UniformBlock {
 
 /// `OutlineMaskInfo`.
 final class OutlineMaskInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `OutlineMaskInfo`.
   OutlineMaskInfoBlock() : super('OutlineMaskInfo');
 
   /// `target`: Vector4, at byte 0.
@@ -969,6 +1049,8 @@ final class OutlineMaskInfoBlock extends UniformBlock {
 
 /// `ParticleInfo`.
 final class ParticleInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `ParticleInfo`.
   ParticleInfoBlock() : super('ParticleInfo');
 
   /// `view_projection`: Matrix, at byte 0.
@@ -982,6 +1064,8 @@ final class ParticleInfoBlock extends UniformBlock {
 
 /// `ParticleMeshInfo`.
 final class ParticleMeshInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `ParticleMeshInfo`.
   ParticleMeshInfoBlock() : super('ParticleMeshInfo');
 
   /// `view_projection`: Matrix, at byte 0.
@@ -995,6 +1079,8 @@ final class ParticleMeshInfoBlock extends UniformBlock {
 
 /// `PlanarReflectionInfo`.
 final class PlanarReflectionInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `PlanarReflectionInfo`.
   PlanarReflectionInfoBlock() : super('PlanarReflectionInfo');
 
   /// `view`: Vector4, at byte 0.
@@ -1016,6 +1102,8 @@ final class PlanarReflectionInfoBlock extends UniformBlock {
 
 /// `PointShadow`.
 final class PointShadowBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `PointShadow`.
   PointShadowBlock() : super('PointShadow');
 
   /// `faces`: 36 × Matrix, at byte 0.
@@ -1049,6 +1137,8 @@ final class PointShadowBlock extends UniformBlock {
 
 /// `PredrawInfo`.
 final class PredrawInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `PredrawInfo`.
   PredrawInfoBlock() : super('PredrawInfo');
 
   /// `mask`: Vector4, at byte 0.
@@ -1062,6 +1152,8 @@ final class PredrawInfoBlock extends UniformBlock {
 
 /// `PrevFrameInfo`.
 final class PrevFrameInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `PrevFrameInfo`.
   PrevFrameInfoBlock() : super('PrevFrameInfo');
 
   /// `current_mvp`: Matrix, at byte 0.
@@ -1091,6 +1183,8 @@ final class PrevFrameInfoBlock extends UniformBlock {
 
 /// `ProbeInfo`.
 final class ProbeInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `ProbeInfo`.
   ProbeInfoBlock() : super('ProbeInfo');
 
   /// `params`: Vector4, at byte 0.
@@ -1108,6 +1202,8 @@ final class ProbeInfoBlock extends UniformBlock {
 
 /// `ReactiveInfo`.
 final class ReactiveInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `ReactiveInfo`.
   ReactiveInfoBlock() : super('ReactiveInfo');
 
   /// `target`: Vector4, at byte 0.
@@ -1133,6 +1229,8 @@ final class ReactiveInfoBlock extends UniformBlock {
 
 /// `ReflectionInfo`.
 final class ReflectionInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `ReflectionInfo`.
   ReflectionInfoBlock() : super('ReflectionInfo');
 
   /// `view_projection`: Matrix, at byte 0.
@@ -1170,6 +1268,8 @@ final class ReflectionInfoBlock extends UniformBlock {
 
 /// `RenderTextureInfo`.
 final class RenderTextureInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `RenderTextureInfo`.
   RenderTextureInfoBlock() : super('RenderTextureInfo');
 
   /// `params`: Vector4, at byte 0.
@@ -1183,6 +1283,8 @@ final class RenderTextureInfoBlock extends UniformBlock {
 
 /// `SceneCopyInfo`.
 final class SceneCopyInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `SceneCopyInfo`.
   SceneCopyInfoBlock() : super('SceneCopyInfo');
 
   /// `params`: Vector4, at byte 0.
@@ -1196,6 +1298,8 @@ final class SceneCopyInfoBlock extends UniformBlock {
 
 /// `ShadeInfo`.
 final class ShadeInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `ShadeInfo`.
   ShadeInfoBlock() : super('ShadeInfo');
 
   /// `params`: Vector4, at byte 0.
@@ -1217,6 +1321,8 @@ final class ShadeInfoBlock extends UniformBlock {
 
 /// `ShadowCopyInfo`.
 final class ShadowCopyInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `ShadowCopyInfo`.
   ShadowCopyInfoBlock() : super('ShadowCopyInfo');
 
   /// `tile`: Vector4, at byte 0.
@@ -1234,6 +1340,8 @@ final class ShadowCopyInfoBlock extends UniformBlock {
 
 /// `ShadowLight`.
 final class ShadowLightBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `ShadowLight`.
   ShadowLightBlock() : super('ShadowLight');
 
   /// `light`: Vector4, at byte 0.
@@ -1247,6 +1355,8 @@ final class ShadowLightBlock extends UniformBlock {
 
 /// `ShaftInfo`.
 final class ShaftInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `ShaftInfo`.
   ShaftInfoBlock() : super('ShaftInfo');
 
   /// `inverse_view_projection`: Matrix, at byte 0.
@@ -1296,6 +1406,8 @@ final class ShaftInfoBlock extends UniformBlock {
 
 /// `SixWayInfo`.
 final class SixWayInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `SixWayInfo`.
   SixWayInfoBlock() : super('SixWayInfo');
 
   /// `right`: Vector4, at byte 0.
@@ -1325,6 +1437,8 @@ final class SixWayInfoBlock extends UniformBlock {
 
 /// `SkinInfo`.
 final class SkinInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `SkinInfo`.
   SkinInfoBlock() : super('SkinInfo');
 
   /// `joint_matrices`: 64 × Matrix, at byte 0.
@@ -1338,6 +1452,8 @@ final class SkinInfoBlock extends UniformBlock {
 
 /// `SmaaInfo`.
 final class SmaaInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `SmaaInfo`.
   SmaaInfoBlock() : super('SmaaInfo');
 
   /// `params`: Vector4, at byte 0.
@@ -1351,6 +1467,8 @@ final class SmaaInfoBlock extends UniformBlock {
 
 /// `SoftParticleInfo`.
 final class SoftParticleInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `SoftParticleInfo`.
   SoftParticleInfoBlock() : super('SoftParticleInfo');
 
   /// `target`: Vector4, at byte 0.
@@ -1372,6 +1490,8 @@ final class SoftParticleInfoBlock extends UniformBlock {
 
 /// `SplatHashInfo`.
 final class SplatHashInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `SplatHashInfo`.
   SplatHashInfoBlock() : super('SplatHashInfo');
 
   /// `frame`: Vector4, at byte 0.
@@ -1393,6 +1513,8 @@ final class SplatHashInfoBlock extends UniformBlock {
 
 /// `SsaoBlurInfo`.
 final class SsaoBlurInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `SsaoBlurInfo`.
   SsaoBlurInfoBlock() : super('SsaoBlurInfo');
 
   /// `params`: Vector4, at byte 0.
@@ -1406,6 +1528,8 @@ final class SsaoBlurInfoBlock extends UniformBlock {
 
 /// `SsaoInfo`.
 final class SsaoInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `SsaoInfo`.
   SsaoInfoBlock() : super('SsaoInfo');
 
   /// `inverse_view_projection`: Matrix, at byte 0.
@@ -1439,6 +1563,8 @@ final class SsaoInfoBlock extends UniformBlock {
 
 /// `TemporalInfo`.
 final class TemporalInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `TemporalInfo`.
   TemporalInfoBlock() : super('TemporalInfo');
 
   /// `scene_texel`: Vector4, at byte 0.
@@ -1468,6 +1594,8 @@ final class TemporalInfoBlock extends UniformBlock {
 
 /// `TileMaxInfo`.
 final class TileMaxInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `TileMaxInfo`.
   TileMaxInfoBlock() : super('TileMaxInfo');
 
   /// `source`: Vector4, at byte 0.
@@ -1489,6 +1617,8 @@ final class TileMaxInfoBlock extends UniformBlock {
 
 /// `TransmittanceInfo`.
 final class TransmittanceInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `TransmittanceInfo`.
   TransmittanceInfoBlock() : super('TransmittanceInfo');
 
   /// `color`: Vector4, at byte 0.
@@ -1510,6 +1640,8 @@ final class TransmittanceInfoBlock extends UniformBlock {
 
 /// `VelocityInfo`.
 final class VelocityInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `VelocityInfo`.
   VelocityInfoBlock() : super('VelocityInfo');
 
   /// `target`: Vector4, at byte 0.
@@ -1523,6 +1655,8 @@ final class VelocityInfoBlock extends UniformBlock {
 
 /// `VolumeFogInfo`.
 final class VolumeFogInfoBlock extends UniformBlock {
+  /// A block with every member zeroed, bound by the name
+  /// `VolumeFogInfo`.
   VolumeFogInfoBlock() : super('VolumeFogInfo');
 
   /// `inverse_view_projection`: Matrix, at byte 0.

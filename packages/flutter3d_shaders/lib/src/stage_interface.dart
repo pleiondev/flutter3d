@@ -8,6 +8,7 @@ import 'package:flutter3d_foundation/flutter3d_foundation.dart'
 /// One variable a stage reads or writes across its boundary: a vertex
 /// attribute, a varying, a fragment output.
 final class StageVariable {
+  /// The variable [name] of [type], at [location] when the GLSL gives one.
   const StageVariable(this.name, this.type, {this.location});
 
   /// The name the GLSL declares.
@@ -37,9 +38,14 @@ final class StageVariable {
 
 /// One member of a uniform block, in the order the block declares it.
 final class StageBlockMember {
+  /// The member [name] of [type].
   const StageBlockMember(this.name, this.type);
 
+  /// The name the block declares, with its array size when it has one:
+  /// `lights[8]`.
   final String name;
+
+  /// The GLSL type, precision qualifier dropped: `vec4`, `mat4`.
   final String type;
 
   @override
@@ -63,6 +69,8 @@ final class StageBlockMember {
 /// [checkStageAgreement]; a mismatch is a build error naming both stages,
 /// not a crash on one backend at the first draw.
 final class StageInterface {
+  /// The interface of the stage [name], a fragment stage when [fragment];
+  /// no inputs, outputs or blocks unless given.
   const StageInterface({
     required this.name,
     required this.fragment,
@@ -162,6 +170,7 @@ final class StageMismatchKind {
   /// Two stages declare one uniform block with different members.
   static const StageMismatchKind block = StageMismatchKind._('block');
 
+  /// Every kind this version knows; what [byName] searches.
   static const List<StageMismatchKind> values = <StageMismatchKind>[
     varying,
     attribute,
@@ -186,12 +195,14 @@ final class StageMismatchKind {
 /// One way two stages of a pipeline disagree, with the names a person
 /// fixes it by.
 final class StageMismatch {
+  /// The disagreement of [kind] about [name], told in [says].
   const StageMismatch({
     required this.kind,
     required this.name,
     required this.says,
   });
 
+  /// Whether it is a varying, an attribute or a block they disagree on.
   final StageMismatchKind kind;
 
   /// The varying, the attribute or the block they disagree about.
@@ -318,6 +329,7 @@ bool _sameMembers(List<StageBlockMember> a, List<StageBlockMember> b) {
 /// would have drawn zeros on one device and failed to link on another
 /// never reaches either.
 final class StageAgreementException extends Flutter3dFormatException {
+  /// The refusal over [mismatches], copied into an unmodifiable list.
   StageAgreementException(Iterable<StageMismatch> mismatches)
     : mismatches = List<StageMismatch>.unmodifiable(mismatches);
 

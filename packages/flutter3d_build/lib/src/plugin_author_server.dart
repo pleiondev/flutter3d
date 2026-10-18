@@ -59,6 +59,7 @@ const int _reportVersion = 1;
 /// One outcome of a conformance report: a check, on a backend for the
 /// backends check, and how it went.
 final class ConformanceOutcome {
+  /// The outcome of [check], on [backend] when it is the backends check.
   const ConformanceOutcome({
     required this.check,
     this.backend,
@@ -92,6 +93,8 @@ final class ConformanceOutcome {
 /// check list kept here could only disagree with it, and once did: it
 /// counted five checks where the suite counted seven.
 final class ConformanceReportFile {
+  /// The report read from [path]: [plugin]'s run of [suite], its [badge]
+  /// and every outcome.
   const ConformanceReportFile({
     required this.path,
     required this.plugin,
@@ -192,6 +195,8 @@ final class ConformanceReportFile {
 /// A class rather than a record, so a run can later report more (how long
 /// it took) without breaking a runner written against it.
 final class PluginProcessResult {
+  /// The run that exited with [exitCode] after writing [stdout] and
+  /// [stderr].
   const PluginProcessResult({
     required this.exitCode,
     required this.stdout,
@@ -238,6 +243,8 @@ Future<PluginProcessResult> _runProcess(
 
 /// One test of a conformance run, as the JSON reporter told it.
 final class ConformanceTest {
+  /// The test [name], which [passed], was [declined], or failed as [says]
+  /// tells.
   const ConformanceTest({
     required this.name,
     required this.passed,
@@ -347,6 +354,8 @@ ConformanceTest _test(
 
 /// One run of a plugin's conformance suite.
 final class ConformanceRun {
+  /// The run that exited with [exitCode], reporting [tests] and, when the
+  /// suite wrote one, its [report].
   const ConformanceRun({
     required this.exitCode,
     required this.tests,
@@ -377,6 +386,8 @@ final class ConformanceRun {
 /// on disk, so a tool names its directory and the session keeps only what a
 /// later call needs — the last run, for `plugin.report`.
 final class PluginWorkshop {
+  /// An empty workshop that starts programs through [run]; null runs them
+  /// with [Process.run].
   PluginWorkshop({PluginProcessRunner? run}) : _run = run ?? _runProcess;
 
   final PluginProcessRunner _run;
@@ -662,6 +673,8 @@ final List<PluginAuthorTool> pluginAuthorTools = <PluginAuthorTool>[
 /// what the checks mean is `flutter3d_conformance`'s.
 base class PluginAuthorMcpServer
     extends ToolTableServer<PluginWorkshop, Answer> {
+  /// The server `flutter3d.plugins`, answering [channel] with the tools of
+  /// [pluginAuthorTools] over [session].
   PluginAuthorMcpServer(super.channel, {required super.session})
     : super(
         name: 'flutter3d.plugins',

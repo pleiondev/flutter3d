@@ -112,6 +112,8 @@ const List<String> cliCommands = <String>[
 /// anything else, so `--knd=viewer` is refused rather than dropped, and a
 /// test holds each set to the flags its usage text names, both ways.
 final class CliOptionSet {
+  /// The set of [flags] and [valued] options; both empty by default, which
+  /// refuses every option but `-h` and `--help`.
   const CliOptionSet({
     this.flags = const <String>{},
     this.valued = const <String>{},
@@ -369,6 +371,8 @@ tool (FBX2glTF, Blender, usdcat) is not installed; 4 an output exists with
 different contents and --overwrite was not given.
 ''';
 
+/// What `flutter3d help init` prints, and what `init` prints to stderr
+/// after an unknown option or a second project directory.
 const String initUsage = '''
 Usage: dart run flutter3d_build:init [options] [project-directory]
 

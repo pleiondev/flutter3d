@@ -11,20 +11,38 @@ import 'manifest.dart';
 /// One file [AssetLayout.plan] found: where it is, where the converted
 /// output goes, and the rule (if any) that governs how.
 final class AssetPlan {
+  /// The plan to convert [source] into [destination] under [rule].
   const AssetPlan({required this.source, required this.destination, this.rule});
 
+  /// The source file's path under `assets_src/`, as the directory listing
+  /// gave it.
   final String source;
+
+  /// Where the output goes under `flutter3d_generated/`: the same relative
+  /// path with `.f3d` (or, for a material, `.f3dshaders`) in place of the
+  /// source's extension.
   final String destination;
+
+  /// The last manifest rule matching [source]; null when none does.
   final AssetRule? rule;
 }
 
 /// A project's asset directories, and the plan a hook (`ap-05`) or the CLI's
 /// own batch mode reads to know what to convert and where.
 final class AssetLayout {
+  /// The layout of [projectRoot], under [manifest]; a null [manifest] reads
+  /// the project's own `flutter3d_assets.yaml`, or takes the empty one.
+  ///
+  /// Throws a [ManifestFormatException] when the project's manifest does
+  /// not read.
   AssetLayout({required this.projectRoot, AssetBuildManifest? manifest})
     : manifest = manifest ?? AssetBuildManifest.readFrom(projectRoot);
 
+  /// The application's root, holding `assets_src/` and
+  /// `flutter3d_generated/`.
   final Directory projectRoot;
+
+  /// The rules [plan] and [materialPlan] apply.
   final AssetBuildManifest manifest;
 
   /// Every source a project author writes by hand.
