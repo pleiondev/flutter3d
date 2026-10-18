@@ -209,6 +209,9 @@ final class CameraRig {
     _fovY *= 1.0 - gone;
     if (_shakeSeconds > 0.0) {
       _shake = math.max(0.0, _shake - dt * _shake / _shakeSeconds - 1e-4);
+      // A shake that has died away takes its length with it. Kept, it would
+      // stretch every shorter shake after it to the longest one so far.
+      if (_shake == 0.0) _shakeSeconds = 0.0;
     }
   }
 
@@ -243,6 +246,8 @@ final class CameraRig {
     _placed = false;
     _kick.setZero();
     _shake = 0.0;
+    _shakeSeconds = 0.0;
+    _shakeTime = 0.0;
     _fovY = 0.0;
   }
 }

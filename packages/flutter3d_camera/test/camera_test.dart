@@ -531,6 +531,52 @@ void main() {
     );
   });
 
+  group("the rig's shake", () {
+    // How far the shown eye stands from the smoothed one after [seconds] of
+    // frames: the shake and nothing else, since the rig stands still in an
+    // empty world.
+    double shakenBy(CameraRig rig, double seconds) {
+      var t = 0.0;
+      while (t < seconds - 1e-9) {
+        rig.place(
+          desiredEye: Vector3(0.0, 2.0, 6.0),
+          desiredTarget: Vector3.zero(),
+          lag: 8.0,
+          dt: _frame,
+        );
+        t += _frame;
+      }
+      return (rig.eye - rig.freeEye).length;
+    }
+
+    test('a short shake after a long one lasts its own length', () {
+      // Mutation: keep the longest length a shake ever had. A tap after one
+      // long rumble would rattle on for the rumble's three seconds.
+      final rig = CameraRig(world: CollisionWorld());
+      shakenBy(rig, _frame);
+      rig.shake(0.1, seconds: 3.0);
+      expect(shakenBy(rig, 0.1), greaterThan(0.0));
+      expect(shakenBy(rig, 30.0), 0.0, reason: 'the rumble is over');
+
+      rig.shake(0.2, seconds: 0.1);
+      expect(shakenBy(rig, 0.5), 0.0);
+    });
+
+    test('a cut forgets the length of the shake it stopped', () {
+      // Mutation: clear only the amount in `cut`. A shake after a respawn
+      // would last as long as the one the crash started.
+      final rig = CameraRig(world: CollisionWorld());
+      shakenBy(rig, _frame);
+      rig.shake(1.0, seconds: 3.0);
+      shakenBy(rig, 0.1);
+      rig.cut();
+      expect(shakenBy(rig, _frame), 0.0, reason: 'the cut stops it');
+
+      rig.shake(0.2, seconds: 0.1);
+      expect(shakenBy(rig, 0.5), 0.0);
+    });
+  });
+
   group('the plugin', () {
     test('it places the cameras in the frame phase and shakes on events', () {
       // Mutation: add the system to a step phase. A view plugin would be
