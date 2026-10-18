@@ -1,7 +1,16 @@
 part of 'arcade_game.dart';
 
 /// Which Kenney craft plays which part.
-enum CraftRole { ship, patrol, hunter }
+enum CraftRole {
+  /// The player's craft.
+  ship,
+
+  /// A bot that keeps to its beat.
+  patrol,
+
+  /// A bot that chases the ship when it comes near.
+  hunter,
+}
 
 /// A Space Kit craft as this game fits it.
 final class _CraftLook {

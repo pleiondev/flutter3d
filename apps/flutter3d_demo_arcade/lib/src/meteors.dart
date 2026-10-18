@@ -43,6 +43,10 @@ final class _Falling {
 /// A shower of meteors over a yard [halfWidth] by [halfDepth] metres about
 /// its middle, its floor at height nought.
 final class MeteorShower {
+  /// A shower over a yard [halfWidth] by [halfDepth] metres about its middle,
+  /// a meteor every [every] seconds. Builds the floor and six crates into its
+  /// own [world] and adds the crates to [scene] at once; the meteors start
+  /// with the first [step].
   MeteorShower({
     required GraphicsDevice device,
     required Scene scene,
@@ -109,6 +113,8 @@ final class MeteorShower {
   /// Seconds between meteors.
   final double every;
 
+  /// Half the yard's width and depth, in metres: the floor's extent, and how
+  /// far from the middle a meteor may land, less a metre and a half of margin.
   final double halfWidth, halfDepth;
 
   /// The world the meteors fall through: the yard's floor, its crates, the
@@ -170,6 +176,9 @@ final class MeteorShower {
   static double _flat(Vector3 a, Vector3 b) =>
       math.sqrt((a.x - b.x) * (a.x - b.x) + (a.z - b.z) * (a.z - b.z));
 
+  /// Advances the shower by [dt] seconds: announces a meteor when one is due,
+  /// grows each shadow, launches and lands the stones, steps [world], and
+  /// lights each stone as hot as it is.
   void step(double dt) {
     _since += dt;
     if (_since >= every) {
@@ -339,5 +348,7 @@ final class MeteorShower {
     return piece;
   }
 
+  /// Lets go of [world], with the floor, the crates, the stones and the fires
+  /// in it. Nothing is stepped or drawn from the shower after this.
   void dispose() => world.dispose();
 }

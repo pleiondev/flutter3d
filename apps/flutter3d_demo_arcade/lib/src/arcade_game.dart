@@ -31,6 +31,10 @@ part 'staging.dart';
 /// the ground mesh both agree on the same numbers without a second constant
 /// drifting from the first.
 const double arenaHalfWidth = 13.0;
+
+/// Half the yard's depth, along the screen's up and down, in metres: the
+/// walls stand this far either side of the middle, and the ship starts two
+/// metres in from the bottom one.
 const double arenaHalfDepth = 9.0;
 
 /// How high above the ground the camera sits — its own [BridgePlane], distinct
@@ -95,6 +99,9 @@ RigidDynamics arcadeDynamics(CollisionWorld world) =>
 /// that is airborne on purpose, for good.
 final class ArcadeGame extends TransparentFlameGame
     with KeyboardEvents, HasFixedStep {
+  /// A game on the first level with nothing in the yard yet: the world, the
+  /// dynamics, the actor system and the WASD and arrow bindings exist, and
+  /// [ArcadeGameStaging.spawnWorld] puts the ship and the bots in it.
   ArcadeGame()
     : collisionWorld = CollisionWorld(properties: arcadeWorld),
       inputState = InputState(),
@@ -169,13 +176,27 @@ final class ArcadeGame extends TransparentFlameGame
   /// Every collider the player's or a bot's body owns, one world for both
   /// bridges — see this class's own doc comment.
   final CollisionWorld collisionWorld;
+
+  /// What moves the ship's body: the run's physics backend over
+  /// [collisionWorld], in [arcadeWorld]'s zero gravity. Let go in [onRemove]
+  /// when it is the native core.
   late final RigidDynamics dynamics;
+
+  /// What steps the bots: every [BotBrain] decides once a step under it, in
+  /// [collisionWorld], with the ship as its focus. Seeded, so a run's bots
+  /// make the same choices every time.
   late final ActorSystem actorSystem;
 
   /// What every input device — here, just [inputBridge] — writes into, and
   /// what the ship's own movement reads.
   final InputState inputState;
+
+  /// Which key flies the ship which way: W and the up arrow forward, S and the
+  /// down arrow back, A and D and the side arrows sideways.
   final Bindings bindings;
+
+  /// Where Flame's key events go to become [inputState]: [bindings] read
+  /// through the common action set.
   late final FlameInputBridge inputBridge;
 
   /// Bridged onto the ship's collider once [spawnWorld] builds it, so a
@@ -221,7 +242,11 @@ final class ArcadeGame extends TransparentFlameGame
   /// Which of [arcadeLevels] is being played.
   int levelIndex = 0;
 
+  /// The level being played: its bots, their speed and behaviour, and the
+  /// hits the ship may take.
   ArcadeLevel get level => arcadeLevels[levelIndex];
+
+  /// Hits the ship can take on this level before it is lost.
   int get maxHits => level.maxHits;
 
   /// Where the ship is flying this step, on the ground plane. Its length is
@@ -234,6 +259,8 @@ final class ArcadeGame extends TransparentFlameGame
   /// cleared it.
   bool spawned = false;
 
+  /// The ship has taken [maxHits] hits and the level is lost; the world stops
+  /// stepping until a retry.
   bool get gameOver => hits >= maxHits;
 
   /// This level's bots are all down and the ship survived it.
@@ -465,6 +492,8 @@ final class ArcadeGame extends TransparentFlameGame
 /// The blink is counted down in the game's steps, since whether the ship can
 /// be hit again depends on it, and only shown in its frames.
 final class ShipComponent extends RigidBodyComponent with FixedStepUpdate {
+  /// The ship for [body], drawn as [node] in [scene] and mapped onto Flame's
+  /// plane by [plane].
   ShipComponent({
     required super.body,
     required super.node,
@@ -477,6 +506,8 @@ final class ShipComponent extends RigidBodyComponent with FixedStepUpdate {
 
   double _flashRemaining = 0.0;
 
+  /// Starts the half-second blink after a hit, during which [isFlashing] is
+  /// true and the ship cannot be hit again.
   void flash() => _flashRemaining = _flashDuration;
 
   /// Still blinking from the last hit, and so not to be hit again yet.

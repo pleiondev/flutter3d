@@ -52,28 +52,31 @@ Future<void> main() async {
   // The run's physics, chosen once: the core, which the browser fetches as
   // WebAssembly, or the reference where it will not start.
   await preparePhysics();
-  runApp(const ArcadeApp());
+  runApp(const _ArcadeApp());
 }
 
-class ArcadeApp extends StatelessWidget {
-  const ArcadeApp({super.key});
+/// The app around the one screen: a title and no debug banner.
+class _ArcadeApp extends StatelessWidget {
+  const _ArcadeApp();
 
   @override
   Widget build(BuildContext context) => const MaterialApp(
     title: 'Meteor Yard',
     debugShowCheckedModeBanner: false,
-    home: ArcadeScreen(),
+    home: _ArcadeScreen(),
   );
 }
 
-class ArcadeScreen extends StatefulWidget {
-  const ArcadeScreen({super.key});
+/// The yard, the status line over it and, on a touch device, the stick:
+/// everything the game shows, in one screen.
+class _ArcadeScreen extends StatefulWidget {
+  const _ArcadeScreen();
 
   @override
-  State<ArcadeScreen> createState() => _ArcadeScreenState();
+  State<_ArcadeScreen> createState() => _ArcadeScreenState();
 }
 
-class _ArcadeScreenState extends State<ArcadeScreen> {
+class _ArcadeScreenState extends State<_ArcadeScreen> {
   /// Starts on the level `--dart-define=ARCADE_LEVEL=n` names, counting from
   /// one, so a later level can be looked at without playing through the
   /// ones before it. Set before [ArcadeGameStaging.spawnWorld], which builds

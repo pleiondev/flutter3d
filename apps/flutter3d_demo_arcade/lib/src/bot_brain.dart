@@ -23,6 +23,10 @@ import 'package:vector_math/vector_math.dart';
 ///   flow field the yard does not bake.
 /// * **Patrol** between [from] and [to], turning round at each end.
 final class BotBrain extends Brain {
+  /// A bot that patrols from [from] to [to] and back. A [chaseRadius] or
+  /// [dodgeRadius] of zero leaves that behaviour off; [shipHeading] is
+  /// asked for the ship's heading every step, and a bot without it never
+  /// dodges.
   BotBrain(
     this.from,
     this.to, {
@@ -33,6 +37,8 @@ final class BotBrain extends Brain {
 
   /// The two ends of the beat, in world space.
   final Vector3 from;
+
+  /// The far end of the beat, where the bot turns back to [from].
   final Vector3 to;
 
   /// How near the ship has to be for this bot to give chase. Zero never.
