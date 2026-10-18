@@ -52,7 +52,7 @@ typedef DepthRules = LevelRules Function(int depth);
 final class Felt
   String toString()
   const Felt.kick(Vector3 by)
-  const Felt.shake(this.amount, {this.seconds = 0.0})
+  const Felt.shake(this.amount, {this.seconds = 0.35})
   const Felt.widen(this.amount)
   final Jolt jolt
   final Vector3? offset
@@ -325,7 +325,7 @@ library package:flutter3d_game_kit/reactions.dart
 final class Felt
   String toString()
   const Felt.kick(Vector3 by)
-  const Felt.shake(this.amount, {this.seconds = 0.0})
+  const Felt.shake(this.amount, {this.seconds = 0.35})
   const Felt.widen(this.amount)
   final Jolt jolt
   final Vector3? offset

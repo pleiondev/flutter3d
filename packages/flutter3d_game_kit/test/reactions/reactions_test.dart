@@ -126,6 +126,23 @@ void main() {
     expect(Jolt.widen.toString(), 'widen');
   });
 
+  test('a felt shake with no length named moves the eye', () {
+    // Mutation: default a shake's length to nought. The rig scales the shake
+    // by its length, so `Felt.shake(0.5)` would read as a shake and do
+    // nothing at all.
+    final rig = CameraRig(world: CollisionWorld());
+    void step() => rig.place(
+      desiredEye: Vector3(0.0, 2.0, 6.0),
+      desiredTarget: Vector3.zero(),
+      lag: 8.0,
+      dt: 1.0 / 60.0,
+    );
+    step();
+    const Felt.shake(0.5).applyTo(rig);
+    step();
+    expect((rig.eye - rig.freeEye).length, greaterThan(1e-3));
+  });
+
   test('a reaction bursts and lingers into a particle system', () {
     // Mutation: drop the lingering half of `showIn`. A blast's smoke would
     // never start.

@@ -4506,3 +4506,14 @@ entries:
       The abstract `step` a leaf of your own writes is the `tick` it wrote
       before, under its new name, and `dart fix` renames the override with
       the call sites (`sim-BehaviorLeaf-tick`): nothing is left to write.
+
+  - id: game_kit-Felt
+    package: flutter3d_game_kit
+    symbol: Felt
+    kind: none
+    reason: >-
+      Only the default of `Felt.shake`'s `seconds` changed, from nought to
+      the 0.35 that `CameraRig.shake` takes. The rig scales a shake by its
+      length, so a call that left it out shook nothing before and shakes
+      now, which is what it asked for; a call that passes `seconds` is
+      unchanged.

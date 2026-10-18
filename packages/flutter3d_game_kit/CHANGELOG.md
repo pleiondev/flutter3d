@@ -12,6 +12,10 @@
   1.0. Each row keeps one and sets it for every event.
 - **`ghostOfRun` returns a `RunGhost`** (`ghost`, `note`) in place of a
   record, so it can say more in a minor release.
+- **Breaking: `Felt.shake` lasts 0.35 seconds unless told otherwise.** Its
+  `seconds` defaulted to nought, and the rig scales a shake by its length,
+  so `Felt.shake(0.5)` described a shake and did nothing. The default is now
+  the one `CameraRig.shake` has. A call that passes `seconds` is unchanged.
 
 - **`Daylight.defaultSunIntensity` is written in lux: 15 000.** It was
   2.6 × `Photometric.legacyUnit`, the same sun within half a percent, stated

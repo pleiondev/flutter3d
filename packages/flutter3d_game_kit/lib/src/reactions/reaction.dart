@@ -88,9 +88,10 @@ final class Felt {
       amount = 0.0,
       seconds = 0.0;
 
-  /// A shake [amount] metres wide lasting [seconds] seconds. The rig scales
-  /// the shake by its length, so the default of nought shakes nothing.
-  const Felt.shake(this.amount, {this.seconds = 0.0})
+  /// A shake [amount] metres wide lasting [seconds] seconds, by default the
+  /// same third of a second [CameraRig.shake] takes. The rig scales the shake
+  /// by its length, so a length of nought would shake nothing.
+  const Felt.shake(this.amount, {this.seconds = 0.35})
     : jolt = Jolt.shake,
       offset = null;
 

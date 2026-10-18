@@ -5,7 +5,7 @@ description: Move a project written against flutter3d 0.8 to 1.0.0-rc.1, with on
 # Migrating from 0.8 to 1.0
 
 1.0 is the release the engine promises to keep: from it on, a break comes
-only in a major version. To get there, and on to this release, the API changed in 2503 places,
+only in a major version. To get there, and on to this release, the API changed in 2504 places,
 317 of them left to you; 380 are backend internals no application called.
 The rest a program carries out for you, and three
 tools share the work. All three read the same tables,
@@ -225,7 +225,7 @@ carried out:
 
 <!-- migration-table:start -->
 
-*Generated from `flutter3d_build/lib/migrations/` — 408 entries from 1.0.0-rc.1 to the release after 1.0.0-rc.1, 16 by hand: 127 `dart fix`, 161 `migrate`, 16 by hand, 104 nothing to do.*
+*Generated from `flutter3d_build/lib/migrations/` — 409 entries from 1.0.0-rc.1 to the release after 1.0.0-rc.1, 16 by hand: 127 `dart fix`, 161 `migrate`, 16 by hand, 105 nothing to do.*
 
 ### `flame_flutter3d`
 
@@ -463,6 +463,10 @@ carried out:
 - <a id="game-GameSettingsController-rebinding"></a>**`GameSettingsController.rebinding`** (nothing to do). `rebinding` was a public `late final` with no initialiser: a setter that worked once and threw `LateInitializationError` the second time. It is a getter now; every read compiles as it did, and only an assignment, which could never succeed after construction, is refused.
 - <a id="game-PadInput-tick"></a>**`PadInput.tick`** (`dart fix`). `PadInput.tick` is `PadInput.update`. One verb per clock: `step` is the fixed simulation step, `update` the variable frame, `advance` playback, and `tick` is none of them. Same behaviour under the new name.
 - <a id="game-flutter3d-export"></a>**`package:flutter3d/flutter3d.dart`** (nothing to do). The facade still re-exports the engine through this one line; only the names in it changed, `ComputeExecutor`, `ComputeExecutors` and `ComputePlacement` out and `ComputeSite` in, which their own entries cover.
+
+### `flutter3d_game_kit`
+
+- <a id="game_kit-Felt"></a>**`Felt`** (nothing to do). Only the default of `Felt.shake`'s `seconds` changed, from nought to the 0.35 that `CameraRig.shake` takes. The rig scales a shake by its length, so a call that left it out shook nothing before and shakes now, which is what it asked for; a call that passes `seconds` is unchanged.
 
 ### `flutter3d_game_physics`
 
