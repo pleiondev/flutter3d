@@ -3130,3 +3130,21 @@ entries:
     reason: >-
       Render modules arrived in ABI 3, and the constant names it rather
       than the ABI after the newest; it was 3 already.
+
+  - id: cpu-sampleLight-record
+    package: flutter3d_cpu
+    symbol: sampleLight
+    kind: recordToClass
+    fields:
+      direction: direction
+      radiance: radiance
+      nDotL: nDotL
+      nDotH: nDotH
+      vDotH: vDotH
+      ltc: ltc
+      corners: corners
+    guidance: >-
+      `sampleLight` answers a `LightSample?`, a class with the fields the
+      record had and `==`, where `LightSample` was a record; field reads
+      keep compiling, and a record literal of one becomes
+      `LightSample(...)`, whose `ltc` and `corners` may be left out.

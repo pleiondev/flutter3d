@@ -284,7 +284,8 @@ final class _StandardHooks extends PbrHooks {
   bool get readsLightRow => program.readsLightRow;
 
   @override
-  void surface(Surface s, Float32List v, ShaderBindings b, FragmentContext c) {
+  void surface(PbrSurfaceContext context) {
+    final PbrSurfaceContext(surface: s, varyings: v) = context;
     _varyings = v;
     final written = program.surface;
     if (written == null) return;
@@ -320,7 +321,8 @@ final class _StandardHooks extends PbrHooks {
   }
 
   @override
-  bool lightType(double code, Vector4 params) {
+  bool lightType(PbrLightTypeContext context) {
+    final PbrLightTypeContext(:code, :params) = context;
     _kind = code;
     _params = params;
     return code < 15.5 ||
@@ -334,7 +336,8 @@ final class _StandardHooks extends PbrHooks {
       };
 
   @override
-  Vector3 light(Surface s, LightSample light, Vector3 standard) {
+  Vector3 light(PbrLightContext context) {
+    final PbrLightContext(surface: s, :light, :standard) = context;
     if (program.light == null) return standard;
     final half = (light.direction + s.view)..normalize();
     final answer = evaluateMaterialLight(
@@ -430,14 +433,12 @@ Vector3 _rowLights(
       final nDotL = s.normal.dot(toLight);
       if (nDotL <= 0.0) continue;
       final half = (toLight + s.view)..normalize();
-      final LightSample own = (
+      final own = LightSample(
         direction: toLight,
         radiance: Vector3(color.x, color.y, color.z)..scale(color.w),
         nDotL: nDotL,
         nDotH: math.max(s.normal.dot(half), 0.0),
         vDotH: math.max(s.view.dot(half), 0.0),
-        ltc: null,
-        corners: null,
       );
       final response = shade(s, own);
       total += Vector3(

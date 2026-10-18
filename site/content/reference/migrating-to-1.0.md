@@ -5,7 +5,7 @@ description: Move a project written against flutter3d 0.8 to 1.0.0-rc.1, with on
 # Migrating from 0.8 to 1.0
 
 1.0 is the release the engine promises to keep: from it on, a break comes
-only in a major version. To get there, and on to this release, the API changed in 2367 places,
+only in a major version. To get there, and on to this release, the API changed in 2368 places,
 316 of them left to you; 380 are backend internals no application called.
 The rest a program carries out for you, and three
 tools share the work. All three read the same tables,
@@ -225,7 +225,7 @@ carried out:
 
 <!-- migration-table:start -->
 
-*Generated from `flutter3d_build/lib/migrations/` — 272 entries from 1.0.0-rc.1 to the release after 1.0.0-rc.1, 15 by hand: 23 `dart fix`, 160 `migrate`, 15 by hand, 74 nothing to do.*
+*Generated from `flutter3d_build/lib/migrations/` — 273 entries from 1.0.0-rc.1 to the release after 1.0.0-rc.1, 15 by hand: 23 `dart fix`, 161 `migrate`, 15 by hand, 74 nothing to do.*
 
 ### `flame_flutter3d`
 
@@ -369,6 +369,7 @@ carried out:
 - <a id="cpu-cpuTestDevice-record"></a>**`cpuTestDevice`** (`migrate`). `cpuTestDevice` is a class: `.device` is `.device`, `.albedo` is `.albedo`, `.normal` is `.normal`; a destructuring pattern is yours to rewrite. `cpuTestDevice` answers a `CpuTestKit` with `device`, `albedo` and `normal`, where it answered a record; `it.device` and the rest keep compiling.
 - <a id="cpu-mapUv-record"></a>**`mapUv`** (`migrate`). `mapUv` is a class: `.u` is `.u`, `.v` is `.v`, `.footprint` is `.footprint`; a destructuring pattern is yours to rewrite. `mapUv` answers a `MappedUv` with `u`, `v` and `footprint`, where it answered a record; `final (u: a, v: b, footprint: f) = mapUv(...)` becomes `final MappedUv(u: a, v: b, footprint: f) = mapUv(...)`.
 - <a id="cpu-pixelRay-record"></a>**`pixelRay`** (`migrate`). `pixelRay` is a class: `.origin` is `.origin`, `.along` is `.along`; a destructuring pattern is yours to rewrite. `pixelRay` answers a `PixelRay` with `origin` and `along`, where it answered a record; `final (:origin, :along) = pixelRay(...)` becomes `final PixelRay(:origin, :along) = pixelRay(...)`.
+- <a id="cpu-sampleLight-record"></a>**`sampleLight`** (`migrate`). `sampleLight` is a class: `.direction` is `.direction`, `.radiance` is `.radiance`, `.nDotL` is `.nDotL`, `.nDotH` is `.nDotH`, `.vDotH` is `.vDotH`, `.ltc` is `.ltc`, `.corners` is `.corners`; a destructuring pattern is yours to rewrite. `sampleLight` answers a `LightSample?`, a class with the fields the record had and `==`, where `LightSample` was a record; field reads keep compiling, and a record literal of one becomes `LightSample(...)`, whose `ltc` and `corners` may be left out.
 - <a id="cpu-splatNoiseOffset-record"></a>**`splatNoiseOffset`** (`migrate`). `splatNoiseOffset` is a class: `.$1` is `.column`, `.$2` is `.row`; a destructuring pattern is yours to rewrite. `splatNoiseOffset` answers a `NoiseTileCell` with `column` and `row`, where it answered a pair; `final (x, y) = splatNoiseOffset(id)` becomes `final NoiseTileCell(column: x, row: y) = splatNoiseOffset(id)`.
 - <a id="cpu-vogelDisc-record"></a>**`vogelDisc`** (`migrate`). `vogelDisc` is a class: `.$1` is `.x`, `.$2` is `.y`; a destructuring pattern is yours to rewrite. `vogelDisc` answers a `VogelTap` with `x` and `y`, where it answered a pair; `final (dx, dy) = vogelDisc(...)` becomes `final VogelTap(x: dx, y: dy) = vogelDisc(...)`.
 

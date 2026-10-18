@@ -171,20 +171,84 @@ double attenuation(double distance, double range) {
   return attenuation;
 }
 
-/// What `SampleLight` produces.
-typedef LightSample = ({
-  Vector3 direction,
-  Vector3 radiance,
-  double nDotL,
-  double nDotH,
-  double vDotH,
-  // `L7`: the GGX lobe integrated over a rectangle, its norm and Fresnel
-  // term, when the model binds the LTC tables; null otherwise.
-  Vector3? ltc,
-  // The rectangle's corners relative to the shading point, for the clear
-  // coat's own integral — `g_rect_corners`; null for a punctual light.
-  List<Vector3>? corners,
-});
+/// What `SampleLight` produces: one light as a point being shaded sees it.
+///
+/// **Breaking in 1.0.0-rc.1:** a class with the same fields, where it was
+/// a record; a field read is unchanged, a record literal is this
+/// constructor.
+final class LightSample {
+  /// One light's terms at a point.
+  const LightSample({
+    required this.direction,
+    required this.radiance,
+    required this.nDotL,
+    required this.nDotH,
+    required this.vDotH,
+    this.ltc,
+    this.corners,
+  });
+
+  /// The unit direction from the point towards the light.
+  final Vector3 direction;
+
+  /// What reaches the point, linear, before n·l.
+  final Vector3 radiance;
+
+  /// The cosine between the normal and [direction], or a rectangle's form
+  /// factor.
+  final double nDotL;
+
+  /// The cosine between the normal and the half vector, nought to one.
+  final double nDotH;
+
+  /// The cosine between the view and the half vector, nought to one.
+  final double vDotH;
+
+  /// `L7`: the GGX lobe integrated over a rectangle, its norm and Fresnel
+  /// term, when the model binds the LTC tables; null otherwise.
+  final Vector3? ltc;
+
+  /// The rectangle's corners relative to the shading point, for the clear
+  /// coat's own integral — `g_rect_corners`; null for a punctual light.
+  final List<Vector3>? corners;
+
+  @override
+  bool operator ==(Object other) =>
+      other is LightSample &&
+      other.direction == direction &&
+      other.radiance == radiance &&
+      other.nDotL == nDotL &&
+      other.nDotH == nDotH &&
+      other.vDotH == vDotH &&
+      other.ltc == ltc &&
+      _sameCorners(other.corners, corners);
+
+  static bool _sameCorners(List<Vector3>? a, List<Vector3>? b) {
+    if (a == null || b == null) return a == null && b == null;
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    direction,
+    radiance,
+    nDotL,
+    nDotH,
+    vDotH,
+    ltc,
+    corners == null ? null : Object.hashAll(corners!),
+  );
+
+  @override
+  String toString() =>
+      'LightSample(direction: $direction, radiance: $radiance, '
+      'nDotL: $nDotL, nDotH: $nDotH, vDotH: $vDotH, ltc: $ltc, '
+      'corners: $corners)';
+}
 
 /// `LambertEdge`: one edge of Lambert's sum, from [a] to [b], neither of
 /// which need be a unit vector.
@@ -371,7 +435,7 @@ LightSample? sampleLight(
         : s.normal.clone();
 
     final h = (l + s.view)..normalize();
-    return (
+    return LightSample(
       direction: l,
       radiance: Vector3(color.x, color.y, color.z) * (color.w * radiance),
       nDotL: formFactor,
@@ -430,14 +494,12 @@ LightSample? sampleLight(
   final half = (toLight + s.view)..normalize();
   final nDotL = math.max(s.normal.dot(toLight), 0.0);
   if (nDotL <= 0.0) return null;
-  return (
+  return LightSample(
     direction: toLight,
     radiance: Vector3(color.x, color.y, color.z) * (color.w * lightAttenuation),
     nDotL: nDotL,
     nDotH: math.max(s.normal.dot(half), 0.0),
     vDotH: math.max(s.view.dot(half), 0.0),
-    ltc: null,
-    corners: null,
   );
 }
 

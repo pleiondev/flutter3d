@@ -149,7 +149,18 @@ final class LensFlareShader extends CpuFragmentShader
   Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
   const LensFlareShader()
 
-typedef LightSample = ({Vector3 direction, Vector3 radiance, double nDotL, double nDotH, double vDotH, Vector3? ltc, List<Vector3>? corners});
+final class LightSample
+  String toString()
+  bool operator ==(Object other)
+  const LightSample({required this.direction, required this.radiance, required this.nDotL, required this.nDotH, required this.vDotH, this.ltc, this.corners})
+  final List<Vector3>? corners
+  final Vector3 direction
+  final Vector3 radiance
+  final Vector3? ltc
+  final double nDotH
+  final double nDotL
+  final double vDotH
+  int get hashCode
 
 final class LightShaftsShader extends CpuFragmentShader
   Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
@@ -260,11 +271,20 @@ final class ParticleVertexShader extends CpuVertexShader
   int get varyingCount
 
 abstract base class PbrHooks
-  Vector3 light(Surface s, LightSample light, Vector3 standard)
+  Vector3 light(PbrLightContext context)
   bool get readsLightRow
-  bool lightType(double code, Vector4 params)
+  bool lightType(PbrLightTypeContext context)
   const PbrHooks()
-  void surface(Surface s, Float32List v, ShaderBindings b, FragmentContext c)
+  void surface(PbrSurfaceContext context)
+
+final class PbrLightContext
+  final LightSample light
+  final Surface surface
+  final Vector3 standard
+
+final class PbrLightTypeContext
+  final Vector4 params
+  final double code
 
 final class PbrShader extends CpuFragmentShader
   Vector4? run(Float32List v, ShaderBindings b, FragmentContext c)
@@ -277,6 +297,12 @@ final class PbrShader extends CpuFragmentShader
   static Vector3 eonLobe(Vector3 rho, double r, double muI, double muO, double lDotV)
   static const double minGgxRoughness = 0.045
   static double sheenLobe(double roughness, Surface s, LightSample light)
+
+final class PbrSurfaceContext
+  final Float32List varyings
+  final FragmentContext fragment
+  final ShaderBindings bindings
+  final Surface surface
 
 final class PixelRay
   String toString()

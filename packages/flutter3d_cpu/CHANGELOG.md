@@ -11,6 +11,14 @@
   `PbrShader.hooked` takes `PbrHooks`, a material's surface, light and
   light-type hooks, and `sampleLight` and `accumulateLights` take the
   light-type hook a plugin's light is let into the loop by.
+- **Breaking: each of the standard model's hooks takes one context.**
+  `PbrHooks.surface` takes a `PbrSurfaceContext`, `light` a
+  `PbrLightContext` and `lightType` a `PbrLightTypeContext` (all new), in
+  place of the GLSL hooks' arguments one by one, so a hook can be handed
+  more in a minor without breaking a material stage.
+- **Breaking: `LightSample` is a class**, with the fields the record had
+  and `==`. A field read is unchanged; a record literal becomes
+  `LightSample(...)`, whose `ltc` and `corners` may be left out.
 - **Breaking: standing in for a GPU is a test's knob, in `testing.dart`.**
   `CpuDevice(standInForGpu:)`, `CpuDevice.standInForGpu` and
   `cpuComputeDevice(standInForGpu:)` are gone from the main library;

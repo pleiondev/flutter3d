@@ -2290,12 +2290,8 @@ const Map<String, String> hookParametersAllowed = <String, String>{
       'flutter3d_particles: a uniform unit vector written into the caller\'s vector, a maths helper an emitter calls per particle, not a hook it overrides',
   'PassEncoder':
       'flutter3d_hardware: the hardware interface, for GraphicsDevice\'s reason',
-  'PbrHooks':
-      'flutter3d_cpu: a material\'s hooks into the standard model, called per fragment and per light with what the GLSL hooks take, for CpuFragmentShader\'s reason',
   'RenderCheckRegistries':
       'flutter3d_conformance_render: the renderer a check made and the device it draws on, the two things a registry an application hands is built over; a check grows by a named parameter of `checkPluginRender`',
-  'RenderProgramFrame':
-      'flutter3d_plugin_api: the frame the renderer implements and a render program calls, a parameter by index and its value as a Wasm module sets it, for LoopRegistry\'s reason',
   'ResourceSize.resolve':
       'flutter3d_core: a size worked out from the frame\'s width and height in '
       'pixels, the whole of what a frame-relative size is relative to; seen '
@@ -2350,8 +2346,6 @@ const Map<String, String> hookParametersAllowed = <String, String>{
       'flutter3d_plugin_api: `dart:developer`\'s `ServiceExtensionHandler`, (method, parameters), mirrored so a handler registers unchanged',
   'WasmImports':
       'flutter3d_plugin_runtime: the module\'s imports as the ABI declares them (`field_get(field, index)`), mirrored one to one; an import arrives with an ABI version as a member with a default body, never as a parameter',
-  'WasmRenderImports':
-      'flutter3d_plugin_runtime: a render module\'s imports as ABI 3 declares them (`param(parameter, component, value)`), scalar by decision 147 and mirrored one to one, for WasmImports\'s reason',
   'WgslStageCompiler':
       'flutter3d_build_hooks: a test seam with the shape of `compileStage` it stands in for',
   'WorkloadRecorder':
@@ -2429,6 +2423,8 @@ const Map<String, String> hookParametersAllowed = <String, String>{
   'ProceduralTexture.encode': 'flutter3d_core: $_writesItself',
   'PropertyGroup.toJson': 'flutter3d_matter: $_writesItself',
   'PropertyLaw.lawJson': 'flutter3d_matter: $_writesItself',
+  'RenderProgramFrame.draw':
+      'flutter3d_plugin_api: the step drawn this frame with its parameters as set; $_command',
   'SimQuery.having': 'flutter3d_plugin_api: $_byTypeArgument',
   'SimQuery.without': 'flutter3d_plugin_api: $_byTypeArgument',
   'SimulationBakeRequest.bake':
@@ -2551,9 +2547,8 @@ const Map<String, String> hookValueParameters = <String, String>{
   'AssetSourceFactory':
       'flutter3d_core: a source made from the rest of a URI after its scheme, $_ioSeam',
   'AssimilationContext': 'flutter3d_plugin_api: $_engineImplements',
-  'RenderProgramFrame': 'flutter3d_plugin_api: $_engineImplements',
-  'WasmRenderImports':
-      'flutter3d_plugin_runtime: an import of ABI 3, whose one scalar argument is the module\'s, for WasmImports\'s reason',
+  'RenderProgramFrame.lightCode':
+      'flutter3d_plugin_api: a light type\'s code looked up by its name; $_engineImplements',
   'Attenuation':
       'flutter3d_audio_core: gain as a function of distance, $_ofItsInput',
   'AudioBackend.preload':
@@ -2788,10 +2783,6 @@ const Map<String, String> nameCollisionAllowed = <String, String>{
 /// the whole document over, or text a person typed that `double.tryParse`
 /// would answer null for too.
 const Map<String, String> nullAsErrorAllowed = <String, String>{
-  'PluginCheckOutcome.fromJson':
-      'absent: an entry of the report already in the package that this '
-      'build of the suite cannot read is left out of the merge, and the '
-      'suite writes the report anew with what it ran',
   'ConformanceReportFile.readIn':
       'absent: a plugin whose suite has not run, or does not call '
       'runPluginConformance, has no report; a file that is there and does '
@@ -2848,11 +2839,6 @@ const Map<String, String> nullAsErrorAllowed = <String, String>{
 const Map<String, String> recordInContractAllowed = <String, String>{
   'CpuComputeShader.runWorkgroup':
       'a workgroup\'s x, y and z: a dispatch has three dimensions',
-  'PbrHooks.light':
-      'the software rasteriser\'s `LightSample`, the record every lit model '
-      'of the backend is handed per light (`accumulateLights`), mirroring '
-      'the GLSL struct the GPU hook takes, which grows with the light loop '
-      'and not with the hook',
 };
 
 /// The packages a user imports instead of the ones beneath them, each with
@@ -3772,8 +3758,6 @@ const Map<String, String> recordInResultAllowed = <String, String>{
   'JetSample':
       'a jet sampled at one point: position, direction, cross axis, width, thickness',
   'LevelCamera': 'a camera as from and at, two points',
-  'LightSample':
-      'the BRDF terms of one light at one point, fixed by the shading equation',
   'LightView': 'a light seen as from and at, two points',
   'LiquidLayerMesh': 'a layer and the mesh made of it, a pair',
   'LoopState': 'a step number and the snapshot at it, a pair',

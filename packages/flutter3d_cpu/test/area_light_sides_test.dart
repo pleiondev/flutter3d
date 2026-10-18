@@ -321,14 +321,12 @@ void main() {
     );
     final l = Vector3(0.0, 0.8, 0.6);
     final h = (l + view)..normalize();
-    LightSample panel(double nDotL) => (
+    LightSample panel(double nDotL) => LightSample(
       direction: l,
       radiance: Vector3.all(1.0),
       nDotL: nDotL,
       nDotH: h.y,
       vDotH: view.dot(h),
-      ltc: null,
-      corners: null,
     );
     final cosine = PbrShader.sheenLobe(0.5, surface, panel(0.8));
     // Mutation: hand `light.nDotL` to `_vNeubelt` again. A near panel, form

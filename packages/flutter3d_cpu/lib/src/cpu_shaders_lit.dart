@@ -523,26 +523,89 @@ final class _Layers {
 ///
 /// Extendable outside this package: `flutter3d_app`'s material stage
 /// implements it over a program's blocks.
+///
+/// **One context per hook**, each a class that can gain members — what the
+/// GLSL hook is handed next — without an implementation written against
+/// 1.0 breaking. Breaking in 1.0.0-rc.1: they took the GLSL hooks'
+/// arguments one by one.
 abstract base class PbrHooks {
   const PbrHooks();
 
-  /// `ShadeSurfaceHook`: rewrites [s] once its maps are applied, before any
-  /// light. Leaves it as it is by default.
-  void surface(Surface s, Float32List v, ShaderBindings b, FragmentContext c) {}
+  /// `ShadeSurfaceHook`: rewrites [PbrSurfaceContext.surface] once its maps
+  /// are applied, before any light. Leaves it as it is by default.
+  void surface(PbrSurfaceContext context) {}
 
-  /// `ShadeLightHook`: the answer to [light], given the model's own
-  /// [standard]. [standard] by default.
-  Vector3 light(Surface s, LightSample light, Vector3 standard) => standard;
+  /// `ShadeLightHook`: the answer to [PbrLightContext.light], given the
+  /// model's own [PbrLightContext.standard], which it is by default.
+  Vector3 light(PbrLightContext context) => context.standard;
 
-  /// `F3dLightTypeHook`: told every light's type [code] and its row's last
-  /// `vec4`, [params], before it is sampled; whether a plugin's light (a
-  /// code from 16 up) is one the stage lights. The engine's four only, by
-  /// default.
-  bool lightType(double code, Vector4 params) => code < 15.5;
+  /// `F3dLightTypeHook`: told every light's type code and its row's last
+  /// `vec4` before it is sampled; whether a plugin's light (a code from 16
+  /// up) is one the stage lights. The engine's four only, by default.
+  bool lightType(PbrLightTypeContext context) => context.code < 15.5;
 
   /// Whether [lightType] is asked at all: a stage that declares no plugin
   /// light and reads no light's row is not.
   bool get readsLightRow => false;
+}
+
+/// What [PbrHooks.surface] is handed for one fragment: the surface to
+/// rewrite and what the stage reads it from.
+///
+/// Made by [PbrShader] for each fragment, never by a hook.
+final class PbrSurfaceContext {
+  PbrSurfaceContext._(
+    this.surface,
+    this.varyings,
+    this.bindings,
+    this.fragment,
+  );
+
+  /// The surface with its maps applied, which the hook rewrites in place.
+  final Surface surface;
+
+  /// The fragment's varyings, laid out as `CpuMeshLayout` says.
+  final Float32List varyings;
+
+  /// The draw's uniforms and textures.
+  final ShaderBindings bindings;
+
+  /// The fragment being shaded: its pixel and its derivatives.
+  final FragmentContext fragment;
+}
+
+/// What [PbrHooks.light] is handed for one light at one fragment: the
+/// light and the model's own answer to it.
+///
+/// Made by [PbrShader] for each light, never by a hook.
+final class PbrLightContext {
+  PbrLightContext._(this.surface, this.light, this.standard);
+
+  /// The surface being lit, as [PbrHooks.surface] left it.
+  final Surface surface;
+
+  /// The light as the point sees it.
+  final LightSample light;
+
+  /// The standard model's answer to [light], before its radiance and n·l:
+  /// what the hook returns when it changes nothing.
+  final Vector3 standard;
+}
+
+/// What [PbrHooks.lightType] is handed for each light before it is
+/// sampled: its type code and the last `vec4` of its row.
+///
+/// Made by [PbrShader] for each light, never by a hook.
+final class PbrLightTypeContext {
+  PbrLightTypeContext._(this.code, this.params);
+
+  /// The light's type code, a whole number with no unit: the engine's
+  /// below 16, a plugin's from 16 up.
+  final double code;
+
+  /// The row's last `vec4`, which a plugin's light type packs its
+  /// parameters in.
+  final Vector4 params;
 }
 
 final class PbrShader extends CpuFragmentShader {
@@ -751,7 +814,7 @@ final class PbrShader extends CpuFragmentShader {
     applyMetallicRoughnessMap(s, v, b, c, transformed: layered);
     layers?.readOnMaps(s, b, c);
     final hooks = this.hooks;
-    hooks?.surface(s, v, b, c);
+    hooks?.surface(PbrSurfaceContext._(s, v, b, c));
     final specularStrength = b.vec4('FragInfo', 'material', Vector4.zero()).w;
     // `EnergyCompensation()` — `L1`.
     final compensate =
@@ -773,7 +836,10 @@ final class PbrShader extends CpuFragmentShader {
       b,
       c,
       shadowed: true,
-      lightType: hooks != null && hooks.readsLightRow ? hooks.lightType : null,
+      lightType: hooks != null && hooks.readsLightRow
+          ? (double code, Vector4 params) =>
+                hooks.lightType(PbrLightTypeContext._(code, params))
+          : null,
       shade: (s, light) {
         // Perceptual roughness squared is the GGX alpha; this is what makes the
         // roughness slider feel linear. Held at the lobe's own floor, which
@@ -860,7 +926,7 @@ final class PbrShader extends CpuFragmentShader {
         if (layers == null) {
           return hooks == null
               ? (base..scale(_pi))
-              : hooks.light(s, light, base..scale(_pi));
+              : hooks.light(PbrLightContext._(s, light, base..scale(_pi)));
         }
         // Under the sheen, what its albedo leaves; under the coat, what its
         // Fresnel lets through; on top, the coat's lobe.
