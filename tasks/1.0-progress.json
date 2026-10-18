@@ -1,5 +1,5 @@
 {
-  "updated": "2026-10-17",
+  "updated": "2026-10-18",
   "note": "Status of every row of 1.0-rc1-plan.md and 1.0-api-migrations.md, by `<wave>/<row>`: done, partial, active, blocked or todo (the default). Each wave's integration updates it with the plan's status lines; tool/progress.dart draws the dashboard from both.",
   "rows": {
     "0/0.1": "done",
@@ -81,6 +81,7 @@
     "4.3/4.3R": "done",
     "4.3/4.3B": "todo",
     "4.3/4.3N": "todo",
+    "4.3/4.3J": "todo",
     "4.3/4.3U": "todo",
     "4.3/4.3.6": "todo",
     "4.3/4.3Z": "todo"
@@ -121,7 +122,8 @@
     "3.2/3E": "in 1.0.0; speed of sound from the world; occlusion from the obstacle material",
     "3.2/3F": "in 1.0.0; probes, external input, profile on the loop, observer path, GeoOrigin",
     "3.2/3G": "in 1.0.0; view time from TimeSource, ProbeBuilder, Binding3D, materials by id, lift on load",
-    "3.2/3H": "in 1.0.0; asset identity, hub reference format, protocol snapshot and rule; 60 packages"
+    "3.2/3H": "in 1.0.0; asset identity, hub reference format, protocol snapshot and rule; 60 packages",
+    "4.3/4.3J": "Duration in settings and widgets, after 4.3N"
   },
   "goals": {
     "P1": "todo",
