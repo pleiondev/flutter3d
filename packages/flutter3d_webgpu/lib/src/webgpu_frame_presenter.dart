@@ -17,6 +17,8 @@ import 'webgpu_device.dart';
 /// [quality] through CSS on the element rather than through Flutter, since
 /// Flutter does not composite these pixels.
 final class WebGpuFramePresenter extends StatelessWidget {
+  /// A presenter of [frame] on [device], stretched to fill with
+  /// nearest-neighbour scaling unless told otherwise.
   const WebGpuFramePresenter({
     super.key,
     required this.device,
@@ -25,9 +27,18 @@ final class WebGpuFramePresenter extends StatelessWidget {
     this.quality = FilterQuality.none,
   });
 
+  /// The device whose canvas element shows the frame.
   final WebGpuDevice device;
+
+  /// The rendered texture copied into the canvas on every build.
   final TextureHandle frame;
+
+  /// How the canvas is fitted into the widget's box, as CSS `object-fit`;
+  /// [BoxFit.fill] by default.
   final BoxFit fit;
+
+  /// How the browser scales the canvas, as CSS `image-rendering`;
+  /// [FilterQuality.none] by default, which keeps pixels sharp.
   final FilterQuality quality;
 
   @override

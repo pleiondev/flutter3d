@@ -75,6 +75,9 @@ typedef WebGpuSlice = ({GPUBuffer buffer, int offset, int length});
 /// A bump allocator over one `GPUBuffer`, reset every frame. See the library
 /// comment, which is where the argument for this shape is.
 final class WebGpuFrameArena {
+  /// An arena on the GPU device `_gpu` whose first buffer holds
+  /// `initialBytes`, 64 KiB by default. A write that does not fit retires
+  /// the buffer and starts one at least twice the size.
   WebGpuFrameArena(
     this._gpu, {
     required this.usage,

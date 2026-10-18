@@ -179,6 +179,8 @@ fn fragmentMain(@builtin(position) position: vec4f) -> @location(0) vec4f {
 
 /// The one pipeline the mip pass needs, per device.
 final class WebGpuMipBuilder {
+  /// A builder on the GPU device `_gpu`; its pipeline is compiled on first
+  /// use.
   WebGpuMipBuilder(this._gpu);
 
   final GPUDevice _gpu;

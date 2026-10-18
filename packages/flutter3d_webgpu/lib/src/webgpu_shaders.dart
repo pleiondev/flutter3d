@@ -118,6 +118,8 @@ typedef WebGpuCode = ({WebGpuStage stage, Object module});
 
 /// What a [ShaderHandle] carries here: one compiled stage, and which kind.
 final class WebGpuShader {
+  /// A stage called [name], a vertex stage where [isVertex], currently
+  /// [code].
   WebGpuShader({
     required this.name,
     required this.isVertex,
@@ -330,6 +332,8 @@ WebGpuStage packMaterialBlocks(WebGpuStage stage) {
 /// [debugTrackedModuleCount] is for a test to read rather than for a device to
 /// drive to zero.
 final class WebGpuShaderLibrary with ShaderLibrary {
+  /// A library over the decoded section `_stages`, compiling each through
+  /// `_compiler` the first time it is asked for.
   WebGpuShaderLibrary(this._compiler, this._stages);
 
   final WgslModuleCompiler _compiler;
@@ -409,6 +413,7 @@ final class WebGpuShaderLibrary with ShaderLibrary {
 /// say, and because the two ways of building this list — from the sidecar's own
 /// attribute table and from a [VertexLayoutDescriptor] — agree about nothing else.
 final class WebGpuVertexAttribute {
+  /// An input [name] at [shaderLocation], [offsetInBytes] into each element.
   const WebGpuVertexAttribute({
     required this.name,
     required this.shaderLocation,
@@ -416,12 +421,14 @@ final class WebGpuVertexAttribute {
     required this.offsetInBytes,
   });
 
+  /// The input's name, which error messages quote.
   final String name;
 
   /// Spelled as `GPUVertexAttribute` spells it, because that is where the
   /// number is going.
   final int shaderLocation;
 
+  /// The per-vertex format the pipeline's vertex layout declares.
   final VertexFormat format;
 
   /// Where this attribute begins inside one element of its buffer.
@@ -430,14 +437,21 @@ final class WebGpuVertexAttribute {
 
 /// One vertex buffer a pipeline reads, in the slot its position gives it.
 final class WebGpuVertexBuffer {
+  /// A buffer of elements [strideInBytes] apart; [attributes] is copied
+  /// into an unmodifiable list.
   WebGpuVertexBuffer({
     required this.strideInBytes,
     required this.stepMode,
     required List<WebGpuVertexAttribute> attributes,
   }) : attributes = List<WebGpuVertexAttribute>.unmodifiable(attributes);
 
+  /// Bytes from one element of the buffer to the next.
   final int strideInBytes;
+
+  /// Whether the buffer advances per vertex or per instance.
   final VertexStepMode stepMode;
+
+  /// The inputs read out of each element, unmodifiable.
   final List<WebGpuVertexAttribute> attributes;
 }
 
@@ -454,6 +468,8 @@ final class WebGpuVertexBuffer {
 /// samplers by name. The sidecar is the file version of exactly this record,
 /// which is why the two look alike.
 final class WebGpuPipeline {
+  /// A pair called [name]; the collections are copied unmodifiable, and
+  /// [fragmentOutputs] null writes every colour target.
   WebGpuPipeline({
     required this.name,
     required this.vertexModule,
@@ -585,13 +601,18 @@ typedef WebGpuVisibility = ({bool vertex, bool fragment});
 
 /// One uniform block of a group, and which stages see it.
 final class WebGpuBoundBlock {
+  /// [block] seen by the stages [visibility] names, bindable by default.
   const WebGpuBoundBlock({
     required this.block,
     required this.visibility,
     this.bindable = true,
   });
 
+  /// The block's reflection: name, binding and size.
   final WebGpuBlock block;
+
+  /// Which stages declare the block, which the layout entry's visibility
+  /// must name.
   final WebGpuVisibility visibility;
 
   /// Whether a caller may be asked to bind it. See
@@ -601,13 +622,18 @@ final class WebGpuBoundBlock {
 
 /// One texture-and-sampler pair of a group, and which stages see it.
 final class WebGpuBoundSampler {
+  /// [sampler] seen by the stages [visibility] names, bindable by default.
   const WebGpuBoundSampler({
     required this.sampler,
     required this.visibility,
     this.bindable = true,
   });
 
+  /// The pair's reflection: name, both bindings and the view shape.
   final WebGpuSampler sampler;
+
+  /// Which stages declare the pair, which both layout entries' visibility
+  /// must name.
   final WebGpuVisibility visibility;
 
   /// Whether a caller may be asked to bind it: false where every stage that
@@ -627,9 +653,14 @@ final class WebGpuBoundSampler {
 
 /// What one `@group` of a pipeline holds, each list in binding order.
 final class WebGpuGroupShape {
+  /// A group of [blocks] and [samplers], each already in binding order.
   const WebGpuGroupShape({required this.blocks, required this.samplers});
 
+  /// The group's uniform blocks, in binding order, which is the order a
+  /// draw's dynamic offsets follow.
   final List<WebGpuBoundBlock> blocks;
+
+  /// The group's texture-and-sampler pairs, in binding order.
   final List<WebGpuBoundSampler> samplers;
 
   /// Whether this group has nothing in it, which a pipeline's lower group

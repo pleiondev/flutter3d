@@ -84,6 +84,10 @@ const String _backend = 'WebGPU';
 /// What a pass and a bundle both record: the accumulated state, the
 /// bindings, and the draws resolved against them.
 abstract base class WebGpuRecorder extends PassEncoder {
+  /// A recorder on the device for attachments of [colorFormats] and
+  /// `depthFormat` (null for none), blending off and every channel written
+  /// until told otherwise. Depth and stencil are writable unless the
+  /// read-only flags say not.
   WebGpuRecorder(
     this._device, {
     required List<TextureFormat> colorFormats,
@@ -912,6 +916,8 @@ abstract base class WebGpuRecorder extends PassEncoder {
 /// `WebGpuDevice.createPipelineAsync` warms a new pair in the states the
 /// device has already drawn in.
 final class WebGpuDrawState {
+  /// A state of [signature] and its stencil faces; no stencil test unless
+  /// the faces are given.
   const WebGpuDrawState({
     required this.signature,
     this.stencilFront,
@@ -919,9 +925,17 @@ final class WebGpuDrawState {
     this.stencilReadOnly = false,
   });
 
+  /// What the pipeline cache keys the draw's pipeline on.
   final WebGpuPipelineSignature signature;
+
+  /// The stencil state for front faces; null is `StencilState.disabled`.
   final StencilState? stencilFront;
+
+  /// The stencil state for back faces; null takes [stencilFront]'s.
   final StencilState? stencilBack;
+
+  /// Whether the pass holds the stencil read-only, which bakes a write mask
+  /// of zero into the pipeline.
   final bool stencilReadOnly;
 
   /// This state with [pipeline]'s stages and vertex layout in it.
@@ -1094,6 +1108,9 @@ const String _noRenderStorage =
 
 /// One pass, recorded and submitted.
 final class WebGpuEncoder extends WebGpuRecorder with CommandEncoder {
+  /// Opens a pass on [device] for [descriptor]'s attachments, its sample
+  /// count the first colour target's (or the depth target's, or one), and
+  /// writing [timestampWrites] where given.
   WebGpuEncoder(
     WebGpuDevice device,
     RenderPassDescriptor descriptor, {
@@ -1484,6 +1501,8 @@ final class WebGpuEncoder extends WebGpuRecorder with CommandEncoder {
 /// in the same frame is as safe as the pass beside it.
 final class WebGpuBundleEncoder extends WebGpuRecorder
     with RenderBundleEncoder {
+  /// Starts recording a bundle on [device] for the attachment formats and
+  /// sample count the descriptor names.
   WebGpuBundleEncoder(WebGpuDevice device, this._descriptor)
     : super(
         device,

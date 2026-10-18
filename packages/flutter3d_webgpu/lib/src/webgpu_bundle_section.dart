@@ -41,14 +41,22 @@ import 'package:flutter3d_shaders/translate.dart'
 /// vertex layout must state one per attribute — GL derived it from the shader
 /// and the buffer between them, and WebGPU asks the caller.
 final class WebGpuAttribute {
+  /// An attribute the engine binds as [name], read at WGSL
+  /// `@location(location)` in [format].
   const WebGpuAttribute({
     required this.name,
     required this.location,
     required this.format,
   });
 
+  /// The input's name in the engine's GLSL, which `InputAttribute.name`
+  /// matches.
   final String name;
+
+  /// The WGSL `@location` the vertex stage reads the input at.
   final int location;
+
+  /// The per-vertex format the WebGPU vertex layout declares for it.
   final VertexFormat format;
 }
 
@@ -56,14 +64,20 @@ final class WebGpuAttribute {
 ///
 /// Both in the block's own bytes, and both std140 — see [WebGpuBlock].
 final class WebGpuBlockMember {
+  /// A member [name] spanning [sizeInBytes] from [offsetInBytes].
   const WebGpuBlockMember({
     required this.name,
     required this.offsetInBytes,
     required this.sizeInBytes,
   });
 
+  /// The member's name in the GLSL block, which a uniform write names.
   final String name;
+
+  /// Bytes from the start of the block to the member, by std140.
   final int offsetInBytes;
+
+  /// Bytes the member spans, by std140, padding of arrays included.
   final int sizeInBytes;
 }
 
@@ -77,6 +91,8 @@ final class WebGpuBlockMember {
 /// arithmetic against glslang's own `Offset` decorations on every block it
 /// writes, which is the only place the two could ever disagree.
 final class WebGpuBlock {
+  /// A block [name] at `@group(group) @binding(binding)`; an unpacked block
+  /// when [offsetInBinding] and [bindingSizeInBytes] are left out.
   const WebGpuBlock({
     required this.name,
     required this.group,
@@ -87,13 +103,19 @@ final class WebGpuBlock {
     int? bindingSizeInBytes,
   }) : bindingSizeInBytes = bindingSizeInBytes ?? sizeInBytes;
 
+  /// The block's type name in the GLSL, which `bindUniformBlock` takes.
   final String name;
+
+  /// The WGSL `@group` the block is declared in.
   final int group;
+
+  /// The WGSL `@binding` within [group].
   final int binding;
 
   /// The whole block, rounded up the way std140 rounds a structure up.
   final int sizeInBytes;
 
+  /// The block's members with their std140 offsets, in declaration order.
   final List<WebGpuBlockMember> members;
 
   /// Where the block starts in the buffer its [binding] reads: nought, but
@@ -120,15 +142,27 @@ final class WebGpuBlock {
 /// them names only `2d` and `cube` and decodes unchanged; one that names a
 /// `2d-array` sampler is one this backend can now bind an array texture to.
 enum WebGpuTextureDimension {
+  /// A plain 2D texture, or one face or layer viewed alone.
   twoDimensional('2d'),
+
+  /// A whole cube map, sampled by direction.
   cube('cube'),
+
+  /// A 1D texture, sampled by one coordinate.
   oneDimensional('1d'),
+
+  /// A 2D array texture, sampled with a layer index.
   twoDimensionalArray('2d-array'),
+
+  /// A volume texture, sampled by three coordinates.
   threeDimensional('3d'),
+
+  /// An array of cube maps, sampled by direction and layer index.
   cubeArray('cube-array');
 
   const WebGpuTextureDimension(this.gpuName);
 
+  /// The `GPUTextureViewDimension` string the section and the layout use.
   final String gpuName;
 }
 
@@ -140,6 +174,7 @@ enum WebGpuTextureDimension {
 /// engine's `bindTexture('base_color_texture', …)` becomes two bind group
 /// entries, and this record is what says which two.
 final class WebGpuSampler {
+  /// A pair bound as [name], a filtering one unless [comparison] is set.
   const WebGpuSampler({
     required this.name,
     required this.group,
@@ -149,10 +184,19 @@ final class WebGpuSampler {
     this.comparison = false,
   });
 
+  /// The GLSL sampler's name, which `bindTexture` takes.
   final String name;
+
+  /// The WGSL `@group` both halves are declared in.
   final int group;
+
+  /// The `@binding` of the texture half within [group].
   final int textureBinding;
+
+  /// The `@binding` of the sampler half within [group].
   final int samplerBinding;
+
+  /// The texture view shape the layout declares for the texture half.
   final WebGpuTextureDimension dimension;
 
   /// A `texture_depth_*` and a `sampler_comparison` rather than a float
@@ -172,6 +216,7 @@ final class WebGpuSampler {
 /// is a list rather than a map because a vertex layout is built in location
 /// order and the order is the reflection's to state.
 final class WebGpuStage {
+  /// A stage of [wgsl] with its reflection.
   const WebGpuStage({
     required this.wgsl,
     required this.attributes,
@@ -179,9 +224,17 @@ final class WebGpuStage {
     required this.samplers,
   });
 
+  /// The stage's WGSL source, entry point `webgpuEntryPoint`, as the
+  /// translator wrote it.
   final String wgsl;
+
+  /// The vertex inputs in location order; empty for a fragment stage.
   final List<WebGpuAttribute> attributes;
+
+  /// Every uniform block the WGSL declares, read or not.
   final List<WebGpuBlock> blocks;
+
+  /// Every texture-and-sampler pair the WGSL declares, read or not.
   final List<WebGpuSampler> samplers;
 
   /// What this stage declares, as the renderer asks a handle's `kept` —

@@ -350,6 +350,8 @@ String gpuTextureDimension(TextureDimension dimension) => switch (dimension) {
   ),
 };
 
+/// [access] as a `GPUStorageTextureAccess` string: `"write-only"`,
+/// `"read-only"` or `"read-write"`.
 String gpuStorageTextureAccess(StorageTextureAccess access) => switch (access) {
   StorageTextureAccess.writeOnly => 'write-only',
   StorageTextureAccess.readOnly => 'read-only',
@@ -534,6 +536,8 @@ String gpuBlendOperation(BlendOperation operation) => switch (operation) {
   ),
 };
 
+/// [compare] as a `GPUCompareFunction` string, for depth tests, stencil
+/// tests and comparison samplers. Every engine function has one.
 String gpuCompareFunction(CompareFunction compare) => switch (compare) {
   CompareFunction.never => 'never',
   CompareFunction.always => 'always',
@@ -562,6 +566,8 @@ String gpuStencilOperation(StencilOperation operation) => switch (operation) {
   ),
 };
 
+/// [type] as a `GPUPrimitiveTopology` string. Throws the backend's refusal
+/// for a primitive type WebGPU has no topology for.
 String gpuPrimitiveTopology(PrimitiveType type) => switch (type) {
   PrimitiveType.triangle => 'triangle-list',
   PrimitiveType.triangleStrip => 'triangle-strip',
@@ -574,6 +580,8 @@ String gpuPrimitiveTopology(PrimitiveType type) => switch (type) {
   ),
 };
 
+/// [mode] as a `GPUCullMode` string: `"none"`, `"front"` or `"back"`.
+/// Throws the backend's refusal for any other mode.
 String gpuCullMode(CullMode mode) => switch (mode) {
   CullMode.none => 'none',
   CullMode.frontFace => 'front',
@@ -674,6 +682,9 @@ bool gpuResolves(StoreAction action) =>
     action == StoreAction.multisampleResolve ||
     action == StoreAction.storeAndMultisampleResolve;
 
+/// [mode] as a `GPUAddressMode` string. Throws an
+/// [UnsupportedCapabilityException] for [SamplerAddressMode.clampToBorder],
+/// which WebGPU lacks, and the backend's refusal for any unknown mode.
 String gpuAddressMode(SamplerAddressMode mode) => switch (mode) {
   SamplerAddressMode.clampToEdge => 'clamp-to-edge',
   SamplerAddressMode.repeat => 'repeat',
@@ -693,6 +704,8 @@ String gpuAddressMode(SamplerAddressMode mode) => switch (mode) {
   ),
 };
 
+/// [filter] as a `GPUFilterMode` string for a sampler's `magFilter` and
+/// `minFilter`: `"nearest"` or `"linear"`.
 String gpuFilterMode(MinMagFilter filter) => switch (filter) {
   MinMagFilter.nearest => 'nearest',
   MinMagFilter.linear => 'linear',
@@ -702,6 +715,8 @@ String gpuFilterMode(MinMagFilter filter) => switch (filter) {
   ),
 };
 
+/// [filter] as a `GPUMipmapFilterMode` string for a sampler's
+/// `mipmapFilter`: `"nearest"` or `"linear"`.
 String gpuMipmapFilterMode(MipFilter filter) => switch (filter) {
   MipFilter.nearest => 'nearest',
   MipFilter.linear => 'linear',
@@ -711,6 +726,8 @@ String gpuMipmapFilterMode(MipFilter filter) => switch (filter) {
   ),
 };
 
+/// [type] as a `GPUIndexFormat` string: `"uint16"` or `"uint32"`, the
+/// engine's index types being unsigned whatever their names say.
 String gpuIndexFormat(IndexType type) => switch (type) {
   IndexType.int16 => 'uint16',
   IndexType.int32 => 'uint32',
@@ -720,6 +737,8 @@ String gpuIndexFormat(IndexType type) => switch (type) {
   ),
 };
 
+/// [format] as a `GPUVertexFormat` string. Only the 32-bit float, unsigned
+/// and signed formats are mapped; any other throws the backend's refusal.
 String gpuVertexFormat(VertexFormat format) => switch (format) {
   VertexFormat.float32 => 'float32',
   VertexFormat.float32x2 => 'float32x2',
@@ -739,6 +758,8 @@ String gpuVertexFormat(VertexFormat format) => switch (format) {
   ),
 };
 
+/// [mode] as a `GPUVertexStepMode` string: `"vertex"` advances per vertex,
+/// `"instance"` per instance.
 String gpuVertexStepMode(VertexStepMode mode) => switch (mode) {
   VertexStepMode.vertex => 'vertex',
   VertexStepMode.instance => 'instance',
@@ -834,6 +855,7 @@ Uint8List gpuWritableBytes(ByteData bytes) {
 /// scene with opaque and transparent materials and a mirrored prop is already
 /// four keys before anything else moves.
 final class WebGpuPipelineKey {
+  /// A key of every field; [depthFormat] null for a pass with no depth.
   const WebGpuPipelineKey({
     required this.pipeline,
     required this.topology,
@@ -850,10 +872,19 @@ final class WebGpuPipelineKey {
   /// The stage pair, by the name `PipelineHandle` carries.
   final String pipeline;
 
+  /// The `GPUPrimitiveTopology` string, from [gpuPrimitiveTopology].
   final String topology;
+
+  /// The `GPUCullMode` string, from [gpuCullMode].
   final String cullMode;
+
+  /// The `GPUFrontFace` string, `"ccw"` or `"cw"`, from [gpuFrontFace].
   final String frontFace;
+
+  /// The depth test's `GPUCompareFunction` string.
   final String depthCompare;
+
+  /// Whether passing fragments write depth.
   final bool depthWrite;
 
   /// The blend equation of attachment zero, or null for blending off. One
@@ -868,7 +899,11 @@ final class WebGpuPipelineKey {
   /// into the HDR target and into the eight-bit one is two pipelines.
   final List<String> colorFormats;
 
+  /// The depth attachment's texture format string, or null where the pass
+  /// has no depth attachment.
   final String? depthFormat;
+
+  /// Samples per texel of every attachment: one, or four when multisampled.
   final int sampleCount;
 
   @override

@@ -27,18 +27,29 @@ import 'webgpu_types.dart'
 /// A storage buffer: the GPU buffer and the length it was asked for, which
 /// may be less than the buffer's own four-byte-rounded size.
 final class WebGpuStorage {
+  /// A storage of [length] bytes held in [buffer].
   WebGpuStorage(this.buffer, this.length);
 
+  /// The GPU buffer, its size [length] rounded up to a multiple of four.
   final GPUBuffer buffer;
+
+  /// The size the caller asked for, in bytes.
   final int length;
 }
 
 /// A compute pipeline and the one bind group layout per group it declares.
 final class WebGpuComputePipeline {
+  /// A pipeline built from [shader], with its [layouts].
   WebGpuComputePipeline(this.shader, this.pipeline, this.layouts);
 
+  /// The shader the pipeline was built from, for its bindings by name.
   final WebGpuComputeShader shader;
+
+  /// The browser's pipeline object.
   final GPUComputePipeline pipeline;
+
+  /// The bind group layout of each group the stage declares, by group
+  /// number.
   final Map<int, GPUBindGroupLayout> layouts;
 
   /// The bind groups each group was set with, by the storage ranges each
@@ -70,8 +81,11 @@ final class WebGpuComputePipeline {
 
 /// The storage ranges a bind group is made of, compared range by range.
 final class WebGpuGroupKey {
+  /// A key of [ranges], its hash computed once here.
   WebGpuGroupKey(this.ranges) : hashCode = Object.hashAll(ranges);
 
+  /// One identity per bound entry, in binding order; two keys are equal
+  /// when every range is.
   final List<Object> ranges;
 
   @override
@@ -874,6 +888,8 @@ final class WebGpuStagingPool {
 
 /// What `GraphicsDevice.mapBuffer` hands back.
 final class WebGpuMappedBuffer extends MappedBuffer {
+  /// A mapping over the host bytes `_bytes`, calling `_release` once on
+  /// [unmap].
   WebGpuMappedBuffer(this._bytes, this._release);
 
   final Uint8List _bytes;

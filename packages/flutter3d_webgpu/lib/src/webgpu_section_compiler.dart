@@ -32,6 +32,7 @@ import 'package:flutter3d_shaders/translate.dart'
 /// Registered with `MaterialCompilerRegistry.register` beside the device, as
 /// `compilers.register(const WebGpuSectionCompiler())`.
 final class WebGpuSectionCompiler extends MaterialCompiler {
+  /// The compiler; it holds no state, so one constant serves every device.
   const WebGpuSectionCompiler();
 
   @override

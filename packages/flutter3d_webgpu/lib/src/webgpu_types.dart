@@ -35,6 +35,8 @@ import 'webgpu_shaders.dart';
 /// the bind group cache, and a fresh view every draw would make that cache
 /// answer no every time.
 final class WebGpuTexture {
+  /// A record of [texture], not transient unless said; views are made on
+  /// first ask.
   WebGpuTexture({
     required this.texture,
     required this.dimension,
@@ -42,6 +44,7 @@ final class WebGpuTexture {
     this.transient = false,
   });
 
+  /// The browser's texture object, destroyed by the device that made it.
   final GPUTexture texture;
 
   /// Whether this was allocated with `TRANSIENT_ATTACHMENT` — `H7`.
@@ -147,13 +150,19 @@ final class WebGpuTexture {
 
 /// A query set this device owns, as `QuerySet.backend` carries it.
 final class WebGpuQueries {
+  /// A wrapper of [set].
   const WebGpuQueries(this.set);
+
+  /// The browser's query set.
   final GPUQuerySet set;
 }
 
 /// A recorded bundle, as `RenderBundle.backend` carries it.
 final class WebGpuBundle {
+  /// A wrapper of [bundle].
   const WebGpuBundle(this.bundle);
+
+  /// The browser's bundle, replayed with `executeBundles`.
   final GPURenderBundle bundle;
 }
 
@@ -163,7 +172,10 @@ final class WebGpuBundle {
 /// device — or from a test's fake — is a cast that fails here rather than a
 /// draw the browser refuses three calls later.
 final class WebGpuGeometry {
+  /// A wrapper of [buffer].
   const WebGpuGeometry(this.buffer);
+
+  /// The browser's buffer holding the geometry bytes.
   final GPUBuffer buffer;
 }
 
@@ -285,6 +297,8 @@ final class WebGpuBindingLayouts {
     return entries;
   }
 
+  /// The pipeline layout over [groups], which every pipeline of the pair is
+  /// built with.
   final GPUPipelineLayout pipelineLayout;
 
   /// Index *n* is `@group(n)`.

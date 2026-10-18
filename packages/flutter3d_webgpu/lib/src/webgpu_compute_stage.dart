@@ -21,6 +21,8 @@ import 'webgpu_bundle_section.dart'
 /// is a group the browser refuses; `WebGpuComputeEncoder.bindStorageTexture`
 /// refuses it first, by name.
 final class WebGpuStorageTextureBinding {
+  /// A storage texture [name] at `@group(group) @binding(binding)`, a 2D
+  /// one unless [dimension] says otherwise.
   const WebGpuStorageTextureBinding({
     required this.name,
     required this.group,
@@ -30,16 +32,28 @@ final class WebGpuStorageTextureBinding {
     this.dimension = WebGpuTextureDimension.twoDimensional,
   });
 
+  /// The name a caller binds the texture by.
   final String name;
+
+  /// The WGSL `@group` the texture is declared in.
   final int group;
+
+  /// The WGSL `@binding` within [group].
   final int binding;
+
+  /// How the stage may touch the texture; a bind must match it.
   final StorageTextureAccess access;
+
+  /// The texel format the layout names; a bound view must have it.
   final TextureFormat format;
+
+  /// The view shape the layout declares, `2d` by default.
   final WebGpuTextureDimension dimension;
 }
 
 /// A storage buffer a compute stage declares.
 final class WebGpuStorageBinding {
+  /// A storage buffer [name] at `@group(group) @binding(binding)`.
   const WebGpuStorageBinding({
     required this.name,
     required this.group,
@@ -49,7 +63,11 @@ final class WebGpuStorageBinding {
 
   /// The GLSL block name, which is what a caller binds by.
   final String name;
+
+  /// The WGSL `@group` the buffer is declared in.
   final int group;
+
+  /// The WGSL `@binding` within [group].
   final int binding;
 
   /// Declared `readonly`, and so bound as `read-only-storage`.
@@ -58,6 +76,8 @@ final class WebGpuStorageBinding {
 
 /// One compute stage: its WGSL and what a pipeline layout needs to know.
 final class WebGpuComputeStage {
+  /// A stage of [wgsl] with its reflection; the texture lists default to
+  /// empty, as on every generated stage.
   const WebGpuComputeStage({
     required this.wgsl,
     required this.storage,
@@ -68,8 +88,13 @@ final class WebGpuComputeStage {
     this.loadedTextures = const <WebGpuLoadedTexture>[],
   });
 
+  /// The stage's WGSL source, as the translator wrote it.
   final String wgsl;
+
+  /// Every storage buffer the stage declares, read or not.
   final List<WebGpuStorageBinding> storage;
+
+  /// Every uniform block the stage declares, read or not.
   final List<WebGpuBlock> blocks;
 
   /// Sampled textures, each a texture-and-sampler pair as a render stage's
@@ -98,14 +123,21 @@ final class WebGpuComputeStage {
 /// A texture a compute stage reads with `textureLoad` alone — 1.0, a
 /// kernel's `texture` binding.
 final class WebGpuLoadedTexture {
+  /// A texture [name] at `@group(group) @binding(binding)`.
   const WebGpuLoadedTexture({
     required this.name,
     required this.group,
     required this.binding,
   });
 
+  /// The name the kernel declares the binding under, which a caller binds
+  /// by.
   final String name;
+
+  /// The WGSL `@group` the texture is declared in.
   final int group;
+
+  /// The WGSL `@binding` within [group].
   final int binding;
 }
 
@@ -153,12 +185,14 @@ WebGpuComputeStage webgpuKernelStage(ComputeKernel kernel) {
 
 /// A compute stage's module, beside what its pipeline layout is built from.
 final class WebGpuComputeShader {
+  /// A shader [name] of [stage], compiled into [module].
   WebGpuComputeShader({
     required this.name,
     required this.stage,
     required this.module,
   });
 
+  /// The kernel's name in its library, which refusals quote.
   final String name;
 
   /// What its pipeline layout is built from. Replaced, with [module], when a

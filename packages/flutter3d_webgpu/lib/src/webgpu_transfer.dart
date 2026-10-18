@@ -26,6 +26,9 @@ const String _backend = 'WebGPU';
 
 /// A transfer pass, recorded into one command encoder and submitted whole.
 final class WebGpuTransferEncoder extends TransferEncoder {
+  /// Opens a command encoder on the GPU device `_gpu`, checking features
+  /// against `_features` and bracketing calls with `_guard`. [label] null
+  /// names the pass `flutter3d transfer`.
   WebGpuTransferEncoder(
     this._gpu, {
     required this._features,

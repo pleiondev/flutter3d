@@ -15,7 +15,13 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 import 'webgpu_interop.dart';
 
+/// The per-frame timestamp queries of one device, resolved and read back a
+/// frame or two late into `GraphicsDevice.onGpuTimings`.
+///
+/// Asked for writes only while a timings listener is set and only for
+/// labelled passes.
 final class WebGpuTimer {
+  /// A timer on the GPU device `_gpu`; its query set is made on first use.
   WebGpuTimer(this._gpu);
 
   final GPUDevice _gpu;

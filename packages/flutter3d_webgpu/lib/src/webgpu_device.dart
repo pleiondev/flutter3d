@@ -1282,17 +1282,6 @@ fn fs_main(@builtin(position) at: vec4<f32>) -> @location(0) vec4<f32> {
     depth: depth,
   )).sampledView;
 
-  /// Every GPU object this device owns and would have to release: the textures
-  /// and geometry it handed out, the frame arenas and fallbacks it made for
-  /// itself, and the modules, layouts, samplers, bind groups and _pipelines it
-  /// cached.
-  ///
-  /// **Not zero on a fresh device**, unlike the WebGL2 backend's count of the
-  /// same name, and the difference is a fact about the two APIs rather than
-  /// about the two implementations: this one allocates three arena buffers and
-  /// a zeroed block before it is asked for anything. What it is for is the same
-  /// — a leak is a number that climbs while a frame repeats — and it falls to
-  /// zero after [dispose] just the same.
   /// How many distinct sampler objects this device has made.
   ///
   /// Diagnostic, and the number that says whether [_samplerFor] is doing its
@@ -1308,6 +1297,17 @@ fn fs_main(@builtin(position) at: vec4<f32>) -> @location(0) vec4<f32> {
   /// stopped working.
   int get debugBindGroupCount => _bindGroups.length;
 
+  /// Every GPU object this device owns and would have to release: the textures
+  /// and geometry it handed out, the frame arenas and fallbacks it made for
+  /// itself, and the modules, layouts, samplers, bind groups and _pipelines it
+  /// cached.
+  ///
+  /// **Not zero on a fresh device**, unlike the WebGL2 backend's count of the
+  /// same name, and the difference is a fact about the two APIs rather than
+  /// about the two implementations: this one allocates three arena buffers and
+  /// a zeroed block before it is asked for anything. What it is for is the same
+  /// — a leak is a number that climbs while a frame repeats — and it falls to
+  /// zero after [dispose] just the same.
   int get debugTrackedResourceCount =>
       _textures.length +
       _buffers.length +
@@ -1714,6 +1714,8 @@ fn fs_main(@builtin(position) at: vec4<f32>) -> @location(0) vec4<f32> {
   /// many states it tried that the browser refused, for a test.
   int get debugWarmedPipelines => _warmed;
 
+  /// How many warm builds [createPipelineAsync] tried that the browser
+  /// refused, a count; see [debugWarmedPipelines].
   int get debugWarmRefused => _warmRefused;
 
   /// What [deferPipelineBuilds] decides for the frame being drawn.
@@ -1723,6 +1725,9 @@ fn fs_main(@builtin(position) at: vec4<f32>) -> @location(0) vec4<f32> {
   /// frame, and how many of those builds arrived before the fallback, for
   /// a test.
   int get debugDeferredDraws => _deferredDraws;
+
+  /// How many of the builds sent off the frame arrived before the fallback,
+  /// a count; see [debugDeferredDraws].
   int get debugDeferredBuilds => _deferredBuilds;
 
   /// The pipeline a draw uses for [signature], built for [handle]'s pair
@@ -2748,12 +2753,28 @@ fn fs_main(@builtin(position) at: vec4<f32>) -> @location(0) vec4<f32> {
 /// the allocators and the presenter. Not exported — `flutter3d_webgpu_web.dart`
 /// shows `WebGpuDevice` alone — so no WebGPU type is in the package's API.
 extension WebGpuDeviceInternals on WebGpuDevice {
+  /// The browser's device every object of this backend is made on.
   GPUDevice get gpuDevice => _gpuDevice;
+
+  /// Where `PassEncoder.bindIndexData`'s bytes land, reset every frame.
   WebGpuFrameArena get indexArena => _indexArena;
+
+  /// Where a uniform block written this frame lands, reset every frame.
   WebGpuFrameArena get uniformArena => _uniformArena;
+
+  /// The per-size buffers a uniform block is filled in before the queue
+  /// copies it, kept for the device's life.
   UniformScratch get uniformScratch => _uniformScratch;
+
+  /// Where `PassEncoder.bindVertexData`'s bytes land, reset every frame.
   WebGpuFrameArena get vertexArena => _vertexArena;
+
+  /// The built render pipelines, by the signature that produced each.
   WebGpuPipelineCache<GPURenderPipeline> get pipelines => _pipelines;
+
+  /// Returns the bind group for `@group(group)` of [layouts] from what the
+  /// pass bound, cached by its contents. An unfilled slot gets a neutral
+  /// resource and a complaint in `debugDrainErrors`.
   GPUBindGroup bindGroupFor(
     WebGpuBindingLayouts layouts,
     int group,
@@ -2761,15 +2782,38 @@ extension WebGpuDeviceInternals on WebGpuDevice {
     Map<int, GPUTextureView>? views,
     Map<int, GPUSampler>? samplers,
   ) => _bindGroupFor(layouts, group, blocks, views, samplers);
+
+  /// Returns the sampler for [options], made once per distinct description.
+  /// Throws, through `webgpuCheckSampler`, where [options] clamps an axis to
+  /// the border or names state the device's features lack.
   GPUSampler samplerFor(SamplerDescriptor options) => _samplerFor(options);
+
+  /// Returns the bind group layouts of [pipeline]'s pair, made once; null
+  /// when they are refused, for good, over a limit or by the browser.
   WebGpuBindingLayouts? bindingsFor(WebGpuPipeline pipeline) =>
       _bindingsFor(pipeline);
+
+  /// Returns why [pipeline]'s pair has no layouts, or null when it has them
+  /// or has not been asked for them yet.
   String? layoutRefusalOf(WebGpuPipeline pipeline) =>
       _layoutRefusalOf(pipeline);
+
+  /// Reports against [handle] that [pipeline]'s pair has no layouts, once
+  /// per pair however many handles or draws meet it.
   void tellLayoutRefusal(PipelineHandle handle, WebGpuPipeline pipeline) =>
       _tellLayoutRefusal(handle, pipeline);
+
+  /// Remembers [state] as one a newly made pipeline pair is warmed in; the
+  /// oldest goes past `warmStateLimit`.
   void rememberDrawState(WebGpuDrawState state) => _rememberDrawState(state);
+
+  /// Runs [body] in a validation scope and files whatever the browser says
+  /// about [what] in the ledger `beginFrame` empties; returns [body]'s
+  /// result at once.
   T guard<T>(String what, T Function() body) => _guard(what, body);
+
+  /// Returns the pipeline a draw uses for [signature], built from
+  /// [descriptor] in place or off the frame; null skips the draw.
   GPURenderPipeline? pipelineForDraw(
     PipelineHandle handle,
     WebGpuPipelineSignature signature,

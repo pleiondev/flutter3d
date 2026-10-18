@@ -100,6 +100,9 @@ String? webgpuStencilFingerprint(StencilState? front, StencilState? back) {
 /// with opaque and transparent materials and one mirrored prop is four
 /// signatures before anything else moves.
 final class WebGpuPipelineSignature {
+  /// A signature of every field. Optional ones default to the ordinary
+  /// pass: no alpha to coverage, no modules, no depth bias, every channel
+  /// written and depth clipped.
   WebGpuPipelineSignature({
     required this.pipeline,
     required this.vertexLayout,
@@ -185,6 +188,9 @@ final class WebGpuPipelineSignature {
   /// Null in a signature built without a device, which is what the VM tests
   /// do; the encoder always fills both.
   final Object? vertexModule;
+
+  /// The fragment half of the pair, compared by identity as [vertexModule]
+  /// is; null in a signature built without a device.
   final Object? fragmentModule;
 
   /// The vertex layout, as [webgpuVertexLayoutFingerprint] renders it. See the
@@ -192,15 +198,23 @@ final class WebGpuPipelineSignature {
   /// raising anything.
   final String vertexLayout;
 
+  /// The `GPUPrimitiveTopology` string, such as `"triangle-list"`.
   final String topology;
 
   /// The index width a strip's restart value is read at, or null for a list
   /// topology — which is every draw in this engine so far.
   final String? stripIndexFormat;
 
+  /// The `GPUCullMode` string: `"none"`, `"front"` or `"back"`.
   final String cullMode;
+
+  /// The `GPUFrontFace` string, `"ccw"` or `"cw"`, measured in clip space.
   final String frontFace;
+
+  /// The depth test's `GPUCompareFunction` string.
   final String depthCompare;
+
+  /// Whether passing fragments write depth.
   final bool depthWrite;
 
   /// The stencil test, as [webgpuStencilFingerprint] renders it, or null where
@@ -217,7 +231,11 @@ final class WebGpuPipelineSignature {
   /// the eight-bit one is two pipelines.
   final List<String> colorFormats;
 
+  /// The depth attachment's texture format string, or null where the pass
+  /// has no depth attachment.
   final String? depthFormat;
+
+  /// Samples per texel of every attachment: one, or four when multisampled.
   final int sampleCount;
 
   /// `alphaToCoverageEnabled` — `P7`. Part of a pipeline in WebGPU, so a
@@ -433,14 +451,22 @@ final class WebGpuPipelineCache<T extends Object> {
 /// by identity, and its vertex layout's fingerprint. Every signature built
 /// for the handle carries these three, whatever the draw state.
 final class WebGpuStages {
+  /// The stages of a handle: its two modules and its layout fingerprint.
   const WebGpuStages({
     required this.vertexModule,
     required this.fragmentModule,
     required this.vertexLayout,
   });
 
+  /// The compiled vertex module, compared by identity; null without a
+  /// device.
   final Object? vertexModule;
+
+  /// The compiled fragment module, compared by identity; null without a
+  /// device.
   final Object? fragmentModule;
+
+  /// The vertex layout, as `webgpuVertexLayoutFingerprint` renders it.
   final String vertexLayout;
 
   /// Whether [other] has the same two modules, whatever its layout: the
