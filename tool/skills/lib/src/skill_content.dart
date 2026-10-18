@@ -3,6 +3,7 @@
 /// today (a class, a field, a default, an incident a real test now guards),
 /// not a general description of what a 3D engine is like.
 final class EngineUserSkill {
+  /// The skill written to `.claude/skills/<slug>/SKILL.md`, holding [body].
   const EngineUserSkill({required this.slug, required this.body});
 
   /// Directory name under `.claude/skills/` — also the SKILL.md's own

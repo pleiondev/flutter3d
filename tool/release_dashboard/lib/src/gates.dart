@@ -16,6 +16,9 @@ typedef Judge = GateResult Function(Ran ran);
 
 /// One script the dashboard can run.
 final class Gate {
+  /// A gate [id] running [command], read by [judge]; it is run only when
+  /// asked unless [auto], and given three minutes unless [timeout] says
+  /// otherwise.
   const Gate({
     required this.id,
     required this.title,
@@ -25,14 +28,23 @@ final class Gate {
     this.timeout = const Duration(minutes: 3),
   });
 
+  /// The gate's stable id, the key its result is kept under.
   final String id;
+
+  /// What the gate checks, in words, as its button says.
   final String title;
+
+  /// The script and its arguments, run from the repository's root.
   final List<String> command;
+
+  /// What turns the finished run into a level and a sentence.
   final Judge judge;
 
   /// Whether the dashboard runs it by itself when the tree changes. Only the
   /// checks that take seconds are: the rest are asked for by a click.
   final bool auto;
+
+  /// How long the run may take before it is killed.
   final Duration timeout;
 
   /// The same gate, run only when somebody asks.

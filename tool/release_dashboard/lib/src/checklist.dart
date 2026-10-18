@@ -15,6 +15,7 @@ import 'model.dart';
 
 /// What this particular release is called and made of.
 final class ReleaseConfig {
+  /// The configuration for one release; the defaults describe 0.7.0.
   const ReleaseConfig({
     this.release = '0.7.0',
     this.tag = 'v0.7.0',
@@ -34,7 +35,10 @@ final class ReleaseConfig {
     ],
   });
 
+  /// The version every package on the shelf should carry.
   final String release;
+
+  /// The git tag the release is published under.
   final String tag;
 
   /// How many cases the modeller's tutorial has, so an index that lists fewer
@@ -57,6 +61,7 @@ final class ReleaseConfig {
 
 /// How far the checklist has got.
 final class Progress {
+  /// Counts of the checklist's rows by level.
   const Progress({
     required this.passed,
     required this.failed,
@@ -65,18 +70,29 @@ final class Progress {
     required this.unknown,
   });
 
+  /// Rows at [Level.pass].
   final int passed;
+
+  /// Rows at [Level.fail].
   final int failed;
+
+  /// Rows at [Level.running].
   final int running;
+
+  /// Rows at [Level.pending].
   final int pending;
+
+  /// Rows at [Level.unknown].
   final int unknown;
 
+  /// Every row, whatever its level.
   int get total => passed + failed + running + pending + unknown;
 
   /// Whole per cent of the rows that are green, rounded down: a page that says
   /// 100 must mean it.
   int get percent => total == 0 ? 0 : passed * 100 ~/ total;
 
+  /// The counts and [percent] as the page reads them.
   Map<String, Object?> toJson() => <String, Object?>{
     'passed': passed,
     'failed': failed,
@@ -371,13 +387,17 @@ List<Stage> buildChecklist(Snapshots s, ReleaseConfig c) {
       'Test counts in the documents match',
       Level.running,
     ),
-    _ when testRuleRed => _item(
+    Level.pass || Level.fail || Level.pending when testRuleRed => _item(
       'c-tests',
       'Test counts in the documents match',
       Level.fail,
       'the documents are behind the tests; run tool/structure.dart',
     ),
-    _ => _item('c-tests', 'Test counts in the documents match', Level.pass),
+    Level.pass || Level.fail || Level.pending => _item(
+      'c-tests',
+      'Test counts in the documents match',
+      Level.pass,
+    ),
   };
 
   final ready = packages != null;
