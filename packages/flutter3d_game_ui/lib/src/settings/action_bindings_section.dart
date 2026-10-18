@@ -46,6 +46,7 @@ final class RebindRequest {
 /// An object for [RebindRequest]'s reason: a field added later does not
 /// break a handler.
 final class TuningChange {
+  /// A request to shape [action]'s bindings on [device] with [tuning].
   const TuningChange({
     required this.action,
     required this.tuning,
@@ -89,6 +90,8 @@ final class TuningChange {
 /// callbacks — so the same section sits in the engine's [SettingsPanel] and
 /// in a game's own screen.
 final class ActionBindingsSection extends StatelessWidget {
+  /// A section over [map], with [waitingFor] listening when not null; no
+  /// conflicts and no tuning sliders unless given.
   const ActionBindingsSection({
     super.key,
     required this.map,
@@ -117,6 +120,8 @@ final class ActionBindingsSection extends StatelessWidget {
       actionLabel?.call(declaration) ??
       w.actionLabel(declaration.label ?? declaration.action.name);
 
+  /// The game's actions and their bindings; a row is drawn for each
+  /// rebindable action.
   final ActionMap map;
 
   /// What is listening for its new control, if anything.
@@ -129,6 +134,8 @@ final class ActionBindingsSection extends StatelessWidget {
   /// see [RebindRequest].
   final void Function(RebindRequest request) onRebind;
 
+  /// Called by the reset button under the rows, to put every binding back
+  /// to the game's defaults.
   final VoidCallback onReset;
 
   /// What the last rebind took from another action.

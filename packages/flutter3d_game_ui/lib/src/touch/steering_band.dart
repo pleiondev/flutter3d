@@ -19,6 +19,8 @@ import '../theme/game_ui_theme.dart';
 /// meets "steering" rather than an unnamed strip. The pedals are labelled
 /// too, and they are buttons — see `TouchButton.pedal`.
 final class SteeringBand extends StatefulWidget {
+  /// A band [width] by [height] logical pixels, 220 by 72 by default,
+  /// writing [left] and [right] into [state].
   const SteeringBand({
     super.key,
     required this.state,
@@ -34,8 +36,15 @@ final class SteeringBand extends StatefulWidget {
   /// [Flutter3dGameLocalizations.steering] in the player's language.
   final String? label;
 
+  /// The input the band writes its magnitudes into, as a device would.
   final InputState state;
+
+  /// The action given the thumb's distance left of centre, a fraction from
+  /// nought to one.
   final GameAction left;
+
+  /// The action given the thumb's distance right of centre, a fraction from
+  /// nought to one.
   final GameAction right;
 
   /// The steering as one [AxisAction], from −1 at full left to 1 at full

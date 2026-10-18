@@ -18,6 +18,9 @@ import '../input/action_map.dart';
 /// documented assumption rather than a dependency, and it keeps this testable
 /// with a map in memory.
 final class SettingsFile {
+  /// The settings of [appName], kept in [storage] (the platform's own when
+  /// null), saying what it could not read through [onIssue] (printed when
+  /// null).
   SettingsFile({
     required this.appName,
     Storage? storage,

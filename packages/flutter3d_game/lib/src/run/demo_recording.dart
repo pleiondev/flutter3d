@@ -15,6 +15,13 @@ import 'run_part.dart';
 /// counted in this tape rather than the timeline's, and that is one object's
 /// job.
 final class DemoRecording {
+  /// A recording of a run of [level] from [start], its input tape seeded
+  /// with [seed].
+  ///
+  /// A checkpoint digest is taken every [checkpointEvery] steps and, when
+  /// [bodies] is given, a pose every [poseEvery] steps of [stepSeconds]
+  /// seconds each (a sixtieth by default). [simulation] null takes the
+  /// version from the loop [attach] is given.
   DemoRecording({
     required this.level,
     required this.levelHash,
@@ -260,6 +267,7 @@ final class DemoRecording {
 
 /// What [replayDemoOnLoop] found.
 final class DemoReplay {
+  /// A replay of [steps] steps; null divergences mean it matched.
   const DemoReplay({
     required this.steps,
     this.divergence,

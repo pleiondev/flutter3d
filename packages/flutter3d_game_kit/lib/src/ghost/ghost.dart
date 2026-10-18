@@ -12,8 +12,12 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 /// replay played again headless, or from a run's pose record
 /// (`PoseRecord.track`) when its tape cannot be replayed — see [ghostOfRun].
 final class Ghost {
+  /// A ghost drawn by [node], with its [floor] in metres and [facing] in
+  /// radians, both nought by default.
   Ghost(this.node, {this.floor = 0.0, this.facing = 0.0});
 
+  /// The node that draws the ghost, already in the scene; [showAt] moves,
+  /// turns and hides it.
   final SceneNode node;
 
   /// The model's own lowest point, taken off the height: a track records

@@ -11,6 +11,8 @@ import 'package:vector_math/vector_math.dart';
 /// than its position: two blasts in the same doorway are two plumes, and a
 /// shared key would mean the second restarted the first.
 final class Lingering {
+  /// A plume of [effect] at [at] under [key], emitting [perSecond]
+  /// particles a second for [seconds] seconds.
   const Lingering(
     this.key,
     this.effect,
@@ -21,7 +23,11 @@ final class Lingering {
 
   /// Whatever is emitting. A fresh `Object()` for a one-off plume.
   final Object key;
+
+  /// The particle effect it emits.
   final ParticleEffect effect;
+
+  /// Where it emits from, in world coordinates.
   final Vector3 at;
 
   /// How many particles it emits per second.
@@ -48,6 +54,7 @@ final class Jolt {
   /// The view pulled out, decaying back: `CameraRig.widen`.
   static const Jolt widen = Jolt._('widen');
 
+  /// The verb's name, `kick`, `shake` or `widen`, as [toString] gives it.
   final String name;
 
   @override
@@ -61,21 +68,26 @@ final class Jolt {
 /// owning one, and so the camera's `motion` setting — which the rig applies —
 /// stays the one place reduced motion is decided.
 final class Felt {
+  /// A kick of the camera [by] an offset in metres, which it recovers from.
   const Felt.kick(Vector3 by)
     : jolt = Jolt.kick,
       offset = by,
       amount = 0.0,
       seconds = 0.0;
 
+  /// A shake [amount] metres wide lasting [seconds] seconds. The rig scales
+  /// the shake by its length, so the default of nought shakes nothing.
   const Felt.shake(this.amount, {this.seconds = 0.0})
     : jolt = Jolt.shake,
       offset = null;
 
+  /// A widening of the view by [amount] radians, decaying back.
   const Felt.widen(this.amount)
     : jolt = Jolt.widen,
       offset = null,
       seconds = 0.0;
 
+  /// Which of the three verbs this is; [applyTo] dispatches on it.
   final Jolt jolt;
 
   /// Only for a kick: which way and how far, in metres.
@@ -111,14 +123,25 @@ final class Felt {
 final class Haptic {
   const Haptic._(this.name, this._perform);
 
+  /// The faintest tick, for moving between choices:
+  /// `HapticFeedback.selectionClick`.
   static const Haptic selection = Haptic._(
     'selection',
     HapticFeedback.selectionClick,
   );
+
+  /// A light impact, a step or a small bump:
+  /// `HapticFeedback.lightImpact`.
   static const Haptic light = Haptic._('light', HapticFeedback.lightImpact);
+
+  /// A medium impact: `HapticFeedback.mediumImpact`.
   static const Haptic medium = Haptic._('medium', HapticFeedback.mediumImpact);
+
+  /// A heavy impact, a hard landing or a crash:
+  /// `HapticFeedback.heavyImpact`.
   static const Haptic heavy = Haptic._('heavy', HapticFeedback.heavyImpact);
 
+  /// The pulse's name, `selection`, `light`, `medium` or `heavy`.
   final String name;
   final Future<void> Function() _perform;
 
@@ -156,6 +179,7 @@ final class Haptic {
 /// the game calls [Reaction.perform]. `base`, so a member added later
 /// arrives with a default.
 abstract base class ReactionEffect {
+  /// Const, so a subclass with only final fields can be a constant.
   const ReactionEffect();
 
   /// Does it. Nothing by default, for an effect a game only reads.
@@ -175,6 +199,8 @@ abstract base class ReactionEffect {
 /// accessibility question, and the answer belongs to the player's own
 /// settings (see [ScreenFlash]).
 final class Reaction {
+  /// A reaction with the given parts; every list defaults to empty and
+  /// [flash] to false.
   const Reaction({
     this.bursts = const <Shown>[],
     this.lingering = const <Lingering>[],
@@ -188,13 +214,21 @@ final class Reaction {
   /// Nothing at all.
   static const Reaction none = Reaction();
 
+  /// One-off particle bursts, each at its own place; [showIn] bursts them.
   final List<Shown> bursts;
+
+  /// Plumes that keep emitting after the step; [showIn] starts them.
   final List<Lingering> lingering;
+
+  /// What the camera does, in order; [feel] applies them.
   final List<Felt> jolts;
 
   /// Sounds that belong with what is seen, at the same place: sparks off a
   /// wall and the bang of hitting it.
   final List<Heard> heard;
+
+  /// Pulses of the device in the player's hand; [feel] performs them when
+  /// the game's haptic setting allows.
   final List<Haptic> haptics;
 
   /// Whether something landed hard enough to whiten the screen.

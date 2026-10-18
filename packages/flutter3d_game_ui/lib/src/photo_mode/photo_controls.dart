@@ -16,6 +16,7 @@ import 'package:vector_math/vector_math.dart';
 ///
 /// `base`, so a member added later arrives with a default.
 abstract base class PhotoControls {
+  /// A control; `const` so a subclass can be a constant.
   const PhotoControls();
 
   /// One frame: turns and flies the context's camera by what is held now.
@@ -35,6 +36,8 @@ abstract base class PhotoControls {
 /// `PhotoMode` owns one and sets it every frame, so steering allocates
 /// nothing; a control reads it during the call and does not keep it.
 final class PhotoSteerContext {
+  /// A context for [camera] over a frame of [dt] seconds; no input or look
+  /// unless given.
   PhotoSteerContext({
     required this.camera,
     required this.dt,
@@ -75,6 +78,8 @@ void _flyBy(
 /// times faster. The look, in pixels, turns it by [sensitivity] radians a
 /// pixel, the game's own, so the view turns at the rate the hand knows.
 final class ActionPhotoControls extends PhotoControls {
+  /// Controls flying on [up] and [down], turning [sensitivity] radians a
+  /// pixel, with the walking actions and sprint unless others are given.
   const ActionPhotoControls({
     required this.up,
     required this.down,
@@ -86,12 +91,26 @@ final class ActionPhotoControls extends PhotoControls {
     this.fast = GameAction.sprint,
   });
 
+  /// The action that, held, lifts the camera straight up.
   final GameAction up;
+
+  /// The action that, held, lowers the camera straight down.
   final GameAction down;
+
+  /// The action that, held, flies the camera along its view.
   final GameAction forward;
+
+  /// The action that, held, flies the camera back along its view.
   final GameAction back;
+
+  /// The action that, held, flies the camera to its left.
   final GameAction left;
+
+  /// The action that, held, flies the camera to its right.
   final GameAction right;
+
+  /// The action that, held, flies the camera [PhotoControls.fastFactor]
+  /// times as fast.
   final GameAction fast;
 
   /// Radians the camera turns for a pixel of [look].
@@ -125,9 +144,14 @@ final class ActionPhotoControls extends PhotoControls {
 /// For a game that never takes the pointer, or one whose loop is paused so
 /// its `InputState` is not stepped.
 final class KeyPhotoControls extends PhotoControls {
+  /// Controls on WASD and Shift with [up] and [down]; the arrows turn the
+  /// camera only when [turnRate] is given.
   const KeyPhotoControls({required this.up, required this.down, this.turnRate});
 
+  /// The key that, held, lifts the camera straight up.
   final LogicalKeyboardKey up;
+
+  /// The key that, held, lowers the camera straight down.
   final LogicalKeyboardKey down;
 
   /// Radians a second the arrows turn the camera, or null when they do not

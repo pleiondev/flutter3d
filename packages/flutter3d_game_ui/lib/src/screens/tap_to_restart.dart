@@ -26,8 +26,11 @@ import '../theme/game_ui_theme.dart';
 /// same reason `TitleCard` does not: a widget that asks the platform cannot be
 /// pumped in a test, and `flutter_test` reports itself as Android.
 final class TapToRestart extends StatelessWidget {
+  /// A cover that calls [onRestart] on a tap anywhere, saying [label].
   const TapToRestart({super.key, required this.onRestart, this.label});
 
+  /// Called on a tap anywhere on the screen, or on a screen reader's double
+  /// tap on the one button it presents.
   final VoidCallback onRestart;
 
   /// What the tap is for, under whatever the game has already said; null

@@ -8,8 +8,11 @@ import 'action_bindings_section.dart' show ActionBindingsSection;
 
 /// A section label, spelled once instead of four times.
 final class SettingsHeading extends StatelessWidget {
+  /// A heading saying [text].
   const SettingsHeading(this.text, {super.key});
 
+  /// The section's name, drawn small and spaced in the theme's heading
+  /// colour.
   final String text;
 
   @override
@@ -29,6 +32,7 @@ final class SettingsHeading extends StatelessWidget {
 /// handle: a dead zone is a hundredth of a stick's travel, and a look speed is
 /// only meaningful next to the number a player had before they touched it.
 final class SettingsValueSlider extends StatelessWidget {
+  /// A slider from [min], nought by default, to [max] over [value].
   const SettingsValueSlider({
     super.key,
     required this.label,
@@ -38,6 +42,7 @@ final class SettingsValueSlider extends StatelessWidget {
     required this.max,
   });
 
+  /// What the setting is called, in the column left of the slider.
   final String label;
 
   /// The number shown, in the setting's own unit.
@@ -48,6 +53,9 @@ final class SettingsValueSlider extends StatelessWidget {
 
   /// The most the slider goes to, in the setting's own unit.
   final double max;
+
+  /// Called with the new number, in the setting's own unit, as the handle
+  /// moves.
   final ValueChanged<double> onChanged;
 
   @override
@@ -94,6 +102,7 @@ final class SettingsValueSlider extends StatelessWidget {
 /// action and printed its identifier, which was the one kind of action the
 /// old button table knew; the rows are an [ActionBindingsSection]'s now.
 final class SettingsBindingRow extends StatelessWidget {
+  /// A row showing what [sources] reach [label], or that it is [waiting].
   const SettingsBindingRow({
     super.key,
     required this.label,
@@ -159,6 +168,7 @@ final class SettingsBindingRow extends StatelessWidget {
 
 /// A setting that is on or off.
 final class SettingsSwitchRow extends StatelessWidget {
+  /// A switch for [label], set to [on].
   const SettingsSwitchRow({
     super.key,
     required this.label,
@@ -166,8 +176,13 @@ final class SettingsSwitchRow extends StatelessWidget {
     required this.onChanged,
   });
 
+  /// What the setting is called, left of the switch.
   final String label;
+
+  /// Whether the setting is on now.
   final bool on;
+
+  /// Called with the new state when the player flips the switch.
   final ValueChanged<bool> onChanged;
 
   @override
@@ -191,6 +206,7 @@ final class SettingsSwitchRow extends StatelessWidget {
 
 /// One of a few named choices — a row of chips, the chosen one lit.
 final class SettingsChoiceRow extends StatelessWidget {
+  /// A row of [choices] for [label], the one at [chosen] lit.
   const SettingsChoiceRow({
     super.key,
     required this.label,
@@ -199,9 +215,17 @@ final class SettingsChoiceRow extends StatelessWidget {
     required this.onChanged,
   });
 
+  /// What the setting is called, left of the chips.
   final String label;
+
+  /// The choices' names, one chip each, in order.
   final List<String> choices;
+
+  /// The index into [choices] of the one chosen now; one out of range
+  /// lights none.
   final int chosen;
+
+  /// Called with the index of the chip the player picks.
   final ValueChanged<int> onChanged;
 
   @override
@@ -240,6 +264,7 @@ final class SettingsChoiceRow extends StatelessWidget {
 
 /// One of a few colours — a row of swatches, the chosen one ringed.
 final class SettingsColourRow extends StatelessWidget {
+  /// A row of [choices] for [label], the one at [chosen] ringed.
   const SettingsColourRow({
     super.key,
     required this.label,
@@ -248,9 +273,18 @@ final class SettingsColourRow extends StatelessWidget {
     required this.onChanged,
   });
 
+  /// What the setting is called, left of the swatches; also part of each
+  /// swatch's key, `colour:<label>:<index>`.
   final String label;
+
+  /// The colours offered, one swatch each, in order.
   final List<Color> choices;
+
+  /// The index into [choices] of the one chosen now; one out of range
+  /// rings none.
   final int chosen;
+
+  /// Called with the index of the swatch the player taps.
   final ValueChanged<int> onChanged;
 
   @override

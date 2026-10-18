@@ -35,6 +35,7 @@ BugReportTape? bugReportTape(RewindBuffer rewind, {String? part}) {
 /// A class rather than a record, so a report can later carry more of the
 /// run (its version, its probes) without breaking a reader.
 final class BugReportTape {
+  /// The [tape] played from [start].
   const BugReportTape({required this.start, required this.tape});
 
   /// The state the tape starts from.

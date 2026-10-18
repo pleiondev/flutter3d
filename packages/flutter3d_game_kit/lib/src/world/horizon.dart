@@ -47,6 +47,8 @@ const List<double> _rings = <double>[
 /// The ground function stays the game's: this asks for heights, and draws
 /// whatever terrain answers.
 final class Horizon {
+  /// A horizon around the simulated square [size] measures, with the far
+  /// floor eased down to [farDepth] metres (34 by default).
   const Horizon({
     required this.size,
     required this.floorCell,

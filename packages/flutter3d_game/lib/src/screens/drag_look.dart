@@ -24,6 +24,8 @@ final class DragLook {
   bool get isDragging => _dragging;
   bool _dragging = false;
 
+  /// Starts a drag: a finger or a button went down, so motion from now on
+  /// turns the view.
   void begin() => _dragging = true;
 
   /// Ends the drag. Also the answer for a cancelled pointer — a drag the system

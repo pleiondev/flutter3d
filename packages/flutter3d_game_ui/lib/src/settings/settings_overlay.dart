@@ -20,6 +20,8 @@ import 'settings_sections.dart';
 /// It is [Positioned], so it belongs to a [Stack] — the same one the game's own
 /// heads-up display is in.
 final class SettingsOverlay extends StatelessWidget {
+  /// A gear over [settings] that calls [opening] and shows [sections]; the
+  /// gear is offered unless [canOpen] is false.
   const SettingsOverlay({
     super.key,
     required this.settings,
@@ -28,6 +30,8 @@ final class SettingsOverlay extends StatelessWidget {
     this.canOpen = true,
   });
 
+  /// Whether the panel is open, and what it reads and changes; the gear
+  /// opens it here.
   final GameSettingsController settings;
 
   /// What the panel shows; `SettingsSection.standard(...)` for the panel

@@ -13,6 +13,8 @@ import 'package:vector_math/vector_math.dart';
 /// a race heard from the stands. The recordings are the effects package's
 /// ([effectsAssets]).
 final class ElementCues {
+  /// Cues with the given sounds; null [wash] reuses [falls], and [wading]
+  /// defaults to [WadingHearing.standard].
   const ElementCues({
     required this.fire,
     required this.falls,
@@ -112,6 +114,8 @@ final class ElementCues {
 /// **The game's mapping, as `HearingScale` is for what the physics does.**
 /// [standard] is a person or an animal; [car] a car through a ford.
 final class WadingHearing {
+  /// A mapping with every speed in metres per second given, and [hush]
+  /// four tenths of a second unless a game picks its own.
   const WadingHearing({
     required this.splashFrom,
     required this.washFrom,
@@ -165,6 +169,8 @@ final class WadingHearing {
 /// A body moving through or by water this frame, as [ElementSounds.wade]
 /// hears it.
 final class Wader {
+  /// A body under [key] at [at], [wet] or not, going at [speed] metres per
+  /// second.
   const Wader({
     required this.key,
     required this.at,
@@ -196,11 +202,14 @@ final class Wader {
 /// "under water" snapshot or a ducking rule reaches the elements as it
 /// reaches the rest of the mix.
 final class ElementSounds {
+  /// Elements heard with [cues], [ElementCues.near] by default, on [bus]
+  /// when one is given.
   ElementSounds({this.cues = ElementCues.near, this.bus})
     : _fires = HeldVoices(cues.fire, bus: bus),
       _falls = HeldVoices(cues.falls, bus: bus),
       _washes = HeldVoices(cues.wash, bus: bus);
 
+  /// Which sounds the fires, falls, splashes and washes play.
   final ElementCues cues;
 
   /// The bus the elements play on, or null for each sound's own.

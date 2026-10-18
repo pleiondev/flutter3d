@@ -8,6 +8,8 @@ import '../theme/game_ui_theme.dart';
 /// A stick under a thumb, reporting into a [DualAxisAction] — walking,
 /// [DualAxisAction.move], unless told otherwise.
 final class TouchStick extends StatefulWidget {
+  /// A stick of [radius] logical pixels, 64 by default, writing [action]
+  /// into [state].
   const TouchStick({
     super.key,
     required this.state,
@@ -16,6 +18,7 @@ final class TouchStick extends StatefulWidget {
     this.label,
   });
 
+  /// The input the stick's deflection is written into, as a device would.
   final InputState state;
 
   /// What a screen reader calls it; null for

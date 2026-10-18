@@ -16,6 +16,7 @@ final class Voice {
   /// Stop it.
   static const Voice end = Voice._('end');
 
+  /// The verb's name, `begin`, `follow` or `end`, as [toString] gives it.
   final String name;
 
   @override
@@ -36,13 +37,19 @@ final class Voice {
 /// bookkeeper: it holds a voice per key and does exactly what each of these
 /// says.
 final class Sustained {
+  /// Starts [sound] for [key] at [at], in world coordinates.
   const Sustained.begin(this.key, SoundDef this.sound, Vector3 this.at)
     : what = Voice.begin;
+
+  /// Moves [key]'s running voice to [at], in world coordinates.
   const Sustained.follow(this.key, Vector3 this.at)
     : what = Voice.follow,
       sound = null;
+
+  /// Stops [key]'s voice.
   const Sustained.end(this.key) : what = Voice.end, sound = null, at = null;
 
+  /// Whether this starts, moves or stops the voice.
   final Voice what;
 
   /// Whatever is making the noise. The thing itself, so two doors are two
@@ -62,12 +69,16 @@ final class Sustained {
 /// Everything one step made a noise about: sounds heard [once], and the
 /// [loops] begun, moved and stopped.
 final class Sounding {
+  /// One step's sounds: the one-shots [once] and the lifetimes [loops].
   const Sounding(this.once, this.loops);
 
   /// Nothing at all.
   static const Sounding silence = Sounding(<Heard>[], <Sustained>[]);
 
+  /// One-shot sounds, fired and forgotten.
   final List<Heard> once;
+
+  /// Sustained voices begun, moved or stopped this step, in order.
   final List<Sustained> loops;
 }
 
@@ -81,6 +92,7 @@ final class Sounding {
 /// Each voice is an [AudioEmitter] on its sound's bus, or on [bus] when one
 /// is given.
 final class SustainedVoices {
+  /// A player with no voices running, playing on [bus] when one is given.
   SustainedVoices({this.bus});
 
   /// The bus every voice plays on, or null for each sound's own.

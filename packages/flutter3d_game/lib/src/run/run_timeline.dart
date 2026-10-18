@@ -13,28 +13,36 @@ import 'run_part.dart';
 /// a new command breaks no `switch`: a switch over commands ends with a
 /// case for the rest.
 abstract base class TimelineCommand {
+  /// A command; a subclass says which.
   const TimelineCommand();
 }
 
 /// The run was paused.
 final class TimelinePaused extends TimelineCommand {
+  /// The pause command; it carries nothing.
   const TimelinePaused();
 }
 
 /// The run was resumed from a pause.
 final class TimelineResumed extends TimelineCommand {
+  /// The resume command; it carries nothing.
   const TimelineResumed();
 }
 
 /// One fixed step was taken while paused.
 final class TimelineStepped extends TimelineCommand {
+  /// The single-step command; it carries nothing.
   const TimelineStepped();
 }
 
 /// The run was rewound to [step] and released — everything after [step] in
 /// the buffer was cut, and the run continues from there.
 final class TimelineBranched extends TimelineCommand {
+  /// A branch at [step].
   const TimelineBranched(this.step);
+
+  /// The step the run was rewound to and goes on from, in the buffer's
+  /// count.
   final int step;
 
   @override
@@ -48,7 +56,10 @@ final class TimelineBranched extends TimelineCommand {
 /// The live state was moved to the state before [step] to be looked at; the
 /// tape and the present are kept, and nothing has branched yet.
 final class TimelineScrubbed extends TimelineCommand {
+  /// A scrub to [step].
   const TimelineScrubbed(this.step);
+
+  /// The step whose preceding state is shown, in the buffer's count.
   final int step;
 
   @override
@@ -61,6 +72,7 @@ final class TimelineScrubbed extends TimelineCommand {
 
 /// A scrub was left, and the present put back as it was.
 final class TimelineReturned extends TimelineCommand {
+  /// The return command; it carries nothing.
   const TimelineReturned();
 }
 
@@ -73,8 +85,13 @@ final class TimelineReturned extends TimelineCommand {
 /// with this command in hand, a replay swaps the level at the same step and
 /// arrives where the run did.
 final class TimelineLevelSwapped extends TimelineCommand {
+  /// A swap to the level digesting to [levelDigest], before [step].
   const TimelineLevelSwapped(this.step, this.levelDigest);
+
+  /// The step the new level takes effect before, in the buffer's count.
   final int step;
+
+  /// The new level's document digest, as `Level.digestHex` writes it.
   final String levelDigest;
 
   @override
@@ -116,7 +133,10 @@ final class TimelineBranch {
 /// The last seconds were lived again under new code, from [fromStep] to the
 /// present — `RunTimeline.replayUnderNewCode`.
 final class TimelineReplayed extends TimelineCommand {
+  /// A replay from [fromStep].
   const TimelineReplayed(this.fromStep);
+
+  /// The step the replay under new code started at, in the buffer's count.
   final int fromStep;
 
   @override
@@ -136,6 +156,7 @@ final class TimelineReplayed extends TimelineCommand {
 /// ([step]), and the first field that differed there. Closer keyframes narrow
 /// it; `RewindBuffer.keyframeEvery` is the dial.
 final class ReplayDivergence {
+  /// A divergence between [agreedAt] and [step], first seen at [path].
   const ReplayDivergence({
     required this.agreedAt,
     required this.step,
@@ -159,6 +180,7 @@ final class ReplayDivergence {
   /// The value under the new code.
   final Object? after;
 
+  /// The divergence as JSON, for a VM service reply or a log.
   Map<String, Object?> toJson() => <String, Object?>{
     'agreedAt': agreedAt,
     'step': step,
@@ -174,18 +196,24 @@ final class ReplayDivergence {
 
 /// What `RunTimeline.replayUnderNewCode` did.
 final class CodeReplay {
+  /// A replay from [fromStep] to [toStep]; a null [divergence] means the
+  /// runs matched.
   const CodeReplay({
     required this.fromStep,
     required this.toStep,
     this.divergence,
   });
 
+  /// The step the replay started at, in the buffer's count.
   final int fromStep;
+
+  /// The present the replay played up to, in the buffer's count.
   final int toStep;
 
   /// Null when the new code made the same run as the old.
   final ReplayDivergence? divergence;
 
+  /// The replay as JSON; `divergence` is null when the runs matched.
   Map<String, Object?> toJson() => <String, Object?>{
     'fromStep': fromStep,
     'toStep': toStep,
@@ -199,14 +227,20 @@ final class CodeReplay {
 /// handle — a scrub that landed and one that was refused say different
 /// things to the person holding the slider.
 sealed class ScrubAnswer {
+  /// An answer; [ScrubMoved] or [ScrubRefused].
   const ScrubAnswer();
 
+  /// The answer as JSON, with `moved` true or false, for a VM service
+  /// reply.
   Map<String, Object?> toJson();
 }
 
 /// The live state is now the state before [step].
 final class ScrubMoved extends ScrubAnswer {
+  /// A move to before [step].
   const ScrubMoved(this.step);
+
+  /// The step whose preceding state is now live, in the buffer's count.
   final int step;
 
   @override
@@ -218,7 +252,11 @@ final class ScrubMoved extends ScrubAnswer {
 
 /// Nothing moved, and [reason] says why and what to do instead.
 final class ScrubRefused extends ScrubAnswer {
+  /// A refusal for [reason].
   const ScrubRefused(this.reason);
+
+  /// Why nothing moved and what to do instead, in words for the person
+  /// holding the slider.
   final String reason;
 
   @override
@@ -321,6 +359,8 @@ final class RunTimeline {
   List<TimelineCommand> get history =>
       List<TimelineCommand>.unmodifiable(_history);
 
+  /// Stops the run going on live, which [stepOnce] and [scrubTo] need.
+  /// Does nothing when already paused.
   void pause() {
     if (_paused) return;
     _paused = true;

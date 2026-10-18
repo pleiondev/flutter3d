@@ -16,6 +16,8 @@ import '../theme/game_ui_theme.dart';
 /// The keys a test finds it by are `share:run`, `share:code`, `share:open`
 /// and `share:said`.
 final class ShareStrip extends StatefulWidget {
+  /// A strip that opens codes through [onOpen], with a share button only
+  /// when [onShare] is given.
   const ShareStrip({
     super.key,
     this.onShare,

@@ -16,6 +16,8 @@ import 'settings_file.dart';
 /// [revision] that changes whenever the settings did — what a widget that
 /// listens to the state rather than to the settings rebuilds on.
 final class SettingsState {
+  /// A state; by default the panel is down, nothing is listening and the
+  /// last write did not fail.
   const SettingsState({
     this.isOpen = false,
     this.waitingFor,
@@ -131,12 +133,15 @@ final class GameSettingsController extends ChangeNotifier
   /// The action map the game's devices read, which a rebind edits in place.
   final ActionMap actions;
 
+  /// The document every change is written to.
   final SettingsFile file;
 
   /// Puts the settings onto whatever is playing: the mixer, the pad, the
   /// input.
   final void Function(GameSettings settings) apply;
 
+  /// The capture a rebind goes through: the one the constructor was given,
+  /// or one over [actions].
   late final Rebinding rebinding;
 
   SettingsState _state = const SettingsState();
@@ -151,6 +156,8 @@ final class GameSettingsController extends ChangeNotifier
     notifyListeners();
   }
 
+  /// Puts the panel up; the pause gate reads it through
+  /// [SettingsState.isOpen].
   void show() => _emit(_state.copyWith(isOpen: true));
 
   /// Takes the panel down.
@@ -161,6 +168,7 @@ final class GameSettingsController extends ChangeNotifier
     _emit(_state.copyWith(isOpen: false, clearWaiting: true));
   }
 
+  /// Takes the panel down when it is up and puts it up when it is not.
   void toggle() => _state.isOpen ? hide() : show();
 
   /// Sets [bus] to [volume], a fraction in `[0, 1]`, and saves.

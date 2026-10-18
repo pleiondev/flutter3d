@@ -24,6 +24,9 @@ import '../theme/contrast.dart';
 /// the seventh edge inside a second is held at the last value shown until
 /// the oldest edge is a second old.
 final class FlashLimit {
+  /// A gate with nothing shown yet, allowing [flashesPerSecond] flashes a
+  /// second of changes at least [threshold]; WCAG's three flashes and a
+  /// tenth of the range by default.
   FlashLimit({
     this.flashesPerSecond = Wcag.flashesPerSecond,
     this.threshold = Wcag.flashLuminanceChange,

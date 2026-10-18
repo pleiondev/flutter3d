@@ -10,6 +10,7 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 /// is measured are the same thing rather than two that have to be kept in
 /// step.
 final class TorchFire with LightEmitter {
+  /// A fire on [origin], starting [rise] above it (nought by default).
   TorchFire(this.origin, {this.rise = 0.0});
 
   /// The node the flame rises from, read every frame so the fire is wherever
@@ -41,6 +42,7 @@ final class TorchFire with LightEmitter {
 /// off a node that is already positioned, turned and in the scene, and use a
 /// glow material that is already wired to the simulation's brightness.
 final class LightFixtureBuild {
+  /// The parts of [fixture]'s light handed to the game to hang meshes on.
   LightFixtureBuild({
     required this.fixture,
     required this.mechanism,
@@ -49,7 +51,11 @@ final class LightFixtureBuild {
     required this.meshes,
   });
 
+  /// The fixture being built, as the level placed it.
   final Fixture fixture;
+
+  /// The fixture's light mechanism: the simulation's side, whose brightness
+  /// [glow] is wired to.
   final LightFixture mechanism;
 
   /// Already placed, already turned by the entity's yaw, already in the scene.
@@ -143,6 +149,8 @@ abstract base mixin class FixtureAppearance {
 /// refresh allocates nothing; an appearance reads it during the call and
 /// does not keep it.
 final class FixtureRefreshContext {
+  /// A context for [fixture]; `FixtureVisuals` sets the fields again for
+  /// each fixture rather than making another.
   FixtureRefreshContext({required this.fixture, required this.material});
 
   /// The fixture being drawn.

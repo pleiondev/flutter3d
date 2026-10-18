@@ -21,6 +21,9 @@ import 'cue_sheet.dart';
 /// );
 /// ```
 final class SoundtrackPlugin extends Flutter3dPlugin {
+  /// A plugin playing [cues] into the audio scene [scene] returns, under
+  /// [id], on [bus] when one is given; rolled-back events are skipped
+  /// unless [playCorrections] is set.
   SoundtrackPlugin(
     this.cues, {
     required this.scene,

@@ -16,6 +16,7 @@ abstract final class RunStatus<L> {
 
 /// Before the first level, and between one and the next.
 final class RunLoading<L> extends RunStatus<L> {
+  /// Loading [asset], or the first load when it is null.
   const RunLoading({this.asset});
 
   /// Which one is coming, when that is known. Null on the very first load,
@@ -26,6 +27,7 @@ final class RunLoading<L> extends RunStatus<L> {
 /// A level is up. [outcome] is the simulation's own answer, republished so a
 /// screen can watch one thing.
 final class RunPlaying<L> extends RunStatus<L> {
+  /// [level], read from [asset], with the simulation's [outcome] so far.
   const RunPlaying(this.asset, this.level, {this.outcome = RunOutcome.playing});
 
   /// Which document this is. Kept because a save is a level and a snapshot
@@ -37,6 +39,8 @@ final class RunPlaying<L> extends RunStatus<L> {
   /// visuals. This class never looks inside.
   final L level;
 
+  /// Whether the run is still going, lost or won: [RunOutcome.playing]
+  /// until the simulation says otherwise.
   final RunOutcome outcome;
 }
 
@@ -46,8 +50,13 @@ final class RunPlaying<L> extends RunStatus<L> {
 /// the three games: the load caught its own throw and printed it, which is a
 /// line in a console nobody playing the game can see.
 final class RunFailed<L> extends RunStatus<L> {
+  /// [asset] would not load, for [error].
   const RunFailed(this.asset, this.error);
 
+  /// The document that would not load.
   final String asset;
+
+  /// What the load threw, kept so a screen can say why rather than show a
+  /// black frame.
   final Object error;
 }

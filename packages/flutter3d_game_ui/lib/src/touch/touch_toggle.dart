@@ -22,6 +22,8 @@ import 'touch_face.dart';
 /// either — the classic checkbox that says off while the thing is on — so this
 /// draws what it is told and reports the tap.
 final class TouchToggle extends StatelessWidget {
+  /// A toggle saying [label], drawn as [on], of [radius] logical pixels,
+  /// 30 by default.
   const TouchToggle({
     super.key,
     required this.label,
@@ -30,11 +32,14 @@ final class TouchToggle extends StatelessWidget {
     this.radius = 30.0,
   });
 
+  /// What it says, on its face and to a screen reader.
   final String label;
 
   /// Whether the thing this switches is switched on, asked of whatever owns it.
   final bool on;
 
+  /// Called on each tap; the owner flips the state, and this draws [on] as
+  /// it is handed back.
   final VoidCallback onTap;
 
   /// The radius, in logical pixels.

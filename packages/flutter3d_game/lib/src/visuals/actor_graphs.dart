@@ -43,6 +43,7 @@ abstract base mixin class ActorGraphs {
 /// **One object, so a minor can hand a game's graphs more** without
 /// breaking ones written against 1.0.
 final class ActorMachineContext {
+  /// [actor], whose model has [clips].
   const ActorMachineContext({required this.actor, required this.clips});
 
   /// The actor whose model was just placed.
@@ -55,6 +56,7 @@ final class ActorMachineContext {
 /// What [ActorGraphs.dress] is handed, once per graph, for the reason
 /// [ActorMachineContext] gives.
 final class ActorDressContext {
+  /// [graph] to dress [actor]'s [model] with.
   const ActorDressContext({
     required this.actor,
     required this.graph,
@@ -78,6 +80,8 @@ final class ActorDressContext {
 /// frame, so driving allocates nothing; a game reads it during the call and
 /// does not keep it.
 final class ActorDriveContext {
+  /// A context for [actor]; `ActorVisuals` sets the fields again for each
+  /// actor rather than making another.
   ActorDriveContext({
     required this.actor,
     required this.graph,

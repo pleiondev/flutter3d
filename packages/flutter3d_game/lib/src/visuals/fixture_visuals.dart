@@ -17,6 +17,8 @@ export 'fixture_appearance.dart';
 /// this never learns what the game's fixtures are called: the shapes come from
 /// a [FixtureAppearance].
 final class FixtureVisuals {
+  /// Visuals that draw [level]'s fixtures into [scene] as [appearance]
+  /// says, uploading through [device]; [onIssue] null prints.
   FixtureVisuals(
     this.scene,
     this.level, {
@@ -37,6 +39,7 @@ final class FixtureVisuals {
   /// load, which leaves a box where a door should be.
   final IssueSink onIssue;
 
+  /// The scene each fixture's node is added to.
   final Scene scene;
 
   /// The loaded level, for its palette and its already-uploaded maps: a door
@@ -110,6 +113,9 @@ final class FixtureVisuals {
   /// pipelines in the middle of play.
   Future<void> get settled => Future.wait(_adding.toList());
 
+  /// Gives [fixture] a node: a light fixture's parts, its model when the
+  /// entity names one, or else a box of its size in its material. A model
+  /// loads in the background; [settled] waits for it.
   void add(Fixture fixture) {
     final mechanism = fixture.mechanism;
     if (mechanism is LightFixture) {

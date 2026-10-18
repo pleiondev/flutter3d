@@ -89,6 +89,8 @@ abstract final class Wcag {
 /// finds the control by whichever of the two stands out, so a pair with an
 /// [edge] counts, at each frame, the better of the face and the rim.
 final class ContrastPair {
+  /// A pair called [name] that must reach [minimum], WCAG's ratio for text
+  /// by default; [background] is transparent and [edge] absent unless given.
   const ContrastPair(
     this.name, {
     required this.foreground,

@@ -7,6 +7,7 @@ import 'touch_face.dart';
 
 /// One numbered slot, as the row draws it.
 final class TouchSlot {
+  /// A slot holding [label], owned unless [owned] is false.
   const TouchSlot(this.label, {this.owned = true});
 
   /// What the slot holds, short enough to read at a glance under a thumb.
@@ -34,6 +35,8 @@ final class TouchSlot {
 /// A tap and not a hold, unlike [TouchButton]: choosing is an event, and
 /// `slotRequest` is read once per step and cleared.
 final class TouchSlots extends StatelessWidget {
+  /// A row of [slots] over [state], [current] lit; each slot is [width] by
+  /// [height] logical pixels, 62 by 34 by default.
   const TouchSlots({
     super.key,
     required this.state,
@@ -44,6 +47,8 @@ final class TouchSlots extends StatelessWidget {
     this.spacing = 8.0,
   });
 
+  /// The input a tapped slot is requested through, with
+  /// [InputState.requestSlot].
   final InputState state;
 
   /// Every slot this game has, in the order its keys select them.

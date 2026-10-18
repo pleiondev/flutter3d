@@ -15,8 +15,10 @@ typedef Announce = void Function(String sentence);
 /// — a scratch, a door that was already open — so one row can cover a type
 /// and still be choosy about it.
 final class Spoken<T extends BusEvent> {
+  /// A row for events of type `T`, put into words by [say].
   const Spoken(this.say);
 
+  /// The sentence for one event, or null to say nothing for it.
   final String? Function(T event) say;
 
   Registration _listen(
@@ -63,6 +65,9 @@ final class Spoken<T extends BusEvent> {
 /// );
 /// ```
 final class SpokenEvents extends Flutter3dPlugin {
+  /// A plugin that speaks the rows of [table] through [announce], the
+  /// application's implicit view when not given, keeping a repeated sentence
+  /// quiet for [quietSteps] steps. [table] is copied.
   SpokenEvents(
     List<Spoken<BusEvent>> table, {
     Announce? announce,

@@ -22,6 +22,8 @@ import '../theme/game_ui_theme.dart';
 /// **The words sit on [GameUiTheme.panel]**, and so does the way out, so
 /// they read over a bright frame as over a dark one.
 final class CutsceneOverlay extends StatefulWidget {
+  /// An overlay darkened by [fade], showing [subtitle] when there is one and
+  /// [skipHint] always, calling [onSkip] when skipped.
   const CutsceneOverlay({
     super.key,
     required this.fade,
@@ -39,6 +41,8 @@ final class CutsceneOverlay extends StatefulWidget {
   /// How to skip, in the words of the device in hand.
   final String skipHint;
 
+  /// Called when the player taps the way out, the button labelled
+  /// [skipHint] in the bottom right corner.
   final VoidCallback onSkip;
 
   @override

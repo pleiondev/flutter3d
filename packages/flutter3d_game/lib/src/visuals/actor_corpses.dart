@@ -40,6 +40,8 @@ abstract base mixin class ActorCorpses {
 /// killed it, the step it died at — without breaking ones written against
 /// 1.0.
 final class ActorDeathContext {
+  /// The death of [actor], drawn by [model]; [dt] is a sixtieth of a
+  /// second unless given.
   const ActorDeathContext({
     required this.actor,
     required this.model,

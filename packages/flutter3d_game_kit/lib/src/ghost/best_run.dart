@@ -20,6 +20,9 @@ import 'package:vector_math/vector_math.dart';
 /// to have been writing it down; so [watch] samples every run and [finished]
 /// decides.
 final class BestRun {
+  /// A best run kept in [storage] under [name], sampled [hz] times a second
+  /// (15 by default). [encode] and [decode] turn a tape into the stored
+  /// document and back; null uses `tapeToJson` and `tapeFromJson`.
   BestRun({
     required this.storage,
     required this.name,
@@ -31,6 +34,7 @@ final class BestRun {
        _encode = encode ?? tapeToJson,
        _decode = decode ?? tapeFromJson;
 
+  /// Where the best run's document is read from and written to.
   final Storage storage;
 
   /// The file the best run is kept in.

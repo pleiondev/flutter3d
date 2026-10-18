@@ -15,6 +15,9 @@ import 'bindings.dart';
 /// action's value, and a tape records that value, shaped — so a replay plays
 /// the same whatever the watching player has turned.
 final class AxisSettings {
+  /// Settings that shape a value by [deadZone] and [sensitivity] and turn
+  /// it over by [invertX] and [invertY]. Asserts the dead zone is a fraction
+  /// from nought up to but not including one.
   const AxisSettings({
     this.deadZone = 0.0,
     this.sensitivity = 1.0,
@@ -22,6 +25,8 @@ final class AxisSettings {
     this.invertY = false,
   }) : assert(deadZone >= 0.0 && deadZone < 1.0, 'a dead zone is a fraction');
 
+  /// Reads what [toJson] wrote. A missing key keeps its identity value, and
+  /// the dead zone is clamped to a fraction from nought to 0.95.
   factory AxisSettings.fromJson(Map<String, Object?> json) => AxisSettings(
     deadZone: ((json['deadZone'] as num?)?.toDouble() ?? 0.0).clamp(0.0, 0.95),
     sensitivity: (json['sensitivity'] as num?)?.toDouble() ?? 1.0,
@@ -47,6 +52,7 @@ final class AxisSettings {
   /// Whether the second number's sign is turned over: inverted vertical look.
   final bool invertY;
 
+  /// Whether these settings leave every value as it came, as [identity] does.
   bool get isIdentity =>
       deadZone == 0.0 && sensitivity == 1.0 && !invertX && !invertY;
 
@@ -82,6 +88,8 @@ final class AxisSettings {
     return ShapedPair(x: invertX ? -sx : sx, y: invertY ? -sy : sy);
   }
 
+  /// Returns a copy with the given fields replaced; null leaves a field as it
+  /// is.
   AxisSettings copyWith({
     double? deadZone,
     double? sensitivity,
@@ -94,6 +102,7 @@ final class AxisSettings {
     invertY: invertY ?? this.invertY,
   );
 
+  /// The settings as JSON, writing only the keys that differ from [identity].
   Map<String, Object?> toJson() => <String, Object?>{
     if (deadZone != 0.0) 'deadZone': deadZone,
     if (sensitivity != 1.0) 'sensitivity': sensitivity,
@@ -116,6 +125,7 @@ final class AxisSettings {
 /// Two numbers of a two-axis source after its [AxisSettings] shaped them:
 /// what [AxisSettings.shapePair] and [AxisSettings.shapeDelta] answer.
 final class ShapedPair {
+  /// A shaped pair of [x] and [y].
   const ShapedPair({required this.x, required this.y});
 
   /// Both numbers at rest.
@@ -157,10 +167,13 @@ final class CompositePart {
   /// The four directions of a [DualAxisComposite].
   static const CompositePart up = CompositePart._('up');
 
+  /// The down direction of a [DualAxisComposite].
   static const CompositePart down = CompositePart._('down');
 
+  /// The left direction of a [DualAxisComposite].
   static const CompositePart left = CompositePart._('left');
 
+  /// The right direction of a [DualAxisComposite].
   static const CompositePart right = CompositePart._('right');
 
   /// Every value this version names, in declaration order. A later version
@@ -210,6 +223,7 @@ final class CompositePart {
 /// Dead zone, sensitivity and invert are on the two analogue shapes — see
 /// [AxisSettings].
 abstract base class ActionBinding {
+  /// Lets a subclass be a `const` value; the base holds no state.
   const ActionBinding();
 
   /// Reads one binding written by [toJson], or null for a shape this build
@@ -250,6 +264,7 @@ abstract base class ActionBinding {
     };
   }
 
+  /// The action this binding drives.
   InputAction<Object> get action;
 
   /// Every source this binding listens to, [InputSource.none] left out.
@@ -264,6 +279,8 @@ abstract base class ActionBinding {
   /// The part [source] drives, for a composite; null otherwise.
   CompositePart? partOf(InputSource source) => null;
 
+  /// The binding as JSON, with its `kind` and `action`, which [fromJson]
+  /// reads back.
   Map<String, Object?> toJson();
 }
 
@@ -272,10 +289,14 @@ abstract base class ActionBinding {
 /// An [ActionMap] keeps these in its [ActionMap.buttons] table, the one the
 /// keyboard and the pad have always read.
 final class ButtonBinding extends ActionBinding {
+  /// A binding of [source] to [action].
   const ButtonBinding(this.action, this.source);
 
   @override
   final GameAction action;
+
+  /// The key, mouse button or pad button that holds [action] down;
+  /// [InputSource.none] when unbound.
   final InputSource source;
 
   @override
@@ -301,6 +322,7 @@ final class ButtonBinding extends ActionBinding {
 /// One analogue number on an [AxisAction]: a trigger, one axis of a stick,
 /// a band under a thumb.
 final class AxisBinding extends ActionBinding {
+  /// A binding of [source] to [action], shaped by [tuning].
   const AxisBinding(
     this.action,
     this.source, {
@@ -309,7 +331,13 @@ final class AxisBinding extends ActionBinding {
 
   @override
   final AxisAction action;
+
+  /// The analogue source, a fraction of travel from -1 to 1;
+  /// [InputSource.none] when unbound.
   final InputSource source;
+
+  /// How [source] is shaped on its way to [action]; [AxisSettings.identity]
+  /// by default.
   final AxisSettings tuning;
 
   @override
@@ -336,6 +364,8 @@ final class AxisBinding extends ActionBinding {
 /// Two buttons as one [AxisAction]: the axis is one while [positive] is
 /// held, minus one while [negative] is, and nought for both or neither.
 final class AxisComposite extends ActionBinding {
+  /// Two buttons driving [action]: [negative] towards minus one, [positive]
+  /// towards one.
   const AxisComposite(
     this.action, {
     required this.negative,
@@ -344,7 +374,12 @@ final class AxisComposite extends ActionBinding {
 
   @override
   final AxisAction action;
+
+  /// The button that drives the axis to minus one; [InputSource.none] when
+  /// unbound.
   final InputSource negative;
+
+  /// The button that drives the axis to one; [InputSource.none] when unbound.
   final InputSource positive;
 
   @override
@@ -384,6 +419,7 @@ final class AxisComposite extends ActionBinding {
 /// A pair of analogue numbers on a [DualAxisAction]: a whole stick, or the
 /// mouse's motion for a delta action such as [DualAxisAction.look].
 final class DualAxisBinding extends ActionBinding {
+  /// A binding of the pair [source] to [action], shaped by [tuning].
   const DualAxisBinding(
     this.action,
     this.source, {
@@ -392,7 +428,13 @@ final class DualAxisBinding extends ActionBinding {
 
   @override
   final DualAxisAction action;
+
+  /// The stick or mouse motion that drives [action]; [InputSource.none] when
+  /// unbound.
   final InputSource source;
+
+  /// How [source] is shaped on its way to [action]; [AxisSettings.identity]
+  /// by default. Only sensitivity and invert apply to a delta action.
   final AxisSettings tuning;
 
   @override
@@ -420,6 +462,7 @@ final class DualAxisBinding extends ActionBinding {
 /// Four buttons as one [DualAxisAction] — `WASD` as a direction, never
 /// longer than one, so a diagonal is no faster than straight ahead.
 final class DualAxisComposite extends ActionBinding {
+  /// Four buttons driving [action] as a direction.
   const DualAxisComposite(
     this.action, {
     required this.up,
@@ -430,9 +473,21 @@ final class DualAxisComposite extends ActionBinding {
 
   @override
   final DualAxisAction action;
+
+  /// The button for the upward direction, y plus one; [InputSource.none]
+  /// when unbound.
   final InputSource up;
+
+  /// The button for the downward direction, y minus one; [InputSource.none]
+  /// when unbound.
   final InputSource down;
+
+  /// The button for the leftward direction, x minus one; [InputSource.none]
+  /// when unbound.
   final InputSource left;
+
+  /// The button for the rightward direction, x plus one; [InputSource.none]
+  /// when unbound.
   final InputSource right;
 
   @override
@@ -483,12 +538,15 @@ final class DualAxisComposite extends ActionBinding {
 
 /// A source that something else already uses, found by a rebind.
 final class BindingConflict {
+  /// A conflict over [source], which was on [action] (at [part] of a
+  /// composite).
   const BindingConflict({
     required this.source,
     required this.action,
     this.part,
   });
 
+  /// The source the rebind asked for, which another binding already used.
   final InputSource source;
 
   /// What [source] was on before.
@@ -560,6 +618,7 @@ final class ConflictPolicy {
 
 /// What [ActionMap.rebind] did.
 final class RebindOutcome {
+  /// An outcome that [applied] or not, with the [conflicts] it met.
   const RebindOutcome({required this.applied, required this.conflicts});
 
   /// Whether the map changed. False only under [ConflictPolicy.refuse].
@@ -596,6 +655,8 @@ final class RebindOutcome {
 /// know is kept and written back, for the reason [Bindings] keeps an action
 /// it does not know.
 final class ActionMap extends FormatDocument {
+  /// A map of [actions] with the [buttons] table (a fresh empty one when
+  /// null) and the non-button [axes], each added as [bind] adds it.
   ActionMap({
     required this.actions,
     Bindings? buttons,
@@ -947,6 +1008,8 @@ final class ActionMap extends FormatDocument {
       ..addAll(other._unknown);
   }
 
+  /// Returns an independent copy: its own button table and axis list, so a
+  /// rebind on the copy leaves this map alone.
   ActionMap copy() => ActionMap(
     actions: actions,
     buttons: buttons.copy(),
@@ -973,6 +1036,7 @@ final class ActionMap extends FormatDocument {
 /// Thrown when a saved action map cannot be read: a newer build's, or a
 /// document that is not one.
 final class ActionMapFormatException extends Flutter3dFormatException {
+  /// An exception that says why, in [message].
   const ActionMapFormatException(this.message);
 
   @override

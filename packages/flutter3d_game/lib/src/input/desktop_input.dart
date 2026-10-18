@@ -125,6 +125,7 @@ final class DesktopInput {
     return map;
   }
 
+  /// Where key and mouse presses are written as action presses and releases.
   final InputState state;
 
   /// The pointer this keyboard takes and gives back; the platform's unless
@@ -140,6 +141,8 @@ final class DesktopInput {
 
   late final StreamSubscription<bool> _stateSubscription;
 
+  /// Whether the pointer is captured, so the mouse reports motion rather than
+  /// moving a cursor.
   bool get isCaptured => capture.isCaptured;
 
   /// Handles a key event, returning whether it was consumed.
@@ -188,6 +191,7 @@ final class DesktopInput {
   /// game's selects, and neither of them fires anything.
   void pressPointer(GameAction action) => state.press(action);
 
+  /// Releases [action], the pair of [pressPointer].
   void releasePointer(GameAction action) => state.release(action);
 
   /// Mouse [button] went down, read through the bindings: what
@@ -198,6 +202,8 @@ final class DesktopInput {
   /// itself and so cannot be moved by a player.
   bool pointerDown(int button) => _pointer(button, down: true);
 
+  /// Mouse [button] came up, read through the bindings as [pointerDown]
+  /// reads it. Returns whether anything was bound to it.
   bool pointerUp(int button) => _pointer(button, down: false);
 
   bool _pointer(int button, {required bool down}) {
@@ -246,6 +252,8 @@ final class DesktopInput {
   /// to. What is being asked for is the capture, not a camera.
   Future<void> captureMouse() => capture.capture();
 
+  /// Gives the pointer back, so the cursor shows again. Losing the capture
+  /// also lets go of every held action.
   Future<void> releaseMouse() => capture.release();
 
   void _onCaptureChanged(bool captured) {
@@ -257,5 +265,7 @@ final class DesktopInput {
     }
   }
 
+  /// Stops listening for capture changes. The [capture] itself is left as it
+  /// is.
   Future<void> dispose() => _stateSubscription.cancel();
 }

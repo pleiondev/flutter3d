@@ -30,6 +30,9 @@ import 'settings_file.dart';
 /// copy kept elsewhere — see `SaveSync` — can be compared with this one, and
 /// the game's [schema] version so a later build can migrate it.
 final class SaveFile {
+  /// The save of [appName] in [slot] ([defaultSlot] unless given), at
+  /// [schema], kept in [storage] (the platform's own when null), saying what
+  /// it could not read or write through [onIssue] (printed when null).
   SaveFile({
     required this.appName,
     Storage? storage,
@@ -200,6 +203,9 @@ final class SaveFile {
 /// slots hold a run is kept in a small index document of its own, because a
 /// [Storage] has names and no listing.
 final class SaveSlots {
+  /// The save slots of [appName] at [schema], kept in [storage] (the
+  /// platform's own when null), saying what they could not read or write
+  /// through [onIssue] (printed when null).
   SaveSlots({
     required this.appName,
     Storage? storage,

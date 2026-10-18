@@ -9,6 +9,8 @@ import 'dart:math' as math;
 /// HUD reads [value]. Faded by the step, so it lasts as long on a 120 Hz
 /// display as on a 60 Hz one.
 final class ScreenFlash {
+  /// A flash, dark until [fire], that fades by [fadePerSecond] full flashes
+  /// a second.
   ScreenFlash({required this.fadePerSecond});
 
   /// How much of a full flash fades in a second: 4 is a quarter of a second

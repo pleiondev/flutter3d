@@ -67,6 +67,8 @@ abstract base mixin class ActorAppearance {
 /// frame, so asking allocates nothing; an appearance reads it during the
 /// call and does not keep it.
 final class ActorClipsContext {
+  /// A context for [actor]; `ActorVisuals` sets the fields again for each
+  /// actor rather than making another.
   ActorClipsContext({required this.actor, required this.published});
 
   /// The actor being drawn.

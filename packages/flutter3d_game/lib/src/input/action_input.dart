@@ -21,9 +21,13 @@ import 'bindings.dart';
 /// on the same lift give the lift at one, not at one and a half and not at
 /// whichever reported last. A pair is compared by its length.
 final class ActionInput {
+  /// Resolves [map]'s non-button bindings into [state].
   ActionInput({required this.state, required this.map});
 
+  /// Where the resolved action values are written.
   final InputState state;
+
+  /// The bindings that say which source moves which action.
   final ActionMap map;
 
   /// Digital sources that are down.
@@ -48,6 +52,7 @@ final class ActionInput {
     if (_down.add(source)) _resolveFor(source);
   }
 
+  /// [source] came up. A source that was not down is ignored.
   void sourceUp(InputSource source) {
     if (_down.remove(source)) _resolveFor(source);
   }

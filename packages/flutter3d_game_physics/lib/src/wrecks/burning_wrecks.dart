@@ -18,6 +18,7 @@ import 'package:vector_math/vector_math.dart';
 /// them; [codec] writes them as a component, for a game that publishes its
 /// wrecks on its entities and draws them in another isolate.
 final class BurningWreck {
+  /// A published wreck with every field given.
   const BurningWreck({
     required this.body,
     required this.oil,
@@ -78,11 +79,15 @@ final class BurningWreck {
 
   /// Where it lies, in the elements' world.
   final Vector3 at;
+
+  /// How it is turned, in the elements' world.
   final Quaternion turn;
 
   /// Whether it burns.
   final bool burning;
 
+  /// Writes it as the map [fromJson] reads: `at` as three numbers and
+  /// `turn` as four, x, y, z then w.
   Map<String, Object?> toJson() => <String, Object?>{
     'body': body,
     'oil': oil,

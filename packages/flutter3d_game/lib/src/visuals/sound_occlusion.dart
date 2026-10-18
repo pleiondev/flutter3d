@@ -56,6 +56,11 @@ import 'package:vector_math/vector_math.dart';
 /// or the bands apart: the share is one number per obstacle, and the
 /// dulling the scene hands a backend follows from it.
 final class SoundOcclusion {
+  /// Occlusion measured by rays through [world] against [mask].
+  ///
+  /// Asserts [perObstacle] is strictly between nought and one,
+  /// [maxObstacles] is at least one and [floor] is a fraction from nought
+  /// to one.
   SoundOcclusion(
     this.world, {
     this.perObstacle = 0.5,
@@ -67,6 +72,8 @@ final class SoundOcclusion {
        assert(maxObstacles >= 1),
        assert(floor >= 0.0 && floor <= 1.0);
 
+  /// The world rays are cast through. Its air ([CollisionWorld.properties])
+  /// is what an obstacle's acoustic impedance is weighed against.
   final CollisionWorld world;
 
   /// What one wall of nothing in particular lets through, as a share of the

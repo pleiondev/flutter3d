@@ -9,6 +9,7 @@ import 'package:flutter/widgets.dart';
 /// `throttle` stays `throttle`, as large as the pedal allows. Not exported:
 /// the buttons, toggles and slots of this library share it.
 final class TouchFace extends StatelessWidget {
+  /// A face saying [label] in [color] at [fontSize].
   const TouchFace(
     this.label, {
     super.key,
@@ -17,11 +18,16 @@ final class TouchFace extends StatelessWidget {
     this.fontWeight,
   });
 
+  /// The word on the face, kept on one line and centred.
   final String label;
+
+  /// The word's colour.
   final Color color;
 
   /// The label's size at the platform's normal text size, in logical pixels.
   final double fontSize;
+
+  /// The word's weight; null for the ambient text style's.
   final FontWeight? fontWeight;
 
   @override

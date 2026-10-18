@@ -20,6 +20,8 @@ import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Portable;
 /// player was shown on a wide screen is still on a tall one. With no
 /// [designAspect] the lens ignores the screen.
 final class Lens {
+  /// A lens on [base], opened on screens narrower than [designAspect] when
+  /// one is given.
   const Lens(this.base, {this.designAspect});
 
   /// What the camera is built with, and what a widened view returns to.

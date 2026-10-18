@@ -26,6 +26,8 @@ import 'reaction_table.dart';
 ///   ..feel(camera.rig);
 /// ```
 final class ReactionsPlugin extends Flutter3dPlugin {
+  /// A plugin running [table] under [id], skipping rolled-back events
+  /// unless [showCorrections] is set.
   ReactionsPlugin(
     this.table, {
     this.id = 'flutter3d_game_kit.reactions',

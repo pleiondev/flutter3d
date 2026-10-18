@@ -10,8 +10,10 @@ import '../theme/game_ui_theme.dart';
 /// its lines conditionally without a panel-shaped smudge left behind. Its
 /// background is [GameUiTheme.panel].
 final class HudPanel extends StatelessWidget {
+  /// A panel stacking [children] top to bottom.
   const HudPanel({super.key, required this.children});
 
+  /// The lines stacked, usually [HudLine]s; empty draws no panel.
   final List<Widget> children;
 
   @override
@@ -47,6 +49,7 @@ final class HudPanel extends StatelessWidget {
 /// line up, which is the thing this column is for. Fixed for one text size:
 /// it grows with the platform's, so the label stays whole at twice it.
 final class HudLine extends StatelessWidget {
+  /// A line showing [value] beside [label], unlit unless [accent].
   const HudLine({
     super.key,
     required this.label,
@@ -55,7 +58,11 @@ final class HudLine extends StatelessWidget {
     this.accentColor,
   });
 
+  /// The short label in the left column, `LAP` or `RECORD`, kept on one
+  /// line and scaled down rather than wrapped.
   final String label;
+
+  /// The value beside the label, set in tabular figures.
   final String value;
 
   /// Whether this line has just become true. Colour, because a player
@@ -117,6 +124,8 @@ final class HudLine extends StatelessWidget {
 
 /// How a [HudTally] is drawn: the colour, and the size of its two lines.
 final class HudTallyStyle {
+  /// A style with a 30-pixel value over a 12-pixel label, in proportional
+  /// figures and the theme's colour unless given.
   const HudTallyStyle({
     this.color,
     this.valueSize = 30,
@@ -146,6 +155,7 @@ final class HudTallyStyle {
 /// **On a [GameUiTheme.panel]**, as every line of the heads-up display is: a
 /// white number with a shadow under it was a white number on a white sky.
 final class HudTally extends StatelessWidget {
+  /// A tally showing [value] over [label], drawn as [style] says.
   const HudTally({
     super.key,
     required this.label,
@@ -153,8 +163,14 @@ final class HudTally extends StatelessWidget {
     this.style = const HudTallyStyle(),
   });
 
+  /// The small word under the number, `COINS`; read first by a screen
+  /// reader.
   final String label;
+
+  /// The big number, already formatted.
   final String value;
+
+  /// The colour and sizes it is drawn in.
   final HudTallyStyle style;
 
   @override
@@ -208,8 +224,10 @@ final class HudTally extends StatelessWidget {
 /// player, so it is a live region: a screen reader reads the new sentence
 /// without being asked.
 final class HudBanner extends StatelessWidget {
+  /// A banner saying [text] at [fontSize] logical pixels, 18 by default.
   const HudBanner(this.text, {super.key, this.color, this.fontSize = 18});
 
+  /// The sentence shown, and read out whenever it changes.
   final String text;
 
   /// The text's colour; null for [GameUiTheme.text].
@@ -245,6 +263,7 @@ final class HudBanner extends StatelessWidget {
 /// Kilometres an hour, because that is the number on a dashboard; the
 /// simulation works in metres a second and is right to.
 final class Speedometer extends StatelessWidget {
+  /// A dial showing [metersPerSecond] as kilometres an hour.
   const Speedometer({super.key, required this.metersPerSecond});
 
   /// The speed shown, in metres per second.

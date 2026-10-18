@@ -20,6 +20,9 @@ import '../theme/game_ui_theme.dart';
 /// What it does not draw: monsters, items, the exit. A map that shows the
 /// monsters is a different game, and the decision belongs to the game.
 final class AutomapView extends StatelessWidget {
+  /// The map of [automap] round the player at [position] facing [yaw],
+  /// [metersAcross] metres across, 40 by default; a null colour is the
+  /// theme's.
   const AutomapView({
     super.key,
     required this.automap,
@@ -32,6 +35,7 @@ final class AutomapView extends StatelessWidget {
     this.backdrop,
   });
 
+  /// The cells the player has revealed, read afresh at every paint.
   final Automap automap;
 
   /// Where the player is, in world space; the map is centred here.
@@ -79,6 +83,7 @@ final class AutomapView extends StatelessWidget {
 
 /// The painting, public so a test can ask it what it would draw.
 final class AutomapPainter extends CustomPainter {
+  /// A painter with every colour resolved, as [AutomapView] builds it.
   const AutomapPainter({
     required this.automap,
     required this.position,
@@ -90,7 +95,10 @@ final class AutomapPainter extends CustomPainter {
     required this.backdrop,
   });
 
+  /// The cells the player has revealed; only those are drawn.
   final Automap automap;
+
+  /// Where the player is, in world space; the view is centred here.
   final Vector3 position;
 
   /// Which way the player faces, in radians about Y.
@@ -98,9 +106,17 @@ final class AutomapPainter extends CustomPainter {
 
   /// How many metres of level the shorter side of the view shows.
   final double metersAcross;
+
+  /// The colour of a revealed floor cell.
   final Color floor;
+
+  /// The colour of a revealed wall cell.
   final Color wall;
+
+  /// The colour of the player's arrow, drawn last in the middle.
   final Color player;
+
+  /// The colour the whole view is filled with first.
   final Color backdrop;
 
   /// Pixels per metre for a view of [size].

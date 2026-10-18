@@ -47,7 +47,10 @@ final class TouchButton extends StatefulWidget {
   }) : radius = 0.0,
        _pedal = (width: width, height: height);
 
+  /// The input the press is written into, as a device would.
   final InputState state;
+
+  /// The action held down while the owning finger is on the button.
   final GameAction action;
 
   /// What it says, on its face and to a screen reader.
@@ -72,6 +75,7 @@ final class TouchButton extends StatefulWidget {
 
 /// The size of a [TouchButton.pedal], as [TouchButton.pedal] holds it.
 final class PedalSize {
+  /// A pedal [width] by [height] logical pixels.
   const PedalSize({required this.width, required this.height});
 
   /// Side to side, in logical pixels.

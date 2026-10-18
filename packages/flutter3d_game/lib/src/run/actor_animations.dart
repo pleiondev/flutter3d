@@ -186,6 +186,7 @@ final class ActorAnimationWrite {
 
 /// [actor]'s animation passed marker [name] in [state] this step.
 final class AnimationMarkerPassed extends GameEvent {
+  /// [actor] passed [marker] in [state].
   const AnimationMarkerPassed(this.actor, this.state, this.marker);
 
   /// The name it is declared and published under.
@@ -203,6 +204,7 @@ final class AnimationMarkerPassed extends GameEvent {
         decode: (_) => null,
       );
 
+  /// The actor whose animation passed the marker; recorded by its ordinal.
   final Actor actor;
 
   /// The state whose clip carries the marker.

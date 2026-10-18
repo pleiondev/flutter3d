@@ -74,11 +74,25 @@ base class Flutter3dGameLocalizations {
 
   // ── The settings panel ────────────────────────────────────────────────────
 
+  /// The settings panel's title, and the tooltip of the overlay's gear.
   String get settings => 'Settings';
+
+  /// The heading over the panel's rebinding rows.
   String get controls => 'Controls';
+
+  /// The button that puts every binding back to the game's defaults.
   String get resetControls => 'Reset controls';
+
+  /// The heading over camera motion, colour vision, high contrast and the
+  /// sprint switch.
   String get accessibility => 'Accessibility';
+
+  /// The slider that turns down the camera's flinch on landings and hits,
+  /// leaving its following alone.
   String get cameraMotion => 'Camera motion';
+
+  /// The row that picks a correction for the player's kind of colour
+  /// blindness; its choices are [colorVisionChoices].
   String get colorVision => 'Colour vision';
 
   /// The choices of the colour-vision row: none, then the three kinds of
@@ -90,21 +104,39 @@ base class Flutter3dGameLocalizations {
     'Tritan',
   ];
 
+  /// The switch for the high-contrast look, shown as the system's answer
+  /// until the player gives one.
   String get highContrast => 'High contrast';
+
+  /// The switch that makes sprint a held key; off makes it a toggle.
   String get holdToSprint => 'Hold to sprint';
+
+  /// The heading over the rows that recolour the game's colour roles.
   String get colors => 'Colours';
+
+  /// The heading over the mouse's look speed and vertical inversion.
   String get mouse => 'Mouse';
+
+  /// The look-speed slider's label, in both the mouse and gamepad sections.
   String get lookSpeed => 'Look speed';
+
+  /// The switch that turns the mouse's vertical look upside down.
   String get invertVerticalLook => 'Invert vertical look';
 
   /// The gamepad section's heading, saying when no pad is connected.
   String gamepad({required bool connected}) =>
       connected ? 'Gamepad' : 'Gamepad (none connected)';
 
+  /// The slider for the stick's dead zone, as a fraction of its travel.
   String get deadZone => 'Dead zone';
+
+  /// The warning the panel shows when the settings file could not be
+  /// written.
   String get settingsNotSaved =>
       'These settings could not be saved, and will be lost when the game '
       'closes. The disk or the browser’s storage is full.';
+
+  /// The button that closes the settings panel.
   String get backToTheGame => 'Back to the game';
 
   /// A volume slider's heading for the mixer bus called [bus].
@@ -122,7 +154,11 @@ base class Flutter3dGameLocalizations {
 
   // ── Rebinding ─────────────────────────────────────────────────────────────
 
+  /// What a binding row shows while it waits for the new key or button.
   String get pressAKeyOrButton => 'press a key or a button';
+
+  /// What a binding row shows for an action no source reaches, and what
+  /// [source] calls `InputSource.none`.
   String get boundToNothing => 'nothing';
 
   /// A binding row as a screen reader says it.
@@ -165,10 +201,17 @@ base class Flutter3dGameLocalizations {
   /// A sensitivity slider's label: the action, on the device.
   String sensitivity(String action, String on) => '$action, $on';
 
+  /// The switch that flips a two-axis [action]'s vertical axis on the
+  /// device [on].
   String invertVertically(String action, String on) =>
       'Invert $action vertically, $on';
+
+  /// The switch that flips a two-axis [action]'s horizontal axis on the
+  /// device [on].
   String invertHorizontally(String action, String on) =>
       'Invert $action horizontally, $on';
+
+  /// The switch that flips a one-axis [action] on the device [on].
   String invert(String action, String on) => 'Invert $action, $on';
 
   /// What to call [source] on screen — a key's label, `pad face.south`,
@@ -210,7 +253,10 @@ base class Flutter3dGameLocalizations {
     _ => 'mouse button ${button ?? '?'}',
   };
 
+  /// The word [source] puts before a touch control's name.
   String get touchPrefix => 'touch';
+
+  /// The word [source] puts before a pad button's position name.
   String get padPrefix => 'pad';
 
   /// The name of a key whose label is not a thing to put on screen, by its
@@ -224,23 +270,51 @@ base class Flutter3dGameLocalizations {
 
   // ── Your data ─────────────────────────────────────────────────────────────
 
+  /// The heading over the privacy section's two consent switches.
   String get yourData => 'Your data';
+
+  /// The cloud-save consent switch, shown off and inert in a build with no
+  /// save server.
   String get cloudSaves => 'Cloud saves';
+
+  /// The line under [cloudSaves] when the build has a save server.
   String get cloudSavesExplained =>
       'Keeps your run on the save server too, so another device can carry '
       'on from it.';
+
+  /// The line under [cloudSaves] when the build has no save server.
   String get noSaveServer =>
       'This build has no save server; your run stays on this device.';
+
+  /// The telemetry consent switch.
   String get sendMyRuns => 'Send my runs';
+
+  /// The line under [sendMyRuns], saying what is sent and why.
   String get sendMyRunsExplained =>
       'Sends what you pressed in each level you finish, with no name, so the '
       'makers can see where levels are too hard.';
+
+  /// The error under the privacy section when a consent answer could not be
+  /// written.
   String get answerNotKept => 'That answer could not be saved on this device.';
+
+  /// The title of the dialog that asks which of two equally far runs to
+  /// keep.
   String get whichRun => 'Which run do you want?';
+
+  /// The label of the local run's line in the [whichRun] dialog.
   String get onThisDevice => 'On this device';
+
+  /// The label of the cloud run's line in the [whichRun] dialog.
   String get inTheCloud => 'In the cloud';
+
+  /// The [whichRun] dialog's button that puts the question off.
   String get later => 'Later';
+
+  /// The [whichRun] dialog's button that keeps the cloud's run.
   String get theClouds => 'The cloud’s';
+
+  /// The [whichRun] dialog's button that keeps this device's run.
   String get thisDevices => 'This device’s';
 
   /// One of the two runs offered: [where] it is, and the level and the time
@@ -250,6 +324,7 @@ base class Flutter3dGameLocalizations {
 
   // ── The screens around play ───────────────────────────────────────────────
 
+  /// The prompt over a finished run that a tap restarts.
   String get tapToPlayAgain => 'Tap to play again';
 
   /// The credits' heading.
@@ -273,14 +348,24 @@ base class Flutter3dGameLocalizations {
 
   // ── Sharing a run ─────────────────────────────────────────────────────────
 
+  /// The share strip's button that copies this run's code.
   String get shareThisRun => 'Share this run';
+
+  /// The hint in the share strip's field for a code somebody else shared.
   String get aFriendsCode => 'A friend’s code';
+
+  /// The share strip's button that opens the run behind a friend's code.
   String get openTheirRun => 'Race it';
 
   // ── Touch ─────────────────────────────────────────────────────────────────
 
+  /// What a screen reader calls the touch accelerator pedal.
   String get throttle => 'throttle';
+
+  /// What a screen reader calls the touch brake pedal.
   String get brake => 'brake';
+
+  /// What a screen reader calls the touch handbrake button.
   String get handbrake => 'handbrake';
 
   /// What a screen reader calls a thumb stick that walks.
@@ -291,6 +376,7 @@ base class Flutter3dGameLocalizations {
 
   // ── Photo mode ────────────────────────────────────────────────────────────
 
+  /// The photo bar's line while a capture is in progress.
   String get takingThePicture => 'Taking the picture…';
 
   /// The photo bar's first line.

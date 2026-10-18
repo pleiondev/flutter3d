@@ -8,6 +8,7 @@ import 'cloud_save_store.dart';
 /// not name — Steam Cloud, a console's own — is one more constant and a native
 /// side that answers to its [name], with nothing here to change.
 final class CloudProvider {
+  /// A provider the platform side knows as [name], shown as [title].
   const CloudProvider(this.name, this.title);
 
   /// What the platform side is told, in the channel's `provider` argument.
@@ -47,9 +48,12 @@ final class CloudProvider {
 /// offered iCloud on a build that cannot reach it should say so on the
 /// settings screen rather than in a crash report.
 final class PlatformCloudSaves extends CloudSaveStore {
+  /// A store kept by [provider], asked over [channel]; by default
+  /// `dev.flutter3d/cloud_saves`.
   PlatformCloudSaves(this.provider, {MethodChannel? channel})
     : _channel = channel ?? const MethodChannel('dev.flutter3d/cloud_saves');
 
+  /// The service the saves are kept by, named in every channel call.
   final CloudProvider provider;
   final MethodChannel _channel;
 

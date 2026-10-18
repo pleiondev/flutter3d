@@ -13,12 +13,14 @@ import 'package:flutter/widgets.dart';
 /// [reading] holds null until there is something to show, and the panel is
 /// empty until then.
 final class StereoHudPanel<T extends Object> extends StatelessWidget {
+  /// A panel that draws [builder]'s HUD each time [reading] changes.
   const StereoHudPanel({
     super.key,
     required this.reading,
     required this.builder,
   });
 
+  /// The readout the HUD shows; null draws nothing.
   final ValueListenable<T?> reading;
 
   /// The HUD for one reading. Anything else it shows — a message beside the

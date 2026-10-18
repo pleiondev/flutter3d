@@ -22,6 +22,8 @@ import 'credits.dart';
 /// that attribution travel wherever the work does, and this is the screen
 /// every player meets, including the ones who never finish.
 final class TitleSheet extends StatelessWidget {
+  /// A sheet with [title], [tagline], the control [lines], [credits] and
+  /// [prompt]; [notice] and [onBegin] are optional.
   const TitleSheet({
     super.key,
     required this.title,

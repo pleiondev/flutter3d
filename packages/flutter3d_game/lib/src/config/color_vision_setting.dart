@@ -23,8 +23,11 @@ ColorVision? colorVisionOf(GameSettings config) {
 /// the life of the device, since `GraphicsDevice` has no way to let one go
 /// and a table made on every change of mind would be a leak.
 final class ColorVisionLook {
+  /// A look that uploads its colour tables to [device].
   ColorVisionLook(this.device);
 
+  /// The device the colour tables are uploaded to, once per kind of colour
+  /// vision and never released.
   final GraphicsDevice device;
 
   final Map<ColorVisionDeficiency, TextureHandle?> _tables =

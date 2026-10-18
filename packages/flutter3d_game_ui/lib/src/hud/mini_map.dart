@@ -17,6 +17,8 @@ import '../theme/game_ui_theme.dart';
 /// whatever size it is, and a map that assumed one would put half of every
 /// other course outside the corner it is drawn in.
 final class MiniMap extends StatelessWidget {
+  /// A map of [outline] with [markers] on it, in a box [size] logical
+  /// pixels square, 150 by default.
   const MiniMap({
     super.key,
     required this.outline,
@@ -26,12 +28,21 @@ final class MiniMap extends StatelessWidget {
     this.othersColor,
   });
 
+  /// The course as points in world XZ, in world units, `x` for X and `y`
+  /// for Z; closed back to its first point when drawn.
   final List<Vector2> outline;
+
+  /// Where things on the course are, in the plane of [outline]; the first
+  /// is the player.
   final List<Vector2> markers;
 
   /// The box's side, in logical pixels.
   final double size;
+
+  /// The player's dot; null for the [GameUiTheme]'s `miniMapPlayer`.
   final Color? playerColor;
+
+  /// Everyone else's dots; null for the [GameUiTheme]'s `miniMapOthers`.
   final Color? othersColor;
 
   @override
@@ -61,6 +72,8 @@ final class MiniMap extends StatelessWidget {
 /// What [MiniMap] paints, public so a HUD that lays out its own frame can
 /// paint the map into it, and so a test can read where a point lands.
 final class MiniMapPainter extends CustomPainter {
+  /// A painter of [outline] and [markers], fitted to whatever box it is
+  /// given.
   const MiniMapPainter({
     required this.outline,
     required this.markers,
@@ -69,7 +82,11 @@ final class MiniMapPainter extends CustomPainter {
     this.trackColor,
   });
 
+  /// The course in world XZ, in world units; fewer than two points, or
+  /// points with no extent, paint nothing.
   final List<Vector2> outline;
+
+  /// The dots on the course in the same plane, the player's first.
   final List<Vector2> markers;
 
   /// The player's dot; null for [GameUiTheme.fallback]'s `miniMapPlayer`.

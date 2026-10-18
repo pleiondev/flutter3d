@@ -22,6 +22,8 @@ import 'package:flutter3d_game/flutter3d_game.dart'
 ///     actor.isAlive ? rings.of('threat', fallback: vermillion) : null;
 /// ```
 final class RoleRings {
+  /// Rings in the colours of [roles], as the player has set them in the
+  /// settings [settings] answers.
   const RoleRings(this.roles, this.settings);
 
   /// The colours the game gives meanings to.

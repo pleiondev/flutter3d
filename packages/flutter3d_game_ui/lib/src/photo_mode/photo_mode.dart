@@ -29,6 +29,8 @@ import 'photo_controls.dart';
 /// );
 /// ```
 final class PhotoMode {
+  /// A photo mode, shut, flown by [controls] through [lens], the default
+  /// perspective unless given.
   PhotoMode({
     required this.controls,
     this.lens = const PerspectiveProjection(),
@@ -83,6 +85,8 @@ final class PhotoMode {
   /// shelf's sentence, which the game may replace with its own words.
   String? said;
 
+  /// The filter the picture is taken through, one of [PhotoFilter.all];
+  /// the first of them until the player picks another.
   PhotoFilter get filter => PhotoFilter.all[_filter];
 
   /// Which way the photo camera looks, or null when photo mode is shut: a
@@ -120,6 +124,8 @@ final class PhotoMode {
     said = null;
   }
 
+  /// Shuts photo mode and drops the photo camera, so [isActive] is false
+  /// and the run can go on from where it stopped.
   void leave() => _camera = null;
 
   /// One frame of flying on what [controls] read: [input] and [look] for
@@ -249,8 +255,10 @@ final class PhotoMode {
 /// The strip along the bottom of the screen in photo mode: the filter, the
 /// keys, and the last picture's sentence.
 final class PhotoBar extends StatelessWidget {
+  /// A strip showing the state of [mode].
   const PhotoBar({required this.mode, super.key});
 
+  /// The photo mode whose filter, keys and last sentence are shown.
   final PhotoMode mode;
 
   @override

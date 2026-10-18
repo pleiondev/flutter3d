@@ -17,6 +17,7 @@ import 'settings_panel_controls.dart';
 /// `base`: extend it, do not implement it, so a member added in a 1.x
 /// release arrives with a body.
 abstract base class SettingsSection {
+  /// A section; `const` so a subclass can be a constant.
   const SettingsSection();
 
   /// The rows of this section, reading the section's settings and changing
@@ -58,8 +59,11 @@ abstract base class SettingsSection {
 /// sounds can reach and no others. A slider that is saved and applied and
 /// that nothing in the game is heard through is a lie the panel tells.
 final class VolumesSection extends SettingsSection {
+  /// Sliders for [buses], every settable bus by default.
   const VolumesSection({this.buses = settableBuses});
 
+  /// The buses offered, one slider each in order, each a volume from
+  /// nought to one.
   final List<AudioBus> buses;
 
   @override
@@ -95,6 +99,8 @@ final class VolumesSection extends SettingsSection {
 /// The controls: an [ActionBindingsSection] over the map the game's devices
 /// read, with [defaults] for the day a player wants the shipped ones back.
 final class ControlsSection extends SettingsSection {
+  /// The controls, reset to what [defaults] builds; tuning rows hidden
+  /// unless [showsTuning].
   const ControlsSection({
     required this.defaults,
     this.showsTuning = false,
@@ -152,6 +158,7 @@ final class ControlsSection extends SettingsSection {
 /// What a player cannot play without: the camera's motion, a correction for
 /// their colour vision, the high-contrast look, and sprinting that latches.
 final class AccessibilitySection extends SettingsSection {
+  /// The accessibility rows; they need nothing from the game.
   const AccessibilitySection();
 
   @override
@@ -218,8 +225,11 @@ final class AccessibilitySection extends SettingsSection {
 
 /// The colours the game gives meanings to, each a row the player can change.
 final class ColorsSection extends SettingsSection {
+  /// A row for each of [roles].
   const ColorsSection(this.roles);
 
+  /// The colours the game gives meanings to; each role's choice is the
+  /// value of its own setting.
   final ColorRoles roles;
 
   @override
@@ -248,8 +258,10 @@ final class ColorsSection extends SettingsSection {
 
 /// The questions about the player's data: cloud saves, and sending runs.
 final class ConsentsSection extends SettingsSection {
+  /// A [PrivacySection] over [consents].
   const ConsentsSection(this.consents);
 
+  /// Where the player's two answers are kept.
   final Consents consents;
 
   @override
@@ -266,6 +278,7 @@ final class ConsentsSection extends SettingsSection {
 /// either side of the game's own, `×0.25` to `×4`, because a number in
 /// radians per pixel is not a thing anybody can set by feel.
 final class MouseSection extends SettingsSection {
+  /// The mouse rows; they need nothing from the game.
   const MouseSection();
 
   @override
@@ -301,6 +314,7 @@ final class MouseSection extends SettingsSection {
 
 /// The gamepad's dead zone and look speed, saying when no pad is connected.
 final class GamepadSection extends SettingsSection {
+  /// The gamepad rows, headed by whether [isConnected].
   const GamepadSection({required this.isConnected});
 
   /// Whether a controller answered this frame. **Asked, not assumed**: a game
@@ -353,8 +367,10 @@ final class GamepadSection extends SettingsSection {
 /// work it ships (a `CreditsSection`, since what a credit is differs per
 /// game), or a row nothing here offers.
 final class WidgetSection extends SettingsSection {
+  /// A section that is [child].
   const WidgetSection(this.child);
 
+  /// The game's widget, built as it is with no heading added.
   final Widget child;
 
   @override
@@ -367,6 +383,8 @@ final class WidgetSection extends SettingsSection {
 /// the device the player last touched — without breaking a section written
 /// against 1.0.
 final class SettingsSectionContext {
+  /// What a section built at [context] over [settings] and [state] is
+  /// handed.
   const SettingsSectionContext({
     required this.context,
     required this.settings,

@@ -28,6 +28,8 @@ import '../input/bindings.dart' show InputSource;
 /// second `waitingFor` that only knew buttons. One model is the map, which
 /// holds the button table: a game passes the map it handed its devices.
 final class Rebinding {
+  /// A capture that edits [actions]; a source already bound elsewhere is
+  /// taken from its old action unless [onConflict] says otherwise.
   Rebinding({required this.actions, this.onConflict = ConflictPolicy.steal});
 
   /// The action map being edited. The same one the keyboard and the pad read,
@@ -59,6 +61,8 @@ final class Rebinding {
     _conflicts = const <BindingConflict>[];
   }
 
+  /// Stops listening without binding anything; does nothing when nothing
+  /// is listening.
   void cancel() {
     _waiting = null;
     _part = null;

@@ -21,6 +21,7 @@ library;
 /// a minor release arrives with a default body, so a store written against
 /// 1.0 keeps compiling — `extends CloudSaveStore`, not `implements`.
 abstract base class CloudSaveStore {
+  /// Lets a subclass be a `const` value; the base holds no state.
   const CloudSaveStore();
 
   /// The store's name as a player knows it — "Play Games", "iCloud" — for
@@ -42,6 +43,8 @@ abstract base class CloudSaveStore {
 /// the platform's save list, a cover picture — without breaking a store
 /// written against 1.0.
 final class CloudPutRequest {
+  /// A request to keep [document] under [slot], replacing the copy at
+  /// [replacing] or, when that is null, only where there is none.
   const CloudPutRequest({
     required this.slot,
     required this.document,
@@ -67,6 +70,7 @@ final class CloudPutRequest {
 /// would be a run silently lost. A fourth answer would be a new protocol, and
 /// waits for a major.
 sealed class CloudFetch {
+  /// Lets the cases be `const` values.
   const CloudFetch();
 }
 
@@ -75,35 +79,50 @@ sealed class CloudFetch {
 /// **Closed for good, and sealed on purpose**, for the reason [CloudFetch] is: kept, overtaken by
 /// another device, or not reachable are the whole of what a write can do.
 sealed class CloudPut {
+  /// Lets the cases be `const` values.
   const CloudPut();
 }
 
+/// A copy is kept there: its document and the version the store gave it.
 final class CloudDocument extends CloudFetch {
+  /// A fetched copy, [document] at [version].
   const CloudDocument(this.document, {required this.version});
 
+  /// The save, as `SaveFile.encode` wrote it.
   final String document;
+
+  /// The store's own version of the copy, to name in
+  /// [CloudPutRequest.replacing] when writing over it.
   final String version;
 }
 
 /// Nothing is kept there yet.
 final class CloudEmpty extends CloudFetch {
+  /// The answer for a slot with no copy.
   const CloudEmpty();
 }
 
+/// The write was kept, and the version the store gave the new copy.
 final class CloudStored extends CloudPut {
+  /// A kept write, now at [version].
   const CloudStored({required this.version});
 
+  /// The store's version of the copy just written, to name in the next
+  /// [CloudPutRequest.replacing].
   final String version;
 }
 
 /// Another device wrote since the version a write meant to replace.
 final class CloudMoved extends CloudPut {
+  /// The answer for a write that was overtaken and not kept.
   const CloudMoved();
 }
 
 /// The store could not be reached, or would not do it, and why.
 final class CloudUnavailable implements CloudFetch, CloudPut {
+  /// An answer that is not the document, with [reason] for the player.
   const CloudUnavailable(this.reason);
 
+  /// Why, in a sentence [SaveSync] can show the player.
   final String reason;
 }

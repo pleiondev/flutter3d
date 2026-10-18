@@ -25,8 +25,12 @@ import 'run_session.dart';
 /// Repeated writes of the same run cost nothing — `SaveFile` keeps the digest
 /// of the last one — so a player toggling the menu does not rewrite the disk.
 final class Autosave with WidgetsBindingObserver {
+  /// Autosaves for [session]. Hears nothing from the platform until
+  /// [watchLifecycle] is called.
   Autosave(this.session);
 
+  /// The run written, through `RunSession.save`, on a pause, a checkpoint
+  /// and the application leaving the foreground.
   final RunSession<Object?> session;
 
   bool _paused = false;

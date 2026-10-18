@@ -108,6 +108,9 @@ final class SideRecording {
 
   /// The level's asset path, as a [Demo] names it.
   final String level;
+
+  /// The digest of the level as it was read, which the [Demo] carries so a
+  /// replay can tell the level changed under its tape.
   final String levelHash;
 
   final InputTapeRecorder _recorder;

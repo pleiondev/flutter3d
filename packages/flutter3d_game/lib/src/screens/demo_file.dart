@@ -21,6 +21,9 @@ import 'save_file.dart';
 /// record beforehand — which is when nobody has. A library of named demos is
 /// a different feature, and this file's name is the only thing it would change.
 final class DemoFile {
+  /// The demo file of [appName], kept in [storage] (the platform's own
+  /// when null), saying what it could not read through [onIssue] (printed
+  /// when null).
   DemoFile({required this.appName, Storage? storage, IssueSink? onIssue})
     : onIssue = onIssue ?? printIssue,
       storage = storage ?? defaultStorage(appName, onIssue: onIssue);

@@ -6,6 +6,7 @@ import 'credits.dart';
 
 /// One number on a scoreboard and what it counts.
 final class EndingTally {
+  /// A tally of [value] counting [label].
   const EndingTally(this.label, this.value);
 
   /// What is counted, in lower case: `time`, `falls`, `best streak`.
@@ -25,6 +26,8 @@ final class EndingTally {
 /// where the work is, and one line saying how to begin again in words the
 /// build can honour.
 final class EndingSheet extends StatelessWidget {
+  /// A sheet saying [title] over [tallies] and [credits], ending with
+  /// [again]; the backdrop is 0.86 opaque unless given.
   const EndingSheet({
     super.key,
     required this.title,
@@ -160,13 +163,18 @@ final class EndingSheet extends StatelessWidget {
 /// **Read as one thing**, `falls 3`, rather than as two unrelated words in a
 /// row of numbers, for the screen reader that is already on.
 final class TallyView extends StatelessWidget {
+  /// A view of [tally], its number set in [valueStyle].
   const TallyView({
     super.key,
     required this.tally,
     this.valueStyle = EndingSheet.defaultValueStyle,
   });
 
+  /// The number drawn, and the label drawn under it.
   final EndingTally tally;
+
+  /// The number's style, merged over the theme's text colour;
+  /// [EndingSheet.defaultValueStyle] by default.
   final TextStyle valueStyle;
 
   @override

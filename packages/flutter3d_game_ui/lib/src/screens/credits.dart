@@ -30,6 +30,8 @@ import '../theme/game_ui_theme.dart';
 
 /// One piece of work the game did not make, and what is owed for it.
 final class Credit {
+  /// A traced asset: [work] in [file] by [author], from [source], under
+  /// [license]; unmodified unless [modified] says so.
   const Credit({
     required this.file,
     required this.work,
@@ -54,12 +56,20 @@ final class Credit {
   /// The file as it ships, relative to `assets/`.
   final String file;
 
+  /// The work's title as its author gave it: `Stylized Coin`.
   final String work;
+
+  /// Who made the work, as the source names them; null when untraced.
   final String? author;
+
+  /// Where the work was found, a web address; null when untraced.
   final String? source;
 
   /// The licence's short name, or null when nobody could trace one.
   final String? license;
+
+  /// Where the licence's text is, shown under the credit's line; null when
+  /// untraced.
   final String? licenseUrl;
 
   /// Whether this repository changed the file, which CC BY also asks be said.
@@ -95,6 +105,8 @@ final class Credit {
 /// second copy of a legal notice, and the second copy is the one that goes
 /// stale.
 final class CreditsSection extends StatelessWidget {
+  /// A section listing [credits] under [heading], with [footnote] after
+  /// them when given.
   const CreditsSection({
     super.key,
     required this.credits,
@@ -169,6 +181,7 @@ final class CreditsSection extends StatelessWidget {
 /// CreditsSection(credits: credits.owed);
 /// ```
 final class CreditLedger {
+  /// A ledger of [models], kept as given.
   const CreditLedger(this.models);
 
   /// Everything the game ships that somebody else made, one entry a file.
@@ -199,6 +212,7 @@ final class CreditLedger {
 /// One section of a `LICENSES.md`: the files it covers and the rows its
 /// table gives for them.
 final class LicenseSection {
+  /// A section about [files]; a row it does not give is null.
   const LicenseSection({
     required this.files,
     this.author,

@@ -22,6 +22,8 @@ import 'package:flutter3d_game/flutter3d_game.dart'
 /// none set there is nothing to move. Roles are settled in the order given,
 /// so the first of two colliding roles keeps its colour and the second moves.
 final class RolesApart {
+  /// Settles [roles] so that each pair looks at least [within] ΔE apart to
+  /// the player, 20 by default.
   const RolesApart(this.roles, {this.within = 20.0});
 
   /// The colours the game gives meanings to.

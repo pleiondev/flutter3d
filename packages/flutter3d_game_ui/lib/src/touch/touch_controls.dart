@@ -63,6 +63,8 @@ import 'touch_toggle.dart';
 /// fingers down at once, and a control that took the most recent pointer would
 /// snap the stick to the jump button.
 final class TouchControls extends StatelessWidget {
+  /// A stick and [buttons] over [state], with no toggles, slots or corner
+  /// unless given; sizes are in logical pixels.
   const TouchControls({
     super.key,
     required this.state,
@@ -77,6 +79,7 @@ final class TouchControls extends StatelessWidget {
     this.stickAction = DualAxisAction.move,
   });
 
+  /// The input every control writes into, as a device would.
   final InputState state;
 
   /// What the stick asks for — walking unless the game says otherwise. See

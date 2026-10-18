@@ -13,6 +13,7 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 /// what devices exist, and adding one is a backend translating its own events
 /// into ids rather than an edit here.
 final class InputSource {
+  /// A source named by [id], such as `key:107` or `pad:a`.
   const InputSource(this.id);
 
   /// A keyboard key, by Flutter's stable `LogicalKeyboardKey.keyId`.
@@ -82,6 +83,8 @@ final class InputSource {
   /// see `PadInput.knowsPad`. Spelling it twice is how one of them drifts.
   static const String padPrefix = 'pad:';
 
+  /// The stable, self-describing name a file keeps: the device family, a
+  /// colon, and the device's own name for the control.
   final String id;
 
   @override
@@ -113,6 +116,7 @@ final class InputSource {
 /// what it does not recognise is a reader that quietly destroys the file every
 /// time it loads it.
 final class Bindings {
+  /// A table holding the pairs of [initial], or an empty one.
   Bindings([Map<InputSource, GameAction>? initial]) {
     if (initial != null) _sources.addAll(initial);
   }
@@ -143,6 +147,7 @@ final class Bindings {
   /// Points [source] at [action], replacing whatever it did before.
   void bind(InputSource source, GameAction action) => _sources[source] = action;
 
+  /// Frees [source], so it does nothing; a source that was free stays free.
   void unbind(InputSource source) => _sources.remove(source);
 
   /// Every source bound to anything.
@@ -164,6 +169,7 @@ final class Bindings {
   void clearAction(GameAction action) =>
       _sources.removeWhere((_, GameAction bound) => bound == action);
 
+  /// The count of bound sources.
   int get length => _sources.length;
 
   /// Becomes a copy of [other], in place.
@@ -179,8 +185,11 @@ final class Bindings {
       ..addAll(other._sources);
   }
 
+  /// Returns an independent copy, for a screen that edits it before saving.
   Bindings copy() => Bindings(Map<InputSource, GameAction>.of(_sources));
 
+  /// The table as JSON, action name to a sorted list of source ids, which
+  /// [Bindings.fromJson] reads back.
   Map<String, Object?> toJson() {
     final byAction = <String, List<String>>{};
     for (final entry in _sources.entries) {

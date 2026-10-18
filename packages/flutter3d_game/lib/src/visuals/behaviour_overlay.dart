@@ -17,8 +17,10 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 ///
 /// Hand [draw] to `Renderer.debugLines`.
 final class BehaviorOverlay {
+  /// An overlay over [actors].
   BehaviorOverlay(this.actors);
 
+  /// The actors whose decisions are drawn; read, never written.
   final ActorSystem actors;
 
   /// How far apart the strokes are, and how tall, in metres.
@@ -40,6 +42,8 @@ final class BehaviorOverlay {
   static final LinearColor _failure = LinearColor.fromSrgb(0.95, 0.25, 0.2);
   static final LinearColor _unknown = LinearColor.fromSrgb(0.6, 0.6, 0.6);
 
+  /// Draws, into [lines], each living actor's path as strokes above it and
+  /// a line to its goal. An actor with no body is skipped.
   void draw(DebugDraw lines) {
     for (final actor in actors.actors) {
       final body = actor.body;

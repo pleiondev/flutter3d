@@ -127,9 +127,10 @@ final class GhostNote {
   /// How long the ghost is, in seconds, for [fromPoseRecord] and [replayed].
   final double? seconds;
 
-  /// The physics the run was played on, and this game's, for
-  /// [otherPhysics].
+  /// The physics the run was played on, for [otherPhysics].
   final String? physics;
+
+  /// The physics this game is on, for [otherPhysics].
   final String? here;
 
   /// The simulation's refusal, for [otherSimulation].

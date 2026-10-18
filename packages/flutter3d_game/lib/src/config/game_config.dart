@@ -15,6 +15,8 @@ import '../input/action_map.dart';
 /// can hold and a person can edit by hand. A value of another type in the
 /// file, or none, reads as [fallback].
 final class SettingKey<T extends Object> {
+  /// A setting written under [id] that reads as [fallback] until set.
+  /// Asserts that [T] is `double`, `int`, `bool` or `String`.
   const SettingKey(this.id, {required this.fallback})
     : assert(
         T == double || T == int || T == bool || T == String,
@@ -147,6 +149,8 @@ abstract final class GameSettingKeys {
 /// [actionsOr]) and the controller saves a copy of that map back on every
 /// rebind, so the map held here is never the one being edited.
 final class GameSettings {
+  /// Settings as given; empty maps and a null [actions] are the game's own
+  /// defaults throughout.
   const GameSettings({
     this.volumes = const <AudioBus, double>{},
     this.values = const <String, Object>{},
@@ -368,6 +372,7 @@ Map<String, Object?> _liftFrom1(Map<String, Object?> document) {
 /// Thrown when a settings file cannot be read at all: a newer build's, or
 /// another format's.
 final class GameSettingsFormatException extends Flutter3dFormatException {
+  /// A refusal that says why in [message].
   const GameSettingsFormatException(this.message);
 
   @override

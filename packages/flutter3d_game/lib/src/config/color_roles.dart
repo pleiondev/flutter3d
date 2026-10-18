@@ -8,6 +8,8 @@ import 'game_config.dart';
 /// A colour that means something: what it is for, what the panel calls it,
 /// and what it is until the player says otherwise.
 final class ColorRole {
+  /// A role kept under [name], shown as [label], drawn in [color] until the
+  /// player picks another.
   const ColorRole(this.name, this.label, this.color);
 
   /// The role's name, which its setting is kept under:
@@ -38,9 +40,12 @@ final class ColorRole {
 /// colour blindness — a short list a player can go through, rather than a
 /// picker in which most of the colours are the problem.
 final class ColorRoles {
+  /// The game's [roles], copied so a later change to the list given is not
+  /// seen here.
   ColorRoles(List<ColorRole> roles)
     : roles = List<ColorRole>.unmodifiable(roles);
 
+  /// The roles in the order the panel lists them; unmodifiable.
   final List<ColorRole> roles;
 
   /// Okabe and Ito's eight, in their order: black, orange, sky blue, bluish

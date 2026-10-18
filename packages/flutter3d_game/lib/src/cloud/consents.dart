@@ -227,6 +227,8 @@ final class GameCloud {
 
   GameCloud._(this.consents, this.shares, this.uploader);
 
+  /// The player's answers to the telemetry and cloud-save questions, which
+  /// [uploader] and [sync] consult before sending anything.
   final Consents consents;
 
   /// Where a run is shared and a shared one opened by its code, or null

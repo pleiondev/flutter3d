@@ -10,6 +10,7 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 /// **A class, not a record**, so it can say more in a minor release (the
 /// spawn's entity, a pitch) without breaking a caller that reads it.
 final class SpawnPoint {
+  /// A spawn at [at] facing [yaw] radians, nought by default.
   const SpawnPoint({required this.at, this.yaw = 0.0});
 
   /// Where the body's centre goes, in the level's space.
@@ -32,6 +33,9 @@ final class SpawnPoint {
 /// It reads an [InputState] and writes a [CameraNode]; how the input arrived
 /// and how the frame is drawn are somebody else's.
 final class LevelWalk {
+  /// A body at [at] in [world], facing [yaw] radians, its eye [eyeHeight]
+  /// metres above its centre and turning [lookSpeed] radians per logical
+  /// pixel dragged.
   LevelWalk({
     required CollisionWorld world,
     required Vector3 at,

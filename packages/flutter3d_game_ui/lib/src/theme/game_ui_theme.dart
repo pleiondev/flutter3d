@@ -34,6 +34,8 @@ import 'contrast.dart';
 /// of white over the picture, which on a bright sky was white on white.
 @immutable
 final class GameUiTheme extends ThemeExtension<GameUiTheme> {
+  /// A theme with the given colours, each defaulting to the one [fallback]
+  /// has.
   const GameUiTheme({
     this.text = const Color(0xFFFFFFFF),
     this.label = const Color(0xD9FFFFFF),

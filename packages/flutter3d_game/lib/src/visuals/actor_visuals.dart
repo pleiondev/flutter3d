@@ -61,6 +61,10 @@ export 'actor_graphs.dart';
 /// its actors as that kind makes them; a model an actor is dressed in
 /// ([ActorAppearance.modelFor]) replaces whatever the kind made.
 final class ActorVisuals {
+  /// Visuals that draw the actors into [scene] as [appearance] says,
+  /// uploading through [device] on layer mask [layerMask] (the default
+  /// layer alone unless given). [bindings] null keeps a registry of the
+  /// visuals' own; [onIssue] null prints.
   ActorVisuals(
     this.scene, {
     required this.appearance,
@@ -140,6 +144,7 @@ final class ActorVisuals {
     return bindings.resolve(component)!;
   }
 
+  /// The scene the actors' nodes are added to and taken from.
   final Scene scene;
 
   /// The layers every actor's mesh is drawn on, capsule and model alike.
@@ -939,6 +944,7 @@ final class _CapsuleKind extends SceneNodeKind {
 /// A marker an actor's animation graph passed in one
 /// [ActorVisuals.animate]: whose it was, in which state, and its name.
 final class ActorMarkerPassed {
+  /// [actor]'s graph passed marker [name] in [state].
   const ActorMarkerPassed({
     required this.actor,
     required this.state,

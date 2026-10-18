@@ -13,8 +13,11 @@ import 'settings_panel_controls.dart';
 /// Each says what it does in a line under it, because a switch labelled
 /// "Telemetry" is a switch a player cannot answer honestly.
 final class PrivacySection extends StatefulWidget {
+  /// A section asking the two questions of [consents].
   const PrivacySection({super.key, required this.consents, this.onChanged});
 
+  /// Where the player's two answers are read from and written to; both
+  /// switches read off until its stored answers have been read.
   final Consents consents;
 
   /// Told after either answer was given, kept or not — a game that syncs

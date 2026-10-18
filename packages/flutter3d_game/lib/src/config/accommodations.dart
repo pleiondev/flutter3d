@@ -31,6 +31,8 @@ import 'package:flutter/widgets.dart';
 /// was left out for the same reason until the engine had a look to turn on
 /// with it — `HighContrastSettings`, read through `highContrastOf`.
 final class Accommodations {
+  /// Accommodations as given; both off by default, which is what a platform
+  /// that cannot be asked reads as.
   const Accommodations({this.reduceMotion = false, this.highContrast = false});
 
   /// What the platform says, or the defaults where there is no platform to ask.

@@ -22,6 +22,7 @@ import 'cloud_save_store.dart';
 final class SyncOutcome {
   const SyncOutcome._(this.name);
 
+  /// The outcome's identifier, as `toString` prints it.
   final String name;
 
   /// The player has not agreed to cloud saves. Nothing was sent or asked.
@@ -52,6 +53,8 @@ final class SyncOutcome {
 /// What [SaveSync.sync] did, in a sentence, and for [SyncOutcome.ask] the two
 /// runs to choose between.
 final class SyncReport {
+  /// A report of [outcome] with [message]; [local], [remote] and
+  /// [remoteVersion] are set only for [SyncOutcome.ask].
   const SyncReport(
     this.outcome,
     this.message, {
@@ -60,10 +63,18 @@ final class SyncReport {
     this.remoteVersion,
   });
 
+  /// How the sync ended.
   final SyncOutcome outcome;
+
+  /// The same, as a sentence a settings screen can show the player.
   final String message;
 
+  /// This device's run for [SyncOutcome.ask], which [SaveSync.settle] sends
+  /// when the player keeps it; null for every other outcome.
   final SaveRecord? local;
+
+  /// The cloud's run for [SyncOutcome.ask], which [SaveSync.settle] writes
+  /// here when the player takes it; null for every other outcome.
   final SaveRecord? remote;
 
   /// The version of [remote] in the store, which a settling write replaces.
@@ -101,7 +112,10 @@ final class SaveSync {
     _ready = _load();
   }
 
+  /// The save on this device that the cloud copy mirrors.
   final SaveFile saves;
+
+  /// Where the cloud copy is kept.
   final CloudSaveStore store;
 
   /// Where consent and the last agreed digest are kept.

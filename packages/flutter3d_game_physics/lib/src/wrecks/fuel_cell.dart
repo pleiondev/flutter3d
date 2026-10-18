@@ -13,6 +13,8 @@ library;
 /// (`Fires.setBurner`'s `fuel`), which goes out when it is burnt rather
 /// than when a timer says.
 final class FuelCell {
+  /// A cell that stays whole through a change in speed up to [standsTo]
+  /// metres per second.
   const FuelCell({required this.standsTo});
 
   /// A single-seat racing car's: its survival cell, the fuel cell inside

@@ -15,6 +15,7 @@ import 'package:vector_math/vector_math.dart';
 /// }
 /// ```
 final class Footsteps {
+  /// A counter that sounds a step every [stride] metres on the ground.
   Footsteps({required this.stride});
 
   /// How far apart the steps are, in metres.

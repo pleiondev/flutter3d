@@ -43,17 +43,23 @@ export 'run_status.dart';
 /// [L] is whatever a game gets back from loading a level. This class never
 /// looks inside it — the five methods below are how it asks.
 abstract base class RunSession<L> {
+  /// A session that starts new games at [firstLevel] and keeps its run in
+  /// [saves]; it begins as [RunLoading].
   RunSession({required this.firstLevel, required this.saves, this.onChanged});
 
   /// Where a new game starts.
   final String firstLevel;
 
+  /// The file the run is saved to, read on continue and cleared on a new
+  /// game, a loss or a win.
   final SaveFile saves;
 
   /// Called after every transition, with the new status: where a state
   /// holder is told.
   void Function(RunStatus<L> status)? onChanged;
 
+  /// Where the session is now: loading, playing or failed. Each transition
+  /// replaces it with a fresh object.
   RunStatus<L> get status => _status;
   RunStatus<L> _status = RunLoading<L>();
 
@@ -358,6 +364,7 @@ abstract base class RunSession<L> {
 /// came from, the step it was taken at — without breaking a game written
 /// against 1.0.
 final class RunRestoreContext<L> {
+  /// [snapshot] to put back into [level].
   const RunRestoreContext({required this.level, required this.snapshot});
 
   /// The level, fully built.
@@ -370,6 +377,7 @@ final class RunRestoreContext<L> {
 /// What [RunSession.carryFrom] is handed: the level being left and the
 /// document read next, for the reason [RunRestoreContext] gives.
 final class RunCarryContext<L> {
+  /// [level] being left for the document [next].
   const RunCarryContext({required this.level, required this.next});
 
   /// The level being left.

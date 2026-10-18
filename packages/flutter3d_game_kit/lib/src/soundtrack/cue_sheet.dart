@@ -13,6 +13,7 @@ typedef Cue<T extends BusEvent> = void Function(CueContext<T> cue);
 /// a step allocates nothing for it; a cue reads it during the call and does
 /// not keep it.
 final class CueContext<T extends BusEvent> {
+  /// A context for [event] adding to [out]; a sheet resets both per event.
   CueContext({required this.event, required this.out});
 
   /// The event this cue is about.

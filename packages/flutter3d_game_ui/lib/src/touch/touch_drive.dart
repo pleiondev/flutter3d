@@ -24,6 +24,8 @@ import 'touch_button.dart';
 ///
 /// What the controls are named and which actions they press are the game's.
 final class TouchDrive extends StatelessWidget {
+  /// A wheel on [steerLeft] and [steerRight] and pedals on [throttle] and
+  /// [brake] over [state]; the handbrake and corner only when given.
   const TouchDrive({
     super.key,
     required this.state,
@@ -39,14 +41,24 @@ final class TouchDrive extends StatelessWidget {
     this.steer,
   });
 
+  /// The input the wheel and pedals write into, as a device would.
   final InputState state;
 
   /// The wheel as one [AxisAction] as well — see [SteeringBand.axis].
   final AxisAction? steer;
 
+  /// The action the wheel gives its left lock, a fraction from nought to
+  /// one.
   final GameAction steerLeft;
+
+  /// The action the wheel gives its right lock, a fraction from nought to
+  /// one.
   final GameAction steerRight;
+
+  /// The action the throttle pedal holds, the one nearest the thumb.
   final GameAction throttle;
+
+  /// The action the brake pedal holds.
   final GameAction brake;
 
   /// Optional, because a game may not have one and a control for nothing is
@@ -66,7 +78,12 @@ final class TouchDrive extends StatelessWidget {
   /// [Flutter3dGameLocalizations.throttle], `brake` and `handbrake` in the
   /// player's language.
   final String? throttleLabel;
+
+  /// What the brake pedal says; null for the word in the player's language.
   final String? brakeLabel;
+
+  /// What the handbrake pedal says; null for the word in the player's
+  /// language.
   final String? handbrakeLabel;
 
   @override

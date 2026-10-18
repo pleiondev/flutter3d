@@ -45,6 +45,8 @@ String reelFrameName(int index) =>
 /// }
 /// ```
 final class Reel {
+  /// A reel drawn by [renderer] at [width] by [height] pixels, 1280 by 720
+  /// by default, into [out]; a null tile size is the frame's own.
   Reel({
     required this.renderer,
     this.width = 1280,
@@ -55,10 +57,13 @@ final class Reel {
   }) : tileWidth = tileWidth ?? width,
        tileHeight = tileHeight ?? height;
 
+  /// The renderer every frame is drawn with, the one the game draws with.
   final Renderer renderer;
 
-  /// The frame's size in pixels.
+  /// The frame's width in pixels.
   final int width;
+
+  /// The frame's height in pixels.
   final int height;
 
   /// The folder every shot is a folder in: `reel` in the working directory
@@ -69,9 +74,13 @@ final class Reel {
   /// entry point that films a reel is the game's, and so is the folder.
   final String out;
 
-  /// The tiles a frame is drawn in: the whole frame by default, so nothing
-  /// that reads the neighbouring pixels is cut at a tile's edge.
+  /// The width in pixels of the tiles a frame is drawn in: the whole frame
+  /// by default, so nothing that reads the neighbouring pixels is cut at a
+  /// tile's edge.
   final int tileWidth;
+
+  /// The height in pixels of the tiles a frame is drawn in, the frame's own
+  /// by default, as with [tileWidth].
   final int tileHeight;
 
   /// A shot called [name]: frames from nought, in `<out>/<name>`.
@@ -82,7 +91,10 @@ final class Reel {
 final class ReelShot {
   ReelShot._(this.reel, this.name) : _shelf = reelShelf('${reel.out}/$name');
 
+  /// The reel the shot belongs to, whose size and folder it films at.
   final Reel reel;
+
+  /// The shot's name, the folder under [Reel.out] its frames go into.
   final String name;
   final PhotoShelf _shelf;
   int _frames = 0;

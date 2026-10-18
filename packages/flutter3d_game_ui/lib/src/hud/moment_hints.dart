@@ -13,6 +13,7 @@
 /// );
 /// ```
 final class MomentHint<E> {
+  /// A hint saying [text] on the first event [when] accepts.
   const MomentHint(this.text, {required this.when});
 
   /// What the player is told.
@@ -38,9 +39,12 @@ final class MomentHint<E> {
 /// [hints] order; the second waits for its moment to come round again, so a
 /// player is never handed two sentences on one step.
 final class MomentHints<E> {
+  /// The [hints], copied, none of them said yet.
   MomentHints(List<MomentHint<E>> hints)
     : hints = List<MomentHint<E>>.unmodifiable(hints);
 
+  /// The hints in the order a step's moments are tried; the first that
+  /// matches is the one said.
   final List<MomentHint<E>> hints;
 
   final Set<MomentHint<E>> _taught = <MomentHint<E>>{};

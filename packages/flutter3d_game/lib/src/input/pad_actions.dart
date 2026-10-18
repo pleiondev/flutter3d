@@ -203,6 +203,7 @@ final class PadInput {
       .expand((ActionBinding b) => b.sources)
       .any((InputSource source) => source.id.startsWith(InputSource.padPrefix));
 
+  /// Where the pad's presses, analogue values and look motion are written.
   final InputState state;
 
   /// Where this reads the pad from: the platform's first controller unless a
@@ -263,6 +264,7 @@ final class PadInput {
 
   bool _wasConnected = false;
 
+  /// Whether this build can read a pad at all; see [PadDevice.isSupported].
   bool get isSupported => pad.isSupported;
 
   /// Whether a pad answered the last [tick].

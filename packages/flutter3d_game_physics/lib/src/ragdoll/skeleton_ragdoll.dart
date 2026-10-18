@@ -47,6 +47,7 @@ import 'package:vector_math/vector_math.dart';
 /// How long a [RagdollPart] is when no joint ends it: a multiple of an
 /// earlier part's length, as [RagdollPart.tailLength] holds it.
 final class RagdollTailLength {
+  /// [times] the length of the part whose joint is called [of].
   const RagdollTailLength({required this.of, required this.times});
 
   /// The earlier part whose length this is measured against, by its joint's
@@ -69,6 +70,9 @@ final class RagdollTailLength {
 
 /// One body of a [RagdollProfile].
 final class RagdollPart {
+  /// A part [radius] thick and [share] heavy, ending at the first of
+  /// [tailAt] the rig has, else at [tailLength], and held to its parent by
+  /// [joint].
   const RagdollPart({
     this.tailAt = const <String>[],
     this.tailLength,
@@ -99,8 +103,11 @@ final class RagdollPart {
 
 /// Which joints of a rig become bodies, and which ride rigidly on one.
 final class RagdollProfile {
+  /// A profile of [parts] and, by default, no [followers].
   const RagdollProfile({required this.parts, this.followers = const {}});
 
+  /// The joints that become bodies, by name, with how each is built. A
+  /// joint the rig lacks is skipped.
   final Map<String, RagdollPart> parts;
 
   /// Joints carried rigidly by a body, by name: follower to body.
@@ -273,14 +280,21 @@ final class RagdollProfile {
   );
 }
 
+/// A [Skeleton] gone limp: the [NativeRagdoll] built from it by a
+/// [RagdollProfile], and the writing of its bodies back into the joints.
+///
+/// Built from the pose the skeleton holds; [apply] each frame after the
+/// world steps, [lying] once it settles, and [dispose] or a [RagdollGetUp]
+/// to take the bodies out of the world.
 final class SkeletonRagdoll {
   /// [skeleton] gone limp in [world] from the pose it holds now, [mass]
   /// kilograms in all — the reference man's ([referenceBodyMass]) unless
   /// given. [tissue] is what every joint is made of and [tone] how its
   /// muscles hold it as it goes limp, null for none; see [NativeRagdoll].
   /// The profile's [RagdollSwing]s are measured against the figure's own
-  /// forward and up at bind, read off its skeleton as [lying] reads them. [meshWorld] is the skinned mesh's world matrix, which
-  /// the skeleton's bind pose is in. With [previous] — every joint's world
+  /// forward and up at bind, read off its skeleton as [lying] reads them.
+  /// [meshWorld] is the skinned mesh's world matrix, which the skeleton's
+  /// bind pose is in. With [previous] — every joint's world
   /// matrix [dt] seconds ago — the bodies keep the motion the animation had.
   SkeletonRagdoll({
     required this.skeleton,
@@ -427,7 +441,10 @@ final class SkeletonRagdoll {
     );
   }
 
+  /// The skeleton whose joints [apply] writes the bodies into.
   final Skeleton skeleton;
+
+  /// Which joints became bodies and which ride on one.
   final RagdollProfile profile;
 
   /// The bodies, to strike one or ask whether they sleep.
@@ -627,6 +644,8 @@ Vector3 _spinBetween(Quaternion from, Quaternion to, double dt) {
 
 /// How a fallen body lies — see [SkeletonRagdoll.lying].
 final class RagdollLying {
+  /// A lying body: [faceUp] or not, its [pelvis] in world coordinates and
+  /// the unit [headward] direction.
   const RagdollLying({
     required this.faceUp,
     required this.pelvis,
@@ -660,8 +679,11 @@ final class RagdollLying {
 /// the clip's first frame lies about where the body does, and what the
 /// fade hides is the difference.
 final class RagdollGetUp {
+  /// A get-up of [ragdoll] that fades it off the pose over [seconds]
+  /// seconds, four tenths by default.
   RagdollGetUp(this.ragdoll, {this.seconds = 0.4});
 
+  /// The ragdoll being faded off; [step] disposes of it when done.
   final SkeletonRagdoll ragdoll;
 
   /// How long the ragdoll takes to fade off the pose, in seconds.

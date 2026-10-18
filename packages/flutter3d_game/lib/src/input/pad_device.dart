@@ -26,32 +26,59 @@ final class GamePadButton {
   /// Stable, self-describing, and written to disk in a player's bindings.
   final String id;
 
+  /// The bottom face button: A on an Xbox pad, Cross on a PlayStation one.
   static const GamePadButton faceSouth = GamePadButton('face.south');
+
+  /// The right face button: B on an Xbox pad, Circle on a PlayStation one.
   static const GamePadButton faceEast = GamePadButton('face.east');
+
+  /// The left face button: X on an Xbox pad, Square on a PlayStation one.
   static const GamePadButton faceWest = GamePadButton('face.west');
+
+  /// The top face button: Y on an Xbox pad, Triangle on a PlayStation one.
   static const GamePadButton faceNorth = GamePadButton('face.north');
 
+  /// The directional pad pushed up, as a button.
   static const GamePadButton dpadUp = GamePadButton('dpad.up');
+
+  /// The directional pad pushed down, as a button.
   static const GamePadButton dpadDown = GamePadButton('dpad.down');
+
+  /// The directional pad pushed left, as a button.
   static const GamePadButton dpadLeft = GamePadButton('dpad.left');
+
+  /// The directional pad pushed right, as a button.
   static const GamePadButton dpadRight = GamePadButton('dpad.right');
 
+  /// The left bumper above the left trigger: LB, or L1.
   static const GamePadButton shoulderLeft = GamePadButton('shoulder.left');
+
+  /// The right bumper above the right trigger: RB, or R1.
   static const GamePadButton shoulderRight = GamePadButton('shoulder.right');
 
   /// The triggers as buttons. Their travel is [GamePadAxis.triggerLeft] and
   /// [GamePadAxis.triggerRight]; whether that counts as pressed is a
   /// threshold, and `PadInput` keeps its own.
   static const GamePadButton triggerLeft = GamePadButton('trigger.left');
+
+  /// The right trigger as a button; see [triggerLeft].
   static const GamePadButton triggerRight = GamePadButton('trigger.right');
 
+  /// The left stick pressed in: L3.
   static const GamePadButton stickLeftClick = GamePadButton('stick.left.click');
+
+  /// The right stick pressed in: R3.
   static const GamePadButton stickRightClick = GamePadButton(
     'stick.right.click',
   );
 
+  /// The right one of the two middle buttons: Start, Menu or Options.
   static const GamePadButton start = GamePadButton('start');
+
+  /// The left one of the two middle buttons: Back, View, Select or Share.
   static const GamePadButton back = GamePadButton('back');
+
+  /// The pad's own logo button, which the platform often keeps for itself.
   static const GamePadButton guide = GamePadButton('guide');
 
   /// Every button this version names, for a rebinding screen that lists
@@ -96,11 +123,22 @@ final class GamePadButton {
 final class GamePadAxis {
   const GamePadAxis._(this.name);
 
+  /// The left stick's horizontal travel, -1 at full left to 1 at full right.
   static const GamePadAxis leftStickX = GamePadAxis._('leftStickX');
+
+  /// The left stick's vertical travel, -1 at full up to 1 at full down.
   static const GamePadAxis leftStickY = GamePadAxis._('leftStickY');
+
+  /// The right stick's horizontal travel, -1 at full left to 1 at full right.
   static const GamePadAxis rightStickX = GamePadAxis._('rightStickX');
+
+  /// The right stick's vertical travel, -1 at full up to 1 at full down.
   static const GamePadAxis rightStickY = GamePadAxis._('rightStickY');
+
+  /// The left trigger's travel, a fraction from nought at rest to one.
   static const GamePadAxis triggerLeft = GamePadAxis._('triggerLeft');
+
+  /// The right trigger's travel, a fraction from nought at rest to one.
   static const GamePadAxis triggerRight = GamePadAxis._('triggerRight');
 
   /// Every axis this version names, in declaration order. A later version
@@ -223,6 +261,7 @@ abstract base class PadDevice {
 /// **One object, so a minor can hand a device more** — a zone per stick, an
 /// outer zone — without breaking a device written against 1.0.
 final class PadDeadZones {
+  /// Dead zones of [stick] and [trigger], each a fraction of travel.
   const PadDeadZones({required this.stick, required this.trigger});
 
   /// The fraction of a stick's travel that reads as centered.

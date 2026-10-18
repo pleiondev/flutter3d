@@ -24,6 +24,8 @@ import 'run_timeline.dart';
 /// what a game with no rewind buffer can do and what it then gets: a run no
 /// replay can reach. The report says which happened.
 final class LiveLevel {
+  /// Edits of [level] presented through [present] and rebuilt through
+  /// [rebuild]; without a [timeline] the rebuild happens in place.
   LiveLevel({
     required this.level,
     required this.present,
@@ -167,12 +169,15 @@ final class LevelSwapped {
 
 /// What one [LiveLevel.apply] did.
 final class LevelApplied {
+  /// An application of [diff]; by default it neither branched nor rebuilt.
   const LevelApplied({
     required this.diff,
     this.swappedAt,
     this.rebuiltInPlace = false,
   });
 
+  /// What changed between the level that was up and the next: the one a
+  /// `LevelPatch` named, or else the two compared.
   final LevelDiff diff;
 
   /// The step the timeline branched at, when the edit reached the
@@ -183,6 +188,8 @@ final class LevelApplied {
   /// carries on from a state a replay cannot reach.
   final bool rebuiltInPlace;
 
+  /// The report as JSON for a log or a tool; `swappedAt` is left out when
+  /// null.
   Map<String, Object?> toJson() => <String, Object?>{
     'diff': diff.toJson(),
     'swappedAt': ?swappedAt,

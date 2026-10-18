@@ -26,6 +26,8 @@ typedef DepthRules = LevelRules Function(int depth);
 ///     : await depths.level(seed, first: firstSeed);
 /// ```
 final class SeededLevels {
+  /// Seeded levels whose rules come from [rulesFor], named with [prefix]
+  /// (`generated:` by default).
   const SeededLevels({required this.rulesFor, this.prefix = defaultPrefix});
 
   /// The prefix a seeded level is named by unless a game picks its own.

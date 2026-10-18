@@ -11,10 +11,19 @@ import 'reaction.dart';
 ///
 /// A test of a game's rules makes one with `ReactionBuilder()` to run them on.
 final class ReactionBuilder {
+  /// The bursts written so far; becomes [Reaction.bursts].
   final List<Shown> bursts = <Shown>[];
+
+  /// The plumes written so far; becomes [Reaction.lingering].
   final List<Lingering> lingering = <Lingering>[];
+
+  /// The camera jolts written so far; becomes [Reaction.jolts].
   final List<Felt> jolts = <Felt>[];
+
+  /// The sounds written so far; becomes [Reaction.heard].
   final List<Heard> heard = <Heard>[];
+
+  /// The haptic pulses written so far; becomes [Reaction.haptics].
   final List<Haptic> haptics = <Haptic>[];
 
   /// Set by any rule that wants the screen to flash.
@@ -64,6 +73,8 @@ typedef ReactionRule<T extends BusEvent> =
 /// so a step allocates nothing for it; a rule reads it during the call and
 /// does not keep it.
 final class ReactionContext<T extends BusEvent> {
+  /// A context for [event] writing into [out]; a table resets both per
+  /// event.
   ReactionContext({required this.event, required this.out});
 
   /// The event this rule is about.
