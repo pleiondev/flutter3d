@@ -67,14 +67,32 @@ const SimulationVersion hollowSimulation = SimulationVersion(genre: 'hollow');
 /// neck and swing held, and the four one-off asks — act, right the car, the
 /// crane taken or left, the rope.
 abstract final class HollowActions {
+  /// The car's brake, held; space.
   static const GameAction brake = GameAction('brake');
+
+  /// At the water, fill the barrel; at a burning hut, empty it over it; E.
   static const GameAction act = GameAction('act');
+
+  /// Set the car back on its rollers; R.
   static const GameAction rightUp = GameAction('rightUp');
+
+  /// Take the crane when the car is near it, or leave it; C.
   static const GameAction crane = GameAction('crane');
+
+  /// Take up a block on the rope, or let it go, while at the crane; G.
   static const GameAction grab = GameAction('grab');
+
+  /// The crane's neck up, as a run recorded before [lift] was an axis has it.
   static const GameAction liftUp = GameAction('liftUp');
+
+  /// The crane's neck down, as an older run has it. See [liftUp].
   static const GameAction liftDown = GameAction('liftDown');
+
+  /// The crane swung left, as a run recorded before [swing] was an axis has
+  /// it.
   static const GameAction swingLeft = GameAction('swingLeft');
+
+  /// The crane swung right, as an older run has it. See [swingLeft].
   static const GameAction swingRight = GameAction('swingRight');
 
   /// The crane's neck, up positive: what [liftUp] less [liftDown] was.
@@ -110,6 +128,9 @@ abstract final class HollowActions {
 
 /// The valley, stepped and drawn.
 final class HollowRun {
+  /// The valley in [scene] and [elements], built on [device] with [looks]:
+  /// the ground, the river, the lava, and everything in them. [input] is what
+  /// the player steers with; a fresh one when it is null.
   HollowRun({
     required GraphicsDevice device,
     required this.scene,
@@ -195,32 +216,56 @@ final class HollowRun {
     _craneAt = craneAt;
   }
 
-  /// The lava's grid: from x = 36 to the east edge, from the north edge
+  /// The lava's grid: from x = 32 to the east edge, from the north edge
   /// past the cliff.
   static const double _lavaX0 = 32.0;
   static const int _lavaCells = 64;
 
   final GraphicsDevice _device;
+
+  /// What the valley's ground and props are drawn in.
   final Scene scene;
 
   /// The river, the lava and the fires as the core has them, drawn and
   /// heard; the run steps the world itself.
   final Elements elements;
 
+  /// The physics world everything in the valley moves in: [elements]' own.
   NativeWorld get world => elements.world;
   late final List<double> _ground;
+
+  /// The river, its falls and its lagoon over the whole valley, and the lava
+  /// on its own grid over the volcano's flank.
   late final WaterBody river, lava;
+
+  /// What draws the fires: [elements]' own.
   FireView get fire => elements.fireView;
+
+  /// The car the player drives.
   late final StoneCar car;
+
+  /// The quarry's granite blocks, to be carried to the builder.
   late final QuarryStones stones;
+
+  /// The elder's idol, to be lifted out of the lagoon and brought home.
   late final Idol idol;
+
+  /// The rafts the current takes down the river.
   late final Rafts rafts;
+
+  /// The pines on the valley's grass, which burn.
   late final Trees trees;
 
   /// What the fires, the falls and the splashes sound like this frame.
   PhysicsHearing get hearing => elements.hearing!;
+
+  /// The village's huts, which the volcano's bombs set alight.
   late final Village village;
+
+  /// The volcano, quiet or erupting.
   late final Volcano volcano;
+
+  /// The crane on the quarry's rim.
   late final DinoCrane crane;
 
   /// Whether the player works the crane rather than drives.
@@ -655,6 +700,7 @@ final class HollowRun {
     crane.update();
   }
 
+  /// Lets go of [elements] and then the world.
   void dispose() {
     elements.dispose();
     world.dispose();

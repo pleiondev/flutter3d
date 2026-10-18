@@ -7,6 +7,7 @@ import 'package:flutter3d_effects/flutter3d_effects.dart';
 /// A looping voice held to every fire and every fall of water, as loud as
 /// the physics says, and a splash played once for each one heard.
 final class HollowSound {
+  /// Sound for the valley, played in [_scene] as [_hearing] hears the physics.
   HollowSound(this._scene, this._hearing);
 
   static const String _from = 'packages/flutter3d_effects/assets';
@@ -18,6 +19,8 @@ final class HollowSound {
     maximum: 70.0,
   );
 
+  /// A fire's crackle, looped: one voice held to each fire, as loud as it
+  /// burns.
   static const SoundDef fire = SoundDef(
     name: 'fire',
     asset: '$_from/fire_loop.wav',
@@ -25,6 +28,9 @@ final class HollowSound {
     attenuation: _near,
     maxInstances: 12,
   );
+
+  /// Falling water, looped: one voice held to each fall, heard further off
+  /// than a fire.
   static const SoundDef falls = SoundDef(
     name: 'falls',
     asset: '$_from/falls_loop.wav',
@@ -32,6 +38,8 @@ final class HollowSound {
     attenuation: InverseRolloff(reference: 8.0, maximum: 90.0),
     maxInstances: 6,
   );
+
+  /// Something landing in water, played once for each splash heard.
   static const SoundDef splash = SoundDef(
     name: 'splash',
     asset: '$_from/splash.wav',
@@ -39,6 +47,7 @@ final class HollowSound {
     rateVariance: 0.1,
   );
 
+  /// Every sound the valley plays, the bank they are loaded from.
   static final SoundBank bank = SoundBank(<SoundDef>[fire, falls, splash]);
 
   final AudioScene _scene;

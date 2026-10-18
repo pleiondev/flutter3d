@@ -98,30 +98,30 @@ ActionMap hollowControls() {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await preparePhysics();
-  runApp(const HollowApp());
+  runApp(const _HollowApp());
 }
 
 /// The application: one screen.
-class HollowApp extends StatelessWidget {
-  const HollowApp({super.key});
+class _HollowApp extends StatelessWidget {
+  const _HollowApp();
 
   @override
   Widget build(BuildContext context) => const MaterialApp(
     title: 'Cobble Hollow',
     debugShowCheckedModeBanner: false,
-    home: HollowScreen(),
+    home: _HollowScreen(),
   );
 }
 
 /// Opens the device and runs the valley.
-class HollowScreen extends StatefulWidget {
-  const HollowScreen({super.key});
+class _HollowScreen extends StatefulWidget {
+  const _HollowScreen();
 
   @override
-  State<HollowScreen> createState() => _HollowScreenState();
+  State<_HollowScreen> createState() => _HollowScreenState();
 }
 
-class _HollowScreenState extends State<HollowScreen>
+class _HollowScreenState extends State<_HollowScreen>
     with SingleTickerProviderStateMixin {
   /// Where the sun shines along: low from the south-west, an afternoon.
   static Vector3 get _sunAlong => Vector3(0.45, -0.6, -0.65);

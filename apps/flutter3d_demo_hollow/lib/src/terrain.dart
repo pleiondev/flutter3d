@@ -13,7 +13,11 @@ import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 
 /// The valley's side, m, and how many cells of the liquids' grid a side.
 const double hollowSize = 64.0;
+
+/// How many cells of the liquids' grid the valley has a side.
 const int hollowCells = 128;
+
+/// How wide each cell is, in metres: half a metre.
 const double hollowCell = hollowSize / hollowCells;
 
 /// The plateau's edge: the cliff runs across the valley between these z.
@@ -25,14 +29,21 @@ const double lagoonX = 24.0, lagoonZ = 29.0, lagoonRadius = 7.0;
 /// The volcano: its middle, its foot's radius and its height over the
 /// plateau, and its crater's radius.
 const double volcanoX = 52.0, volcanoZ = 10.0;
+
+/// The volcano's foot's radius, its height over the plateau and its
+/// crater's radius, in metres.
 const double volcanoRadius = 13.0, volcanoHeight = 13.0, craterRadius = 2.2;
 
 /// The quarry: its middle and half its width and length.
 const double quarryX = 10.0, quarryZ = 47.0;
+
+/// Half the quarry's width and length, in metres.
 const double quarryHalfX = 5.0, quarryHalfZ = 4.0;
 
 /// Where the builder waits for stone, and the village.
 const double siteX = 32.0, siteZ = 51.0, siteRadius = 3.0;
+
+/// The village's middle, in metres.
 const double villageX = 47.0, villageZ = 48.0;
 
 /// Where the spring wells up on the plateau.

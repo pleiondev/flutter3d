@@ -52,6 +52,9 @@ final class HollowLooks {
 
   /// Pines of two shapes, and a boulder the quarry's blocks are cut from.
   final List<ModelAsset> pines;
+
+  /// The boulder the quarry's blocks are drawn as, squeezed to each block's
+  /// size. See [pines].
   final ModelAsset boulder;
 
   /// Loads and uploads every look onto [device].

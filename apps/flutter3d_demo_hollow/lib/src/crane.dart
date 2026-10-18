@@ -31,6 +31,8 @@ const double _lift = 0.35, _swing = 0.5, _muscle = 4.0e5;
 /// The crane on the quarry's rim at [at], facing [facing] (radians about
 /// up, nought along +x), drawn as [beast].
 final class DinoCrane {
+  /// A crane standing at [at], turned [facing] radians about up, drawn into
+  /// [scene] as [beast], its rope's mesh uploaded to [device].
   DinoCrane(
     this._world,
     GraphicsDevice device,
@@ -150,10 +152,14 @@ final class DinoCrane {
   late final SceneNode _beast;
   late final _NeckPose? _pose;
   late final MeshNode _rope;
+
+  /// The last link of the neck: the jaw the rope hangs from.
   late final NativeBody head;
 
   /// The rope, and what hangs on it.
   NativeJoint? _hold;
+
+  /// The stone hanging on the rope, or null when nothing is.
   NativeBody? carried;
 
   /// Where the jaw is.

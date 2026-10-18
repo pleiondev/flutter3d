@@ -16,9 +16,13 @@ import 'terrain.dart';
 
 /// A body and what draws it.
 final class Prop {
+  /// A prop of [body] drawn by [node].
   Prop(this.body, this.node);
 
+  /// What the world moves.
   final NativeBody body;
+
+  /// What draws [body], placed where it is each frame.
   final SceneNode node;
 }
 
@@ -28,6 +32,8 @@ final class Prop {
 /// Each is drawn as a boulder squeezed to the block the core has, turned a
 /// different way so no two lie alike, in granite.
 final class QuarryStones {
+  /// The quarry's blocks, laid in [world] and drawn into [scene] as [looks]'
+  /// boulder.
   QuarryStones(NativeWorld world, Scene scene, HollowLooks looks)
     : _world = world {
     final size = Vector3(0.9, 0.55, 0.6);
@@ -78,8 +84,11 @@ final class QuarryStones {
   }
 
   final NativeWorld _world;
+
+  /// Every block, in the order they were laid.
   final List<Prop> stones = <Prop>[];
 
+  /// The blocks' bodies, for the crane to reach for.
   List<NativeBody> get bodies => <NativeBody>[for (final s in stones) s.body];
 
   /// How many lie on the builder's ground.
@@ -88,6 +97,7 @@ final class QuarryStones {
     return Vector2(p.x - siteX, p.z - siteZ).length < siteRadius;
   }).length;
 
+  /// Moves each block's drawing to where the world has it.
   void update() {
     for (final s in stones) {
       final p = _world.localPositionOf(s.body);
@@ -103,6 +113,8 @@ final class QuarryStones {
 /// lagoon and out by the ford. A handful at a time: the oldest is taken
 /// away when another comes.
 final class Rafts {
+  /// Rafts set in [_world] and drawn into [_scene] with [looks]' bark, their
+  /// log mesh uploaded to [device].
   Rafts(this._world, GraphicsDevice device, this._scene, HollowLooks looks)
     : _logMesh = DeviceMesh.upload(
         device,
@@ -126,6 +138,8 @@ final class Rafts {
   final Scene _scene;
   final DeviceMesh _logMesh;
   final RenderMaterial _bark;
+
+  /// The rafts afloat now, the oldest first.
   final List<Prop> rafts = <Prop>[];
   double _since = _every - 3.0;
 
@@ -142,6 +156,8 @@ final class Rafts {
       ),
   ]);
 
+  /// Counts [dt] seconds towards the next raft, sets one down when it is due,
+  /// and moves each raft's drawing to where the world has it.
   void update(double dt) {
     _since += dt;
     if (_since >= _every) {
@@ -223,6 +239,8 @@ final class Rafts {
 /// pine models, a little taller than the cone, at heights that differ from
 /// tree to tree.
 final class Trees {
+  /// The pines, grown in [_world] on the valley's open grass, drawn into
+  /// [scene] as [looks]' pines, each watched by [fire] so that it burns.
   Trees(this._world, Scene scene, FireView fire, HollowLooks looks) {
     final shape = _world.createCompound(<NativeCompoundPart>[
       NativeCompoundPart(
@@ -283,6 +301,8 @@ final class Trees {
   static const double _crownRadius = 1.2, _crownHeight = 3.4, _crownBase = 1.3;
 
   final NativeWorld _world;
+
+  /// Every pine, in the order it was grown.
   final List<Prop> trees = <Prop>[];
 
   /// Whether a pine may grow at (x, z): on the valley's open grass, clear
@@ -315,6 +335,8 @@ final class Trees {
 /// The elder's idol: carved granite lying on the lagoon's floor where the
 /// bank shelves, to be lifted onto the car and brought to the village.
 final class Idol {
+  /// The idol lying on the lagoon's floor, drawn into [scene] in [looks]'
+  /// granite, its mesh uploaded to [device].
   Idol(this._world, GraphicsDevice device, Scene scene, HollowLooks looks) {
     final at = Vector3(lagoonX - 2.0, 0.0, lagoonZ + 5.1);
     at.y = groundAt(at.x, at.z) + _half.y;
@@ -366,14 +388,20 @@ final class Idol {
   static Vector3 get _half => Vector3(0.15, 0.25, 0.15);
 
   final NativeWorld _world;
+
+  /// The carved stone as the world holds it.
   late final NativeBody body;
   late final MeshNode _look;
   NativeJoint? _lashed;
 
+  /// Where the idol is, in the world.
   Vector3 get position => _world.localPositionOf(body);
 
   /// Whether it rides on the car, and whether it stands in the village.
   bool get carried => _lashed != null;
+
+  /// Whether it stands in the village, off the car, within four metres of the
+  /// village's middle.
   bool get home =>
       !carried &&
       Vector2(position.x - villageX, position.z - villageZ).length < 4.0;
@@ -405,6 +433,7 @@ final class Idol {
     _lashed = null;
   }
 
+  /// Moves the idol's drawing to where the world has it.
   void update() => _look
     ..setPosition(position.x, position.y, position.z)
     ..setRotation(_world.orientationOf(body));
@@ -420,8 +449,12 @@ final class Idol {
 /// One hut: wooden walls and a thatched roof, each a body of its own, so
 /// the roof catches first.
 final class Hut {
+  /// A hut of [walls] and [roof], standing at [at] with its peak at
+  /// [roofTop].
   Hut(this.walls, this.roof, this.at, this.roofTop);
 
+  /// The walls and the roof, each a body of its own, so the roof catches
+  /// first.
   final NativeBody walls, roof;
 
   /// Where it stands on the ground, and the peak of its roof.
@@ -434,6 +467,8 @@ final class Hut {
 /// daubed with clay, a doorway facing the yard, under a cone of thatch
 /// that hangs over the walls as the core's cone does.
 final class Village {
+  /// The village's huts, built in [_world] and drawn into [scene] with
+  /// [looks]' daub and thatch, each watched by [fire] so that it burns.
   Village(
     this._world,
     GraphicsDevice device,
@@ -609,6 +644,8 @@ final class Village {
   }
 
   final NativeWorld _world;
+
+  /// Every hut, in the order it was built.
   final List<Hut> huts = <Hut>[];
 
   /// The roof's cone: its radius at the eaves and its height, m.
@@ -654,6 +691,9 @@ final class Village {
 /// blows red-hot bombs out of it, through the breach in its rim on the
 /// village's side.
 final class Volcano {
+  /// A volcano pouring into [_lava] from its crater and throwing bombs among
+  /// [_huts], drawn into [scene] with [looks]' basalt, the bombs' mesh
+  /// uploaded to [device].
   Volcano(
     this._world,
     GraphicsDevice device,
@@ -686,6 +726,9 @@ final class Volcano {
 
   /// The huts its bombs come down among.
   final List<Hut> _huts;
+
+  /// The bombs thrown that are still in the valley, the oldest first; one
+  /// that rolls off its edge is taken away.
   final List<Prop> bombs = <Prop>[];
 
   /// Which hut a bomb is aimed at and how far off: the simulation's own
@@ -698,6 +741,8 @@ final class Volcano {
 
   /// Whether it is erupting now, and how long until it next does.
   bool get erupting => _clock >= _next && _clock < _next + _erupting;
+
+  /// Seconds until the next eruption begins; nought while one is under way.
   double get untilNext => _clock < _next ? _next - _clock : 0.0;
 
   /// The crater's middle, a little above its floor.
@@ -706,6 +751,9 @@ final class Volcano {
 
   double _sinceBomb = 0.0;
 
+  /// Advances the volcano's clock by [dt] seconds: turns the vent on or off
+  /// as an eruption begins or ends, throws its bombs while it lasts, and
+  /// moves their drawings to where the world has them.
   void update(double dt) {
     _clock += dt;
     final on = erupting;

@@ -27,6 +27,8 @@ const double _rolling = 0.05;
 
 /// The car on stone rollers.
 final class StoneCar {
+  /// The car standing at [at] in the world, drawn into [scene] with [looks]'
+  /// wood and granite, its meshes uploaded to [device].
   StoneCar(
     this._world,
     GraphicsDevice device,
@@ -261,7 +263,11 @@ final class StoneCar {
   }
 
   final NativeWorld _world;
+
+  /// The bed, its rails and its barrel as one body in the world.
   late final NativeBody body;
+
+  /// The core's vehicle over [body]: the rollers it drives, steers and brakes.
   late final NativeVehicle vehicle;
   late final SceneNode _bed;
   late final MeshNode _barrel;
@@ -269,11 +275,18 @@ final class StoneCar {
 
   /// Kilograms of water in the barrel; a hundred is full.
   double water = 0.0;
+
+  /// The most water the barrel holds, in kilograms.
   static const double barrelHolds = 100.0;
 
   /// Where the car is and which way it faces.
   Vector3 get position => _world.localPositionOf(body);
+
+  /// Which way the car is turned, as the world has it.
   Quaternion get orientation => _world.orientationOf(body);
+
+  /// The way the car faces, as a unit vector in the world: its local +x
+  /// turned by [orientation].
   Vector3 get forward =>
       orientation.asRotationMatrix().transformed(Vector3(1.0, 0.0, 0.0));
 
