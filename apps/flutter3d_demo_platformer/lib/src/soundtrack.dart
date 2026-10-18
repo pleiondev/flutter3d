@@ -26,6 +26,7 @@ import 'sounds.dart';
 /// gap is worth less than no sentence, because it stops the next person from
 /// looking.
 final class Soundtrack {
+  /// A soundtrack whose footsteps fall every [stride] metres walked.
   Soundtrack({this.stride = 2.2}) : _feet = Footsteps(stride: stride) {
     // One sound per event, which is what the flags could not do: two coins
     // swept up in one step were one `takenThisStep` entry each and two enemies

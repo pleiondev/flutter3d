@@ -15,18 +15,31 @@ import 'staging.dart';
 /// simulation are read sixty times a second, and a state class holding their
 /// contents would be a state class emitted sixty times a second.
 final class LevelReady {
+  /// A loaded level with its staged simulation and its fixtures' visuals.
   const LevelReady({
     required this.loaded,
     required this.staged,
     required this.fixtures,
   });
 
+  /// The level as the loader built it: its scene, its collision and its
+  /// entities.
   final LoadedLevel loaded;
+
+  /// The level's simulation, staged: the runner, the actors and the
+  /// mechanisms in the run's world.
   final Staged staged;
+
+  /// How the level's coins, checkpoints and lights are drawn.
   final FixtureVisuals fixtures;
 
+  /// The level's scene. See [loaded].
   Scene get scene => loaded.scene;
+
+  /// The player's runner. See [staged].
   Runner get runner => staged.runner;
+
+  /// The level's simulation. See [staged].
   PlatformerSimulation get sim => staged.sim;
 }
 
@@ -96,6 +109,9 @@ openLevel(
 /// only a platformer can answer — including the two places it disagrees with
 /// the crypt, which are both about having lives.
 final class PlatformerRun extends RunSession<LevelReady> {
+  /// A run from [firstLevel], kept in [saves], with [startingLives] lives,
+  /// reading [input] and building each level on the device [openDevice]
+  /// gives; [onLevelBuilt] is told of each level once it is up.
   PlatformerRun({
     required super.firstLevel,
     required super.saves,
@@ -112,6 +128,8 @@ final class PlatformerRun extends RunSession<LevelReady> {
   /// the level's guards are drawn from ([PlatformerLooks.published]).
   final PublishedState Function()? published;
 
+  /// What the runner reads each step, written by the keyboard, the pad or the
+  /// touch controls.
   final InputState input;
 
   /// The device to upload through, waited for rather than given up on: the
@@ -138,6 +156,7 @@ final class PlatformerRun extends RunSession<LevelReady> {
   final void Function(String asset, LevelReady level, GraphicsDevice device)?
   onLevelEdited;
 
+  /// The lives a run begins with; three unless a caller says otherwise.
   final int startingLives;
 
   /// A beat on the results screen before the next level: arriving somewhere new

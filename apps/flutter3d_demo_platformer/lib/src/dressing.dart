@@ -32,6 +32,8 @@ typedef Afloat = ({String pool, double x, double z, bool raft});
 
 /// What one level dresses its hazards as.
 final class Dressing {
+  /// A level dressed with nothing unless told: [water] and [molten] pits by
+  /// name, [spills], wood [afloat], [braziers] and [heaps].
   const Dressing({
     this.water = const <String, double>{},
     this.molten = const <String, double>{},

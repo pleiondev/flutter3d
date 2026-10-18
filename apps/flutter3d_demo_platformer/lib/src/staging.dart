@@ -15,6 +15,7 @@ RigidDynamics platformerDynamics(CollisionWorld world) =>
 
 /// A level, spawned, with somebody standing in it ready to be stepped.
 final class Staged {
+  /// A staged level: the pieces spawning it made, handed over as they are.
   const Staged({
     required this.registry,
     required this.dynamics,
@@ -29,10 +30,20 @@ final class Staged {
   /// The one registry that validated the document and then spawned it.
   final EntityRegistry registry;
 
+  /// What moves the level's bodies, on the run's physics backend.
   final RigidDynamics dynamics;
+
+  /// What steps the level's guards.
   final ActorSystem actors;
+
+  /// The level's doors, lifts and platforms that move.
   final MechanismWorld mechanisms;
+
+  /// The player's runner.
   final Runner runner;
+
+  /// What steps the runner, the actors and the mechanisms together, one fixed
+  /// step at a time.
   final PlatformerSimulation sim;
 
   /// The authored spawn point — where the feet go, not where the body's middle

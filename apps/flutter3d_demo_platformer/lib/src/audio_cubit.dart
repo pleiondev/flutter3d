@@ -16,14 +16,17 @@ import 'sounds.dart';
 /// package. What changes rarely goes in the state; what is touched every frame
 /// stays a field on the cubit and is reached directly.
 final class AudioReady {
+  /// A state of [open] speakers and [musicPlaying].
   const AudioReady({this.open = false, this.musicPlaying = false});
 
   /// Whether real speakers were found. False is not a failure — see
   /// [AudioCubit.open].
   final bool open;
 
+  /// Whether the music loop is playing.
   final bool musicPlaying;
 
+  /// This state with [open] or [musicPlaying] replaced.
   AudioReady copyWith({bool? open, bool? musicPlaying}) => AudioReady(
     open: open ?? this.open,
     musicPlaying: musicPlaying ?? this.musicPlaying,
@@ -53,6 +56,7 @@ final class AudioReady {
 /// `ARCHITECTURE.md` §11.3 is explicit that per-frame state does not go through a
 /// cubit.
 final class AudioCubit extends Cubit<AudioReady> {
+  /// A cubit with no speakers and no music, until [open] finds them.
   AudioCubit() : super(const AudioReady());
 
   /// Silent until real speakers are found, which is a perfectly good way to

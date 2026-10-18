@@ -89,7 +89,12 @@ Future<void> main() async {
 /// — asked of the platform once, for the whole game.
 final Playing _playing = Playing.ofPlatform();
 
+/// The game as an application: its one screen in a [MaterialApp] that
+/// carries the game layer's localisations.
 class PlatformerApp extends StatelessWidget {
+  /// The game on [device], the platform's own when it is null, with the
+  /// player's [config]; [configUnread] says the stored settings could not be
+  /// read.
   const PlatformerApp({
     super.key,
     this.device,
@@ -126,7 +131,7 @@ class PlatformerApp extends StatelessWidget {
       DefaultMaterialLocalizations.delegate,
       DefaultWidgetsLocalizations.delegate,
     ],
-    home: GameScreen(
+    home: _GameScreen(
       device: device,
       config: config,
       configUnread: configUnread,
@@ -134,13 +139,8 @@ class PlatformerApp extends StatelessWidget {
   );
 }
 
-class GameScreen extends StatefulWidget {
-  const GameScreen({
-    super.key,
-    this.device,
-    this.config,
-    this.configUnread = false,
-  });
+class _GameScreen extends StatefulWidget {
+  const _GameScreen({this.device, this.config, this.configUnread = false});
 
   /// See [PlatformerApp.config].
   final GameSettings? config;
@@ -152,10 +152,10 @@ class GameScreen extends StatefulWidget {
   final GraphicsDevice? device;
 
   @override
-  State<GameScreen> createState() => _GameScreenState();
+  State<_GameScreen> createState() => _GameScreenState();
 }
 
-class _GameScreenState extends State<GameScreen> {
+class _GameScreenState extends State<_GameScreen> {
   /// Where a new game begins: the level that teaches the verbs.
   ///
   /// `ascent.json` is no longer the first thing a player sees — it is what

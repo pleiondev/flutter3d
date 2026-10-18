@@ -36,6 +36,8 @@ import 'run_elements.dart';
 /// The effects of a level: built once for the session over [elements],
 /// and dressed again for every level the run opens.
 final class LevelElements {
+  /// The session's effects over [elements], the water's look read from the
+  /// compiled liquid material, drawn on the device.
   LevelElements({
     required this.elements,
     required this._device,
@@ -51,6 +53,7 @@ final class LevelElements {
   /// The water's compiled material, `LiquidLook.asset`.
   final ByteData _liquidBundle;
 
+  /// The world the effects are drawn from: [elements]' own, adopted.
   NativeWorld get world => elements.world;
 
   /// What the fires, the falls and the splashes sound like this frame.

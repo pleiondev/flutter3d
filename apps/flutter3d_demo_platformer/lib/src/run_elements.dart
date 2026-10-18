@@ -55,6 +55,7 @@ final class RunPool {
     required this.density,
   });
 
+  /// The hazard's name in the level, which the dressing names it by.
   final String name;
 
   /// The core's liquid.
@@ -65,6 +66,8 @@ final class RunPool {
 
   /// The height it was filled to, m.
   final double surface;
+
+  /// Whether it is lava rather than water.
   final bool molten;
 
   /// The pit's box: its middle and half its size.
@@ -72,6 +75,9 @@ final class RunPool {
 
   /// What pours into it, and the height each culvert's water runs at, m.
   final List<Pour> pours;
+
+  /// The height each pour's culvert runs at, in metres, one for each of
+  /// [pours].
   final List<double> sills;
 
   /// kg/m³, what the liquid holds a body up by.
@@ -105,8 +111,13 @@ final class RunElements {
 
   final Runner _runner;
 
+  /// Every pit's liquid in the level.
   final List<RunPool> pools = <RunPool>[];
+
+  /// Every raft and plank afloat in the level's pits.
   final List<RunAfloat> afloat = <RunAfloat>[];
+
+  /// Every fire's bed: the braziers and the heaps of wood the dressing laid.
   final List<RunBed> beds = <RunBed>[];
   final List<({NativeBody body, Vector3 Function() at})> _followers =
       <({NativeBody body, Vector3 Function() at})>[];
@@ -783,6 +794,7 @@ final class RunElements {
     world.dispose();
   }
 
+  /// Whether [dispose] has been called, and the world let go of.
   bool get isDisposed => _disposed;
   bool _disposed = false;
 }

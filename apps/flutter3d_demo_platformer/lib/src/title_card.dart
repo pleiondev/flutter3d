@@ -23,6 +23,8 @@ import 'credits.dart';
 /// card in the middle of a run. Laid out by `TitleSheet`; what is here is
 /// this game's name and the lines about its keys.
 class TitleCard extends StatelessWidget {
+  /// The card with [prompt] on it; [touch] and [resuming] change what it says
+  /// about the controls and about the run behind it.
   const TitleCard({
     super.key,
     required this.prompt,

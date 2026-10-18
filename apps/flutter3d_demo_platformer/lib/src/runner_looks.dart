@@ -24,8 +24,10 @@ export 'runner_clips.dart';
 /// a lean and a spin — which is what makes it testable without a renderer, and
 /// is the same split `PlatformerLooks` uses for the coin.
 final class RunnerLooks {
+  /// Looks posed by [tuning].
   RunnerLooks({this.tuning = const PoseTuning()});
 
+  /// The numbers the squash, the lean and the flip are worked out from.
   final PoseTuning tuning;
 
   /// Positive squashes, negative stretches. Decays to nothing.
@@ -154,6 +156,7 @@ final class RunnerLooks {
 /// The numbers behind the pose, in one place for the same reason
 /// `MovementSettings` is.
 final class PoseTuning {
+  /// The tuning the game ships with, unless a caller changes a number.
   const PoseTuning({
     this.depth = 0.35,
     this.jumpStretch = 0.5,
@@ -181,6 +184,7 @@ final class PoseTuning {
   /// The squash a ground pound leaves, which is the heaviest thing there is.
   final double poundSquash;
 
+  /// The squash a slide leaves.
   final double slideSquash;
 
   /// The falling speed that counts as a hard landing, in m/s.
@@ -194,7 +198,11 @@ final class PoseTuning {
 
   /// How far to lean at [leanAtSpeed], in radians.
   final double leanAngle;
+
+  /// The speed at which the lean reaches [leanAngle], in metres a second.
   final double leanAtSpeed;
+
+  /// How fast the lean follows the speed, per second.
   final double leanFollow;
 
   /// How far to roll into a wall while sliding down it.

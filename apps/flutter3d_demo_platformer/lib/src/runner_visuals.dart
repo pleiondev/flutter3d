@@ -16,6 +16,7 @@ import 'runner_clips.dart';
 /// to reconcile — where a model's feet are and which way it was exported facing
 /// — are stated once, next to the code that applies them.
 final class RunnerVisuals {
+  /// Visuals dressing the runner in [model], exported facing [modelFacing].
   RunnerVisuals({required this.model, this.modelFacing = 0.0});
 
   /// The asset to dress the runner in, once it has been read.

@@ -7,6 +7,7 @@ import 'package:vector_math/vector_math.dart';
 /// card has been taken down, whether the run behind it came off the disk, and
 /// whether the renderer refused to start at all.
 final class ScreenState {
+  /// A state of the title card up, a fresh run and no error, unless told.
   const ScreenState({this.started = false, this.resumed = false, this.error});
 
   /// Whether the player has asked to play yet, which takes the title card down.
@@ -22,6 +23,7 @@ final class ScreenState {
   /// is a screen to report it on.
   final Object? error;
 
+  /// This state with [started], [resumed] or [error] replaced.
   ScreenState copyWith({bool? started, bool? resumed, Object? error}) =>
       ScreenState(
         started: started ?? this.started,
@@ -54,6 +56,7 @@ final class ScreenState {
 /// `Ticker` needs a `TickerProvider`, which is a widget's state and not a
 /// cubit's.
 final class ScreenCubit extends Cubit<ScreenState> {
+  /// A cubit with the title card up.
   ScreenCubit() : super(const ScreenState());
 
   /// Where the run was when it was last written to disk.
@@ -64,14 +67,17 @@ final class ScreenCubit extends Cubit<ScreenState> {
   /// checkpoint has not moved" sixty times a second is the thing §2.4 forbids.
   Vector3? _savedFrom;
 
+  /// Takes the title card down; asked again, does nothing.
   void begin() {
     if (state.started) return;
     emit(state.copyWith(started: true));
   }
 
+  /// Says whether the run came off the disk, as [ScreenState.resumed].
   void resumedFromDisk({required bool resumed}) =>
       emit(state.copyWith(resumed: resumed));
 
+  /// Says the renderer refused to start, with [error].
   void failed(Object error) => emit(state.copyWith(error: error));
 
   /// Forgets where the run was saved from, because it is a different run now.

@@ -12,6 +12,8 @@ import 'credits.dart';
 /// the scene, which is the one thing this stack gets for free that a C++ engine
 /// spends a year on.
 class Hud extends StatelessWidget {
+  /// A display of what the screen hands it this frame; it reads nothing
+  /// itself.
   const Hud({
     super.key,
     required this.coins,
@@ -29,7 +31,10 @@ class Hud extends StatelessWidget {
     this.touch = false,
   });
 
+  /// Coins collected this run.
   final int coins;
+
+  /// Times the runner has died this run.
   final int deaths;
 
   /// Deaths left, or negative where a run cannot be lost.
@@ -38,8 +43,15 @@ class Hud extends StatelessWidget {
   /// How long this run has been played, in seconds of simulated time.
   final double elapsed;
 
+  /// The run's state: playing, between levels, or over, which the display's
+  /// banner says.
   final RunState state;
+
+  /// Whether the pointer is captured, or needs no capturing; while it is not,
+  /// the display asks for a click.
   final bool captured;
+
+  /// The level being played, as its document names it.
   final String levelName;
 
   /// Which keys the runner is carrying. A door asks "have you got one", so the
@@ -190,6 +202,9 @@ class Hud extends StatelessWidget {
 /// Laid out by `EndingSheet`, which the crypt and the season end on too; what
 /// is here is this game's sentence and its three numbers.
 class Ending extends StatelessWidget {
+  /// The ending for a run of [coins] coins and [deaths] deaths over [elapsed]
+  /// simulated seconds, [lost] of which were never run; [touch] says the way
+  /// to play again with a tap rather than a key.
   const Ending({
     super.key,
     required this.coins,
@@ -199,9 +214,17 @@ class Ending extends StatelessWidget {
     this.touch = false,
   });
 
+  /// Every coin collected, across every level.
   final int coins;
+
+  /// Every death, across every level.
   final int deaths;
+
+  /// How long the run took, in seconds of simulated time.
   final double elapsed;
+
+  /// Simulated seconds the run never ran, so the clock can admit them. See
+  /// [Hud.lost].
   final double lost;
 
   /// Whether the player has fingers rather than a keyboard. See [Hud.touch].

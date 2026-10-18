@@ -8,6 +8,8 @@ import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
 /// one is still there are decided here, because they are decisions about a
 /// platformer rather than about drawing.
 final class PlatformerLooks with FixtureAppearance {
+  /// The game's fixture looks, reading the guards' state from [published]
+  /// when it is given.
   const PlatformerLooks({this.published});
 
   /// What the simulation last published — `() => loop.published` — which a

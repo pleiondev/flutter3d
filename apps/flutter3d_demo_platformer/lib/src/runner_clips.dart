@@ -14,13 +14,28 @@ import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
 /// here would mean a table mapping tidy names to real ones, which is this
 /// function with an extra step.
 abstract final class RunnerClips {
+  /// Standing still.
   static const String idle = 'CharacterArmature|Idle';
+
+  /// Moving at a walk.
   static const String walk = 'CharacterArmature|Walk';
+
+  /// Moving at a run.
   static const String run = 'CharacterArmature|Run';
+
+  /// Leaving the ground.
   static const String jump = 'CharacterArmature|Jump';
+
+  /// In the air, going down.
   static const String falling = 'CharacterArmature|Jump_Idle';
+
+  /// Coming down onto the ground.
   static const String landing = 'CharacterArmature|Jump_Land';
+
+  /// Crouched.
   static const String duck = 'CharacterArmature|Duck';
+
+  /// Dying.
   static const String death = 'CharacterArmature|Death';
 
   /// Every clip this game asks for, so a test can check the model has them.

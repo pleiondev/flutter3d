@@ -27,6 +27,7 @@ import 'effects.dart';
 /// two visible things, and a landing is a sound decided by whether it happened
 /// and a camera kick decided by how hard.
 final class Reactions {
+  /// The table of what each event bursts and kicks, filled once here.
   Reactions() {
     placed
       ..on<CollectibleTaken>(
