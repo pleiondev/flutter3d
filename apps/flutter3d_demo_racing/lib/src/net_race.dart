@@ -50,6 +50,12 @@ void applyDriverFrame(Map<String, Object?> frame, VehicleInput out) => out
 /// shape net-01 already asks for, plus the ghost that stands in for the
 /// remote car before the far side has said anything at all.
 final class NetRace {
+  /// A race over [sim] against one peer on [transport], this device driving
+  /// [localCarIndex] from [localInput].
+  ///
+  /// [inputDelay] is how many steps a local input waits before it is applied,
+  /// [maxRollbackFrames] how far back a late correction may rewind, and
+  /// [onSettled] hears each step once both sides' inputs for it are known.
   NetRace({
     required RacingSimulation sim,
     required this.localCarIndex,
@@ -94,6 +100,8 @@ final class NetRace {
   /// `main.dart`'s own `_readDriver` would have been called at.
   final InputState localInput;
 
+  /// The rollback session the race runs on, built in the constructor: it
+  /// holds the step count and the counts of corrections made and dropped.
   late final RollbackSession<Snapshot> session;
 
   /// Whether at least one frame from the far side has actually arrived.

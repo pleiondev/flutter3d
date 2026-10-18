@@ -93,15 +93,15 @@ Future<void> main() async {
       unread.add(reported);
     },
   ).read();
-  runApp(RacingApp(config: config, configIssue: unread.lastOrNull?.message));
+  runApp(_RacingApp(config: config, configIssue: unread.lastOrNull?.message));
 }
 
 /// How this build is played — fingers or keys, a pointer that can be taken
 /// — asked of the platform once, for the whole game.
 final Playing _playing = Playing.ofPlatform();
 
-class RacingApp extends StatelessWidget {
-  const RacingApp({super.key, this.config, this.configIssue});
+class _RacingApp extends StatelessWidget {
+  const _RacingApp({this.config, this.configIssue});
 
   /// What the player changed, read before the first frame; defaults when
   /// null.
@@ -119,24 +119,24 @@ class RacingApp extends StatelessWidget {
       DefaultMaterialLocalizations.delegate,
       DefaultWidgetsLocalizations.delegate,
     ],
-    home: RaceScreen(config: config, configIssue: configIssue),
+    home: _RaceScreen(config: config, configIssue: configIssue),
   );
 }
 
-class RaceScreen extends StatefulWidget {
-  const RaceScreen({super.key, this.config, this.configIssue});
+class _RaceScreen extends StatefulWidget {
+  const _RaceScreen({this.config, this.configIssue});
 
-  /// See [RacingApp.config].
+  /// See [_RacingApp.config].
   final GameSettings? config;
 
-  /// See [RacingApp.configIssue].
+  /// See [_RacingApp.configIssue].
   final String? configIssue;
 
   @override
-  State<RaceScreen> createState() => _RaceScreenState();
+  State<_RaceScreen> createState() => _RaceScreenState();
 }
 
-class _RaceScreenState extends State<RaceScreen>
+class _RaceScreenState extends State<_RaceScreen>
     with SingleTickerProviderStateMixin {
   Renderer? _renderer;
 

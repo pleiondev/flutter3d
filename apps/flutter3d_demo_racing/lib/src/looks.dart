@@ -23,6 +23,7 @@ const String kCarModel = 'assets_src/models/car.glb';
 /// under a sun bright enough to light a car, and every arcade racer's tarmac is
 /// darker than the real thing for the same reason.
 abstract final class Looks {
+  /// The tarmac: dark grey and nearly matte, a fresh material on every read.
   static RenderMaterial get road => RenderMaterial(
     // Dark, but not as dark as the first attempt: at (0.085, 0.088, 0.095)
     // the tarmac was within a few percent of the renderer's default clear
@@ -34,12 +35,15 @@ abstract final class Looks {
     lighting: LightingModel.pbr,
   );
 
+  /// The grass beside the road, the colour that says the car has left it.
   static RenderMaterial get verge => RenderMaterial(
     baseColor: LinearColor.fromSrgb(0.14, 0.24, 0.11, 1.0),
     roughness: 1.0,
     lighting: LightingModel.pbr,
   );
 
+  /// The wall along the edge where the track has one: light grey with a
+  /// little sheen, so it stands out against the verge at speed.
   static RenderMaterial get barrier => RenderMaterial(
     baseColor: LinearColor.fromSrgb(0.72, 0.72, 0.75, 1.0),
     roughness: 0.55,

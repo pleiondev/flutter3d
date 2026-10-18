@@ -26,6 +26,8 @@ import 'sounds.dart';
 /// seeing as the player doing it, and it is the one thing that makes a pack of
 /// cars read as a race rather than as scenery.
 final class Reactions {
+  /// Reactions at the thresholds the shipped game reacts at; a test passes its
+  /// own to make a burst easier or harder to set off.
   Reactions({
     this.smokeAbove = 0.35,
     this.slideAbove = 0.22,

@@ -20,9 +20,13 @@ import 'package:flutter3d_game_ui/hud.dart'
 
 import 'race_readout.dart';
 
+/// The race's heads-up display: the lap panel, the speedometer and the map in
+/// the corners, laid over the picture without taking a touch from it.
 class RaceHud extends StatelessWidget {
+  /// A display of [readout], with [issue] along the bottom when there is one.
   const RaceHud({super.key, required this.readout, this.issue});
 
+  /// Everything the display shows, read off the race once per frame.
   final RaceReadout readout;
 
   /// Something that went wrong where the player can see it, or null.

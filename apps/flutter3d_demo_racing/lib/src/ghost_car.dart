@@ -15,6 +15,8 @@ import 'looks.dart';
 /// this game's: one tape per circuit, the lap document the racing package
 /// writes, and where a car keeps its place, heading and up.
 final class GhostKeeper {
+  /// A keeper of [track]'s best lap, in its own file in [storage]; nothing is
+  /// read until it is asked for.
   GhostKeeper({required Storage storage, required this.track})
     : _best = BestRun(
         storage: storage,

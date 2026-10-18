@@ -7,6 +7,7 @@ import 'package:vector_math/vector_math.dart';
 
 /// A circuit with a field of cars on the grid, ready to be stepped.
 final class Staged {
+  /// The pieces [stage] put together, handed over as they are.
   const Staged({
     required this.track,
     required this.field,
@@ -17,23 +18,33 @@ final class Staged {
     required this.ai,
   });
 
+  /// The circuit's centre line and its grid slots, from the document.
   final TrackSpline track;
 
   /// What the cars stand on: the road, sampled from the spline.
   final TrackField field;
 
+  /// Laps, positions and the race's phase, from the countdown on.
   final RaceState race;
 
   /// The field, the player first.
   final List<SphereVehicle> cars;
 
+  /// What steps [cars] and [race] together over the world, one fixed step at a
+  /// time.
   final RacingSimulation sim;
+
+  /// The camera that follows the player along [track].
   final ChaseCamera chase;
+
+  /// What drives every car but the player's, by [track].
   final AiDriver ai;
 }
 
 /// How many cars line up, the player included.
 const int kFieldSize = 4;
+
+/// How many laps a race runs when the caller does not say.
 const int kLapsInARace = 3;
 
 /// Turns a circuit document into a race, given a world its level is already in.

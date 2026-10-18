@@ -22,6 +22,7 @@ import 'race_readout.dart';
 
 /// The end of the season: what the driving came to, and who made the car.
 class SeasonEnding extends StatelessWidget {
+  /// The sheet for a season that has just been won, with its tallies.
   const SeasonEnding({
     super.key,
     required this.circuits,

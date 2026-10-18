@@ -30,6 +30,8 @@ export 'package:flutter3d_app/flutter3d_app.dart';
 ///
 /// Read only when [fixedResolution].
 const int kRenderWidth = 960;
+
+/// The height of that browser frame, in pixels: [kRenderWidth]'s 16:9.
 const int kRenderHeight = 540;
 
 /// The shadow atlas this build can afford.
@@ -45,6 +47,9 @@ const int kRenderHeight = 540;
 /// fill rate is worth economising. Asking `kIsWeb` would be asking a second
 /// question that has to keep agreeing with the first.
 const int kShadowCascades = fixedResolution ? 2 : 3;
+
+/// The side of one cascade's tile in that atlas, in texels: 1024 in a build
+/// with a fixed frame, 2048 elsewhere. See [kShadowCascades] for why.
 const int kShadowResolution = fixedResolution ? 1024 : 2048;
 
 /// Whether the player's bodywork gets its reflection probe.

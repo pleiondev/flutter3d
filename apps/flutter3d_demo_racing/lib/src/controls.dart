@@ -16,10 +16,20 @@ import 'package:flutter3d_game/flutter3d_game.dart';
 /// has a throttle and a brake, not a forward and a back, and `GameAction` is a
 /// string for exactly this reason.
 abstract final class Drive {
+  /// Open the throttle: the car accelerates while this is held.
   static const GameAction throttle = GameAction('throttle');
+
+  /// Brake, and below walking pace, reverse.
   static const GameAction brake = GameAction('brake');
+
+  /// Steer towards the left of the car, however it is facing.
   static const GameAction left = GameAction('steerLeft');
+
+  /// Steer towards the right of the car, however it is facing.
   static const GameAction right = GameAction('steerRight');
+
+  /// Lock the wheels: they stop and the car slides on, which is how the back
+  /// is brought round in a hairpin.
   static const GameAction handbrake = GameAction('handbrake');
 
   /// Change tyres. A verb the car has rather than a screen, so it can be

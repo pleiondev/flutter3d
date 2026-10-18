@@ -39,6 +39,8 @@ import 'credits.dart';
 /// Shown once a session and never again: a card that comes back every time the
 /// keyboard is let go is a card in the middle of a race.
 class TitleCard extends StatelessWidget {
+  /// The card with [prompt] on it, taken down by a key, or by a touch when
+  /// [touch] is set and [onBegin] is given.
   const TitleCard({
     super.key,
     required this.prompt,

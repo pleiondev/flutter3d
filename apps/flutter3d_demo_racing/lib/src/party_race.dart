@@ -14,6 +14,12 @@ import 'party_report.dart';
 /// machine has to agree what such a car did. A car with no frame drives on
 /// at the same gentle throttle everywhere.
 final class PartyRace {
+  /// A race of [cars] over [sim], this machine driving its [wire]'s slot from
+  /// [localInput].
+  ///
+  /// [inputDelay] and [maxRollbackFrames] are [RollbackSession]'s;
+  /// [onSettled] hears each step once every slot's frame for it is known, and
+  /// [onMessage] every message on the wire that is not the report's own ping.
   PartyRace({
     required RacingSimulation sim,
     required this.wire,
@@ -47,11 +53,19 @@ final class PartyRace {
   }
 
   final RacingSimulation _sim;
+
+  /// The party's connection: which slot this machine holds, and the line the
+  /// frames and the report's pings travel on.
   final PeerWire wire;
 
   /// How many cars the race has — the party's size.
   final int cars;
+
+  /// This machine's own driver, captured into a frame once per [advance].
   final InputState localInput;
+
+  /// The rollback session the race runs on: its step count and its counts of
+  /// corrections are what the report reads.
   late final RollbackSession<Snapshot> session;
 
   /// This machine's line of the party's report: the session's counts, the
@@ -83,6 +97,8 @@ final class PartyRace {
     _sim.step(1.0 / 60.0);
   }
 
+  /// One step: pings the party when a ping is due, then advances the session,
+  /// which captures this machine's frame and steps the cars it can.
   void advance() {
     report.pingIfDue(wire, session.step);
     session.advance();

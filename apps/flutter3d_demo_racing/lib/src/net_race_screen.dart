@@ -28,6 +28,7 @@ import 'party_race_session.dart';
 /// attempt, the same class of boundary `rp-02`/`net-02` already named for
 /// "the running game in an open window".
 final class NetRaceScreen extends StatefulWidget {
+  /// A door into a race through the relay at [relayBase], on [trackAsset].
   const NetRaceScreen({
     super.key,
     required this.relayBase,
@@ -38,6 +39,9 @@ final class NetRaceScreen extends StatefulWidget {
   /// `ws://host:port/` — the relay's own root; a room is `relayBase`
   /// resolved against `room/<code>`, the shape `bin/relay.dart` listens on.
   final Uri relayBase;
+
+  /// The circuit both sides stage, as an asset path; the first circuit of the
+  /// season unless a caller says otherwise. Both devices must name the same.
   final String trackAsset;
 
   /// Called with the finished [NetRaceSession] when "End race" is pressed,

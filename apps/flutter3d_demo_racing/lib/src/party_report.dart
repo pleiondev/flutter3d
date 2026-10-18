@@ -36,9 +36,11 @@ final class PartyRunReport {
     return () => watch.elapsedMicroseconds;
   }
 
-  /// What a ping and its answer carry under [PeerWire.engineKey], so the
-  /// rollback hands them on rather than reading them as frames.
+  /// What a ping carries under [PeerWire.engineKey], so the rollback hands it
+  /// on rather than reading it as a frame.
   static const String pingKind = 'race.ping';
+
+  /// What the answer to a [pingKind] carries, for the same reason.
   static const String pongKind = 'race.pong';
 
   /// The car this machine drives.

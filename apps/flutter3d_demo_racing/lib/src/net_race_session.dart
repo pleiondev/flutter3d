@@ -23,11 +23,14 @@ final class NetRaceSession {
     required this._input,
   });
 
+  /// The race itself, kept in step with the far side.
   final NetRace race;
   final RoomSession _room;
   final SideRecording _recording;
   final InputState _input;
 
+  /// The code the room was made under: what the creator reads out and the
+  /// joiner types in.
   String get roomCode => _room.code;
 
   /// Which grid slot this device drives — 0 for whoever called [create], 1
@@ -171,5 +174,6 @@ final class NetRaceSession {
     );
   }
 
+  /// Leaves the room and closes the connection to the relay.
   Future<void> dispose() => _room.close();
 }

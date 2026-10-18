@@ -25,6 +25,7 @@ final class PartyRaceSession {
 
   final PartySession<PartyRace> _party;
 
+  /// The race the party settled on, once its seats are filled.
   PartyRace get race => _party.game;
 
   /// What the other drivers type to join.
@@ -79,6 +80,7 @@ final class PartyRaceSession {
     ),
   );
 
+  /// One step of [race]; a screen calls it once per simulation step.
   void advance() => race.advance();
 
   /// Writes this machine's line of the party's report, as
@@ -107,5 +109,6 @@ final class PartyRaceSession {
     return file.path;
   }
 
+  /// Leaves the party and closes its connection to the relay.
   Future<void> dispose() => _party.dispose();
 }
