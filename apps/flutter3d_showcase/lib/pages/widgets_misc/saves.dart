@@ -130,23 +130,56 @@ final class _Game extends RunSession<_Level> {
 
 /// What the page found, kept for its claim and its picture.
 final class SavesReport {
+  /// The version-0 save, read through the schema's migrations.
   SaveRead? old;
+
+  /// A save from a newer build, which the read must refuse as newer.
   SaveRead? newer;
+
+  /// Whether the game resumed the old save when it began.
   bool resumed = false;
+
+  /// The hearts the resumed run holds; the check wants 2.
   int heartsAfterLoad = 0;
+
+  /// The coins the resumed run holds; the check wants 12.
   int coinsAfterLoad = 0;
+
+  /// Whether each of play, pause and still paused made the autosave write.
   final List<bool> autosaves = <bool>[];
+
+  /// The writes counted after the pauses, after a checkpoint of the same run,
+  /// and after a checkpoint of a run that moved.
   final List<int> writesAfter = <int>[];
+
+  /// The schema version the autosave wrote, or -1 when nothing was read back.
   int writtenSchema = -1;
+
+  /// What each sync came to, in order: before consent, into an empty cloud,
+  /// against a further run, against an equal one, and once settled.
   final List<SyncOutcome> outcomes = <SyncOutcome>[];
+
+  /// How many calls reached the cloud before consent; the check wants none.
   int callsBeforeConsent = -1;
+
+  /// The coins in the save after the further run was downloaded; the check
+  /// wants 40.
   int coinsAfterDownload = 0;
+
+  /// Whether this device and the cloud hold the same run at the end.
   bool inSyncAtEnd = false;
+
+  /// The step of this device's save at the end, which the picture draws.
   int localStep = 0;
+
+  /// The step of the cloud's save at the end, which the picture draws.
   int cloudStep = 0;
 }
 
+/// The `saves` page: a save migrated, autosaved and synced with a cloud of
+/// one slot, all in memory. Its check reads [report].
 final class SavesDemo extends ShowcaseDemo {
+  /// What the page found while it prepared, read by its check and drawn.
   final SavesReport report = SavesReport();
 
   late final MeshNode _device;

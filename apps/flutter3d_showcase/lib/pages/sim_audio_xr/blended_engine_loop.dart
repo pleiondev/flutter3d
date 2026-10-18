@@ -8,7 +8,10 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `blended-engine-loop` page: an engine of three loops crossfaded by
+/// revs. Its check is that the bands always add up to full loudness.
 final class BlendedEngineLoopDemo extends ShowcaseDemo {
+  /// The engine's revs, 0 to 1.2 of the range the loops were recorded over.
   double revs = 0.5;
 
   late final AudioScene _scene;

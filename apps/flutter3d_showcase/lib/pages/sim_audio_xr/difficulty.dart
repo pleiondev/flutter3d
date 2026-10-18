@@ -12,7 +12,11 @@ import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/scene_kit.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
+/// The `difficulty` page: a target hit for ten points under each offered
+/// difficulty. Its check is that gentle softens the hit and punishing
+/// sharpens it.
 final class DifficultyDemo extends ShowcaseDemo {
+  /// The difficulty picked, an index into `Difficulty.offered`.
   int level = 0;
 
   late final MeshNode _player;

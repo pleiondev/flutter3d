@@ -29,6 +29,9 @@ final class _WaryBrain extends Brain {
 }
 // #endregion brain
 
+/// The `actors` page: a goblin actor with health and a brain. Its check is
+/// that twelve damage leaves thirty health at eighteen and that the brain
+/// remembers being hurt.
 final class ActorsDemo extends ShowcaseDemo {
   late final double _currentHealth;
   late final bool _stillAlive;

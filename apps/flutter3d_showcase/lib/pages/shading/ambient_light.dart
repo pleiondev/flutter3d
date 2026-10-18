@@ -7,7 +7,12 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `ambient-light` page: a ball with one key light, its unlit side left
+/// to the ambient term. Its check is that the scene's ambient tracks the
+/// slider and that there is exactly one direct light.
 final class AmbientLightDemo extends ShowcaseDemo {
+  /// The scene's ambient intensity as a multiple of
+  /// `LightNode.defaultIntensity`, 0 to 1.
   double ambientIntensity = 0.35;
 
   late final Scene _scene;

@@ -15,6 +15,8 @@ import 'package:flutter3d_showcase/pages/view_input/screen_bounds.dart';
 import 'package:flutter3d_showcase/pages/view_input/tiled_render.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// How to build each page of the category, by page id; joined into the app's
+/// `kDemos`.
 final Map<String, DemoBuilder> viewInputDemos = <String, DemoBuilder>{
   'projections': ProjectionsDemo.new,
   'off-axis-projection': OffAxisProjectionDemo.new,

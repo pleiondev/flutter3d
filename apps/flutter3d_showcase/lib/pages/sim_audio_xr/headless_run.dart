@@ -52,6 +52,8 @@ final class _WalkerRun extends HeadlessRun {
 }
 // #endregion run
 
+/// The `headless-run` page: a walker driven with no screen. Its check is that
+/// it reaches the outcome its own rules describe.
 final class HeadlessRunDemo extends ShowcaseDemo {
   late final String _report;
 

@@ -8,7 +8,10 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
+/// The `light-fixtures` page: a torch whose brightness drives its glow and
+/// its light. Its check is that a disabled fixture reports no brightness.
 final class LightFixturesDemo extends ShowcaseDemo {
+  /// Whether the torch pulses, rather than flickering like a flame.
   bool pulseInstead = false;
 
   late final LightNode _torchLight;

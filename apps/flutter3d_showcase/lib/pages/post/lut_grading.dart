@@ -10,8 +10,13 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/pages/post/post_stage.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `lut-grading` page: the post stage graded through a colour table.
+/// Its check is that the table will be sampled and the composite ran.
 final class LutGradingDemo extends ShowcaseDemo {
+  /// Which table grades the frame: 0 sepia, 1 red and blue swapped, 2 night.
   int table = 0;
+
+  /// How much of the table's colour replaces the original, 0 to 1.
   double strength = 1.0;
 
   late final List<TextureHandle> _tables;

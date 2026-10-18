@@ -7,7 +7,11 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `off-axis-projection` page: a ball seen through a frustum shifted
+/// sideways. Its check is that the shifted frustum is not symmetric.
 final class OffAxisProjectionDemo extends ShowcaseDemo {
+  /// How far the frustum's axis is shifted, in tangent units, -0.6 to 0.6:
+  /// taken from both the left and the right edge.
   double shift = 0.5;
 
   late OffAxisProjection _off;

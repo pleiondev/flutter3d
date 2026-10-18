@@ -124,6 +124,9 @@ final class _Run {
   int digestSeen(int step) => StateDigest.of(seen[step]!.data);
 }
 
+/// The `time-travel` page: a live run scrubbed, read as lanes, branched and
+/// bisected. Its check is that a scrub lands on the recorded state and that
+/// the lanes hold the door and the hp the run recorded.
 final class TimeTravelDemo extends ShowcaseDemo {
   static const int _length = 300;
 

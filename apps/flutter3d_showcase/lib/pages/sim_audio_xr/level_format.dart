@@ -9,10 +9,17 @@ import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/scene_kit.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
+/// The `level-format` page: two brushes and a spawn in a level document. Its
+/// check is that every brush survives JSON and that overlapping brushes are
+/// reported.
 final class LevelFormatDemo extends ShowcaseDemo {
   late final String _report;
 
+  /// The gap between the two brushes in metres, -2 to 2; below zero they
+  /// overlap and the validator says so.
   double gap = -1.0;
+
+  /// Whether the level has a spawn point.
   bool withSpawn = true;
 
   bool _dirty = true;

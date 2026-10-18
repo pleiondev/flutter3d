@@ -7,7 +7,11 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `draw-batching` page: a grid of crates sharing a mesh and a material.
+/// Its check is that the draws are merged with batching on and not merged
+/// with it off.
 final class DrawBatchingDemo extends ShowcaseDemo {
+  /// Whether identical draws are merged into instanced calls.
   bool batch = true;
 
   static const int _rows = 3;

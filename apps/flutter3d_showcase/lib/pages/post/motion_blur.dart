@@ -10,10 +10,20 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/pages/post/post_stage.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `motion-blur` page: a spinning wheel of spokes in front of a
+/// backdrop. Its check is that the pass does not run while it is off.
 final class MotionBlurDemo extends ShowcaseDemo {
+  /// Whether motion blur is on.
   bool blur = true;
+
+  /// How long the shutter is open, as a share of a frame, 0 to 1, shown as a
+  /// shutter angle of 0 to 360 degrees.
   double shutter = 0.5;
+
+  /// The longest a streak may reach each side, in pixels, 1 to 64.
   double maxRadius = 20.0;
+
+  /// How fast the wheel spins, in radians a second, 0 to 20.
   double speed = 8.0;
 
   /// The wheel's angle, in radians, which [update] advances.

@@ -7,6 +7,8 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `pixel-picking` page: a ball picked by drawing ids and reading one
+/// pixel. Its check is that the pixel asked about is over the ball.
 final class PixelPickingDemo extends ShowcaseDemo {
   late final CameraNode _camera;
   final Raycaster _raycaster = Raycaster();

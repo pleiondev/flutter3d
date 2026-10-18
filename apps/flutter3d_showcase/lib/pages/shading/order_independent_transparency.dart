@@ -10,7 +10,11 @@ import 'dart:math' as math;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `order-independent-transparency` page: coloured panes at three depths
+/// and two that cross. Its check is that the scene pass drew at least the
+/// draws the mode needs.
 final class OrderIndependentTransparencyDemo extends ShowcaseDemo {
+  /// How transparency is composited: 0 sorted, 1 weighted blended.
   int mode = 1;
 
   static const List<TransparencyMode> _modes = <TransparencyMode>[

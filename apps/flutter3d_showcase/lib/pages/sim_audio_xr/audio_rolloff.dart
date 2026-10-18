@@ -9,6 +9,9 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `audio-rolloff` page: a speaker and the three rolloff curves plotted
+/// against distance. Its check is that every curve falls with distance and
+/// is silent past its maximum.
 final class AudioRolloffDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
@@ -31,6 +34,7 @@ final class AudioRolloffDemo extends ShowcaseDemo {
   }
 
   // #region curves
+  /// The three curves, by the name the plot and the readout give them.
   static const curves = <String, Attenuation>{
     'inverse': InverseRolloff(),
     'linear': LinearRolloff(),
@@ -49,6 +53,7 @@ final class AudioRolloffDemo extends ShowcaseDemo {
     return 'gain at ${distances.join(', ')} metres\n${lines.join('\n')}';
   }
 
+  /// The distance the plot marks, in metres, 0 to 30.
   double distance = 6.0;
 
   static const List<Color> _inks = <Color>[

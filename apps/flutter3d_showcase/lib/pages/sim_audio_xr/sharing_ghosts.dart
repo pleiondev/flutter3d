@@ -201,6 +201,9 @@ RunTransport _inMemory(Map<String, Map<String, Object?>> store) =>
 }
 // #endregion ghost
 
+/// The `sharing-ghosts` page: a run shared behind a code and raced as a
+/// ghost. Its check is that the run comes back as a ghost that follows it to
+/// the finish and that an edited level is refused.
 final class SharingGhostsDemo extends ShowcaseDemo {
   final List<Vector3> _original = <Vector3>[];
   final Map<String, Map<String, Object?>> _store =

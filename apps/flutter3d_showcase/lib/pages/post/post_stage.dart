@@ -15,7 +15,10 @@ import 'package:flutter3d_showcase/src/demo/demo.dart';
 final class PostStage {
   PostStage._(this.scene, this.sun, this.shapes);
 
+  /// The floor, the three shapes and the sun, ready to draw.
   final Scene scene;
+
+  /// The scene's sun, for a page that turns or dims it.
   final LightNode sun;
 
   /// The three shapes on the floor, left to right.

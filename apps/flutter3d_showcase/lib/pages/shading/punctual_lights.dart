@@ -9,8 +9,14 @@ import 'dart:math' as math;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `punctual-lights` page: a sun, a point lamp and a spot torch, each
+/// over a ball of its own. Its check is that all three types are there and
+/// that the point range tracks its slider.
 final class PunctualLightsDemo extends ShowcaseDemo {
+  /// The point lamp's range in metres, 1 to 10.
   double pointRange = 4.0;
+
+  /// The spot's outer cone angle in degrees, 5 to 60.
   double spotOuterDegrees = 25.0;
 
   late final LightNode _point;

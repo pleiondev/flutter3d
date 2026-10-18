@@ -9,8 +9,14 @@ import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/scene_kit.dart';
 
+/// The `audio-buses` page: a mixer of buses under one master. Its check is
+/// that a bus nobody set stays at full volume and that music at 0.6 under a
+/// master at 0.5 plays at 0.3.
 final class AudioBusesDemo extends ShowcaseDemo {
+  /// The music bus's own volume, 0 to 1.
   double musicVolume = 0.6;
+
+  /// The master volume every bus is multiplied by, 0 to 1.
   double masterVolume = 1.0;
 
   late final Mixer _mixer;

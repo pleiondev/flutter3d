@@ -181,7 +181,12 @@ Demo _record(Level level, int seed) {
 }
 // #endregion heatmap
 
+/// The `playtest-heatmaps` page: recorded runs replayed into a yard and
+/// binned into a heatmap of where players went and were lost. Its check is
+/// that every tape replays, runs are lost in the pit, a tape refuses a level
+/// it was not recorded in, and the heatmap is drawn.
 final class PlaytestHeatmapsDemo extends ShowcaseDemo {
+  /// How many tapes are recorded and replayed, from 4 up, in whole steps.
   double tapes = 16;
 
   late final Level _level;

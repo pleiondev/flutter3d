@@ -7,9 +7,17 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `depth-of-field` page: a row of posts going back from the eye,
+/// through a thin lens. Its check is that the depth of field pass ran.
 final class DepthOfFieldDemo extends ShowcaseDemo {
+  /// How far from the eye the lens is focused, in metres, 1 to 11.
   double focusDistance = 4.0;
+
+  /// The lens's f-number, 1.4 to 16: the smaller, the shallower the focus.
   double aperture = 2.0;
+
+  /// The lens's focal length in metres, 0.024 to 0.135, shown as 24 to 135
+  /// mm.
   double focalLength = 0.085;
 
   @override

@@ -12,7 +12,11 @@ import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/run_physics.dart';
 import 'package:flutter3d_voxel/flutter3d_voxel.dart';
 
+/// The `voxel-world` page: a world of blocks from a seed, dug and built on as
+/// the page runs. Its check is ground under every column, collision boxes as
+/// high as the blocks, and a dug block gone from the collision and the chunk.
 final class VoxelWorldDemo extends ShowcaseDemo {
+  /// Whether the page keeps digging and building.
   bool digging = true;
 
   late final GraphicsDevice _device;

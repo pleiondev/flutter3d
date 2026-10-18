@@ -11,9 +11,14 @@ import 'package:flutter3d_showcase/src/demo/run_physics.dart';
 import 'package:flutter3d_showcase/src/demo/scene_kit.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
+/// The `level-mechanisms` page: a door and the button that opens it by name.
+/// Its check is that the door starts closed and opens within three seconds
+/// of a press.
 final class LevelMechanismsDemo extends ShowcaseDemo {
   late final String _report;
 
+  /// Whether the page presses the button itself, every eight seconds after the
+  /// first two.
   bool automatic = true;
   bool _pressAsked = false;
 

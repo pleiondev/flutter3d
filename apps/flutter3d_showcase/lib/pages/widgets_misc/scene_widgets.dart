@@ -10,6 +10,10 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `scene-widgets` page: a scene written as widgets and mounted into the
+/// page's scene. Its check is a mesh per widget, boxes that share one
+/// material, a rebuild that keeps and changes its nodes, and a removed box
+/// gone from the scene.
 final class SceneWidgetsDemo extends ShowcaseDemo {
   late final SceneWidgetsMount _mount;
 

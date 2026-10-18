@@ -198,6 +198,9 @@ _Verdict _replay(Demo demo, _Ball game, {Iterable<int>? digestAt}) {
 }
 // #endregion replay
 
+/// The `replay-tests` page: a recorded run played back as a test against its
+/// checkpoints. Its check is twelve checkpoints, and a change that parts the
+/// replay at the step of the first bounce.
 final class ReplayTestsDemo extends ShowcaseDemo {
   late final Demo _tape;
 

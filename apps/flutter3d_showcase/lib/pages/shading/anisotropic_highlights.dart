@@ -8,8 +8,14 @@ import 'dart:math' as math;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `anisotropic-highlights` page: a plain sphere beside a brushed one.
+/// Its check is that the brushed one is on the layered model with an
+/// anisotropy.
 final class AnisotropicHighlightsDemo extends ShowcaseDemo {
+  /// How far the brushed highlight is stretched, 0 to 1.
   double strength = 0.9;
+
+  /// Which way the highlight is stretched, in radians, 0 to π.
   double rotation = 0.0;
 
   late final RenderMaterial _brushed;

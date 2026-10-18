@@ -9,6 +9,9 @@ import 'dart:math' as math;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `orbit-controller` page: a box framed by `frameBounds` and a turn
+/// animated with `animateTo`. Its check is the distance framing chose and
+/// that `advance` steps the turn.
 final class OrbitControllerDemo extends ShowcaseDemo {
   late final Aabb3 _bounds;
   late final OrbitController _orbit;

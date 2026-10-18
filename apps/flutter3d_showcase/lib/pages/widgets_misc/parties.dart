@@ -122,7 +122,13 @@ final class _Party {
   // #endregion tick
 }
 
+/// The `parties` page: four machines and a spectator playing one game over a
+/// late, lossy loopback wire. Its check is that guesses were wrong and rolled
+/// back, the four agree on what happened, and the spectator is on the settled
+/// tape.
 final class PartiesDemo extends ShowcaseDemo {
+  /// How many steps late messages arrive, 0 to 10; changing it starts the
+  /// party again at a loss of 0.1.
   double delay = 4;
   late _Party _party;
 

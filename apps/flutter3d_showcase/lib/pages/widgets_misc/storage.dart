@@ -12,6 +12,9 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `storage` page: documents and bytes kept through `Storage`. Its check
+/// is that both read back exactly and that a removed document reads back as
+/// nothing.
 final class StorageDemo extends ShowcaseDemo {
   late final String _report;
 

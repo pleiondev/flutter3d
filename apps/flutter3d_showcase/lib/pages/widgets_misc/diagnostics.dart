@@ -9,6 +9,9 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `diagnostics` page: a clock marker timed by a frame clock and a timing
+/// log. Its check is that the first tick measures no time and a log with a
+/// window of two reports after its second frame.
 final class DiagnosticsDemo extends ShowcaseDemo {
   late final String _report;
   late final double _firstTick;

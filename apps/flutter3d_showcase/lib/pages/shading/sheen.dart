@@ -6,8 +6,13 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `sheen` page: bare red cloth beside the same cloth with a sheen. Its
+/// check is that the second one has a layer that changes its shading.
 final class SheenDemo extends ShowcaseDemo {
+  /// The sheen's colour: 0 blue, 1 white, 2 gold.
   int color = 0;
+
+  /// The sheen's roughness, 0.07 to 1; the shader floors it at 0.07.
   double sheenRoughness = 0.5;
 
   static const List<String> _colourNames = <String>['Blue', 'White', 'Gold'];

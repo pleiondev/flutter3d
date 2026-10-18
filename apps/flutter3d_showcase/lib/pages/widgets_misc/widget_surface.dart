@@ -15,7 +15,11 @@ import 'package:flutter3d/flutter3d.dart' as f3d show RenderMaterial;
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `widget-surface` page: a console widget with a clock and a progress
+/// bar drawn on a plane on a stand. Its check is that the surface is drawn
+/// and that changing the widget marks it dirty.
 final class WidgetSurfaceDemo extends ShowcaseDemo {
+  /// How fast the console's clock runs, 0 to 4 times real time.
   double speed = 1.0;
 
   late final WidgetSurface _surface;

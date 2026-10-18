@@ -11,11 +11,21 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/pages/post/post_stage.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `tone-mapping` page: a row of lamps of rising brightness through the
+/// engine's curves. Its check is that the composite pass ran at the
+/// exposure asked for.
 final class ToneMappingDemo extends ShowcaseDemo {
+  /// Which of the engine's curves the composite applies, an index into the
+  /// "Curve" choice.
   int curve = 0;
+
+  /// Which display transform follows the curve: 0 none, 1 the table the page
+  /// bakes.
   int display = 0;
   // The engine's own default, so the page opens on the exposure every other
   // scene is drawn at.
+  /// The frame's exposure, 0.2 to 6; starts at
+  /// `RenderSettings.defaultExposure`.
   double exposure = RenderSettings.defaultExposure;
 
   static const List<TonemapCurve> _curves = TonemapCurve.values;

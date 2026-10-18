@@ -7,7 +7,10 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `exposure` page: a lantern composited at an exposure set by hand. Its
+/// check is that the frame reports the exposure asked for.
 final class ExposureDemo extends ShowcaseDemo {
+  /// The linear exposure multiplier, 0.1 to 4.
   double exposure = 2.4;
 
   @override

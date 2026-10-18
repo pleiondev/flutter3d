@@ -12,6 +12,9 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `behaviour-trees` page: a guard run by a behaviour tree read from
+/// JSON, and a target behind a wall. Its check is that the guard patrols,
+/// then chases once the target shows, and that the overlay drew the path.
 final class BehaviourTreesDemo extends ShowcaseDemo {
   late (ActorSystem, Actor) _run;
   ActorSystem get _system => _run.$1;
@@ -23,6 +26,8 @@ final class BehaviourTreesDemo extends ShowcaseDemo {
   final Vector3 _target = Vector3(0.0, 0.9, 4.0);
   double _clock = 0.0;
   double _carry = 0.0;
+
+  /// Whether the overlay draws the path the tree took this step.
   bool overlay = true;
 
   static const double _step = 1 / 60;

@@ -9,10 +9,20 @@ import 'dart:math' as math;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `static-cascades` page: a field of blocks and a rolling ball under the
+/// sun, the blocks kept in a static atlas. Its check counts what the first
+/// frame and a frame after the ball moves draw into the sun's map.
 final class StaticCascadesDemo extends ShowcaseDemo {
+  /// Whether the blocks are marked `shadowIsStatic`.
   bool blocksAreStatic = true;
+
+  /// Whether the camera walks across the field.
   bool walk = true;
+
+  /// Whether the ball rolls.
   bool roll = true;
+
+  /// Whether the sun's atlas is shown on screen.
   bool showAtlas = false;
 
   static const int _cascades = 3;

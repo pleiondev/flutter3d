@@ -47,6 +47,8 @@ import 'viewer_profiles.dart';
 import 'voice_limit.dart';
 import 'voxel_world.dart';
 
+/// How to build each page of the category, by page id; joined into the app's
+/// `kDemos`.
 final Map<String, DemoBuilder> simAudioXrDemos = <String, DemoBuilder>{
   'fixed-step': FixedStepDemo.new,
   'ecs-world': EcsWorldDemo.new,

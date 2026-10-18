@@ -7,8 +7,15 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `rough-surfaces` page: gold spheres from polished to rough and clay
+/// ones from half rough to rough. Its check is that every sphere is drawn.
 final class RoughSurfacesDemo extends ShowcaseDemo {
+  /// Whether the frame compensates rough metal for the energy a single bounce
+  /// loses.
   bool compensate = true;
+
+  /// Whether diffuse uses the energy-preserving model, `DiffuseModel.eon`,
+  /// rather than Lambert.
   bool orenNayar = true;
 
   static const List<double> _metalRoughness = <double>[0.1, 0.3, 0.5, 0.7, 0.9];

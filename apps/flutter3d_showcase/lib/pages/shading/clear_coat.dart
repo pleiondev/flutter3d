@@ -6,9 +6,17 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `clear-coat` page: bare red paint beside the same paint under a clear
+/// coat. Its check is that the coated one is on the layered model with a
+/// coat.
 final class ClearCoatDemo extends ShowcaseDemo {
+  /// How strong the clear coat is, 0 to 1.
   double coat = 1.0;
+
+  /// The coat's roughness, 0 to 1.
   double coatRoughness = 0.15;
+
+  /// The paint's roughness under it, 0.05 to 1, the same on both spheres.
   double paintRoughness = 0.6;
 
   late final RenderMaterial _bare;

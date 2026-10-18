@@ -11,11 +11,19 @@ import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/scene_kit.dart';
 
+/// The `voice-limit` page: footsteps and a shout asking for voices under a
+/// limit. Its check is that three voices go to exactly three of five sounds
+/// and that the higher priority wins.
 final class VoiceLimitDemo extends ShowcaseDemo {
   late final String _report;
 
+  /// How many voices may play at once, 1 to 10.
   double voices = 3.0;
+
+  /// How many footsteps ask for a voice, 0 to 12.
   double asking = 8.0;
+
+  /// Whether a shout, with a higher priority than the footsteps, asks too.
   bool shouting = true;
 
   bool _dirty = true;

@@ -22,6 +22,9 @@ final class _Look {
   final int y;
 }
 
+/// The `render-inspection` page: a captured frame read by the functions the
+/// VM service extensions answer with. Its check is that the middle pixel
+/// picks the crate, a draw is the crate's, and the pixel reads back.
 final class RenderInspectionDemo extends ShowcaseDemo {
   late final Scene _scene;
 

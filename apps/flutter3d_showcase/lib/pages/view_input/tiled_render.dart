@@ -10,8 +10,14 @@ import 'dart:math' as math;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `tiled-render` page: a scene drawn as a grid of tiles, each into its
+/// own cell. Its check is that every tile drew and that one tile reproduces
+/// the whole frustum.
 final class TiledRenderDemo extends ShowcaseDemo {
+  /// How many tiles across, and down, the grid has, 1 to 4.
   int tilesAcross = 3;
+
+  /// How far the cells are pulled apart, as a share of a cell, 0 to 0.4.
   double gap = 0.0;
 
   // #region base

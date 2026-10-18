@@ -8,6 +8,9 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/pages/post/post_stage.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `disabled-passes` page: the post stage with steps of the frame
+/// switched off. Its check is that each pass of a step that is off reports
+/// `PassSkip.switchedOff`, and that the composite still ran.
 final class DisabledPassesDemo extends ShowcaseDemo {
   // #region names
   /// The steps this scene turns on, in the order the frame runs them.
@@ -20,6 +23,7 @@ final class DisabledPassesDemo extends ShowcaseDemo {
   ];
   // #endregion names
 
+  /// The steps switched off, one switch each; bloom to begin with.
   final Set<RenderStep> off = <RenderStep>{RenderStep.bloom};
 
   @override

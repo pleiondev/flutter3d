@@ -64,6 +64,9 @@ final class _RunTimeline {
 }
 // #endregion timeline
 
+/// The `run-timeline` page: a runner paused, stepped and rewound from
+/// outside. Its check is that twenty steps reach 20, a manual step while
+/// paused advances it, and a rewind lands ten recorded steps back.
 final class RunTimelineDemo extends ShowcaseDemo {
   late final String _report;
   late final double _beforePause;

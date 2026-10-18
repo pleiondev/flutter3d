@@ -11,10 +11,17 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
+/// The `terrain-erosion` page: one hill as made and after erosion. Its check
+/// is that each erosion keeps the volume, lowers the top and puts material
+/// down at the foot.
 final class TerrainErosionDemo extends ShowcaseDemo {
   /// 0 thermal, 1 hydraulic, 2 both.
   int kind = 2;
+
+  /// The seed the erosion's droplets are drawn from, 1 to 20.
   int seed = 7;
+
+  /// How many rain droplets run down the hill, 500 to 8000.
   double droplets = 3000;
 
   late final Heightfield _before;

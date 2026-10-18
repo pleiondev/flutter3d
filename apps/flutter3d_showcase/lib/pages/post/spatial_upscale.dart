@@ -8,9 +8,17 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/pages/post/post_stage.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `spatial-upscale` page: the post stage drawn small and brought up to
+/// full size. Its check is that the upscale ran or was declined when it is
+/// on, and never when the frame is full size.
 final class SpatialUpscaleDemo extends ShowcaseDemo {
+  /// Whether the edge-directed upscale runs rather than a plain stretch.
   bool upscale = true;
+
+  /// The scale the frame is drawn at, 0.25 to 1.
   double renderScale = 0.5;
+
+  /// How much the upscale sharpens, 0 to 1.
   double sharpen = 0.2;
 
   @override

@@ -9,7 +9,11 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `texture-filtering` page: a checkerboard floor running to the
+/// horizon. Its check is that the sampler blends mip levels and that
+/// anisotropy is on.
 final class TextureFilteringDemo extends ShowcaseDemo {
+  /// The anisotropy picked, an index into 1x, 2x, 4x, 8x and 16x.
   int anisotropyChoice = 3;
 
   static const List<int> _levels = <int>[1, 2, 4, 8, 16];

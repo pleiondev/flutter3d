@@ -47,6 +47,9 @@ final class _PointerHeadTracker extends HeadTracker {
 }
 // #endregion tracker
 
+/// The `head-tracking` page: a ball seen through a stereo rig whose head the
+/// pointer turns. Its check is that dragging turns the head and the head
+/// turns where the rig looks.
 final class HeadTrackingDemo extends ShowcaseDemo {
   final _PointerHeadTracker _tracker = _PointerHeadTracker();
   final StereoRig _rig = StereoRig();

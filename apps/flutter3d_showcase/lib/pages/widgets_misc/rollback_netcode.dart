@@ -65,7 +65,12 @@ final class _LoopbackTransport {
 }
 // #endregion transport
 
+/// The `rollback-netcode` page: two peers of a fixed-step simulation over an
+/// unreliable transport. Its check is that both learn the other reached the
+/// same step at a 30% loss, and that resending keeps them close to the truth.
 final class RollbackNetcodeDemo extends ShowcaseDemo {
+  /// The share of messages the transport drops, 0 to 0.9; the run is played
+  /// again when it changes.
   double lossRate = 0.3;
   late String _report;
 

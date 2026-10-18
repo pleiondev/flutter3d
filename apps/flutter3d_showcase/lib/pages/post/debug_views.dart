@@ -8,10 +8,18 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/pages/post/post_stage.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `debug-views` page: a lantern with a material channel wiped across
+/// the lit frame. Its check is that a channel is drawn, the pass costs add up
+/// to the frame, and the targets hold at least the picture.
 final class DebugViewsDemo extends ShowcaseDemo {
   /// An index into [_channels].
   int channel = 0;
+
+  /// The share of the frame, from the left, that stays lit; the rest shows the
+  /// channel. 0 to 1.
   double split = 0.5;
+
+  /// Whether the page steps through the channels on its own.
   bool stepping = true;
 
   double _shown = 0.0;

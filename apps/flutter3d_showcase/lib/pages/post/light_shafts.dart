@@ -7,11 +7,18 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `light-shafts` page: a doorway of two pillars and a lintel with the
+/// sun behind it. Its check is that the light shafts pass ran.
 final class LightShaftsDemo extends ShowcaseDemo {
   // A density per metre since 0.7.4 — a dusty doorway rather than a clear
   // day — and the phase that puts the glow towards the sun.
+  /// The air's density per metre, 0 to 0.1.
   double strength = 0.03;
+
+  /// How much the air scatters light forward, -0.9 (back) to 0.9.
   double anisotropy = 0.6;
+
+  /// How far along the view ray the march goes, in metres, 5 to 60.
   double distance = 30.0;
 
   @override

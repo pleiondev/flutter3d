@@ -10,9 +10,17 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `alpha-modes` page: one panel per alpha mode in front of a wall. Its
+/// check is that every mode has a panel and that the scene pass drew what
+/// each mode should.
 final class AlphaModesDemo extends ShowcaseDemo {
+  /// The panels' alpha, 0.1 to 1, written into each base colour.
   double opacity = 0.9;
+
+  /// The alpha below which a masked panel is cut away, 0.05 to 0.95.
   double cutoff = 0.5;
+
+  /// Whether the panels draw their back faces too.
   bool doubleSided = false;
 
   static const int _size = 64;

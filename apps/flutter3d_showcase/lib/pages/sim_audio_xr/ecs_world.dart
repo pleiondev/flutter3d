@@ -14,10 +14,15 @@ final class _Position {
   final double x;
 }
 
+/// The `ecs-world` page: entities saved and carried into a level that was
+/// edited since. Its check is that the remap carries each position to its own
+/// name.
 final class EcsWorldDemo extends ShowcaseDemo {
   late final double? _goblinX;
   late final double? _trollX;
 
+  /// Which edited level the save is reloaded into, an index into the four the
+  /// choice names.
   int reload = 0;
   int _shown = -1;
 

@@ -12,9 +12,13 @@ import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/scene_kit.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
+/// The `rewind` page: a runner whose last seconds are kept and lived again.
+/// Its check is that rewinding one second at ten steps a second lands on
+/// step 20 of a run at step 30.
 final class RewindDemo extends ShowcaseDemo {
   late final String _report;
 
+  /// Whether the page rewinds by itself, four seconds after the last rewind.
   bool automatic = true;
   bool _rewindAsked = false;
 

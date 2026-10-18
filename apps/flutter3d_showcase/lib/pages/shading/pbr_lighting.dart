@@ -8,9 +8,17 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `pbr-lighting` page: one ball and a sun. Its check is that the ball is
+/// drawn.
 final class PbrLightingDemo extends ShowcaseDemo {
+  /// How metallic the ball is, 0 to 1.
   double metallic = 0.0;
+
+  /// The ball's roughness, 0.05 to 1.
   double roughness = 0.4;
+
+  /// The sun's intensity as a multiple of `LightNode.defaultIntensity`, 0 to
+  /// 6.
   double sunIntensity = 3.0;
 
   late final RenderMaterial _ball;

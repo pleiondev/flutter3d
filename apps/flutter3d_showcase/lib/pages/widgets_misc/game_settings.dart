@@ -60,6 +60,9 @@ final class _SaveFile {
 }
 // #endregion save
 
+/// The `game-settings` page: a panel of settings and a save kept between
+/// launches. Its check is that an unset bus is at full volume, a save reads
+/// back with its level and state, and a cleared save reads back as nothing.
 final class GameSettingsDemo extends ShowcaseDemo {
   late final String _report;
   late final double _musicVolume;

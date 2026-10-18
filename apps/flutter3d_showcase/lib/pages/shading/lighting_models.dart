@@ -6,8 +6,14 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `lighting-models` page: one sphere per lighting model the engine
+/// ships. Its check is one draw per sphere, each model a pipeline of its own.
 final class LightingModelsDemo extends ShowcaseDemo {
+  /// Every sphere's roughness, 0.05 to 1.
   double roughness = 0.4;
+
+  /// The sun's intensity as a multiple of `LightNode.defaultIntensity`, 0 to
+  /// 6.
   double sunIntensity = 3.0;
 
   late final List<RenderMaterial> _materials;

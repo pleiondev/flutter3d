@@ -37,6 +37,9 @@ final class _Accommodations {
 }
 // #endregion value
 
+/// The `accommodations` page: a ball under a camera whose motion follows the
+/// platform's reduce-motion setting. Its check is that reduced motion zeroes
+/// the camera motion default and nothing else does.
 final class AccommodationsDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {

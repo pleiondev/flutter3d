@@ -10,6 +10,8 @@ import 'package:flutter3d/flutter3d.dart' as f3d show RenderMaterial;
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_stereo/flutter3d_stereo.dart';
 
+/// The `stereo-rig` page: a ball seen by a stereo pair side by side. Its
+/// check is that the rig draws two views, one filling each half of the frame.
 final class StereoRigDemo extends ShowcaseDemo {
   // #region rig
   final StereoRig _rig = StereoRig();

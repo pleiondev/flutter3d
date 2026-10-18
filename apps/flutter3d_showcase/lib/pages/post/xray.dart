@@ -6,8 +6,14 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `xray` page: a monster behind a wall whose silhouette is painted over
+/// the wall. Its check is that the scene pass made the x-ray draws on top of
+/// the meshes when stencil is there.
 final class XrayDemo extends ShowcaseDemo {
+  /// Whether the monster's silhouette is drawn through the wall.
   bool enabled = true;
+
+  /// The silhouette's colour: 0 orange, 1 green, 2 cyan.
   int colorChoice = 0;
 
   // #region layer

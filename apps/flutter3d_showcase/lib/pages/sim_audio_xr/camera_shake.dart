@@ -28,7 +28,12 @@ final class _ChaseTuning extends RigSettings {
 }
 // #endregion tuning
 
+/// The `camera-shake` page: a chasing rig following a runner, with a kick
+/// that shakes it. Its check is that an undisturbed rig settles onto its
+/// free eye.
 final class CameraShakeDemo extends ShowcaseDemo {
+  /// Set by the "Kick the rig" switch; the next update kicks the rig once and
+  /// turns it back off.
   bool shaken = false;
 
   late final CameraRig _rig;

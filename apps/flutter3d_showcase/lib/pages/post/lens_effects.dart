@@ -39,9 +39,17 @@ LUT_1D_SIZE 5
 ''';
 // #endregion tables
 
+/// The `lens-effects` page: a bright lamp throwing a flare, a distorted
+/// frame, and a colour table written by a grading tool. Its check is that the
+/// flare ran and the table maps white and warms mid grey as the file says.
 final class LensEffectsDemo extends ShowcaseDemo {
+  /// Whether the lamp throws a lens flare.
   bool flare = true;
+
+  /// How strong the flare's halo is, 0 to 1.
   double halo = 0.5;
+
+  /// How far the frame bows, -0.4 (pincushion) to 0.4 (barrel).
   double distortion = 0.15;
 
   /// 0 for no table, 1 for the warm 3D one, 2 for the 1D curve.

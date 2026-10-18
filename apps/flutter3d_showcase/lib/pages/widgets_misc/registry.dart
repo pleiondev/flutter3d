@@ -23,6 +23,8 @@ import 'scene_surface.dart';
 import 'storage.dart';
 import 'widget_surface.dart';
 
+/// How to build each page of the category, by page id; joined into the app's
+/// `kDemos`.
 final Map<String, DemoBuilder> widgetsMiscDemos = <String, DemoBuilder>{
   'widget-surface': WidgetSurfaceDemo.new,
   'scene-semantics': SceneSemanticsDemo.new,

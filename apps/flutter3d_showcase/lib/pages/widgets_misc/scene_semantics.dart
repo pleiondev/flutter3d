@@ -9,6 +9,9 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `scene-semantics` page: two wheels, each an accessibility node where
+/// the camera projects it. Its check is that both project to a node, left to
+/// the left, and that the overlay carries both.
 final class SceneSemanticsDemo extends ShowcaseDemo {
   late final MeshNode _leftWheel;
   late final MeshNode _rightWheel;

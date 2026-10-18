@@ -7,7 +7,10 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `wireframe` page: a knot drawn as lines. Its check is that a device
+/// that cannot draw wireframe says so.
 final class WireframeDemo extends ShowcaseDemo {
+  /// Whether the frame asks for wireframe.
   bool wireframe = true;
 
   @override

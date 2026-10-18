@@ -8,10 +8,21 @@ import 'dart:math' as math;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `transmission` page: a glass pane and a glass ball in front of a
+/// striped wall. Its check is that the scene was copied for the glass and the
+/// pass that draws the glass drew it.
 final class TransmissionDemo extends ShowcaseDemo {
+  /// How much light passes through the glass, 0 to 1.
   double transmission = 1.0;
+
+  /// The glass's roughness, 0 to 1.
   double roughness = 0.0;
+
+  /// The ball's thickness in the mesh's own units, as glTF measures it, 0 to
+  /// 1.5; the pane stays thin.
   double thickness = 0.9;
+
+  /// The glass's index of refraction, 1.0 to 2.4.
   double ior = 1.5;
 
   late final RenderMaterial _pane;

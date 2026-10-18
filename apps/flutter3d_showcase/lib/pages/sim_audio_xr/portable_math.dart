@@ -13,9 +13,12 @@ import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/scene_kit.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
+/// The `portable-math` page: a die rolled by a `GameRandom`. Its check is
+/// that two generators seeded alike roll the same sequence.
 final class PortableMathDemo extends ShowcaseDemo {
   late final String _report;
 
+  /// Whether the die keeps rolling, 24 rolls a second.
   bool rolling = true;
   bool _rollAsked = false;
 

@@ -11,6 +11,9 @@ import 'package:flutter3d/flutter3d.dart' as f3d show RenderMaterial;
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `scene-surface` page: a ball drawn through `SceneSurface`, and the
+/// screen shown when no renderer opened. Its check is that the ball is drawn
+/// and the explanation is carried through as given.
 final class SceneSurfaceDemo extends ShowcaseDemo {
   late Scene _scene;
 

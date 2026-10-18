@@ -32,6 +32,8 @@ import 'package:flutter3d_showcase/pages/shading/user_materials.dart';
 import 'package:flutter3d_showcase/pages/shading/wireframe.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// How to build each page of the category, by page id; joined into the app's
+/// `kDemos`.
 final Map<String, DemoBuilder> shadingDemos = <String, DemoBuilder>{
   'lighting-models': LightingModelsDemo.new,
   'pbr-lighting': PbrLightingDemo.new,

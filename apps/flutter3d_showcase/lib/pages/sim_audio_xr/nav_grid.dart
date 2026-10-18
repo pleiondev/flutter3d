@@ -11,9 +11,13 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
+/// The `nav-grid` page: slabs, a bridge and a gap baked into a walkable grid,
+/// and a probe swept over it. Its check is that the slabs and the bridge are
+/// walkable and the gap is not.
 final class NavGridDemo extends ShowcaseDemo {
   late final NavGrid _grid;
 
+  /// Whether the probe sweeps the grid on its own.
   bool sweeping = true;
   double _clock = 0.0;
 

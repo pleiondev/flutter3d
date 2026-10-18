@@ -7,7 +7,11 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `projections` page: a box through a perspective or an orthographic
+/// lens. Its check is that the orthographic matrix keeps w at 1 and the
+/// perspective one does not.
 final class ProjectionsDemo extends ShowcaseDemo {
+  /// Which lens the camera uses: 0 perspective, 1 orthographic.
   int choice = 0;
 
   late Projection _projection;

@@ -52,19 +52,46 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 /// What the page measured before its first frame.
 final class PhotoReport {
+  /// How many of the 600 random flights the camera made.
   int moves = 0;
+
+  /// How many flights ended outside the room or inside a solid; the check
+  /// wants none.
   int escapes = 0;
+
+  /// The furthest the camera got from the player, in metres; the check wants
+  /// it within the 5 m reach.
   double furthest = 0.0;
+
+  /// The z the photo camera began at, pulled inside the room from the game
+  /// camera behind the far wall.
   double startZ = 0.0;
+
+  /// How many tiles across the 640 by 360 picture was drawn in.
   int tilesX = 0;
+
+  /// How many tiles down the picture was drawn in.
   int tilesY = 0;
+
+  /// How many pixels of the tiled picture were compared with a single render.
   int pixels = 0;
+
+  /// How many pixels away from the seams differ from the single render by more
+  /// than 2; the check wants none.
   int awayFromSeams = 0;
+
+  /// How many pixels within two of a seam differ by more than 2.
   int atSeams = 0;
+
+  /// The largest difference in any channel between the tiled picture and the
+  /// single render, 0 to 255.
   int worst = 0;
 }
 
+/// The `photo-mode` page: a photo camera flown inside a room and a picture
+/// drawn in tiles. Its check reads [report].
 final class PhotoModeDemo extends ShowcaseDemo {
+  /// What the page measured before its first frame, read by its check.
   final PhotoReport report = PhotoReport();
 
   final ({CollisionWorld world, List<Aabb3> solids, Aabb3 bounds}) _level =

@@ -7,10 +7,19 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `shadow-settings` page: a column and a ball on the ground under the
+/// sun. Its check is that the sun drew a map holding both.
 final class ShadowSettingsDemo extends ShowcaseDemo {
+  /// The size of the sun's map: 0 for 256, up to 3 for 2048 texels.
   int resolutionChoice = 0;
+
+  /// The depth bias that keeps a surface from shadowing itself, 0 to 0.02.
   double bias = 0.0015;
+
+  /// How dark the shadow is, 0 to 1.
   double strength = 1.0;
+
+  /// How far from the eye the map is fitted for, in metres, 3 to 40.
   double viewDistance = 40.0;
 
   static const List<int> _resolutions = <int>[256, 512, 1024, 2048];

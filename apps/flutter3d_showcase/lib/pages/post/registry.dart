@@ -32,6 +32,8 @@ import 'package:flutter3d_showcase/pages/post/viewport_shading.dart';
 import 'package:flutter3d_showcase/pages/post/xray.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// How to build each page of the category, by page id; joined into the app's
+/// `kDemos`.
 final Map<String, DemoBuilder> postDemos = <String, DemoBuilder>{
   'bloom': BloomDemo.new,
   'ambient-occlusion': AmbientOcclusionDemo.new,

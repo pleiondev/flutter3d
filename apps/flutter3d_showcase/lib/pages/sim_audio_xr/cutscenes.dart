@@ -47,6 +47,10 @@ final class _Stage {
   String toString() => 'lamp $lampLit, gate $gateHeight, heard $heard';
 }
 
+/// The `cutscenes` page: a cutscene read from a document, with a lamp and a
+/// gate the game raises on its signals. Its check is that skipping ends where
+/// watching ends, the signals are answered, a restore fires nothing again,
+/// and the camera and the fade end where written.
 final class CutscenesDemo extends ShowcaseDemo {
   late final Sequence _sequence;
 
@@ -125,9 +129,12 @@ final class CutscenesDemo extends ShowcaseDemo {
   };
   // #endregion document
 
+  /// The rate the cutscene is read and stepped at.
   static const int stepsPerSecond = 60;
 
   // #region read
+  /// The page's document read into a [Sequence] at [stepsPerSecond]. Throws a
+  /// [FormatException] listing the problems when it does not read.
   static Sequence readSequence() {
     final SequenceRead read = Sequence.read(
       document,

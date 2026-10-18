@@ -11,11 +11,21 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
+/// The `terrain-tiles` page: ground cut into tiles at several levels of
+/// detail around a moving eye. Its check is that a near tile picks the fine
+/// level and a far one the coarse.
 final class TerrainTilesDemo extends ShowcaseDemo {
   late final String _report;
 
+  /// The distance within which tiles take the finest level, in metres, 4 to 16.
   double nearest = 8.0;
+
+  /// Whether the eye circles the ground on its own; dragging the slider stops
+  /// it.
   bool moving = true;
+
+  /// Where the eye stands on its circle round the ground, in radians, 0 to
+  /// 6.28.
   double eyeAngle = 0.0;
 
   late final HeightfieldTiles _tiles;

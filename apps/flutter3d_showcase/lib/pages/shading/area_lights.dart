@@ -10,9 +10,18 @@ import 'dart:math' as math;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `area-lights` page: a room lit by a window that is an area light,
+/// over a polished floor. Its check is that the window is an area light whose
+/// size and the floor's roughness track the sliders.
 final class AreaLightsDemo extends ShowcaseDemo {
+  /// The window's width in metres, 0.5 to 4.
   double width = 2.5;
+
+  /// The window's height in metres, 0.5 to 3; the light is dimmed as width
+  /// times height grows, so the room stays as bright.
   double height = 1.5;
+
+  /// The floor's roughness, 0.05 to 1: low shows the window's shape in it.
   double floorRoughness = 0.25;
 
   late final LightNode _window;

@@ -14,6 +14,9 @@ import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
+/// The `hot-swap` page: a poster and a hull whose files are swapped while
+/// they are on screen. Its check is that both files are taken, the model is
+/// adopted into its node, and paint set from outside survives the swap.
 final class HotSwapDemo extends ShowcaseDemo {
   /// The coordinator every `SceneSurface` registers with. It holds nothing
   /// outside a debug build.

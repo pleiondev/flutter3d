@@ -17,10 +17,16 @@ final class _ScoreChanged extends GameEvent {
   String get name => 'ScoreChanged($total)';
 }
 
+/// The `step-systems` page: a coin collected by systems added to the fixed
+/// step. Its check is that a lower order runs first whatever the
+/// registration order, and that a removed system does not run.
 final class StepSystemsDemo extends ShowcaseDemo {
   late final String _report;
 
+  /// Whether scoring runs before input rather than after it.
   bool scoringFirst = false;
+
+  /// Whether the logging system is registered.
   bool loggingOn = true;
 
   bool _dirty = true;

@@ -7,7 +7,10 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `specular-scale` page: a shiny ball under a sun. Its check is that the
+/// ball is shiny enough to show a highlight.
 final class SpecularScaleDemo extends ShowcaseDemo {
+  /// The frame's specular scale, 0 to 3; 1 leaves every material as it is.
   double specular = 1.5;
 
   late final RenderMaterial _ball;

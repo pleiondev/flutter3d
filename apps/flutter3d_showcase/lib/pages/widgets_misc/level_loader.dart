@@ -9,6 +9,9 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `level-loader` page: a level document loaded into nodes. Its check is
+/// that its one brush became one mesh node and that a clean document loads
+/// with no issues.
 final class LevelLoaderDemo extends ShowcaseDemo {
   late LoadedLevel _loaded;
   late SharedMeshes _shared;

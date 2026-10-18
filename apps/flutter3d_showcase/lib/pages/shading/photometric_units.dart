@@ -7,8 +7,16 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `photometric-units` page: a ball under an overcast sky given in lux
+/// and a lamp given in lumens. Its check is that both intensities convert
+/// back to the numbers they came from.
 final class PhotometricUnitsDemo extends ShowcaseDemo {
+  /// The sky's illuminance in lux, 500 to 20000, used as its intensity as it
+  /// is.
   double overcastLux = 10000.0;
+
+  /// The lamp's output in lumens, 100 to 1600, converted with
+  /// `Photometric.fromLumens`.
   double lampLumens = 800.0;
 
   late final LightNode _sky;

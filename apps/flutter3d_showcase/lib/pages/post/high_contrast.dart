@@ -8,10 +8,20 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `high-contrast` page: tiles and crates in the high-contrast look,
+/// each crate outlined in its role's colour. Its check is that the look pass
+/// and the outline mask run exactly when they should.
 final class HighContrastDemo extends ShowcaseDemo {
+  /// Whether the high-contrast look is on.
   bool look = true;
+
+  /// Whether each crate's outline takes its role's colour.
   bool roles = true;
+
+  /// How much colour the look keeps, 0 to 1.
   double saturation = 0.25;
+
+  /// The look's contrast, 1 to 3.
   double contrast = 1.5;
 
   final List<(MeshNode, Vector3)> _marked = <(MeshNode, Vector3)>[];

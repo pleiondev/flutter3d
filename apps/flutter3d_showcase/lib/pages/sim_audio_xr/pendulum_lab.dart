@@ -69,10 +69,16 @@ final class _Pendulum {
 }
 // #endregion pendulum
 
+/// The `pendulum-lab` page: a student's pendulum run beside the assignment,
+/// digested at checkpoints. Its check is that a length changed at step 30 is
+/// caught at the checkpoint covering it.
 final class PendulumLabDemo extends ShowcaseDemo {
   late final String _report;
 
+  /// The step at which the student's run changes its length, 40 to 200.
   double changeAt = 100.0;
+
+  /// The length it changes to, in metres, 0.6 to 2.
   double newLength = 1.5;
 
   static const int _steps = 240;

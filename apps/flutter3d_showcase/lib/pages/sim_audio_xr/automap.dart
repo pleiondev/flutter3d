@@ -9,10 +9,14 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
+/// The `automap` page: a walker revealing a level's map as it goes. Its check
+/// is that a cell it passed near is floor and one nobody went near is not
+/// revealed.
 final class AutomapDemo extends ShowcaseDemo {
   late final NavGrid _grid;
   late Automap _map;
 
+  /// How fast the walker goes, in metres a second, 1 to 10.
   double speed = 3.0;
   bool _forgetAsked = false;
   final Vector3 _walker = Vector3(2.0, 0.0, 2.0);

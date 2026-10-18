@@ -7,9 +7,16 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `soft-shadows` page: a pole and a slab on the ground, lit by a sun or
+/// a lamp of a size. Its check is that the light that is on drew its shadow.
 final class SoftShadowsDemo extends ShowcaseDemo {
+  /// The sun's angular radius in radians, 0 to 0.2, shown in degrees.
   double sunRadius = 0.05;
+
+  /// The lamp's radius in metres, 0 to 0.6.
   double lampRadius = 0.3;
+
+  /// Which light casts: 0 the sun, 1 the lamp.
   int lightChoice = 0;
 
   late final LightNode _sun;

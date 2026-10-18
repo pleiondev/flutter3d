@@ -9,8 +9,16 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/pages/post/post_stage.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `adaptive-resolution` page: the post stage drawn at the scale
+/// `AdaptiveScale` picks for a frame cost the page pretends. Its check is
+/// that the frame came out at that scale of 320 by 180.
 final class AdaptiveResolutionDemo extends ShowcaseDemo {
+  /// The frame cost fed to `AdaptiveScale` each frame, in milliseconds, 4 to
+  /// 40, standing in for a measured one.
   double simulatedMs = 20.0;
+
+  /// The render scale `AdaptiveScale` answered with on the last update, read
+  /// into `RenderSettings.renderScale`; 1 is full size.
   double scale = 1.0;
 
   // #region adaptive

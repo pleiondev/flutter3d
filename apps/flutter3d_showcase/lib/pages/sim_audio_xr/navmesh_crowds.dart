@@ -90,6 +90,10 @@ final class _Crowd {
   }
 }
 
+/// The `navmesh-crowds` page: a navigation mesh baked from a small level, a
+/// route round a wall, a jump onto a ledge, and a crowd crossing a circle.
+/// Its check is the route round the wall, the jump, the hole once the wall is
+/// broken, and rebaked tiles equal to a whole bake.
 final class NavmeshCrowdsDemo extends ShowcaseDemo {
   late NavMesh _mesh;
   late final NavMesh _jumpMesh;
@@ -103,7 +107,10 @@ final class NavmeshCrowdsDemo extends ShowcaseDemo {
   final List<MeshNode> _people = <MeshNode>[];
   late final MeshNode _walker;
 
+  /// Whether the wall is broken, which rebakes only its tiles.
   bool broken = false;
+
+  /// Whether the mesh's polygons are drawn.
   bool showMesh = true;
   double _along = 0.0;
   double _crowdAge = 0.0;

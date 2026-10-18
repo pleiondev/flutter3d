@@ -9,10 +9,22 @@ import 'dart:math' as math;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `static-shadow-cache` page: two walls and a mover around a lamp, the
+/// walls cached in a static atlas. Its check is that the atlas was baked and
+/// the first frame drew the walls into it.
 final class StaticShadowCacheDemo extends ShowcaseDemo {
+  /// Whether the walls are marked `shadowIsStatic`.
   bool wallsAreStatic = true;
+
+  /// Whether the mover circles the lamp, a radian a second.
   bool moverOrbits = true;
+
+  /// Whether the static atlas is shown on screen; turning it on hides the
+  /// moving one.
   bool showStatic = false;
+
+  /// Whether the moving atlas is shown on screen; turning it on hides the
+  /// static one.
   bool showMoving = false;
 
   late final Scene _scene;

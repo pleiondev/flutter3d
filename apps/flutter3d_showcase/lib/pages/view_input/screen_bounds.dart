@@ -14,7 +14,12 @@ import 'package:flutter3d/flutter3d.dart' as f3d show RenderMaterial;
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `screen-bounds` page: a cube, a sphere and a pillar moving about, each
+/// ringed by the rectangle its box lands on. Its check is that each is in
+/// front of the camera, inside its own rectangle, which is not degenerate.
 final class ScreenBoundsDemo extends ShowcaseDemo {
+  /// Which thing is ringed: 0 the cube, 1 the sphere, 2 the pillar, 3 all
+  /// three.
   int ringed = 3;
 
   late final CameraNode _camera;

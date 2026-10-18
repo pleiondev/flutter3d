@@ -9,7 +9,10 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
+/// The `fixed-step` page: a marker stepped at a fixed rate and drawn
+/// interpolated. Its check is that a 1/60 s frame runs exactly one step.
 final class FixedStepDemo extends ShowcaseDemo {
+  /// Whether the menu is open, which pauses the step.
   bool menuOpen = false;
 
   // #region clock

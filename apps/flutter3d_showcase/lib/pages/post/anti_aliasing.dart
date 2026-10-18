@@ -9,8 +9,14 @@ import 'dart:math' as math;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `anti-aliasing` page: a wheel of thin spokes whose edges FXAA
+/// smooths. Its check is that the frame ran FXAA exactly when it was asked
+/// to.
 final class AntiAliasingDemo extends ShowcaseDemo {
+  /// Whether edges are smoothed; the "Smooth edges" switch.
   bool enabled = true;
+
+  /// How strongly the frame is sharpened with FXAA's taps, 0 to 1.
   double sharpen = 0.0;
 
   /// FXAA or SMAA 1x, as [EdgeSmoothing.fxaa] and [EdgeSmoothing.smaa].

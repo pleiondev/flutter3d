@@ -10,6 +10,10 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `material-language` page: a ball drawn by a material written in the
+/// material language. Its check is what the body reads, that evaluating it
+/// agrees with the sum worked by hand, and that the fragment has an entry
+/// point.
 final class MaterialLanguageDemo extends ShowcaseDemo {
   late final MaterialProgram _specialised;
   late final String _glsl;

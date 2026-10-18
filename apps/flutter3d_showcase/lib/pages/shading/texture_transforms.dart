@@ -10,9 +10,17 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `texture-transforms` page: two plates with one texture, the second
+/// moving its colour and glow maps apart. Its check is that the moved plate
+/// carries a transform per map.
 final class TextureTransformsDemo extends ShowcaseDemo {
+  /// How far the colour map is turned, in radians, 0 to 2π.
   double turn = math.pi / 4;
+
+  /// How many times the colour map repeats across the plate, 1 to 4.
   double repeat = 2.0;
+
+  /// How far the glow map slides along U, 0 to 0.5 of a tile.
   double slide = 0.5;
 
   static const SamplerDescriptor _nearestRepeat = SamplerDescriptor(

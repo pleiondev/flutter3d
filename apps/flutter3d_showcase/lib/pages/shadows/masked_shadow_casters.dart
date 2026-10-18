@@ -13,10 +13,13 @@ import 'package:flutter3d_showcase/src/demo/demo.dart';
 /// A grid of soft discs on a clear background: opaque in the middle of each
 /// disc, fading to nothing at its rim.
 final class DiscsTexture extends ProceduralTexture {
+  /// A texture [size] texels square, cut into [cells] discs a side.
   const DiscsTexture({this.size = 64, this.cells = 4});
 
   @override
   final int size;
+
+  /// How many discs fit along each side.
   final int cells;
 
   @override
@@ -41,8 +44,15 @@ final class DiscsTexture extends ProceduralTexture {
 }
 // #endregion texture
 
+/// The `masked-shadow-casters` page: a canopy of leaves cut out of a disc
+/// texture, over the ground in the sun. Its check is that the canopy is a
+/// masked caster and the sun drew a map.
 final class MaskedShadowCastersDemo extends ShowcaseDemo {
+  /// Whether the canopy is cut out by its alpha, rather than opaque.
   bool cutOut = true;
+
+  /// The alpha below which the canopy is cut away, in its picture and its
+  /// shadow, 0.05 to 0.95.
   double cutoff = 0.5;
 
   late final RenderMaterial _leaves;

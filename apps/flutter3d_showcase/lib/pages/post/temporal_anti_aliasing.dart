@@ -10,11 +10,23 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/pages/post/post_stage.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `temporal-anti-aliasing` page: a railing of thin bars in front of a
+/// wall that changes colour, resolved over frames.
 final class TemporalAntiAliasingDemo extends ShowcaseDemo {
+  /// Whether the temporal resolve runs.
   bool temporal = true;
+
+  /// Whether the wall turns yellow for two seconds out of every four, to show
+  /// what the history clip does with a change.
   bool swapWall = true;
+
+  /// How much of the history each frame keeps, 0 to 0.98.
   double historyWeight = 0.9;
+
+  /// How much the resolve sharpens, 0 to 1.
   double sharpen = 0.25;
+
+  /// How the history is clipped to the new frame's neighbourhood.
   TemporalClip clip = TemporalClip.aabb;
 
   /// Seconds since the page opened, which is what moves the railing.

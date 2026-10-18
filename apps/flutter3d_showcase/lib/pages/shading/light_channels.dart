@@ -7,7 +7,12 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `light-channels` page: a red light on channel 1 and two balls, only
+/// the far one on that channel at first. Its check is that the red light
+/// reaches the ball it lights and is restricted to a channel.
 final class LightChannelsDemo extends ShowcaseDemo {
+  /// Whether the near ball opens channel 1 as well, so the red light reaches
+  /// it too.
   bool sameChannel = false;
 
   late final LightNode _redLight;

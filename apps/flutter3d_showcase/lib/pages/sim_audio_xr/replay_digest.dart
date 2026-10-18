@@ -14,9 +14,14 @@ import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/scene_kit.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
+/// The `replay-digest` page: a run and its replay, digested at checkpoints.
+/// Its check is that two recordings of one run agree, that a drift is
+/// reported at the first checkpoint covering it, and that a trace reads back
+/// what it wrote.
 final class ReplayDigestDemo extends ShowcaseDemo {
   late final String _report;
 
+  /// The step from which the replay drifts, 1 to 20; 21 means it never does.
   double driftAt = 9.0;
   bool _dirty = true;
   late final List<BarGauge> _original;

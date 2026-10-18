@@ -7,12 +7,27 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `contact-shadows` page: a crate and a ball on the ground, darkened
+/// where they touch it. Its check is that the contact shadow pass ran and
+/// drew.
 final class ContactShadowsDemo extends ShowcaseDemo {
+  /// Whether the contact shadow pass runs.
   bool contact = true;
+
+  /// Whether the sun casts its shadow map as well.
   bool shadowMap = false;
+
+  /// How far each march toward the sun goes, in metres, 0.05 to 1.5.
   double length = 0.4;
+
+  /// How many steps the march takes, 1 to 16, rounded.
   double steps = 12.0;
+
+  /// How thick a surface is assumed to be behind the depth it shows, in
+  /// metres, 0.02 to 0.6.
   double thickness = 0.15;
+
+  /// How dark the contact shadow is, 0 to 1.
   double strength = 1.0;
 
   late final LightNode _sun;

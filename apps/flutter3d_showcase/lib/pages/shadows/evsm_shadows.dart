@@ -7,9 +7,17 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `evsm-shadows` page: a floor and grey shapes under the sun, its
+/// shadow filtered as exponential moments. Its check is that the sun drew a
+/// map and, with EVSM picked, that the map was turned into moments.
 final class EvsmShadowsDemo extends ShowcaseDemo {
+  /// Which filter reads the shadow: 0 PCF, 1 PCSS, 2 EVSM.
   int filterChoice = 2;
+
+  /// The radius of the blur over the moments, in texels, 0 to 8, rounded.
   double blurRadius = 4;
+
+  /// How much light bleeding is cut away, 0 to 0.95.
   double bleedReduction = 0.2;
 
   // #region filters

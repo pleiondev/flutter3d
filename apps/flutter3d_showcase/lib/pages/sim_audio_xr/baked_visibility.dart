@@ -12,10 +12,18 @@ import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/scene_kit.dart';
 
+/// The `baked-visibility` page: a corridor and a room, with an eye whose
+/// side of a solid wall stays visible. Its check is that the near side shows
+/// and the far side behind a wall with no doorway is hidden.
 final class BakedVisibilityDemo extends ShowcaseDemo {
   late final String _report;
 
+  /// Where the eye stands along x, in metres, -1 to 10.9; written each frame
+  /// while [walking].
   double eyeX = 0.0;
+
+  /// Whether the eye walks back and forth on its own; dragging the slider
+  /// stops it.
   bool walking = true;
 
   late final VisibilityCuller _live;

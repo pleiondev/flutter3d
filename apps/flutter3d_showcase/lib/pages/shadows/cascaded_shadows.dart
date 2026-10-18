@@ -7,10 +7,20 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `cascaded-shadows` page: a long row of pillars under the sun, its
+/// shadow split into cascades. Its check is that the sun got its shadow.
 final class CascadedShadowsDemo extends ShowcaseDemo {
+  /// How many cascades the sun's shadow is split into, 1 to 4.
   int cascades = 3;
+
+  /// How the cascades are spaced, 0.1 to 0.95, between even and logarithmic.
   double split = 0.7;
+
+  /// How far from the eye the cascades reach, in metres, 10 to 120.
   double viewDistance = 60.0;
+
+  /// The size of each cascade's map: 0 for 512, 1 for 1024, 2 for 2048
+  /// texels.
   int resolutionChoice = 1;
 
   static const List<int> _resolutions = <int>[512, 1024, 2048];

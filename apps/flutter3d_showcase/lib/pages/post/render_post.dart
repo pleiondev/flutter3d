@@ -7,9 +7,17 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `render-post` page: a bar rendered once by a second eye, put through
+/// `renderPost`, and shown on a screen in the scene. Its check is that
+/// `renderPost` was called and drew into its target.
 final class RenderPostDemo extends ShowcaseDemo {
+  /// The brightness above which `renderPost` blooms the image, 0.1 to 1.5.
   double threshold = 0.6;
+
+  /// How much bloom `renderPost` adds back, 0 to 1.5.
   double intensity = 0.6;
+
+  /// The exposure `renderPost` applies to the image, 0.3 to 3.
   double exposure = 1.0;
 
   static const int _width = 320;

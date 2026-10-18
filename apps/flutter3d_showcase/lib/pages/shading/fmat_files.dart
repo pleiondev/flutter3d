@@ -14,6 +14,9 @@ import 'package:flutter3d/flutter3d.dart' as f3d show RenderMaterial;
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `fmat-files` page: a hull plate whose material went through `.fmat`
+/// and back. Its check is that the round trip changed nothing, a clean file
+/// does not warn, and a file with an unknown key does.
 final class FmatFilesDemo extends ShowcaseDemo {
   late final String _text;
   late final MaterialDocument _roundTripped;

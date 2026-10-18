@@ -8,10 +8,19 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/pages/post/post_stage.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `local-exposure` page: a dark plastered room with a bright window of
+/// sky. Its check is that the pass does not run while it is off.
 final class LocalExposureDemo extends ShowcaseDemo {
+  /// Whether local exposure is on.
   bool local = true;
+
+  /// How much of the local exposure is applied, 0 to 1.
   double strength = 1.0;
+
+  /// How many stops the shadows may be lifted, 0 to 4.
   double shadowStops = 2.0;
+
+  /// How many stops the highlights may be pulled down, 0 to 4.
   double highlightStops = 2.0;
 
   @override

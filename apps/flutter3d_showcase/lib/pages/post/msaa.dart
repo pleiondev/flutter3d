@@ -8,7 +8,12 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/pages/post/post_stage.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `msaa` page: the post stage multisampled by the scene pass. Its check
+/// is that the frame multisampled unless the device cannot or the surface
+/// buffer is in use, and said which.
 final class MsaaDemo extends ShowcaseDemo {
+  /// Whether ambient occlusion is on, which reads the surface buffer and so
+  /// costs the scene pass its multisampling.
   bool readSurface = false;
 
   late final bool _deviceCanMsaa;

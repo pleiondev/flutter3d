@@ -11,10 +11,17 @@ import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/scene_kit.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
+/// The `flow-field` page: agents walking a flow field swept from a goal.
+/// Its check is that open floor always has a direction and that it points
+/// towards the goal.
 final class FlowFieldDemo extends ShowcaseDemo {
   late final String _report;
 
+  /// Which goal the field is swept from, an index into the four the choice
+  /// names; moved every twelve seconds while [cycling].
   int goal = 0;
+
+  /// Whether the goal moves on its own; picking one stops it.
   bool cycling = true;
 
   late final NavGrid _grid;

@@ -12,8 +12,14 @@ import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/scene_kit.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
+/// The `procedural-levels` page: a level of rooms made from a seed. Its
+/// check is that a seed makes the same level twice and that its exit can be
+/// walked to.
 final class ProceduralLevelsDemo extends ShowcaseDemo {
+  /// The seed the level is made from, 1 to 64, rounded.
   double seed = 7;
+
+  /// How densely rooms are laid out, 0.3 to 0.95.
   double density = 0.7;
 
   bool _dirty = true;

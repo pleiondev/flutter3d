@@ -9,10 +9,21 @@ import 'dart:math' as math;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `draw-state` page: a panel, a box and a flag that show draw order,
+/// depth writes, the depth test and back-face culling. Its check is that the
+/// panel is ordered first, writes no depth, and every mesh is drawn.
 final class DrawStateDemo extends ShowcaseDemo {
+  /// The panel's draw bucket, -1 to 1: a lower bucket is drawn earlier.
   int bucket = -1;
+
+  /// Whether the panel writes depth; off leaves the material's `depthWrite`
+  /// false.
   bool panelWritesDepth = false;
+
+  /// The panel's depth test: 0 the default less, 1 always.
   int testChoice = 0;
+
+  /// Whether back faces are culled; the flag shows its back when this is off.
   bool cullBackFaces = true;
 
   static const List<String> _tests = <String>['less', 'always'];

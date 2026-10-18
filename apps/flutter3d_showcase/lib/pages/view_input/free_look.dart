@@ -9,8 +9,15 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `free-look` page: a camera that turns its head and walks among posts
+/// laid out around it. Its check is that walking moved it as far as it
+/// should and that it stands among the posts.
 final class FreeLookDemo extends ShowcaseDemo {
+  /// Whether the camera walks forward on its own.
   bool walkingForward = true;
+
+  /// How fast the head turns, -1 to 1: the share of a 75-pixel drag a second
+  /// fed to the look.
   double turn = 0.3;
 
   late final FreeLook _freeLook;

@@ -7,8 +7,14 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `screen-space-reflections` page: a polished floor with a beacon on
+/// it. Its check is that the reflections pass ran.
 final class ScreenSpaceReflectionsDemo extends ShowcaseDemo {
+  /// The floor's roughness, 0.02 to 0.4: the rougher, the blurrier the
+  /// reflection.
   double roughness = 0.05;
+
+  /// How strong the reflections are, 0 to 1.5.
   double intensity = 1.0;
 
   late final RenderMaterial _floor;

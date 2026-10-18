@@ -44,8 +44,18 @@ const List<String> _pictures = <String>[
   'Corrected for tritan',
 ];
 
+/// The `colour-vision` page: four role-coloured marks drawn as a colour-
+/// blind player sees them, corrected, or in colours the player chose. Its
+/// check is that the lint catches red against green for a deutan, and that
+/// to a deutan the player's colours stand three times further apart than the
+/// defaults and the correction moves them apart too.
 final class ColourVisionDemo extends ShowcaseDemo {
+  /// Which picture is drawn: 0 as drawn, 1 to 3 seen by a protan, deutan or
+  /// tritan, 4 to 6 corrected for them.
   int picture = 2;
+
+  /// Whether the marks wear the colours the player chose rather than their
+  /// roles' defaults.
   bool playerColours = false;
 
   final GameSettings _defaults = const GameSettings();

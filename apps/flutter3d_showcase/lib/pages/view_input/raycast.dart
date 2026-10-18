@@ -7,6 +7,8 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `raycast` page: a ball hit by a ray cast on the CPU. Its check is
+/// that a ray through the centre of the screen hits the ball.
 final class RaycastDemo extends ShowcaseDemo {
   late final CameraNode _camera;
   late final Scene _scene;
@@ -15,6 +17,8 @@ final class RaycastDemo extends ShowcaseDemo {
   final Raycaster _raycaster = Raycaster();
   // #endregion raycaster
 
+  /// What the last ray through the centre of the screen hit, or null when it
+  /// missed.
   HitResult? lastHit;
 
   @override

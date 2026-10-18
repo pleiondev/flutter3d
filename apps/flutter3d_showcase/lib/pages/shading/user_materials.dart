@@ -15,6 +15,10 @@ import 'package:flutter3d_cpu/flutter3d_cpu.dart'
     show CpuDevice, CpuLoadedShaderLibrary;
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
+/// The `user-materials` page: three toon spheres of one instanced batch
+/// drawn by a material in the engine's language. Its check is that the bundle
+/// came from the page's source, each copy reads its own colour, and the
+/// shading falls into at most five shades.
 final class UserMaterialsDemo extends ShowcaseDemo {
   // #region source
   /// The `.f3dmat` this page draws. `user_materials.f3dshaders` beside this
