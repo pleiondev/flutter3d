@@ -1816,7 +1816,7 @@ fn fs_main(@builtin(position) at: vec4<f32>) -> @location(0) vec4<f32> {
   String get backendName => _backend;
 
   @override
-  String get backendId => 'webgpu';
+  BackendId get backendId => BackendId.webgpu;
 
   // -------------------------------------------------- 1.0: loss and labels
 

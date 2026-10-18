@@ -53,7 +53,7 @@ final class GpuRenderBackend extends GraphicsDevice
   String get backendName => 'Impeller';
 
   @override
-  String get backendId => 'impeller';
+  BackendId get backendId => BackendId.impeller;
 
   /// [image] — a widget rasterised by `RepaintBoundary.toImage`, a decoded
   /// picture — as a texture over its own GPU storage, with no copy through

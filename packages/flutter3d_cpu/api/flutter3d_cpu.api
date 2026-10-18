@@ -702,6 +702,7 @@ abstract base class CpuComputeShader
   const CpuComputeShader()
 
 final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback
+  BackendId get backendId
   ByteData readBufferSync(StorageBuffer buffer, {int offsetInBytes = 0, int? sizeInBytes})
   CommandEncoder beginRenderPass(RenderPassDescriptor descriptor)
   ComputeEncoder beginComputePass({String? label, PassTimestampWrites? timestampWrites})
@@ -722,7 +723,6 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback
   RenderBundleEncoder createRenderBundleEncoder(RenderBundleDescriptor descriptor)
   StorageBuffer createBuffer(BufferDescriptor descriptor, {ByteData? contents})
   Stream<DeviceLoss> get lost
-  String get backendId
   String get backendName
   TextureFormat get defaultColorFormat
   TextureFormat get defaultDepthStencilFormat

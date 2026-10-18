@@ -47,7 +47,7 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback {
   String get backendName => 'the software rasteriser';
 
   @override
-  String get backendId => 'cpu';
+  BackendId get backendId => BackendId.cpu;
 
   /// Everything here, compute included, runs in Dart on the CPU — unless
   /// a test made it stand in for a GPU (`cpuComputeDeviceStandingInForGpu`

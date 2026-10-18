@@ -43,6 +43,7 @@ import 'dart:typed_data';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
     show LinearColor;
 
+import 'backend_id.dart';
 import 'capabilities.dart';
 import 'command_encoder.dart';
 import 'compute.dart';
@@ -168,7 +169,7 @@ final class MaskedDevice extends GraphicsDevice {
 
   /// [inner]'s: a mask is not another backend.
   @override
-  String get backendId => inner.backendId;
+  BackendId get backendId => inner.backendId;
 
   @override
   bool get isSoftware => inner.isSoftware;

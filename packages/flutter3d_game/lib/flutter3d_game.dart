@@ -108,6 +108,7 @@ export 'package:flutter3d/flutter3d.dart'
         AtmosphereCycle,
         AtmosphereKey,
         AutoExposureSettings,
+        BackendId,
         BackendOpener,
         BakedPoses,
         BindUniformBlockObject,

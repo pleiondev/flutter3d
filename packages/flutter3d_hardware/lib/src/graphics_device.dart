@@ -11,6 +11,7 @@ import 'package:flutter3d_foundation/flutter3d_foundation.dart'
     show Flutter3dException, UnsupportedCapabilityException;
 import 'package:meta/meta.dart';
 
+import 'backend_id.dart';
 import 'capabilities.dart';
 import 'command_encoder.dart';
 import 'compute.dart';
@@ -750,16 +751,16 @@ abstract base class GraphicsDevice with TextureAllocator {
   ///
   /// [backendName] is for people ("WebGL2", "the software rasteriser"); this
   /// is for matching, so it is short, lower case and fixed for good once a
-  /// backend ships: `cpu`, `webgl`, `webgpu`, `impeller` for the engine's
-  /// four. A `MaterialCompiler` for this backend answers the same string as
-  /// its `backend`. [backendName] in lower case by default, so a backend
+  /// backend ships: the constants of [BackendId] for the engine's own. A
+  /// `MaterialCompiler` for this backend answers the same string as its
+  /// `backend`. [backendName] in lower case by default, so a backend
   /// that names itself "Vulkan" is `vulkan` unless it says otherwise.
   ///
   /// **Override it with a constant.** The default follows [backendName], so
   /// a backend that renames itself for people would silently change the id
   /// every compiler and manifest matches; the engine's backends, `wgpu`, the
   /// null example and the backend template all say theirs outright.
-  String get backendId => backendName.toLowerCase();
+  BackendId get backendId => BackendId(backendName.toLowerCase());
 
   /// Whether this device does its work on the CPU, as the software
   /// rasteriser does, rather than on a GPU — since 1.0.0-rc.1.

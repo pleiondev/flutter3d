@@ -59,6 +59,7 @@ Registration registerNullBackend(
 /// [MaterialCompileRequest.stages] (the material as GLSL) or from
 /// `compileStage` in `package:flutter3d_shaders/compile.dart`.
 final class NullMaterialCompiler extends MaterialCompiler {
+  /// Keeps no state: one compiler serves every material.
   const NullMaterialCompiler();
 
   /// The device's `backendId`, which the registry matches exactly.

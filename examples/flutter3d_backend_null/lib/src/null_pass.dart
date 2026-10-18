@@ -14,8 +14,10 @@ import 'null_device.dart';
 /// bundles) has a default that refuses with the feature named, which is
 /// this device's answer; a backend that has the feature overrides it.
 final class NullPass extends PassEncoder with CommandEncoder {
+  /// A pass recorded for [device], which nothing draws.
   NullPass(this.device);
 
+  /// The device that opened this pass, whose textures a clear writes.
   final NullDevice device;
 
   PipelineHandle? _pipeline;
@@ -186,8 +188,10 @@ final class NullPass extends PassEncoder with CommandEncoder {
 /// and the rest refused by their features through [TransferEncoder]'s own
 /// defaults, since it has no buffers.
 final class NullTransfer extends TransferEncoder {
+  /// A copy encoder for [device]'s textures.
   NullTransfer(this.device);
 
+  /// The device whose textures the copies read and write.
   final NullDevice device;
 
   @override

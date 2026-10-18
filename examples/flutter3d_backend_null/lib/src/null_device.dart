@@ -54,7 +54,7 @@ final class NullDevice extends GraphicsDevice {
   /// compiler and a manifest match is fixed for good, and must not follow a
   /// later rewording of the name people read.
   @override
-  String get backendId => name;
+  BackendId get backendId => const BackendId(name);
 
   /// Little beyond the base contract: texture-to-texture copies, 32-bit
   /// float targets, which it holds as it holds every other, and 32-bit
@@ -488,6 +488,7 @@ final class NullShaderLibrary with ShaderLibrary {
 
 /// A loaded bundle's stages by name, kept across a reload that keeps them.
 final class NullLoadedShaderLibrary with ShaderLibrary, LoadedShaderLibrary {
+  /// The stages of [bundle], named as its sections name them.
   NullLoadedShaderLibrary(ShaderBundle bundle)
     : _bundle = bundle,
       _names = _namesIn(bundle);

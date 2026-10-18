@@ -151,7 +151,7 @@ final class WgpuComputeDevice extends GraphicsDevice
   /// Fixed for good, rather than [backendName] in lower case: the name for
   /// people may change, the id a compiler and a manifest match may not.
   @override
-  String get backendId => 'wgpu';
+  BackendId get backendId => BackendId.wgpu;
 
   /// The adapter wgpu chose, as it names itself.
   String get adapterName => _text(

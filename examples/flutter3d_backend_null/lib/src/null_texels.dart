@@ -11,6 +11,9 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 /// keeps its texture in that API instead; this is the part of a backend
 /// such an API does for it.
 final class NullTexels {
+  /// Zeroed texels for [layers] layers of [levels] mip levels each, the
+  /// first level [width] by [height] and each next one half as big, never
+  /// below one texel.
   NullTexels({
     required this.width,
     required this.height,
@@ -24,7 +27,10 @@ final class NullTexels {
            ],
        ];
 
+  /// Width of the first mip level, in texels.
   final int width;
+
+  /// Height of the first mip level, in texels.
   final int height;
   final List<List<Float32List>> _levels;
 

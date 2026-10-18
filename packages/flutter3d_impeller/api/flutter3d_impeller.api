@@ -12,6 +12,7 @@ final class GpuFrameImage extends StatefulWidget
   final TextureHandle frame
 
 final class GpuRenderBackend extends GraphicsDevice with PlatformTextures<ui.Image>
+  BackendId get backendId
   CommandEncoder beginRenderPass(RenderPassDescriptor descriptor)
   ComputeEncoder beginComputePass({String? label, PassTimestampWrites? timestampWrites})
   ComputePipelineHandle createComputePipeline(ShaderHandle shader)
@@ -32,7 +33,6 @@ final class GpuRenderBackend extends GraphicsDevice with PlatformTextures<ui.Ima
   ShaderLibrary get shaders
   StorageBuffer createBuffer(BufferDescriptor descriptor, {ByteData? contents})
   Stream<DeviceLoss> get lost
-  String get backendId
   String get backendName
   TextureFormat get defaultColorFormat
   TextureFormat get defaultDepthStencilFormat

@@ -34,6 +34,9 @@
 /// file appears in the new backend, and that is all.
 library;
 
+/// The name a backend is matched by, and the engine's five.
+export 'src/backend_id.dart';
+
 /// What a device can do: features, limits, per-format support, and the
 /// refusal every gated call throws.
 export 'src/capabilities.dart';

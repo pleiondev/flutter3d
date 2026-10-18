@@ -1,5 +1,9 @@
 ## 1.0.0-rc.1
 
+- **Breaking: a backend is named by a `BackendId`.** `CpuDevice.backendId`
+  answers a `BackendId`, an extension type over the same string, so a read
+  compiles and compares as before; a backend of your own overrides it with
+  `const BackendId('name')`.
 - **The light shafts and the volumetric fog pick a cascade as a surface
   does**, by the way along the ray from the eye's plane: the distance from
   the eye through a perspective lens, as before, and the depth along the

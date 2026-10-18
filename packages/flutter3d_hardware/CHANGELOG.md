@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1
 
+- **Breaking: a backend is named by a `BackendId`.**
+  `GraphicsDevice.backendId` and `RecordingDevice.backendId` answers a
+  `BackendId`, an extension type over the same string, so a read compiles
+  and compares as before; a backend of your own overrides it with `const
+  BackendId('name')`.
 - **Breaking: `ComputePlacement` gains `nativeSimd`, work's own native
   lanes.** `ComputePlacement.values` ends with it, so code that listed the
   three devices from `values` reads a fourth. Work that brings its own code on the processor's vector

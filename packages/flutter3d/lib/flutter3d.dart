@@ -781,6 +781,7 @@ export 'package:flutter3d_foundation/flutter3d_foundation.dart'
 // and the shader-library plumbing stay `flutter3d_hardware`'s.
 export 'package:flutter3d_hardware/flutter3d_hardware.dart'
     show
+        BackendId,
         BackendOpener,
         BindUniformBlockObject,
         BlendFactor,

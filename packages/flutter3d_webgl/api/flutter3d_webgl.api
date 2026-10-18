@@ -15,6 +15,7 @@ final class ShaderSources
   final Map<String, String> vertex
 
 final class WebGlDevice extends GraphicsDevice with EncodedImageUpload, SynchronousBufferReadback
+  BackendId get backendId
   ByteData readBufferSync(StorageBuffer buffer, {int offsetInBytes = 0, int? sizeInBytes})
   CommandEncoder beginRenderPass(RenderPassDescriptor descriptor)
   ComputeEncoder beginComputePass({String? label, PassTimestampWrites? timestampWrites})
@@ -42,7 +43,6 @@ final class WebGlDevice extends GraphicsDevice with EncodedImageUpload, Synchron
   Stream<DeviceLoss> get lost
   String debugCanvasState()
   String debugFramebufferStatus()
-  String get backendId
   String get backendName
   String? debugDrainErrors(String where)
   TextureFormat get defaultColorFormat

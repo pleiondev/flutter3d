@@ -1,5 +1,9 @@
 ## 1.0.0-rc.1
 
+- **Breaking: a backend is named by a `BackendId`.**
+  `WebGpuDevice.backendId` answers a `BackendId`, an extension type over the
+  same string, so a read compiles and compares as before; a backend of your
+  own overrides it with `const BackendId('name')`.
 - `engine_shaders.dart` regenerated: the light shafts' and the volumetric
   fog's cascade under an orthographic camera, and the height fog on
   particles and splats.

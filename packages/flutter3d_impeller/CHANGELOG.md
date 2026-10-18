@@ -1,5 +1,9 @@
 ## 1.0.0-rc.1
 
+- **Breaking: a backend is named by a `BackendId`.**
+  `GpuRenderBackend.backendId` answers a `BackendId`, an extension type over
+  the same string, so a read compiles and compares as before; a backend of
+  your own overrides it with `const BackendId('name')`.
 - **A widget drawn into a texture is wrapped, not copied.** The device is
   `PlatformTextures<ui.Image>`: `textureFromPlatformImage` wraps an image's
   own GPU texture through flutter_gpu's `Texture.fromImage`, the inverse
