@@ -144,6 +144,7 @@ String gpuBlendOperation(BlendOperation operation) => switch (operation) {
   _ => throw UnsupportedError('WebGPU has no blend operation for $operation'),
 };
 
+/// WebGPU's `GPUCompareFunction` spelling of [compare].
 String gpuCompareFunction(CompareFunction compare) => switch (compare) {
   CompareFunction.never => 'never',
   CompareFunction.always => 'always',
@@ -169,6 +170,8 @@ String gpuStencilOperation(StencilOperation operation) => switch (operation) {
   _ => throw UnsupportedError('WebGPU has no stencil operation for $operation'),
 };
 
+/// WebGPU's `GPUPrimitiveTopology` for [type]; throws [UnsupportedError] for
+/// a value it has no spelling of.
 String gpuPrimitiveTopology(PrimitiveType type) => switch (type) {
   PrimitiveType.triangle => 'triangle-list',
   PrimitiveType.triangleStrip => 'triangle-strip',
@@ -178,6 +181,7 @@ String gpuPrimitiveTopology(PrimitiveType type) => switch (type) {
   _ => throw UnsupportedError('WebGPU has no primitive topology for $type'),
 };
 
+/// WebGPU's `GPUCullMode` for [mode].
 String gpuCullMode(CullMode mode) => switch (mode) {
   CullMode.none => 'none',
   CullMode.frontFace => 'front',
@@ -252,6 +256,8 @@ bool gpuResolves(StoreAction action) =>
     action == StoreAction.multisampleResolve ||
     action == StoreAction.storeAndMultisampleResolve;
 
+/// WebGPU's `GPUAddressMode` for [mode]; throws [UnsupportedError] for one
+/// it has no spelling of.
 String gpuAddressMode(SamplerAddressMode mode) => switch (mode) {
   SamplerAddressMode.clampToEdge => 'clamp-to-edge',
   SamplerAddressMode.repeat => 'repeat',
@@ -266,24 +272,30 @@ String gpuAddressMode(SamplerAddressMode mode) => switch (mode) {
   _ => throw UnsupportedError('WebGPU has no address mode for $mode'),
 };
 
+/// WebGPU's `GPUFilterMode` for [filter].
 String gpuFilterMode(MinMagFilter filter) => switch (filter) {
   MinMagFilter.nearest => 'nearest',
   MinMagFilter.linear => 'linear',
   _ => throw UnsupportedError('WebGPU has no filter mode for $filter'),
 };
 
+/// WebGPU's `GPUMipmapFilterMode` for [filter]; throws [UnsupportedError]
+/// for a value it has no spelling of.
 String gpuMipmapFilterMode(MipFilter filter) => switch (filter) {
   MipFilter.nearest => 'nearest',
   MipFilter.linear => 'linear',
   _ => throw UnsupportedError('WebGPU has no mipmap filter mode for $filter'),
 };
 
+/// WebGPU's `GPUIndexFormat` for [type]: `uint16` or `uint32`.
 String gpuIndexFormat(IndexType type) => switch (type) {
   IndexType.int16 => 'uint16',
   IndexType.int32 => 'uint32',
   _ => throw UnsupportedError('WebGPU has no index format for $type'),
 };
 
+/// WebGPU's `GPUVertexFormat` for [format]; throws [UnsupportedError] for
+/// one it has no spelling of.
 String gpuVertexFormat(VertexFormat format) => switch (format) {
   VertexFormat.float32 => 'float32',
   VertexFormat.float32x2 => 'float32x2',
@@ -300,6 +312,7 @@ String gpuVertexFormat(VertexFormat format) => switch (format) {
   _ => throw UnsupportedError('WebGPU has no vertex format for $format'),
 };
 
+/// WebGPU's `GPUVertexStepMode` for [mode]: per vertex or per instance.
 String gpuVertexStepMode(VertexStepMode mode) => switch (mode) {
   VertexStepMode.vertex => 'vertex',
   VertexStepMode.instance => 'instance',
@@ -368,6 +381,7 @@ Uint8List gpuWritableBytes(ByteData bytes) {
 /// scene with opaque and transparent materials and a mirrored prop is already
 /// four keys before anything else moves.
 final class WebGpuPipelineKey {
+  /// The key for one pipeline the draw needs.
   const WebGpuPipelineKey({
     required this.pipeline,
     required this.topology,
@@ -384,10 +398,19 @@ final class WebGpuPipelineKey {
   /// The stage pair, by the name `PipelineHandle` carries.
   final String pipeline;
 
+  /// The `GPUPrimitiveTopology`, as [gpuPrimitiveTopology] spells it.
   final String topology;
+
+  /// The `GPUCullMode`, as [gpuCullMode] spells it.
   final String cullMode;
+
+  /// The `GPUFrontFace`, `ccw` or `cw`, as `gpuFrontFace` spells it.
   final String frontFace;
+
+  /// The depth test's `GPUCompareFunction`, as [gpuCompareFunction] spells it.
   final String depthCompare;
+
+  /// Whether a fragment that passes the depth test writes its depth.
   final bool depthWrite;
 
   /// The blend equation of attachment zero, or null for blending off. One
@@ -401,7 +424,10 @@ final class WebGpuPipelineKey {
   /// into the HDR target and into the eight-bit one is two pipelines.
   final List<String> colorFormats;
 
+  /// The depth attachment's format, or null for a pass without one.
   final String? depthFormat;
+
+  /// Samples per pixel, as the pass's first colour attachment has them.
   final int sampleCount;
 
   @override

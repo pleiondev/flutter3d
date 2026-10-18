@@ -23,6 +23,8 @@ import 'webgpu_spike_device.dart';
 
 /// What the triangle found.
 final class SpikeTriangleResult {
+  /// A result that [ran] or not, saying [why]; the two pixels are null when it
+  /// did not run.
   const SpikeTriangleResult({
     required this.ran,
     required this.why,

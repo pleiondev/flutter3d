@@ -40,6 +40,7 @@ enum GapCost {
 
 /// One thing the contract owes a WebGPU implementation.
 final class ContractGap {
+  /// A gap at [point], closed at [cost].
   const ContractGap({
     required this.point,
     required this.cost,
@@ -49,6 +50,7 @@ final class ContractGap {
   /// The member, type or constant, spelled as `flutter3d_hardware` spells it.
   final String point;
 
+  /// Whether closing the gap adds to the contract or rewrites a term of it.
   final GapCost cost;
 
   /// What goes wrong without it, in one sentence a reader can act on.

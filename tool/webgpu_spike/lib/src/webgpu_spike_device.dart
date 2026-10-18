@@ -33,8 +33,13 @@ import 'webgpu_spike_encoder.dart';
 /// `@fragment` — so the thing a pipeline is built from is the pair, not the
 /// module.
 final class WebGpuSpikeStage {
+  /// The stage [entryPoint] of [module].
   const WebGpuSpikeStage(this.module, this.entryPoint);
+
+  /// The compiled WGSL module the entry point is in.
   final GPUShaderModule module;
+
+  /// The function's name in the WGSL, `@vertex` or `@fragment`.
   final String entryPoint;
 }
 
@@ -53,6 +58,7 @@ final class WebGpuSpikeStage {
 /// state — which is not a contract change, but it does make the advice describe
 /// the wrong end of the frame.
 final class WebGpuSpikePipeline {
+  /// The pipeline [name] over [vertex] and [fragment], read with [layout].
   const WebGpuSpikePipeline({
     required this.name,
     required this.vertex,
@@ -60,8 +66,13 @@ final class WebGpuSpikePipeline {
     required this.layout,
   });
 
+  /// The stage pair's name, as `PipelineHandle` carries it.
   final String name;
+
+  /// The vertex stage.
   final WebGpuSpikeStage vertex;
+
+  /// The fragment stage.
   final WebGpuSpikeStage fragment;
 
   /// Never null here. `GraphicsDevice.createPipeline` says a null layout means
@@ -72,13 +83,19 @@ final class WebGpuSpikePipeline {
 
 /// A texture this device owns.
 final class WebGpuSpikeTexture {
+  /// A handle over [texture].
   const WebGpuSpikeTexture(this.texture);
+
+  /// The browser's texture.
   final GPUTexture texture;
 }
 
 /// A buffer this device owns.
 final class WebGpuSpikeBuffer {
+  /// A handle over [buffer].
   const WebGpuSpikeBuffer(this.buffer);
+
+  /// The browser's buffer.
   final GPUBuffer buffer;
 }
 
@@ -89,6 +106,8 @@ final class WebGpuSpikeBuffer {
 /// names a section per backend and has constants for two. So the spike compiles
 /// its own WGSL, and `loadShaders` refuses anything handed to it by name.
 final class WebGpuSpikeLibrary with ShaderLibrary {
+  /// Compiles the spike's own WGSL on [device] and holds its two stages by
+  /// name.
   WebGpuSpikeLibrary(GPUDevice device) : _stages = <String, ShaderHandle>{} {
     final module = device.createShaderModule(
       GPUShaderModuleDescriptor(code: spikeShaderSource),
@@ -140,7 +159,6 @@ fn spikeFragment(in : VertexOut) -> @location(0) vec4<f32> {
 }
 ''';
 
-/// A device, as far as one triangle needs one.
 /// The name the spike refuses in, as `UnsupportedCapabilityException.backend`.
 const String spikeBackendName = 'the WebGPU spike';
 
@@ -156,7 +174,11 @@ Never spikeRefuses(DeviceFeature feature) =>
           'backend that implements it',
     );
 
+/// A device, as far as one triangle needs one.
 final class WebGpuSpikeDevice extends GraphicsDevice {
+  WebGpuSpikeDevice._(this.gpuDevice)
+    : _library = WebGpuSpikeLibrary(gpuDevice);
+
   // ------------------------------------------------------- capabilities
 
   /// Exactly what the spike answered through the `supportsX` getters before
@@ -234,9 +256,6 @@ final class WebGpuSpikeDevice extends GraphicsDevice {
 
   @override
   List<TextureFormat> get hdrOutputFormats => const <TextureFormat>[];
-
-  WebGpuSpikeDevice._(this.gpuDevice)
-    : _library = WebGpuSpikeLibrary(gpuDevice);
 
   /// Asks the browser for a device, or answers null where there is no WebGPU.
   ///

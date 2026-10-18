@@ -39,6 +39,7 @@ const Map<String, int> spikeAttributeLocations = <String, int>{
 
 /// A pass, recorded and submitted.
 final class WebGpuSpikeEncoder extends PassEncoder with CommandEncoder {
+  /// Opens a pass into [descriptor]'s attachments on the device.
   WebGpuSpikeEncoder(this._device, RenderPassDescriptor descriptor)
     : _colorFormats = <String>[
         for (final target in descriptor.colors)
@@ -294,13 +295,13 @@ final class WebGpuSpikeEncoder extends PassEncoder with CommandEncoder {
   }) => switch (sampler) {
     // Gated first, before anything about the slot: the features a sampler
     // needs beyond the pre-1.0 ones are refused as such.
-    SamplerDescriptor(compare: final CompareFunction _) =>
+    SamplerDescriptor(compare: CompareFunction _) =>
       throw UnsupportedCapabilityException(
         DeviceFeature.samplerCompare,
         backend: spikeBackendName,
         reason: 'a spike, not a backend',
       ),
-    SamplerDescriptor(borderColor: final SamplerBorderColor _) =>
+    SamplerDescriptor(borderColor: SamplerBorderColor _) =>
       throw UnsupportedCapabilityException(
         DeviceFeature.samplerBorderColor,
         backend: spikeBackendName,
