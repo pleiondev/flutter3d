@@ -82,12 +82,11 @@ void main() {
     expect(KernelLiquid.native(), isNull);
     final loose = KernelLiquid.native(profile: SimulationProfile.accurate);
     if (KernelLiquid.isNativeLanesBuilt) {
-      expect(loose!.executor, LiquidKernelExecutor.nativeSimd);
+      expect(loose!.isNativeLanes, isTrue);
+      expect(loose.backend, KernelLiquid.nativeBackend);
     } else {
       expect(loose, isNull);
     }
-    expect(LiquidKernelExecutor.byName('kernel'), LiquidKernelExecutor.kernel);
-    expect(LiquidKernelExecutor.byName('a placement to come'), isNull);
   });
 
   test(

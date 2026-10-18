@@ -13,7 +13,6 @@ import 'package:flutter3d_physics/flutter3d_physics.dart'
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
     show
         KernelLiquid,
-        LiquidKernelExecutor,
         LiquidLoopsContext,
         LiquidPairConstants,
         LiquidPairLoops,
@@ -27,14 +26,17 @@ import 'package:vector_math/vector_math.dart';
 /// A [KernelLiquid] whose pair loops run where [compute]'s rule places
 /// them for a run under [profile]; the rest of a step is [rest]'s.
 ///
-/// **The work's own host code first, where it may**: the native lanes
-/// ([KernelLiquid.native]) where the run is not bit-exact and the package's
-/// hook built them; otherwise the kernels ([liquidPairKernels]) on the
-/// first device the rule offers that computes and reads back in the same
-/// turn — the liquid steps in the turn it is asked to. Under a bit-exact
-/// profile the work requires `ComputeRequirement.bitExact`, which only the
-/// CPU kernel meets for kernels that divide and take square roots: a GPU is
-/// passed over, with that reason.
+/// **The work brings its native lanes, the hardware layer decides**: where
+/// the package's hook built the loops in C, they are handed to
+/// [FrameCompute.placeHosted] as [NativeLanes], stating
+/// [KernelLiquid.nativeTolerance]; the rule runs them after the GPUs and
+/// ahead of the CPU executor wherever the run is not bit-exact. Otherwise
+/// the kernels ([liquidPairKernels]) run on the first device the rule
+/// offers that computes and reads back in the same turn — the liquid steps
+/// in the turn it is asked to. Under a bit-exact profile the work requires
+/// `ComputeRequirement.bitExact`, which refuses the lanes and which only
+/// the CPU kernel meets for kernels that divide and take square roots: a
+/// GPU is passed over, with that reason.
 ///
 /// Throws `ComputePlacementException` where nothing takes it.
 Future<KernelLiquid> placeKernelLiquid(
@@ -42,7 +44,6 @@ Future<KernelLiquid> placeKernelLiquid(
   SimulationProfile profile = SimulationProfile.deterministic,
   FluidSolver rest = const DartFluid(),
 }) async {
-  final native = KernelLiquid.native(profile: profile, rest: rest);
   final bundle = kernelBundle(
     KernelLiquid.workName,
     ComputeKernel.parseAll(liquidPairKernels),
@@ -59,7 +60,10 @@ Future<KernelLiquid> placeKernelLiquid(
         );
       return device.loadShaders(bundle);
     },
-    hasHost: native != null,
+    hasHost: false,
+    lanes: KernelLiquid.isNativeLanesBuilt
+        ? const NativeLanes(tolerance: KernelLiquid.nativeTolerance)
+        : null,
     needs: ComputeNeeds(
       requirements: <ComputeRequirement>{
         if (profile.isBitExact) ComputeRequirement.bitExact,
@@ -69,12 +73,16 @@ Future<KernelLiquid> placeKernelLiquid(
       inexactOperations: const <String>{'/', 'sqrt'},
     ),
   );
-  if (placed == null) return native!;
+  if (placed == null) {
+    // The rule chose the lanes, which it does only where the run is not
+    // bit-exact: KernelLiquid.native answers them for such a run.
+    return KernelLiquid.native(profile: profile, rest: rest) ??
+        (throw StateError('the native lanes were placed and are not there'));
+  }
   final site = placed.site;
   return KernelLiquid(
     loops: (LiquidLoopsContext context) =>
         _KernelLoops(site, placed.loaded, context.constants, context.origin),
-    executor: LiquidKernelExecutor.kernel,
     backend: site.device.backendName,
     rest: rest,
   );

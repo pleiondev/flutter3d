@@ -264,50 +264,6 @@ ${_poly6('k6', 'r2')}
 }
 ''';
 
-/// Where [KernelLiquid]'s pair loops ran.
-///
-/// **An open set** (S0): a class with constants, never an enum, so an
-/// executor a later minor adds breaks no `switch` written against these.
-/// [name] is what a report writes; [byName] reads it.
-final class LiquidKernelExecutor {
-  const LiquidKernelExecutor._(this.name);
-
-  /// The kernels, where the hardware layer placed them: the CPU kernel (the
-  /// Dart translation, the same bytes on every machine) under a bit-exact
-  /// profile, the device's or the sidecar's compute where the run allows
-  /// it and the device reads back in the same turn.
-  static const LiquidKernelExecutor kernel = LiquidKernelExecutor._('kernel');
-
-  /// The workload's own host code: the pair loops in C, a few neighbours at
-  /// a time on the running processor's vector lanes, held to the CPU
-  /// kernel within [KernelLiquid.nativeTolerance] and refused under a
-  /// bit-exact profile.
-  static const LiquidKernelExecutor nativeSimd = LiquidKernelExecutor._(
-    'nativeSimd',
-  );
-
-  /// Every executor this version names. A later version appends.
-  static const List<LiquidKernelExecutor> values = <LiquidKernelExecutor>[
-    kernel,
-    nativeSimd,
-  ];
-
-  /// The executor called [name], or null for one this version does not
-  /// know.
-  static LiquidKernelExecutor? byName(String name) {
-    for (final executor in values) {
-      if (executor.name == name) return executor;
-    }
-    return null;
-  }
-
-  /// The stable name, and the wire name.
-  final String name;
-
-  @override
-  String toString() => 'LiquidKernelExecutor.$name';
-}
-
 /// The constants the pair loops share, for one fluid: worked out from a
 /// [ParticleMotion], the same each step of it. What an executor of the
 /// loops ([LiquidPairLoops]) is made for.
@@ -424,9 +380,10 @@ final class LiquidLoopsContext {
 /// names no device: `placeKernelLiquid` in `flutter3d_effects` asks
 /// `FrameCompute.placeHosted` and builds one of these on the kernels
 /// ([liquidPairKernels]) where they land, a device with compute that reads
-/// back in the same turn; or on the work's own host code, the loops in C on
-/// the processor's vector lanes ([KernelLiquid.native],
-/// [LiquidKernelExecutor.nativeSimd]), where the run allows it.
+/// back in the same turn; or on the work's own native lanes, the loops in C
+/// on the processor's vector lanes ([KernelLiquid.native]), which the
+/// hardware layer places as `ComputePlacement.nativeSimd` where the run
+/// allows it.
 ///
 /// **Under a bit-exact profile** (`SimulationProfile.deterministic`) the
 /// work requires `ComputeRequirement.bitExact`: a GPU is passed over, the
@@ -436,17 +393,28 @@ final class LiquidLoopsContext {
 ///
 /// The rest of a step — the parcels, the waves, the pipes, the floating
 /// bodies — is [rest]'s.
+///
+/// **Breaking in 1.0.0-rc.1: no `executor`.** Where the loops run is a
+/// placement of the hardware layer's, `ComputePlacement.nativeSimd` among
+/// them; this says only what ran them ([backend], [isNativeLanes]).
 final class KernelLiquid extends FluidSolver {
   /// A solver whose pair loops [loops] makes for each fluid's constants,
-  /// running on [executor] by [backend]; the rest of a step is [rest]'s.
-  /// What a placement of the kernels builds (`placeKernelLiquid` in
-  /// `flutter3d_effects`), and [KernelLiquid.native] for the native lanes.
+  /// run by [backend]; the rest of a step is [rest]'s. What a placement of
+  /// the kernels builds (`placeKernelLiquid` in `flutter3d_effects`), and
+  /// [KernelLiquid.native] for the native lanes.
   KernelLiquid({
     required LiquidPairLoops Function(LiquidLoopsContext context) loops,
-    required this.executor,
     required this.backend,
     this.rest = const DartFluid(),
-  }) : _make = loops;
+  }) : _make = loops,
+       isNativeLanes = false;
+
+  KernelLiquid._lanes({
+    required LiquidPairLoops Function(LiquidLoopsContext context) loops,
+    required this.rest,
+  }) : _make = loops,
+       backend = nativeBackend,
+       isNativeLanes = true;
 
   /// The native lanes for a run under [profile], or null where they are
   /// refused — a bit-exact profile, whose bytes must be the CPU kernel's on
@@ -456,15 +424,16 @@ final class KernelLiquid extends FluidSolver {
     FluidSolver rest = const DartFluid(),
   }) {
     if (profile.isBitExact || !isNativeLanesBuilt) return null;
-    return KernelLiquid(
+    return KernelLiquid._lanes(
       loops: (LiquidLoopsContext context) =>
           openLiquidLanes(context.constants.list) ??
           (throw StateError('the native lanes went away')),
-      executor: LiquidKernelExecutor.nativeSimd,
-      backend: 'its own host code',
       rest: rest,
     );
   }
+
+  /// What [backend] says of the native lanes.
+  static const String nativeBackend = 'its own host code';
 
   /// How far one substep on the native lanes may land from the CPU
   /// kernel's: each position within this share of the particles' spacing,
@@ -483,11 +452,12 @@ final class KernelLiquid extends FluidSolver {
   static bool get isNativeLanesBuilt =>
       openLiquidLanes(Float64List(12)) != null;
 
-  /// Where the pair loops run.
-  final LiquidKernelExecutor executor;
+  /// Whether the pair loops run on the native lanes ([KernelLiquid.native])
+  /// rather than as kernels on a device.
+  final bool isNativeLanes;
 
-  /// What runs them, by its name for people: a device's backend, or `its
-  /// own host code`.
+  /// What runs them, by its name for people: a device's backend, or
+  /// [nativeBackend].
   final String backend;
 
   /// What steps the rest: the parcels, the waves, the pipes and the bodies.
@@ -557,7 +527,9 @@ final class KernelLiquid extends FluidSolver {
   void pushBodies(FloatPush push) => rest.pushBodies(push);
 
   @override
-  String toString() => 'KernelLiquid(${executor.name} on $backend)';
+  String toString() =>
+      'KernelLiquid(${isNativeLanes ? 'native lanes' : 'kernels'} on '
+      '$backend)';
 }
 
 /// One motion's substeps on the host, the loops over pairs handed to

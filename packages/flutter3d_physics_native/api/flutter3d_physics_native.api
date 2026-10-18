@@ -247,13 +247,14 @@ final class JointTissue
   static const JointTissue human = …
 
 final class KernelLiquid extends FluidSolver
-  KernelLiquid({required LiquidPairLoops Function(LiquidLoopsContext context) loops, required this.executor, required this.backend, this.rest = const DartFluid()})
+  KernelLiquid({required LiquidPairLoops Function(LiquidLoopsContext context) loops, required this.backend, this.rest = const DartFluid()})
   String toString()
   final FluidSolver rest
-  final LiquidKernelExecutor executor
   final String backend
+  final bool isNativeLanes
   static KernelLiquid? native({SimulationProfile profile = SimulationProfile.deterministic, FluidSolver rest = const DartFluid()})
   static bool get isNativeLanesBuilt
+  static const String nativeBackend = 'its own host code'
   static const String workName = 'liquid pairs'
   static const double nativeTolerance = 1e-4
   void flowPipes(PipeFlow flow)
@@ -261,14 +262,6 @@ final class KernelLiquid extends FluidSolver
   void moveParticles(ParticleMotion motion)
   void pushBodies(FloatPush push)
   void ringModes(ModeRinging ringing)
-
-final class LiquidKernelExecutor
-  String toString()
-  final String name
-  static LiquidKernelExecutor? byName(String name)
-  static const LiquidKernelExecutor kernel = LiquidKernelExecutor._('kernel')
-  static const LiquidKernelExecutor nativeSimd = LiquidKernelExecutor._('nativeSimd')
-  static const List<LiquidKernelExecutor> values = <LiquidKernelExecutor>[kernel, nativeSimd]
 
 final class LiquidLoopsContext
   final LiquidPairConstants constants

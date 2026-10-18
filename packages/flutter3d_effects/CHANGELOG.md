@@ -6,7 +6,9 @@
   `KernelLiquid` there: the native lanes where the run need not replay,
   otherwise the first device that computes and reads back in the same
   turn, and only the CPU kernel under a bit-exact profile, where a GPU is
-  passed over for its division and square roots.
+  passed over for its division and square roots. The native lanes are
+  handed to the hardware layer as `NativeLanes`, stating
+  `KernelLiquid.nativeTolerance`, and its rule decides when they run.
 - **Breaking: results that were records are final classes.** `Elements`,
   `FireView` and `LiquidView` answered or held a record, which can never
   gain a field. Each answers a final class now, with the record's field

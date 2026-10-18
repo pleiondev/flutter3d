@@ -25,7 +25,14 @@
   the run need not replay (`KernelLiquid.native`). Held to the CPU kernel within
   `KernelLiquid.nativeTolerance`, a part in ten thousand of a spacing and
   of the fastest velocity a substep; refused under a bit-exact profile.
-  `LiquidKernelExecutor` says which ran.
+  `KernelLiquid.isNativeLanes` and `backend` say which ran.
+- **Breaking: no `LiquidKernelExecutor`.** Where the pair loops run is a
+  placement of the hardware layer's: the native lanes are
+  `ComputePlacement.nativeSimd`, which any work with lanes of its own can
+  be placed on, and which nothing above the hardware layer names. The
+  open set and `KernelLiquid.executor` are gone; `KernelLiquid` takes no
+  `executor`, and `KernelLiquid.nativeBackend` is what `backend` says of
+  the lanes.
 - **A 1.0 snapshot is committed bytes, not a round trip.** A world of
   every subsystem (a car, a chain of links, joints, a hull, a mesh, a
   compound, fire, a stream with spray and bubbles) is kept as the 1.0 core

@@ -134,7 +134,7 @@ void main() {
     // the neighbours in an order a hash map chooses, and two runs from one
     // state part in the last bits.
     final liquid = await placeKernelLiquid(FrameCompute.of(cpuComputeDevice()));
-    expect(liquid.executor, LiquidKernelExecutor.kernel);
+    expect(liquid.isNativeLanes, isFalse);
     expect(liquid.backend, cpuComputeDevice().backendName);
     final motion = _block();
     final once = _moved(liquid, motion);
@@ -187,23 +187,21 @@ void main() {
 
   test('the native lanes run only where the run need not replay', () async {
     final compute = FrameCompute.of(cpuComputeDevice());
+    // Mutation: hand the hardware layer no lanes, and an accurate run never
+    // reaches them; or admit them under bitExact, and a replay diverges.
     final strict = await placeKernelLiquid(compute);
-    expect(strict.executor, LiquidKernelExecutor.kernel);
+    expect(strict.isNativeLanes, isFalse);
     final loose = await placeKernelLiquid(
       compute,
       profile: SimulationProfile.accurate,
     );
+    expect(loose.isNativeLanes, KernelLiquid.isNativeLanesBuilt);
     expect(
-      loose.executor,
+      loose.backend,
       KernelLiquid.isNativeLanesBuilt
-          ? LiquidKernelExecutor.nativeSimd
-          : LiquidKernelExecutor.kernel,
+          ? KernelLiquid.nativeBackend
+          : cpuComputeDevice().backendName,
     );
-    expect(LiquidKernelExecutor.byName('nativeSimd'), same(loose.executor));
-    expect(LiquidKernelExecutor.values.map((e) => e.name), <String>[
-      'kernel',
-      'nativeSimd',
-    ]);
   });
 
   test(
