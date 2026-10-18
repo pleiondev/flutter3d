@@ -31,6 +31,9 @@ export 'projectile_types.dart';
 /// anything the game produces, and something that grows without limit under
 /// load grows during the exact frame that was already struggling.
 final class ProjectileSystem {
+  /// A system flying at most [capacity] rockets, each a sphere of [radius]
+  /// metres, through [world]; [entities] is a world of its own when null.
+  /// Registers the `inFlight` and `firedBy` codecs on it.
   ProjectileSystem({
     required this.world,
     EcsWorld? entities,
@@ -69,6 +72,7 @@ final class ProjectileSystem {
       );
   }
 
+  /// The world rockets are swept through and blasts are resolved in.
   final CollisionWorld world;
 
   /// Where the rockets live.
@@ -141,6 +145,7 @@ final class ProjectileSystem {
   int get dropped => _dropped;
   int _dropped = 0;
 
+  /// How many rockets are in the air, a count no higher than [capacity].
   int get activeCount => entities.queryOf<InFlight>().length;
 
   final SweepHit _hit = SweepHit();
@@ -175,6 +180,8 @@ final class ProjectileSystem {
     return true;
   }
 
+  /// Removes every rocket in the air without detonating it, and forgets the
+  /// last step's [detonations].
   void clear() {
     for (final entity in entities.queryOf<InFlight>()) {
       entities.despawn(entity);
@@ -182,6 +189,11 @@ final class ProjectileSystem {
     detonations.clear();
   }
 
+  /// Flies every rocket [dt] seconds in a straight line, filling
+  /// [detonations] afresh.
+  ///
+  /// A rocket that strikes something, ignoring whoever fired it, bursts just
+  /// short of the surface; one whose life runs out bursts where it is.
   void step(double dt) {
     detonations.clear();
     final shape = CollisionSphere(radius);

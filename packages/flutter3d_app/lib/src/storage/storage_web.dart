@@ -27,9 +27,12 @@ import 'storage.dart';
 /// origin — which is exactly how this repository's demos are deployed — would
 /// otherwise each overwrite the other's settings.
 final class WebStorage extends Storage {
+  /// A store under keys namespaced by [appName]; issues are printed unless
+  /// [onIssue] takes them.
   WebStorage({required this.appName, IssueSink? onIssue})
     : onIssue = onIssue ?? printIssue;
 
+  /// The game's name, the namespace of its keys: `flutter3d/<appName>/…`.
   final String appName;
 
   /// Where this says what the browser would not let it do — a private window
@@ -113,10 +116,16 @@ extension on web.IDBRequest {
 /// opening their own — the same reasoning [FileBinaryStorage] gives for
 /// resolving its directory lazily rather than in the constructor.
 final class IndexedDbBinaryStorage extends BinaryStorage {
+  /// A store in [appName]'s own database; issues are printed unless
+  /// [onIssue] takes them.
   IndexedDbBinaryStorage({required this.appName, IssueSink? onIssue})
     : onIssue = onIssue ?? printIssue;
 
+  /// The game's name; its database is `flutter3d/<appName>`.
   final String appName;
+
+  /// Where this says what the browser would not let it do: a read, a write
+  /// or a removal that failed, with the browser's reason.
   final IssueSink onIssue;
 
   static const String _storeName = 'documents';

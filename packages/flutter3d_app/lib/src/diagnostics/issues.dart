@@ -30,9 +30,13 @@ void printIssue(Issue issue) => debugPrint(issue.message);
 ///
 /// A caller makes one with `IssueLog()` to keep what a load or a save reports.
 final class IssueLog {
+  /// Every issue's message, oldest first.
   final List<String> issues = <String>[];
 
+  /// Whether nothing has been reported since it was made or last cleared.
   bool get isEmpty => issues.isEmpty;
+
+  /// Whether anything has been reported since it was made or last cleared.
   bool get isNotEmpty => issues.isNotEmpty;
 
   /// Pass this where an [IssueSink] is wanted.
@@ -41,5 +45,6 @@ final class IssueLog {
   /// Everything said so far, as one block, or null when nothing was.
   String? get summary => issues.isEmpty ? null : issues.join('\n');
 
+  /// Forgets everything reported so far.
   void clear() => issues.clear();
 }

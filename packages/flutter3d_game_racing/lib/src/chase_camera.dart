@@ -7,6 +7,7 @@ import 'vehicle/vehicle_controller.dart';
 
 /// How the camera trails the car.
 final class ChaseSettings extends RigSettings {
+  /// Settings with each field at the default its own doc gives.
   const ChaseSettings({
     super.distance = 8.0,
     super.height = 3.0,
@@ -124,6 +125,11 @@ final class ChaseSettings extends RigSettings {
 /// answers with two points and a number, and the application copies them into
 /// whatever it is drawing with.
 final class ChaseCamera {
+  /// A camera kept out of [world]'s walls, looking up [track] when there is
+  /// one, framed as [tuning] says.
+  ///
+  /// [name] is what a director knows its [virtualCamera] by; [reframe], when
+  /// given, replaces the chase preset with the framing it returns.
   ChaseCamera({
     required CollisionWorld world,
     this.track,
@@ -155,6 +161,8 @@ final class ChaseCamera {
     );
   }
 
+  /// The engine's rig that carries out the framing: the easing, the knocks
+  /// and shakes, and keeping the camera out of walls.
   final CameraRig rig;
 
   /// Where the camera wants to be, worked out from what [follow] wrote into
@@ -175,9 +183,14 @@ final class ChaseCamera {
   /// camera looks along the car instead — which is the same thing on a straight.
   final TrackSpline? track;
 
+  /// The distances, lag, look-ahead and field of view it was built with;
+  /// read once, into [rig] and [framing], at construction.
   final ChaseSettings tuning;
 
+  /// Where the camera is, in world metres, as the rig last settled it.
   Vector3 get eye => rig.eye;
+
+  /// The point the camera looks at, in world metres.
   Vector3 get target => rig.target;
 
   /// The field of view to draw with, in radians. Widened by speed, and by
@@ -192,8 +205,11 @@ final class ChaseCamera {
   double get motion => rig.motion;
   set motion(double value) => rig.motion = value;
 
+  /// Knocks the camera along [direction] by its length, in metres, scaled by
+  /// [motion]: for a car meeting a wall. Gone in about a quarter of a second.
   void kick(Vector3 direction) => rig.kick(direction);
 
+  /// Shakes the camera for [seconds], [amount] metres wide.
   void shake(double amount, {double seconds = 0.35}) =>
       rig.shake(amount, seconds: seconds);
 

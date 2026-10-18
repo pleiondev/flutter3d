@@ -105,6 +105,7 @@ final class _LevelMaterialSource extends AssetSource {
 /// lights and entities; which entity means what is the game's business, and it
 /// is settled elsewhere.
 final class LevelLoader {
+  /// The loader, which holds nothing; what a load needs is passed to it.
   const LevelLoader();
 
   /// [registry] is the game's vocabulary, and it is required for the same

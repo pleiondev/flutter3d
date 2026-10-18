@@ -59,6 +59,8 @@ typedef FramePresenter =
 /// `reassemble`, so an edited shader is drawn on the next frame with the world
 /// as it was — see [HotSwap] for what that does and why.
 final class SceneSurface extends StatefulWidget {
+  /// A surface drawing [scene] through [view] with [renderer]; one view,
+  /// uncapped, at the screen's pixel ratio unless said otherwise.
   const SceneSurface({
     super.key,
     required this.renderer,
@@ -89,8 +91,13 @@ final class SceneSurface extends StatefulWidget {
   /// rebuilds every refresh regardless.
   final FrameCadence? cadence;
 
+  /// What draws each frame; registered with [HotSwap] in a debug build.
   final Renderer renderer;
+
+  /// What is drawn, in every view.
   final Scene scene;
+
+  /// The main view, drawn first, through its own camera and viewport.
   final CameraView view;
 
   /// Views drawn into the same frame after [view], each through its own

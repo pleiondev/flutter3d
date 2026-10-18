@@ -5,6 +5,7 @@ import 'gizmos.dart';
 
 /// One row of an outliner: a thing in the level, and what to call it.
 final class OutlineEntry {
+  /// Row [index] of [kind]'s list, shown as [label] beside [detail].
   const OutlineEntry({
     required this.kind,
     required this.index,
@@ -12,6 +13,7 @@ final class OutlineEntry {
     required this.detail,
   });
 
+  /// Which of the level's three lists it is in.
   final Piece kind;
 
   /// Its place in the document's own list for [kind] — what selecting it
@@ -26,11 +28,14 @@ final class OutlineEntry {
   /// entity's type when it has a name of its own.
   final String detail;
 
+  /// [kind] and [index] as one selection, the shape [Editing.selection]
+  /// lists.
   Picked get picked => (kind: kind, index: index);
 }
 
 /// A heading in an outliner and the rows under it.
 final class OutlineGroup {
+  /// A heading [title] over [entries], all of [kind].
   const OutlineGroup({
     required this.title,
     required this.kind,
@@ -39,7 +44,11 @@ final class OutlineGroup {
 
   /// What the heading says: `Brushes`, `Lights`, or an entity type.
   final String title;
+
+  /// Which list every row under it is in.
   final Piece kind;
+
+  /// The rows, in document order, after any filter.
   final List<OutlineEntry> entries;
 }
 

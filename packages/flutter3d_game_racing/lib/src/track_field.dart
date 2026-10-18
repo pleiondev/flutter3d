@@ -85,6 +85,7 @@ abstract base mixin class GroundField {
 /// construction; outside it, a ray goes down into whatever the level built, and
 /// if that finds nothing the car is in the air over nothing.
 final class TrackField implements GroundField {
+  /// Ground read from [track], and off it from [world] when there is one.
   TrackField({
     required this.track,
     this.world,
@@ -109,6 +110,7 @@ final class TrackField implements GroundField {
   static const int defaultProbeMask =
       Layers.all & ~(RacingLayers.vehicle | RacingLayers.roadTrigger);
 
+  /// The road the ground is read from inside its width and shoulders.
   final TrackSpline track;
 
   /// The level around the track: scenery, run-off, whatever has been built off
@@ -132,6 +134,8 @@ final class TrackField implements GroundField {
   /// In metres.
   final double probeBelow;
 
+  /// The collision layers the off-track ray may hit; [defaultProbeMask],
+  /// everything but the cars and the road's triggers, unless given.
   final int offTrackMask;
 
   @override

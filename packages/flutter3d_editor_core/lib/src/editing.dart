@@ -25,6 +25,7 @@ typedef Picked = ({Piece kind, int index});
 /// window, and all of which is the part that can lose somebody's work. The
 /// widget above it owns a camera and a mouse; this owns the document.
 final class Editing {
+  /// [level], open from [path], with nothing selected.
   Editing({required this.level, required this.path});
 
   /// Reads a document off the disk.
@@ -74,6 +75,12 @@ final class Editing {
     _also.clear();
   }
 
+  /// Where the primary selection sits in [kind]'s list now; null when
+  /// nothing is selected or its id has left the document.
+  ///
+  /// Setting it selects that index of [kind]'s list, by its id, and drops
+  /// the others selected beside it; it selects nothing while [kind] is
+  /// null.
   int? get selected {
     final primary = _kind;
     final id = _selectedId;
@@ -212,11 +219,14 @@ final class Editing {
     _ => throw UnsupportedError('a level has no list of $kind'),
   };
 
+  /// The selected brush; null when the selection is not a brush.
   Brush? get brush => kind != Piece.brush ? null : _at(level.brushes, selected);
 
+  /// The selected light; null when the selection is not a light.
   LevelLight? get light =>
       kind != Piece.light ? null : _at(level.lights, selected);
 
+  /// The selected entity; null when the selection is not an entity.
   EntityDef? get entity =>
       kind != Piece.entity ? null : _at(level.entities, selected);
 

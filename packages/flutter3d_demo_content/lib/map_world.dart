@@ -117,7 +117,11 @@ final class PieceKind {
 final class MapPiece {
   MapPiece._(this.body, this.kind, this.size);
 
+  /// Its rigid body in [MapWorld.world].
   final NativeBody body;
+
+  /// Whether it is a thrown stone, rubble off a wall or a burning brand,
+  /// which says how [size] is read.
   final PieceKind kind;
 
   /// Its half-extents, or its radius in x for a ball.
@@ -137,6 +141,9 @@ final class MapHall {
 
   /// Where it is in `simulation.buildings`.
   final int index;
+
+  /// The simulation's building this hall is: where its walls stand, and
+  /// what a thrown stone is aimed at.
   final Building building;
 
   /// What burns: the keep's roof first, then the towers'.
@@ -169,6 +176,8 @@ final class MapTree {
   /// Which of the game's batches of trees it is drawn in, and where in it.
   final int batch, placement;
 
+  /// Where it stands, in world metres: `x` and `z` across the map, and
+  /// `base` the height of the ground under it.
   final double x, z, base;
 
   /// How much its model is scaled: about its height, in metres, over one
@@ -186,7 +195,12 @@ final class MapTree {
   /// The crown, where the body is: as wide as about a third of the scale,
   /// from a quarter of the way up to the top.
   double get radius => 0.28 * size;
+
+  /// The height of the crown's middle, in metres: [base] plus 0.85 of
+  /// [size].
   double get middle => base + 0.85 * size;
+
+  /// Half the crown's height, in metres: 0.45 of [size].
   double get halfHeight => 0.45 * size;
 }
 
@@ -213,7 +227,11 @@ final class MapWater {
          for (final Vector2 p in course) p.clone(),
        ]);
 
+  /// The water grid's corner, `x0` and `z0`, and the side of one of its
+  /// square cells, `cell`, all in world metres.
   final double x0, z0, cell;
+
+  /// How many cells the water grid has along x (`nx`) and along z (`nz`).
   final int nx, nz;
 
   /// The river's course, from the spring to where it runs into the pond: a

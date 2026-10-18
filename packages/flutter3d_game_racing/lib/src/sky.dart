@@ -65,6 +65,7 @@ import 'sky_presets.dart';
 /// authored at all — it is [horizonFogColor], derived from the same two
 /// colours the sky is drawn from.
 final class SkyPreset {
+  /// A preset from every one of its numbers and colours; see each field.
   const SkyPreset({
     required this.name,
     required this.sunElevation,
@@ -171,8 +172,13 @@ final class SkyPreset {
   /// nothing — over the edge of an elevated section, mostly. It is the ground's
   /// haze rather than the sky's, and it is darker for it.
   final LinearColor zenith;
+
+  /// The sky at the horizon, linear, and so most of what the far side of
+  /// the circuit fades into ([horizonFogColor]).
   final LinearColor horizon;
 
+  /// What the sky reads as below the horizon, linear: the ground's haze,
+  /// darker than the sky's.
   final LinearColor belowHorizon;
 
   /// The wide scattering lobe around the sun: how sharp it is, and how bright.

@@ -25,6 +25,8 @@ part of 'scene_widgets.dart';
 /// Only a [Scene3D] hands it gestures; under `SceneWidgets.mount` it is a
 /// camera at its starting place.
 final class OrbitCamera3D extends Spatial3D {
+  /// An orbit five metres from the origin, a little above level, with the
+  /// default limits, speeds and damping, unless said otherwise.
   const OrbitCamera3D({
     super.key,
     this.target,
@@ -71,6 +73,7 @@ final class OrbitCamera3D extends Spatial3D {
   /// each second. Null stops the camera when the finger lifts.
   final double? damping;
 
+  /// How the view is projected onto the frame: perspective or orthographic.
   final Projection projection;
 
   @override
@@ -216,6 +219,8 @@ class _OrbitCamera3DState extends _SpatialState<OrbitCamera3D, CameraNode>
 /// **Yours to keep.** [hit] is a [HitResult] of its own, not a scratch the
 /// next tap rewrites, and nothing here changes after the handler returns.
 final class Tap3D {
+  /// A tap that hit [hit] at [localPosition]; the primary button unless
+  /// [buttons] says otherwise.
   const Tap3D({
     required this.hit,
     required this.localPosition,

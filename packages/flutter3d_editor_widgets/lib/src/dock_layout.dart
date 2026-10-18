@@ -51,18 +51,23 @@ final class DockSide {
   /// The arrow its fold button shows, pointing where it folds to.
   final IconData foldIcon;
 
+  /// A column down the left edge, widened by dragging its grip right.
   static const DockSide left = DockSide._(
     'left',
     vertical: true,
     growsWith: 1.0,
     foldIcon: Icons.chevron_left,
   );
+
+  /// A column down the right edge, widened by dragging its grip left.
   static const DockSide right = DockSide._(
     'right',
     vertical: true,
     growsWith: -1.0,
     foldIcon: Icons.chevron_right,
   );
+
+  /// A strip along the bottom, made taller by dragging its grip up.
   static const DockSide bottom = DockSide._(
     'bottom',
     vertical: false,
@@ -70,6 +75,7 @@ final class DockSide {
     foldIcon: Icons.expand_more,
   );
 
+  /// Every side, in the order [DockArrangement.fromJson] looks names up.
   static const List<DockSide> values = <DockSide>[left, right, bottom];
 
   @override
@@ -79,6 +85,7 @@ final class DockSide {
 /// One panel: what it is called, its icon, where it docks unless moved, and
 /// what it shows.
 final class DockPanel {
+  /// A panel remembered as [id], docked on [side] until moved.
   const DockPanel({
     required this.id,
     required this.title,
@@ -89,17 +96,26 @@ final class DockPanel {
 
   /// Stable across launches: what an arrangement remembers it by.
   final String id;
+
+  /// What its tab says, and the tooltip of its icon on a folded side.
   final String title;
+
+  /// What stands for it on a folded side and beside its tab title.
   final IconData icon;
 
   /// Where it docks until somebody moves it.
   final DockSide side;
+
+  /// Builds the panel's content, called only while its tab is the one
+  /// shown.
   final WidgetBuilder builder;
 }
 
 /// What is where: each side's size, which sides are folded away, which tab
 /// each side shows, and the panels moved off their own side.
 final class DockArrangement {
+  /// An arrangement; empty by default, which is every side at its default
+  /// size, open, on its first tab, with every panel on its own side.
   const DockArrangement({
     this.sizes = const <DockSide, double>{},
     this.collapsed = const <DockSide>{},
@@ -120,15 +136,29 @@ final class DockArrangement {
   /// pixels.
   static const double minimumSize = 120.0;
 
+  /// The sides somebody has dragged, in logical pixels: a column's width,
+  /// the strip's height. A side missing here is at its [defaultSizes] entry.
   final Map<DockSide, double> sizes;
+
+  /// The sides folded away to a strip of icons.
   final Set<DockSide> collapsed;
+
+  /// The id of the tab each side last showed; a side missing here, or
+  /// naming a panel no longer on it, shows its first panel.
   final Map<DockSide, String> active;
+
+  /// The panels docked somewhere other than their own [DockPanel.side], by
+  /// panel id.
   final Map<String, DockSide> moved;
 
+  /// How big [side] is in logical pixels: what it was dragged to, or its
+  /// default.
   double sizeOf(DockSide side) => sizes[side] ?? defaultSizes[side]!;
 
+  /// Whether [side] is folded away to its strip of icons.
   bool isCollapsed(DockSide side) => collapsed.contains(side);
 
+  /// Where [panel] is docked now: where it was moved to, or its own side.
   DockSide sideOf(DockPanel panel) => moved[panel.id] ?? panel.side;
 
   /// [side] at [size], no smaller than [minimumSize].
@@ -202,6 +232,8 @@ final class DockArrangement {
   /// version 1; a newer one is read as the default layout, never misread.
   static const int formatVersion = 1;
 
+  /// The arrangement as a stored document: the `f3d.dock-layout` envelope,
+  /// then each map and set keyed by side name.
   Map<String, Object?> toJson() => <String, Object?>{
     'format': 'f3d.dock-layout',
     'version': formatVersion,
@@ -284,6 +316,7 @@ final class DockArrangement {
 /// a 3D view holding a renderer — is not torn down and rebuilt because
 /// somebody tidied a panel.
 final class DockLayout extends StatelessWidget {
+  /// A layout of [panels] around [center], arranged by [arrangement].
   const DockLayout({
     super.key,
     required this.center,
@@ -292,9 +325,19 @@ final class DockLayout extends StatelessWidget {
     required this.onChanged,
   });
 
+  /// The picture in the middle, kept in place in the tree.
   final Widget center;
+
+  /// Every panel there is; each is drawn on the side
+  /// [DockArrangement.sideOf] gives it.
   final List<DockPanel> panels;
+
+  /// Sizes, folds, tabs and moves, as the caller holds them.
   final DockArrangement arrangement;
+
+  /// Called with the changed arrangement when somebody drags a grip, folds
+  /// a side, picks a tab or moves a panel. Nothing changes on screen until
+  /// the caller hands the new arrangement back.
   final ValueChanged<DockArrangement> onChanged;
 
   /// How wide a folded side is: one icon per panel, and room to hit it. In

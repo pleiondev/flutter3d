@@ -40,7 +40,15 @@ import 'package:vector_math/vector_math.dart';
 import 'collector.dart';
 import 'inventory.dart';
 
+/// The player's pawn: a body, what it carries, and where its eye is and
+/// which way it looks.
+///
+/// The body's collider names this as its owner, so a pickup, a door, a lift
+/// and a blast all reach the player through it.
 final class Player with KeyHolder, Collector, Damageable, Rider {
+  /// A pawn driving [body], carrying [inventory] (an empty one when null).
+  ///
+  /// Puts [body]'s collider on the player layer and points it back here.
   Player({
     required this.body,
     Inventory? inventory,
@@ -89,6 +97,7 @@ final class Player with KeyHolder, Collector, Damageable, Rider {
     return inventory.damage(amount);
   }
 
+  /// Whether the player has health left.
   bool get isAlive => inventory.health.isAlive;
 
   /// How far the eye sits above the centre of the body.
@@ -182,6 +191,8 @@ final class Player with KeyHolder, Collector, Damageable, Rider {
   /// In radians.
   static const double pitchLimit = math.pi / 2.0 - 0.01;
 
+  /// The body, the inventory, the view's yaw and pitch, whether crouching,
+  /// and the recoil still in the sight, as a document [restore] reads back.
   Map<String, Object?> save() => <String, Object?>{
     'body': body.save(),
     'inventory': inventory.save(),
@@ -201,6 +212,12 @@ final class Player with KeyHolder, Collector, Damageable, Rider {
     'recoil': recoilPitch,
   };
 
+  /// Puts back what [save] wrote.
+  ///
+  /// A missing body, inventory, yaw or pitch is left as it is, and a
+  /// missing recoil reads as nought. The crouch is asked for again, so a
+  /// body that no longer fits crouched stays standing; the pitch is clamped
+  /// to [pitchLimit].
   void restore(Map<String, Object?> from) {
     final body = from['body'];
     if (body is Map) this.body.restore(body.cast<String, Object?>());

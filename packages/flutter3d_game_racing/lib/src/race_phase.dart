@@ -15,6 +15,7 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 /// is a rule the game writes over this, in a step system; see
 /// `RacingSimulation.addSystem`.
 final class RaceMode {
+  /// A mode called [name], with its answers to the three questions.
   const RaceMode(
     this.name, {
     required this.startsBehindLights,

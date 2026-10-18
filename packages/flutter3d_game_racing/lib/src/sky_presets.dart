@@ -121,6 +121,8 @@ abstract final class SkyPresets {
     sunDisc: 0.0,
   );
 
+  /// Every preset, in the order of the day from dawn to dusk; what [byName]
+  /// searches.
   static final List<SkyPreset> all = <SkyPreset>[
     dawn,
     morning,

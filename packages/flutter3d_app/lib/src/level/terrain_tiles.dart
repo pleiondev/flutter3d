@@ -51,9 +51,16 @@ final class TerrainTiles {
     }
   }
 
+  /// What each tile's meshes are uploaded through.
   final GraphicsDevice device;
+
+  /// The field cut into tiles, each with its levels of detail.
   final HeightfieldTiles tiles;
+
+  /// What every tile is drawn in.
   final RenderMaterial material;
+
+  /// Picks each tile's level of detail from where the camera is.
   final TileLevelChooser chooser;
 
   /// How many metres of ground one repeat of the texture covers.

@@ -79,6 +79,7 @@ abstract final class DocumentCommand extends EditorCommandValue {
 ///
 /// `base`, so a member added here in a 1.x release arrives with a body.
 abstract base class PluginCommand extends DocumentCommand {
+  /// A command; the subclass gives its name, arguments and what it does.
   const PluginCommand();
 }
 
@@ -301,6 +302,7 @@ final class MoveSelectionBy extends EditorCommand {
   /// command somebody holds on to must not change meaning under them.
   MoveSelectionBy(Vector3 by) : by = by.clone();
 
+  /// How far to move, in metres, before each thing lands on the grid.
   final Vector3 by;
 
   @override
@@ -329,8 +331,11 @@ final class MoveSelectionBy extends EditorCommand {
 /// Brushes only, like [Editing.grow]: a light has no size, and what the same
 /// two keys do to one is [Brighten].
 final class Resize extends EditorCommand {
+  /// A resize by [by], copied for the reason [MoveSelectionBy] copies.
   Resize(Vector3 by) : by = by.clone();
 
+  /// What to add to the brush's size along each axis, in metres; negative
+  /// shrinks it. Answers false when no brush is selected.
   final Vector3 by;
 
   @override
@@ -358,12 +363,18 @@ final class Resize extends EditorCommand {
 /// metres cubed, in whatever the level is mostly made of. See [Editing.add] for
 /// why guessing a material would be worse than asking the document for one.
 final class AddBrush extends EditorCommand {
+  /// A brush at [at]; [at] and [size] are copied.
   AddBrush(Vector3 at, {Vector3? size, this.material})
     : at = at.clone(),
       size = size?.clone();
 
+  /// Where the brush's centre goes, in metres.
   final Vector3 at;
+
+  /// Its extent along each axis, in metres; null for two metres cubed.
   final Vector3? size;
+
+  /// What it is made of; null for what the level is mostly made of.
   final String? material;
 
   @override
@@ -392,6 +403,8 @@ final class AddBrush extends EditorCommand {
 
 /// Puts a new light down and selects it.
 final class AddLevelLight extends EditorCommand {
+  /// A light at [at], copied; [defaultIntensity] and an eight-metre reach
+  /// unless said otherwise.
   AddLevelLight(
     Vector3 at, {
     this.intensity = defaultIntensity,
@@ -402,6 +415,7 @@ final class AddLevelLight extends EditorCommand {
   /// candela: four of [LevelLight.defaultIntensity], about 23 000.
   static const double defaultIntensity = 4.0 * LevelLight.defaultIntensity;
 
+  /// Where the light goes, in metres.
   final Vector3 at;
 
   /// The light's strength in the level's units, as [LevelLight.intensity]:
@@ -439,6 +453,8 @@ final class AddLevelLight extends EditorCommand {
 /// are how a row is *shown*, and this is what a row *does*. [Editing.place]
 /// reads exactly these two.
 final class Place extends EditorCommand {
+  /// A placement of [what] in [kind]'s list at [at], which is copied; no
+  /// starting properties unless given.
   Place(
     this.kind,
     this.what,
@@ -452,6 +468,7 @@ final class Place extends EditorCommand {
   /// A material for a brush, an entity type for an entity, [paletteLight] for a light.
   final String what;
 
+  /// Where it was dropped, in metres.
   final Vector3 at;
 
   /// What a placed entity starts with when the level has none of its type to
@@ -492,6 +509,8 @@ final class Place extends EditorCommand {
 
 /// Copies whatever is selected, a step to the side, and selects the copy.
 final class Duplicate extends EditorCommand {
+  /// The command; it takes no arguments and answers false with nothing
+  /// selected.
   const Duplicate();
 
   @override
@@ -513,6 +532,8 @@ final class Duplicate extends EditorCommand {
 
 /// Removes whatever is selected — all of it, when several things are.
 final class Delete extends EditorCommand {
+  /// The command; it takes no arguments and answers false with nothing
+  /// selected.
   const Delete();
 
   @override
@@ -538,9 +559,13 @@ final class Delete extends EditorCommand {
 /// selected": [Editing.setField] refuses a value the format cannot read rather
 /// than writing a document that will not load.
 final class SetField extends EditorCommand {
+  /// A write of [value] under [key]; a null [value] removes the key.
   const SetField(this.key, this.value);
 
+  /// The field's name in the selected row: a key of its own, or a property.
   final String key;
+
+  /// What to write, as JSON would hold it; null removes the field.
   final Object? value;
 
   @override
@@ -564,6 +589,7 @@ final class SetField extends EditorCommand {
 /// A factor rather than an amount, for the reason [Editing.brighten] gives:
 /// light is read that way, and the step from 1 to 2 is the step from 8 to 16.
 final class Brighten extends EditorCommand {
+  /// A change of strength by the factor [by]; false with no light selected.
   const Brighten(this.by);
 
   /// A unitless multiplier on the light's strength.
@@ -592,6 +618,7 @@ final class Brighten extends EditorCommand {
 /// [Editing.turn] takes; degrees in [says], because that is what a person
 /// reading a status bar is thinking in.
 final class Turn extends EditorCommand {
+  /// A turn by [by] radians; false with no entity selected.
   const Turn(this.by);
 
   /// In radians, added to the entity's yaw.
@@ -623,6 +650,7 @@ final class Turn extends EditorCommand {
 /// [why] is what the step is called: the optimizer's own sentence, "3 → 1
 /// lights" and the numbers, so the history says what the change bought.
 final class SetLights extends EditorCommand {
+  /// A replacement by an unmodifiable copy of [lights], called [why].
   SetLights(List<LevelLight> lights, {this.why})
     : lights = List<LevelLight>.unmodifiable(lights);
 
@@ -643,6 +671,7 @@ final class SetLights extends EditorCommand {
     }
   }
 
+  /// Every light the level will have, in order; unmodifiable.
   final List<LevelLight> lights;
 
   /// What the change was for, or null.
@@ -672,8 +701,11 @@ final class SetLights extends EditorCommand {
 /// Turns the selected entities into a prefab called [prefab], and puts one
 /// instance of it where they were — see [Editing.createPrefab].
 final class CreatePrefab extends EditorCommand {
+  /// A prefab called [prefab]. Answers false for an empty or taken id, or
+  /// with no entity selected.
   const CreatePrefab(this.prefab);
 
+  /// The new prefab's id.
   final String prefab;
 
   @override
@@ -692,10 +724,15 @@ final class CreatePrefab extends EditorCommand {
 /// Puts an instance of [prefab] down and selects it — see
 /// [Editing.placePrefab].
 final class PlacePrefab extends EditorCommand {
+  /// An instance of [prefab] at [at], which is copied; unnamed and facing
+  /// yaw nought unless said otherwise.
   PlacePrefab(this.prefab, Vector3 at, {this.called, this.yaw = 0.0})
     : at = at.clone();
 
+  /// The id of the prefab to place.
   final String prefab;
+
+  /// Where the instance's origin goes, in metres.
   final Vector3 at;
 
   /// What the instance is called — `name` on the wire — and so the first
@@ -732,10 +769,17 @@ final class PlacePrefab extends EditorCommand {
 /// names of nested instances before it: `top/bulb`. A dotted [key] reaches
 /// one field of an object property: `glow.strength`.
 final class SetOverride extends EditorCommand {
+  /// An override of [key] at [path] with [value]; null removes the key.
   const SetOverride(this.path, this.key, this.value);
 
+  /// The entity inside the instance: names or `#<index>` joined by `/`.
   final String path;
+
+  /// The field to override; dotted to reach into an object property.
   final String key;
+
+  /// What it says in this instance, as JSON would hold it; null takes the
+  /// key away there.
   final Object? value;
 
   @override
@@ -758,8 +802,11 @@ final class SetOverride extends EditorCommand {
 /// Writes the selected instance's overrides into its prefab — all of them,
 /// or those of the entity at [path] — so every instance gets them.
 final class ApplyOverrides extends EditorCommand {
+  /// Applies every override, or only those at [path].
   const ApplyOverrides({this.path});
 
+  /// The entity inside the instance whose overrides go, as
+  /// [SetOverride.path] spells it; null for all of them.
   final String? path;
 
   @override
@@ -782,9 +829,15 @@ final class ApplyOverrides extends EditorCommand {
 /// Drops the selected instance's overrides — all, those at [path], or the
 /// one [key] there — so it shows its prefab again.
 final class RevertOverrides extends EditorCommand {
+  /// Reverts every override, those at [path], or [key] there.
   const RevertOverrides({this.path, this.key});
 
+  /// The entity inside the instance, as [SetOverride.path] spells it; null
+  /// for every override.
   final String? path;
+
+  /// The one field to revert at [path]; null for all of them there, and
+  /// ignored when [path] is null.
   final String? key;
 
   @override
@@ -811,6 +864,8 @@ final class RevertOverrides extends EditorCommand {
 /// Breaks the selected instance's link to its prefab, one level down — see
 /// [Editing.unpackPrefab].
 final class UnpackPrefab extends EditorCommand {
+  /// The command; it takes no arguments and answers false unless an
+  /// instance is selected.
   const UnpackPrefab();
 
   @override
@@ -829,11 +884,21 @@ final class UnpackPrefab extends EditorCommand {
 /// Writes [key] of the entity at [path] in [prefab]'s template, or takes it
 /// away when [value] is null: the edit every instance sees.
 final class SetPrefabField extends EditorCommand {
+  /// A write of [value] under [key] at [path] in [prefab]; null removes it.
+  /// Answers false when the prefab would contain itself or a row would not
+  /// read.
   const SetPrefabField(this.prefab, this.path, this.key, this.value);
 
+  /// The id of the prefab whose template changes.
   final String prefab;
+
+  /// The entity in the template, by its id.
   final String path;
+
+  /// The field: one of the row's own keys, otherwise a property.
   final String key;
+
+  /// What to write, as JSON would hold it; null takes the key away.
   final Object? value;
 
   @override

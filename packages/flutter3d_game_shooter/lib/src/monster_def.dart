@@ -6,6 +6,7 @@ import 'combat/weapon.dart';
 /// exit. `monster` is not the format's; it is a shooter's, the same way `torch`
 /// is furniture. It lives beside the kind that implements it.
 abstract final class ShooterEntities {
+  /// A monster, whose `kind` names one of the bestiary's.
   static const String monster = 'monster';
 
   /// Two that used to be `EntityTypes`'. A pickup that gives health, armour or
@@ -18,6 +19,8 @@ abstract final class ShooterEntities {
   /// because `LevelScope` gathers keys to check that a locked door names one
   /// that exists.
   static const String pickup = 'pickup';
+
+  /// A note left on a wall, whose `text` the game shows.
   static const String note = 'note';
 
   /// A volume that counts as found when somebody walks into it.
@@ -54,17 +57,34 @@ abstract final class ShooterEntities {
 /// once anybody can add one; the six are named individually and a save is
 /// restored from the name it holds.
 final class MonsterState {
+  /// The state called [name]; any two of one name are equal.
   const MonsterState(this.name);
 
   /// What it is called, in a save and in an animation table. Identity: two
   /// states with the same name are the same state.
   final String name;
 
+  /// Standing still, until it sees the player within its sight range, is
+  /// hurt, or hears a noise.
   static const MonsterState idle = MonsterState('idle');
+
+  /// Turning to face the player it has just seen, for its alert duration,
+  /// before it comes.
   static const MonsterState alert = MonsterState('alert');
+
+  /// Walking towards the player along the flow field, or straight at a
+  /// monster it has a quarrel with, until one is in reach and in sight.
   static const MonsterState chase = MonsterState('chase');
+
+  /// Facing the target and attacking whenever its cooldown allows, until the
+  /// target is more than a little out of reach.
   static const MonsterState attack = MonsterState('attack');
+
+  /// Staggered by a hit and deciding nothing, for its hurt duration; then it
+  /// chases.
   static const MonsterState hurt = MonsterState('hurt');
+
+  /// Dead: it neither moves nor decides again.
   static const MonsterState dead = MonsterState('dead');
 
   /// The six [ChaseBrain] decides between, for a table that wants to list
@@ -98,6 +118,8 @@ final class MonsterState {
 /// monster that throws fireballs gets the projectile system, the blast falloff
 /// and the line-of-sight check without a line of new code.
 final class MonsterDef {
+  /// A kind of monster; the fields not required take the defaults their
+  /// own docs give.
   const MonsterDef({
     required this.name,
     required this.health,
@@ -113,6 +135,8 @@ final class MonsterDef {
     this.painCooldown = 0.2,
   });
 
+  /// What the kind is called, for a log, an editor and the bestiary's
+  /// catalog.
   final String name;
 
   /// In hit points (unitless).
@@ -120,6 +144,9 @@ final class MonsterDef {
 
   /// How fast it moves, in metres per second.
   final double speed;
+
+  /// What it attacks with, as a weapon: its damage, rate, range and the way
+  /// the attack arrives. Its range is how close the monster must get.
   final WeaponDef attack;
 
   /// The body's radius, in metres.

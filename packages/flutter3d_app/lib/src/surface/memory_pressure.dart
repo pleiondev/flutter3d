@@ -31,6 +31,8 @@ import 'package:flutter3d/flutter3d.dart';
 /// )
 /// ```
 final class MemoryPressureRelease extends StatefulWidget {
+  /// Releases [renderer]'s spare targets on a memory warning while [child]
+  /// is shown.
   const MemoryPressureRelease({
     required this.renderer,
     required this.child,
@@ -38,7 +40,11 @@ final class MemoryPressureRelease extends StatefulWidget {
     super.key,
   });
 
+  /// The renderer whose pooled targets not lent out are given back when the
+  /// system warns of memory.
   final Renderer renderer;
+
+  /// What is shown; this widget draws nothing of its own.
   final Widget child;
 
   /// Called after the release, for an application that logs it.

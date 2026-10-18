@@ -14,6 +14,8 @@ import 'editor_command.dart';
 ///
 /// Made by the editor, never by a plugin. **One object, so it can grow.**
 final class ImportRequest {
+  /// A request for the file at [path]; [at] is copied, and null for an
+  /// import from a menu.
   ImportRequest({
     required this.path,
     required this.bytes,
@@ -41,6 +43,7 @@ final class ImportRequest {
 /// What an import produced: files to write into the project, commands to run
 /// on the level, and what to tell the person.
 final class ImportResult {
+  /// A result; no files, commands or notes unless given.
   const ImportResult({
     this.files = const <String, Uint8List>{},
     this.commands = const <DocumentCommand>[],
@@ -66,6 +69,7 @@ final class ImportResult {
 /// run it through the editor's MCP server. `base`, so a member added in a
 /// minor arrives with a body; the hook takes one request.
 abstract base class EditorImporter {
+  /// An importer; a subclass gives [label], [suffixes] and [import].
   const EditorImporter();
 
   /// What a menu says: `Boat hull`.
@@ -81,11 +85,13 @@ abstract base class EditorImporter {
 
 /// An importer an editor has, by the name it is published under.
 final class AddedImporter {
+  /// [importer], published as [name].
   const AddedImporter(this.name, this.importer);
 
   /// `<namespace>.<name>`, or the application's own name.
   final String name;
 
+  /// The importer as its plugin added it.
   final EditorImporter importer;
 }
 
@@ -93,13 +99,14 @@ final class AddedImporter {
 ///
 /// Made by the editor, never by a plugin.
 final class AssetPlacement {
+  /// A drop of [path] at [at], which is copied.
   AssetPlacement({required this.path, required Vector3 at, required this.level})
     : at = at.clone();
 
   /// The file's path, relative to the project's assets.
   final String path;
 
-  /// The point in the level it was dropped on.
+  /// The point in the level it was dropped on, in metres.
   final Vector3 at;
 
   /// The level open in the editor.
@@ -109,6 +116,8 @@ final class AssetPlacement {
 /// A kind of file the asset browser lists, and what dropping one into the
 /// level does.
 final class AssetBrowserEntry {
+  /// A kind called [label] for files ending in [suffixes]; a plain file
+  /// that is not placed unless [icon] and [place] say otherwise.
   const AssetBrowserEntry({
     required this.label,
     required this.suffixes,
@@ -139,11 +148,13 @@ final class AssetBrowserEntry {
 
 /// An asset-browser entry an editor has, by the name it is published under.
 final class AddedAssetEntry {
+  /// [entry], published as [name].
   const AddedAssetEntry(this.name, this.entry);
 
   /// `<namespace>.<name>`, or the editor's own name.
   final String name;
 
+  /// The entry as its plugin, or the editor, added it.
   final AssetBrowserEntry entry;
 }
 

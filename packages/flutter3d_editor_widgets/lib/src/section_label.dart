@@ -16,6 +16,8 @@ import 'package:flutter/material.dart';
 /// One line of upper-case, letter-spaced text — a section's name, not its
 /// content.
 final class SectionLabel extends StatelessWidget {
+  /// A heading saying [said], in the modeller's look unless [style] and
+  /// [padding] override it.
   const SectionLabel(this.said, {super.key, this.style, this.padding});
 
   /// What the section is called. Always drawn upper-case regardless of the

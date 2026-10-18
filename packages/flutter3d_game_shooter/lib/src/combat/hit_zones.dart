@@ -18,6 +18,8 @@ import 'package:vector_math/vector_math.dart';
 /// the range this game is fought at; a table of six would be five of them
 /// nobody can tell apart, and each one is a number somebody has to keep true.
 final class HitZones {
+  /// Zones with each field at the default its own doc gives: a head worth
+  /// two and a half times a hit, legs worth 0.6 of one.
   const HitZones({
     this.headAbove = 0.78,
     this.headMultiplier = 2.5,

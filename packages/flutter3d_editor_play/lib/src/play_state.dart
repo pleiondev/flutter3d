@@ -11,29 +11,43 @@ abstract final class PlayState {
   const PlayState();
 }
 
+/// Not started yet: where every run is before its first [PlayedGame.start].
 final class PlayIdle extends PlayState {
+  /// The one idle state; it carries nothing.
   const PlayIdle();
 }
 
+/// Started and not yet running: the tool is building or the editor is
+/// attaching.
 final class PlayStarting extends PlayState {
+  /// A start that says [message] about what it is doing.
   const PlayStarting(this.message);
 
   /// What the tool says it is doing: "Launching lib/main.dart…".
   final String message;
 }
 
+/// Running, with a VM service the editor can reach.
 final class PlayRunning extends PlayState {
+  /// A run named [appId] whose VM service is at [vmService].
   const PlayRunning({required this.appId, required this.vmService});
 
+  /// Which game this is: the `appId` of `flutter run`'s `app.start`, or the
+  /// VM's own name for an attached game (`vm` when it gives none).
   final String appId;
 
   /// The game's VM service, for the timeline panel and `ext.flutter3d.*`.
   final String vmService;
 }
 
+/// Over: the game exited, the editor let go of it, or it never started.
 final class PlayStopped extends PlayState {
+  /// A run that ended with [exitCode], and [reason] when there is one.
   const PlayStopped(this.exitCode, {this.reason});
 
+  /// The tool's exit code; -1 when the run never started or could not
+  /// attach, and 0 for an attached game the editor let go of or that closed
+  /// the socket.
   final int exitCode;
 
   /// What ended it, when an exit code says nothing: an attached game has
@@ -60,6 +74,7 @@ abstract base mixin class PlayedGame {
   /// Whether [stop] ends the game, or only lets go of it.
   bool get ownsTheGame;
 
+  /// Where the run is now; a panel rebuilds from its changes.
   Watched<PlayState> get state;
 
   /// Every line the game has printed, oldest first, capped.

@@ -22,6 +22,8 @@ import 'package:flutter/scheduler.dart';
 /// nothing; the class exists so that a measurement is a flag rather than a
 /// patch somebody has to write again next time.
 final class FrameTimingLog {
+  /// A log whose lines start with [label] and report every [window]
+  /// frames. Asserts that [window] is at least one.
   FrameTimingLog({this.label = 'frame', this.window = defaultWindow})
     : assert(window > 0, 'a window of no frames never reports');
 

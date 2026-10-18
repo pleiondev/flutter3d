@@ -38,6 +38,8 @@ typedef _Step = ({String says, Map<String, Object?> document, int state});
 /// the question `ModelHistory` answers by identity, asked of a document that
 /// is rebuilt from JSON and so has no identity to ask about.
 final class EditorHistory {
+  /// An empty history of [editing], whose document as it stands counts as
+  /// saved.
   EditorHistory(this.editing);
 
   /// The document this remembers. It replaces [Editing.level] when it goes back.

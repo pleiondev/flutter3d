@@ -13,6 +13,10 @@ export 'racer_progress.dart';
 /// commentator or a test can be handed the state of a race without being handed
 /// the machinery that runs one.
 final class RaceState {
+  /// A race of [racers] cars round [track] under [mode].
+  ///
+  /// A mode that starts behind lights opens in [RacePhase.countdown] with
+  /// [countdownSeconds] on the clock; any other opens running.
   RaceState({
     required this.mode,
     required this.track,
@@ -29,7 +33,11 @@ final class RaceState {
            : RacePhase.running,
        countdown = mode.startsBehindLights ? countdownSeconds : 0.0;
 
+  /// The rules: whether there are lights, whether anything is counted, and
+  /// whether the lap count ends a car's race.
   final RaceMode mode;
+
+  /// The circuit, whose length [positionOf] ranks laps by.
   final TrackSpline track;
 
   /// How many laps a race is. Ignored in the modes that do not end.
@@ -41,6 +49,7 @@ final class RaceState {
   /// One per car, in the order the cars were given. Nought is the player.
   final List<RacerProgress> progress;
 
+  /// Where the race has got to: on the lights, running, or over.
   RacePhase phase;
 
   /// Seconds left on the lights.
@@ -118,6 +127,9 @@ final class RaceState {
     }
   }
 
+  /// Calls [RacerProgress.clearStepFlags] on every car, which does nothing
+  /// now that a step's moments are events. The simulation calls it at the
+  /// top of each step.
   void clearStepFlags() {
     for (final racer in progress) {
       racer.clearStepFlags();

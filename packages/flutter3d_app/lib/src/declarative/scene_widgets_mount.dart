@@ -32,6 +32,8 @@ part of 'scene_widgets.dart';
 /// is built again, with a node of its own; keys local to their siblings
 /// keep their nodes as they do in a [Scene3D].
 abstract final class SceneWidgets {
+  /// Builds [children] into [scene], uploading through [device] and drawing
+  /// with [renderer], and returns the mount that keeps them.
   static SceneWidgetsMount mount({
     required Scene scene,
     required Renderer renderer,
@@ -50,8 +52,13 @@ final class SceneWidgetsMount {
     );
   }
 
+  /// Where the widgets' nodes hang.
   final Scene scene;
+
+  /// The renderer the widgets' contributors and particles are added to.
   final Renderer renderer;
+
+  /// What the widgets' meshes and textures are uploaded through.
   final GraphicsDevice device;
   final _MountHost _host;
 

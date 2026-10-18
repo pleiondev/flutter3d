@@ -27,6 +27,7 @@ export 'photo_shelf_native.dart'
 /// written against 1.0 keeps compiling — `extends PhotoShelf`, not
 /// `implements`.
 abstract base class PhotoShelf {
+  /// A shelf; a subclass says where [open] puts the picture.
   const PhotoShelf();
 
   /// A place for a PNG called [name], which includes its extension.
@@ -38,6 +39,7 @@ abstract base class PhotoShelf {
 /// **Implementable outside this package, as a base class**, for the reason
 /// [PhotoShelf] is.
 abstract base class PhotoSaving {
+  /// A saving; a subclass says where [add] writes and what [close] does.
   const PhotoSaving();
 
   /// The next bytes of the file, in order.
@@ -54,6 +56,8 @@ abstract base class PhotoSaving {
 
 /// What happened to a picture.
 final class PhotoSaved {
+  /// An outcome saying [message]; no place to show and not shared unless
+  /// said otherwise.
   const PhotoSaved({
     required this.kept,
     required this.message,
@@ -76,10 +80,15 @@ final class PhotoSaved {
 
 /// A picture taken: what the capture did, and where the file went.
 final class PhotoTaken {
+  /// A picture whose capture went as [report] says and whose file went as
+  /// [saved] says.
   const PhotoTaken({required this.report, required this.saved});
 
   /// Null when the capture itself failed; [saved] says how.
   final PhotoCaptureReport? report;
+
+  /// Where the file went, or why it went nowhere; a failed capture is
+  /// reported here, not thrown.
   final PhotoSaved saved;
 }
 

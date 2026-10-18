@@ -13,6 +13,8 @@ import 'blast.dart';
 /// Everything on it is saved, which is the rule a component earns its place
 /// by: a type either writes itself down or says why it does not.
 final class InFlight {
+  /// A rocket at [position] moving at [velocity], both copied, with [life]
+  /// seconds left.
   InFlight({
     required Vector3 position,
     required Vector3 velocity,
@@ -21,7 +23,11 @@ final class InFlight {
   }) : position = position.clone(),
        velocity = velocity.clone();
 
+  /// Where it is, in world metres; moved in place each step.
   final Vector3 position;
+
+  /// Where it is going, in metres per second; constant, since nothing pulls
+  /// a rocket down.
   final Vector3 velocity;
 
   /// What it does when it arrives.
@@ -30,6 +36,8 @@ final class InFlight {
   /// Seconds left before it gives up and detonates.
   double life;
 
+  /// The rocket as a row [fromJson] reads back: position, velocity, life
+  /// and the blast's four numbers.
   Map<String, Object?> toJson() => <String, Object?>{
     'at': <double>[position.x, position.y, position.z],
     'velocity': <double>[velocity.x, velocity.y, velocity.z],
@@ -92,12 +100,17 @@ final class InFlight {
 /// So it is declared as not saved, with the reason, rather than quietly left
 /// out of a codec — which is what the hand-written version did.
 final class FiredBy {
+  /// Marks a rocket as fired by [collider].
   const FiredBy(this.collider);
+
+  /// The collider of whoever fired the rocket, which its sweep ignores.
   final Collider collider;
 }
 
 /// Where and what an explosion was.
 final class Detonation {
+  /// A burst at [position] facing [normal], both copied, of [blast], that
+  /// did [damage]; [owner] is whoever fired it.
   Detonation({
     required Vector3 position,
     required Vector3 normal,
@@ -108,16 +121,21 @@ final class Detonation {
        normal = normal.clone(),
        damage = Map<Collider, double>.unmodifiable(damage);
 
+  /// Where it burst, in world metres: just short of the surface struck, or
+  /// where its life ran out.
   final Vector3 position;
 
   /// Surface the rocket struck, or the direction it came from when it timed
   /// out in the open. Effects need somewhere to face.
   final Vector3 normal;
 
+  /// The rocket's blast: its reach, damage and knockback.
   final Blast blast;
 
   /// Everything hurt, and by how much. Includes the shooter.
   final Map<Collider, double> damage;
 
+  /// Who fired the rocket, or null for one fired by nobody in particular;
+  /// the one to credit with the kills.
   final Collider? owner;
 }

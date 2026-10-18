@@ -16,6 +16,8 @@ import 'tree_brain.dart';
 /// content seam follows: a second shooter brings its own bestiary and gets none
 /// of this one's.
 final class Bestiary {
+  /// A bestiary spawning [catalog]'s monsters into [actors], all firing
+  /// through [shot] at [difficulty].
   Bestiary({
     required this.actors,
     required this.shot,
@@ -23,11 +25,14 @@ final class Bestiary {
     this.difficulty = Difficulty.normal,
   });
 
+  /// The system monsters are spawned into, and whose world their bodies
+  /// move in.
   final ActorSystem actors;
 
   /// One way of firing, shared by every monster in the level.
   final WeaponShot shot;
 
+  /// The monsters this game has, by the name a level's `kind` gives.
   final Map<String, MonsterDef> catalog;
 
   /// How hard this game is being, handed to every brain this spawns.
@@ -36,6 +41,12 @@ final class Bestiary {
   /// not of the roster: a level does not author some of its monsters hard.
   final Difficulty difficulty;
 
+  /// Spawns a monster of [def] at [position], facing [yaw] radians, and
+  /// returns it.
+  ///
+  /// Its body is a capsule [MonsterDef.radius] wide and [MonsterDef.height]
+  /// tall on the actor layer that walks at [MonsterDef.speed] and never
+  /// jumps; its brain is a [ChaseBrain].
   Actor spawn(
     MonsterDef def,
     Vector3 position, {
@@ -73,6 +84,8 @@ final class Bestiary {
 
 /// Spawns whatever the bestiary says a monster can be.
 final class MonsterKind extends EntityKind {
+  /// The kind, validating against [catalog] and spawning through
+  /// [bestiary] once there is one; [kinds] defaults to the standard leaves.
   MonsterKind(this.catalog, {this.bestiary, BehaviorKinds? kinds})
     : kinds = kinds ?? BehaviorKinds(),
       super(ShooterEntities.monster);

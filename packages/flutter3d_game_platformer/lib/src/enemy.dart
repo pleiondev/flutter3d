@@ -19,6 +19,8 @@ import 'surfaces.dart';
 /// own platform is an enemy the level cannot rely on, and one that turns at a
 /// wall but not at a drop looks fine in a room and is useless outdoors.
 base class Patrol extends Brain {
+  /// A patrol walking between the posts of [route], copied, starting
+  /// towards the second. Asserts there are at least two posts.
   Patrol({
     required List<Vector3> route,
     this.speed = 0.55,
@@ -49,6 +51,7 @@ base class Patrol extends Brain {
   /// Which post it is walking towards. For a test, and for a save.
   int get target => _target;
 
+  /// The post it is walking towards, in world metres; a copy.
   Vector3 get destination => _route[_target].clone();
 
   @override
@@ -160,6 +163,7 @@ base class Patrol extends Brain {
 /// a brain that asks every step does not fly. Writing `velocity.y` would work
 /// once and then keep working, in the air, for ever.
 final class Leaper extends Patrol {
+  /// A patrol over `route` that jumps gaps up to [reach] metres wide.
   Leaper({
     required super.route,
     super.speed,
@@ -238,6 +242,7 @@ final class Leaper extends Patrol {
 /// after [patience] seconds out of sight, so a runner who breaks line of
 /// sight and keeps going is a runner who got away.
 final class Hunter extends Brain {
+  /// A hunter seeing [sight] metres and keeping on for [patience] seconds.
   Hunter({this.sight = 14.0, this.patience = 3.0});
 
   /// How far it sees, in metres.

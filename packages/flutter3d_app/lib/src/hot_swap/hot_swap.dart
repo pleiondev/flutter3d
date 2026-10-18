@@ -75,7 +75,10 @@ final class HotSwap {
   /// gives each. [enabled] is off in profile and release builds unless said.
   HotSwap({this.enabled = kDebugMode});
 
-  /// The one every widget and application registers with.
+  /// The one every widget and application registers with: process-wide,
+  /// because hot reload is, and what it reloads with it. A replay reads it
+  /// through `replayAfterHotSwap(hotSwap:)`, and a test or a second engine
+  /// makes its own with the constructor.
   static final HotSwap instance = HotSwap();
 
   /// False in profile and release builds, where nothing reloads.
@@ -1089,6 +1092,7 @@ final class HotSwap {
 /// What one [HotSwap.swap] did.
 @immutable
 final class HotSwapReport {
+  /// A report; no models, textures or environments swapped unless given.
   const HotSwapReport({
     required this.renderers,
     required this.refreshed,
@@ -1126,6 +1130,8 @@ final class HotSwapReport {
   /// one's place.
   final List<String> environments;
 
+  /// The report as a tool reads it, every field under its own name and
+  /// each model as [ModelSwapReport.toJson] writes it.
   Map<String, Object?> toJson() => <String, Object?>{
     'renderers': renderers,
     'refreshed': refreshed,
@@ -1297,6 +1303,8 @@ abstract base class _Watched {
 /// What a changed file did to one [SwappableModel].
 @immutable
 final class ModelSwapReport {
+  /// A report on the model at [path]; nothing added and nothing refused
+  /// unless given.
   const ModelSwapReport({
     required this.path,
     required this.instances,
@@ -1304,6 +1312,7 @@ final class ModelSwapReport {
     this.refused,
   });
 
+  /// The model file that changed, as the game named it.
   final String path;
 
   /// The instances that adopted the new version.
@@ -1317,6 +1326,8 @@ final class ModelSwapReport {
   /// as it was.
   final String? refused;
 
+  /// The report as a tool reads it; `refused` only when the bytes did not
+  /// build.
   Map<String, Object?> toJson() => <String, Object?>{
     'path': path,
     'instances': instances,
@@ -1348,6 +1359,7 @@ final class _MemorySource extends AssetSource {
 /// What [HotSwap.loadMaterial] loaded: the library a renderer draws the
 /// materials with, and how to bind each — `P8`.
 final class HotMaterials {
+  /// Materials drawn with [library], bound as [materials] says.
   HotMaterials(this.library, BundledMaterials materials)
     : _materials = materials;
 

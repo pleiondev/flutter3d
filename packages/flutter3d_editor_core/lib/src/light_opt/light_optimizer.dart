@@ -39,6 +39,9 @@ import 'light_views.dart';
 /// merged light whose shadow fell differently from its parents' is judged
 /// by the shadow it actually casts.
 final class LightOptimizer {
+  /// An optimizer with the bounds given; the defaults allow a mean
+  /// difference of 0.01 and a 0.01 share under-lit at three quarters
+  /// brightness, and draw views at 160 by 100 pixels.
   const LightOptimizer({
     this.maxDifference = 0.01,
     this.maxUnderLit = 0.01,
@@ -74,9 +77,11 @@ final class LightOptimizer {
   /// moves that cost a render per view.
   final int maxMerges;
 
-  /// The size each view is drawn at. Small, because the pictures are for
-  /// deciding and the decision does not need the detail.
+  /// The width each view is drawn at, in pixels. Small, because the
+  /// pictures are for deciding and the decision does not need the detail.
   final int width;
+
+  /// The height each view is drawn at, in pixels.
   final int height;
 
   /// Optimises [level]'s lights as seen from [views], under every one of
@@ -380,11 +385,13 @@ final class LightOptimizer {
 /// the level the way it did under each of them: a torch the noon sun makes
 /// redundant is still wanted at night.
 final class LightingState {
+  /// A state called [name] adding [lights]; none by default.
   const LightingState(this.name, {this.lights = const <LevelLight>[]});
 
   /// The level's own lights and nothing more.
   static const LightingState asIs = LightingState('as is');
 
+  /// What the state is called: `noon`, `night`.
   final String name;
 
   /// Drawn in every view of this state, and never changed by the optimizer.
@@ -429,6 +436,7 @@ bool _sameBytes(Uint8List a, Uint8List b) {
 /// What [LightOptimizer.optimize] found: the lights before and after, what
 /// it did to get there, and the numbers that say whether to take it.
 final class LightPlan {
+  /// A plan with every number given; it [holds] unless said otherwise.
   const LightPlan({
     required this.before,
     required this.after,
@@ -446,7 +454,12 @@ final class LightPlan {
     required this.previewAfter,
   });
 
+  /// The level's lights as they were.
   final List<LevelLight> before;
+
+  /// The lights the moves leave, which a caller writes into the document
+  /// only when [hasChanges]: a plan that misses its bounds still carries
+  /// the set it tried.
   final List<LevelLight> after;
 
   /// The moves kept, in order, as sentences.
@@ -482,10 +495,19 @@ final class LightPlan {
   /// held to the bounds again; a plan that misses them changes nothing.
   final bool holds;
 
-  /// The size of the two previews, which are RGBA bytes of the first view.
+  /// The width of the two previews, which are RGBA bytes of the first view,
+  /// in pixels.
   final int width;
+
+  /// The height of the two previews, in pixels.
   final int height;
+
+  /// The first view under the lights as they were: RGBA, four bytes a
+  /// pixel, rows top first.
   final Uint8List previewBefore;
+
+  /// The first view under the lights [after] leaves, laid out as
+  /// [previewBefore].
   final Uint8List previewAfter;
 
   /// Whether anything would change: a move was kept and the set it leaves

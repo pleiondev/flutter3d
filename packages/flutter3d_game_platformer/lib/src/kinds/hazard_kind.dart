@@ -6,9 +6,18 @@ import 'package:vector_math/vector_math.dart';
 import '../hazard.dart';
 import '../platformer_entities.dart';
 
+/// A hazard in a level document. See [Hazard].
+///
+/// `damage` is hit points a second, 40 if absent; `instant` kills outright;
+/// `follows` names a mover to ride, and naming one the level does not have
+/// is an error. A hazard that does no damage and is not instant is warned
+/// about.
 final class HazardKind extends EntityKind {
+  /// The kind, under the type `PlatformerEntities.hazard`.
   const HazardKind() : super(PlatformerEntities.hazard);
 
+  /// The trigger's size in metres when the entity gives none: two across
+  /// and one high.
   static Vector3 get defaultSize => Vector3(2.0, 1.0, 2.0);
 
   @override

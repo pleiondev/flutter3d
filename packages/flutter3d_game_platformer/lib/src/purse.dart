@@ -25,6 +25,7 @@ final class Purse extends Tally {}
 /// member added in a 1.x release arrives with a body and nothing that mixes
 /// it in has to change.
 abstract base mixin class Gatherer {
+  /// The purse a collectible taken by this someone is counted into.
   Purse get purse;
 }
 
@@ -39,5 +40,6 @@ abstract base mixin class Gatherer {
 /// member added in a 1.x release arrives with a body and nothing that mixes
 /// it in has to change.
 abstract base mixin class KeyTaker {
+  /// The keys this someone holds, which a key-carrying collectible adds to.
   KeyRing get keyRing;
 }

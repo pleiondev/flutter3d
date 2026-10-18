@@ -177,6 +177,8 @@ final class Scene3DController {
 /// uploaded again; [materials] went with the old device and is the
 /// application's to load again in [DeviceSettings.onDeviceRestored].
 final class Scene3D extends StatefulWidget {
+  /// A scene of [children]; every group of settings at its defaults and no
+  /// callbacks unless given.
   const Scene3D({
     super.key,
     this.children = const <Widget>[],
@@ -509,6 +511,8 @@ class _Scene3DScope extends InheritedWidget {
 /// position through `Scene.toScene`, so a rebuild after a shift puts the
 /// node where it stood in the world, not where it stood in the old space.
 abstract base class Spatial3D extends StatefulWidget {
+  /// A node left where, as turned and as large as it is, visible and with
+  /// no children, unless said otherwise.
   const Spatial3D({
     super.key,
     this.position,
@@ -521,9 +525,18 @@ abstract base class Spatial3D extends StatefulWidget {
   /// Where the node stands: in the world at the root of a scene, in the
   /// parent's space below another widget. Null leaves it where it is.
   final Vector3? position;
+
+  /// The node's rotation in its parent's space. Null leaves it as it is.
   final Quaternion? rotation;
+
+  /// The node's scale along each axis, a factor. Null leaves it as it is.
   final Vector3? scale;
+
+  /// Whether the node and everything under it are drawn; applied on every
+  /// build.
   final bool visible;
+
+  /// The widgets whose nodes hang from this one.
   final List<Widget> children;
 }
 
@@ -613,6 +626,7 @@ abstract class _SpatialState<W extends Spatial3D, N extends SceneNode>
 
 /// A node with nothing of its own to draw: a group, a pivot.
 final class Node3D extends Spatial3D {
+  /// A group node, unnamed unless [name] is given.
   const Node3D({
     super.key,
     super.position,
@@ -623,6 +637,7 @@ final class Node3D extends Spatial3D {
     this.name,
   });
 
+  /// The node's name, given when it is made, for a lookup or a debugger.
   final String? name;
 
   @override
@@ -651,6 +666,8 @@ class _Node3DState extends _SpatialState<Node3D, SceneNode> {
 /// back to the device once no frame in flight still draws it. A [geometry]
 /// handed in is the caller's and is left alone.
 final class Mesh3D extends Spatial3D {
+  /// A mesh of [shape] or [geometry], casting shadows at draw order nought
+  /// unless said otherwise. Asserts that one of the two is given.
   const Mesh3D({
     super.key,
     this.shape,
@@ -670,13 +687,23 @@ final class Mesh3D extends Spatial3D {
          'a Mesh3D draws a shape or a geometry',
        );
 
+  /// What to build and upload; ignored when [geometry] is given.
   final Shape? shape;
+
+  /// Geometry already on the device, drawn as it is and left to the caller
+  /// to release.
   final MeshGeometry? geometry;
+
+  /// What the mesh is drawn in; null takes the nearest [Material3D] above.
   final engine.RenderMaterial? material;
+
+  /// Whether the mesh is drawn into the shadow maps.
   final bool castsShadow;
 
   /// See `MeshNode.drawOrder`.
   final int drawOrder;
+
+  /// The mesh node's name, given when it is made.
   final String? name;
 
   /// Called when a tap on the [Scene3D] lands on this mesh first — the
@@ -817,6 +844,8 @@ class _Mesh3DState extends _SpatialState<Mesh3D, MeshNode> {
 /// poured into its cone for a spot. [Light3D.sun], [Light3D.lamp] and
 /// [Light3D.spot] say which one a light is.
 final class Light3D extends Spatial3D {
+  /// A light of [type], directional unless said otherwise, unbounded, its
+  /// colour, strength, shadow and cone left to the defaults.
   const Light3D({
     super.key,
     this.type = LightType.directional,
@@ -943,6 +972,8 @@ final class Light3D extends Spatial3D {
   /// The colour of [Light3D.lamp]: a warm-white bulb (about 2 700 K).
   static const LinearColor lampColor = LinearColor(1.0, 0.72, 0.42);
 
+  /// What kind of light: directional, point or spot. It picks the default
+  /// [intensity] and which of the other fields apply.
   final LightType type;
 
   /// Which way the light shines; applied to directional and spot lights.
@@ -1026,6 +1057,7 @@ class _Light3DState extends _SpatialState<Light3D, LightNode> {
 /// given, is looked at after [position] is applied; it is a place in the
 /// world wherever the camera hangs.
 final class Camera3D extends Spatial3D {
+  /// A camera with the default perspective, looking at [target] when given.
   const Camera3D({
     super.key,
     super.position,
@@ -1035,7 +1067,11 @@ final class Camera3D extends Spatial3D {
     super.children,
   });
 
+  /// A place in the world to look at, in metres, after [position] is
+  /// applied; null keeps the camera's own rotation.
   final Vector3? target;
+
+  /// How the view is projected onto the frame: perspective or orthographic.
   final Projection projection;
 
   @override
@@ -1091,6 +1127,8 @@ abstract interface class _Animated {
 /// `EngineLog` (Flutter's error handler under `SceneWidgets.mount`) rather
 /// than to the zone, and the placeholder goes.
 final class Model3D extends Spatial3D {
+  /// A model from [source] or [load], playing no clip at normal speed
+  /// unless said otherwise. Asserts that one of the two is given.
   const Model3D({
     super.key,
     this.source,
@@ -1120,8 +1158,13 @@ final class Model3D extends Spatial3D {
   /// Makes the asset on the scene's device, in place of reading [source].
   final Future<ModelAsset> Function(GraphicsDevice device)? load;
 
+  /// A 3D widget shown until the model has loaded; null shows nothing.
   final Widget? placeholder;
+
+  /// The name of the clip to play, as the file names it; null plays none.
   final String? animation;
+
+  /// Whether [animation] advances; false holds it where it is.
   final bool playing;
 
   /// How fast the clip plays, a multiplier on its own speed.
@@ -1158,6 +1201,7 @@ final class Model3D extends Spatial3D {
 
 /// Why a [Model3D] has no model: what its load threw, and where.
 final class Model3DFailure {
+  /// A failure of [source], or of a `load` when it is null.
   const Model3DFailure({
     required this.error,
     required this.stackTrace,
@@ -1169,6 +1213,7 @@ final class Model3DFailure {
   /// one that is not a model.
   final Object error;
 
+  /// Where [error] was thrown.
   final StackTrace stackTrace;
 
   /// [Model3D.source], or null for a [Model3D.load].

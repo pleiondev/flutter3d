@@ -30,6 +30,8 @@ import 'tire_model.dart';
 /// and comes back. That is the difference between a fast tyre and a forgiving
 /// one, and it is two numbers rather than a difficulty setting.
 final class TireSet {
+  /// Tyres called [name], gripping by [grips] up to [limit] gravities; a
+  /// null [model] is the default [TireModel].
   TireSet({
     required this.name,
     TireModel? model,

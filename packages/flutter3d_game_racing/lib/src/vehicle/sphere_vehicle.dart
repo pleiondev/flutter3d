@@ -51,6 +51,10 @@ import 'vehicle_tuning.dart';
 /// first and the third. Fuse any pair and the corresponding way of losing grip
 /// stops existing.
 final class SphereVehicle with VehicleController {
+  /// A car at [position], facing [headingYaw] radians, added to [world] as a
+  /// kinematic sphere of [VehicleSettings.radius] on [layer].
+  ///
+  /// A null [tireSet] fits [TireSet.road].
   SphereVehicle({
     required this.world,
     required this.ground,
@@ -87,12 +91,14 @@ final class SphereVehicle with VehicleController {
     return true;
   }
 
+  /// The world the car's collider is in and sweeps through.
   final CollisionWorld world;
 
   /// Where the car asks what is underneath it. A track, usually; a flat plane
   /// in most of the tests, which is the reason it is an interface.
   final GroundField ground;
 
+  /// The car's size, power, braking and handling numbers.
   final VehicleSettings tuning;
 
   /// What the car is standing on the road with.

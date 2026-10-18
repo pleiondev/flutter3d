@@ -16,6 +16,8 @@ import 'package:flutter/material.dart';
 /// a console is not something a person playing the game can see, and "the
 /// window is black" is indistinguishable from a scene with no lights in it.
 final class DidNotStart extends StatelessWidget {
+  /// A screen showing [error], then [explaining] when given, in white-ish
+  /// text on black unless the colours say otherwise.
   const DidNotStart(
     this.error, {
     super.key,
@@ -36,7 +38,10 @@ final class DidNotStart extends StatelessWidget {
   /// `tool/build_shaders.sh`.
   final String? explaining;
 
+  /// The screen's colour behind the text.
   final Color background;
+
+  /// The colour of the error and the explanation.
   final Color foreground;
 
   @override

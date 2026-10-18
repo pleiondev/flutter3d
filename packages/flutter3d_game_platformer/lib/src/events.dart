@@ -32,6 +32,7 @@ import 'collectible.dart';
 /// these — which is three sounds and three bursts, and was one list a caller
 /// had to know to look in.
 final class CollectibleTaken extends GameEvent {
+  /// [collectible] taken, for [scored] points.
   const CollectibleTaken(this.collectible, this.scored);
 
   /// The name it is declared and published under.
@@ -45,6 +46,8 @@ final class CollectibleTaken extends GameEvent {
         decode: (_) => null,
       );
 
+  /// The collectible taken, live in the level: gone from it once this is
+  /// heard.
   final Collectible collectible;
 
   /// What it was worth once the chain in hand was applied.
@@ -64,6 +67,7 @@ final class CollectibleTaken extends GameEvent {
 /// parks in `MechanismEvents.messages` because it fires from inside the
 /// collision dispatch, where there is nobody to return an outcome to.
 final class LevelSaid extends GameEvent {
+  /// The level saying [message].
   const LevelSaid(this.message);
 
   /// The name it is declared and published under.
@@ -78,6 +82,7 @@ final class LevelSaid extends GameEvent {
     },
   );
 
+  /// The sentence, as the level's author wrote it, for the game to show.
   final String message;
 
   @override
@@ -90,6 +95,7 @@ final class LevelSaid extends GameEvent {
 /// checkpoints look different from each other had no way to say which had just
 /// been passed.
 final class CheckpointReached extends GameEvent {
+  /// [checkpoint] reached for the first time.
   const CheckpointReached(this.checkpoint);
 
   /// The name it is declared and published under.
@@ -103,6 +109,7 @@ final class CheckpointReached extends GameEvent {
         decode: (_) => null,
       );
 
+  /// The checkpoint reached, live in the level.
   final Checkpoint checkpoint;
 
   @override
@@ -114,6 +121,7 @@ final class CheckpointReached extends GameEvent {
 /// One per enemy. Two in one step is two of these, which is the case the flag
 /// this replaces could not report at all.
 final class EnemyStomped extends GameEvent {
+  /// [enemy] stomped and killed.
   const EnemyStomped(this.enemy);
 
   /// The name it is declared and published under.
@@ -126,6 +134,7 @@ final class EnemyStomped extends GameEvent {
     decode: (_) => null,
   );
 
+  /// The enemy landed on, live in the world and dead by now.
   final Actor enemy;
 
   @override
@@ -137,6 +146,7 @@ final class EnemyStomped extends GameEvent {
 /// Once, on the step it happened, whatever the death counter says — which is
 /// the property the counter never had.
 final class RunnerDied extends GameEvent {
+  /// The death; it carries nothing.
   const RunnerDied();
 
   /// The name it is declared and published under.
@@ -160,11 +170,13 @@ final class RunnerDied extends GameEvent {
 /// produced them — a landing and the block it broke are two events one after
 /// the other rather than a flag on a body and a flag on a brush.
 abstract base class RunnerEvent extends GameEvent {
+  /// For the subclasses; a runner event carries nothing of its own.
   const RunnerEvent();
 }
 
 /// Left the ground under its own power.
 final class Jumped extends RunnerEvent {
+  /// The jump; it carries nothing.
   const Jumped();
 
   /// The name it is declared and published under.
@@ -182,6 +194,7 @@ final class Jumped extends RunnerEvent {
 
 /// Pushed off a wall it was against.
 final class WallJumped extends RunnerEvent {
+  /// The wall jump; it carries nothing.
   const WallJumped();
 
   /// The name it is declared and published under.
@@ -199,6 +212,7 @@ final class WallJumped extends RunnerEvent {
 
 /// Came out of a slide, low and far, with no steering.
 final class LongJumped extends RunnerEvent {
+  /// The long jump; it carries nothing.
   const LongJumped();
 
   /// The name it is declared and published under.
@@ -216,6 +230,7 @@ final class LongJumped extends RunnerEvent {
 
 /// Pulled itself over a ledge.
 final class Mantled extends RunnerEvent {
+  /// The mantle; it carries nothing.
   const Mantled();
 
   /// The name it is declared and published under.
@@ -233,6 +248,7 @@ final class Mantled extends RunnerEvent {
 
 /// Committed to a dash.
 final class Dashed extends RunnerEvent {
+  /// The dash; it carries nothing.
   const Dashed();
 
   /// The name it is declared and published under.
@@ -250,6 +266,7 @@ final class Dashed extends RunnerEvent {
 
 /// Went into a slide.
 final class Slid extends RunnerEvent {
+  /// The slide; it carries nothing.
   const Slid();
 
   /// The name it is declared and published under.
@@ -267,6 +284,7 @@ final class Slid extends RunnerEvent {
 
 /// Caught a rope or a ladder, and stopped falling.
 final class Grabbed extends RunnerEvent {
+  /// The grab; it carries nothing.
   const Grabbed();
 
   /// The name it is declared and published under.
@@ -287,6 +305,7 @@ final class Grabbed extends RunnerEvent {
 /// Carries whether it arrived on the way down from a ground pound, which is
 /// two flags in the shape it replaces and one question a caller asks here.
 final class Landed extends RunnerEvent {
+  /// A landing, [pounded] when it ended a ground pound.
   const Landed({required this.pounded});
 
   /// The name it is declared and published under.
@@ -313,6 +332,7 @@ final class Landed extends RunnerEvent {
 /// Not [EnemyStomped], which says the enemy died: this says the runner was
 /// thrown, and a spring throws without anything dying.
 final class Bounced extends RunnerEvent {
+  /// The bounce; it carries nothing.
   const Bounced();
 
   /// The name it is declared and published under.
@@ -338,6 +358,7 @@ final class Bounced extends RunnerEvent {
 /// mechanism in the level once a frame and asking each one three questions;
 /// what has actually gone is that walk.
 abstract base class FurnitureEvent extends GameEvent {
+  /// Something the furniture at [at] did.
   const FurnitureEvent(this.at);
 
   /// Where it happened, in world space.
@@ -346,6 +367,7 @@ abstract base class FurnitureEvent extends GameEvent {
 
 /// A pad threw something.
 final class SpringFired extends FurnitureEvent {
+  /// The pad at `at` firing.
   const SpringFired(super.at);
 
   /// The name it is declared and published under.
@@ -371,6 +393,7 @@ final class SpringFired extends FurnitureEvent {
 
 /// A platform gave way under the weight on it.
 final class BlockCrumbled extends FurnitureEvent {
+  /// The platform resting at `at` giving way.
   const BlockCrumbled(super.at);
 
   /// The name it is declared and published under.
@@ -396,6 +419,7 @@ final class BlockCrumbled extends FurnitureEvent {
 
 /// A block was broken.
 final class BlockBroke extends FurnitureEvent {
+  /// The block at `at` breaking.
   const BlockBroke(super.at);
 
   /// The name it is declared and published under.
@@ -426,6 +450,7 @@ final class BlockBroke extends FurnitureEvent {
 /// so a game watching the number cannot tell the two apart without keeping a
 /// copy — which is the shape `diedThisStep` was written to remove.
 final class PowerEnded extends GameEvent {
+  /// [power] running out.
   const PowerEnded(this.power);
 
   /// The name it is declared and published under.
@@ -453,6 +478,7 @@ final class PowerEnded extends GameEvent {
 /// once it has lapsed cannot be told from one that never happened, which is
 /// why this is an event and not a field that goes back to zero.
 final class ChainEnded extends GameEvent {
+  /// A chain ending, having come to [worth] points.
   const ChainEnded(this.worth);
 
   /// The name it is declared and published under.

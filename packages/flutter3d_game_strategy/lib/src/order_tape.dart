@@ -76,6 +76,8 @@ final class OrderTape {
   /// How many steps the match lasted.
   int get steps => frames.length;
 
+  /// The seed and the frames as a document [OrderTape.fromJson] reads back,
+  /// each order written by its own `toJson`.
   Map<String, Object?> toJson() => <String, Object?>{
     'seed': seed,
     'frames': <List<Object?>>[
@@ -334,6 +336,11 @@ final class MatchDemo {
     if (reason != null) throw ReplayException(reason, poses: poses);
   }
 
+  /// The demo as a document [MatchDemo.fromJson] reads back, in the current
+  /// format version.
+  ///
+  /// The optional fields are left out when null, and the fields of [unknown]
+  /// that this version does not know are written back as they came.
   Map<String, Object?> toJson() => <String, Object?>{
     ...format.envelope(),
     'level': level,

@@ -87,6 +87,8 @@ abstract final class Monsters {
     ),
   );
 
+  /// The three by the name a level's `monster` entity gives in its `kind`,
+  /// what [sampleRegistry] hands `MonsterKind`.
   static const Map<String, MonsterDef> byName = <String, MonsterDef>{
     'runner': runner,
     'shooter': shooter,
@@ -113,6 +115,8 @@ abstract final class Weapons {
     automatic: true,
   );
 
+  /// One hitscan round four times a second on bullets, out to 120 metres,
+  /// losing damage from 25 metres to 70 down to two fifths of it.
   static const WeaponDef pistol = WeaponDef(
     loudness: 16.0,
     name: 'Pistol',
@@ -152,6 +156,9 @@ abstract final class Weapons {
     recoilRecovery: 4.5,
   );
 
+  /// A rocket at 34 metres a second on rockets, under one a second: 90
+  /// damage where it lands, and a splash of 4.5 metres radius that still
+  /// does 0.15 of it at the edge.
   static const WeaponDef rocketLauncher = WeaponDef(
     loudness: 26.0,
     name: 'Rocket Launcher',
@@ -198,8 +205,15 @@ final GiftRegistry sampleGifts = GiftRegistry(<Gift>[
 /// The format's own vocabulary is [EntityTypes]; these three are furniture, and
 /// they live beside the kinds that implement them.
 abstract final class SampleEntities {
+  /// A wall torch: a flickering flame, and in the crypt a burner that can
+  /// set wood alight (`CryptTorch.flameOf`).
   static const String torch = 'torch';
+
+  /// A steady lamp, which burns nothing.
   static const String lamp = 'lamp';
+
+  /// A steady window light, 1.4 by 2.2 metres by default, which burns
+  /// nothing.
   static const String window = 'window';
 }
 

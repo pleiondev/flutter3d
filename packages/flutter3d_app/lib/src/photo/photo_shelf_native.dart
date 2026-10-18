@@ -54,9 +54,13 @@ String? picturesDirectory({
 /// package goes: a game closed half way through a large capture leaves a
 /// `.part` behind rather than a PNG that opens as half a picture.
 final class FilePhotoShelf extends PhotoShelf {
+  /// A shelf writing into the directory given, or into the platform's
+  /// pictures folder for [appName] when none is.
   FilePhotoShelf({required this.appName, Directory? directory})
     : _given = directory;
 
+  /// The game's name, which [picturesDirectory] names the photos folder
+  /// after when no directory was given.
   final String appName;
   final Directory? _given;
 

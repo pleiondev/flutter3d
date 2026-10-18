@@ -6,13 +6,22 @@ import 'package:vector_math/vector_math.dart';
 import '../collectible.dart';
 import '../platformer_entities.dart';
 
+/// A collectible in a level document. See [Collectible].
+///
+/// Needs a `what`, the purse kind it counts as; one without it spawns
+/// nothing. `count` is how many it gives, one if absent, and a count of
+/// nought or less is warned about. `key` makes it open a door too.
 final class CollectibleKind extends EntityKind {
   /// A player has to be able to get to one of these. See
   /// [EntityKind.mustBeReachable] — and the fourteen that were inside walls.
   @override
   bool get mustBeReachable => true;
+
+  /// The kind, under the type `PlatformerEntities.collectible`.
   const CollectibleKind() : super(PlatformerEntities.collectible);
 
+  /// The trigger's size in metres when the entity gives none: half a metre
+  /// each way.
   static Vector3 get defaultSize => Vector3(0.5, 0.5, 0.5);
 
   @override

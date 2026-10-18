@@ -62,8 +62,12 @@ final class FogOfWar {
   /// The corner's Z, in metres.
   final double originZ;
 
-  /// How many cells across and down.
+  /// How many cells across, along X: enough to cover the ground's width, plus
+  /// one.
   final int columns;
+
+  /// How many cells down, along Z: enough to cover the ground's depth, plus
+  /// one.
   final int rows;
 
   /// One byte a cell a side: bit one is explored, bit two is visible.
@@ -88,8 +92,10 @@ final class FogOfWar {
     return cz * columns + cx;
   }
 
-  /// Where a cell's middle is, along X and Z.
+  /// Where a cell's middle is along world X, in metres.
   double centerX(int cell) => originX + (cell % columns + 0.5) * cellSize;
+
+  /// Where a cell's middle is along world Z, in metres.
   double centerZ(int cell) => originZ + (cell ~/ columns + 0.5) * cellSize;
 
   /// Whether [side] can see [cell] at this moment.

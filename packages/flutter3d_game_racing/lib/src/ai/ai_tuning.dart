@@ -1,5 +1,6 @@
 /// The numbers that make one driver different from another.
 final class AiSettings {
+  /// Settings with each field at the default its own doc gives.
   const AiSettings({
     this.lookAheadPerSpeed = 0.55,
     this.minLookAhead = 12.0,

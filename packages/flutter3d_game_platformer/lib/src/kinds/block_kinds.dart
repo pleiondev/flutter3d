@@ -8,8 +8,10 @@ import '../platformer_entities.dart';
 
 /// A block a ground pound breaks. See [Breakable].
 final class BreakableKind extends EntityKind {
+  /// The kind, under the type `PlatformerEntities.breakable`.
   const BreakableKind() : super(PlatformerEntities.breakable);
 
+  /// The block's size in metres when the entity gives none: two each way.
   static Vector3 get defaultSize => Vector3(2.0, 2.0, 2.0);
 
   @override
@@ -36,6 +38,7 @@ final class BreakableKind extends EntityKind {
 
 /// A ladder, or a rope. See [Climbable].
 final class ClimbableKind extends EntityKind {
+  /// The kind, under the type `PlatformerEntities.climbable`.
   const ClimbableKind() : super(PlatformerEntities.climbable);
 
   /// Narrow and tall: a ladder is a line you stand on, not a room.

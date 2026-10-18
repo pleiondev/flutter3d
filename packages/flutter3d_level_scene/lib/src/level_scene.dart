@@ -51,6 +51,7 @@ final class LevelBatching {
     drawPerBrush: true,
   );
 
+  /// The constant's name, as [toString] prints it after `LevelBatching.`.
   final String name;
 
   /// Whether every brush is a draw of its own — what `BrushGeometry.build`'s
@@ -69,6 +70,8 @@ final class LevelBatching {
 /// A class rather than a record, so a batch can later say more about what
 /// it draws (its material, its cell) without breaking a reader.
 final class LevelBatch {
+  /// A batch of [node] drawing [mesh] inside [bounds]; [brush] only under
+  /// [LevelBatching.perBrush].
   const LevelBatch({
     required this.node,
     required this.mesh,
@@ -92,6 +95,8 @@ final class LevelBatch {
 /// What [LevelScene.build] made: the scene, and the parts of it a caller
 /// keeps to rebuild, cull or release.
 final class LevelSceneParts {
+  /// The parts of a built level; decals, reflectors and screens default to
+  /// none.
   const LevelSceneParts({
     required this.scene,
     required this.batches,
@@ -102,6 +107,8 @@ final class LevelSceneParts {
     this.screens = const <CameraView>[],
   });
 
+  /// The new scene, holding the batches, lights, probes, decals, reflectors
+  /// and screens below.
   final Scene scene;
 
   /// Every brush draw, in the order added to [scene].
@@ -142,8 +149,11 @@ final class LevelSceneParts {
 /// in the document's numbers alone; refusing a level made of a substance
 /// nobody installed is `Level.requireMaterials`'s, before anything is built.
 final class LevelScene {
+  /// A builder that groups by [batching], per material by default, and
+  /// reads substances from [materials] when given one.
   const LevelScene({this.batching = LevelBatching.perMaterial, this.materials});
 
+  /// How [build] groups the brushes into draws.
   final LevelBatching batching;
 
   /// Where the substances a level names are looked up by id; null reads
@@ -489,14 +499,6 @@ final class LevelScene {
     return node;
   }
 
-  /// A kept probe at the entity's position, with the document's numbers
-  /// where it gave any and the probe's own defaults where it did not.
-  ///
-  /// The defaults are restated rather than reached for because the node's
-  /// are constructor defaults, and a document that says nothing means those.
-  /// Kept, never rolling: a level's rooms do not move, and a probe that
-  /// redrew a face a frame would spend a view of the level on a picture it
-  /// already has.
   /// The decal [entity] asks for: its material's picture and colour,
   /// stamped down a box of `size` at its `at`, turned by its `yaw` and
   /// tipped by its `pitch` — ninety stands it on a wall.
@@ -582,6 +584,14 @@ final class LevelScene {
     return screen;
   }
 
+  /// A kept probe at the entity's position, with the document's numbers
+  /// where it gave any and the probe's own defaults where it did not.
+  ///
+  /// The defaults are restated rather than reached for because the node's
+  /// are constructor defaults, and a document that says nothing means those.
+  /// Kept, never rolling: a level's rooms do not move, and a probe that
+  /// redrew a face a frame would spend a view of the level on a picture it
+  /// already has.
   static ReflectionProbeNode probeOf(EntityDef entity) => ReflectionProbeNode(
     name: entity.name,
     radius: entity.number('radius') ?? 0.0,

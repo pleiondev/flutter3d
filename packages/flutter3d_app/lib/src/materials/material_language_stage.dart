@@ -52,8 +52,10 @@ const double _nothingBehind = 1000000.0;
 /// no value until a variant gives it one, and a backend picking a default here
 /// would be a backend disagreeing with the compiled shader.
 final class MaterialProgramStage extends CpuFragmentShader {
+  /// The fragment stage of [program].
   const MaterialProgramStage(this.program);
 
+  /// The compiled, specialised material this stage evaluates per pixel.
   final MaterialProgram program;
 
   @override
@@ -517,6 +519,8 @@ double _sceneDepthAt(ShaderBindings bindings, FragmentContext c) {
 /// of the model transform, which is the skinned pose's for a skinned draw,
 /// as the GLSL has it.
 final class MaterialVertexStage extends CpuVertexShaderByIndex {
+  /// The vertex stage of [program]: the plain half unless [skinned],
+  /// [instanced] or [lightmapped] picks another.
   const MaterialVertexStage(
     this.program, {
     this.skinned = false,
@@ -524,6 +528,8 @@ final class MaterialVertexStage extends CpuVertexShaderByIndex {
     this.lightmapped = false,
   });
 
+  /// The compiled material whose `vertex` block runs after the engine's
+  /// stage.
   final MaterialProgram program;
 
   /// Whether this is the skinned half.
@@ -663,8 +669,10 @@ final class MaterialVertexStage extends CpuVertexShaderByIndex {
 /// A full-screen stage written in the language — version 2 — as the
 /// software backend's fragment stage, behind its `FullscreenVertex`.
 final class MaterialFullscreenStage extends CpuFragmentShader {
+  /// The full-screen stage of [program].
   const MaterialFullscreenStage(this.program);
 
+  /// The compiled full-screen program, run once per pixel with its `uv`.
   final MaterialProgram program;
 
   @override

@@ -11,6 +11,8 @@ const String paletteLight = 'light';
 
 /// One row of the palette.
 final class Placeable {
+  /// A row adding [what] to [kind]'s list; with no defaults and labelled by
+  /// [what] unless a plugin's entry gives them.
   const Placeable({
     required this.kind,
     required this.what,

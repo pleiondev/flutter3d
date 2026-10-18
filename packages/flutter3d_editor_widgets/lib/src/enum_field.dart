@@ -20,6 +20,7 @@ import 'package:flutter3d_core/formats.dart' show EnumHintValue;
 
 /// A dropdown offering [options], with [value] selected.
 final class EnumField extends StatelessWidget {
+  /// A dropdown of [options]; nothing selected when [value] is null.
   const EnumField({
     super.key,
     this.value,

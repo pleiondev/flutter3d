@@ -73,6 +73,7 @@ final class Piece {
 /// monster — so the ones with nothing to show are given a box of their own, and
 /// that box is both what a click hits and what gets drawn.
 final class Handle {
+  /// A handle on row [index] of [kind]'s list; not a volume unless said.
   const Handle({
     required this.kind,
     required this.index,
@@ -82,12 +83,17 @@ final class Handle {
     this.volume = false,
   });
 
+  /// Which of the level's three lists the thing is in.
   final Piece kind;
 
   /// Which one, in the document's own list for [kind].
   final int index;
 
+  /// The middle of the box, in the level's frame, in metres.
   final Vector3 center;
+
+  /// The box's extent along each axis, in metres: a brush's own size, an
+  /// entity's when it has one, otherwise a [gizmoSize] mark.
   final Vector3 size;
 
   /// What to draw it in, linear. A light wears its own colour, which is the
@@ -104,7 +110,10 @@ final class Handle {
   /// wall it was placed on. Those are drawn as a cage of edges instead.
   final bool volume;
 
+  /// The box's lowest corner, in metres; a new vector each read.
   Vector3 get min => center - size / 2.0;
+
+  /// The box's highest corner, in metres; a new vector each read.
   Vector3 get max => center + size / 2.0;
 }
 

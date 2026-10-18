@@ -8,6 +8,8 @@ import 'package:vector_math/vector_math.dart';
 /// are a place you must not be rather than a line you must not cross — and a
 /// player who lands in them and stays should keep taking it.
 final class Hazard extends Mechanism with CollisionListener {
+  /// A hazard over [collider], made a trigger that reports here, hurting by
+  /// [damagePerSecond] or killing outright when [instant].
   Hazard({
     super.name,
     required this.collider,
@@ -21,6 +23,7 @@ final class Hazard extends Mechanism with CollisionListener {
       ..listener = this;
   }
 
+  /// The trigger volume that hurts whoever overlaps it.
   final Collider collider;
 
   /// In hit points per second.

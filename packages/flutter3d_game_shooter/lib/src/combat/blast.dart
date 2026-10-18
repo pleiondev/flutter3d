@@ -4,6 +4,7 @@ import 'package:vector_math/vector_math.dart';
 
 /// An explosion's shape: how far it reaches and how hard.
 final class Blast {
+  /// A blast reaching [radius] metres with [damage] at its centre.
   const Blast({
     required this.radius,
     required this.damage,
@@ -55,8 +56,12 @@ final class Blast {
 /// damage they cannot explain blames the game, and one who deals none they
 /// cannot explain blames their aim.
 final class BlastResolver {
+  /// A resolver finding candidates in [world] and checking each against
+  /// its geometry.
   BlastResolver(this.world);
 
+  /// The world searched for who is in reach, and whose solid geometry
+  /// blocks a blast's line of sight.
   final CollisionWorld world;
 
   final List<Collider> _candidates = <Collider>[];

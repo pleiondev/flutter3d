@@ -13,6 +13,7 @@ import 'package:vector_math/vector_math.dart';
 /// again — walking back through is not another secret, and a player who does it
 /// twice has not found two.
 final class Secret extends Mechanism with CollisionListener {
+  /// A secret over [collider], made a trigger that reports here.
   Secret({super.name, required this.collider}) {
     collider
       ..kind = ColliderKind.trigger
@@ -20,8 +21,10 @@ final class Secret extends Mechanism with CollisionListener {
       ..listener = this;
   }
 
+  /// The trigger volume somebody walks into to find it.
   final Collider collider;
 
+  /// Whether somebody has walked into it; it stays found once it is.
   bool get isFound => _found;
   bool _found = false;
 

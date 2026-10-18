@@ -58,6 +58,7 @@ typedef UnitPace =
 ///
 /// See [StrategySimulation.shots].
 final class UnitShot {
+  /// A shot by [shooter] at [mark].
   const UnitShot(this.shooter, this.mark);
 
   /// The unit that fired, where the step left it.

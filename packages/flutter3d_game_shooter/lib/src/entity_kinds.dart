@@ -24,7 +24,13 @@ List<EntityKind> shooterKinds() => <EntityKind>[
   const NoteKind(),
 ];
 
+/// Places a [Pickup] of whatever gift its `gives` names in [gifts].
+///
+/// A missing `gives`, or one [gifts] does not know, is an error and spawns
+/// nothing; an `amount` of nought or less is warned about. `amount` defaults
+/// to the gift's own, and `color` is passed on as the pickup's detail.
 final class PickupKind extends EntityKind {
+  /// The kind, granting from [gifts].
   const PickupKind(this.gifts) : super(ShooterEntities.pickup);
 
   /// What a `gives` string may name, and what it grants.
@@ -113,6 +119,7 @@ final class PickupKind extends EntityKind {
 /// it is whatever else the author put there, which is the whole idea: the
 /// reward is the room, not the trigger.
 final class SecretKind extends EntityKind {
+  /// The kind, under the type `ShooterEntities.secret`.
   const SecretKind() : super(ShooterEntities.secret);
 
   /// Big enough to be walked into rather than stepped over, and no bigger: a
@@ -136,7 +143,13 @@ final class SecretKind extends EntityKind {
   }
 }
 
+/// Places a key: a [Pickup] of [KeyGift] whose detail is the entity's
+/// `color`.
+///
+/// Under the format's own `key` type, so the validator can match locked
+/// doors to keys. A key without a `color` is an error and spawns nothing.
 final class ShooterKeyKind extends EntityKind {
+  /// The kind, under the format's own type `EntityTypes.key`.
   const ShooterKeyKind() : super(EntityTypes.key);
 
   /// Small enough to walk past without collecting by accident, big enough to
@@ -183,7 +196,13 @@ final class ShooterKeyKind extends EntityKind {
   }
 }
 
+/// A note an author leaves in a level: its `text` is required, and a note
+/// without one is an error.
+///
+/// Validated and nothing more: it spawns nothing into the world, and what
+/// shows the text is the game's.
 final class NoteKind extends EntityKind {
+  /// The kind, under the type `ShooterEntities.note`.
   const NoteKind() : super(ShooterEntities.note);
 
   @override

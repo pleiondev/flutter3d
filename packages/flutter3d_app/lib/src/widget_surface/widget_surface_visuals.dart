@@ -20,6 +20,7 @@ import 'widget_surface.dart';
 /// same way a level's own `player_spawn` is read as a coordinate rather than
 /// spawned into anything. This kind exists only so the type is not unknown.
 final class WidgetSurfaceKind extends EntityKind {
+  /// The kind for [WidgetSurfaceVisuals.entityType].
   const WidgetSurfaceKind() : super(WidgetSurfaceVisuals.entityType);
 }
 
@@ -36,6 +37,8 @@ final class WidgetSurfaceKind extends EntityKind {
 /// `Widget` subclass would make `flutter3d_sim` (which reads levels) depend
 /// on an application's own screens, which is exactly backwards.
 final class WidgetSurfaceVisuals {
+  /// Surfaces for [scene], their widgets looked up in [registry]; issues
+  /// are printed unless [onIssue] takes them.
   WidgetSurfaceVisuals(
     this.scene, {
     required this.device,
@@ -43,13 +46,18 @@ final class WidgetSurfaceVisuals {
     IssueSink? onIssue,
   }) : onIssue = onIssue ?? printIssue;
 
+  /// Where each surface's node is added.
   final Scene scene;
+
+  /// What each surface's plane and canvas texture are uploaded through.
   final GraphicsDevice device;
 
   /// Resolves the `widget` a `widget_surface` entity names. The application
   /// builds this, not the level or the engine — see the class doc.
   final Map<String, WidgetBuilder> registry;
 
+  /// Told about a `widget_surface` entity that names no widget, or one
+  /// [registry] does not hold; the entity is then left out.
   final IssueSink onIssue;
 
   final List<WidgetSurface> _surfaces = <WidgetSurface>[];
@@ -60,6 +68,7 @@ final class WidgetSurfaceVisuals {
   List<WidgetSurface> get surfaces =>
       List<WidgetSurface>.unmodifiable(_surfaces);
 
+  /// The entity type [add] builds; every other type it leaves alone.
   static const String entityType = 'widget_surface';
 
   /// Builds a [WidgetSurface] for [entity] if it names a `widget_surface`

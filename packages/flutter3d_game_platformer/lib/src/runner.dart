@@ -16,6 +16,16 @@ import 'spring.dart';
 import 'surfaces.dart';
 import 'water.dart';
 
+/// The platformer's world: the standard one, falling at [Runner.runGravity].
+///
+/// **Set where the game stages a run** ([stagePlatformer]), with the level's
+/// own laid over it (`Level.worldOver`), so the runner, the crates, the
+/// chasers' jump arcs and every spark fall by one gravity. A test that stands
+/// a runner in a world of its own makes the world with this.
+final WorldProperties platformerWorld = WorldProperties(
+  gravity: Vector3(0.0, -Runner.runGravity, 0.0),
+);
+
 /// The player: a body that runs, jumps twice, dashes, and carries a purse.
 ///
 /// ## It owns its jump, and the controller does not mind
@@ -42,18 +52,13 @@ import 'water.dart';
 /// `CharacterController.suppressFloorSnap` — still no hook and no subclass,
 /// but no longer *nothing*: writing a public field is not by itself a way to
 /// state an intention.
-/// The platformer's world: the standard one, falling at [Runner.runGravity].
-///
-/// **Set where the game stages a run** ([stagePlatformer]), with the level's
-/// own laid over it (`Level.worldOver`), so the runner, the crates, the
-/// chasers' jump arcs and every spark fall by one gravity. A test that stands
-/// a runner in a world of its own makes the world with this.
-final WorldProperties platformerWorld = WorldProperties(
-  gravity: Vector3(0.0, -Runner.runGravity, 0.0),
-);
-
 final class Runner
     with KeyHolder, Damageable, Rider, Gatherer, KeyTaker, Launchable {
+  /// A runner driving [body], which is pointed back here and given the
+  /// one-way platform rule.
+  ///
+  /// [gravity] defaults to the body's world's; [health] to 100 hit points
+  /// and [purse] to an empty one.
   Runner({
     required this.body,
     Health? health,
@@ -120,7 +125,11 @@ final class Runner
       ? moving
       : moving.copyWith(gravity: gravity);
 
+  /// The character controller the runner moves through the world; its
+  /// collider's `userData` is this runner.
   final CharacterController body;
+
+  /// The jump, dash, wall and crouch numbers this runner plays by.
   final RunnerSettings tuning;
 
   /// What the floors of this game are made of, and what each does.
@@ -129,6 +138,7 @@ final class Runner
   /// surfaces gets `MovementSettings` unchanged and pays one map lookup.
   final Surfaces surfaces;
 
+  /// The runner's hit points, which hazards and enemies take from.
   final Health health;
 
   @override
@@ -262,13 +272,17 @@ final class Runner
   /// Which way the wall pushes, when there is one. Zero otherwise.
   Vector3 get wallAway => _wallAway.clone();
 
+  /// Whether the body is standing on something, as its last step found.
   bool get isGrounded => body.isGrounded;
 
   /// How much of the dash is still to cool down, in seconds.
   double get dashCooldown => _dashCooldown;
 
+  /// How many jumps are left before the feet touch down again, a count;
+  /// refilled to [RunnerSettings.airJumps] on landing.
   int get airJumpsLeft => _airJumpsLeft;
 
+  /// Where the body is, in world metres; a copy.
   Vector3 get position => body.position.clone();
 
   @override
@@ -1213,6 +1227,10 @@ final class Runner
     _airJumpsLeft = tuning.airJumps;
   }
 
+  /// The body, health, purse, keys and facing, with the short-lived timers
+  /// a step reads (coyote time, the jump buffer, air jumps, the dash
+  /// cooldown, the wall's grace and push, the ramp's loss), as a document
+  /// [restore] reads back.
   Map<String, Object?> save() => <String, Object?>{
     'body': body.save(),
     'health': health.save(),
@@ -1231,6 +1249,10 @@ final class Runner
     'rampLoss': _rampLoss,
   };
 
+  /// Puts back what [save] wrote.
+  ///
+  /// A missing body, health or purse is left as it is; a missing number
+  /// reads as nought.
   void restore(Map<String, Object?> from) {
     final saved = from['body'];
     if (saved is Map<String, Object?>) body.restore(saved);

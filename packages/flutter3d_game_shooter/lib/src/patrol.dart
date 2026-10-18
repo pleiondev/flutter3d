@@ -36,6 +36,8 @@ const MonsterState patrolling = MonsterState('patrolling');
 /// it in, which is deliberate: a guard that goes calmly back to its beat after
 /// being shot at is a guard nobody believes.
 final class PatrolBrain extends ChaseBrain {
+  /// A brain walking [route], starting [patrolling]; asserts the route has
+  /// at least two points.
   PatrolBrain({
     required super.def,
     required super.shot,

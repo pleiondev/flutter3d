@@ -37,6 +37,8 @@ import 'simulation.dart';
 /// circuit's measured spline, which a `TrackDocument` carries beside its
 /// level and a level alone does not.
 final class RacingPlugin extends GenrePlugin<RacingSimulation> {
+  /// A plugin bringing the game's own [kinds], if any, and the [headless]
+  /// game for one circuit, if the host hands one.
   RacingPlugin({super.kinds, super.replaceKinds, super.headless});
 
   /// The plugin's id, which is the package's.

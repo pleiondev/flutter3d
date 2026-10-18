@@ -9,6 +9,7 @@ import 'model_asset.dart';
 /// wears it. See [ModelAssetInstantiate.instantiateFitted] for [length],
 /// [axis] and [onGround].
 final class ModelLook {
+  /// The model at [file], fitted to [length] metres along [axis].
   const ModelLook(
     this.file, {
     required this.length,
@@ -23,7 +24,13 @@ final class ModelLook {
 
   /// How long the model is fitted to be along [axis], in metres.
   final double length;
+
+  /// Which of the model's own bounds is its length: 0 for x, 1 for y, 2 for
+  /// z. Z by default, nose to tail for a model built facing along it.
   final int axis;
+
+  /// Whether the model stands on the node's origin rather than being centred
+  /// on it. False by default.
   final bool onGround;
 
   /// Moved by this after fitting: a ship's keel set a little under the
@@ -49,6 +56,8 @@ final class ModelLook {
 /// one that holds only what is drawn: a bridged component's `visual` node,
 /// not the node a bridge moves.
 final class ModelWardrobe<K> {
+  /// A wardrobe for [looks], uploading to [device] and instantiating into
+  /// [scene]; nothing is loaded until [load] or [put].
   ModelWardrobe({
     required this.device,
     required this.scene,
@@ -56,8 +65,14 @@ final class ModelWardrobe<K> {
     this.onDressed,
   }) : looks = Map<K, ModelLook>.unmodifiable(looks);
 
+  /// The device [load] uploads each model to.
   final GraphicsDevice device;
+
+  /// The scene each model is instantiated into, under the node it dresses.
   final Scene scene;
+
+  /// Each key's model and how it is fitted, copied unmodifiable at
+  /// construction; [load] fetches the ones not yet here.
   final Map<K, ModelLook> looks;
 
   /// Called after each node is dressed, with the instance and the key: for

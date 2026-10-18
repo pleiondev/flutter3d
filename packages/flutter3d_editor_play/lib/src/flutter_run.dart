@@ -76,6 +76,9 @@ List<String>? treeKillCommand(int pid, {required bool windows}) =>
 /// connection of its own there and listens for what the game posts, the way
 /// [AttachedRun] does; the connection goes when the game does.
 final class FlutterRun with PlayedGame {
+  /// A run of the project at [projectRoot] on [device], started by
+  /// [start]; a test hands its own process, kill and connection in place of
+  /// the real tool.
   FlutterRun({
     required this.projectRoot,
     this.device,
@@ -114,6 +117,7 @@ final class FlutterRun with PlayedGame {
   @override
   final Watched<List<String>> console = Watched<List<String>>(const <String>[]);
 
+  /// How many lines [console] keeps, a count; past it the oldest go.
   static const int consoleLimit = 2000;
 
   final GameEventLog _events = engineGameEventLog();

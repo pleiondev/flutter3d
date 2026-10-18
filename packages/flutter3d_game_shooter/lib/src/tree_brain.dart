@@ -18,6 +18,8 @@ import 'patrol.dart';
 /// `Blackboard` component on the actor, in the run's save with everything
 /// else, which is what `BehaviorBrain` is built on.
 final class TreeBrain extends ChaseBrain with HasBehaviorTree {
+  /// A brain resting by [tree] until something wakes it, starting
+  /// [patrolling].
   TreeBrain({
     required super.def,
     required super.shot,

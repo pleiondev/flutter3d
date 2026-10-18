@@ -24,12 +24,16 @@ import 'monster_def.dart';
 /// A subclass owes nothing; overriding `think` or `act` without calling
 /// `super` is how a brain replaces the machine rather than extending it.
 base class ChaseBrain extends Brain {
+  /// A brain for a monster of [def], firing through [shot] at
+  /// [difficulty]; it starts [MonsterState.idle].
   ChaseBrain({
     required this.def,
     required this.shot,
     this.difficulty = Difficulty.normal,
   });
 
+  /// What the monster is: how far it sees and hears, how long it hesitates,
+  /// what it attacks with and how pain stops it.
   final MonsterDef def;
 
   /// How hard this game is being.
@@ -44,6 +48,8 @@ base class ChaseBrain extends Brain {
   /// that is fired.
   final WeaponShot shot;
 
+  /// Which of its states the monster is in; [stateTime] counts from the
+  /// moment it entered it.
   MonsterState state = MonsterState.idle;
 
   /// Seconds in the current state, for animation and for timing out of

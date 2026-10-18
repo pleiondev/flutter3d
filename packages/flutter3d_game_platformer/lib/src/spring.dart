@@ -27,6 +27,8 @@ abstract base mixin class Launchable {
 /// its edge — and every platformer that has tried has produced the bug where a
 /// player bounces sideways into a pit.
 final class Spring extends Mechanism with CollisionListener {
+  /// A pad over [collider], throwing at [speed] metres a second; [collider]
+  /// is made a trigger that reports here.
   Spring({super.name, required this.collider, this.speed = 15.0}) {
     collider
       ..kind = ColliderKind.trigger
@@ -34,6 +36,7 @@ final class Spring extends Mechanism with CollisionListener {
       ..listener = this;
   }
 
+  /// The trigger pad whoever stands on is thrown from.
   final Collider collider;
 
   /// How fast it throws. 15 m/s clears about 4.7 m against the runner's

@@ -17,6 +17,8 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 /// too: everything either of them did around the map was the same, including
 /// the rule about words it has never heard of.
 final class Surfaces extends SurfaceTable<MovementSettings> {
+  /// Movement settings by surface name; a name not in it moves by
+  /// [fallback], ordinary `MovementSettings` unless given.
   const Surfaces(super.byName, {super.fallback = const MovementSettings()});
 
   /// Nothing named, everything ordinary. What a game gets before it decides it

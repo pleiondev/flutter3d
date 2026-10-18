@@ -7,14 +7,21 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 
 /// What an `editor:` section held, read.
 final class EditorSectionContents {
+  /// What a section held; each list is empty when the section said nothing
+  /// of it.
   const EditorSectionContents({
     this.components = const <ComponentHints>[],
     this.entityKinds = const <EntityKindHints>[],
     this.materials = const <MaterialHints>[],
   });
 
+  /// The section's `components`: how each component's fields are edited.
   final List<ComponentHints> components;
+
+  /// The section's `entityKinds`: how each entity type's fields are edited.
   final List<EntityKindHints> entityKinds;
+
+  /// The section's `materials`: how each lit model's parameters are edited.
   final List<MaterialHints> materials;
 }
 

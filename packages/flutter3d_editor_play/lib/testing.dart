@@ -19,6 +19,8 @@ import 'flutter3d_editor_play.dart';
 /// what each answers in [toolAnswers], `null` for success or an
 /// [RPCError] to refuse.
 final class FakeGame {
+  /// A game with [extensions] registered and, when [registered] is given,
+  /// a flutter tool attached; none by default.
   FakeGame({
     Map<String, String>? registered,
     this.extensions = const <String>[],
@@ -30,7 +32,12 @@ final class FakeGame {
     'hotRestart': 's0.hotRestart',
   };
 
+  /// The services a flutter tool registered on the game, protocol name to
+  /// registered name, as [flutterTool] spells them; empty for a game no
+  /// tool is attached to.
   final Map<String, String> registered;
+
+  /// The `ext.*` methods the `main` isolate lists in `extensionRPCs`.
   final List<String> extensions;
 
   /// What a registered method answers, by its registered name.
@@ -44,8 +51,11 @@ final class FakeGame {
   final List<Map<String, Object?>> calls = <Map<String, Object?>>[];
 
   final StreamController<String> _out = StreamController<String>();
+
+  /// The client end a run under test is handed in place of a connection.
   late final VmService service = VmService(_out.stream, _receive);
 
+  /// The id of the game's one isolate, `main`.
   static const String isolateId = 'isolates/1';
 
   /// The game printing [text] to stdout.
@@ -227,6 +237,7 @@ final class FakeFlutterTool implements Process {
   void running({String appId = 'a1', String wsUri = 'ws://game'}) =>
       event('app.debugPort', <String, Object?>{'appId': appId, 'wsUri': wsUri});
 
+  /// The tool exiting with [code]; a second exit is ignored.
   void exit(int code) {
     if (!_exit.isCompleted) _exit.complete(code);
   }
@@ -303,6 +314,7 @@ FakeFlutterRun fakeFlutterRun({
 /// What [fakeFlutterRun] answers: the run, the fake tool under it, and the
 /// arguments each start was given.
 final class FakeFlutterRun {
+  /// The parts [fakeFlutterRun] put together.
   const FakeFlutterRun({
     required this.run,
     required this.tool,

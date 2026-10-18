@@ -18,6 +18,8 @@ import 'package:vector_math/vector_math.dart';
 /// countdown is dispatched from inside the collision step and taking a collider
 /// out of the world there is how a broadphase gets corrupted.
 final class Crumbling extends Mechanism with CollisionListener {
+  /// A platform over [collider], holding [delay] seconds of weight and gone
+  /// for [gone] seconds; [collider] is made static and pointed back here.
   Crumbling({
     super.name,
     required this.collider,
@@ -30,6 +32,8 @@ final class Crumbling extends Mechanism with CollisionListener {
     _restingAt.setFrom(collider.position);
   }
 
+  /// The platform's static collider, taken out of the world when it gives
+  /// way and put back when it returns.
   final Collider collider;
 
   /// How long it holds after somebody steps on it.
@@ -140,6 +144,7 @@ final class Crumbling extends Mechanism with CollisionListener {
 /// door. Deliberately not damageable by anything else — a block that also
 /// breaks when a crate falls on it is a block a level cannot rely on.
 final class Breakable extends Mechanism {
+  /// A block over [collider], made static and pointed back here.
   Breakable({super.name, required this.collider}) {
     collider
       ..kind = ColliderKind.static
@@ -147,9 +152,11 @@ final class Breakable extends Mechanism {
     _at.setFrom(collider.position);
   }
 
+  /// The block's static collider, taken out of the world when it breaks.
   final Collider collider;
   final Vector3 _at = Vector3.zero();
 
+  /// Whether a pound has broken it; nothing un-breaks it but a restore.
   bool get isBroken => _broken;
   bool _broken = false;
 
@@ -206,6 +213,9 @@ final class Breakable extends Mechanism {
 /// whole of rope physics a platformer needs and none of the pendulum it does
 /// not.
 final class Climbable extends Mechanism {
+  /// A ladder over [collider], or a rope when [swing] is above nought;
+  /// [phase] is the seconds into its swing it starts at. [collider] is made
+  /// a trigger and pointed back here.
   Climbable({
     super.name,
     required this.collider,
@@ -220,6 +230,7 @@ final class Climbable extends Mechanism {
     _restingAt.setFrom(collider.position);
   }
 
+  /// The trigger volume a body climbs inside; it moves as the rope swings.
   final Collider collider;
 
   /// How fast a body climbs it.

@@ -46,6 +46,7 @@ abstract base class MaterialDecoder {
 /// from, the scene's lighting — without breaking a decoder written against
 /// 1.0.
 final class MaterialProbe {
+  /// A probe for the file named [fileName] holding [bytes].
   const MaterialProbe({required this.fileName, required this.bytes});
 
   /// The file's name; may be empty.
@@ -59,6 +60,7 @@ final class MaterialProbe {
 ///
 /// One object for the reason [MaterialProbe] gives.
 final class MaterialDecodeContext {
+  /// The claimed file's [bytes], under [fileName].
   const MaterialDecodeContext({required this.bytes, required this.fileName});
 
   /// The whole file.

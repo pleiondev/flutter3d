@@ -17,6 +17,9 @@ import 'widget_surface_pipeline.dart';
 /// document can put a scrolling list or a text field on a wall the same way
 /// it puts a torch on one.
 final class WidgetSurface {
+  /// [child] on a plane of [width] by [height] metres, its canvas
+  /// [pixelsPerMeter] pixels to the metre; a metre square at 512 pixels a
+  /// metre unless said otherwise.
   WidgetSurface({
     required Widget child,
     required GraphicsDevice device,
@@ -103,6 +106,7 @@ final class WidgetSurface {
     node.setRotationYawPitchRoll(value, -math.pi / 2, 0.0);
   }
 
+  /// Moves the surface's centre to [at], in metres; [at] is copied.
   void setPosition(Vector3 at) => node.setPositionFrom(at);
 
   /// How many times the pipeline has actually redrawn — `wg-01`'s own

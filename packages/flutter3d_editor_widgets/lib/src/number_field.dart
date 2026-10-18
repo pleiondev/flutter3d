@@ -21,6 +21,8 @@ import 'number_expression.dart';
 
 /// One labelled number.
 final class NumberField extends StatefulWidget {
+  /// A field for [value] labelled [label]; enabled, unitless, labelled in
+  /// eighteen pixels and stepping by a tenth unless said otherwise.
   const NumberField({
     super.key,
     required this.label,
@@ -81,6 +83,8 @@ final class NumberField extends StatefulWidget {
   /// Called with the new number when the person has finished.
   final ValueChanged<double> onChanged;
 
+  /// Whether the field takes typing, arrow keys and scrubbing; false shows
+  /// [value] and changes nothing.
   final bool enabled;
 
   /// What [said] means as a number, or null.

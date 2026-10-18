@@ -18,6 +18,8 @@ import 'platformer_entities.dart';
 /// stays square. That is a decision recorded in ARCHITECTURE.md §10, not an oversight,
 /// and it is why a crate is a crate here rather than a barrel.
 final class Crate {
+  /// A crate standing at [at] in [world], [size] metres to a side
+  /// ([defaultSize] when null) and weighing [mass] kilograms.
   Crate({
     required CollisionWorld world,
     required Vector3 at,
@@ -38,10 +40,13 @@ final class Crate {
   /// scenery.
   static Vector3 get defaultSize => Vector3(1.2, 1.2, 1.2);
 
+  /// The rigid body that falls, rests and is shoved; it never rotates.
   final RigidBody body;
 
+  /// The box the body collides as, on the world layer.
   Collider get collider => body.collider;
 
+  /// Where the crate's middle is, in world metres; a copy.
   Vector3 get position => body.collider.position.clone();
 }
 
@@ -56,6 +61,8 @@ final class CrateKind extends EntityKind {
   /// [EntityKind.mustBeReachable] — and the fourteen that were inside walls.
   @override
   bool get mustBeReachable => true;
+
+  /// The kind, spawning into [dynamics] once there is one.
   CrateKind({this.dynamics}) : super(PlatformerEntities.crate);
 
   /// Where a crate goes once there is a world. Null while validating.

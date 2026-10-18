@@ -83,9 +83,20 @@ final class WoodKind {
   /// What it is called in a sentence.
   final String name;
 
+  /// A whole crate, a box [CryptWood.crateSize] on a side times its size;
+  /// burnt through, it breaks into six [plank]s.
   static const WoodKind crate = WoodKind._(0, 'crate');
+
+  /// A whole barrel, a cylinder [CryptWood.barrelRadius] by
+  /// [CryptWood.barrelHeight]; burnt through, it breaks into seven [stave]s.
   static const WoodKind barrel = WoodKind._(1, 'barrel');
+
+  /// A board of a broken crate, a box of [CryptWood.plankHalf]; swept away
+  /// once it has been burnt out and cold a while.
   static const WoodKind plank = WoodKind._(2, 'plank');
+
+  /// A stave of a broken barrel, a box of [CryptWood.staveHalf]; swept away
+  /// once it has been burnt out and cold a while.
   static const WoodKind stave = WoodKind._(3, 'stave');
 
   /// Every kind, in the order a save numbers them.
@@ -97,6 +108,8 @@ final class WoodKind {
 
 /// A crate or a barrel, or a piece of one, in the crypt world.
 final class CryptWood {
+  /// A piece numbered [serial], of [kind], standing as [body] with [fuel]
+  /// kilograms to burn; [cold] is nought for one not yet burnt out.
   CryptWood({
     required this.serial,
     required this.body,
@@ -115,13 +128,21 @@ final class CryptWood {
   /// A broken crate's board and a broken barrel's stave, as boxes: their
   /// half-sizes, m. Fresh each time, so nobody scaling one moves the other.
   static Vector3 get plankHalf => Vector3(0.38, 0.06, 0.016);
+
+  /// A broken barrel's stave as a box: its half-sizes in metres, long along
+  /// y. Fresh each time, as [plankHalf] is.
   static Vector3 get staveHalf => Vector3(0.05, 0.44, 0.016);
 
   /// Its number in the crypt, never given twice in a level: what the look
   /// that draws it is kept by, since a body's handle can be handed out again
   /// after a rewind.
   final int serial;
+
+  /// Its rigid body in [CryptWorld.world], on [CryptLayer.wood]; what the
+  /// core burns, throws and breaks.
   final NativeBody body;
+
+  /// Whether it is a crate or a barrel, whole or a piece of one.
   final WoodKind kind;
 
   /// How large a crate is beside a full one; one for anything else.
@@ -133,7 +154,11 @@ final class CryptWood {
   /// How long it has been burnt out, s, for a piece to be swept away.
   double cold;
 
+  /// Whether it is a barrel or a stave of one, rather than crate wood.
   bool get barrel => kind == WoodKind.barrel || kind == WoodKind.stave;
+
+  /// Whether it is a piece of a broken one, kept in [CryptWorld.pieces]
+  /// rather than [CryptWorld.wood].
   bool get piece => kind == WoodKind.plank || kind == WoodKind.stave;
 
   List<Object> _save() => <Object>[
@@ -165,10 +190,17 @@ final class CryptWood {
 
 /// A torch: the fixture, where its flame is, and the burner's body there.
 final class CryptTorch {
+  /// The torch of [fixture], its burner [head] standing at [at].
   CryptTorch(this.fixture, this.head, this.at);
 
+  /// The level's light the torch belongs to.
   final LightFixture fixture;
+
+  /// The burner's body in [CryptWorld.world], on [CryptLayer.stone]: what
+  /// the core keeps alight and what sets wood near it burning.
   final NativeBody head;
+
+  /// Where the flame is in the world, in metres: [flameOf] the fixture.
   final Vector3 at;
 
   /// Where the cup a torch's flame rises from sits on its bracket, in the
@@ -177,6 +209,8 @@ final class CryptTorch {
   /// hangs its cup here, so the flame it draws and the burner the core feeds
   /// are in one place.
   static Vector3 get cup => Vector3(0.0, 0.08, -0.24);
+
+  /// How far over [cup] the flame starts, in metres.
   static const double rise = 0.07;
 
   /// Where [fixture]'s flame is, if it is a torch's: [cup] turned by the
@@ -210,6 +244,7 @@ final class CryptTorch {
 /// room's west wall from [doorZ0] to [doorZ1]; and the culvert in the east
 /// wall the water comes from, at [culvertZ].
 final class FloodPlan {
+  /// A plan from its eight coordinates, all in world metres.
   const FloodPlan({
     required this.x0,
     required this.z0,
@@ -221,6 +256,10 @@ final class FloodPlan {
     required this.culvertZ,
   });
 
+  /// The plan, in world metres: the room's west and north edges (`x0`,
+  /// `z0`) and east and south edges (`x1`, `z1`); the water's height over
+  /// the floor (`level`); the doorway's ends along the west wall (`doorZ0`,
+  /// `doorZ1`); and where along the east wall the culvert is (`culvertZ`).
   final double x0, z0, x1, z1, level, doorZ0, doorZ1, culvertZ;
 
   /// The vault of the first crypt, east of the guard room, where the iron
@@ -247,7 +286,12 @@ final class FloodPlan {
 final class CryptVault {
   CryptVault._(this.plan, this.liquid, this.ground, this.stones);
 
+  /// Where the room is, how deep it floods, and where the water comes in
+  /// and goes out.
   final FloodPlan plan;
+
+  /// The shallow-water grid over the room, [cell] metres a cell, that the
+  /// core steps.
   final NativeShallowLiquid liquid;
 
   /// The floor under each cell's middle, x fastest, m.
@@ -422,6 +466,10 @@ final class CryptWorld {
 
   /// Crates and barrels whole, and the pieces of broken ones.
   final List<CryptWood> wood = <CryptWood>[];
+
+  /// The boards and staves of broken crates and barrels, oldest first; past
+  /// 36 the oldest is removed, and one burnt out and cold for 20 seconds is
+  /// swept away.
   final List<CryptWood> pieces = <CryptWood>[];
 
   List<NativeBody> _stone = <NativeBody>[];

@@ -28,6 +28,8 @@ import 'editor_widgets_theme.dart';
 
 /// One texture slot's own row.
 final class TextureSlotRow extends StatelessWidget {
+  /// A row for the slot [label]; empty, with no subtitle, badge, thumbnail
+  /// or clear button unless they are given.
   const TextureSlotRow({
     super.key,
     required this.label,
@@ -60,6 +62,7 @@ final class TextureSlotRow extends StatelessWidget {
   /// one.
   final Uint8List? thumbnail;
 
+  /// Called by the row's `Choose…` button; the caller opens its own picker.
   final VoidCallback onChoose;
 
   /// Null hides the button — a slot nothing is bound to has nothing to

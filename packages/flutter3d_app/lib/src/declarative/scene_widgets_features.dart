@@ -24,6 +24,8 @@ part of 'scene_widgets.dart';
 /// change the object imperatively — through [onCreated] — and the widget
 /// will not put it back unless it says what it should be.
 final class Material3D extends StatefulWidget {
+  /// A metal-rough material; every property left as the material has it
+  /// unless given.
   const Material3D({
     super.key,
     this.lighting = LightingModel.pbr,
@@ -65,15 +67,31 @@ final class Material3D extends StatefulWidget {
   /// How bright [emissive] is, in nits (candela per square metre) —
   /// `RenderMaterial.emissiveStrength`.
   final double? emissiveStrength;
+
+  /// The base-colour map, multiplied by [baseColor]. Null leaves it.
   final TextureHandle? albedo;
+
+  /// The tangent-space normal map. Null leaves it.
   final TextureHandle? normal;
+
+  /// The map whose blue channel is metallic and green is roughness,
+  /// multiplied by [metallic] and [roughness]. Null leaves it.
   final TextureHandle? metallicRoughness;
+
+  /// The ambient-occlusion map, in its red channel. Null leaves it.
   final TextureHandle? occlusion;
+
+  /// The emissive map, multiplied by [emissive]. Null leaves it.
   final TextureHandle? emissiveTexture;
+
+  /// Whether alpha is ignored, cuts the surface away below [alphaCutoff] or
+  /// blends it. Null leaves it.
   final MaterialAlphaMode? alphaMode;
 
   /// The alpha below which a masked surface is cut away, nought to one.
   final double? alphaCutoff;
+
+  /// Whether back faces are drawn too. Null leaves it.
   final bool? doubleSided;
 
   /// Values for the `uniform`s of a material written in the language — `P8`:
@@ -85,11 +103,15 @@ final class Material3D extends StatefulWidget {
   /// `MaterialParameters.of` takes). Give it the bundle's schema
   /// (`BundledMaterials.schema`) to have a misspelt name refused here.
   final MaterialParameters? parameters;
+
+  /// The material's name, given when it is made.
   final String? name;
 
   /// Called once with the material, when it is made.
   final void Function(engine.RenderMaterial material)? onCreated;
 
+  /// The widgets below, whose meshes without a material of their own are
+  /// drawn in this one.
   final List<Widget> children;
 
   @override
@@ -163,6 +185,8 @@ class _MaterialScope extends InheritedWidget {
 /// [faceSize], [levels], [near] and [far] shape the capture and are read when
 /// the probe is first built; [radius] and [intensity] follow every build.
 final class ReflectionProbe3D extends Spatial3D {
+  /// A probe of 64-pixel faces with four levels, reaching everything,
+  /// unless said otherwise.
   const ReflectionProbe3D({
     super.key,
     super.position,
@@ -180,7 +204,12 @@ final class ReflectionProbe3D extends Spatial3D {
 
   /// A ratio: the light it measured times this, with no unit.
   final double intensity;
+
+  /// The side of each cube face, in pixels; read when first built.
   final int faceSize;
+
+  /// How many convolved levels follow the base, the last the roughest;
+  /// read when first built.
   final int levels;
 
   /// Where each face's view begins, in metres.
@@ -188,6 +217,8 @@ final class ReflectionProbe3D extends Spatial3D {
 
   /// Where each face's view ends, in metres.
   final double far;
+
+  /// The probe node's name, given when it is made.
   final String? name;
 
   @override
@@ -220,6 +251,8 @@ class _ReflectionProbe3DState
 /// scale, a unit cube at scale one: x and z are the picture's size, y how
 /// deep it reaches, so one with no rotation lies on the floor.
 final class Decal3D extends Spatial3D {
+  /// A decal, white, untextured and at order nought, fading over the
+  /// default angles and depth, unless said otherwise.
   const Decal3D({
     super.key,
     super.position,
@@ -237,6 +270,7 @@ final class Decal3D extends Spatial3D {
     this.name,
   });
 
+  /// The picture stamped down; null stamps [color] alone.
   final TextureHandle? texture;
 
   /// Linear RGBA; white if null.
@@ -261,6 +295,8 @@ final class Decal3D extends Spatial3D {
   /// The share of the box's half height, from its top and bottom faces, the
   /// decal fades out over.
   final double depthFade;
+
+  /// The decal node's name, given when it is made.
   final String? name;
 
   @override
@@ -294,6 +330,8 @@ class _Decal3DState extends _SpatialState<Decal3D, DecalNode> {
 /// Planar reflections are drawn when the frame's `ReflectionSettings` ask
 /// for them, as for an imperatively built mirror.
 final class Mirror3D extends Spatial3D {
+  /// A perfect, untinted mirror drawn at half the view's size, unless said
+  /// otherwise.
   const Mirror3D({
     super.key,
     super.position,
@@ -325,6 +363,8 @@ final class Mirror3D extends Spatial3D {
   /// How far below the plane the mirrored camera's near plane sits, in
   /// metres.
   final double clipOffset;
+
+  /// The mirror node's name, given when it is made.
   final String? name;
 
   @override
@@ -353,8 +393,10 @@ class _Mirror3DState extends _SpatialState<Mirror3D, PlanarReflectorNode> {
 /// `Renderer.addContributor` and `removeContributor`, kept by Flutter's
 /// reconciliation. For a contributor this package has no widget for.
 final class Contributor3D extends StatefulWidget {
+  /// Adds [contributor] to the scene's renderer while this is in the tree.
   const Contributor3D({super.key, required this.contributor});
 
+  /// What draws with the scene; another one on a rebuild replaces it.
   final PassContributor contributor;
 
   @override
@@ -406,6 +448,8 @@ class _Contributor3DState extends State<Contributor3D> {
 /// drawn in place of one of this widget's own — for a game that also bursts
 /// into it imperatively.
 final class Particles3D extends Spatial3D {
+  /// Particles of [effect], emitting none until [perSecond] says, in a
+  /// system of 512 seeded with nought unless said otherwise.
   const Particles3D({
     super.key,
     super.position,
@@ -419,6 +463,7 @@ final class Particles3D extends Spatial3D {
     super.children,
   });
 
+  /// How each new particle is born and lives: speed, life, colour, size.
   final ParticleEffect effect;
 
   /// How many particles it emits, per second.
@@ -432,6 +477,9 @@ final class Particles3D extends Spatial3D {
 
   /// A sprite for every particle; the procedural disc if null.
   final TextureHandle? texture;
+
+  /// A system the caller owns, simulated and drawn in place of one made
+  /// here; [capacity] and [seed] are then not read.
   final ParticleSystem? system;
 
   @override

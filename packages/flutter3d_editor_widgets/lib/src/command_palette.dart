@@ -18,6 +18,7 @@ import 'package:flutter/services.dart';
 
 /// One thing the palette can run.
 final class PaletteCommand {
+  /// A command, enabled and with no shortcut unless said otherwise.
   const PaletteCommand({
     required this.id,
     required this.title,
@@ -26,6 +27,8 @@ final class PaletteCommand {
     this.enabled = true,
   });
 
+  /// A stable name for it, `prefab.create`; its row's key is
+  /// `palette.row.<id>`, which is how a test finds it.
   final String id;
 
   /// What it is called, and what is searched.
@@ -37,6 +40,9 @@ final class PaletteCommand {
   /// Whether it can run now; a command that cannot is listed, dimmed, so
   /// somebody looking for it learns that it exists.
   final bool enabled;
+
+  /// What choosing it does, called after the palette has closed and never
+  /// while [enabled] is false.
   final VoidCallback run;
 }
 
@@ -98,8 +104,10 @@ Future<void> showCommandPalette(
 /// closes it; a click runs the row clicked. It answers the command chosen by
 /// popping the route it was pushed in, which [showCommandPalette] does.
 final class CommandPalette extends StatefulWidget {
+  /// A palette listing [commands].
   const CommandPalette({super.key, required this.commands});
 
+  /// Everything it can run, in the order shown before anything is typed.
   final List<PaletteCommand> commands;
 
   @override

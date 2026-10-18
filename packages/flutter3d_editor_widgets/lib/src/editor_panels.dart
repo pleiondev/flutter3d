@@ -11,9 +11,13 @@ import 'dock_layout.dart';
 /// One selected thing of the open document, in the words a level writes:
 /// the list it is in (`brush`, `light`, `entity`) and its index there.
 final class PanelSelection {
+  /// The [index]th item of the level's [piece] list.
   const PanelSelection({required this.piece, required this.index});
 
+  /// Which list of the level it is in: `brush`, `light` or `entity`.
   final String piece;
+
+  /// Its position in that list, from nought.
   final int index;
 
   @override
@@ -42,6 +46,9 @@ final class PanelSelection {
 /// Made by the editor for each build, never by a plugin. **One object, so
 /// it can grow.**
 final class EditorPanelContext {
+  /// A context the editor makes for one build; nothing is selected and the
+  /// document is unsaved unless said otherwise, and [say] does nothing
+  /// without a way to say.
   const EditorPanelContext({
     required this.context,
     required this.document,
@@ -89,6 +96,8 @@ final class EditorPanelContext {
 /// A panel a plugin adds: its id, its title and icon, where it goes, and
 /// what it shows.
 final class EditorPanel {
+  /// A panel of the main screen with a puzzle-piece icon, unless [dock]
+  /// and [icon] say otherwise.
   const EditorPanel({
     required this.id,
     required this.title,
@@ -101,7 +110,11 @@ final class EditorPanel {
   /// remembers it by.
   final String id;
 
+  /// What its tab or menu entry says, and what an error in [builder] is
+  /// reported under.
   final String title;
+
+  /// What stands for it on a folded side and beside its title.
   final IconData icon;
 
   /// The side it docks to until somebody moves it, or null for a panel of

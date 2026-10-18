@@ -337,6 +337,12 @@ final class MapChannel {
     ];
   }
 
+  /// The water's ground at ([x], [z]), in world metres, where the drawn
+  /// ground there is [ground] metres high.
+  ///
+  /// [ground] itself away from the river and under the pond's level;
+  /// elsewhere the highest of [ground], the river's trough with its banks
+  /// and fords, and any stone in the bed.
   double bedAt(double x, double z, double ground) {
     if (x < _reach.x0 || x > _reach.x1 || z < _reach.z0 || z > _reach.z1) {
       return ground;

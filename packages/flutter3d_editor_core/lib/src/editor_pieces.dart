@@ -39,6 +39,8 @@ typedef CommandReader = PluginCommand? Function(Map<String, Object?> arguments);
 /// `boat` has buoyancy and a `torch` does not. Empty means every one of
 /// [piece].
 final class EditorComponent {
+  /// A section [title] keyed by [kind]; an entity section for every type,
+  /// naming no keys, defaults or hints, unless said otherwise.
   const EditorComponent({
     required this.kind,
     required this.title,
@@ -104,6 +106,8 @@ final class EditorComponent {
 /// the point: an empty level built for a plugin's game can place that game's
 /// things.
 final class PaletteEntry {
+  /// A row placing [type]; labelled and tinted by the type's name, with no
+  /// starting properties, unless said otherwise.
   const PaletteEntry(
     this.type, {
     this.label,
@@ -136,6 +140,7 @@ final class PaletteEntry {
 /// `flutter3d_plugin_api` until 1.0.0-rc.1, which named a slot nothing in
 /// the contract used.
 abstract base class EditorRegistry extends PluginRegistry {
+  /// The slot itself, which holds nothing; [EditorPieces] fills it.
   const EditorRegistry();
 }
 
@@ -943,6 +948,8 @@ final class EditorPieces extends EditorRegistry {
 
 /// One command a plugin added, as a tool server offers it.
 final class PluginCommandInfo {
+  /// What [plugin] said of its command [name]; offering no tools and with
+  /// no hints unless said otherwise.
   const PluginCommandInfo({
     required this.name,
     required this.plugin,

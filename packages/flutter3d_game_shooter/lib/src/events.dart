@@ -34,6 +34,7 @@ import 'secret.dart';
 /// The hits it landed arrive separately, as [ShotLanded], because a shotgun
 /// has one of these and up to eight of those.
 final class ShotFired extends GameEvent {
+  /// A shot of [weapon] from [from], which is copied.
   ShotFired({required this.weapon, required Vector3 from})
     : from = Vector3.copy(from);
 
@@ -52,6 +53,8 @@ final class ShotFired extends GameEvent {
     decode: (_) => null,
   );
 
+  /// The weapon fired, from the game's roster: for which sound and which
+  /// muzzle flash.
   final WeaponDef weapon;
 
   /// Where the shot came from, copied rather than held: the simulation reuses
@@ -69,6 +72,7 @@ final class ShotFired extends GameEvent {
 /// monster is eight of these — which is what a game wants for eight impact
 /// marks, and what no single field could have said.
 final class ShotLanded extends GameEvent {
+  /// The landing of [hit].
   const ShotLanded(this.hit);
 
   /// The name it is declared and published under.
@@ -89,6 +93,8 @@ final class ShotLanded extends GameEvent {
     decode: (_) => null,
   );
 
+  /// Where it landed, what it struck, how far away and for how much; its
+  /// collider is null for a shot that ran out of range.
   final ShotHit hit;
 
   @override
@@ -101,6 +107,7 @@ final class ShotLanded extends GameEvent {
 /// health, a step's damage is applied to it as a sum, and a game that wanted
 /// to react per source would be reacting to arithmetic that already happened.
 final class PlayerHurt extends GameEvent {
+  /// The step's harm, [amount] hit points.
   const PlayerHurt(this.amount);
 
   /// The name it is declared and published under.
@@ -127,6 +134,7 @@ final class PlayerHurt extends GameEvent {
 /// Once per death, on the step it happened — not on every step afterwards,
 /// which is what reading `player.isAlive` gives.
 final class PlayerDied extends GameEvent {
+  /// The death; it carries nothing.
   const PlayerDied();
 
   /// The name it is declared and published under.
@@ -144,6 +152,7 @@ final class PlayerDied extends GameEvent {
 
 /// The player walked into a secret.
 final class SecretFound extends GameEvent {
+  /// [secret] found.
   const SecretFound(this.secret);
 
   /// The name it is declared and published under.
@@ -156,6 +165,7 @@ final class SecretFound extends GameEvent {
     decode: (_) => null,
   );
 
+  /// The secret walked into, live in the level and counted as found.
   final Secret secret;
 
   @override
@@ -168,6 +178,7 @@ final class SecretFound extends GameEvent {
 /// door told the player without asking the door again. [ActivationOutcome] is
 /// itself open: a game whose door has a fourth answer gets it here unchanged.
 final class MechanismUsed extends GameEvent {
+  /// A press that came to [outcome].
   const MechanismUsed(this.outcome);
 
   /// The name it is declared and published under.
@@ -198,6 +209,8 @@ final class MechanismUsed extends GameEvent {
     },
   );
 
+  /// What came of the press: activated, refused with a message, nothing to
+  /// do, or a game's own answer.
   final ActivationOutcome outcome;
 
   @override

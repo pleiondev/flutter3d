@@ -15,6 +15,8 @@ import 'visibility_culler.dart';
 /// triangles instead would work until the first time somebody added a visual
 /// detail and made it solid by accident.
 final class LoadedLevel {
+  /// What `LevelLoader` built; [issues] is copied unmodifiable, and every
+  /// list and map left out is empty, batched per material.
   LoadedLevel({
     required this.level,
     required this.scene,
@@ -97,8 +99,15 @@ final class LoadedLevel {
   /// breach groups them the same way.
   final LevelBatching batching;
 
+  /// The document the level was built from.
   final Level level;
+
+  /// What is drawn: the brush batches, lights, probes, decals, mirrors and
+  /// screens, and whatever the game adds.
   final Scene scene;
+
+  /// What is walked into, built from the same brushes as [scene]; released
+  /// through [physics] in [dispose].
   final CollisionWorld collision;
 
   /// What the validator said. Errors stop the load before this exists, so
@@ -148,6 +157,10 @@ final class LoadedLevel {
   /// wall able to find the light that was baked for it.
   LightmapLayout? lightmapLayout;
 
+  /// The backend [collision] was attached to when the level was loaded —
+  /// the world's own — let go of in [dispose].
+  PhysicsBackend get physics => collision.backend;
+
   /// Gives the level's own uploads — brush meshes and material maps — back to
   /// [device].
   ///
@@ -156,10 +169,6 @@ final class LoadedLevel {
   /// share these texture objects rather than copies. The same contract as
   /// `SharedMeshes.dispose`: a no-op release on flutter_gpu, the one real
   /// `gl.delete*` per resource on WebGL2.
-  /// The backend [collision] was attached to when the level was loaded —
-  /// the world's own — let go of in [dispose].
-  PhysicsBackend get physics => collision.backend;
-
   void dispose(GraphicsDevice device) {
     physics.release(collision);
     for (final screen in screens) {

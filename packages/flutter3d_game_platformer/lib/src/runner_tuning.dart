@@ -1,5 +1,6 @@
 /// How this game's jump feels, which is most of how the game feels.
 final class RunnerSettings {
+  /// Settings with each field at the default its own doc gives.
   const RunnerSettings({
     this.jumpSpeed = 9.5,
     this.airJumpSpeed = 8.2,
@@ -146,6 +147,8 @@ final class RunnerSettings {
   /// rather than as a second staircase.
   final double airJumpSpeed;
 
+  /// How many more jumps the runner may make in the air before landing,
+  /// one by default: the double jump. Nought turns it off.
   final int airJumps;
 
   /// What is left of upward speed when the button comes up early.

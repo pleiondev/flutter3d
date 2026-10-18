@@ -23,6 +23,8 @@ import 'package:flutter/material.dart';
 /// that never customises it.
 @immutable
 final class EditorWidgetsTheme extends ThemeExtension<EditorWidgetsTheme> {
+  /// A theme with every size given; [defaults] holds the ones used when
+  /// none is registered.
   const EditorWidgetsTheme({
     required this.rowHeight,
     required this.labelWidth,

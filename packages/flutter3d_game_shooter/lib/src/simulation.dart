@@ -74,6 +74,8 @@ import 'step_phases.dart';
 final class GameState {
   const GameState._(this.name, this.outcome);
 
+  /// The player is alive and the level is not finished; a paused run is
+  /// still this.
   static const GameState playing = GameState._('playing', RunOutcome.playing);
 
   /// The player's health reached zero. Their input no longer moves anything;
@@ -101,7 +103,19 @@ final class GameState {
   String toString() => 'GameState.$name';
 }
 
+/// A shooter's step, in the order it has to happen in, and the state the
+/// run is in.
+///
+/// Holds the player, the level's collision world, and whichever of the
+/// mechanisms, monsters, rockets, weapons and loose bodies the game has; a
+/// caller steps it and then reads it. The library doc says why the order
+/// lives here and why nothing about presentation does.
 final class GameSimulation {
+  /// A run of [player] through [collision], read from [input], rolling
+  /// [random]; every part the game may lack is optional.
+  ///
+  /// Names the player's collider `player` to [projectiles], so a rocket the
+  /// player fired is still the player's after a rewind.
   GameSimulation({
     required this.player,
     required this.collision,
@@ -173,7 +187,11 @@ final class GameSimulation {
       (player.inventory.isBerserk ? berserkDamage : 1.0) *
       difficulty.damageDealt;
 
+  /// The player's pawn, moved, aimed and fired from [input] every step.
   final Player player;
+
+  /// The level's collision world, stepped here with [mechanisms] and
+  /// [dynamics].
   final CollisionWorld collision;
 
   /// The order the world is stepped in — see [WorldStep]. This game is where
@@ -184,6 +202,8 @@ final class GameSimulation {
     dynamics: dynamics,
     raise: _publish,
   );
+
+  /// What the player is pressing, read once a step.
   final InputState input;
 
   /// All nullable: a game may have no doors, no monsters, no rockets and no
@@ -191,8 +211,16 @@ final class GameSimulation {
   /// rule the entity registry follows — the package offers parts and the game
   /// says which of them it has.
   final MechanismWorld? mechanisms;
+
+  /// The monsters, or null for a game with none; stepped here and counted
+  /// at the first step for [monsterCount].
   final ActorSystem? actors;
+
+  /// The rockets in flight, or null for a game with none; their
+  /// detonations are applied here.
   final ProjectileSystem? projectiles;
+
+  /// How the player's weapon is fired, or null for a game with no weapons.
   final WeaponShot? shot;
 
   /// Crates, barrels and anything else with mass, or null for a game with
@@ -217,6 +245,8 @@ final class GameSimulation {
   /// do not crumble; set by the staging, which knows which brushes may.
   Breaches? breaches;
 
+  /// Whether the run is being played, lost or finished; [GameState.playing]
+  /// until the player dies or reaches an exit.
   GameState get state => _state;
   GameState _state = GameState.playing;
 
@@ -293,6 +323,8 @@ final class GameSimulation {
   /// Names this simulation counts under. Constants because a typo in one place
   /// and not the other is a counter that reads nought for ever.
   static const String kills = 'kills';
+
+  /// The name secrets found are counted under.
   static const String secrets = 'secrets';
 
   /// How many monsters this level started with, and how many secrets it holds.
@@ -305,6 +337,8 @@ final class GameSimulation {
   int get monsterCount => _monsterCount;
   int _monsterCount = 0;
 
+  /// How many secrets the level holds, a count taken at the first step;
+  /// nought before it.
   int get secretCount => _secretCount;
   int _secretCount = 0;
 
@@ -760,6 +794,11 @@ final class GameSimulation {
     'dynamics': ?dynamics?.saveState(),
   });
 
+  /// Puts back what [save] wrote, then makes dead monsters passable again
+  /// and brings the collision world up to date with the restored bodies.
+  ///
+  /// A missing part is left as it is, and a state this build does not know
+  /// keeps the current one.
   void restore(Snapshot snapshot) {
     final from = snapshot.data;
     _state = GameState.byName(from['state']) ?? _state;

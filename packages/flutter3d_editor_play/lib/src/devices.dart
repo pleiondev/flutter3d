@@ -4,6 +4,7 @@ import 'dart:io';
 /// A device `flutter run -d` can be given, as `flutter devices --machine`
 /// lists it.
 final class FlutterDevice {
+  /// A device the tool lists; not an emulator unless [emulator] says so.
   const FlutterDevice({
     required this.id,
     required this.name,
@@ -20,8 +21,12 @@ final class FlutterDevice {
   /// The tool's `targetPlatform`: `darwin`, `android-arm64`, `web-javascript`.
   final String platform;
 
+  /// Whether the tool reports it as an emulator or simulator rather than
+  /// hardware.
   final bool emulator;
 
+  /// The four fields under the keys the tool's own listing uses, except
+  /// `platform` for its `targetPlatform`.
   Map<String, Object?> toJson() => <String, Object?>{
     'id': id,
     'name': name,

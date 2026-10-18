@@ -29,6 +29,7 @@ abstract base mixin class GeneratorSource {
 /// the same in front of a player: a generator is run far more often than a
 /// level is loaded.
 final class GeneratorException extends Flutter3dFormatException {
+  /// A refusal saying [message].
   const GeneratorException(this.message);
 
   @override

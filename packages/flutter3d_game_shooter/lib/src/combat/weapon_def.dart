@@ -24,6 +24,7 @@ import 'weapon_behaviour.dart';
 /// the counters this arsenal actually holds, not every kind of ammunition the
 /// package can name. [Arsenal.ammo] answers that.
 final class AmmoType {
+  /// The ammunition called [name]; any two of one name are equal.
   const AmmoType(this.name);
 
   /// What it is called. Identity: two [AmmoType]s with the same name are the
@@ -34,8 +35,14 @@ final class AmmoType {
   /// The starting weapon never runs out, so it is always something to fall back
   /// to. A player stranded with no weapon at all is a player reloading a save.
   static const AmmoType none = AmmoType('none');
+
+  /// Rounds for a gun such as the shipped pistol.
   static const AmmoType bullets = AmmoType('bullets');
+
+  /// Shells for a shotgun; one shell fires every pellet of a shot.
   static const AmmoType shells = AmmoType('shells');
+
+  /// Rockets for a launcher.
   static const AmmoType rockets = AmmoType('rockets');
 
   @override
@@ -55,6 +62,8 @@ final class AmmoType {
 /// pistol and a shotgun are entirely in the numbers — which is exactly the case
 /// where a subclass per weapon buys nothing and costs a rebuild per tweak.
 final class WeaponDef {
+  /// A weapon called [name], delivering by [behavior], spending [ammo];
+  /// every other field at the default its own doc gives.
   const WeaponDef({
     required this.name,
     required this.behavior,
@@ -81,6 +90,8 @@ final class WeaponDef {
     this.splashMinimumFraction = 0.0,
   });
 
+  /// What the weapon is called, on screen and in a save: [Arsenal] saves
+  /// the weapons held by this name and looks them back up by it.
   final String name;
 
   /// The other trigger, or null for a weapon with one.
@@ -127,6 +138,8 @@ final class WeaponDef {
   /// and the numbers below are not.
   final WeaponBehavior behavior;
 
+  /// What it spends when it fires; [AmmoType.none] for one that never runs
+  /// out.
   final AmmoType ammo;
 
   /// Damage of a single ray at point-blank range.
@@ -137,6 +150,9 @@ final class WeaponDef {
 
   /// How many shots it fires per second at most.
   final double shotsPerSecond;
+
+  /// How many rounds of [ammo] one trigger pull spends, from the magazine
+  /// when there is one; one by default. A weapon refuses to fire with fewer.
   final int ammoPerShot;
 
   /// How many shots the weapon holds before it has to be reloaded, or null for

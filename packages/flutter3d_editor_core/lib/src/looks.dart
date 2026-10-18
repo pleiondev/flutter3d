@@ -35,8 +35,12 @@ import 'package:vector_math/vector_math.dart';
 /// three monsters, and a game that adds a fourth adds a file rather than a
 /// mapping.
 final class Looks {
+  /// Looks keyed by entity type.
   const Looks(this._byType);
 
+  /// Reads a `looks.json`: [none] when it is not an object, and an entry
+  /// that is not an object left out. Throws a [FormatException] for text
+  /// that is not JSON.
   factory Looks.parse(String text) {
     final json = jsonDecode(text);
     if (json is! Map<String, Object?>) return none;
@@ -52,6 +56,7 @@ final class Looks {
 
   final Map<String, Look> _byType;
 
+  /// Whether the game described no type at all, as with [none].
   bool get isEmpty => _byType.isEmpty;
 
   /// Every type the game described, whether this level has one or not.
@@ -112,8 +117,11 @@ final class Looks {
 
 /// What one type looks like.
 final class Look {
+  /// A look that says only what is given; no parts by default.
   const Look({this.model, this.size, this.tint, this.parts = const <Part>[]});
 
+  /// Reads one type's entry; a field of the wrong shape is left unsaid
+  /// rather than refused, and a part that is not an object is skipped.
   factory Look.fromJson(Map<String, Object?> json) => Look(
     model: json['model'] is String ? json['model']! as String : null,
     size: _vector(json['size']),
@@ -126,8 +134,12 @@ final class Look {
         if (part is Map<String, Object?>) Part.fromJson(part),
     ],
   );
+
+  /// The model file to draw the type as, which may carry `{property}`
+  /// slots; null when the type has none.
   final String? model;
 
+  /// The size of the type's mark in metres; null for the default mark.
   final Vector3? size;
 
   /// What it is drawn in, linear: the document's `tint`.
@@ -154,6 +166,7 @@ final class Look {
 /// than a drawing: a game names `cylinder` and a size, and the editor asks the
 /// same `CylinderShape` the game would have asked for.
 final class Part {
+  /// A part with every field given.
   const Part({
     required this.shape,
     required this.at,
@@ -165,6 +178,10 @@ final class Part {
     required this.glows,
   });
 
+  /// Reads one part, never throwing: a box at the origin, a tenth of a
+  /// metre each way, radius 0.05 and height 0.1 m, untilted and grey, for
+  /// whatever is missing or of the wrong shape. A `glow` colour stands in
+  /// for a missing `colour` and makes the part glow.
   factory Part.fromJson(Map<String, Object?> json) => Part(
     shape: json['shape'] is String ? json['shape']! as String : 'box',
     at: Look._vector(json['at']) ?? Vector3.zero(),
@@ -187,6 +204,7 @@ final class Part {
   /// the level's yaw turns the whole thing.
   final Vector3 at;
 
+  /// The extent of a box along each axis, in metres.
   final Vector3 size;
 
   /// The radius of a cylinder, sphere or cone, in metres.

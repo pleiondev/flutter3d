@@ -15,6 +15,7 @@ import 'scaffold_templates.dart';
 
 /// A template, as its manifest describes it.
 final class Template {
+  /// A template under the directory [id], with every field given.
   const Template({
     required this.id,
     required this.name,
@@ -22,6 +23,12 @@ final class Template {
     required this.files,
   });
 
+  /// Reads the template in directory [id] from its `manifest` JSON.
+  ///
+  /// A missing `name` is [id], a missing `about` is empty, and a `files`
+  /// entry whose target is not a string is left out. Throws a
+  /// [FormatException] for text that is not JSON, and a [TypeError] for a
+  /// manifest that is not an object.
   factory Template.parse(String id, String manifest) {
     final json = jsonDecode(manifest) as Map<String, Object?>;
     final files = json['files'];
@@ -44,6 +51,8 @@ final class Template {
   /// What a person picking one reads.
   final String name;
 
+  /// A paragraph on what the template is for, which opens a new project's
+  /// README; empty when the manifest gives none.
   final String about;
 
   /// What to copy: the file's name in the template, against where it lands in

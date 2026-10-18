@@ -56,6 +56,8 @@ Future<GameExtensionReply> callGameExtension(
 /// What [callGameExtension] answers: the extension's JSON reply, or the
 /// sentence that stopped it. Exactly one of the two is set.
 final class GameExtensionReply {
+  /// A reply; give [json] for an answer or [refused] for a refusal, not
+  /// both.
   const GameExtensionReply({this.json, this.refused});
 
   /// What the extension answered, decoded; null when it was refused.

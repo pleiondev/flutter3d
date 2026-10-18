@@ -29,6 +29,7 @@ import 'flutter3d_view.dart' show Flutter3dEngine;
 ///
 /// Built again once for every state the view publishes while it is shown.
 final class ProbeBuilder extends StatelessWidget {
+  /// A builder of [probe]'s reading out of [published].
   const ProbeBuilder({
     super.key,
     required this.published,

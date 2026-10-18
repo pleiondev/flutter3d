@@ -38,6 +38,7 @@ export 'storage_native.dart' if (dart.library.js_interop) 'storage_web.dart';
 /// a minor release arrives with a default body, so an implementation written
 /// against 1.0 keeps compiling: `extends Storage`, not `implements`.
 abstract base class Storage {
+  /// A store; a subclass says where documents are kept.
   const Storage();
 
   /// The document called [name], or null if there is not one.
@@ -64,9 +65,12 @@ abstract base class Storage {
 /// [documents] is the store itself, public so a test can seed it and read
 /// back what was written.
 final class MemoryStorage extends Storage {
+  /// A store over [documents], kept and written into, or over a new empty
+  /// map.
   MemoryStorage([Map<String, String>? documents])
     : documents = documents ?? <String, String>{};
 
+  /// Every document by name, contents as written.
   final Map<String, String> documents;
 
   @override
@@ -86,6 +90,8 @@ final class MemoryStorage extends Storage {
 /// A [ResourceException] since 1.0, so code that reports whatever the engine
 /// refused catches it with the rest.
 final class StorageException extends ResourceException {
+  /// A refused write of [name], saying [message], with what the platform
+  /// threw when it threw.
   const StorageException(this.name, this.message, {this.cause});
 
   /// The document that was being written.
@@ -124,6 +130,7 @@ final class StorageException extends ResourceException {
 /// **Implementable outside this package, as a base class**, for the reason
 /// [Storage] is: `extends BinaryStorage`, not `implements`.
 abstract base class BinaryStorage {
+  /// A store; a subclass says where documents are kept.
   const BinaryStorage();
 
   /// The document called [name], or null if there is not one.

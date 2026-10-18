@@ -40,6 +40,11 @@ export 'track_types.dart';
 /// point or per stretch and read back at any `s`, so a track file and a lap
 /// counter never have to agree about segment numbers.
 final class TrackSpline {
+  /// A track along [center], with one width and one bank per control point.
+  ///
+  /// Throws an [ArgumentError] when [widths] or [banks] does not have one
+  /// entry per control point, when a width is not positive, or when
+  /// [checkpoints] are not in increasing order round the lap.
   TrackSpline({
     required this.center,
     required List<double> widths,
@@ -106,6 +111,7 @@ final class TrackSpline {
   /// line forwards for a lap a second.
   final List<double> checkpoints;
 
+  /// Where the cars line up before the start, and how many abreast.
   final StartGrid grid;
 
   late final List<double> _pointDistances;

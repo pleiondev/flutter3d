@@ -98,10 +98,14 @@ String? applicationFolder(String appName) => applicationDirectory(
 
 /// Documents kept as files, one per name, in a directory this platform owns.
 final class FileStorage extends Storage {
+  /// A store in the directory given, or in [appName]'s application folder
+  /// when none is; issues are printed unless [onIssue] takes them.
   FileStorage({required this.appName, Directory? directory, IssueSink? onIssue})
     : _given = directory,
       onIssue = onIssue ?? printIssue;
 
+  /// The game's name, which its application folder is named after when no
+  /// directory was given.
   final String appName;
   final Directory? _given;
 
@@ -211,6 +215,8 @@ Directory? resolveApplicationDirectory({
 /// Same directory, same atomic-write discipline — [writeBytesAtomicallySync]
 /// rather than [writeFileAtomicallySync] — different bytes.
 final class FileBinaryStorage extends BinaryStorage {
+  /// A store in the directory given, or in [appName]'s application folder
+  /// when none is; issues are printed unless [onIssue] takes them.
   FileBinaryStorage({
     required this.appName,
     Directory? directory,
@@ -218,10 +224,17 @@ final class FileBinaryStorage extends BinaryStorage {
   }) : _given = directory,
        onIssue = onIssue ?? printIssue;
 
+  /// The game's name, which its application folder is named after when no
+  /// directory was given.
   final String appName;
   final Directory? _given;
+
+  /// Where this says what the platform would not let it do, such as having
+  /// no application folder.
   final IssueSink onIssue;
 
+  /// Where the documents are kept, resolved on first use; null on a
+  /// platform with no folder to keep them in.
   late final Directory? directory =
       _given ?? resolveApplicationDirectory(appName: appName, onIssue: onIssue);
 

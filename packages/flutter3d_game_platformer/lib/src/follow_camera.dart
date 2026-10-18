@@ -4,6 +4,7 @@ import 'package:vector_math/vector_math.dart';
 
 /// How the camera trails the runner.
 final class FollowSettings extends RigSettings {
+  /// Settings with each field at the default its own doc gives.
   const FollowSettings({
     super.distance = 7.0,
     super.height = 2.6,
@@ -132,6 +133,11 @@ final class FollowSettings extends RigSettings {
 /// Nothing here knows what a renderer is: it answers with two points and a
 /// number, and the application copies them into whatever it is drawing with.
 final class FollowCamera {
+  /// A camera orbiting the runner from [yaw] radians, kept out of
+  /// [world]'s walls and framed as [tuning] says.
+  ///
+  /// [name] is what a director knows its `virtualCamera` by; [reframe],
+  /// when given, replaces the orbit preset with the framing it returns.
   FollowCamera({
     required this.world,
     this.tuning = const FollowSettings(),
@@ -169,6 +175,8 @@ final class FollowCamera {
   /// Where the walls are, for keeping the camera out of them.
   final CollisionWorld world;
 
+  /// The distances, pitch limits, sensitivity and lag it was built with;
+  /// read into [rig] and [framing] at construction.
   final FollowSettings tuning;
 
   /// The shared half: where the camera actually is, and everything that gets it

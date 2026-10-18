@@ -40,9 +40,14 @@ import 'ai_tuning.dart';
 /// eight drivers is one of these and eight calls, and a replay of a race
 /// reproduces exactly.
 final class AiDriver {
+  /// A driver round [track], driving as [tuning] says.
   AiDriver({required this.track, this.tuning = const AiSettings()});
 
+  /// The road it follows: what it looks ahead along and brakes for.
   final TrackSpline track;
+
+  /// How it drives: how far it looks ahead, how hard it corners and brakes,
+  /// how much it rubber-bands and how it avoids other cars.
   final AiSettings tuning;
 
   /// Fills [out] with what this driver wants to do.

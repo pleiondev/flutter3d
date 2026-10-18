@@ -309,6 +309,12 @@ final class StrategyMatch {
     }, requires: inner.requires);
   }
 
+  /// Puts back the world and the bots that [save] wrote, then judges
+  /// [standing] afresh from what was put back.
+  ///
+  /// A document without a world leaves the simulation as it is. Bots are
+  /// restored in order, as many as both this match and the document have;
+  /// the rest keep their phase.
   void restore(Snapshot snapshot) {
     final Map<String, Object?> from = snapshot.data;
     final Map<String, Object?>? world = from.object('simulation');

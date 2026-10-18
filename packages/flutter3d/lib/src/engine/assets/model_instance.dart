@@ -18,6 +18,12 @@ part of 'model_asset.dart';
 /// player handed back here is already bound to this instance's nodes, so two
 /// copies of the same model animate independently.
 final class ModelInstance {
+  /// An instance over nodes already built, as
+  /// [ModelAssetInstantiate.instantiate] builds them.
+  ///
+  /// [drawn] pairs each mesh node with the part it came from, for
+  /// [selectVariant] and [adopt]; [materialFor] maps an asset material to
+  /// the one this instance wears, the material itself when null.
   ModelInstance({
     required this.root,
     required this.nodes,
@@ -148,6 +154,8 @@ final class ModelInstance {
   /// Scene node for each of the asset's nodes, index-aligned.
   final List<SceneNode> nodes;
 
+  /// Every mesh node the instance created, in the order the hierarchy was
+  /// walked, including the levels of a node drawn through an `LodGroup`.
   final List<MeshNode> meshes;
 
   /// Skeletons bound to this instance's own nodes, so two copies of a rigged
@@ -157,12 +165,16 @@ final class ModelInstance {
   /// Null when the model carries no clips.
   final AnimationPlayer? player;
 
+  /// Detaches [root], and so the whole model, from its parent. The asset's
+  /// meshes and textures stay uploaded; [ModelAsset.dispose] gives them back.
   void removeFromScene() => root.removeFromParent();
 }
 
 /// What one [ModelInstance.adopt] did, by slot key: a node's name, then `/`
 /// and which of its surfaces (`s0`, `s1`, …) or level surfaces (`l0`, …).
 final class ModelSwap {
+  /// The outcome of one adopt: [swapped] surfaces, and the [kept] and
+  /// [added] slot keys.
   const ModelSwap({
     required this.swapped,
     required this.kept,

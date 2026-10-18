@@ -32,6 +32,8 @@ import 'inventory.dart';
 /// once and passes the same object to every readout — and so a readout that
 /// grows a fourth thing to colour does not change the shape of six call sites.
 final class ShooterReadoutStyle {
+  /// A style with each field at the default its own doc gives: white text
+  /// at 18, a red warning, bars 120 by 6 logical pixels.
   const ShooterReadoutStyle({
     this.text = const TextStyle(color: Color(0xFFFFFFFF), fontSize: 18.0),
     this.dim = const Color(0x66FFFFFF),
@@ -65,6 +67,8 @@ final class ShooterReadoutStyle {
 /// first and it reads as twice the health, which is exactly wrong at the
 /// moment it matters.
 final class HealthBar extends StatelessWidget {
+  /// A bar of [health] out of [maxHealth], with [armor] out of [maxArmor]
+  /// over it.
   const HealthBar({
     super.key,
     required this.health,
@@ -90,6 +94,8 @@ final class HealthBar extends StatelessWidget {
   /// The share of health below which the bar turns [ShooterReadoutStyle.warning].
   final double lowAt;
 
+  /// How the bars are drawn; a healthy bar takes its text colour, so that
+  /// must be set.
   final ShooterReadoutStyle style;
 
   @override
@@ -124,6 +130,8 @@ final class HealthBar extends StatelessWidget {
 /// the two apart, and doing it here is what stops the next game from getting it
 /// wrong again.
 final class AmmoReadout extends StatelessWidget {
+  /// The ammunition carried for [arsenal]'s weapon in hand, drawn in
+  /// [style]; nothing at all when nothing is held.
   const AmmoReadout({
     super.key,
     required this.arsenal,
@@ -131,7 +139,10 @@ final class AmmoReadout extends StatelessWidget {
     this.endless = '∞',
   });
 
+  /// The player's weapons, read as they are when the widget builds.
   final Arsenal arsenal;
+
+  /// How the number is drawn.
   final ShooterReadoutStyle style;
 
   /// What to draw for a weapon that spends nothing.
@@ -157,6 +168,7 @@ final class AmmoReadout extends StatelessWidget {
 /// key colour this table has never heard of, and a pip in grey is a better
 /// answer than a crash or a missing pip a player cannot account for.
 final class KeyPips extends StatelessWidget {
+  /// A pip for each key in [inventory], coloured by [colors].
   const KeyPips({
     super.key,
     required this.inventory,
@@ -165,12 +177,14 @@ final class KeyPips extends StatelessWidget {
     this.pipSize = 10.0,
   });
 
+  /// What the player carries; its keys are read when the widget builds.
   final Inventory inventory;
 
   /// What colour each key name is drawn in. A name not here gets
   /// [ShooterReadoutStyle.dim].
   final Map<String, Color> colors;
 
+  /// Where the colour of an unknown key comes from ([ShooterReadoutStyle.dim]).
   final ShooterReadoutStyle style;
 
   /// How big one key's pip is, in logical pixels.

@@ -21,6 +21,7 @@ import 'plugin_gizmos.dart';
 /// order, then one key, lower case. `ctrl` is the platform's command key on
 /// a Mac, as every editor's own shortcuts are.
 final class EditorShortcut {
+  /// [key] with the modifiers given held; none by default.
   const EditorShortcut(
     this.key, {
     this.control = false,
@@ -99,6 +100,8 @@ final class EditorShortcut {
 /// editor's own (`editorCommandNames`), run with [arguments] as one step of
 /// undo, by the route a key and an agent take.
 final class EditorMenuItem {
+  /// An entry [label] running [command]; in [pluginsMenu], with no
+  /// arguments and no shortcut unless said otherwise.
   const EditorMenuItem({
     required this.name,
     required this.label,
@@ -222,6 +225,8 @@ final class ToolModeEvent {
 /// it can grow**: a member added in a minor reaches every mode without
 /// changing a signature.
 final class ToolModeInput {
+  /// An event at [point], copied so the mode may keep it; nothing under
+  /// the pointer, nothing selected and shift up unless said otherwise.
   ToolModeInput({
     required this.level,
     required Vector3 point,
@@ -261,6 +266,7 @@ final class ToolModeInput {
 /// somebody else's code in the middle of somebody's work. Extendable
 /// outside this package, and stays so through 1.x.
 abstract base class EditorToolMode {
+  /// A mode that answers no command and draws nothing until overridden.
   const EditorToolMode();
 
   /// What its button and the status bar call it.

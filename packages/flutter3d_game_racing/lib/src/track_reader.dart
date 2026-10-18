@@ -21,6 +21,8 @@ import 'track.dart';
 /// editor is a person introducing a corner that is four metres wide for one
 /// control point.
 final class TrackDocument extends FormatDocument {
+  /// A document for [track], with its [level] when it has one; a null [sky]
+  /// is [SkyPresets.morning].
   TrackDocument({
     required this.track,
     this.level,
@@ -28,6 +30,11 @@ final class TrackDocument extends FormatDocument {
     super.unknown,
   }) : sky = sky ?? SkyPresets.morning;
 
+  /// Reads a track document.
+  ///
+  /// Throws a [LevelFormatException] for a document of a newer version or
+  /// another format, for one that requires something this build does not
+  /// know, and for one without a `track`.
   factory TrackDocument.fromJson(Map<String, Object?> json) =>
       TrackDocument._read(json);
 
@@ -89,6 +96,8 @@ final class TrackDocument extends FormatDocument {
   /// `generatedBy`, whatever a later build adds — are [unknown], kept.
   static const Set<String> _known = <String>{'track', 'level', 'sky'};
 
+  /// The measured circuit: centre line, widths, banks, surfaces, barriers,
+  /// checkpoints and grid.
   final TrackSpline track;
 
   /// The scenery, barriers and furniture around the circuit. Absent in a

@@ -14,6 +14,7 @@ import 'inventory.dart';
 /// wants to come back for it; a pickup that vanished into a full pool is a
 /// pickup the level lied about.
 abstract base class Gift {
+  /// A gift a document names as [name].
   const Gift(this.name);
 
   /// The word a level document uses in a pickup's `gives`.
@@ -32,7 +33,10 @@ abstract base class Gift {
   double get defaultAmount => 1.0;
 }
 
+/// Heals the taker by the amount, in hit points; refused at full health, so
+/// the medkit stays on the floor.
 final class HealthGift extends Gift {
+  /// The gift, named `health` in a document.
   const HealthGift() : super('health');
 
   /// In hit points (unitless).
@@ -57,7 +61,10 @@ final class HealthGift extends Gift {
   }
 }
 
+/// Adds the amount to the taker's armour; refused when the armour is
+/// already full.
 final class ArmorGift extends Gift {
+  /// The gift, named `armour` in a document.
   const ArmorGift() : super('armour');
 
   /// In armour points (unitless).
@@ -85,8 +92,12 @@ final class ArmorGift extends Gift {
 /// One class for all three ammunition types, because they differ only in which
 /// pouch they fill.
 final class AmmoGift extends Gift {
+  /// A gift named `name` in a document, filling [type]'s pouch by
+  /// [defaultAmount] rounds unless the level says otherwise.
   const AmmoGift(super.name, this.type, {required this.defaultAmount});
 
+  /// Which pouch it fills; the amount is rounded to whole rounds, and the
+  /// gift is refused when none fit.
   final AmmoType type;
 
   /// In rounds: a count.
@@ -113,6 +124,8 @@ final class AmmoGift extends Gift {
 
 /// A key, whose colour is the pickup's own `color` rather than the gift's.
 final class KeyGift extends Gift {
+  /// The gift, named `key`; refused without a colour or for a key already
+  /// held.
   const KeyGift() : super('key');
 
   @override
@@ -134,6 +147,8 @@ final class KeyGift extends Gift {
 
 /// Runs out, rather than filling a pool.
 final class PowerUpGift extends Gift {
+  /// The power `name`, running for [defaultAmount] seconds unless the level
+  /// says otherwise; never refused, and a second one restarts the clock.
   const PowerUpGift(super.name, {required this.defaultAmount});
 
   /// Seconds.
@@ -176,6 +191,8 @@ final class PowerUpGift extends Gift {
 /// here do not: a [Gift] subclass returns its own id, and the game that wrote
 /// it words it.
 final class GiftAnnouncement {
+  /// The message [id] about [gift], filled in with [amount] and [detail]
+  /// where it has them.
   const GiftAnnouncement(
     this.id, {
     required this.gift,
@@ -233,15 +250,19 @@ final class GiftAnnouncement {
 
 /// The gifts a build knows about, by the name a document uses.
 final class GiftRegistry {
+  /// A registry of [gifts] by name; of two with one name, the later wins.
   GiftRegistry(Iterable<Gift> gifts)
     : _byName = <String, Gift>{for (final gift in gifts) gift.name: gift};
 
   final Map<String, Gift> _byName;
 
+  /// The gift a document names as [name], or null for one nobody knows.
   Gift? operator [](String name) => _byName[name];
 
+  /// Every name a pickup's `gives` may use, in the order they were given.
   Iterable<String> get names => _byName.keys;
 
+  /// Whether a pickup may name [name] in its `gives`.
   bool knows(String name) => _byName.containsKey(name);
 }
 
@@ -250,6 +271,7 @@ final class GiftRegistry {
 /// **One object, so a minor can hand a gift more** — the pickup it lay in,
 /// the step it was taken at — without breaking a gift written against 1.0.
 final class GiftGrant {
+  /// [amount] of a gift for [to], with the level's [detail] if it wrote one.
   const GiftGrant({required this.to, required this.amount, this.detail});
 
   /// What the taker carries.
@@ -266,6 +288,7 @@ final class GiftGrant {
 /// What [Gift.announce] is handed, once the gift was granted, for the
 /// reason [GiftGrant] gives.
 final class GiftAnnounce {
+  /// The [amount] given, with the level's [detail] if it wrote one.
   const GiftAnnounce({required this.amount, this.detail});
 
   /// How much was given, in the gift's own unit.

@@ -78,6 +78,9 @@ final class SimulationPlacement {
 /// The device a `Flutter3dView` draws with: one to borrow or where to open
 /// one, what shows its frames, and what is done when it is lost.
 final class DeviceSettings {
+  /// Settings that open a device of the view's own from this platform's
+  /// backends, present through the registry it came from and show the
+  /// fallback banner, with no callbacks, unless said otherwise.
   const DeviceSettings({
     this.device,
     this.renderer,
@@ -156,6 +159,8 @@ final class DeviceSettings {
 /// What a `Flutter3dView` draws and how: the frame's settings, the view's
 /// own, the resolution, when it draws, and what shows instead.
 final class ViewSettings {
+  /// Settings that draw every frame at native resolution, uncapped, with
+  /// the default render settings and a warm-up, unless said otherwise.
   const ViewSettings({
     this.settings = const RenderSettings(),
     this.render = const CameraViewSettings(),
@@ -256,6 +261,8 @@ final class ViewSettings {
 /// How a `Flutter3dView`'s loop runs: its step, its input, its profile,
 /// where the simulation is, and when the origin follows the camera.
 final class LoopSettings {
+  /// Settings that step the default timing deterministically, inline, and
+  /// shift the origin past [defaultOriginShift], unless said otherwise.
   const LoopSettings({
     this.timing = const WorldTiming(),
     this.input,
@@ -344,6 +351,9 @@ final class LoopSettings {
 
 /// What a `Flutter3dView`'s loop installs and the registries it hands them.
 final class PluginSettings {
+  /// Settings that install no plugins, formats or registries and read
+  /// lighting-model bundles from the application's assets, unless said
+  /// otherwise.
   const PluginSettings({
     this.plugins = const <Flutter3dPlugin>[],
     this.formats = const <FormatSpec>[],

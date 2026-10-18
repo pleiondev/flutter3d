@@ -25,6 +25,7 @@ export 'src/hud.dart';
 
 /// How finely the road is cut into rings.
 final class RoadMeshSettings {
+  /// Settings with each field at the default its own doc gives.
   const RoadMeshSettings({
     this.sagitta = 0.04,
     this.minStep = 1.5,

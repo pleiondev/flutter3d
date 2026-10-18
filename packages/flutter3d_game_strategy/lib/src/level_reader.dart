@@ -40,6 +40,7 @@ abstract final class StrategyLevelTypes {
 
 /// A match opened from a map, and the units side nought starts with.
 final class StrategyOpening {
+  /// Pairs the opened [match] with side nought's opening units, [mine].
   const StrategyOpening({required this.match, required this.mine});
 
   /// The sides, the ground under them and the finishing line.

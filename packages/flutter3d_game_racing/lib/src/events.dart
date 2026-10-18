@@ -33,6 +33,7 @@ import 'racer_progress.dart';
 /// happened to the player" filters on one type and reads one field rather than
 /// asking each event separately who it belonged to.
 abstract base class RacerEvent extends GameEvent {
+  /// An event that happened to [racer].
   const RacerEvent(this.racer);
 
   /// Whose it was. Nought is the player; see [RacerProgress.index].
@@ -49,6 +50,7 @@ abstract base class RacerEvent extends GameEvent {
 /// flag on one, because a game that shows a lap time and a game that celebrates
 /// a record are doing different things and one of them is optional.
 final class LapCompleted extends RacerEvent {
+  /// A lap completed by `racer`.
   const LapCompleted(super.racer);
 
   /// The name it is declared and published under.
@@ -66,6 +68,7 @@ final class LapCompleted extends RacerEvent {
 
 /// The lap just completed was this car's quickest.
 final class BestLapSet extends RacerEvent {
+  /// A new best lap for `racer`.
   const BestLapSet(super.racer);
 
   /// The name it is declared and published under.
@@ -83,6 +86,7 @@ final class BestLapSet extends RacerEvent {
 
 /// A checkpoint was passed.
 final class CheckpointPassed extends RacerEvent {
+  /// A checkpoint passed by `racer`.
   const CheckpointPassed(super.racer);
 
   /// The name it is declared and published under.
@@ -104,6 +108,7 @@ final class CheckpointPassed extends RacerEvent {
 /// Once, when it starts — not on every step it keeps doing it, which is what
 /// reading [RacerProgress.wrongWay] gives.
 final class WentWrongWay extends RacerEvent {
+  /// `racer` turning the wrong way round.
   const WentWrongWay(super.racer);
 
   /// The name it is declared and published under.
@@ -124,6 +129,7 @@ final class WentWrongWay extends RacerEvent {
 /// Once, on the step it crossed the edge. A car that is already off the road
 /// and stays off it is not leaving it again.
 final class LeftTheRoad extends RacerEvent {
+  /// `racer` crossing the road's edge.
   const LeftTheRoad(super.racer);
 
   /// The name it is declared and published under.
@@ -141,6 +147,7 @@ final class LeftTheRoad extends RacerEvent {
 
 /// The car was put back on the road.
 final class Respawned extends RacerEvent {
+  /// `racer` put back on the road.
   const Respawned(super.racer);
 
   /// The name it is declared and published under.
@@ -158,6 +165,7 @@ final class Respawned extends RacerEvent {
 
 /// The car crossed the line for the last time.
 final class RacerFinished extends RacerEvent {
+  /// `racer` crossing the line for the last time.
   const RacerFinished(super.racer);
 
   /// The name it is declared and published under.
@@ -178,6 +186,7 @@ final class RacerFinished extends RacerEvent {
 /// Belongs to the race rather than to a car, which is why it is not a
 /// [RacerEvent].
 final class CountdownTicked extends GameEvent {
+  /// The lights changing to [remaining] left.
   const CountdownTicked(this.remaining);
 
   /// The name it is declared and published under.
@@ -202,6 +211,7 @@ final class CountdownTicked extends GameEvent {
 
 /// The lights went out and the race is running.
 final class RaceStarted extends GameEvent {
+  /// The start; it carries nothing.
   const RaceStarted();
 
   /// The name it is declared and published under.
@@ -219,6 +229,7 @@ final class RaceStarted extends GameEvent {
 
 /// The race is over for everybody.
 final class RaceFinished extends GameEvent {
+  /// The end of the race; it carries nothing.
   const RaceFinished();
 
   /// The name it is declared and published under.
@@ -246,6 +257,7 @@ final class RaceFinished extends GameEvent {
 /// this driver's own best for this sector, which is the one a driver is
 /// actually chasing.
 final class SectorCompleted extends RacerEvent {
+  /// [sector] finished by `racer` in [time], [delta] against their best.
   const SectorCompleted(super.racer, this.sector, this.time, this.delta);
 
   /// The name it is declared and published under.
@@ -287,6 +299,7 @@ final class SectorCompleted extends RacerEvent {
 /// cannot say "that one was worth four hundred", which is the only thing
 /// anybody wants to hear.
 final class DriftScored extends RacerEvent {
+  /// A slide by `racer` worth [score], held for [seconds].
   const DriftScored(super.racer, this.score, this.seconds);
 
   /// The name it is declared and published under.

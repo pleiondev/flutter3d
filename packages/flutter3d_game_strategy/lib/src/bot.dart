@@ -271,6 +271,8 @@ final class Bot {
     'sinceThought': _sinceThought,
   };
 
+  /// Puts back the phase [save] wrote, keeping the current one when the
+  /// document has none.
   void restore(Map<String, Object?> from) =>
       _sinceThought = from.integer('sinceThought', orElse: _sinceThought);
 

@@ -58,6 +58,10 @@ abstract final class RacingPhases {
 /// platformer's simulation has with its runner. That is what lets a car be
 /// driven with no race around it at all.
 final class RacingSimulation {
+  /// A simulation stepping [vehicles] through [collision], counting [race].
+  ///
+  /// Each car's progress starts where the car stands along the track. The
+  /// player, car nought, is the one [assisted] by default.
   RacingSimulation({
     required this.collision,
     required this.vehicles,
@@ -82,6 +86,8 @@ final class RacingSimulation {
     }
   }
 
+  /// The world the cars sweep through and the walls they meet, stepped here
+  /// with [mechanisms] and [dynamics].
   final CollisionWorld collision;
 
   /// The order the world is stepped in, shared with the other two games — see
@@ -100,8 +106,14 @@ final class RacingSimulation {
   /// separate them differently and take the replay with it.
   final List<VehicleController> vehicles;
 
+  /// The lights, laps and order this simulation fills in each step.
   final RaceState race;
+
+  /// The circuit's own machinery, gates and lamps a track document names,
+  /// or null for a circuit with none.
   final MechanismWorld? mechanisms;
+
+  /// The loose bodies in the world, or null when there are none to step.
   final RigidDynamics? dynamics;
 
   /// The one push every car's goes in, made the first time: a step
@@ -804,6 +816,9 @@ final class RacingSimulation {
       ..countdown = race.mode.startsBehindLights ? race.countdownSeconds : 0.0;
   }
 
+  /// The race, every car, the per-car bookkeeping for wrong-way and off-road
+  /// timing, the mechanisms and the dynamics' own state, as one snapshot
+  /// [restore] reads back into the same level.
   Snapshot save() => Snapshot(<String, Object?>{
     'race': race.save(),
     'cars': <Map<String, Object?>>[
@@ -822,6 +837,11 @@ final class RacingSimulation {
     'dynamics': ?dynamics?.saveState(),
   });
 
+  /// Puts back what [save] wrote, then brings the collision world's
+  /// broadphase and contacts up to date with the restored cars.
+  ///
+  /// Cars and rows are matched in order, as many as both have; a missing
+  /// part leaves that part as it is.
   void restore(Snapshot snapshot) {
     final from = snapshot.data;
     final saved = from.object('race');

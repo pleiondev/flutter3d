@@ -50,6 +50,8 @@ final class ResourceNode {
   /// restored into the map it was taken in finds it there again.
   Map<String, Object?> save() => <String, Object?>{'amount': amount};
 
+  /// Puts back the [amount] that [save] wrote, keeping the current one when
+  /// the document has none.
   void restore(Map<String, Object?> from) =>
       amount = from.number('amount', orElse: amount);
 }
@@ -145,8 +147,11 @@ final class Stockpile {
     return true;
   }
 
+  /// What is in the pile, as a document [restore] reads back.
   Map<String, Object?> save() => <String, Object?>{'amount': amount};
 
+  /// Puts back the [amount] that [save] wrote, keeping the current one when
+  /// the document has none.
   void restore(Map<String, Object?> from) =>
       amount = from.number('amount', orElse: amount);
 }
@@ -224,6 +229,10 @@ final class Producer {
     if (wanted case final UnitType type) 'wanted': type.toJson(),
   };
 
+  /// Puts back what [save] wrote.
+  ///
+  /// A missing [progress] keeps the current one; a missing order book reads
+  /// as nothing asked for, with [ordered] at nought and [wanted] null.
   void restore(Map<String, Object?> from) {
     progress = from.number('progress', orElse: progress);
     ordered = from.integer('ordered');

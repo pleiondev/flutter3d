@@ -49,6 +49,7 @@ import 'widget_surface_pipeline.dart' show unmountWidgetTree;
 /// caller who draws twice a second should make and a caller who draws once
 /// should not pay for.
 final class WidgetTexture {
+  /// A drawer uploading to [device].
   const WidgetTexture(this.device);
 
   /// Where the pixels end up.

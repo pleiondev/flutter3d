@@ -243,9 +243,15 @@ void _putSteps(Map<String, Object?> json, List<Map<String, Object?>> steps) =>
 /// file, relative to the document) or `profile`. Null takes out what may be
 /// left out (`title`, `profile`).
 final class SetExperimentField extends ExperimentEdit {
+  /// A write of [value] under [key]; null takes the key out.
   const SetExperimentField(this.key, this.value);
 
+  /// `name`, `title`, `level` or `profile`; any other is refused with a
+  /// [DocumentFormatException] when applied.
   final String key;
+
+  /// What the field says; null takes it out, and the reader then refuses a
+  /// document left without a field it needs.
   final String? value;
 
   @override
@@ -276,9 +282,14 @@ final class SetExperimentField extends ExperimentEdit {
 /// A substance the experiment uses, by catalog id, added or given a new
 /// [role].
 final class SetSubstance extends ExperimentEdit {
+  /// The substance [id], in [role] when given.
   const SetSubstance(this.id, {this.role});
 
+  /// The substance's id in the material catalog.
   final String id;
+
+  /// What it is for in the experiment; null writes no role, dropping one
+  /// it had.
   final String? role;
 
   @override
@@ -306,8 +317,10 @@ final class SetSubstance extends ExperimentEdit {
 
 /// The substance [id] taken out.
 final class RemoveSubstance extends ExperimentEdit {
+  /// The removal of [id]; refused when the experiment does not use it.
   const RemoveSubstance(this.id);
 
+  /// The catalog id of the substance to take out.
   final String id;
 
   @override
@@ -330,11 +343,19 @@ final class RemoveSubstance extends ExperimentEdit {
 /// A parameter, added or given a new value and bounds: each a quantity as
 /// the file writes one, `{"value": 1, "unit": "m"}`, or as text, `"1 m"`.
 final class SetParameter extends ExperimentEdit {
+  /// The parameter [id] at [value], bounded by [min] and [max] when given.
   const SetParameter(this.id, this.value, {this.min, this.max});
 
+  /// The parameter's id, which steps set it by.
   final String id;
+
+  /// Its value, a quantity in either form.
   final Object value;
+
+  /// Its lower bound, a quantity in either form; null writes none.
   final Object? min;
+
+  /// Its upper bound, a quantity in either form; null writes none.
   final Object? max;
 
   @override
@@ -366,8 +387,10 @@ final class SetParameter extends ExperimentEdit {
 
 /// The parameter [id] taken out; refused while a step still sets it.
 final class RemoveParameter extends ExperimentEdit {
+  /// The removal of [id]; refused also when there is no such parameter.
   const RemoveParameter(this.id);
 
+  /// The id of the parameter to take out.
   final String id;
 
   @override
@@ -390,8 +413,11 @@ final class RemoveParameter extends ExperimentEdit {
 /// A probe, added or replaced by its id: the probe as the file writes it,
 /// with `on` for the level entity carrying it.
 final class SetProbe extends ExperimentEdit {
+  /// The probe [probe], keyed by its `id`.
   const SetProbe(this.probe);
 
+  /// The probe's JSON, written whole in place of the one with its `id`;
+  /// the reader refuses one it cannot read.
   final Map<String, Object?> probe;
 
   @override
@@ -410,8 +436,10 @@ final class SetProbe extends ExperimentEdit {
 
 /// The probe [id] taken out; refused while a step still expects it.
 final class RemoveProbe extends ExperimentEdit {
+  /// The removal of [id]; refused also when there is no such probe.
   const RemoveProbe(this.id);
 
+  /// The id of the probe to take out.
   final String id;
 
   @override
@@ -431,9 +459,15 @@ final class RemoveProbe extends ExperimentEdit {
 /// A step of the scenario as the file writes it, in place of the one of
 /// its name, or added: at [at] when given, at the end otherwise.
 final class SetStep extends ExperimentEdit {
+  /// The step [step], keyed by its `name`, added at [at] when new.
   const SetStep(this.step, {this.at});
 
+  /// The step's JSON, written whole; its `name` says which step it
+  /// replaces.
   final Map<String, Object?> step;
+
+  /// Where a new step goes, from nought, clamped to the scenario; null for
+  /// the end. Ignored when a step of the name is already there.
   final int? at;
 
   @override
@@ -463,8 +497,10 @@ final class SetStep extends ExperimentEdit {
 
 /// The step [step] taken out of the scenario.
 final class RemoveStep extends ExperimentEdit {
+  /// The removal of [step]; refused when the scenario has no such step.
   const RemoveStep(this.step);
 
+  /// The `name` of the step to take out.
   final String step;
 
   @override
@@ -483,9 +519,14 @@ final class RemoveStep extends ExperimentEdit {
 
 /// The step [step] moved to position [to] of the scenario, from 0.
 final class MoveStep extends ExperimentEdit {
+  /// The move of [step] to [to]; refused when there is no such step.
   const MoveStep(this.step, this.to);
 
+  /// The `name` of the step to move.
   final String step;
+
+  /// Its new position, from nought, counted after it is taken out and
+  /// clamped to the scenario.
   final int to;
 
   @override
@@ -517,11 +558,21 @@ final class MoveStep extends ExperimentEdit {
 /// of what it expected before: [value] within [tolerance], each a quantity
 /// as the file writes one.
 final class SetExpectation extends ExperimentEdit {
+  /// The expectation that [probe] reads [value] within [tolerance] after
+  /// [step]; refused when there is no such step.
   const SetExpectation(this.step, this.probe, this.value, this.tolerance);
 
+  /// The `name` of the step whose end it is checked at.
   final String step;
+
+  /// The id of the probe read.
   final String probe;
+
+  /// The reading expected, a quantity in either form.
   final Object value;
+
+  /// How far the reading may be from [value], a quantity in the same unit;
+  /// the reader refuses one in another.
   final Object tolerance;
 
   @override
@@ -558,9 +609,14 @@ final class SetExpectation extends ExperimentEdit {
 
 /// The step [step] no longer expecting a reading of [probe].
 final class RemoveExpectation extends ExperimentEdit {
+  /// The removal of [step]'s expectation of [probe]; refused when either
+  /// is not there.
   const RemoveExpectation(this.step, this.probe);
 
+  /// The `name` of the step that expected the reading.
   final String step;
+
+  /// The id of the probe it no longer reads.
   final String probe;
 
   @override
@@ -618,6 +674,8 @@ String _said(Object? quantity) => switch (quantity) {
 /// level's history keeps whole snapshots and for the same reason: an undo
 /// that reconstructs is an undo with its own bugs.
 final class ExperimentEditing {
+  /// The document given, open with no history and counted as saved;
+  /// sixty-four steps back are kept unless [limit] says otherwise.
   ExperimentEditing(this._document, {this.path, this.limit = 64});
 
   /// Reads [text], a `.f3d.experiment` file, from [path]. Throws the

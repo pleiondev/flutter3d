@@ -20,6 +20,7 @@ part 'model_instance.dart';
 /// A class rather than a record, so an impostor can later carry more maps
 /// without breaking a reader.
 final class ImpostorPart {
+  /// The uploaded [card] and its two atlases, [albedo] and [normalDepth].
   const ImpostorPart({
     required this.card,
     required this.albedo,
@@ -43,6 +44,12 @@ final class ImpostorPart {
 /// being drawn, so putting it in a scene twice means loading it twice.
 /// [instantiate] creates nodes that share the uploaded meshes and textures.
 final class ModelAsset {
+  /// An asset assembled from already uploaded [parts].
+  ///
+  /// Without [nodes] each part becomes a node of its own, its transform
+  /// split into translation, rotation and scale; without [roots] every part
+  /// is a root. [device], when given, is the one [dispose] gives the
+  /// textures back to.
   ModelAsset({
     required this.parts,
     required this.localBounds,
@@ -83,6 +90,9 @@ final class ModelAsset {
     );
   }
 
+  /// The uploaded surfaces, one per surface of the decoded document, each
+  /// with its mesh, material and variant materials; a [ModelNode] names the
+  /// ones it draws by index here.
   final List<ModelPart> parts;
 
   /// The device [fromDocument] uploaded to, which [dispose] gives the
@@ -104,8 +114,12 @@ final class ModelAsset {
   /// scene.
   final List<ModelNode> nodes;
 
+  /// Indices into [nodes] of the nodes with no parent, the ones an instance
+  /// hangs under its root.
   final List<int> roots;
 
+  /// The animation clips the file brought, empty when it brought none; an
+  /// instance's player plays them.
   final List<AnimationClip> clips;
 
   /// Skeletons, index-aligned with what the decoder produced.
@@ -114,8 +128,13 @@ final class ModelAsset {
   /// Bounds in the model's own space, for framing a camera before anything is
   /// instantiated.
   final Aabb3 localBounds;
+
+  /// What the decoder and the upload had to give up, one sentence each: a
+  /// texture that did not upload, morph targets left out, texture transforms
+  /// that could not be honoured. Empty for a model that loaded whole.
   final List<String> warnings;
 
+  /// A name for the asset, for logs and tools, or null when none was given.
   final String? name;
 
   /// The material variants the file offers, by name — see
@@ -141,6 +160,8 @@ final class ModelAsset {
   /// whether an asset browser shows it as a still.
   bool get isAnimated => clips.isNotEmpty;
 
+  /// Whether the file brought any skeleton, so that some of its meshes are
+  /// bent by joints rather than drawn rigid.
   bool get isSkinned => skins.isNotEmpty;
 
   static List<ModelNode> _flatNodesFor(List<ModelPart> parts) {
@@ -163,6 +184,8 @@ final class ModelAsset {
     ];
   }
 
+  /// The vertex count summed over every part's uploaded mesh; a mesh two
+  /// parts share is counted twice.
   int get vertexCount {
     var total = 0;
     for (final part in parts) {
@@ -171,6 +194,8 @@ final class ModelAsset {
     return total;
   }
 
+  /// The triangle count summed over every part's mesh, a third of its index
+  /// count; a mesh two parts share is counted twice.
   int get triangleCount {
     var total = 0;
     for (final part in parts) {

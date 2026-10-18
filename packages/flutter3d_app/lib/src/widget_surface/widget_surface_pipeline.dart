@@ -45,6 +45,9 @@ import 'package:flutter/widgets.dart';
 /// [child] survives between frames the way it would inside the application's
 /// own tree.
 final class WidgetSurfacePipeline {
+  /// A pipeline drawing [child] onto a canvas of [width] by [height]
+  /// pixels, [pixelRatio] of them to a logical pixel; it draws its first
+  /// frame here.
   WidgetSurfacePipeline({
     required Widget child,
     required int width,
@@ -151,6 +154,10 @@ final class WidgetSurfacePipeline {
     );
   }
 
+  /// The hit test of each pointer's down event, by pointer, reused for every
+  /// event after it until the pointer lifts — see [dispatchAtLocal].
+  final Map<int, HitTestResult> _activeHitTests = <int, HitTestResult>{};
+
   /// The same dispatch, for a caller that already has a position in the
   /// pipeline's own logical pixels rather than a UV.
   ///
@@ -173,8 +180,6 @@ final class WidgetSurfacePipeline {
   /// failing for no reason a stack trace explained — the fix was reading
   /// `GestureBinding`'s own hit-test cache rather than guessing again from
   /// the symptom.
-  final Map<int, HitTestResult> _activeHitTests = <int, HitTestResult>{};
-
   void dispatchAtLocal(
     Offset local,
     PointerEvent Function(Offset local) event,

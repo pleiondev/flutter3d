@@ -7,6 +7,8 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 /// point of [RaceMode.freeRoam] is that it still drives when nothing is
 /// counting.
 final class RacerProgress {
+  /// The progress of car [index], at the start of the line with nothing
+  /// counted.
   RacerProgress({required this.index});
 
   /// Which car this belongs to. Nought is the player.
@@ -99,6 +101,8 @@ final class RacerProgress {
   /// In simulated seconds since the start.
   double? finishedAt;
 
+  /// Whether this car has crossed the line for the last time, so that
+  /// [finishedAt] is set.
   bool get isFinished => finishedAt != null;
 
   /// Laps and metres together: the number cars are ranked by.
@@ -131,6 +135,10 @@ final class RacerProgress {
     'lastLap': lastLap,
   };
 
+  /// Puts back what [save] wrote.
+  ///
+  /// A missing number reads as nought and a missing flag as false; a missing
+  /// [bestLap] or [finishedAt] reads as null, never set.
   void restore(Map<String, Object?> from) {
     s = from.number('s');
     lap = from.integer('lap');
@@ -149,5 +157,8 @@ final class RacerProgress {
     clearStepFlags();
   }
 
+  /// Does nothing: what a step did is published as events now, and this car
+  /// keeps no flags for one step to clear. Kept so callers that clear each
+  /// step still compile.
   void clearStepFlags() {}
 }

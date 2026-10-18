@@ -31,6 +31,7 @@ import 'unit.dart';
 /// The map is read by [openStrategyLevel], so a level is a strategy map
 /// document with its heightfield; [workers] and [seed] are passed on.
 final class StrategyHeadlessGame extends OrderedGame {
+  /// A game on [seed], with [workers] in each block when given.
   const StrategyHeadlessGame({this.workers, this.seed = 1});
 
   /// How many stand in each block of workers, or null for the map's own.

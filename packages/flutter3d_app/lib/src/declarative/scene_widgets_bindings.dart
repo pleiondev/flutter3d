@@ -50,6 +50,8 @@ part of 'scene_widgets.dart';
 /// [Scene3D]'s own (`Flutter3dEngine.simulation`), and a [SceneWidgetsMount],
 /// which has no loop, needs one named.
 final class Binding3D extends StatefulWidget {
+  /// Every bound component of the scene's own simulation, unless
+  /// [components] and [simulation] say otherwise.
   const Binding3D({
     super.key,
     this.components,

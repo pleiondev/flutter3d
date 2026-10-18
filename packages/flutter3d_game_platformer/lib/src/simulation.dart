@@ -98,6 +98,11 @@ abstract final class PlatformerPhases {
 /// body sweeps, overlaps dispatch — and the order is documented in both because
 /// it is the part that is easy to get wrong and impossible to see.
 final class PlatformerSimulation {
+  /// A run of [runner] through [collision], read from [input], respawning
+  /// at [startAt] until a checkpoint moves it.
+  ///
+  /// [lives] negative means the run cannot be lost. Asserts that [actors],
+  /// when given, rolls the same [random] this simulation saves.
   PlatformerSimulation({
     required this.runner,
     required this.collision,
@@ -127,7 +132,11 @@ final class PlatformerSimulation {
     );
   }
 
+  /// The player's body, stepped here from [input] every step.
   final Runner runner;
+
+  /// The level's collision world, stepped here with [mechanisms] and
+  /// [dynamics].
   final CollisionWorld collision;
 
   /// The order the world is stepped in, which three games had written out — see
@@ -138,8 +147,15 @@ final class PlatformerSimulation {
     dynamics: dynamics,
     raise: _publish,
   );
+
+  /// What the player is pressing, read by the runner each step.
   final InputState input;
+
+  /// The level's doors, lifts, springs, checkpoints and the rest, or null
+  /// for a level with none.
   final MechanismWorld? mechanisms;
+
+  /// The crates and other loose bodies, or null for a level with none.
   final RigidDynamics? dynamics;
 
   /// The runner's push, set before every step's: a step allocates none.
@@ -183,7 +199,11 @@ final class PlatformerSimulation {
   /// Zero in a headless test, which then gets world axes — see [Runner.step].
   double cameraYaw = 0.0;
 
+  /// Where the run has got to: running, fallen, lost or finished.
   RunState state = RunState.running;
+
+  /// The level an exit sent the run on to, once it is finished: the exit's
+  /// own `next`, or [levelNext]. Null before then, and not saved.
   String? nextLevel;
 
   final Vector3 _respawn;
@@ -595,6 +615,9 @@ final class PlatformerSimulation {
     }
   }
 
+  /// The runner, the dice, the run's state, respawn point, deaths, lives and
+  /// clock, the named mechanisms, the actors, the dynamics' own state and
+  /// any [parts], as one snapshot [restore] reads back into the same level.
   Snapshot save() => Snapshot(<String, Object?>{
     'runner': runner.save(),
     'random': random.state,
@@ -625,6 +648,11 @@ final class PlatformerSimulation {
       },
   });
 
+  /// Puts back what [save] wrote, then makes dead actors passable again.
+  ///
+  /// A missing part is left as it is, except the run's state, which reads
+  /// as running. Reads the older layout that kept the elements beside the
+  /// bodies under `dynamics` too.
   void restore(Snapshot from) {
     final data = from.data;
     final saved = data['runner'];

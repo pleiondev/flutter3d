@@ -18,8 +18,12 @@ import 'revalidated_asset.dart';
 /// `flutter3d_core` (mcp-03n).** `FileAssetSource`, its `dart:io` sibling, made
 /// the move; this is the one `AssetSource` that could not.
 final class BundleAssetSource extends AssetSource {
+  /// A source for the bundle key [assetPath].
   const BundleAssetSource(this.assetPath);
 
+  /// The key the model is declared under in the asset bundle, such as
+  /// `assets/models/crate.f3d`; relative URIs inside the model resolve
+  /// against its directory.
   final String assetPath;
 
   @override

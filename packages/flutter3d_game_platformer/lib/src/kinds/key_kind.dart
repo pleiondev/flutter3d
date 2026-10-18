@@ -18,8 +18,12 @@ final class PlatformerKeyKind extends EntityKind {
   /// [EntityKind.mustBeReachable] — and the fourteen that were inside walls.
   @override
   bool get mustBeReachable => true;
+
+  /// The kind, under the format's own type `EntityTypes.key`.
   const PlatformerKeyKind() : super(EntityTypes.key);
 
+  /// The trigger's size in metres when the entity gives none: half a metre
+  /// each way.
   static Vector3 get defaultSize => Vector3(0.5, 0.5, 0.5);
 
   @override

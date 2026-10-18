@@ -23,6 +23,7 @@ import '../l10n/app_localizations.dart';
 
 /// Shown between a renderer that has started and a level that has not yet.
 final class LoadingScreen extends StatelessWidget {
+  /// A black screen saying [message], or the localised "loading".
   const LoadingScreen({super.key, this.message});
 
   /// What it says; null says [Flutter3dAppLocalizations.loading].
@@ -48,8 +49,10 @@ final class LoadingScreen extends StatelessWidget {
 /// far more likely to have changed the Flutter SDK than to have broken their
 /// game.
 final class RendererFailure extends StatelessWidget {
+  /// A screen showing [error] and the shader-bundle sentence.
   const RendererFailure({super.key, required this.error});
 
+  /// What the renderer threw, shown as its `toString`; null shows `null`.
   final Object? error;
 
   @override
@@ -73,6 +76,8 @@ final class RendererFailure extends StatelessWidget {
 /// failing level is usually the saved one and throwing the run away is the
 /// only thing that rescues the player.
 final class LevelLoadFailed extends StatelessWidget {
+  /// A screen naming [asset] and [error], with a way out only when
+  /// [onStartOver] is given.
   const LevelLoadFailed({
     super.key,
     required this.asset,
@@ -81,8 +86,13 @@ final class LevelLoadFailed extends StatelessWidget {
     this.startOverLabel,
   });
 
+  /// The level file that would not load, shown first.
   final String asset;
+
+  /// What the load threw, shown under [asset].
   final Object error;
+
+  /// What the way-out button does; null shows no button.
   final VoidCallback? onStartOver;
 
   /// The way out's label; null says [Flutter3dAppLocalizations.startOver].

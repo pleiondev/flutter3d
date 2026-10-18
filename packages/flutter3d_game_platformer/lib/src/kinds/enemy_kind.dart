@@ -13,6 +13,7 @@ import '../platformer_entities.dart';
 /// A `kind` of `leaper` jumps the gaps in that route instead of turning at
 /// them.
 final class EnemyKind extends EntityKind {
+  /// The kind, under the type `PlatformerEntities.enemy`.
   const EnemyKind() : super(PlatformerEntities.enemy);
 
   /// Shorter than the runner, so a stomp reads as landing *on* something.

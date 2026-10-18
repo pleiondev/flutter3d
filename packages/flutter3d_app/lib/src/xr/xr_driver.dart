@@ -140,6 +140,7 @@ final class XrDriver {
   /// The node that puts the room's depth in the frame.
   final EnvironmentDepthNode environmentDepth = EnvironmentDepthNode();
 
+  /// The session driven, as the view's XR settings name it.
   XrSession get session => settings.session;
 
   final List<CameraNode> _eyes = <CameraNode>[];

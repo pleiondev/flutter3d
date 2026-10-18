@@ -16,6 +16,7 @@ import '../surfaces.dart';
 /// words. What makes it work is [PlatformerLayers.oneWay] and the runner's
 /// filter; this only puts the box on the right layer.
 final class OneWayKind extends EntityKind {
+  /// The kind, under the type `PlatformerEntities.oneWay`.
   const OneWayKind() : super(PlatformerEntities.oneWay);
 
   /// Thin, because thickness is what a player misjudges when jumping through.
@@ -64,8 +65,11 @@ final class OneWayKind extends EntityKind {
 /// `Collider.surfaceVelocity` says, and why a conveyor needed no mover, no
 /// schedule and no mechanism at all. It is a static box with a number on it.
 final class ConveyorKind extends EntityKind {
+  /// The kind, under the type `PlatformerEntities.conveyor`.
   const ConveyorKind() : super(PlatformerEntities.conveyor);
 
+  /// The belt's size in metres when the entity gives none: four wide, eight
+  /// long and 0.4 thick.
   static Vector3 get defaultSize => Vector3(4.0, 0.4, 8.0);
 
   @override
@@ -118,8 +122,11 @@ final class ConveyorKind extends EntityKind {
 
 /// A platform that gives way. See [Crumbling].
 final class CrumblingKind extends EntityKind {
+  /// The kind, under the type `PlatformerEntities.crumbling`.
   const CrumblingKind() : super(PlatformerEntities.crumbling);
 
+  /// The platform's size in metres when the entity gives none: three
+  /// across and 0.4 thick.
   static Vector3 get defaultSize => Vector3(3.0, 0.4, 3.0);
 
   @override

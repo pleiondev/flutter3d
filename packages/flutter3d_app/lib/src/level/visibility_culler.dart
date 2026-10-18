@@ -7,6 +7,7 @@ import 'package:vector_math/vector_math.dart';
 /// A class rather than a record, so a batch can later say more (the cell it
 /// belongs to) without breaking a caller.
 final class VisibilityBatch {
+  /// A batch drawn by [node] inside [bounds].
   const VisibilityBatch({required this.node, required this.bounds});
 
   /// The node to show or hide.
@@ -29,9 +30,14 @@ final class VisibilityBatch {
 /// room behind a wall in front of the camera is culled by the second, and
 /// nothing else would have caught it.
 final class VisibilityCuller {
+  /// A culler reading [visibility] to show or hide [batches]; nothing is
+  /// hidden until the first [apply].
   VisibilityCuller(this.visibility, this.batches);
 
+  /// The baked table: which cells see which.
   final LevelVisibility visibility;
+
+  /// The batches shown and hidden, each by its box.
   final List<VisibilityBatch> batches;
 
   /// How many batches the last [apply] turned off.

@@ -16,10 +16,12 @@ typedef GhostPlayer = Playback;
 /// line that knows what a car is — where a vehicle keeps its heading, its
 /// position and its own idea of up.
 final class GhostRecorder {
+  /// A recorder that keeps at most [hz] samples a second, 15 by default.
   GhostRecorder({double hz = 15.0}) : _recorder = Recorder(hz: hz);
 
   final Recorder _recorder;
 
+  /// How many samples have been kept since the last [reset], a count.
   int get frameCount => _recorder.length;
 
   /// Records the car's place at [time], if enough time has passed.

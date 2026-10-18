@@ -33,6 +33,8 @@ import 'staging.dart';
 /// unless the game hands others, and [replaceKinds] puts them over another
 /// genre's kinds of the same type rather than being refused for them.
 final class PlatformerPlugin extends GenrePlugin<PlatformerSimulation> {
+  /// A plugin bringing [kinds], or [platformerKinds] when null, and the
+  /// headless game, [PlatformerHeadlessGame] by default.
   PlatformerPlugin({
     Iterable<EntityKind>? kinds,
     super.replaceKinds,

@@ -14,6 +14,8 @@ import 'purse.dart';
 /// Collectible` to decide how to draw it. That is why [Takeable] is a base to
 /// extend rather than a class to configure.
 final class Collectible extends Takeable {
+  /// [howMany] of [what], worth [worth], carrying [key] when it opens a
+  /// door.
   Collectible({
     super.name,
     required this.what,
@@ -27,6 +29,7 @@ final class Collectible extends Takeable {
   /// document can invent one without this file changing.
   final String what;
 
+  /// How many of [what] taking it adds to the purse, one by default.
   final int howMany;
 
   /// What taking it is worth, before the chain in hand is applied.

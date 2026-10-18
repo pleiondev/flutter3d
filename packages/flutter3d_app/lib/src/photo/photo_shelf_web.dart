@@ -17,6 +17,7 @@ import 'photo_shelf.dart';
 /// cancelling the sheet, falls back to the download, so the picture is kept
 /// either way.
 final class BrowserPhotoShelf extends PhotoShelf {
+  /// A shelf that tries the share sheet first unless [share] is false.
   BrowserPhotoShelf({this.share = true});
 
   /// Whether to try the share sheet at all before downloading.

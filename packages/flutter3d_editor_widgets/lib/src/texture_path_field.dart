@@ -32,6 +32,7 @@ List<String> nothingToOffer(List<String> suffixes) => const <String>[];
 /// A path to a file: a box to type it in, and — when anything can list
 /// them — a button that offers the files [offers] names for [hint].
 final class TexturePathField extends StatelessWidget {
+  /// A field for [path], checked against [hint].
   const TexturePathField({
     super.key,
     required this.hint,
@@ -40,9 +41,19 @@ final class TexturePathField extends StatelessWidget {
     required this.onWrite,
   });
 
+  /// The texture hint whose `extensions` filter the offers and colour a
+  /// path that does not end in one of them.
   final TextureHint hint;
+
+  /// The path as the document holds it; empty for none.
   final String path;
+
+  /// Lists the files to offer; the choose button is shown only when it
+  /// answers some.
   final PathOffers offers;
+
+  /// Called with the typed or chosen path, or with null when the box is
+  /// emptied, which removes the key.
   final void Function(Object? value) onWrite;
 
   bool get _fits =>
@@ -104,8 +115,10 @@ final class TexturePathField extends StatelessWidget {
 
 /// The files a [TexturePathField] was offered, to pick one from.
 final class FilePickerDialog extends StatelessWidget {
+  /// A dialog that pops with the path picked, or null when dismissed.
   const FilePickerDialog({super.key, required this.paths});
 
+  /// The paths listed, one option each, in this order.
   final List<String> paths;
 
   @override

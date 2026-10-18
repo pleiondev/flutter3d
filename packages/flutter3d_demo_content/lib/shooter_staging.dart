@@ -60,6 +60,7 @@ Inventory startingInventory() => Inventory(
 
 /// A level, spawned, with somebody standing in it ready to be stepped.
 final class Staged {
+  /// The pieces [stage] built, handed over together.
   const Staged({
     required this.entities,
     required this.projectiles,
@@ -78,8 +79,14 @@ final class Staged {
   /// one save covers the lot. Two would be a save covering half the game.
   final EcsWorld entities;
 
+  /// The rockets in flight, kept as entities of [entities] and flown through
+  /// the level's collision world.
   final ProjectileSystem projectiles;
+
+  /// The monsters the level spawned, which the bestiary puts into the world.
   final ActorSystem actors;
+
+  /// The doors, lifts, platforms, buttons and lights the level spawned.
   final MechanismWorld mechanisms;
 
   /// One ray-caster shared by the player's shots and the monsters', because
@@ -89,7 +96,11 @@ final class Staged {
   /// Reused between shots rather than made fresh — see [WeaponShot].
   final WeaponShot shot;
 
+  /// The player, standing at [start] lifted by half their height, turned to
+  /// the spawn's yaw and carrying the inventory [stage] was given.
   final Player player;
+
+  /// The run's fixed step over all of the above; what a caller steps.
   final GameSimulation sim;
 
   /// The authored spawn point — where the feet go, not where the body's middle
@@ -335,6 +346,8 @@ Staged stage(
 /// It says which simulation it is ([simulation]), so a tool refuses
 /// a run recorded on other rules before playing it.
 final class ShooterHeadlessGame extends HeadlessGame {
+  /// The game with the kinds in [extra] added to the sample roster, and
+  /// [dress] called on each staged level.
   const ShooterHeadlessGame({this.extra = const <EntityKind>[], this.dress});
 
   @override

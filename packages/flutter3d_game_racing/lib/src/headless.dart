@@ -31,6 +31,8 @@ import 'vehicle/vehicle_controller.dart';
 /// are handed, on whatever physics it was made with; the application picks
 /// the core for its own, and a host that wants the same answers does too.
 final class RacingHeadlessGame extends HeadlessGame {
+  /// A race round [track]: [laps] laps against [rivals] AI cars, run by the
+  /// rules of [mode].
   const RacingHeadlessGame({
     required this.track,
     this.rivals = 0,
@@ -43,7 +45,11 @@ final class RacingHeadlessGame extends HeadlessGame {
 
   /// How many AI cars start behind the player.
   final int rivals;
+
+  /// How many laps make the race, three by default.
   final int laps;
+
+  /// The rules the race runs by, [RaceMode.race] by default.
   final RaceMode mode;
 
   /// The one button a driver has beside the stick.

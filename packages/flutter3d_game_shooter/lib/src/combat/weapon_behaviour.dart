@@ -14,17 +14,28 @@ import 'weapon.dart';
 /// Reused between shots rather than made fresh: a held automatic weapon fires
 /// several times a second and this sits on the simulation step.
 final class WeaponShot {
+  /// A shot in [world], tracing rays with [hitscan] and launching into
+  /// [projectiles] when there are any.
   WeaponShot({required this.world, required this.hitscan, this.projectiles});
 
+  /// The world a melee swing looks for targets in, and checks walls in.
   final CollisionWorld world;
+
+  /// The ray-caster a hitscan weapon fires through.
   final Hitscan hitscan;
 
   /// Where launched things go. Null in a world that has none — a test of the
   /// firing rules does not need a projectile system to exist.
   ProjectileSystem? projectiles;
 
+  /// The weapon being fired; set by [begin], and an error to read before
+  /// the first one.
   late WeaponDef weapon;
+
+  /// Where the shot starts, in world metres: the muzzle or the eye.
   final Vector3 origin = Vector3.zero();
+
+  /// Which way the shot is pointed; need not be of unit length.
   final Vector3 aim = Vector3.zero();
 
   /// The shooter, so a weapon does not hit the body holding it. The muzzle is
@@ -35,6 +46,8 @@ final class WeaponShot {
   /// projectile, which lands later.
   final List<ShotHit> hits = <ShotHit>[];
 
+  /// Readies the shot for [weapon] fired from [origin] along [aim] by
+  /// [shooter], copying both vectors and emptying [hits].
   void begin(
     WeaponDef weapon,
     Vector3 origin,
@@ -78,6 +91,7 @@ final class WeaponShot {
 /// behaviour written outside this package is not held to a narrower seam than
 /// the ones inside it.
 abstract base class WeaponBehavior {
+  /// For subclasses; a behaviour holds no state of its own here.
   const WeaponBehavior();
 
   /// Puts this shot into the world. Called once per trigger pull, inside the
@@ -87,6 +101,8 @@ abstract base class WeaponBehavior {
 
 /// Rays, arriving the instant the trigger does.
 final class HitscanBehavior extends WeaponBehavior {
+  /// The behaviour; the rays' number, spread and range come from the
+  /// weapon.
   const HitscanBehavior();
 
   @override
@@ -109,6 +125,8 @@ final class HitscanBehavior extends WeaponBehavior {
 /// not — the reach of a swing is an arc, and an arc is what a player expects to
 /// connect with.
 final class MeleeBehavior extends WeaponBehavior {
+  /// A swing [arc] radians wide, seventy degrees by default, reaching the
+  /// weapon's range.
   const MeleeBehavior({this.arc = 70.0 * math.pi / 180.0});
 
   /// Full width of the arc the swing covers, in radians.
@@ -206,6 +224,8 @@ final class MeleeBehavior extends WeaponBehavior {
 /// firing code: [WeaponShot.hits] stays empty and the damage arrives later,
 /// through the projectile system, from wherever the rocket ends up.
 final class ProjectileBehavior extends WeaponBehavior {
+  /// The behaviour; it launches nothing for a weapon with no blast or a
+  /// shot with no projectile system.
   const ProjectileBehavior();
 
   @override

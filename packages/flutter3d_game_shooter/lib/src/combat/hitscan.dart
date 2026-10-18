@@ -29,8 +29,11 @@ export 'shot_hit.dart';
 /// a wall is one merged surface per material by the time it is drawn — and the
 /// player's expectation is set by what they cannot walk through.
 final class Hitscan {
+  /// A ray-caster over [world], jittering from [random].
   Hitscan({required this.world, required this.random});
 
+  /// The world the rays are cast against: what a body cannot walk through,
+  /// not what is drawn.
   final CollisionWorld world;
 
   /// The generator the jitter comes out of.

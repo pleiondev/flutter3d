@@ -56,7 +56,11 @@ final class LightShading {
   final CpuDevice _device;
   final Renderer _renderer;
   final Scene _scene;
+
+  /// The width of every picture drawn, in pixels.
   final int width;
+
+  /// The height of every picture drawn, in pixels.
   final int height;
 
   /// Pixels in one picture.

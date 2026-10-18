@@ -157,6 +157,7 @@ final class GizmoBounds {
 /// Made by the editor, never by a plugin. **One object, so it can grow**: a
 /// member added in a minor reaches every gizmo without changing a signature.
 final class GizmoContext {
+  /// The question about row [index] of [kind]'s list in [level].
   GizmoContext({
     required this.level,
     required this.kind,
@@ -200,6 +201,7 @@ final class GizmoContext {
 
 /// A handle of a [GizmoMark] dragged from one point to another.
 final class GizmoDrag {
+  /// A drag of [handle] from [from] to [to], both copied.
   GizmoDrag({
     required this.target,
     required this.handle,
@@ -248,6 +250,7 @@ final class GizmoDrag {
 /// an agent can do the same with `command.run`. `base`, so a member added
 /// in a minor arrives with a body; each hook takes one context.
 abstract base class EditorGizmo {
+  /// A gizmo over every entity that leaves drags alone until overridden.
   const EditorGizmo();
 
   /// Whether this gizmo marks the thing [context] names. Every entity by
@@ -265,6 +268,7 @@ abstract base class EditorGizmo {
 /// A [GizmoMark] where an editor drew it: the gizmo that drew it, by its
 /// published name, and the thing of the level it marks.
 final class DrawnMark {
+  /// [mark], drawn by [gizmo] over row [index] of [kind]'s list.
   const DrawnMark({
     required this.gizmo,
     required this.kind,

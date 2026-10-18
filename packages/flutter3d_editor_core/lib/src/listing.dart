@@ -20,6 +20,7 @@ import 'gizmos.dart';
 /// and an index remembered across that change points at the wrong thing rather
 /// than at nothing.
 final class ListedPiece {
+  /// Row [index] of [kind]'s list, saying [what] it is and where it is.
   const ListedPiece({
     required this.kind,
     required this.index,
@@ -45,6 +46,8 @@ final class ListedPiece {
   /// package invented.
   final String what;
 
+  /// Where it is in the level's frame, in metres: a brush's centre, a
+  /// light's or an entity's position.
   final Vector3 at;
 
   /// A brush's size, or an entity's when the document gave it one.

@@ -41,6 +41,8 @@ final class VehicleInput {
   /// driven in somebody's wake is driven in it again.
   double shelter = 0.0;
 
+  /// Lets go of everything: every number back to nought and every flag to
+  /// false.
   void reset() {
     throttle = 0.0;
     brake = 0.0;
@@ -50,6 +52,7 @@ final class VehicleInput {
     shelter = 0.0;
   }
 
+  /// Copies every field of [other] into this one.
   void setFrom(VehicleInput other) {
     throttle = other.throttle;
     brake = other.brake;
@@ -184,6 +187,7 @@ abstract base mixin class VehicleController {
 /// step, so a step allocates nothing for it; a car reads it during the call
 /// and does not keep it.
 final class VehicleStep {
+  /// A step [dt] seconds long, driven by [input].
   VehicleStep({required this.dt, required this.input});
 
   /// The step's length, in seconds.
@@ -196,6 +200,8 @@ final class VehicleStep {
 /// What [VehicleController.placeAt] is handed, for the reason
 /// [VehicleStep] gives.
 final class VehiclePlacement {
+  /// A placement at [position] facing [headingYaw], at [trackDistance] when
+  /// the caller knows it.
   const VehiclePlacement({
     required this.position,
     required this.headingYaw,

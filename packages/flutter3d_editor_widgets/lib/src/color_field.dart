@@ -90,6 +90,10 @@ final class DisplayRgb {
 
 /// One colour, [ColorField.channels] components long, each in `0..1`.
 final class ColorField extends StatefulWidget {
+  /// A picker for [value], sRGB-encoded and enabled unless said otherwise.
+  ///
+  /// Asserts that [channels] is three or four and that [value] has exactly
+  /// that many components.
   const ColorField({
     super.key,
     required this.value,
@@ -122,6 +126,8 @@ final class ColorField extends StatefulWidget {
   /// Whether [value] is linear light rather than already sRGB-encoded.
   final bool linear;
 
+  /// Whether the sliders and the hex box take input; false shows the
+  /// colour and never calls [onChanged].
   final bool enabled;
 
   /// The threshold and the two branches of the sRGB transfer function, taken

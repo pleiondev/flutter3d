@@ -6,7 +6,12 @@ import 'package:vector_math/vector_math.dart';
 import '../platformer_entities.dart';
 import '../spring.dart';
 
+/// A spring pad in a level document. See [Spring].
+///
+/// `speed` is how fast it throws, in metres per second, 15 if absent; a
+/// speed of nought or less is an error.
 final class SpringKind extends EntityKind {
+  /// The kind, under the type `PlatformerEntities.spring`.
   const SpringKind() : super(PlatformerEntities.spring);
 
   /// Wide and flat: a pad you can miss is a pad that reads as broken.

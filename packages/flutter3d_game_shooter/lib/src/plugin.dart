@@ -53,6 +53,8 @@ import 'step_phases.dart';
 /// the physics core and so cannot be named from here; a host pairs the two
 /// by passing it in: `ShooterPlugin(headless: const ShooterHeadlessGame())`.
 final class ShooterPlugin extends GenrePlugin<GameSimulation> {
+  /// A plugin bringing [kinds], or [shooterKinds] when null, and a
+  /// headless game when the host hands one.
   ShooterPlugin({
     Iterable<EntityKind>? kinds,
     super.replaceKinds,

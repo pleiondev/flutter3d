@@ -42,6 +42,8 @@ import 'watched.dart';
 /// stream delivers once listened to; a bare VM keeps no history of it, so
 /// there a level that came up before the attach is not among them.
 final class AttachedRun with PlayedGame {
+  /// A run that attaches to the game at [vmService] on its first [start];
+  /// a test hands its own connection in place of the real socket.
   AttachedRun(this.vmService, {this._connect = connectVmService});
 
   /// The address a person gave, in any spelling `vmServiceWebSocket` reads.
@@ -61,6 +63,7 @@ final class AttachedRun with PlayedGame {
   @override
   final Watched<List<String>> console = Watched<List<String>>(const <String>[]);
 
+  /// How many lines [console] keeps, a count; past it the oldest go.
   static const int consoleLimit = 2000;
 
   final GameEventLog _events = engineGameEventLog();
@@ -83,6 +86,9 @@ final class AttachedRun with PlayedGame {
   /// The services a flutter tool registers on the game it runs, by the
   /// protocol's names.
   static const String swapService = 'reloadSources';
+
+  /// The protocol's name for the tool's hot restart, which [hotRestart]
+  /// calls under the name it was registered with.
   static const String restartService = 'hotRestart';
 
   @override

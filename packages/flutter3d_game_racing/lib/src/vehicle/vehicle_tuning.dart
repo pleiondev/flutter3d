@@ -4,6 +4,7 @@
 /// table rather than hunting through a step function — the same reason the
 /// platformer's `MovementSettings` and `RunnerSettings` exist.
 final class VehicleSettings {
+  /// Settings with each field at the default its own doc gives.
   const VehicleSettings({
     this.radius = 0.7,
     this.rideHeight = 0.55,

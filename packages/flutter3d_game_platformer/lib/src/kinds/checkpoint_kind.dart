@@ -6,9 +6,17 @@ import 'package:vector_math/vector_math.dart';
 import '../checkpoint.dart';
 import '../platformer_entities.dart';
 
+/// A checkpoint in a level document. See [Checkpoint].
+///
+/// Needs an integer `order`: one without it is an error and spawns nothing.
+/// `respawn` is where the runner reappears, the entity's position if absent,
+/// and `marker` the size of the post drawn for it.
 final class CheckpointKind extends EntityKind {
+  /// The kind, under the type `PlatformerEntities.checkpoint`.
   const CheckpointKind() : super(PlatformerEntities.checkpoint);
 
+  /// The trigger's size in metres when the entity gives none: wide and
+  /// tall, so it is hard to miss.
   static Vector3 get defaultSize => Vector3(1.5, 2.5, 1.5);
 
   /// What is drawn: a post, whatever the trigger's size is.

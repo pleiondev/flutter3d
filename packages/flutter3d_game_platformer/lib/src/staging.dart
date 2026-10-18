@@ -16,6 +16,7 @@ import 'surfaces.dart';
 /// A platformer level, spawned, with a runner standing in it ready to be
 /// stepped.
 final class PlatformerStaged {
+  /// The pieces [stagePlatformer] built, handed over together.
   const PlatformerStaged({
     required this.registry,
     required this.dynamics,
@@ -29,10 +30,19 @@ final class PlatformerStaged {
   /// The one registry that validated the document and then spawned it.
   final EntityRegistry registry;
 
+  /// The crates and other rigid bodies, made in the run's world.
   final RigidDynamics dynamics;
+
+  /// The enemies the level spawned, rolling the run's one generator.
   final ActorSystem actors;
+
+  /// The doors, lifts, springs, checkpoints and the rest the level spawned.
   final MechanismWorld mechanisms;
+
+  /// The player, standing at [start] or wherever the caller asked.
   final Runner runner;
+
+  /// The run's fixed step over all of the above; what a caller steps.
   final PlatformerSimulation sim;
 
   /// The authored spawn point — where the feet go, not where the body's
@@ -184,6 +194,8 @@ PlatformerStaged stagePlatformer(
 /// It says which simulation it is ([simulation]), so a tool refuses
 /// a run recorded on other rules before playing it.
 final class PlatformerHeadlessGame extends HeadlessGame {
+  /// The game with the kinds in [extra] added to the genre's, and [dress]
+  /// called on each run of a level.
   const PlatformerHeadlessGame({this.extra = const <EntityKind>[], this.dress});
 
   /// Kinds a level may name beyond the genre's own, for a host whose levels

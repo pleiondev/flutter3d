@@ -24,6 +24,7 @@ import 'package:vector_math/vector_math.dart';
 /// same object twice. Putting these on the runner would have made every pool
 /// in a level identical.
 final class SwimSettings {
+  /// Settings with each field at the default its own doc gives.
   const SwimSettings({
     this.buoyancyRatio = 0.25,
     this.sinkSpeed = 2.0,
@@ -82,6 +83,8 @@ final class SwimSettings {
 /// where the runner is, asked once a step, and a mechanism that remembered the
 /// answer would be a mechanism that disagreed with the world after a teleport.
 final class Water extends Mechanism {
+  /// Water filling [collider], made a trigger and pointed back here, that a
+  /// runner swims in as [tuning] says.
   Water({
     super.name,
     required this.collider,
@@ -92,7 +95,12 @@ final class Water extends Mechanism {
       ..userData = this;
   }
 
+  /// The trigger volume the water fills; only a box holds anything, so
+  /// [holds] is false for every point in water of any other shape.
   final Collider collider;
+
+  /// How a runner moves while in this water: buoyancy, sinking, rising,
+  /// drag and top speed.
   final SwimSettings tuning;
 
   @override

@@ -25,6 +25,8 @@ import 'editor_widgets_theme.dart';
 
 /// A slider between [min] and [max].
 final class RangeSliderField extends StatefulWidget {
+  /// A slider for [value] between [min] and [max]; enabled, unstepped,
+  /// unlabelled and without a text box unless said otherwise.
   const RangeSliderField({
     super.key,
     this.label,
@@ -72,6 +74,8 @@ final class RangeSliderField extends StatefulWidget {
   /// comes once at the end.
   final ValueChanged<double>? onPreview;
 
+  /// Whether the slider and its text box take input; false draws them in
+  /// the theme's disabled colour and calls neither callback.
   final bool enabled;
 
   /// Whether the slider is paired with a text box that shows the exact

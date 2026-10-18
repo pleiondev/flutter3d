@@ -23,6 +23,7 @@ import 'simulation.dart';
 /// The units are named by their entities, which is what a digest can carry
 /// and what a save already names them by.
 final class UnitFired extends GameEvent {
+  /// A shot by [shooter] of [side] at [mark].
   const UnitFired({
     required this.side,
     required this.shooter,
@@ -58,8 +59,10 @@ final class UnitFired extends GameEvent {
   /// Whose unit fired.
   final int side;
 
-  /// The unit that fired, and the one it fired at.
+  /// The unit that fired.
   final Entity shooter;
+
+  /// The unit it fired at, of the other side.
   final Entity mark;
 
   @override
@@ -77,6 +80,7 @@ final class UnitFired extends GameEvent {
 /// The match was decided, on the step it was: won by [winner], or drawn
 /// when that is null. Once a match; see [Standing].
 final class MatchDecided extends GameEvent {
+  /// The decision, won by [winner] or drawn when it is null.
   const MatchDecided(this.winner);
 
   /// The name it is published and declared under.

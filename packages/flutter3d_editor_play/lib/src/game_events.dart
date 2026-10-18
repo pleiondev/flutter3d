@@ -11,6 +11,8 @@ import 'watched.dart';
 
 /// One event a game posted with `flutter3d_game`'s `postToolEvent`.
 final class PostedEvent {
+  /// An event numbered [sequence], of [kind] with the prefix already
+  /// stripped.
   const PostedEvent({
     required this.sequence,
     required this.kind,
@@ -34,6 +36,7 @@ final class PostedEvent {
   /// What the game said about it, as it posted it.
   final Map<String, Object?> data;
 
+  /// The event as an agent reads it: [time] in UTC ISO 8601, or null.
   Map<String, Object?> toJson() => <String, Object?>{
     'sequence': sequence,
     'kind': kind,
@@ -51,9 +54,14 @@ final class PostedEvent {
 final class GameEventLog {
   GameEventLog._();
 
+  /// What every extension kind a game posts starts with; [record] keeps
+  /// only those and strips it.
   static const String prefix = 'flutter3d.';
+
+  /// How many events are kept, a count; past it the oldest go.
   static const int limit = 2000;
 
+  /// The events kept, oldest first, numbered from 1 across runs.
   final Watched<List<PostedEvent>> events = Watched<List<PostedEvent>>(
     const <PostedEvent>[],
   );
@@ -94,6 +102,7 @@ final class GameEventLog {
     );
   }
 
+  /// Ends the change stream of [events]; what was kept stays readable.
   Future<void> close() => events.close();
 }
 
@@ -132,6 +141,7 @@ PostedEventPage eventsSince(
 /// What [eventsSince] answers: the events after a cursor, the cursor to ask
 /// with next, and what the cap or a new run took away.
 final class PostedEventPage {
+  /// A page of [events] with the cursor [next] to ask with after it.
   const PostedEventPage({
     required this.events,
     required this.next,
