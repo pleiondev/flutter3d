@@ -284,15 +284,19 @@ BrushResult applyBrushStroke(
     previousCenter: mirroredPrevious,
   );
 
+  // Near the plane the two discs overlap and both passes reach the same
+  // vertices; the result names each once. A set literal keeps insertion
+  // order, so the vertices stay in visiting order, primary side first, and
+  // the chunks are sorted again to keep the promise [BrushResult] makes.
   return BrushResult(
-    touchedVertices: <int>[
+    touchedVertices: <int>{
       ...primary.touchedVertices,
       ...mirrored.touchedVertices,
-    ],
+    }.toList(),
     touchedChunks: <int>{
       ...primary.touchedChunks,
       ...mirrored.touchedChunks,
-    }.toList(),
+    }.toList()..sort(),
   );
 }
 

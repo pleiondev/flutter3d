@@ -314,5 +314,66 @@ void main() {
         epsilon: 1e-6,
       );
     });
+
+    // A 64 by 64 grid laid symmetrically about x = 0: 4096 vertices, four
+    // chunks, and the Morton renumbering puts the negative-x half in the
+    // lower indices, so a mirrored stroke's chunks come before the primary's.
+    SculptMesh symmetricGrid() {
+      const side = 64;
+      final points = <Vector3>[
+        for (var j = 0; j < side; j++)
+          for (var i = 0; i < side; i++) Vector3(i - 31.5, 0, j.toDouble()),
+      ];
+      final faces = <List<int>>[
+        for (var j = 0; j < side - 1; j++)
+          for (var i = 0; i < side - 1; i++)
+            <int>[
+              j * side + i,
+              j * side + i + 1,
+              (j + 1) * side + i + 1,
+              (j + 1) * side + i,
+            ],
+      ];
+      return SculptMesh.fromEditMesh(EditMesh.fromFaces(points, faces));
+    }
+
+    const draw = MeshBrush(
+      kind: BrushKind.draw,
+      radius: 3.0,
+      strength: 0.1,
+      falloff: BrushFalloff.linear,
+    );
+
+    test('reports its chunks sorted, mirror side included', () {
+      final mesh = symmetricGrid();
+      final result = applyBrushStroke(
+        mesh,
+        draw,
+        center: Vector3(20, 0, 40),
+        symmetryX: true,
+      );
+      final chunks = result.touchedChunks;
+      // Both halves are in it, or the ordering would prove nothing.
+      expect(chunks.toSet().length, greaterThan(1));
+      expect(chunks, orderedEquals(chunks.toSet().toList()..sort()));
+    });
+
+    test('names a vertex both sides reached once', () {
+      final mesh = symmetricGrid();
+      // On the plane itself: the stroke and its mirror cover the same disc.
+      final result = applyBrushStroke(
+        mesh,
+        draw,
+        center: Vector3(0, 0, 40),
+        symmetryX: true,
+      );
+      final vertices = result.touchedVertices;
+      expect(vertices, isNotEmpty);
+      expect(vertices.toSet(), hasLength(vertices.length));
+      expect(
+        result.touchedChunks.toSet(),
+        hasLength(result.touchedChunks.length),
+      );
+    });
   });
 }

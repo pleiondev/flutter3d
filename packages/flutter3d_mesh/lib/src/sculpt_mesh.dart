@@ -98,8 +98,8 @@ final class BrushResult {
     required this.touchedChunks,
   });
 
-  /// Every vertex the stroke's radius reached, in the order the spatial grid
-  /// visited them.
+  /// Every vertex the stroke's radius reached, each once, in the order the
+  /// spatial grid visited them.
   final List<int> touchedVertices;
 
   /// Every chunk index that had to be copied because at least one of its
