@@ -73,8 +73,12 @@ library;
 final class TextureType {
   const TextureType._(this.name);
 
+  /// A single two-dimensional image, sampled by coordinate. Every texture this
+  /// package makes that is not a cube.
   static const TextureType texture2D = TextureType._('texture2D');
 
+  /// A 2D image holding several samples per texel. Not chosen through this type
+  /// here: a handle's `sampleCount` above one says it.
   static const TextureType texture2DMultisample = TextureType._(
     'texture2DMultisample',
   );
@@ -83,6 +87,9 @@ final class TextureType {
   /// sky, an environment map or a point-light shadow is drawn into.
   static const TextureType textureCube = TextureType._('textureCube');
 
+  /// An image owned by the platform, such as a camera or video frame, sampled
+  /// through `GL_OES_EGL_image_external`. Mirrored from flutter_gpu for the
+  /// one-for-one mapping; nothing in this package makes one.
   static const TextureType textureExternalOES = TextureType._(
     'textureExternalOES',
   );
@@ -167,54 +174,76 @@ final class StorageMode {
 final class TextureFormat {
   const TextureFormat._(this.index, this.name);
 
+  /// No format. What a backend answers for a texture it cannot describe; never
+  /// a valid argument to a creator.
   static const TextureFormat unknown = TextureFormat._(0, 'unknown');
 
+  /// One eight-bit alpha channel, unsigned normalised, one byte per texel.
   static const TextureFormat a8UNormInt = TextureFormat._(1, 'a8UNormInt');
 
+  /// One eight-bit red channel, unsigned normalised, one byte per texel.
   static const TextureFormat r8UNormInt = TextureFormat._(2, 'r8UNormInt');
 
+  /// Eight-bit red and green, unsigned normalised, two bytes per texel.
   static const TextureFormat r8g8UNormInt = TextureFormat._(3, 'r8g8UNormInt');
 
+  /// Eight-bit RGBA, unsigned normalised and linear, four bytes per texel in
+  /// that byte order. One of the two layouts `readback` answers in.
   static const TextureFormat r8g8b8a8UNormInt = TextureFormat._(
     4,
     'r8g8b8a8UNormInt',
   );
 
+  /// Eight-bit RGBA, four bytes per texel, with the colour channels
+  /// sRGB-encoded: sampling decodes them to linear and rendering encodes. Alpha
+  /// stays linear.
   static const TextureFormat r8g8b8a8UNormIntSRGB = TextureFormat._(
     5,
     'r8g8b8a8UNormIntSRGB',
   );
 
+  /// Eight-bit BGRA, unsigned normalised and linear, four bytes per texel with
+  /// blue first. The usual layout of a window's swapchain.
   static const TextureFormat b8g8r8a8UNormInt = TextureFormat._(
     6,
     'b8g8r8a8UNormInt',
   );
 
+  /// Eight-bit BGRA, four bytes per texel with blue first, the colour channels
+  /// sRGB-encoded.
   static const TextureFormat b8g8r8a8UNormIntSRGB = TextureFormat._(
     7,
     'b8g8r8a8UNormIntSRGB',
   );
 
+  /// Four 32-bit float channels, sixteen bytes per texel.
   static const TextureFormat r32g32b32a32Float = TextureFormat._(
     8,
     'r32g32b32a32Float',
   );
 
+  /// Four 16-bit float channels, eight bytes per texel. The engine's HDR colour
+  /// target.
   static const TextureFormat r16g16b16a16Float = TextureFormat._(
     9,
     'r16g16b16a16Float',
   );
 
+  /// One 32-bit float channel, four bytes per texel.
   static const TextureFormat r32Float = TextureFormat._(10, 'r32Float');
 
   // Depth and stencil formats.
+  /// Stencil only, eight unsigned bits per texel.
   static const TextureFormat s8UInt = TextureFormat._(11, 's8UInt');
 
+  /// A 24-bit unsigned normalised depth with an eight-bit stencil, four bytes
+  /// per texel.
   static const TextureFormat d24UnormS8Uint = TextureFormat._(
     12,
     'd24UnormS8Uint',
   );
 
+  /// A 32-bit float depth with an eight-bit stencil.
   static const TextureFormat d32FloatS8UInt = TextureFormat._(
     13,
     'd32FloatS8UInt',
@@ -233,121 +262,159 @@ final class TextureFormat {
   // (`cpu_device.dart`) because it samples raw texels and always will. See
   // [TextureFormatCompression.isCompressed], which every backend now reads
   // instead of re-listing this exact tail of the enum for itself.
+  /// BC1 (DXT1): 4x4 blocks of eight bytes, RGB with one bit of alpha, linear.
+  /// Desktop GPUs.
   static const TextureFormat bc1RGBAUNormInt = TextureFormat._(
     14,
     'bc1RGBAUNormInt',
   );
 
+  /// BC1 with the colour sRGB-encoded: 4x4 blocks of eight bytes.
   static const TextureFormat bc1RGBAUNormIntSRGB = TextureFormat._(
     15,
     'bc1RGBAUNormIntSRGB',
   );
 
+  /// BC3 (DXT5): 4x4 blocks of sixteen bytes, RGB with interpolated alpha,
+  /// linear.
   static const TextureFormat bc3RGBAUNormInt = TextureFormat._(
     16,
     'bc3RGBAUNormInt',
   );
 
+  /// BC3 with the colour sRGB-encoded: 4x4 blocks of sixteen bytes.
   static const TextureFormat bc3RGBAUNormIntSRGB = TextureFormat._(
     17,
     'bc3RGBAUNormIntSRGB',
   );
 
+  /// BC5: 4x4 blocks of sixteen bytes, two independent channels, red and green.
+  /// What a compressed normal map is stored in.
   static const TextureFormat bc5RGUNormInt = TextureFormat._(
     18,
     'bc5RGUNormInt',
   );
 
+  /// BC7: 4x4 blocks of sixteen bytes, high-quality RGBA, linear.
   static const TextureFormat bc7RGBAUNormInt = TextureFormat._(
     19,
     'bc7RGBAUNormInt',
   );
 
+  /// BC7 with the colour sRGB-encoded: 4x4 blocks of sixteen bytes.
   static const TextureFormat bc7RGBAUNormIntSRGB = TextureFormat._(
     20,
     'bc7RGBAUNormIntSRGB',
   );
 
+  /// ETC2 RGB: 4x4 blocks of eight bytes, no alpha, linear. Mobile GPUs.
   static const TextureFormat etc2RGB8UNormInt = TextureFormat._(
     21,
     'etc2RGB8UNormInt',
   );
 
+  /// ETC2 RGB with the colour sRGB-encoded: 4x4 blocks of eight bytes.
   static const TextureFormat etc2RGB8UNormIntSRGB = TextureFormat._(
     22,
     'etc2RGB8UNormIntSRGB',
   );
 
+  /// ETC2 RGBA (EAC alpha): 4x4 blocks of sixteen bytes, linear.
   static const TextureFormat etc2RGBA8UNormInt = TextureFormat._(
     23,
     'etc2RGBA8UNormInt',
   );
 
+  /// ETC2 RGBA with the colour sRGB-encoded: 4x4 blocks of sixteen bytes.
   static const TextureFormat etc2RGBA8UNormIntSRGB = TextureFormat._(
     24,
     'etc2RGBA8UNormIntSRGB',
   );
 
+  /// ASTC with a 4x4 footprint, low dynamic range, linear: sixteen bytes per
+  /// block.
   static const TextureFormat astc4x4LDR = TextureFormat._(25, 'astc4x4LDR');
 
+  /// ASTC 4x4, low dynamic range, colour sRGB-encoded: sixteen bytes per block.
   static const TextureFormat astc4x4LDRSRGB = TextureFormat._(
     26,
     'astc4x4LDRSRGB',
   );
 
+  /// ASTC with an 8x8 footprint, low dynamic range, linear: sixteen bytes per
+  /// block, a quarter of [astc4x4LDR]'s cost per texel.
   static const TextureFormat astc8x8LDR = TextureFormat._(27, 'astc8x8LDR');
 
+  /// ASTC 8x8, low dynamic range, colour sRGB-encoded: sixteen bytes per block.
   static const TextureFormat astc8x8LDRSRGB = TextureFormat._(
     28,
     'astc8x8LDRSRGB',
   );
 
+  /// ASTC 4x4 with high dynamic range values: sixteen bytes per block.
   static const TextureFormat astc4x4HDR = TextureFormat._(29, 'astc4x4HDR');
 
+  /// ASTC 8x8 with high dynamic range values: sixteen bytes per block.
   static const TextureFormat astc8x8HDR = TextureFormat._(30, 'astc8x8HDR');
 
   // ---- Beyond flutter_gpu, since 0.9 — see the library doc. Appended only.
   // What storage textures, packed HDR targets and depth-only attachments
   // need, named in this enum's own spelling. `extendedTextureFormats` lists
   // them; `TextureFormatInfo` describes every value.
+  /// Eight-bit RGBA, signed normalised to the range minus one to one, four
+  /// bytes per texel.
   static const TextureFormat r8g8b8a8SNormInt = TextureFormat._(
     31,
     'r8g8b8a8SNormInt',
   );
 
+  /// Eight-bit RGBA, unsigned integers read as integers, four bytes per texel.
   static const TextureFormat r8g8b8a8UInt = TextureFormat._(32, 'r8g8b8a8UInt');
 
+  /// Eight-bit RGBA, signed integers read as integers, four bytes per texel.
   static const TextureFormat r8g8b8a8SInt = TextureFormat._(33, 'r8g8b8a8SInt');
 
+  /// One 16-bit float channel, two bytes per texel.
   static const TextureFormat r16Float = TextureFormat._(34, 'r16Float');
 
+  /// Two 16-bit float channels, four bytes per texel.
   static const TextureFormat r16g16Float = TextureFormat._(35, 'r16g16Float');
 
+  /// Four 16-bit unsigned integer channels, eight bytes per texel.
   static const TextureFormat r16g16b16a16UInt = TextureFormat._(
     36,
     'r16g16b16a16UInt',
   );
 
+  /// Four 16-bit signed integer channels, eight bytes per texel.
   static const TextureFormat r16g16b16a16SInt = TextureFormat._(
     37,
     'r16g16b16a16SInt',
   );
 
+  /// One 32-bit unsigned integer channel, four bytes per texel. An id buffer's
+  /// format.
   static const TextureFormat r32UInt = TextureFormat._(38, 'r32UInt');
 
+  /// One 32-bit signed integer channel, four bytes per texel.
   static const TextureFormat r32SInt = TextureFormat._(39, 'r32SInt');
 
+  /// Two 32-bit float channels, eight bytes per texel.
   static const TextureFormat r32g32Float = TextureFormat._(40, 'r32g32Float');
 
+  /// Two 32-bit unsigned integer channels, eight bytes per texel.
   static const TextureFormat r32g32UInt = TextureFormat._(41, 'r32g32UInt');
 
+  /// Two 32-bit signed integer channels, eight bytes per texel.
   static const TextureFormat r32g32SInt = TextureFormat._(42, 'r32g32SInt');
 
+  /// Four 32-bit unsigned integer channels, sixteen bytes per texel.
   static const TextureFormat r32g32b32a32UInt = TextureFormat._(
     43,
     'r32g32b32a32UInt',
   );
 
+  /// Four 32-bit signed integer channels, sixteen bytes per texel.
   static const TextureFormat r32g32b32a32SInt = TextureFormat._(
     44,
     'r32g32b32a32SInt',
@@ -485,6 +552,10 @@ const List<TextureFormat> extendedTextureFormats = <TextureFormat>[
 /// configured one meant. Every depth format this engine names carries one,
 /// which is why nothing above the backends has ever had to ask.
 extension TextureFormatStencil on TextureFormat {
+  /// Whether the format carries a stencil plane: true for
+  /// [TextureFormat.s8UInt], [TextureFormat.d24UnormS8Uint] and
+  /// [TextureFormat.d32FloatS8UInt], false for everything else, the depth-only
+  /// formats included.
   bool get hasStencil => switch (this) {
     TextureFormat.s8UInt ||
     TextureFormat.d24UnormS8Uint ||
@@ -504,14 +575,22 @@ extension TextureFormatStencil on TextureFormat {
 /// each other for every value; a second implementation that only ever agrees
 /// with the first is worth less than the discrepancy it exists to catch.
 final class TextureBlockLayout {
+  /// Creates a layout of [blockWidth] by [blockHeight] texel blocks of
+  /// [bytesPerBlock] bytes each.
   const TextureBlockLayout(
     this.blockWidth,
     this.blockHeight,
     this.bytesPerBlock,
   );
 
+  /// Width of one block in texels: four or eight.
   final int blockWidth;
+
+  /// Height of one block in texels: four or eight.
   final int blockHeight;
+
+  /// Bytes one block occupies: eight or sixteen. A level's size is this times
+  /// the block count, each dimension rounded up to whole blocks.
   final int bytesPerBlock;
 }
 
@@ -603,46 +682,67 @@ extension TextureFormatCompression on TextureFormat {
 final class BlendFactor {
   const BlendFactor._(this.name);
 
+  /// Multiplies the term by zero, dropping it.
   static const BlendFactor zero = BlendFactor._('zero');
 
+  /// Multiplies the term by one, keeping it whole.
   static const BlendFactor one = BlendFactor._('one');
 
+  /// Multiplies by the fragment's colour, channel by channel.
   static const BlendFactor sourceColor = BlendFactor._('sourceColor');
 
+  /// Multiplies by one minus the fragment's colour, channel by channel.
   static const BlendFactor oneMinusSourceColor = BlendFactor._(
     'oneMinusSourceColor',
   );
 
+  /// Multiplies by the fragment's alpha.
   static const BlendFactor sourceAlpha = BlendFactor._('sourceAlpha');
 
+  /// Multiplies by one minus the fragment's alpha. Paired with [sourceAlpha] it
+  /// is ordinary non-premultiplied alpha blending.
   static const BlendFactor oneMinusSourceAlpha = BlendFactor._(
     'oneMinusSourceAlpha',
   );
 
+  /// Multiplies by the colour already in the attachment, channel by channel.
   static const BlendFactor destinationColor = BlendFactor._('destinationColor');
 
+  /// Multiplies by one minus the attachment's colour, channel by channel.
   static const BlendFactor oneMinusDestinationColor = BlendFactor._(
     'oneMinusDestinationColor',
   );
 
+  /// Multiplies by the alpha already in the attachment.
   static const BlendFactor destinationAlpha = BlendFactor._('destinationAlpha');
 
+  /// Multiplies by one minus the attachment's alpha.
   static const BlendFactor oneMinusDestinationAlpha = BlendFactor._(
     'oneMinusDestinationAlpha',
   );
 
+  /// Multiplies the colour by the smaller of the fragment's alpha and one minus
+  /// the attachment's alpha; the alpha channel by one.
   static const BlendFactor sourceAlphaSaturated = BlendFactor._(
     'sourceAlphaSaturated',
   );
 
+  /// Multiplies by the blend constant's colour, channel by channel. Needs
+  /// `DeviceFeature.blendConstant`.
   static const BlendFactor blendColor = BlendFactor._('blendColor');
 
+  /// Multiplies by one minus the blend constant's colour. Needs
+  /// `DeviceFeature.blendConstant`.
   static const BlendFactor oneMinusBlendColor = BlendFactor._(
     'oneMinusBlendColor',
   );
 
+  /// Multiplies by the blend constant's alpha. Needs
+  /// `DeviceFeature.blendConstant`.
   static const BlendFactor blendAlpha = BlendFactor._('blendAlpha');
 
+  /// Multiplies by one minus the blend constant's alpha. Needs
+  /// `DeviceFeature.blendConstant`.
   static const BlendFactor oneMinusBlendAlpha = BlendFactor._(
     'oneMinusBlendAlpha',
   );
@@ -651,14 +751,23 @@ final class BlendFactor {
   // The fragment's second colour output, for dual-source blending. Ask
   // `DeviceFeature.dualSourceBlending`; a backend without it refuses a
   // `BlendState` naming one.
+  /// Multiplies by the fragment's second colour output, channel by channel:
+  /// dual-source blending. Needs `DeviceFeature.dualSourceBlending`; a backend
+  /// without it refuses a `BlendState` naming it.
   static const BlendFactor source1Color = BlendFactor._('source1Color');
 
+  /// Multiplies by one minus the fragment's second colour output. Needs
+  /// `DeviceFeature.dualSourceBlending`.
   static const BlendFactor oneMinusSource1Color = BlendFactor._(
     'oneMinusSource1Color',
   );
 
+  /// Multiplies by the alpha of the fragment's second colour output. Needs
+  /// `DeviceFeature.dualSourceBlending`.
   static const BlendFactor source1Alpha = BlendFactor._('source1Alpha');
 
+  /// Multiplies by one minus the alpha of the fragment's second colour output.
+  /// Needs `DeviceFeature.dualSourceBlending`.
   static const BlendFactor oneMinusSource1Alpha = BlendFactor._(
     'oneMinusSource1Alpha',
   );
@@ -723,16 +832,23 @@ const List<BlendFactor> extendedBlendFactors = <BlendFactor>[
 final class BlendOperation {
   const BlendOperation._(this.name);
 
+  /// Source term plus destination term.
   static const BlendOperation add = BlendOperation._('add');
 
+  /// Source term minus destination term.
   static const BlendOperation subtract = BlendOperation._('subtract');
 
+  /// Destination term minus source term.
   static const BlendOperation reverseSubtract = BlendOperation._(
     'reverseSubtract',
   );
 
+  /// The smaller of source and destination, channel by channel, with both
+  /// factors ignored. Needs `DeviceFeature.minMaxBlend`.
   static const BlendOperation min = BlendOperation._('min');
 
+  /// The larger of source and destination, channel by channel, with both
+  /// factors ignored. Needs `DeviceFeature.minMaxBlend`.
   static const BlendOperation max = BlendOperation._('max');
 
   /// Every value this version names, in declaration order. A later version
@@ -781,10 +897,15 @@ const List<BlendOperation> extendedBlendOperations = <BlendOperation>[
 final class LoadAction {
   const LoadAction._(this.name);
 
+  /// The attachment starts undefined. Cheapest, and right only when every pixel
+  /// the pass keeps is drawn.
   static const LoadAction dontCare = LoadAction._('dontCare');
 
+  /// The attachment keeps what the previous pass left in it.
   static const LoadAction load = LoadAction._('load');
 
+  /// The whole attachment is set to the clear value, whatever the viewport and
+  /// scissor say.
   static const LoadAction clear = LoadAction._('clear');
 
   /// Every value this version names, in declaration order. A later version
@@ -816,14 +937,21 @@ final class LoadAction {
 final class StoreAction {
   const StoreAction._(this.name);
 
+  /// The contents are discarded when the pass ends; a later pass reading them
+  /// sees undefined values.
   static const StoreAction dontCare = StoreAction._('dontCare');
 
+  /// The contents are kept for later passes.
   static const StoreAction store = StoreAction._('store');
 
+  /// A multisampled attachment is resolved into its resolve texture and its own
+  /// samples are discarded.
   static const StoreAction multisampleResolve = StoreAction._(
     'multisampleResolve',
   );
 
+  /// A multisampled attachment is resolved into its resolve texture and its own
+  /// samples are kept too.
   static const StoreAction storeAndMultisampleResolve = StoreAction._(
     'storeAndMultisampleResolve',
   );
@@ -862,8 +990,10 @@ final class StoreAction {
 final class MinMagFilter {
   const MinMagFilter._(this.name);
 
+  /// Takes the nearest texel: hard edges, no blending.
   static const MinMagFilter nearest = MinMagFilter._('nearest');
 
+  /// Blends the four nearest texels by distance.
   static const MinMagFilter linear = MinMagFilter._('linear');
 
   /// Every value this version names, in declaration order. A later version
@@ -906,8 +1036,10 @@ final class MinMagFilter {
 final class MipFilter {
   const MipFilter._(this.name);
 
+  /// Samples the single mip level nearest the footprint.
   static const MipFilter nearest = MipFilter._('nearest');
 
+  /// Blends the two mip levels either side of the footprint.
   static const MipFilter linear = MipFilter._('linear');
 
   /// Every value this version names, in declaration order. A later version
@@ -939,12 +1071,16 @@ final class MipFilter {
 final class SamplerAddressMode {
   const SamplerAddressMode._(this.name);
 
+  /// Coordinates outside nought to one take the edge texel.
   static const SamplerAddressMode clampToEdge = SamplerAddressMode._(
     'clampToEdge',
   );
 
+  /// Coordinates wrap, so the texture tiles.
   static const SamplerAddressMode repeat = SamplerAddressMode._('repeat');
 
+  /// Coordinates wrap with every other tile mirrored, so edges meet without a
+  /// seam.
   static const SamplerAddressMode mirror = SamplerAddressMode._('mirror');
 
   /// Outside the texture along this axis, the sampler's
@@ -991,8 +1127,12 @@ final class SamplerAddressMode {
 final class IndexType {
   const IndexType._(this.name);
 
+  /// Sixteen-bit unsigned indices, two bytes each. In a strip the all-ones
+  /// value restarts the primitive; see `IndexTypeFeatures.restartIndex`.
   static const IndexType int16 = IndexType._('int16');
 
+  /// Thirty-two-bit unsigned indices, four bytes each. Needs
+  /// `DeviceFeature.indexUint32`.
   static const IndexType int32 = IndexType._('int32');
 
   /// Every value this version names, in declaration order. A later version
@@ -1031,14 +1171,21 @@ final class IndexType {
 final class PrimitiveType {
   const PrimitiveType._(this.name);
 
+  /// Every three vertices make an independent triangle.
   static const PrimitiveType triangle = PrimitiveType._('triangle');
 
+  /// Each vertex after the second makes a triangle with the two before it.
+  /// Needs `DeviceFeature.primitiveStrips`; primitive restart is always on.
   static const PrimitiveType triangleStrip = PrimitiveType._('triangleStrip');
 
+  /// Every two vertices make an independent line segment.
   static const PrimitiveType line = PrimitiveType._('line');
 
+  /// Each vertex after the first makes a segment with the one before it. Needs
+  /// `DeviceFeature.primitiveStrips`; primitive restart is always on.
   static const PrimitiveType lineStrip = PrimitiveType._('lineStrip');
 
+  /// Every vertex is one point. Needs `DeviceFeature.pointPrimitives`.
   static const PrimitiveType point = PrimitiveType._('point');
 
   /// Every value this version names, in declaration order. A later version
@@ -1076,10 +1223,13 @@ final class PrimitiveType {
 final class CullMode {
   const CullMode._(this.name);
 
+  /// Nothing is discarded; both faces draw.
   static const CullMode none = CullMode._('none');
 
+  /// Triangles facing the viewer are discarded.
   static const CullMode frontFace = CullMode._('frontFace');
 
+  /// Triangles facing away from the viewer are discarded.
   static const CullMode backFace = CullMode._('backFace');
 
   /// Every value this version names, in declaration order. A later version
@@ -1110,7 +1260,14 @@ final class CullMode {
 /// **Closed for good**: clockwise or counter-clockwise: the two orientations a
 /// triangle has. No member can be added without changing what the type means,
 /// so it stays an enum and a `switch` over it may name every case.
-enum WindingOrder { clockwise, counterClockwise }
+enum WindingOrder {
+  /// Vertices that run clockwise on screen make a front face.
+  clockwise,
+
+  /// Vertices that run counter-clockwise on screen make a front face; the
+  /// glTF convention.
+  counterClockwise,
+}
 
 /// Whether primitives are filled or drawn as edges.
 ///
@@ -1120,8 +1277,10 @@ enum WindingOrder { clockwise, counterClockwise }
 final class PolygonMode {
   const PolygonMode._(this.name);
 
+  /// Triangles are filled.
   static const PolygonMode fill = PolygonMode._('fill');
 
+  /// Only triangle edges are drawn. Needs `DeviceFeature.wireframe`.
   static const PolygonMode line = PolygonMode._('line');
 
   /// Every value this version names, in declaration order. A later version
@@ -1330,4 +1489,12 @@ final class DepthRange {
 /// **Closed for good**: whether row zero is the top or the bottom: the sign of
 /// the y axis. No member can be added without changing what the type means, so
 /// it stays an enum and a `switch` over it may name every case.
-enum FramebufferOrigin { topLeft, bottomLeft }
+enum FramebufferOrigin {
+  /// Row zero is the top row. Metal and Impeller, WebGPU and the software
+  /// rasteriser.
+  topLeft,
+
+  /// Row zero is the bottom row, so `gl_FragCoord.y` counts upwards.
+  /// OpenGL and WebGL2.
+  bottomLeft,
+}

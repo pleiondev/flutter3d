@@ -25,6 +25,7 @@ import 'texture.dart';
 /// A texel position in one level of one texture: the corner a copy starts
 /// from or lands at.
 final class TextureCopyLocation {
+  /// Creates the corner ([x], [y], [z]) of level [mipLevel] of [texture].
   const TextureCopyLocation(
     this.texture, {
     this.mipLevel = 0,
@@ -33,9 +34,16 @@ final class TextureCopyLocation {
     this.z = 0,
   });
 
+  /// The texture copied from or into.
   final TextureHandle texture;
+
+  /// The level, zero for the base.
   final int mipLevel;
+
+  /// Left edge in texels from the level's left; zero by default.
   final int x;
+
+  /// Top edge in texels from the level's top row; zero by default.
   final int y;
 
   /// The layer, cube face or 3D slice.

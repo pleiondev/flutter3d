@@ -41,11 +41,13 @@ final class TraceBlobWriter {
     return <int>[offset, data.lengthInBytes];
   }
 
+  /// Returns every payload added so far as one block and empties the writer.
   Uint8List drain() => _bytes.takeBytes();
 }
 
 /// Reads payloads back out of a trace's blob.
 final class TraceBlobReader {
+  /// Creates a reader over the blob a trace file carries.
   TraceBlobReader(this._blob);
 
   final Uint8List _blob;
@@ -60,13 +62,19 @@ final class TraceBlobReader {
   }
 }
 
+/// Returns [value] as a JSON object. Throws a [TypeError] for anything else.
 Map<String, Object?> asMap(Object? value) =>
     (value! as Map<Object?, Object?>).cast<String, Object?>();
 
+/// Returns the JSON number [value] as an integer, truncating a fraction. Throws
+/// a [TypeError] for anything else.
 int asInt(Object? value) => (value! as num).toInt();
 
+/// Returns the JSON number [value] as a double. Throws a [TypeError] for
+/// anything else.
 double asDouble(Object? value) => (value! as num).toDouble();
 
+/// Returns [r] as four numbers: x, y, width, height, in pixels.
 List<Object?> screenRectToJson(ScreenRect r) => <Object?>[
   r.x,
   r.y,
@@ -74,6 +82,7 @@ List<Object?> screenRectToJson(ScreenRect r) => <Object?>[
   r.height,
 ];
 
+/// Reads a rectangle written by [screenRectToJson].
 ScreenRect screenRectFromJson(Object? json) {
   final v = (json! as List<Object?>).cast<num>();
   return ScreenRect(
@@ -93,6 +102,8 @@ List<Object?> viewportToJson(PassViewport v) =>
     ? <Object?>[v.x.round(), v.y.round(), v.width.round(), v.height.round()]
     : <Object?>[v.x, v.y, v.width, v.height, v.minDepth, v.maxDepth];
 
+/// Reads a viewport written by [viewportToJson]; four numbers read as the full
+/// depth range, nought to one.
 PassViewport viewportFromJson(Object? json) {
   final v = (json! as List<Object?>).cast<num>();
   return PassViewport(
@@ -116,6 +127,8 @@ List<Object?> clearColorToJson(ClearColor c) => <Object?>[
   c.alpha,
 ];
 
+/// Reads a clear colour written by [clearColorToJson]; four bare numbers are a
+/// float clear.
 ClearColor clearColorFromJson(Object? json) {
   final list = json! as List<Object?>;
   final kind = list.first is String
@@ -152,6 +165,7 @@ ClearColor clearColorFromJson(Object? json) {
 /// reads the same.
 List<Object?> linearColorToJson(LinearColor c) => <Object?>[c.r, c.g, c.b, c.a];
 
+/// Reads a colour written by [linearColorToJson].
 LinearColor linearColorFromJson(Object? json) {
   final v = (json! as List<Object?>).cast<num>();
   return LinearColor(
@@ -162,6 +176,7 @@ LinearColor linearColorFromJson(Object? json) {
   );
 }
 
+/// Returns [b] as an object with its six fields by name.
 Map<String, Object?> blendToJson(BlendState b) => <String, Object?>{
   'colorOperation': blendOperationWire.write(b.colorOperation),
   'sourceColorFactor': blendFactorWire.write(b.sourceColorFactor),
@@ -171,6 +186,7 @@ Map<String, Object?> blendToJson(BlendState b) => <String, Object?>{
   'destinationAlphaFactor': blendFactorWire.write(b.destinationAlphaFactor),
 };
 
+/// Reads a blend state written by [blendToJson].
 BlendState blendFromJson(Object? json) {
   final m = asMap(json);
   return BlendState(
@@ -183,6 +199,8 @@ BlendState blendFromJson(Object? json) {
   );
 }
 
+/// Returns [s] as an object with its compare, three operations and two masks by
+/// name.
 Map<String, Object?> stencilToJson(StencilState s) => <String, Object?>{
   'compare': compareFunctionWire.write(s.compare),
   'failOp': stencilOperationWire.write(s.failOp),
@@ -192,6 +210,7 @@ Map<String, Object?> stencilToJson(StencilState s) => <String, Object?>{
   'writeMask': s.writeMask,
 };
 
+/// Reads a stencil state written by [stencilToJson].
 StencilState stencilFromJson(Object? json) {
   final m = asMap(json);
   return StencilState(
@@ -204,6 +223,8 @@ StencilState stencilFromJson(Object? json) {
   );
 }
 
+/// Returns [s] as an object by field name. A field 1.0 added is written only
+/// when it is not its default, so a trace of an older sampler reads as it was.
 Map<String, Object?> samplerToJson(SamplerDescriptor s) => <String, Object?>{
   'minFilter': minMagFilterWire.write(s.minFilter),
   'magFilter': minMagFilterWire.write(s.magFilter),
@@ -223,6 +244,8 @@ Map<String, Object?> samplerToJson(SamplerDescriptor s) => <String, Object?>{
     'borderColor': samplerBorderColorWire.write(border),
 };
 
+/// Reads a sampler written by [samplerToJson], with a missing newer field at
+/// its default.
 SamplerDescriptor samplerFromJson(Object? json) {
   final m = asMap(json);
   return SamplerDescriptor(
@@ -278,6 +301,10 @@ final List<TextureUsage> _usageFlags = <TextureUsage>[
   TextureUsage.copyDestination,
 ];
 
+/// Reads a descriptor written by [specToJson]: a pool's target when the object
+/// lacks `texture: true`, a general descriptor when it has it.
+///
+/// Throws a [TraceFormatException] for a general descriptor naming no usage.
 TextureDescriptor specFromJson(Object? json) {
   final m = asMap(json);
   final width = asInt(m['width']);
@@ -314,6 +341,8 @@ TextureDescriptor specFromJson(Object? json) {
   );
 }
 
+/// Returns [layout] as a list of buffers, each with its stride, step mode and
+/// attributes.
 List<Object?> layoutToJson(VertexLayoutDescriptor layout) => <Object?>[
   for (final buffer in layout.buffers)
     <String, Object?>{
@@ -330,6 +359,7 @@ List<Object?> layoutToJson(VertexLayoutDescriptor layout) => <Object?>[
     },
 ];
 
+/// Reads a vertex layout written by [layoutToJson].
 VertexLayoutDescriptor layoutFromJson(Object? json) =>
     VertexLayoutDescriptor(<BufferLayout>[
       for (final b in (json! as List<Object?>).map(asMap))
@@ -347,4 +377,6 @@ VertexLayoutDescriptor layoutFromJson(Object? json) =>
         ),
     ]);
 
+/// Reads a geometry usage by its word. Throws a [TraceFormatException] for a
+/// word this build does not know.
 GeometryUsage usageFromJson(Object? json) => geometryUsageWire.read(json);

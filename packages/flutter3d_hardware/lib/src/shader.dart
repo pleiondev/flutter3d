@@ -36,6 +36,7 @@ import 'graphics_device.dart';
 /// backend written against 1.0 keeps compiling. Every field defaults to
 /// empty, so a stage that keeps nothing is `const StageBindings()`.
 final class StageBindings {
+  /// Creates the bindings of a stage with uniform [blocks] and [samplers].
   const StageBindings({
     this.blocks = const <String>{},
     this.samplers = const <String>{},
@@ -74,6 +75,8 @@ bool _sameSet(Set<String> a, Set<String> b) =>
 /// **A class, so a layout can say more in a minor**: an array or matrix
 /// stride arrives as one more named, defaulted field.
 final class UniformMemberLayout {
+  /// Creates a member layout at [offset] bytes, [byteLength] bytes long, of
+  /// [elements] elements of [type].
   const UniformMemberLayout({
     required this.offset,
     required this.byteLength,
@@ -242,6 +245,7 @@ final class PipelineHandle {
   bool get isDisposed => _disposed;
   bool _disposed = false;
 
+  /// The backend's own pipeline object. See `TextureHandle.backend`.
   final Object backend;
 
   /// `vertex+fragment`, for profiling and for a fake to be asserted against.
@@ -341,9 +345,13 @@ base mixin LoadedShaderLibrary on ShaderLibrary {
 /// visible immediately — unlike the other order, where the engine's would
 /// silently win and the new shader would appear to have no effect at all.
 final class LayeredShaderLibrary with ShaderLibrary {
+  /// Creates a library that asks [first] and then [second].
   const LayeredShaderLibrary(this.first, this.second);
 
+  /// The library asked first; a name it answers wins.
   final ShaderLibrary first;
+
+  /// The library asked for a name [first] does not have.
   final ShaderLibrary second;
 
   @override
@@ -362,6 +370,7 @@ final class LayeredShaderLibrary with ShaderLibrary {
 /// nothing here; a renderer that takes libraries one at a time keeps its own
 /// stack — see `renderer.renderSteps.addMaterials`.
 final class ShaderLibraryStack with ShaderLibrary {
+  /// Creates a stack over a copy of [libraries], searched in order.
   ShaderLibraryStack(Iterable<ShaderLibrary> libraries)
     : libraries = List<ShaderLibrary>.unmodifiable(libraries);
 

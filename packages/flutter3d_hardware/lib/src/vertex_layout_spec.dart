@@ -55,6 +55,7 @@ final class VertexFormat {
     required this.componentCount,
   });
 
+  /// One 32-bit float, four bytes.
   static const VertexFormat float32 = VertexFormat._(
     0,
     'float32',
@@ -62,6 +63,7 @@ final class VertexFormat {
     componentCount: 1,
   );
 
+  /// Two 32-bit floats, eight bytes.
   static const VertexFormat float32x2 = VertexFormat._(
     1,
     'float32x2',
@@ -69,6 +71,7 @@ final class VertexFormat {
     componentCount: 2,
   );
 
+  /// Three 32-bit floats, twelve bytes.
   static const VertexFormat float32x3 = VertexFormat._(
     2,
     'float32x3',
@@ -76,6 +79,7 @@ final class VertexFormat {
     componentCount: 3,
   );
 
+  /// Four 32-bit floats, sixteen bytes.
   static const VertexFormat float32x4 = VertexFormat._(
     3,
     'float32x4',
@@ -83,6 +87,7 @@ final class VertexFormat {
     componentCount: 4,
   );
 
+  /// One 32-bit unsigned integer, four bytes, read as an integer.
   static const VertexFormat uint32 = VertexFormat._(
     4,
     'uint32',
@@ -90,6 +95,7 @@ final class VertexFormat {
     componentCount: 1,
   );
 
+  /// Two 32-bit unsigned integers, eight bytes, read as integers.
   static const VertexFormat uint32x2 = VertexFormat._(
     5,
     'uint32x2',
@@ -97,6 +103,7 @@ final class VertexFormat {
     componentCount: 2,
   );
 
+  /// Three 32-bit unsigned integers, twelve bytes, read as integers.
   static const VertexFormat uint32x3 = VertexFormat._(
     6,
     'uint32x3',
@@ -104,6 +111,7 @@ final class VertexFormat {
     componentCount: 3,
   );
 
+  /// Four 32-bit unsigned integers, sixteen bytes, read as integers.
   static const VertexFormat uint32x4 = VertexFormat._(
     7,
     'uint32x4',
@@ -111,6 +119,7 @@ final class VertexFormat {
     componentCount: 4,
   );
 
+  /// One 32-bit signed integer, four bytes, read as an integer.
   static const VertexFormat sint32 = VertexFormat._(
     8,
     'sint32',
@@ -118,6 +127,7 @@ final class VertexFormat {
     componentCount: 1,
   );
 
+  /// Two 32-bit signed integers, eight bytes, read as integers.
   static const VertexFormat sint32x2 = VertexFormat._(
     9,
     'sint32x2',
@@ -125,6 +135,7 @@ final class VertexFormat {
     componentCount: 2,
   );
 
+  /// Three 32-bit signed integers, twelve bytes, read as integers.
   static const VertexFormat sint32x3 = VertexFormat._(
     10,
     'sint32x3',
@@ -132,6 +143,7 @@ final class VertexFormat {
     componentCount: 3,
   );
 
+  /// Four 32-bit signed integers, sixteen bytes, read as integers.
   static const VertexFormat sint32x4 = VertexFormat._(
     11,
     'sint32x4',
@@ -174,6 +186,7 @@ final class VertexFormat {
   /// Size of one whole attribute, not of one component.
   final int bytesPerElement;
 
+  /// How many components the attribute has, from one to four.
   final int componentCount;
 
   @override
@@ -193,8 +206,11 @@ final class VertexFormat {
 final class VertexStepMode {
   const VertexStepMode._(this.name);
 
+  /// The buffer advances one element per vertex.
   static const VertexStepMode vertex = VertexStepMode._('vertex');
 
+  /// The buffer advances one element per instance, so every vertex of an
+  /// instance reads the same element.
   static const VertexStepMode instance = VertexStepMode._('instance');
 
   /// Every value this version names, in declaration order. A later version
@@ -224,6 +240,8 @@ final class VertexStepMode {
 /// mesh description already owns that name — see the library comment. "Input"
 /// is what the shader calls it.
 final class InputAttribute {
+  /// Creates an attribute [name] of [format] at [offsetInBytes] into each
+  /// element.
   const InputAttribute({
     required this.name,
     required this.format,
@@ -238,6 +256,7 @@ final class InputAttribute {
   /// `getAttribLocation`. A location would have to be right for both.
   final String name;
 
+  /// The attribute's type and size.
   final VertexFormat format;
 
   /// Where this attribute begins inside one element of its buffer.
@@ -246,6 +265,8 @@ final class InputAttribute {
 
 /// One buffer's worth of attributes, and how far apart its elements are.
 final class BufferLayout {
+  /// Creates the layout of one buffer whose elements are [strideInBytes] apart,
+  /// stepping per vertex by default.
   const BufferLayout({
     required this.strideInBytes,
     required this.attributes,
@@ -257,13 +278,17 @@ final class BufferLayout {
   /// silently disagree with a buffer that has any.
   final int strideInBytes;
 
+  /// The attributes each element holds.
   final List<InputAttribute> attributes;
 
+  /// Whether the buffer advances per vertex or per instance; per vertex by
+  /// default.
   final VertexStepMode stepMode;
 }
 
 /// Every buffer a pipeline reads vertices from, in slot order.
 final class VertexLayoutDescriptor {
+  /// Creates a layout of [buffers], slot by slot.
   const VertexLayoutDescriptor(this.buffers);
 
   /// Slot *n* is `buffers[n]`, and there are no gaps — see the library comment.

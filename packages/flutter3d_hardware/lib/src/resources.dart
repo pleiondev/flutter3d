@@ -89,6 +89,8 @@ final class TextureDimension {
 final class TextureUsage {
   const TextureUsage._(this.bits);
 
+  /// The usages as a bit set: [sampled] is 1, [renderTarget] 2, [storage] 4,
+  /// [copySource] 8 and [copyDestination] 16.
   final int bits;
 
   /// Bound to a stage and sampled.
@@ -111,6 +113,7 @@ final class TextureUsage {
   /// `createTexture` has always been.
   static const TextureUsage standard = TextureUsage._(1 | 2 | 8 | 16);
 
+  /// Returns the union of this set and [other].
   TextureUsage operator |(TextureUsage other) =>
       TextureUsage._(bits | other.bits);
 
@@ -141,6 +144,10 @@ final class TextureUsage {
 /// either, and a pool's target is one shape of this.
 @immutable
 base class TextureDescriptor {
+  /// Creates a description of a [width] by [height] texture of [format].
+  ///
+  /// Asserts that [width], [height], [depthOrArrayLayers], [mipLevelCount] and
+  /// [sampleCount] are each at least one.
   const TextureDescriptor({
     required this.width,
     required this.height,
@@ -157,9 +164,17 @@ base class TextureDescriptor {
        assert(mipLevelCount > 0, 'a texture has at least its base level'),
        assert(sampleCount > 0, 'a texture has at least one sample');
 
+  /// Width of the base level in texels, at least one.
   final int width;
+
+  /// Height of the base level in texels, at least one; one for a 1D texture.
   final int height;
+
+  /// The layout of each texel.
   final TextureFormat format;
+
+  /// The texture's shape; 2D by default. Any other needs its feature; see
+  /// [checkFeatures].
   final TextureDimension dimension;
 
   /// Layers of an array or cube (a multiple of six for cubes), or depth of a
@@ -171,7 +186,13 @@ base class TextureDescriptor {
 
   /// Above one makes a multisampled texture, which is 2D with one level.
   final int sampleCount;
+
+  /// What the texture may be used for; [TextureUsage.standard] by default.
   final TextureUsage usage;
+
+  /// Where the allocation lives; device-private by default.
+  /// [StorageMode.deviceTransient] makes a texture no later pass or readback
+  /// can read.
   final StorageMode storageMode;
 
   /// What a GPU debugger calls it.
@@ -262,6 +283,8 @@ base class TextureDescriptor {
 /// slices) from [z].
 @immutable
 final class TextureRegion {
+  /// Creates a region of [width] by [height] texels from ([x], [y]), across
+  /// [depthOrArrayLayers] layers from [z].
   const TextureRegion({
     this.x = 0,
     this.y = 0,
@@ -271,14 +294,24 @@ final class TextureRegion {
     this.depthOrArrayLayers = 1,
   });
 
+  /// Left edge in texels from the level's left.
   final int x;
+
+  /// Top edge in texels from the level's top row.
   final int y;
 
   /// The first layer, cube face (layer index × 6 + face in a cube array) or
   /// 3D slice.
   final int z;
+
+  /// Width in texels.
   final int width;
+
+  /// Height in texels.
   final int height;
+
+  /// How many layers, cube faces or 3D slices from [z], a count; one by
+  /// default.
   final int depthOrArrayLayers;
 
   @override
@@ -302,12 +335,14 @@ final class TextureRegion {
 /// How texel rows sit in a buffer on either side of a buffer–texture copy.
 @immutable
 final class BufferTextureLayout {
+  /// Creates a layout of rows [bytesPerRow] bytes apart from [offsetInBytes].
   const BufferTextureLayout({
     this.offsetInBytes = 0,
     required this.bytesPerRow,
     this.rowsPerImage,
   });
 
+  /// Where the first texel row starts in the buffer, in bytes; zero by default.
   final int offsetInBytes;
 
   /// Bytes from one row to the next. WebGPU requires a multiple of 256 for a
@@ -330,8 +365,10 @@ final class BufferTextureLayout {
 final class BufferUsage {
   const BufferUsage._(this.bits);
 
+  /// The usages as a bit set, from [vertex] at 1 to [hostWritable] at 256.
   final int bits;
 
+  /// Holds vertices, bound by `PassEncoder.bindVertexBuffer`.
   static const BufferUsage vertex = BufferUsage._(1);
 
   /// Holds indices. A backend may refuse [index] combined with [vertex] or
@@ -348,7 +385,11 @@ final class BufferUsage {
 
   /// Holds the arguments of an indirect draw or dispatch.
   static const BufferUsage indirect = BufferUsage._(16);
+
+  /// The source of a buffer-to-buffer or buffer-to-texture copy.
   static const BufferUsage copySource = BufferUsage._(32);
+
+  /// The destination of a copy or of `GraphicsDevice.writeBuffer`.
   static const BufferUsage copyDestination = BufferUsage._(64);
 
   /// `GraphicsDevice.readBuffer` may read it back — what
@@ -368,6 +409,7 @@ final class BufferUsage {
   /// `GraphicsDevice.createBuffer`.
   static const BufferUsage standardStorage = BufferUsage._(8 | 32 | 64);
 
+  /// Returns the union of this set and [other].
   BufferUsage operator |(BufferUsage other) => BufferUsage._(bits | other.bits);
 
   /// Whether every usage in [other] is in this one.
@@ -387,14 +429,23 @@ final class BufferUsage {
 /// A general buffer — `GraphicsDevice.createBuffer`.
 @immutable
 final class BufferDescriptor {
+  /// Creates a description of a buffer [lengthInBytes] long for [usage].
+  ///
+  /// Asserts that [lengthInBytes] is not negative.
   const BufferDescriptor({
     required this.lengthInBytes,
     required this.usage,
     this.label,
   }) : assert(lengthInBytes >= 0, 'a buffer is not negatively long');
 
+  /// The buffer's size in bytes, nought or more.
   final int lengthInBytes;
+
+  /// What the buffer may be used for. A backend refuses a call the usage does
+  /// not cover; see [BufferUsage].
   final BufferUsage usage;
+
+  /// What a GPU debugger calls the buffer; null for none.
   final String? label;
 
   /// Throws [UnsupportedCapabilityException] when this buffer needs a
@@ -505,21 +556,26 @@ final class QueryType {
 final class PipelineStatistic {
   const PipelineStatistic._(this.name);
 
+  /// How many times the vertex stage ran, a count.
   static const PipelineStatistic vertexShaderInvocations = PipelineStatistic._(
     'vertexShaderInvocations',
   );
 
+  /// How many primitives reached clipping, a count.
   static const PipelineStatistic clipperInvocations = PipelineStatistic._(
     'clipperInvocations',
   );
 
+  /// How many primitives clipping passed on to rasterisation, a count.
   static const PipelineStatistic clipperPrimitivesOut = PipelineStatistic._(
     'clipperPrimitivesOut',
   );
 
+  /// How many times the fragment stage ran, a count.
   static const PipelineStatistic fragmentShaderInvocations =
       PipelineStatistic._('fragmentShaderInvocations');
 
+  /// How many compute invocations ran, a count.
   static const PipelineStatistic computeShaderInvocations = PipelineStatistic._(
     'computeShaderInvocations',
   );
@@ -627,6 +683,8 @@ abstract base class MappedBuffer {
 /// so a later field is not a breaking change.
 @immutable
 final class IndexedDraw {
+  /// Creates a draw of [indexCount] indices from [firstIndex], each offset by
+  /// [baseVertex], for [instanceCount] instances from [firstInstance].
   const IndexedDraw({
     this.indexCount,
     this.firstIndex = 0,
@@ -637,9 +695,21 @@ final class IndexedDraw {
 
   /// Null reads to the end of the binding.
   final int? indexCount;
+
+  /// The first index read, counted in indices from the start of the binding;
+  /// zero by default.
   final int firstIndex;
+
+  /// Added to every index before the vertex is fetched; may be negative. A
+  /// non-zero value needs `DeviceFeature.baseVertexBaseInstance`.
   final int baseVertex;
+
+  /// How many instances the draw makes, a count; one by default.
   final int instanceCount;
+
+  /// The instance index of the first instance, which per-instance vertex data
+  /// starts from. A non-zero value needs
+  /// `DeviceFeature.baseVertexBaseInstance`.
   final int firstInstance;
 
   /// Whether this needs `DeviceFeature.baseVertexBaseInstance`.
@@ -673,6 +743,7 @@ final class IndexedDraw {
 /// `GraphicsDevice.createRenderBundleEncoder`.
 @immutable
 final class RenderBundleDescriptor {
+  /// Creates a description of the attachments a bundle replays against.
   const RenderBundleDescriptor({
     required this.colorFormats,
     this.depthStencilFormat,
@@ -685,7 +756,11 @@ final class RenderBundleDescriptor {
 
   /// Null for a pass with no depth attachment.
   final TextureFormat? depthStencilFormat;
+
+  /// Samples per texel of the attachments, one for none multisampled.
   final int sampleCount;
+
+  /// What a GPU debugger calls the bundle; null for none.
   final String? label;
 }
 
@@ -725,6 +800,8 @@ final class RenderBundle {
 
   /// What it was recorded against; a pass replaying it must match.
   final RenderBundleDescriptor descriptor;
+
+  /// What a GPU debugger calls the bundle; null for none.
   final String? label;
 
   @override
@@ -764,7 +841,12 @@ final class QuerySet {
 
   /// The backend's own object, as `TextureHandle.backend`.
   final Object backend;
+
+  /// What every query in the set counts.
   final QueryType type;
+
+  /// How many queries the set holds, a count; results are indexed from zero. A
+  /// [QueryType.pipelineStatistics] query fills five consecutive results.
   final int count;
 
   @override
@@ -774,6 +856,7 @@ final class QuerySet {
 /// Where a pass writes its start and end timestamps.
 @immutable
 final class PassTimestampWrites {
+  /// Creates the writes of a pass into [querySet] at the two indices.
   const PassTimestampWrites({
     required this.querySet,
     this.beginningOfPassIndex,
@@ -782,7 +865,11 @@ final class PassTimestampWrites {
 
   /// A [QueryType.timestamp] set.
   final QuerySet querySet;
+
+  /// Index in [querySet] the start time is written to; null writes none.
   final int? beginningOfPassIndex;
+
+  /// Index in [querySet] the end time is written to; null writes none.
   final int? endOfPassIndex;
 }
 
@@ -792,7 +879,10 @@ final class PassTimestampWrites {
 /// ways to touch a texel. No member can be added without changing what the type
 /// means, so it stays an enum and a `switch` over it may name every case.
 enum StorageTextureAccess {
+  /// The stage stores texels and cannot load them.
   writeOnly,
+
+  /// The stage loads texels and cannot store them.
   readOnly,
 
   /// Needs `DeviceFeature.readWriteStorageTextures`.
@@ -804,23 +894,42 @@ enum StorageTextureAccess {
 final class ColorWriteMask {
   const ColorWriteMask._(this.bits);
 
+  /// The channels as a bit set: red 1, green 2, blue 4, alpha 8.
   final int bits;
 
+  /// No channel: the draw changes nothing in the attachment, though depth and
+  /// stencil still update.
   static const ColorWriteMask none = ColorWriteMask._(0);
+
+  /// The red channel only.
   static const ColorWriteMask red = ColorWriteMask._(1);
+
+  /// The green channel only.
   static const ColorWriteMask green = ColorWriteMask._(2);
+
+  /// The blue channel only.
   static const ColorWriteMask blue = ColorWriteMask._(4);
+
+  /// The alpha channel only.
   static const ColorWriteMask alpha = ColorWriteMask._(8);
 
   /// Every channel: what every pass starts with.
   static const ColorWriteMask all = ColorWriteMask._(15);
 
+  /// Returns the union of this mask and [other].
   ColorWriteMask operator |(ColorWriteMask other) =>
       ColorWriteMask._(bits | other.bits);
 
+  /// Whether the red channel may change.
   bool get writesRed => bits & 1 != 0;
+
+  /// Whether the green channel may change.
   bool get writesGreen => bits & 2 != 0;
+
+  /// Whether the blue channel may change.
   bool get writesBlue => bits & 4 != 0;
+
+  /// Whether the alpha channel may change.
   bool get writesAlpha => bits & 8 != 0;
 
   @override
@@ -845,11 +954,15 @@ final class ColorWriteMask {
 /// resolves. WebGPU's `depthBias`, `depthBiasSlopeScale`, `depthBiasClamp`.
 @immutable
 final class DepthBias {
+  /// Creates a bias of [constant] steps plus [slopeScale] times the slope,
+  /// clamped at [clamp]; all zero by default.
   const DepthBias({this.constant = 0, this.slopeScale = 0, this.clamp = 0});
 
   /// None: what every pass starts with.
   static const DepthBias none = DepthBias();
 
+  /// A constant offset counted in the smallest depth step the format resolves,
+  /// a count; may be negative.
   final int constant;
 
   /// A unitless multiplier on the depth's largest slope across the

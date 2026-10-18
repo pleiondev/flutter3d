@@ -8,6 +8,7 @@ library;
 
 /// One labelled pass and how long the GPU spent in it.
 final class GpuPassTiming {
+  /// Creates the timing of the pass [label], [micros] microseconds long.
   const GpuPassTiming({required this.label, required this.micros});
 
   /// `RenderPassDescriptor.label` of the pass, or the compute pass's label.
@@ -19,10 +20,13 @@ final class GpuPassTiming {
 
 /// Every labelled pass of one frame, in the order they were submitted.
 final class GpuFrameTimings {
+  /// Creates the timings of frame [frame] from its [passes].
   const GpuFrameTimings({required this.frame, required this.passes});
 
   /// Which frame, counted by `GraphicsDevice.beginFrame` from the first.
   final int frame;
 
+  /// The labelled passes of the frame, in submission order. A pass with no
+  /// label is not timed.
   final List<GpuPassTiming> passes;
 }

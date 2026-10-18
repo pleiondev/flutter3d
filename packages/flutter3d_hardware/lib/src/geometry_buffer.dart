@@ -101,7 +101,11 @@ final class GeometryBuffer {
   /// The backend's own buffer object. See `TextureHandle.backend`.
   final Object backend;
 
+  /// Where the range starts in the backend's buffer, in bytes; zero for a whole
+  /// upload, more for a [slice].
   final int offsetInBytes;
+
+  /// The range's length, in bytes.
   final int lengthInBytes;
 
   /// A shorter range starting [offset] bytes into this one.

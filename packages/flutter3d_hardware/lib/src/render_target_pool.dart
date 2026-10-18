@@ -23,6 +23,7 @@ import 'texture.dart';
 /// [storageMode] is tile memory: cheaper, but it cannot be sampled or loaded
 /// from, which rules it out for anything the next pass reads.
 final class RenderTargetDescriptor extends TextureDescriptor {
+  /// Creates the key of a 2D target [width] by [height] of [format].
   const RenderTargetDescriptor({
     required super.width,
     required super.height,
@@ -47,6 +48,9 @@ final class RenderTargetDescriptor extends TextureDescriptor {
         storageMode: texture.storageMode,
       );
 
+  /// Returns this description with width and height divided by [divisor],
+  /// rounding down and never below one pixel. What a bloom chain's smaller
+  /// targets are made from.
   RenderTargetDescriptor scaled(int divisor) => RenderTargetDescriptor(
     // Never below one pixel: a bloom chain taken far enough would otherwise
     // ask for a zero-sized texture, and the failure is a driver error
@@ -145,8 +149,10 @@ abstract base mixin class TextureAllocator {
 /// it already owns are currently lent out — plus which of those loans a [trim]
 /// has outlived, whose release drops them rather than refiling them.
 final class RenderTargetPool {
+  /// Creates an empty pool that makes its textures through [allocator].
   RenderTargetPool(this.allocator);
 
+  /// Where the pool's textures are made and released.
   final TextureAllocator allocator;
 
   final Map<RenderTargetDescriptor, List<TextureHandle>> _free =
@@ -174,8 +180,10 @@ final class RenderTargetPool {
   /// Textures ever created, so a leak shows up as a number that keeps climbing.
   int get createdCount => _created;
 
+  /// Textures acquired and not yet released, a count.
   int get lentCount => _lent.length;
 
+  /// Textures free to lend, across every description, a count.
   int get pooledCount {
     var total = 0;
     for (final list in _free.values) {

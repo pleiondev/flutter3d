@@ -74,6 +74,7 @@ final class StorageBuffer {
   /// What it was made for: whatever `createBuffer` was asked for.
   final BufferUsage usage;
 
+  /// The backend's own buffer object. See `TextureHandle.backend`.
   final Object backend;
 
   /// The size it was created with, in bytes.
@@ -127,6 +128,7 @@ final class ComputePipelineHandle {
   bool get isDisposed => _disposed;
   bool _disposed = false;
 
+  /// The backend's own pipeline object. See `TextureHandle.backend`.
   final Object backend;
 
   /// The stage it was built from.

@@ -26,6 +26,8 @@ import 'texture.dart';
 /// scissor stays whole pixels on every API. [PassViewport.ofRect] turns one of
 /// these into the viewport over the same pixels.
 final class ScreenRect {
+  /// Creates a rectangle [width] by [height] pixels from ([x], [y]) at the top
+  /// left.
   const ScreenRect({
     this.x = 0,
     this.y = 0,
@@ -37,9 +39,16 @@ final class ScreenRect {
   factory ScreenRect.of(TextureHandle texture) =>
       ScreenRect(width: texture.width, height: texture.height);
 
+  /// Left edge in pixels from the attachment's left; zero by default.
   final int x;
+
+  /// Top edge in pixels from the attachment's top row; zero by default.
   final int y;
+
+  /// Width in pixels.
   final int width;
+
+  /// Height in pixels.
   final int height;
 
   @override
@@ -372,6 +381,8 @@ extension IndexTypeFeatures on IndexType {
 /// makes [alphaBlend] exactly the equation the engine used to get by
 /// constructing an empty `ColorBlendEquation`.
 final class BlendState {
+  /// Creates a blend state; the defaults are [alphaBlend]'s, premultiplied
+  /// source over destination.
   const BlendState({
     this.colorOperation = BlendOperation.add,
     this.sourceColorFactor = BlendFactor.one,
@@ -414,11 +425,24 @@ final class BlendState {
     destinationAlphaFactor: BlendFactor.one,
   );
 
+  /// How the colour channels' two terms combine; added by default.
   final BlendOperation colorOperation;
+
+  /// What the fragment's colour is multiplied by; one by default.
   final BlendFactor sourceColorFactor;
+
+  /// What the attachment's colour is multiplied by; one minus the source alpha
+  /// by default.
   final BlendFactor destinationColorFactor;
+
+  /// How the alpha channel's two terms combine; added by default.
   final BlendOperation alphaOperation;
+
+  /// What the fragment's alpha is multiplied by; one by default.
   final BlendFactor sourceAlphaFactor;
+
+  /// What the attachment's alpha is multiplied by; one minus the source alpha
+  /// by default.
   final BlendFactor destinationAlphaFactor;
 
   /// Whether any of the four factors reads the constant
@@ -543,6 +567,12 @@ final class BlendState {
 
 /// One colour attachment of a pass.
 final class ColorTarget {
+  /// Creates an attachment drawing into [texture].
+  ///
+  /// Asserts that [face] is from nought to five, that [layer] and [mipLevel]
+  /// are not negative, and that a [resolveTexture] comes with a store action
+  /// that resolves: [StoreAction.multisampleResolve] or
+  /// [StoreAction.storeAndMultisampleResolve].
   const ColorTarget({
     required this.texture,
     this.resolveTexture,
@@ -629,6 +659,9 @@ final class ColorTarget {
   /// and the scissor are set. The shadow atlas depends on that: it loads, and
   /// blanks one tile by drawing inside it.
   final LoadAction loadAction;
+
+  /// What happens to the attachment when the pass ends; kept by default. With a
+  /// [resolveTexture] it must be one of the two resolving actions.
   final StoreAction storeAction;
 
   /// Null clears to transparent black ([ClearColor.transparentBlack]).
@@ -656,6 +689,8 @@ final class ColorTarget {
 /// attachment's bit depth, and a value the specification calls out of range
 /// is a value somebody will eventually have to explain.
 final class StencilState {
+  /// Creates a stencil state; the defaults are [disabled]: compare always, keep
+  /// on every outcome, both masks 0xFF.
   const StencilState({
     this.compare = CompareFunction.always,
     this.failOp = StencilOperation.keep,
@@ -746,6 +781,10 @@ final class StencilState {
 /// throw away at the end — are what every pass that never mentions the
 /// stencil has always had.
 final class DepthTarget {
+  /// Creates a depth attachment drawing into [texture], cleared to depth one by
+  /// default.
+  ///
+  /// Asserts that `face` is from nought to five and `layer` is not negative.
   const DepthTarget({
     required this.texture,
     this.clearValue = 1.0,
@@ -762,6 +801,7 @@ final class DepthTarget {
   }) : assert(face >= 0 && face < 6, 'a texture has at most six faces'),
        assert(layer >= 0, 'a layer counts up from the first');
 
+  /// The depth, or depth and stencil, texture the pass tests and writes.
   final TextureHandle texture;
 
   /// Which level of [texture] is the attachment — for a depth pyramid, or a
@@ -824,6 +864,9 @@ final class DepthTarget {
 
 /// Everything a pass draws into.
 final class RenderPassDescriptor {
+  /// Creates a pass drawing into [colors] and, when given, [depth].
+  ///
+  /// Asserts that a [viewMask] names at least one view and fits in 32 bits.
   const RenderPassDescriptor({
     required this.colors,
     this.depth,
@@ -924,6 +967,8 @@ final class RenderPassDescriptor {
   /// listening. See ARCHITECTURE.md §2.
   final List<ColorTarget> colors;
 
+  /// The depth attachment; null for a pass without one, whose draws are not
+  /// depth-tested.
   final DepthTarget? depth;
 
   /// Throws [UnsupportedCapabilityException] when this pass needs a feature

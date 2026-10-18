@@ -21,8 +21,11 @@ import 'testing_recorded.dart';
 /// Withholding matters: `ParticleContributor` draws nothing when its stages are
 /// missing, and that path had never been exercised.
 final class FakeShaderLibrary with ShaderLibrary {
+  /// Creates a library answering every name except those in [missing], each
+  /// stage carrying [stageBindings].
   FakeShaderLibrary({this.missing = const <String>{}, this.stageBindings});
 
+  /// Stage names the library answers null for, as a bundle without them would.
   final Set<String> missing;
 
   /// Handed to every stage as `ShaderHandle.kept`, the way a real backend
@@ -52,6 +55,7 @@ final class FakeShaderLibrary with ShaderLibrary {
 /// renderer holds its vertex stages for its lifetime and a test of the reload
 /// path needs a device that behaves the way the three real ones do.
 final class FakeLoadedShaderLibrary with ShaderLibrary, LoadedShaderLibrary {
+  /// Creates a loaded library over [bundle], answering every stage name.
   FakeLoadedShaderLibrary(ShaderBundle bundle) : _bundle = bundle;
 
   ShaderBundle _bundle;
@@ -304,9 +308,12 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
   /// Every pass ever opened, in the order it was opened.
   final List<FakePass> passes = <FakePass>[];
 
+  /// The description of every render target the device made, in order. A target
+  /// the pool reused is not made again, so this shows pooling working.
   final List<RenderTargetDescriptor> createdTextures =
       <RenderTargetDescriptor>[];
 
+  /// How many times `beginFrame` was called, a count.
   int frames = 0;
 
   int _serial = 0;
@@ -416,6 +423,7 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
   /// backend whose own release is a no-op.
   final List<TextureHandle> releasedTextures = <TextureHandle>[];
 
+  /// Every geometry buffer released, in order.
   final List<GeometryBuffer> releasedGeometry = <GeometryBuffer>[];
 
   final Set<Object> _live = Set<Object>.identity();

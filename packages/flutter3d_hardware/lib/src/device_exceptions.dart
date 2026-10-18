@@ -19,6 +19,7 @@ import 'package:flutter3d_foundation/flutter3d_foundation.dart'
 /// A resource a device was asked to make or read and could not: pixels that
 /// are not the size their description says, a texture with nothing to read.
 final class DeviceResourceException extends ResourceException {
+  /// Creates the refusal of [operation] by [backend], for [reason].
   const DeviceResourceException({
     required this.operation,
     required this.backend,
@@ -52,6 +53,8 @@ final class DeviceResourceException extends ResourceException {
 /// the browser has blocklisted, or every backend a `DeviceRegistry` holds
 /// refusing in turn.
 final class DeviceUnavailableException extends ResourceException {
+  /// Creates the refusal with [message], naming [backend] when one backend
+  /// refused and listing a registry's [refusals] when several did.
   const DeviceUnavailableException(
     this.message, {
     this.backend,

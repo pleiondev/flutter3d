@@ -12,14 +12,17 @@ import 'formats.dart';
 final class SamplerBorderColor {
   const SamplerBorderColor._(this.name);
 
+  /// Zero in every channel, alpha included.
   static const SamplerBorderColor transparentBlack = SamplerBorderColor._(
     'transparentBlack',
   );
 
+  /// Black with alpha one.
   static const SamplerBorderColor opaqueBlack = SamplerBorderColor._(
     'opaqueBlack',
   );
 
+  /// One in every channel.
   static const SamplerBorderColor opaqueWhite = SamplerBorderColor._(
     'opaqueWhite',
   );
@@ -68,6 +71,12 @@ final class SamplerBorderColor {
 ///
 /// The field set and the defaults are flutter_gpu's, unchanged.
 final class SamplerDescriptor {
+  /// Creates a sampler; the defaults are flutter_gpu's, nearest and clamped.
+  /// Note that a texture bound with no sampler gets [linearRepeat], not these.
+  ///
+  /// Asserts that [anisotropy] is at least one and above one only with linear
+  /// min, mag and mip filters, and that the level-of-detail clamp runs from
+  /// nought upwards.
   const SamplerDescriptor({
     this.minFilter = MinMagFilter.nearest,
     this.magFilter = MinMagFilter.nearest,
@@ -95,7 +104,12 @@ final class SamplerDescriptor {
          'nearest lookup',
        );
 
+  /// How texels are filtered when the texture is drawn smaller than it is;
+  /// nearest by default.
   final MinMagFilter minFilter;
+
+  /// How texels are filtered when the texture is drawn larger than it is;
+  /// nearest by default.
   final MinMagFilter magFilter;
 
   /// Which levels of a mip chain are blended. See [MipFilter].
@@ -104,7 +118,12 @@ final class SamplerDescriptor {
   /// except the ones built with a chain on purpose.
   final MipFilter mipFilter;
 
+  /// What a horizontal coordinate outside nought to one reads; clamped to the
+  /// edge by default.
   final SamplerAddressMode widthAddressMode;
+
+  /// What a vertical coordinate outside nought to one reads; clamped to the
+  /// edge by default.
   final SamplerAddressMode heightAddressMode;
 
   /// How many taps a sample may spread along the direction a texture is

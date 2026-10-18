@@ -16,6 +16,7 @@ import 'shader.dart';
 
 /// A block's members, by name, under the block's own name.
 abstract base class UniformBlock {
+  /// Lets a subclass name its block [name].
   const UniformBlock(this.name);
 
   /// The block's name as the shaders declare it.
@@ -26,6 +27,7 @@ abstract base class UniformBlock {
   Map<String, Float32List> get members;
 }
 
+/// Binds a [UniformBlock] object in one call.
 extension BindUniformBlockObject on PassEncoder {
   /// Binds [block] to [stage] — `bindUniformBlock` with the block's name and
   /// members.

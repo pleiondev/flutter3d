@@ -167,10 +167,21 @@ abstract base mixin class PassEncoder {
   /// before naming [PolygonMode.line]: a backend that cannot draw it throws
   /// `UnsupportedCapabilityException` rather than filling.
   void setPolygonMode(PolygonMode mode);
+
+  /// Sets which faces the following draws discard, by the facing
+  /// [setWindingOrder] decides.
   void setCullMode(CullMode mode);
+
+  /// Sets which winding in clip space counts as front-facing for the following
+  /// draws.
   void setWindingOrder(WindingOrder order);
 
+  /// Sets whether fragments that pass the depth test write their depth.
+  /// Meaningful only against a depth attachment that is not read-only.
   void setDepthWrite({required bool enabled});
+
+  /// Sets how a fragment's depth is compared with the stored one;
+  /// [CompareFunction.always] passes every fragment.
   void setDepthCompare(CompareFunction compare);
 
   /// The stencil test for the draws that follow.

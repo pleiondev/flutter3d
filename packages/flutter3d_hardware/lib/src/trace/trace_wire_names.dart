@@ -18,6 +18,7 @@ import 'trace_format_exception.dart';
 
 /// A value's word in a file, and the value a word stands for.
 final class WireNames<T extends Object> {
+  /// Creates the table for the values called [what], one word per value.
   const WireNames(this.what, this._words);
 
   /// What the values are, for a message: `TextureFormat`.

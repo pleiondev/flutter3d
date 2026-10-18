@@ -33,6 +33,7 @@ typedef _TraceMigration =
 
 /// Calls made of a device, in order, with every resource named by an id.
 final class Trace {
+  /// Creates a trace of [events], with [metadata] carried alongside.
   const Trace(this.events, {this.metadata = const <String, Object?>{}});
 
   /// Reads a trace written by [encode].
@@ -90,6 +91,7 @@ final class Trace {
     }
   }
 
+  /// The calls, in the order they were made.
   final List<TraceEvent> events;
 
   /// Whatever the recorder wants to say about where this came from — the

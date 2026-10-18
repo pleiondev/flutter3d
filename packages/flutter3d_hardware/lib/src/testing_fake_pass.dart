@@ -25,6 +25,12 @@ import 'testing_recorded.dart';
 /// may not record throw a [StateError] there, as the contract says.
 final class FakePass extends PassEncoder
     with CommandEncoder, RenderBundleEncoder {
+  /// Creates a pass opened with [descriptor].
+  ///
+  /// [stageBindings] declares what each stage has, so a bind to a slot it lacks
+  /// and a slot a draw left unbound are reported in [violations]. [features]
+  /// gates the 1.0-surface calls, none by default. `links` answers whether a
+  /// pipeline would link; null takes every one as linked.
   FakePass(
     this.descriptor, {
     this.stageBindings,
@@ -105,31 +111,52 @@ final class FakePass extends PassEncoder
   /// Everything recorded, in order.
   final List<Recorded> commands = <Recorded>[];
 
+  /// Whether `submit` has been called.
   bool submitted = false;
 
   // Terminal state, which is what most assertions actually want: whether the
   // pass was left writing depth matters, the order the flag was toggled in
   // usually does not.
+  /// The last primitive type set; null when the pass never set it.
   PrimitiveType? primitiveType;
+
+  /// The last polygon mode set; null when the pass never set it.
   PolygonMode? polygonMode;
 
   /// The last `setAlphaToCoverage`, or null when the pass never set it.
   bool? alphaToCoverage;
+
+  /// The last cull mode set; null when the pass never set it.
   CullMode? cullMode;
+
+  /// The last winding order set; null when the pass never set it.
   WindingOrder? windingOrder;
+
+  /// The last depth write set; null when the pass never set it.
   bool? depthWrite;
+
+  /// The last depth test set; null when the pass never set it.
   CompareFunction? depthCompare;
 
   /// The stencil state the pass was left in, per face. Null means it was
   /// never mentioned, which is the answer every pass but the x-ray's gives.
   StencilState? stencilFront;
+
+  /// The back-face stencil state the pass was left in; null when no call named
+  /// one apart from the front.
   StencilState? stencilBack;
+
+  /// The last stencil reference set, as given; null when the pass never set it.
   int? stencilReference;
 
+  /// How many draws were recorded, a count.
   int get drawCount => commands.whereType<RecordedDraw>().length;
 
+  /// The pass's only colour attachment. Throws a [StateError] for a pass with
+  /// none or several.
   ColorTarget get color => descriptor.colors.single;
 
+  /// Returns the records of type `T`, in order.
   Iterable<T> recordedOf<T extends Recorded>() => commands.whereType<T>();
 
   @override
@@ -523,6 +550,7 @@ final class FakePass extends PassEncoder
 
 /// A mapping of bytes a fake never had: zeros, handed back on [unmap].
 final class FakeMapping extends MappedBuffer {
+  /// Creates a mapping holding [bytes].
   FakeMapping(this.bytes);
 
   @override
@@ -538,8 +566,11 @@ final class FakeMapping extends MappedBuffer {
 /// A transfer pass that records its copies into the device's `calls`, and
 /// refuses those the device's features lack.
 final class FakeTransfer extends TransferEncoder {
+  /// Creates a transfer pass gated by [features], recording into [calls].
   FakeTransfer(this.features, this.calls);
 
+  /// What the device that opened the pass reports; a copy needing a feature it
+  /// lacks is refused with `UnsupportedCapabilityException`.
   final DeviceFeatures features;
 
   /// Shared with the device that opened it.

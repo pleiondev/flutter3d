@@ -37,8 +37,14 @@ import '../transfer.dart';
 import '../vertex_layout_spec.dart';
 import 'trace_event.dart';
 
+/// A [GraphicsDevice] that passes every call to [inner] and keeps it as a
+/// [TraceEvent] in [events]; see the library comment.
+///
+/// A call the trace format has no event for is passed through and named in
+/// [unrecorded], so a trace that would not replay faithfully says so.
 final class RecordingDevice extends GraphicsDevice
     with SynchronousBufferReadback {
+  /// Creates a recorder over [inner], with nothing recorded yet.
   RecordingDevice(this.inner);
 
   /// The device every call goes through to.

@@ -88,6 +88,8 @@ final class PipelineRefusalReason {
 /// rather than a plain record so that a caller who builds a pipeline by hand
 /// and wants to fail on a refusal can throw the very thing it was told.
 final class PipelineRefusedException extends ResourceException {
+  /// Creates the refusal of [pipeline] by [backend] for [reason], with the
+  /// API's own words in `detail`.
   const PipelineRefusedException({
     required this.pipeline,
     required this.backend,

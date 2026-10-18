@@ -127,6 +127,8 @@ final class ShaderBundleStage {
 /// `test/shader_bundle_test.dart`, which is what makes the format a fact
 /// rather than a description.
 final class ShaderBundle {
+  /// Creates a bundle called [name], compiled for [sdk], holding [stages] and
+  /// any extra [sections].
   const ShaderBundle({
     required this.name,
     required this.sdk,
@@ -430,6 +432,9 @@ final class ShaderBundle {
 /// what the page was doing about it; now the engine throws this with [asset],
 /// [refreshing] and [advice] filled in, and a caller catches one type.
 final class ShaderBundleException extends ResourceException {
+  /// Creates the refusal of the bundle [name] for [reason]; [stale] marks a
+  /// bundle built for another version, with [asset], [refreshing] and [advice]
+  /// filled in by the engine.
   const ShaderBundleException({
     required this.name,
     required this.reason,

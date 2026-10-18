@@ -105,6 +105,7 @@ final class ComputePlacement {
 /// A device that runs compute, and where it stands relative to the frame.
 @immutable
 final class ComputeExecutor {
+  /// Creates an executor running on [device] at [placement].
   const ComputeExecutor(this.placement, this.device);
 
   /// Where this is.
@@ -194,6 +195,8 @@ final class ComputeRefusalReason {
 /// **Breaking in 1.0.0-rc.1: no `demand`.** A step no longer asks where
 /// it runs, so there is no demand to report.
 final class ComputePlacementException extends CapabilityException {
+  /// Creates the refusal of [step] for [reason], with each executor considered
+  /// in [tried].
   const ComputePlacementException({
     required this.step,
     required this.reason,
@@ -501,6 +504,8 @@ final class ComputeFallback {
 /// release build survives by running it elsewhere and a debug build stops
 /// at, so it is seen.
 final class ComputeFallbackError extends Error {
+  /// Creates the error for [fallback], thrown in place of running it when
+  /// `FrameCompute.strict` is on.
   ComputeFallbackError(this.fallback);
 
   /// What would have happened.

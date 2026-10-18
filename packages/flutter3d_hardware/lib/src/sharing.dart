@@ -206,6 +206,7 @@ void checkNativeImport(
 /// Nothing here frees it.
 @immutable
 final class NativeHandle {
+  /// Creates a handle of [kind] at [address].
   const NativeHandle(this.kind, this.address);
 
   /// What [address] is.
@@ -306,6 +307,8 @@ final class SharingMode {
 /// demand the share falls back to [SharingMode.hostCopy], which every pair
 /// of devices has, and nothing is thrown.
 final class SharingException extends CapabilityException {
+  /// Creates the refusal of [mode] between [producer] and [consumer], for
+  /// [reason].
   const SharingException({
     required this.mode,
     required this.producer,

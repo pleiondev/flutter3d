@@ -60,6 +60,12 @@ const Object _unsetBlend = Object();
 /// features, as the setters are; [PassStateApply.setState] emits them only
 /// when set, so a state that never names them works on every device.
 final class PassState {
+  /// Creates a state in which every field not named is unset, which `setState`
+  /// emits nothing for.
+  ///
+  /// Passing `blend: null` sets blending off, and leaving `blend` out leaves
+  /// the pass's blending alone; [setsBlend] tells the two apart. Asserts that
+  /// [stencilBack] comes with a [stencil].
   const PassState({
     this.viewport,
     this.scissor,
@@ -90,10 +96,20 @@ final class PassState {
   /// The viewport, a [PassViewport] since 1.0.0-rc.1 (`PassViewport.ofRect` for
   /// the pixels of a [ScreenRect]).
   final PassViewport? viewport;
+
+  /// The scissor rectangle, in pixels; null leaves it alone.
   final ScreenRect? scissor;
+
+  /// How the draws assemble vertices; null leaves it alone.
   final PrimitiveType? primitiveType;
+
+  /// Whether triangles fill or draw as edges; null leaves it alone.
   final PolygonMode? polygonMode;
+
+  /// Which faces are discarded; null leaves it alone.
   final CullMode? cullMode;
+
+  /// Which winding is front-facing; null leaves it alone.
   final WindingOrder? windingOrder;
 
   /// What blending to set, when [setsBlend]. Null with [setsBlend] means off.
@@ -102,9 +118,13 @@ final class PassState {
   /// Whether blending is mentioned at all. False leaves the pass's alone.
   final bool setsBlend;
 
+  /// The colour attachment [blend] is for, zero for the first; the default.
   final int blendAttachment;
 
+  /// Whether passing fragments write depth; null leaves it alone.
   final bool? depthWrite;
+
+  /// The depth test; null leaves it alone.
   final CompareFunction? depthCompare;
 
   /// The stencil test for front faces — and for back faces too, unless

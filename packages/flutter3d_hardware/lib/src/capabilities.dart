@@ -983,6 +983,9 @@ final class DeviceFeatures {
 /// defaults.
 @immutable
 final class DeviceLimits {
+  /// Creates limits with every one not named at WebGPU's guaranteed minimum,
+  /// except [maxImmediateDataSize] and [maxMultiviewViews], which default to
+  /// zero.
   const DeviceLimits({
     this.maxTextureDimension1D = 8192,
     this.maxTextureDimension2D = 8192,
@@ -1024,14 +1027,24 @@ final class DeviceLimits {
   /// the baseline.
   static const DeviceLimits webgpuDefaults = DeviceLimits();
 
+  /// The widest 1D texture, in texels; 8192 by default.
   final int maxTextureDimension1D;
+
+  /// The widest or tallest 2D or cube texture, in texels; 8192 by default.
   final int maxTextureDimension2D;
+
+  /// The largest side of a 3D texture, in texels; 2048 by default.
   final int maxTextureDimension3D;
+
+  /// The most layers an array texture may have, a count; 256 by default.
   final int maxTextureArrayLayers;
 
   /// How many colour attachments one pass may open. What
   /// `GraphicsDevice.maxColorAttachments` forwards to.
   final int maxColorAttachments;
+
+  /// The most bytes one sample may take across every colour attachment of a
+  /// pass together; 32 by default. Four RGBA16F targets fit; five do not.
   final int maxColorAttachmentBytesPerSample;
 
   /// The largest sample count a multisampled target may have.
@@ -1041,26 +1054,79 @@ final class DeviceLimits {
   /// isotropically only. What `GraphicsDevice.maxAnisotropy` forwards to.
   final int maxSamplerAnisotropy;
 
+  /// The most bind groups a pipeline may use, a count; 4 by default.
   final int maxBindGroups;
+
+  /// The most sampled textures one stage may bind, a count; 16 by default.
   final int maxSampledTexturesPerShaderStage;
+
+  /// The most samplers one stage may bind, a count; 16 by default.
   final int maxSamplersPerShaderStage;
+
+  /// The most storage buffers one stage may bind, a count; 8 by default.
   final int maxStorageBuffersPerShaderStage;
+
+  /// The most storage textures one stage may bind, a count; 4 by default.
   final int maxStorageTexturesPerShaderStage;
+
+  /// The most uniform blocks one stage may bind, a count; 12 by default.
   final int maxUniformBuffersPerShaderStage;
+
+  /// The largest uniform block binding, in bytes; 65536 by default.
   final int maxUniformBufferBindingSize;
+
+  /// The largest storage buffer binding, in bytes; 134217728 (128 MiB) by
+  /// default.
   final int maxStorageBufferBindingSize;
+
+  /// The largest buffer the device will make, in bytes; 268435456 (256 MiB) by
+  /// default.
   final int maxBufferSize;
+
+  /// What a uniform buffer binding's offset must be a multiple of, in bytes;
+  /// 256 by default.
   final int minUniformBufferOffsetAlignment;
+
+  /// What a storage buffer binding's offset must be a multiple of, in bytes;
+  /// 256 by default.
   final int minStorageBufferOffsetAlignment;
+
+  /// The most vertex buffer slots a pipeline may read, a count; 8 by default.
   final int maxVertexBuffers;
+
+  /// The most vertex attributes a pipeline may declare across its buffers, a
+  /// count; 16 by default.
   final int maxVertexAttributes;
+
+  /// The largest stride of one vertex buffer, in bytes; 2048 by default.
   final int maxVertexBufferArrayStride;
+
+  /// The most four-component values the vertex stage may pass to the fragment
+  /// stage, a count; 16 by default.
   final int maxInterStageShaderVariables;
+
+  /// The most workgroup-shared memory one compute workgroup may use, in bytes;
+  /// 16384 by default, zero without compute.
   final int maxComputeWorkgroupStorageSize;
+
+  /// The most invocations in one workgroup, the product of its three sizes, a
+  /// count; 256 by default, zero without compute.
   final int maxComputeInvocationsPerWorkgroup;
+
+  /// The largest workgroup size along x, in invocations; 256 by default, zero
+  /// without compute.
   final int maxComputeWorkgroupSizeX;
+
+  /// The largest workgroup size along y, in invocations; 256 by default, zero
+  /// without compute.
   final int maxComputeWorkgroupSizeY;
+
+  /// The largest workgroup size along z, in invocations; 64 by default, zero
+  /// without compute.
   final int maxComputeWorkgroupSizeZ;
+
+  /// The most workgroups one dispatch may name along each axis, a count; 65535
+  /// by default, zero without compute.
   final int maxComputeWorkgroupsPerDimension;
 
   /// Bytes of immediate data (push constants) a draw may carry. Zero
@@ -1131,6 +1197,7 @@ final class DeviceLimits {
 /// so on, and each "no" is a different fallback for the caller.
 @immutable
 final class TextureFormatSupport {
+  /// Creates a support entry; every use not named is false.
   const TextureFormatSupport({
     this.sampled = false,
     this.filterable = false,

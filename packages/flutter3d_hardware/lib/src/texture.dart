@@ -113,9 +113,17 @@ final class TextureHandle {
   /// likes here and nothing off-device ever looks.
   final Object backend;
 
+  /// Width of the base level in texels.
   final int width;
+
+  /// Height of the base level in texels.
   final int height;
+
+  /// The layout of each texel.
   final TextureFormat format;
+
+  /// Samples per texel: one for an ordinary texture, more for a multisampled
+  /// attachment, which `readback` refuses.
   final int sampleCount;
 
   /// `deviceTransient` is tile memory: it cannot be sampled, so a transient
