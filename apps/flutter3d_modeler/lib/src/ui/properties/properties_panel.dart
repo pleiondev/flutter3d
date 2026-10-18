@@ -30,6 +30,7 @@ import '../material_preview_panel.dart';
 import '../mesh_health_panel.dart';
 import '../modifier_stack_panel.dart';
 import '../morphs_panel.dart';
+import '../no_mesh_banner.dart';
 import '../operation_card.dart';
 import '../properties_sections.dart';
 import '../retarget_panel.dart';
@@ -560,8 +561,8 @@ class PropertiesPanel extends StatelessWidget {
   /// fixes it. Null makes the fix do nothing.
   final ValueChanged<String>? onFixMesh;
 
-  /// Builds editable topology for the object with this id. The panel takes it
-  /// but draws nothing that calls it; the no-mesh banner is handed its own.
+  /// Builds editable topology for the object with this id, pressed from the
+  /// row an imported object shows. Null draws no such row.
   final ValueChanged<int>? onBuildTopology;
 
   /// `ux-14`'s own four. Null falls back to what the flat list did — a
@@ -783,6 +784,27 @@ class PropertiesPanel extends StatelessWidget {
             ],
           ),
         ],
+        // An import has no topology until it is welded, and the import
+        // screen that chose the weld cannot be got back to for a file
+        // already open — so the object offers it again, in any mode, with
+        // the same words as mesh mode's banner.
+        if (held != null &&
+            held.geometry is ImportedGeometry &&
+            onBuildTopology != null)
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  NoMeshBanner.says(held).said,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ),
+              TextButton(
+                onPressed: () => onBuildTopology!(held.id),
+                child: Text(NoMeshBanner.says(held).button!),
+              ),
+            ],
+          ),
         if (held != null &&
             sections.contains(PropertiesSection.modifiers)) ...<Widget>[
           SectionLabel(l.propModifiers),

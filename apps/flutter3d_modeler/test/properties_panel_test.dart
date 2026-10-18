@@ -59,6 +59,9 @@ Future<void> _pump(
   /// `ux-48`: null is a platform with no filesystem, and the section goes.
   void Function(int id)? onReimport,
 
+  /// What pressing "Build topology" on an imported object does.
+  ValueChanged<int>? onBuildTopology,
+
   /// What the interface is written in — `ux-22`'s own acceptance pumps the
   /// panel under both.
   Locale locale = const Locale('en'),
@@ -111,6 +114,7 @@ Future<void> _pump(
               onAssignMaterial: (_, _) {},
               onAddMaterial: () {},
               onReimport: onReimport,
+              onBuildTopology: onBuildTopology,
               onSetMaterialField: (_, _, _) {},
               onChooseTexture: (_, _) {},
               onClearTexture: (_, _) {},
@@ -292,6 +296,60 @@ void main() {
         .getTopLeft(find.text('No shape keys on this object'))
         .dy;
     expect(heading, lessThan(said));
+  });
+
+  group('an object that came from a file', () {
+    ModelProject imported() => const ModelProject().added(
+      (int id) => ModelObject(
+        id: id,
+        name: 'scan',
+        geometry: ImportedGeometry(EditMesh.cuboid().toMeshData()),
+        transform: vm.Matrix4.identity(),
+      ),
+    );
+
+    testWidgets('is offered its topology on the object', (
+      WidgetTester tester,
+    ) async {
+      // Mutation: take `onBuildTopology` and draw nothing that calls it. The
+      // weld was then reachable only from mesh mode's banner, and an import
+      // looked at in object mode had no way to become editable.
+      final ModelProject project = imported();
+      final built = <int>[];
+      await _pump(
+        tester,
+        mode: ModelerMode.object,
+        project: project,
+        selection: ProjectSelection(objects: <int>[project.objects.single.id]),
+        onBuildTopology: built.add,
+      );
+
+      await tester.tap(find.text('Build topology'));
+      await tester.pump();
+      expect(built, <int>[project.objects.single.id]);
+    });
+
+    testWidgets('and an object with a mesh is not', (
+      WidgetTester tester,
+    ) async {
+      final ModelProject project = const ModelProject().added(
+        (int id) => ModelObject(
+          id: id,
+          name: 'box',
+          geometry: EditedGeometry(EditMesh.cuboid()),
+          transform: vm.Matrix4.identity(),
+        ),
+      );
+      await _pump(
+        tester,
+        mode: ModelerMode.object,
+        project: project,
+        selection: ProjectSelection(objects: <int>[project.objects.single.id]),
+        onBuildTopology: (_) {},
+      );
+
+      expect(find.text('Build topology'), findsNothing);
+    });
   });
 
   group('ux-48: an object that remembers where it came from', () {
