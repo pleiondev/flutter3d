@@ -15,6 +15,9 @@ import 'native_world.dart';
 /// [standardGravityVector] without one — see `ClothSettings`, which is made
 /// the same way.
 final class FluidSettings {
+  /// Settings for a tank from [tankMin] to [tankMax], whose [gravity] is
+  /// [world]'s when not given, or [standardGravityVector] with neither; the
+  /// rest take the defaults shown.
   FluidSettings({
     required this.tankMin,
     required this.tankMax,
@@ -48,11 +51,14 @@ final class FluidSettings {
     iterations: iterations ?? this.iterations,
   );
 
+  /// Gravity, m/s².
   final Vector3 gravity;
 
   /// The tank's corners: no particle centre comes nearer its walls than
   /// half the spacing.
   final Vector3 tankMin;
+
+  /// The tank's highest corner, in metres, opposite [tankMin].
   final Vector3 tankMax;
 
   /// XSPH: how far a particle's velocity goes to its neighbours' a
@@ -62,7 +68,11 @@ final class FluidSettings {
   /// Softens the density constraint; larger is softer and steadier. Added
   /// to the constraint's squared gradient, so per square metre.
   final double relaxation;
+
+  /// How many substeps a step is cut into; nought is taken as one.
   final int substeps;
+
+  /// How many density passes a substep makes; nought is taken as one.
   final int iterations;
 }
 
@@ -71,6 +81,7 @@ final class FluidSettings {
 /// A class rather than a record, so it can carry more in a minor without
 /// breaking a backend that mixes the system in.
 final class FluidParticle {
+  /// A particle at [position] moving at [velocity].
   const FluidParticle({required this.position, required this.velocity});
 
   /// Where, in metres.
@@ -100,6 +111,7 @@ final class FluidParticle {
 /// A class rather than a record, so it can carry more in a minor without
 /// breaking a backend that mixes the system in.
 final class FluidFrame {
+  /// The particles of step [step], four floats a particle.
   const FluidFrame({required this.step, required this.particles});
 
   /// The step, counted from one.
@@ -129,6 +141,7 @@ final class FluidFrame {
 /// member added in a 1.x release arrives with a body and nothing that mixes
 /// it in has to change.
 abstract base mixin class FluidSystem {
+  /// How many particles the tank has room for.
   int get capacity;
 
   /// Particles in the tank so far, up to [capacity].
@@ -147,6 +160,7 @@ abstract base mixin class FluidSystem {
   /// none (absent, not an error). Stepped on a GPU, a frame or two late.
   FluidFrame? read({bool wait = true});
 
+  /// Frees what the tank holds; it is not to be used after.
   void dispose();
 }
 
@@ -158,6 +172,7 @@ abstract base mixin class FluidSystem {
 /// tank stepped every frame keeps one and sets it before the call; the tank
 /// reads it during the call and does not keep it.
 final class FluidSystemStep {
+  /// A step of [dt] seconds with [settings].
   FluidSystemStep({required this.settings, required this.dt});
 
   /// How the liquid behaves.
@@ -167,6 +182,8 @@ final class FluidSystemStep {
   double dt;
 }
 
+/// [particles] as `f3d_fluid_add` takes them, six floats apiece, in a block
+/// the caller frees.
 c.F32s packFluidParticles(List<FluidParticle> particles) {
   final data = c.F32s.alloc(particles.isEmpty ? 6 : particles.length * 6);
   for (var i = 0; i < particles.length; i++) {

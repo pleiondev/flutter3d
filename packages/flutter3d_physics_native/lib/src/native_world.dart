@@ -54,6 +54,8 @@ final class NativeBodyType {
 
   /// The core's number for it.
   final int code;
+
+  /// Its name as [toString] prints it: `dynamic`, `fixed` or `kinematic`.
   final String name;
 
   @override
@@ -65,6 +67,7 @@ final class NativeBodyType {
 final class NativeShape {
   const NativeShape._(this.kind, this.first, this.second, this.third);
 
+  /// A ball of [radius] metres about the body's centre.
   const NativeShape.sphere(double radius)
     : this._(c.ShapeKind.sphere, radius, 0, 0);
 
@@ -122,10 +125,16 @@ final class NativeShallowLiquid {
 
   /// Numbered from one; a number is never given out again.
   final int id;
+
+  /// How many cells the grid has along x, and along z; a count each.
   final int nx, nz;
 
   /// A cell's side, in metres.
   final double cell;
+
+  /// The first cell's corner relative to the world's origin, in metres; the
+  /// grid runs towards +x and +z from it, and depths and the ground are
+  /// heights above its y.
   final Vector3 origin;
 
   /// How many cells: the length of what [NativeWorld.readShallowSurface]
@@ -186,12 +195,23 @@ final class NativeShallowExternal {
 final class GridSide {
   const GridSide._(this.code, this.name);
 
+  /// The edge along the grid's origin x, its first column of cells.
   static const GridSide west = GridSide._(0, 'west');
+
+  /// The edge along the grid's far x, past its last column of cells.
   static const GridSide east = GridSide._(1, 'east');
+
+  /// The edge along the grid's origin z, its first row of cells.
   static const GridSide south = GridSide._(2, 'south');
+
+  /// The edge along the grid's far z, past its last row of cells.
   static const GridSide north = GridSide._(3, 'north');
 
+  /// The core's number for the edge, nought to three, as
+  /// `f3d_shallow_set_edge` takes it.
   final int code;
+
+  /// Its name as [toString] prints it.
   final String name;
 
   @override
@@ -220,6 +240,8 @@ final class NativeEdgeFlow {
   /// map.
   static const NativeEdgeFlow free = NativeEdgeFlow._(c.EdgeKind.open, 0);
 
+  /// The core's kind of edge, `F3D_EDGE_WALL`, `_OPEN`, `_FLOW` or
+  /// `_LEVEL`.
   final int kind;
 
   /// The [kind]'s number: an inflow's discharge in cubic metres per second,
@@ -278,6 +300,8 @@ final class NativeOutlet {
 /// A class rather than a record, so a later solver can report more of its
 /// step without breaking a reader.
 final class NativeShallowInfo {
+  /// A report of [substeps] substeps, [overruns] overrun steps, whether it
+  /// is [resting], and the most [energy] a cell held, in J/m².
   const NativeShallowInfo({
     required this.substeps,
     required this.overruns,
@@ -331,6 +355,8 @@ final class NativeShallowInfo {
 /// water is given them, so the core needs no table of its own beyond the
 /// built-ins' header.
 final class NativeLiquidProperties {
+  /// A liquid of [density] kg/m³, [viscosity] Pa·s and [tension] N/m, as
+  /// given: nothing is checked until [NativeWorld.setShallowProperties].
   const NativeLiquidProperties({
     required this.density,
     required this.viscosity,
@@ -397,6 +423,8 @@ final class NativeLiquidProperties {
   /// Surface tension, N/m.
   final double tension;
 
+  /// Returns a copy with the given fields replaced; a null leaves this
+  /// liquid's value.
   NativeLiquidProperties copyWith({
     double? density,
     double? viscosity,
@@ -426,6 +454,9 @@ final class NativeLiquidProperties {
 /// **A view of a material in the catalogue** ([NativeLiquidHeat.of]), as
 /// [NativeLiquidProperties] is.
 final class NativeLiquidHeat {
+  /// A liquid at [temperature] K, of [specificHeat] J / (kg K),
+  /// [conductivity] W / (m K) and [expansion] 1/K, boiling as water does
+  /// when [boils]; nothing is checked until [NativeWorld.setShallowHeat].
   const NativeLiquidHeat({
     required this.temperature,
     required this.specificHeat,
@@ -500,6 +531,8 @@ final class NativeLiquidHeat {
   /// point ([Materials.water]'s, 373.15 K).
   final bool boils;
 
+  /// Returns a copy with the given fields replaced; a null leaves this
+  /// liquid's value.
   NativeLiquidHeat copyWith({
     double? temperature,
     double? specificHeat,
@@ -588,6 +621,8 @@ final class NativeFire {
 /// Every body's transform and its handle, in the world's slot order —
 /// [NativeWorld.readTransforms].
 final class NativeTransformBlock {
+  /// A block of [transforms], seven floats for each of [bodies], as given:
+  /// the lengths are not checked.
   const NativeTransformBlock({required this.transforms, required this.bodies});
 
   /// Seven floats a body: position xyz relative to the origin, then the
@@ -614,6 +649,8 @@ final class NativeTransformBlock {
 /// Every burning body, or burning part of a compound, and its fire's
 /// numbers — [NativeWorld.readFires].
 final class NativeFireBlock {
+  /// A block of [fires], [nativeFireFloats] floats for each of [bodies], as
+  /// given: the lengths are not checked.
   const NativeFireBlock({required this.fires, required this.bodies});
 
   /// [nativeFireFloats] floats a fire, in the order [NativeFire]'s fields
@@ -639,6 +676,8 @@ final class NativeFireBlock {
 
 /// Every cell of a shallow water, x fastest — [NativeWorld.readShallowSurface].
 final class NativeShallowSurface {
+  /// Each cell's [surface] height and [depth], in metres, one of each for
+  /// every cell.
   const NativeShallowSurface({required this.surface, required this.depth});
 
   /// Each cell's surface height above the water's origin, in metres; where
@@ -665,6 +704,7 @@ final class NativeShallowSurface {
 /// The water a shallow water holds and what it has lost —
 /// [NativeWorld.shallowVolume].
 final class NativeShallowVolume {
+  /// [held] and [lost] water, in cubic metres.
   const NativeShallowVolume({required this.held, required this.lost});
 
   /// The water in its cells and in the air as spray, in cubic metres.
@@ -688,6 +728,8 @@ final class NativeShallowVolume {
 /// A revolute or prismatic link's joint as the last step left it —
 /// [NativeWorld.linkJoint].
 final class NativeLinkJoint {
+  /// A joint at [position] moving at [speed], in radians or metres as the
+  /// link's kind says.
   const NativeLinkJoint({required this.position, required this.speed});
 
   /// A revolute link's angle, in radians, or a prismatic link's travel, in
@@ -714,6 +756,8 @@ final class NativeLinkJoint {
 /// A spherical link's joint as the last step left it —
 /// [NativeWorld.linkTurn].
 final class NativeLinkTurn {
+  /// A link turned by [turn] in its parent's frame, spinning at [spin]
+  /// radians per second relative to it.
   const NativeLinkTurn({required this.turn, required this.spin});
 
   /// The link's turn in its parent's frame.
@@ -735,6 +779,8 @@ final class NativeLinkTurn {
 
 /// The char a fire has left on a body — [NativeWorld.charOf].
 final class NativeChar {
+  /// Char over [share] of the surface, [depth] metres deep at its deepest,
+  /// its surface at [temperature] K.
   const NativeChar({
     required this.share,
     required this.depth,
@@ -767,6 +813,8 @@ final class NativeChar {
 
 /// What of a body stands in a liquid — [NativeWorld.submergedOf].
 final class NativeSubmersion {
+  /// [volume] cubic metres under the surface of water [water], nought for
+  /// none.
   const NativeSubmersion({required this.volume, required this.water});
 
   /// The body's volume under the water's surface, in cubic metres.
@@ -798,7 +846,12 @@ bool _sameItems<T>(List<T> a, List<T> b) {
   return true;
 }
 
+/// The kind of a piece of falling water that is a stretch of the sheet that
+/// left a cliff's lip in one step: its width and thickness are given.
 const int nativeSpraySheet = c.spraySheet;
+
+/// The kind of a piece of falling water that is drops, what a sheet broke
+/// into or a splash threw up: their diameter is given, twice.
 const int nativeSprayDrops = c.sprayDrops;
 
 /// Reals one cloud of bubbles takes in [NativeWorld.readBubbles]: where it
@@ -825,6 +878,9 @@ extension type const NativeVehicle(int id) {}
 
 /// A wheel as it is made — [NativeWorld.addWheel].
 final class NativeWheelSettings {
+  /// A wheel of the given settings; [width] null for 0.6 of its radius and
+  /// [rollingResistance] a car's tyre's 0.015 unless given. Checked by
+  /// [NativeWorld.addWheel], not here.
   const NativeWheelSettings({
     required this.attach,
     required this.rest,
@@ -889,6 +945,8 @@ final class NativeWheelSettings {
 /// A class rather than a record, so a later core can report more of the
 /// wheel (its temperature, what it stands on) without breaking a reader.
 final class NativeWheelState {
+  /// A wheel's state as given; [NativeWorld.wheelsOf] reads them from the
+  /// core.
   const NativeWheelState({
     required this.touching,
     required this.length,
@@ -996,9 +1054,18 @@ final class NativeCompoundPart {
        at = at ?? Vector3.zero(),
        turn = turn ?? Quaternion.identity();
 
+  /// The part's shape; null for a hull part.
   final NativeShape? shape;
+
+  /// The hull the part is shaped as; null for a shape part.
   final NativeHull? hull;
+
+  /// Where the part's centre goes in the compound's frame, in metres; the
+  /// compound's origin when not given.
   final Vector3 at;
+
+  /// How the part is turned in the compound's frame; unturned when not
+  /// given.
   final Quaternion turn;
 
   /// How far the part's shape is grown by a ball, rounding its edges and
@@ -1017,6 +1084,8 @@ extension type const NativeJoint(int raw) {}
 /// three times as far as back, a hip that lifts the thigh ahead further than
 /// out.
 final class JointSwing {
+  /// Swing limits about [neutral], [ahead] giving which way is forward, and
+  /// the four limits in radians; checked by [NativeWorld.setJointSwing].
   const JointSwing({
     required this.neutral,
     required this.ahead,
@@ -1059,6 +1128,8 @@ final class JointSwing {
 /// cone, take the stiffness [NativeWorld.setJointLimitSoftness] gave — what
 /// makes a limit soft at all.
 final class JointLimitStiffness {
+  /// Limit stiffnesses, each nought unless given: nought [growth] is a
+  /// linear spring, and a nought stiffness takes the joint's soft limit.
   const JointLimitStiffness({
     this.growth = 0.0,
     this.lower = 0.0,
@@ -1094,6 +1165,8 @@ final class JointLimitStiffness {
 /// as a joint's limits do. Solved implicitly, and never stiffer than the
 /// substep holds steadily.
 final class JointDrive {
+  /// A drive towards [target] of [stiffness], [damping] (nought unless
+  /// given) and at most [maxTorque]; checked by [NativeWorld.setJointDrive].
   const JointDrive({
     required this.target,
     required this.stiffness,
@@ -1150,7 +1223,10 @@ final class NativeJointType {
     'prismatic',
   );
 
+  /// The core's number for it, as `F3dJointType` numbers it.
   final int code;
+
+  /// Its name as [toString] prints it.
   final String name;
 
   @override
@@ -1163,6 +1239,9 @@ final class NativeJointType {
 /// `MaterialCatalog`'s defaults, which the core reads from its generated
 /// header as `F3D_PRESET_DEFAULT_*`: one number on both sides.
 final class NativeMaterial {
+  /// A material of [specificHeat] J / (kg K); every other field the
+  /// catalogue's default or nought, which for most of them takes the
+  /// core's own value (see each field). Checked when a body is given it.
   const NativeMaterial({
     required this.specificHeat,
     this.emissivity = MaterialCatalog.defaultEmissivity,
@@ -1192,11 +1271,27 @@ final class NativeMaterial {
 
   /// The core's typical values for a material: one place they live, so the
   /// browser's module and the native library agree on them too.
+  ///
+  /// This one never burns and has the default specific heat: what a new
+  /// body is made of.
   static NativeMaterial inert() => _preset(c.MaterialKind.inert);
+
+  /// A generic wood, as plain plywood: how it catches and how its flame
+  /// creeps are that plywood's in the LIFT tests.
   static NativeMaterial wood() => _preset(c.MaterialKind.wood);
+
+  /// A sheet of paper, which catches at 451 °F.
   static NativeMaterial paper() => _preset(c.MaterialKind.paper);
+
+  /// Rubber, burning as a tyre does: its heat of combustion what a sooty
+  /// flame gives off, less than the gross heat a bomb measures.
   static NativeMaterial rubber() => _preset(c.MaterialKind.rubber);
+
+  /// Weathered steel, which never burns; a polished surface would be a
+  /// tenth as emissive.
   static NativeMaterial steel() => _preset(c.MaterialKind.steel);
+
+  /// Granite, which never burns.
   static NativeMaterial stone() => _preset(c.MaterialKind.stone);
 
   /// Red oak, as boards or beams, dry.
@@ -1562,6 +1657,7 @@ final class NativeMaterial {
 /// the fuel's heat of combustion with its flame, whatever the body is made
 /// of and whether or not it has fuel of its own. [NativeWorld.setBurner].
 final class NativeBurner {
+  /// [rate] kg/s of [fuel]; checked by [NativeWorld.setBurner], not here.
   const NativeBurner({required this.fuel, required this.rate});
 
   /// A candle of paraffin wax 21 mm across: 1.75 mg/s, 77 W, its flame
@@ -1611,12 +1707,15 @@ final class NativeBurner {
   /// body.
   double get power => rate * fuel.heatOfCombustion;
 
+  /// Returns a copy with the given fields replaced; a null leaves this
+  /// burner's value.
   NativeBurner copyWith({NativeMaterial? fuel, double? rate}) =>
       NativeBurner(fuel: fuel ?? this.fuel, rate: rate ?? this.rate);
 }
 
 /// A charge going off — [NativeWorld.explode]: [energy] J from [mass] kg.
 final class NativeExplosion {
+  /// A charge of [mass] kg releasing [energy] joules.
   const NativeExplosion({required this.energy, required this.mass});
 
   /// [kilograms] of TNT: 4.184 MJ each, the TNT equivalent's definition.
@@ -1663,22 +1762,33 @@ final class NativeEventKind {
   /// Whether this is a plugin's kind rather than the core's.
   bool get isPlugin => code >= firstPluginCode;
 
+  /// A body fell asleep: it came to rest, and the step stops moving it
+  /// until something wakes it.
   static const NativeEventKind slept = NativeEventKind._(
     c.EventKind.slept,
     'slept',
   );
+
+  /// A sleeping body woke: something touched it, or it was set moving.
   static const NativeEventKind woke = NativeEventKind._(
     c.EventKind.woke,
     'woke',
   );
+
+  /// A body caught fire: some of it burns where none did the step before.
   static const NativeEventKind ignited = NativeEventKind._(
     c.EventKind.ignited,
     'ignited',
   );
+
+  /// A body's fire went out with fuel still left: put out by water, by a
+  /// liquid, or by cooling below where it burns.
   static const NativeEventKind extinguished = NativeEventKind._(
     c.EventKind.extinguished,
     'extinguished',
   );
+
+  /// A body's fire went out because its fuel ran out.
   static const NativeEventKind burntOut = NativeEventKind._(
     c.EventKind.burntOut,
     'burntOut',
@@ -1738,7 +1848,13 @@ final class NativeEventKind {
     orElse: () => NativeEventKind._(code, 'unknown($code)'),
   );
 
+  /// The kind's number: the core's `F3dEventKind` below [firstPluginCode],
+  /// a plugin's at or above it. Two kinds are equal when this is.
   final int code;
+
+  /// The kind's name as a log reads it: the core's in camel case, a
+  /// plugin's as it gave it, `unknown(code)` for a code this binding does
+  /// not know.
   final String name;
 
   @override
@@ -1758,6 +1874,8 @@ final class NativeEventKind {
 /// A class rather than a record, so a later core can tell more about an
 /// event (where, how hard) without changing what callers read today.
 final class NativeEvent {
+  /// An event of [kind] that happened to [body], with [other] for the
+  /// second body of an event between two.
   const NativeEvent({required this.body, this.other, required this.kind});
 
   /// The body the event happened to.
@@ -1788,6 +1906,8 @@ final class NativeEvent {
 /// A class rather than a record, so it can later carry the material of
 /// each side and the impulse without breaking a reader.
 final class NativeContact {
+  /// A contact between [a] and [b] at [point] along [normal], [depth]
+  /// metres deep.
   const NativeContact({
     required this.a,
     required this.b,
@@ -1834,6 +1954,7 @@ final class NativeContact {
 ///
 /// A class rather than a record, so it can later carry the material hit.
 final class NativeHit {
+  /// A hit on [body] at [point] with [normal] there, [at] along the query.
   const NativeHit({
     required this.body,
     required this.point,
@@ -1874,6 +1995,7 @@ final class NativeHit {
 /// A class rather than a record, so a later core can report more of the
 /// move (a slide, a push) without breaking a reader.
 final class NativeCharacterMove {
+  /// A move's outcome as given; [NativeWorld.moveCharacter] makes them.
   const NativeCharacterMove({
     required this.position,
     required this.grounded,
@@ -1964,6 +2086,10 @@ final class NativeCharacterMove {
 /// without it. Every call after [dispose] throws a [StateError], so a world
 /// used after it was freed is a Dart error rather than a native crash.
 final class NativeWorld {
+  /// An empty world: gravity (0, -9.81, 0) m/s², still air at 293.15 K,
+  /// its origin at nought. Throws a [StateError] when the core cannot
+  /// allocate one, or when the loaded core is not the ABI and real size
+  /// these bindings were written for.
   NativeWorld() : _world = c.f3d_world_create() {
     if (_world == 0) {
       throw StateError('the physics core could not allocate a world');
@@ -2544,9 +2670,12 @@ final class NativeWorld {
   bool removeJoint(NativeJoint joint) =>
       c.f3d_joint_destroy(_live, joint.raw) == 1;
 
+  /// Whether [joint] is in this world: false once it is taken out, broken
+  /// or gone with one of its bodies.
   bool containsJoint(NativeJoint joint) =>
       c.f3d_joint_is_valid(_live, joint.raw) == 1;
 
+  /// How many joints the world holds now, a count.
   int get jointCount => c.f3d_world_joint_count(_live);
 
   void _checkJoint(int answer, NativeJoint joint) {
@@ -3337,6 +3466,9 @@ final class NativeWorld {
     return _read3();
   }
 
+  /// Puts [body] at [value], relative to the [origin], in metres, and wakes
+  /// it. Throws an [ArgumentError] for a body not in the world or a value
+  /// not finite.
   void setPosition(NativeBody body, Vector3 value) => _check(
     c.f3d_body_set_position(_live, body.raw, value.x, value.y, value.z),
     body,
@@ -3393,6 +3525,8 @@ final class NativeWorld {
     }
   }
 
+  /// Sets [body]'s velocity to [value], m/s, and wakes it. Throws an
+  /// [ArgumentError] for a body not in the world or a value not finite.
   void setVelocity(NativeBody body, Vector3 value) => _check(
     c.f3d_body_set_velocity(_live, body.raw, value.x, value.y, value.z),
     body,
@@ -3406,6 +3540,9 @@ final class NativeWorld {
     return _read3();
   }
 
+  /// Sets [body]'s spin to [value], radians per second about the world's
+  /// axes, and wakes it; a body that cannot turn keeps none. Throws an
+  /// [ArgumentError] for a body not in the world or a value not finite.
   void setAngularVelocity(NativeBody body, Vector3 value) => _check(
     c.f3d_body_set_angular_velocity(_live, body.raw, value.x, value.y, value.z),
     body,
@@ -3538,9 +3675,12 @@ final class NativeWorld {
     }
   }
 
+  /// Takes [water] out, and says whether it was there; the bodies that
+  /// floated in it are dry again.
   bool removeShallowLiquid(NativeShallowLiquid water) =>
       c.f3d_shallow_destroy(_live, water.id) == 1;
 
+  /// Whether [water] is in this world: false once it is taken out.
   bool containsShallowLiquid(NativeShallowLiquid water) =>
       c.f3d_shallow_is_valid(_live, water.id) == 1;
 
@@ -4182,6 +4322,8 @@ final class NativeWorld {
   bool containsMultibody(NativeMultibody multibody) =>
       c.f3d_multibody_is_valid(_live, multibody.id) == 1;
 
+  /// How many links [multibody] has, its root among them; nought for one
+  /// not in the world.
   int linkCount(NativeMultibody multibody) =>
       c.f3d_multibody_link_count(_live, multibody.id);
 
@@ -4765,6 +4907,9 @@ final class NativeWorld {
     return _out[0];
   }
 
+  /// Sets a compound's part [part] to [kelvin] all through; part nought of
+  /// any other body is the body. Throws an [ArgumentError] for a part the
+  /// body does not have, or a temperature not finite and above nought.
   void setPartTemperature(NativeBody body, int part, double kelvin) {
     if (c.f3d_body_set_part_temperature(_live, body.raw, part, kelvin) == 0) {
       throw ArgumentError('part $part of $body at $kelvin K');
@@ -4797,6 +4942,8 @@ final class NativeWorld {
     return _out[0];
   }
 
+  /// Whether any of [body] is alight. Throws an [ArgumentError] for a body
+  /// not in the world.
   bool isBurning(NativeBody body) {
     _check(c.f3d_body_is_burning(_live, body.raw, _outInt), body);
     return _outInt[0] == 1;

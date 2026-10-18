@@ -16,6 +16,9 @@ import 'native_world.dart';
 /// The gravity is the [world]'s, read when the forces are made, or
 /// [standardGravityVector] without one — see `ClothSettings`.
 final class ParticleForces {
+  /// Forces whose [gravity] is [world]'s when not given, or
+  /// [standardGravityVector] with neither; still air, no drag and no floor
+  /// unless given.
   ParticleForces({
     NativeWorld? world,
     Vector3? gravity,
@@ -27,7 +30,10 @@ final class ParticleForces {
   }) : gravity = gravity ?? world?.gravity ?? standardGravityVector,
        wind = wind ?? Vector3.zero();
 
+  /// Gravity, m/s².
   final Vector3 gravity;
+
+  /// The wind's velocity, m/s, that particles drift towards at [drag].
   final Vector3 wind;
 
   /// How fast a particle drifts towards the [wind], per second, as
@@ -49,6 +55,7 @@ final class ParticleForces {
 /// A class rather than a record, so it can carry more in a minor without
 /// breaking a backend that mixes the system in.
 final class NativeParticle {
+  /// A particle at [position] moving at [velocity], living [life] seconds.
   const NativeParticle({
     required this.position,
     required this.velocity,
@@ -114,6 +121,7 @@ abstract base mixin class NativeParticleCloud {
 /// a cloud stepped every frame keeps one and sets it before the call; the
 /// cloud reads it during the call and does not keep it.
 final class ParticleCloudStep {
+  /// [steps] steps, one unless given, of [dt] seconds under [forces].
   ParticleCloudStep({required this.forces, required this.dt, this.steps = 1});
 
   /// What pushes the particles.
@@ -126,6 +134,8 @@ final class ParticleCloudStep {
   int steps;
 }
 
+/// [particles] as `f3d_particles_emit` takes them, seven floats apiece, in a
+/// block the caller frees.
 c.F32s packParticles(List<NativeParticle> particles) {
   final data = c.F32s.alloc(particles.isEmpty ? 7 : particles.length * 7);
   for (var i = 0; i < particles.length; i++) {
@@ -165,6 +175,8 @@ int writeParticleForces(ParticleForces forces) {
 /// Particles stepped by the core on the CPU: the reference for the GPU's,
 /// and the fallback where there is none.
 final class NativeParticles implements NativeParticleCloud {
+  /// [capacity] slots, all dead. Throws an [ArgumentError] for none, or
+  /// when the core has no memory.
   NativeParticles(int capacity) : _p = c.f3d_particles_create(capacity) {
     if (_p == 0) {
       throw ArgumentError.value(capacity, 'capacity', 'none, or no memory');

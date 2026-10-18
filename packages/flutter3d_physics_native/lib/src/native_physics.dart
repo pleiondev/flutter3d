@@ -29,6 +29,9 @@ const String askedPhysics = String.fromEnvironment(
 /// shape of a game's own as the hull of its support points).
 final class NativePhysics extends PhysicsBackend
     with JointPhysics, ConstraintPhysics, ShapePhysics {
+  /// The core's backend. Making one loads nothing and checks nothing:
+  /// [usePhysics] and [startPhysics] try a world first, and fall back to the
+  /// Dart reference when the core will not start.
   NativePhysics();
 
   @override
@@ -147,6 +150,8 @@ final class NativePhysics extends PhysicsBackend
 /// A class rather than a record, so it can later say more about the start
 /// (the core's version, what it was asked for) without breaking a reader.
 final class PhysicsStart {
+  /// A start on [backend]; [fallbackBecause] says why it is the Dart
+  /// reference, null when the run is where it was asked to be.
   const PhysicsStart({required this.backend, this.fallbackBecause});
 
   /// The backend the run is on.

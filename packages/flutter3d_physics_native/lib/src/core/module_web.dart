@@ -58,10 +58,18 @@ int _threads = 1;
 /// Where the modules and the worker are fetched from when
 /// [loadPhysicsCore] is given nothing: as a Flutter web app serves this
 /// package's assets.
+/// This one is the single-threaded build's.
 const String defaultPhysicsCoreUrl =
     'assets/packages/flutter3d_physics_native/web/f3d_physics.wasm';
+
+/// URL of the threads build, loaded on a shared memory when
+/// [loadPhysicsCore] is asked for more than one thread and the page is
+/// cross-origin isolated.
 const String defaultPhysicsCoreThreadsUrl =
     'assets/packages/flutter3d_physics_native/web/f3d_physics_threads.wasm';
+
+/// URL of the Web Worker script each extra thread of the threads build
+/// runs in.
 const String defaultPhysicsWorkerUrl =
     'assets/packages/flutter3d_physics_native/web/f3d_worker.js';
 
@@ -171,6 +179,7 @@ JSObject coreBufferObject() {
   return (_memory! as _Memory).buffer;
 }
 
+/// Length of [buffer], a buffer [coreBufferObject] gave, in bytes.
 int coreBufferLength(JSObject buffer) =>
     buffer.getProperty<JSNumber>('byteLength'.toJS).toDartInt;
 
@@ -179,7 +188,13 @@ const int _two32 = 4294967296;
 /// The low and high 32-bit halves of a 64-bit handle, and one put back
 /// together — by arithmetic, which JavaScript's numbers keep exact to 2⁵³.
 int lowHalf(int value) => value % _two32;
+
+/// The high 32-bit half of a 64-bit handle [value], by arithmetic: exact
+/// while [value] is below 2⁵³.
 int highHalf(int value) => (value - lowHalf(value)) ~/ _two32;
+
+/// The 64-bit value whose halves are [low] and [high], each taken as
+/// unsigned 32 bits; exact while the result is below 2⁵³.
 int joinHalves(int low, int high) =>
     high.toUnsigned(32) * _two32 + low.toUnsigned(32);
 

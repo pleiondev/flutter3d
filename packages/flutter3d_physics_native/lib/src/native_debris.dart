@@ -15,6 +15,8 @@ import 'native_world.dart';
 /// The gravity is the [world]'s, read when the settings are made, or
 /// [standardGravityVector] without one — see `ClothSettings`.
 final class DebrisSettings {
+  /// Settings whose [gravity] is [world]'s when not given, or
+  /// [standardGravityVector] with neither; the rest take the defaults shown.
   DebrisSettings({
     NativeWorld? world,
     Vector3? gravity,
@@ -51,6 +53,7 @@ final class DebrisSettings {
     iterations: iterations ?? this.iterations,
   );
 
+  /// Gravity, m/s².
   final Vector3 gravity;
 
   /// Coulomb friction, a unitless coefficient: the most tangential impulse
@@ -68,7 +71,11 @@ final class DebrisSettings {
 
   /// The fastest a ball may move, in metres per second.
   final double maxSpeed;
+
+  /// How many substeps a step is cut into; nought is taken as one.
   final int substeps;
+
+  /// How many impulse passes a substep makes; nought is taken as one.
   final int iterations;
 }
 
@@ -78,6 +85,8 @@ final class DebrisSettings {
 /// A class rather than a record, so it can carry more in a minor without
 /// breaking a backend that mixes the system in.
 final class DebrisBody {
+  /// A ball at [position] moving at [velocity], of [radius] metres and
+  /// [mass] kilograms.
   const DebrisBody({
     required this.position,
     required this.velocity,
@@ -122,7 +131,10 @@ abstract final class DebrisStatic {
 /// The plane of points p with p · [normal] = [offset]; debris stays on the
 /// side [normal] points to.
 final class DebrisPlane extends DebrisStatic {
+  /// The plane along [normal] at [offset] metres from the origin.
   const DebrisPlane(this.normal, this.offset);
+
+  /// The plane's normal, unit length, pointing to where debris stays.
   final Vector3 normal;
 
   /// The plane's distance from the origin along a unit [normal], in metres.
@@ -131,8 +143,13 @@ final class DebrisPlane extends DebrisStatic {
 
 /// An unturned box.
 final class DebrisBox extends DebrisStatic {
+  /// A box at [center] of [halfExtents], in metres.
   const DebrisBox(this.center, this.halfExtents);
+
+  /// The box's centre, in metres.
   final Vector3 center;
+
+  /// Half the box's size along x, y and z, in metres.
   final Vector3 halfExtents;
 }
 
@@ -142,6 +159,7 @@ final class DebrisBox extends DebrisStatic {
 /// A class rather than a record, so it can carry more in a minor without
 /// breaking a backend that mixes the system in.
 final class DebrisFrame {
+  /// The bodies of step [step], eight floats a slot.
   const DebrisFrame({required this.step, required this.bodies});
 
   /// The step, counted from one.
@@ -171,6 +189,7 @@ final class DebrisFrame {
 /// member added in a 1.x release arrives with a body and nothing that mixes
 /// it in has to change.
 abstract base mixin class DebrisSystem {
+  /// How many slots the debris has.
   int get capacity;
 
   /// Puts [bodies] into the next slots, the oldest going first, unturned.
@@ -187,6 +206,7 @@ abstract base mixin class DebrisSystem {
   /// step queued last is still on its way.
   DebrisFrame? read({bool wait = true});
 
+  /// Frees what the debris holds; it is not to be used after.
   void dispose();
 }
 
@@ -198,6 +218,7 @@ abstract base mixin class DebrisSystem {
 /// debris stepped every frame keeps one and sets it before the call; the
 /// system reads it during the call and does not keep it.
 final class DebrisSystemStep {
+  /// A step of [dt] seconds with [settings].
   DebrisSystemStep({required this.settings, required this.dt});
 
   /// How the debris behaves.
@@ -207,6 +228,8 @@ final class DebrisSystemStep {
   double dt;
 }
 
+/// [bodies] as `f3d_debris_add` takes them, eight floats apiece, in a block
+/// the caller frees.
 c.F32s packDebrisBodies(List<DebrisBody> bodies) {
   final data = c.F32s.alloc(bodies.isEmpty ? 8 : bodies.length * 8);
   for (var i = 0; i < bodies.length; i++) {
@@ -223,6 +246,10 @@ c.F32s packDebrisBodies(List<DebrisBody> bodies) {
   return data;
 }
 
+/// [statics] as `f3d_debris_set_statics` takes them, eight floats apiece, in
+/// a block the caller frees. Throws an [ArgumentError] for more than 64, and
+/// an [UnsupportedError] for a shape that is neither a [DebrisPlane] nor a
+/// [DebrisBox].
 c.F32s packDebrisStatics(List<DebrisStatic> statics) {
   if (statics.length > c.debrisMaxStatics) {
     throw ArgumentError.value(statics.length, 'statics', 'more than 64');
@@ -282,6 +309,8 @@ int writeDebrisSettings(DebrisSettings settings) {
 /// Debris stepped by the core on the CPU: the reference for the GPU's, and
 /// the fallback where there is none.
 final class NativeDebris implements DebrisSystem {
+  /// Debris of [capacity] empty slots. Throws an [ArgumentError] for none,
+  /// or when the core has no memory.
   NativeDebris(int capacity) : _d = c.f3d_debris_create(capacity) {
     if (_d == 0) {
       throw ArgumentError.value(capacity, 'capacity', 'none, or no memory');

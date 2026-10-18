@@ -28,6 +28,8 @@ import 'native_physics.dart';
 /// vessel, which has none. A caller's own `JetObstacle` is Dart code the
 /// core cannot ask, so a step that meets one is the reference's.
 final class NativeLiquid extends FluidSolver {
+  /// The core's liquid solver. It holds nothing, so one serves every
+  /// world; the core is loaded by the time a step calls it.
   const NativeLiquid();
 
   @override

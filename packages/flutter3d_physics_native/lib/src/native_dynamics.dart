@@ -65,6 +65,9 @@ import 'native_force_fields.dart';
 import 'native_ragdoll.dart' show turnBy;
 import 'native_world.dart';
 
+/// `flutter3d_physics`'s rigid dynamics stepped by the C core: a
+/// [NativeWorld] that mirrors a `CollisionWorld`'s bodies, steps them and
+/// writes them back, with [NativeForceFields] applied before each step.
 final class NativeDynamics extends RigidDynamics with WorldMirror {
   /// A core world for [world]'s bodies, in [world]'s properties
   /// (`CollisionWorld.properties`: its gravity, its air and its wind), with
@@ -1091,8 +1094,10 @@ final class _Standing {
 /// rolled off a ledge's edge before the box would leave it, and a jump the
 /// platformer's route was built for fell short.
 final class NativeCharacterMover extends CharacterMover {
+  /// A mover through the world [dynamics] mirrors.
   NativeCharacterMover(this.dynamics);
 
+  /// The dynamics whose core world the characters move in.
   final NativeDynamics dynamics;
 
   @override
@@ -1135,8 +1140,10 @@ final class NativeCharacterMover extends CharacterMover {
 /// met named back as its collider. A body made in the core by hand is met
 /// too, and named as nobody's.
 final class NativeWorldRays extends WorldRays {
+  /// Rays cast in the world [dynamics] mirrors.
   NativeWorldRays(this.dynamics);
 
+  /// The dynamics whose core world the rays are cast in.
   final NativeDynamics dynamics;
 
   @override
@@ -1167,8 +1174,10 @@ final class NativeWorldRays extends WorldRays {
 /// its collider, and a shape that starts inside something meeting nothing,
 /// as the reference's does.
 final class NativeWorldSweeps extends WorldSweeps {
+  /// Sweeps in the world [dynamics] mirrors.
   NativeWorldSweeps(this.dynamics);
 
+  /// The dynamics whose core world the shapes are swept in.
   final NativeDynamics dynamics;
 
   @override
@@ -1214,6 +1223,7 @@ final List<ShapeSampleDirection> customShapeDirections =
 /// One direction of [customShapeDirections]: not of unit length, only its
 /// way counts.
 final class ShapeSampleDirection {
+  /// The direction ([x], [y], [z]), of any non-zero length.
   const ShapeSampleDirection({
     required this.x,
     required this.y,

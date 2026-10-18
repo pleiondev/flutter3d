@@ -13,6 +13,9 @@ import 'native_world.dart';
 /// The points of a cloth and the constraints between them, each held at
 /// the distance it starts at.
 final class ClothMesh {
+  /// A mesh of [points] and their [inverseMasses], held by [edges] at
+  /// their [compliances]. Throws an [ArgumentError] when there is not one
+  /// inverse mass a point or one compliance an edge.
   ClothMesh({
     required this.points,
     required this.inverseMasses,
@@ -83,10 +86,14 @@ final class ClothMesh {
     );
   }
 
+  /// Where each point starts, in metres.
   final List<Vector3> points;
 
-  /// Nought for a point pinned where it is.
+  /// Each point's inverse mass, 1/kg; nought for a point pinned where it is.
   final List<double> inverseMasses;
+
+  /// The pairs of point indices each constraint holds at the distance they
+  /// start at.
   final List<(int, int)> edges;
 
   /// Per edge, m/N; nought holds it rigid.
@@ -103,6 +110,9 @@ final class ClothMesh {
 /// world's gravity or wind mid-run makes them again and the cloth follows
 /// from that step on. The wind moves the cloth only with a [drag].
 final class ClothSettings {
+  /// Settings whose [gravity] and [wind] are [world]'s when not given, or
+  /// [standardGravityVector] and still air with neither; the rest take the
+  /// defaults shown.
   ClothSettings({
     NativeWorld? world,
     Vector3? gravity,
@@ -141,6 +151,7 @@ final class ClothSettings {
     substeps: substeps ?? this.substeps,
   );
 
+  /// Gravity, m/s².
   final Vector3 gravity;
 
   /// The air's velocity, and how fast a point drifts to it, per second.
@@ -162,6 +173,9 @@ final class ClothSettings {
   /// The part of a touching point's slide taken away each substep: a
   /// fraction, 0..1.
   final double friction;
+
+  /// How many substeps a step is cut into, at least one; sixteen unless
+  /// given.
   final int substeps;
 }
 
@@ -179,6 +193,7 @@ typedef CoreClothSettings = ClothSettings;
 /// A class rather than a record, so it can carry more in a minor without
 /// breaking a backend that mixes the system in.
 final class ClothFrame {
+  /// The points of step [step], four floats a point.
   const ClothFrame({required this.step, required this.points});
 
   /// The step, counted from one.
@@ -204,6 +219,7 @@ final class ClothFrame {
 /// A class rather than a record, so it can carry more in a minor without
 /// breaking a backend that mixes the system in.
 final class ClothBall {
+  /// A ball at [center] of [radius], in metres.
   const ClothBall({required this.center, required this.radius});
 
   /// Where it is, in metres.
@@ -232,6 +248,7 @@ final class ClothBall {
 /// member added in a 1.x release arrives with a body and nothing that mixes
 /// it in has to change.
 abstract base mixin class ClothSystem {
+  /// How many points the cloth has.
   int get pointCount;
 
   /// The balls the cloth falls on, replacing the last: at most 16.
@@ -248,6 +265,7 @@ abstract base mixin class ClothSystem {
   /// (absent, not an error). Stepped on a GPU, a frame or two late.
   ClothFrame? read({bool wait = true});
 
+  /// Frees what the cloth holds; it is not to be used after.
   void dispose();
 }
 
@@ -258,6 +276,7 @@ abstract base mixin class ClothSystem {
 /// **Reusable**: a point dragged every frame keeps one and sets it before
 /// the call; the cloth reads it during the call and does not keep it.
 final class ClothPointMove {
+  /// A move of point [index] to [at].
   ClothPointMove({required this.index, required this.at});
 
   /// The point.
@@ -272,6 +291,7 @@ final class ClothPointMove {
 ///
 /// One object, reusable, for the reasons [ClothPointMove] gives.
 final class ClothSystemStep {
+  /// A step of [dt] seconds with [settings].
   ClothSystemStep({required this.settings, required this.dt});
 
   /// How the cloth behaves.
@@ -283,6 +303,8 @@ final class ClothSystemStep {
 
 /// The mesh's arrays in the core's layout, freed by [free].
 final class ClothPacked {
+  /// [mesh]'s points, edges and compliances copied into the core's memory.
+  /// Throws a [StateError] when the core has no memory for them.
   ClothPacked(ClothMesh mesh)
     : points = c.F32s.alloc(mesh.points.length * 4),
       edges = c.U32s.alloc(mesh.edges.isEmpty ? 2 : mesh.edges.length * 2),
@@ -300,10 +322,17 @@ final class ClothPacked {
     }
   }
 
+  /// Four floats a point: position xyz in metres, inverse mass in 1/kg.
   final c.F32s points;
+
+  /// Two indices an edge, its two points; room for one edge when there
+  /// are none.
   final c.U32s edges;
+
+  /// One compliance an edge, m/N; room for one when there are none.
   final c.F32s compliance;
 
+  /// Frees the three arrays; they are not to be read after.
   void free() {
     points.free();
     edges.free();
@@ -311,6 +340,10 @@ final class ClothPacked {
   }
 }
 
+/// Makes the core's cloth of [mesh] and returns its address, which the
+/// caller frees with `f3d_cloth_destroy`. Throws an [ArgumentError] for a
+/// mesh of no points, an edge out of range or from a point to itself, or
+/// when the core has no memory.
 int createCoreCloth(ClothMesh mesh) {
   final packed = ClothPacked(mesh);
   try {
@@ -399,6 +432,8 @@ final class ClothColoring {
   int get colorCount => colorStart.length - 1;
 }
 
+/// [balls] as the core takes them, x y z radius apiece, in a block the
+/// caller frees. Throws an [ArgumentError] for more than 16.
 c.F32s packClothBalls(List<ClothBall> balls) {
   if (balls.length > c.clothMaxBalls) {
     throw ArgumentError.value(balls.length, 'balls', 'more than 16');
@@ -436,6 +471,7 @@ int writeClothSettings(ClothSettings settings) {
 /// Cloth stepped by the core on the CPU: the reference for the GPU's, and
 /// the fallback where there is none.
 final class NativeCloth implements ClothSystem {
+  /// The core's cloth of [mesh]; throws as [createCoreCloth] does.
   NativeCloth(ClothMesh mesh) : _c = createCoreCloth(mesh) {
     _finalizer.attach(this, _c, detach: this);
   }

@@ -19,12 +19,155 @@ Map<String, String> generate(String header) {
   final text = header.replaceAll(RegExp(r'/\*.*?\*/', dotAll: true), '');
   final functions = _functions(text);
   final structs = _structs(text);
+  final docs = _Docs.read(header, functions);
   return <String, String>{
-    'lib/src/core/calls_native.g.dart': _native(functions),
-    'lib/src/core/calls_web.g.dart': _web(functions),
-    'lib/src/core/layout.g.dart': _layout(structs),
+    'lib/src/core/calls_native.g.dart': _native(functions, docs),
+    'lib/src/core/calls_web.g.dart': _web(functions, docs),
+    'lib/src/core/layout.g.dart': _layout(structs, docs),
     'csrc/wasm/f3d_wasm_shim.c': shim(header),
   };
+}
+
+/// The header's comments, as the Dart doc comments of what they describe:
+/// the comment right above a function's declaration, a struct's or one of
+/// its fields'. Every function and every field must have one; the header is
+/// where a call is documented, and the Dart side repeats it.
+final class _Docs {
+  _Docs._(this._functions, this._structs, this._fields, this._names);
+
+  /// Reads the comments of [header] for [functions] and its structs.
+  factory _Docs.read(String header, List<_Function> functions) {
+    final names = {for (final f in functions) f.name};
+    final ofFunction = <String, String>{};
+    final ofStruct = <String, String>{};
+    final ofField = <String, Map<String, String>>{};
+    final missing = <String>[];
+    for (final m in RegExp(
+      r'F3D_API\s+[^;#{]*?\b(f3d_\w+)\s*\(',
+    ).allMatches(header)) {
+      if (_inComment(header, m.start)) continue;
+      final comment = _commentBefore(header, m.start);
+      if (comment == null) {
+        missing.add(m.group(1)!);
+      } else {
+        ofFunction[m.group(1)!] = comment;
+      }
+    }
+    for (final m in RegExp(
+      r'typedef struct (F3d\w+) \{(.*?)\} \1;',
+      dotAll: true,
+    ).allMatches(header)) {
+      if (_inComment(header, m.start)) continue;
+      final name = m.group(1)!;
+      final comment = _commentBefore(header, m.start);
+      if (comment != null) ofStruct[name] = comment;
+      final body = m.group(2)!;
+      final fields = ofField[name] = <String, String>{};
+      for (final f in RegExp(
+        r'(\w+)\s+(\w+)(?:\[\d+\])?\s*;',
+      ).allMatches(body)) {
+        if (_inComment(body, f.start)) continue;
+        final comment = _commentBefore(body, f.start);
+        if (comment == null) {
+          missing.add('$name.${f.group(2)}');
+        } else {
+          fields[f.group(2)!] = comment;
+        }
+      }
+    }
+    if (missing.isNotEmpty) {
+      throw FormatException(
+        'f3d_physics.h has no comment for: ${missing.join(', ')}',
+      );
+    }
+    return _Docs._(ofFunction, ofStruct, ofField, names);
+  }
+
+  final Map<String, String> _functions;
+  final Map<String, String> _structs;
+  final Map<String, Map<String, String>> _fields;
+  final Set<String> _names;
+
+  /// The doc comment of function [f], at the top level.
+  String function(_Function f) =>
+      _doc(_functions[f.name]!, '', {for (final p in f.params) p.name});
+
+  /// The doc comment of struct [name], at the top level.
+  String struct(String name) => switch (_structs[name]) {
+    final String c => _doc(c, '', const {}),
+    null => '/// `$name`.\n',
+  };
+
+  /// The doc comment of field [field] of struct [name], in its class.
+  String field(String name, String field) =>
+      _doc(_fields[name]![field]!, '  ', const {});
+
+  /// Whether [at] in [text] falls inside a C comment.
+  static bool _inComment(String text, int at) {
+    final before = text.substring(0, at);
+    return before.lastIndexOf('/*') > before.lastIndexOf('*/');
+  }
+
+  /// The text of the C comment that ends right before [at] in [text], with
+  /// nothing but white space between; null when there is none, or when it is
+  /// a section rule (`/* ---- vehicles */`).
+  static String? _commentBefore(String text, int at) {
+    final before = text.substring(0, at).trimRight();
+    if (!before.endsWith('*/')) return null;
+    final start = before.lastIndexOf('/*');
+    final inner = before.substring(start + 2, before.length - 2);
+    if (RegExp(r'^\s*-+\s*[\w ]*$').hasMatch(inner)) return null;
+    return inner;
+  }
+
+  /// [comment] as `///` lines at [indent], wrapped at 80 columns: its
+  /// paragraphs kept, `[a_param]` named as the Dart parameter is, a call of
+  /// the core's a link to its function here, and every other name of the
+  /// header's in backticks.
+  String _doc(String comment, String indent, Set<String> params) {
+    final lines = comment
+        .split('\n')
+        .map((l) => l.replaceFirst(RegExp(r'^\s*\*?\s?'), '').trimRight());
+    final paragraphs = <String>[];
+    final current = <String>[];
+    for (final line in [...lines, '']) {
+      if (line.trim().isEmpty) {
+        if (current.isNotEmpty) paragraphs.add(current.join(' '));
+        current.clear();
+      } else {
+        current.add(line.trim());
+      }
+    }
+    final width = 80 - indent.length - 4;
+    final out = StringBuffer();
+    for (final (i, paragraph) in paragraphs.indexed) {
+      if (i > 0) out.write('$indent///\n');
+      final text = paragraph
+          .replaceAllMapped(
+            RegExp(r'\[(\w+)\]'),
+            (m) => params.contains(m.group(1))
+                ? '[${_camel(m.group(1)!)}]'
+                : '`${m.group(1)}`',
+          )
+          .replaceAllMapped(
+            RegExp(r'(?<![\w`\[])([Ff]3[Dd]_?\w*)'),
+            (m) => _names.contains(m.group(1))
+                ? '[${m.group(1)}]'
+                : '`${m.group(1)}`',
+          );
+      var line = '';
+      for (final word in text.split(' ')) {
+        if (line.isNotEmpty && line.length + 1 + word.length > width) {
+          out.write('$indent/// $line\n');
+          line = word;
+        } else {
+          line = line.isEmpty ? word : '$line $word';
+        }
+      }
+      if (line.isNotEmpty) out.write('$indent/// $line\n');
+    }
+    return out.toString();
+  }
 }
 
 /// [text] with Unix line ends: a Windows checkout has the sources and the
@@ -181,7 +324,7 @@ String _camel(String c) {
 const String _banner =
     '// Generated by tool/gen_core.dart from csrc/include/f3d_physics.h: do not edit.\n';
 
-String _native(List<_Function> functions) {
+String _native(List<_Function> functions, _Docs docs) {
   String ffi(_Kind k) => switch (k) {
     _Kind.real => 'Float',
     _Kind.double => 'Double',
@@ -237,12 +380,13 @@ String _native(List<_Function> functions) {
         "\n@Native<$sig>(symbol: '${f.name}'${leaf.isEmpty ? '' : ', $leaf'})\n",
       )
       ..write('external ${raw(f.returns)} _${f.name}($rawParams);\n')
+      ..write(docs.function(f))
       ..write('${dart(f.returns)} ${f.name}($params) => $body;\n');
   }
   return b.toString();
 }
 
-String _web(List<_Function> functions) {
+String _web(List<_Function> functions, _Docs docs) {
   // A 64-bit value crosses into the module as two 32-bit halves through a
   // shim of its own, f3d_wasm_shim.c, written with this; the rest are
   // numbers as they are.
@@ -311,7 +455,9 @@ String _web(List<_Function> functions) {
         body = '$call.toDartInt';
     }
     final returns = f.returns == _Kind.none ? 'void' : _number(f.returns);
-    b.write('$returns ${f.name}($params) => $body;\n');
+    b
+      ..write(docs.function(f))
+      ..write('$returns ${f.name}($params) => $body;\n');
   }
   return b.toString();
 }
@@ -425,7 +571,7 @@ Map<String, List<_Field>> _structs(String text) {
   return out;
 }
 
-String _layout(Map<String, List<_Field>> structs) {
+String _layout(Map<String, List<_Field>> structs, _Docs docs) {
   int size(_Kind k) => switch (k) {
     _Kind.uint64 || _Kind.double => 8,
     _Kind.real ||
@@ -447,17 +593,24 @@ String _layout(Map<String, List<_Field>> structs) {
     var at = 0;
     var align = 4;
     b.write(
-      '\n/// `${entry.key}`.\nabstract final class ${entry.key}Layout {\n',
+      '\n${docs.struct(entry.key)}'
+      'abstract final class ${entry.key}Layout {\n',
     );
     for (final f in entry.value) {
       final s = size(f.kind);
       if (s > align) align = s;
       at = (at + s - 1) ~/ s * s;
-      b.write('  static const int ${_camel(f.name)} = $at;\n');
+      b
+        ..write('  /// Byte offset of `${f.name}` in `${entry.key}`.\n  ///\n')
+        ..write(docs.field(entry.key, f.name))
+        ..write('  static const int ${_camel(f.name)} = $at;\n');
       at += s * f.count;
     }
     at = (at + align - 1) ~/ align * align;
-    b.write('  static const int size = $at;\n}\n');
+    b
+      ..write('\n  /// Size of `${entry.key}` in bytes, padded to its ')
+      ..write('alignment.\n')
+      ..write('  static const int size = $at;\n}\n');
   }
   return b.toString();
 }

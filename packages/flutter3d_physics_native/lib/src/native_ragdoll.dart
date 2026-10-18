@@ -60,8 +60,10 @@ import 'native_world.dart';
 /// and gives its tissue a [JointGroupStiffness] for it. Two groups of one
 /// [name] are one group.
 final class JointGroup {
+  /// A group called [name]; two of one name are equal.
   const JointGroup(this.name);
 
+  /// What the group is called, and what makes two groups one.
   final String name;
 
   /// The thoracolumbar spine, between the pelvis and the chest.
@@ -70,9 +72,16 @@ final class JointGroup {
   /// The cervical spine, between the chest and the head.
   static const JointGroup neck = JointGroup('neck');
 
+  /// The glenohumeral joint, between the chest and the upper arm.
   static const JointGroup shoulder = JointGroup('shoulder');
+
+  /// The elbow, between the upper arm and the forearm.
   static const JointGroup elbow = JointGroup('elbow');
+
+  /// The hip, between the pelvis and the thigh.
   static const JointGroup hip = JointGroup('hip');
+
+  /// The knee, between the thigh and the shin.
   static const JointGroup knee = JointGroup('knee');
 
   @override
@@ -88,8 +97,12 @@ final class JointGroup {
 /// How a bone is held to its parent, and which [group] of joints it is —
 /// null for one a [JointTissue] has no stiffness of its own for.
 abstract final class RagdollJoint {
+  /// A joint of [group], or of none.
   const RagdollJoint({this.group});
 
+  /// The group a [JointTissue] and a [MuscleTone] read this joint's
+  /// stiffness and tone by; null for one of no group, which takes their
+  /// defaults.
   final JointGroup? group;
 }
 
@@ -97,6 +110,7 @@ abstract final class RagdollJoint {
 /// its twist about it within [twistLower]..[twistUpper]. A hip, a shoulder,
 /// the spine, the neck.
 final class RagdollBall extends RagdollJoint {
+  /// A ball of the given [cone] and twist range, all in radians.
   const RagdollBall({
     required this.cone,
     required this.twistLower,
@@ -104,6 +118,8 @@ final class RagdollBall extends RagdollJoint {
     super.group,
   });
 
+  /// The most the bone swings from its direction at rest, and the least and
+  /// most it twists about it, in radians.
   final double cone, twistLower, twistUpper;
 }
 
@@ -127,6 +143,8 @@ final class RagdollBall extends RagdollJoint {
 /// raised in front, a spine bent over. A knee bends the other way, and is a
 /// [RagdollBend].
 final class RagdollSwing extends RagdollJoint {
+  /// A swing of the given range, in radians; [medial] takes [lateral] when
+  /// null, as a bone on the midline does.
   const RagdollSwing({
     required this.flexion,
     required this.extension,
@@ -137,6 +155,8 @@ final class RagdollSwing extends RagdollJoint {
     super.group,
   }) : medial = medial ?? lateral;
 
+  /// The most the bone swings forward, back, out and in, and twists either
+  /// way, in radians, each above nought and below 3.
   final double flexion, extension, lateral, medial, twist;
 
   /// Whether the bone hangs from its joint in the anatomical position, as a
@@ -153,6 +173,8 @@ final class RagdollSwing extends RagdollJoint {
 /// bending and [extension] where it stops straightening; a [RagdollBall]
 /// [flexion] at its cone and [twist] at its twist's.
 final class JointGroupStiffness {
+  /// [group]'s stiffness at each side of its range, N·m/rad; [medial]
+  /// takes [lateral] when null.
   const JointGroupStiffness(
     this.group, {
     required this.flexion,
@@ -170,6 +192,7 @@ final class JointGroupStiffness {
       medial = stiffness,
       twist = stiffness;
 
+  /// The group of joints this stiffness is for.
   final JointGroup group;
 
   /// N·m/rad, each above nought.
@@ -192,6 +215,9 @@ final class JointGroupStiffness {
 /// - [inelastic]: the tissue's inelastic group, whose loss factor η makes
 ///   the damping ratio of that give, η/2.
 final class JointTissue {
+  /// Tissue of the given [damping], [limitStiffness] and [inelastic]
+  /// group; linear past the limit and with no group of its own unless
+  /// [limitGrowth] and [groups] say otherwise.
   const JointTissue({
     required this.damping,
     required this.limitStiffness,
@@ -209,6 +235,8 @@ final class JointTissue {
   /// Per radian.
   final double limitGrowth;
 
+  /// The stiffness at the limit of each group it names; a group it does
+  /// not name takes [limitStiffness].
   final List<JointGroupStiffness> groups;
 
   /// Where [limitRatio] comes from.
@@ -326,6 +354,8 @@ final class JointTissue {
 /// drive's [stiffness], N·m/rad, [damping], N·m·s/rad, and the most torque
 /// they put out, [maxTorque], N·m.
 final class JointGroupTone {
+  /// [group]'s tone: a drive of [stiffness] and [damping], at most
+  /// [maxTorque].
   const JointGroupTone(
     this.group, {
     required this.stiffness,
@@ -333,6 +363,7 @@ final class JointGroupTone {
     required this.maxTorque,
   });
 
+  /// The group of joints this tone is for.
   final JointGroup group;
 
   /// N·m/rad, nought or more.
@@ -357,6 +388,9 @@ final class JointGroupTone {
 /// its tone up gives little. A joint of a group [groups] does not name
 /// takes [stiffness], [damping] and [maxTorque].
 final class MuscleTone {
+  /// Tone of the given strength for a joint of no named group; it keeps
+  /// [floor] of itself, nought unless given, after a fade of time constant
+  /// [fade] seconds, nought (no fade) unless given.
   const MuscleTone({
     required this.stiffness,
     required this.damping,
@@ -375,6 +409,8 @@ final class MuscleTone {
   /// N·m, for a joint of no group [groups] names.
   final double maxTorque;
 
+  /// The tone of each group it names; a group it does not name takes
+  /// [stiffness], [damping] and [maxTorque].
   final List<JointGroupTone> groups;
 
   /// What share of its tone the body keeps once faded, nought or more.
@@ -492,6 +528,7 @@ final class MuscleTone {
 /// straightening, its extension: a knee bends 2.4 rad one way and next to
 /// nothing the other, whichever way its axis points.
 final class RagdollHinge extends RagdollJoint {
+  /// A hinge about [axis] from [lower] to [upper] radians.
   const RagdollHinge({
     required this.axis,
     required this.lower,
@@ -499,7 +536,10 @@ final class RagdollHinge extends RagdollJoint {
     super.group,
   });
 
+  /// The axis it turns about, in the bone's own frame.
   final Vector3 axis;
+
+  /// The least and most it turns from rest, in radians.
   final double lower, upper;
 }
 
@@ -510,6 +550,9 @@ final class RagdollHinge extends RagdollJoint {
 /// pose does not say which way, and it is held as [otherwise]. Either is
 /// of the bend's [group] unless [otherwise] names its own.
 final class RagdollBend extends RagdollJoint {
+  /// A bend of at most [most] radians, 2.4 unless given, read from a rest
+  /// pose bent at least [least] radians, 0.05 unless given, and held as
+  /// [otherwise] where it is not.
   const RagdollBend({
     this.most = 2.4,
     this.least = 0.05,
@@ -517,7 +560,11 @@ final class RagdollBend extends RagdollJoint {
     super.group,
   });
 
+  /// The most it bends from straight, and the least bend in the rest pose
+  /// that says which way it bends, in radians.
   final double most, least;
+
+  /// How the bone is held when its rest pose is straighter than [least].
   final RagdollJoint otherwise;
 }
 
@@ -526,6 +573,7 @@ final class RagdollBend extends RagdollJoint {
 /// and heavy it is, and how it is held. [parent] is an index into the list
 /// the ragdoll is built from, earlier than this one, or -1 for the root.
 final class RagdollBone {
+  /// A bone as given; [joint] null for the root.
   const RagdollBone({
     required this.name,
     required this.parent,
@@ -537,16 +585,29 @@ final class RagdollBone {
     this.joint,
   });
 
+  /// The bone's name in the rig.
   final String name;
+
+  /// The index of its parent in the bone list, earlier than this one; -1
+  /// for the root.
   final int parent;
+
+  /// Where the bone starts, at the joint with its parent, and where its
+  /// capsule ends, in world space.
   final Vector3 head, tail;
+
+  /// The bone's own frame in world space, as the rig has it.
   final Quaternion orientation;
+
+  /// The capsule's radius, in metres, and the bone's mass, in kilograms.
   final double radius, mass;
 
   /// How it is held to its parent; null for the root, which has none.
   final RagdollJoint? joint;
 }
 
+/// A ragdoll in a [NativeWorld]: a capsule body for each [RagdollBone],
+/// joined to its parent as its [RagdollJoint] says.
 final class NativeRagdoll {
   /// Made in [world] from [rest], the bones at rest, then moved to [pose],
   /// one pose a bone, moving as [velocity] and [spin] say when they are
@@ -719,7 +780,10 @@ final class NativeRagdoll {
     return 0.0;
   }
 
+  /// The world the ragdoll's bodies and joints are in.
   final NativeWorld world;
+
+  /// The bones it was built from, in the order its bodies are.
   final List<RagdollBone> bones;
   final NativeDynamics? _dynamics;
   final List<NativeBody> _bodies = <NativeBody>[];

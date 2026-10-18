@@ -204,8 +204,13 @@ typedef struct F3dMaterial {
    * one; and how strongly the flame absorbs, per metre seen through, so
    * its emissivity is 1 − e^(−κL). Read only for a material that burns. */
   f3d_real flame_temperature;
+  /* W / (m² K): what the flame's gas passes to a surface standing in it. */
   f3d_real flame_convection;
+  /* The share of the fire's heat that leaves as radiation rather than in
+   * the gas, nought to one. */
   f3d_real flame_radiant;
+  /* Per metre seen through: how strongly the flame absorbs, its emissivity
+   * 1 − e^(−κL). */
   f3d_real flame_absorption;
   /* J/kg a burning surface spends turning a kilogram of itself to fuel
    * gas, warming it from the room's temperature included, so it burns at
@@ -224,6 +229,7 @@ typedef struct F3dMaterial {
    * pressed together flatten into a contact (Hertz). A modulus of nought
    * takes 0.91 GPa, pine across its grain. */
   f3d_real modulus;
+  /* Poisson's ratio, unitless, for the same Hertz contact as the modulus. */
   f3d_real poisson_ratio;
   /* K: the soot that glows in its flame, which gives the flame's light —
    * hotter than the flame's mean gas, flame_temperature, that heats what
@@ -253,6 +259,8 @@ typedef struct F3dMaterial {
    * through there; under its fire nothing draws heat into a cold solid and
    * no crust of char closes over it. Nought σ for a solid. */
   f3d_real element_surface;
+  /* ρ_p, kg/m³: a fuel bed's elements' own density, read with
+   * element_surface. */
   f3d_real element_density;
   /* kg of soot its fire makes per kg of it burnt, nought to one: what
    * darkens the smoke over it. Read by what draws the smoke, through
@@ -381,6 +389,8 @@ F3D_API F3dWorld *f3d_world_create(void);
 /* Frees the world and everything in it. Null is allowed. */
 F3D_API void f3d_world_destroy(F3dWorld *world);
 
+/* Sets the world's gravity to (x, y, z), m/s², from the next step on;
+ * (0, -9.81, 0) for a new world. */
 F3D_API void f3d_world_set_gravity(F3dWorld *world, f3d_real x, f3d_real y,
                                    f3d_real z);
 
@@ -485,6 +495,9 @@ F3D_API uint32_t f3d_world_compound_part_count(const F3dWorld *world,
  * internal: shared with a neighbour across a flat or hollow fold. */
 F3D_API uint32_t f3d_world_mesh_triangle_count(const F3dWorld *world,
                                                uint32_t mesh);
+
+/* How many of [mesh]'s edges it found internal, each counted once though
+ * two triangles share it; nought for a mesh the world does not hold. */
 F3D_API uint32_t f3d_world_mesh_internal_edges(const F3dWorld *world,
                                                uint32_t mesh);
 
@@ -528,6 +541,9 @@ F3D_API void f3d_world_step(F3dWorld *world, f3d_real dt);
  * 64, or threads that would not start, leaving it as it was; in the
  * WebAssembly build, 0 for more than one. Not in a snapshot. */
 F3D_API int f3d_world_set_threads(F3dWorld *world, uint32_t threads);
+
+/* How many threads the world steps on, the caller's among them: one until
+ * f3d_world_set_threads gives it more. */
 F3D_API uint32_t f3d_world_threads(const F3dWorld *world);
 
 /* The fast mode, off for a new world: the contacts coloured each step so
@@ -537,6 +553,9 @@ F3D_API uint32_t f3d_world_threads(const F3dWorld *world);
  * mode's, so to other bits — but to the same bits on any number of
  * threads. In a snapshot. */
 F3D_API int f3d_world_set_fast(F3dWorld *world, int fast);
+
+/* One while the world steps in the fast mode, nought in the deterministic
+ * one. */
 F3D_API int f3d_world_fast(const F3dWorld *world);
 
 /* Writes every body's transform, F3D_TRANSFORM_FLOATS reals apiece, into
@@ -647,6 +666,9 @@ F3D_API F3dVehicle f3d_vehicle_create(F3dWorld *world, F3dBody chassis,
 /* Takes the vehicle out; its chassis stays. A vehicle whose chassis is
  * taken out goes with it. */
 F3D_API int f3d_vehicle_destroy(F3dWorld *world, F3dVehicle vehicle);
+
+/* One while [vehicle] is in the world and its chassis with it, nought
+ * otherwise. */
 F3D_API int f3d_vehicle_is_valid(const F3dWorld *world, F3dVehicle vehicle);
 
 /* Adds a wheel of F3D_WHEEL_FLOATS reals; returns its index from nought,
@@ -757,7 +779,12 @@ typedef uint32_t F3dShallow;
 F3D_API F3dShallow f3d_shallow_create(F3dWorld *world, uint32_t nx, uint32_t nz,
                                   f3d_real cell, f3d_real ox, f3d_real oy,
                                   f3d_real oz, const f3d_real *ground);
+
+/* Takes the water out; the bodies that floated in it are dry again. 0 for
+ * a water not in the world. */
 F3D_API int f3d_shallow_destroy(F3dWorld *world, F3dShallow water);
+
+/* One while [water] is in the world, nought otherwise. */
 F3D_API int f3d_shallow_is_valid(const F3dWorld *world, F3dShallow water);
 
 /* The ground again, as f3d_shallow_create took it: dug or built up. The
@@ -1036,7 +1063,12 @@ F3D_API uint32_t f3d_world_read_bubbles(const F3dWorld *world,
  * The root is link nought. Nought for a body not in the world, or one that
  * is a link already, or no memory. */
 F3D_API F3dMultibody f3d_multibody_create(F3dWorld *world, F3dBody root);
+
+/* Takes the multibody out; its links' bodies stay in the world, no longer
+ * held to one another. 0 for a multibody not in the world. */
 F3D_API int f3d_multibody_destroy(F3dWorld *world, F3dMultibody multibody);
+
+/* One while [multibody] is in the world, nought otherwise. */
 F3D_API int f3d_multibody_is_valid(const F3dWorld *world,
                                    F3dMultibody multibody);
 
@@ -1098,6 +1130,9 @@ F3D_API int f3d_multibody_set_cone(F3dWorld *world, F3dMultibody multibody,
 /* How many links, and how many degrees of freedom. */
 F3D_API uint32_t f3d_multibody_link_count(const F3dWorld *world,
                                           F3dMultibody multibody);
+
+/* How many degrees of freedom the multibody has, a floating root's six
+ * among them; nought for a multibody not in the world. */
 F3D_API uint32_t f3d_multibody_dof_count(const F3dWorld *world,
                                          F3dMultibody multibody);
 
@@ -1135,7 +1170,12 @@ F3D_API F3dJoint f3d_joint_create_distance(F3dWorld *world, F3dBody a,
 
 /* Takes the joint out, waking its bodies. A body's joints go with it. */
 F3D_API int f3d_joint_destroy(F3dWorld *world, F3dJoint joint);
+
+/* One while [joint] is in the world, nought for one taken out or never
+ * made. */
 F3D_API int f3d_joint_is_valid(const F3dWorld *world, F3dJoint joint);
+
+/* How many joints the world holds now. */
 F3D_API uint32_t f3d_world_joint_count(const F3dWorld *world);
 
 /* Limits on a revolute joint's angle, radians, a prismatic joint's travel,
@@ -1287,6 +1327,9 @@ F3D_API int f3d_joint_set_break(F3dWorld *world, F3dJoint joint,
 F3D_API int f3d_joint_get_torque(const F3dWorld *world, F3dJoint joint,
                                  f3d_real *out);
 
+/* The force the joint pushed B with over the last substep, N, in the
+ * world, into out[0..2]; nought before the world has stepped. 0 for a
+ * joint not in the world. */
 F3D_API int f3d_joint_get_force(const F3dWorld *world, F3dJoint joint,
                                 f3d_real *out);
 
@@ -1402,17 +1445,28 @@ typedef struct F3dParticles F3dParticles;
  * second, and a floor at height [floor_y] they bounce off with
  * [restitution] and lose [friction] of their sliding speed on. */
 typedef struct F3dParticleForces {
+  /* Gravity xyz, m/s². */
   f3d_real gravity[3];
+  /* The wind's velocity xyz, m/s, that particles drift towards. */
   f3d_real wind[3];
+  /* How fast a particle drifts to the wind, per second. */
   f3d_real drag;
+  /* The floor's height, m. */
   f3d_real floor_y;
+  /* The share of its fall a particle bounces back with, nought to one. */
   f3d_real restitution;
+  /* The share of its sliding speed a particle loses on the floor, nought
+   * to one. */
   f3d_real friction;
 } F3dParticleForces;
 
 /* [capacity] slots, all dead; null for none or no memory. */
 F3D_API F3dParticles *f3d_particles_create(uint32_t capacity);
+
+/* Frees the particles. Null is allowed. */
 F3D_API void f3d_particles_destroy(F3dParticles *particles);
+
+/* How many slots the particles have. */
 F3D_API uint32_t f3d_particles_capacity(const F3dParticles *particles);
 
 /* [count] particles into the next slots: each its position xyz, velocity
@@ -1465,23 +1519,32 @@ typedef struct F3dDebris F3dDebris;
 #define F3D_DEBRIS_MAX_STATICS 64u
 
 typedef struct F3dDebrisSettings {
+  /* Gravity xyz, m/s². */
   f3d_real gravity[3];
+  /* The friction coefficient where two touch, or one touches a still
+   * shape. */
   f3d_real friction;
   /* Applied when two close faster than 1 m/s. */
   f3d_real restitution;
   /* Per second, as v / (1 + c dt). */
   f3d_real linear_damping;
+  /* Of the spin, per second, as linear_damping is of the velocity. */
   f3d_real angular_damping;
-  /* No body is let faster than this. */
+  /* No body is let faster than this, m/s. */
   f3d_real max_speed;
   /* At least one each: substeps a step, and impulse passes a substep. */
   uint32_t substeps;
+  /* Impulse passes a substep; nought is taken as one. */
   uint32_t iterations;
 } F3dDebrisSettings;
 
 /* [capacity] empty slots; null for none or no memory. */
 F3D_API F3dDebris *f3d_debris_create(uint32_t capacity);
+
+/* Frees the debris. Null is allowed. */
 F3D_API void f3d_debris_destroy(F3dDebris *debris);
+
+/* How many slots the debris has. */
 F3D_API uint32_t f3d_debris_capacity(const F3dDebris *debris);
 
 /* [count] bodies into the next slots, F3D_DEBRIS_INPUT_FLOATS reals apiece,
@@ -1495,6 +1558,11 @@ F3D_API uint32_t f3d_debris_add(F3dDebris *debris, const f3d_real *data,
 F3D_API int f3d_debris_set_statics(F3dDebris *debris, const f3d_real *data,
                                    uint32_t count);
 
+/* Steps every body [dt] seconds on, in the settings' substeps: gravity and
+ * the speed limit, then the contacts between bodies and with the still
+ * shapes, solved by impulses from the same velocities, then damping, and
+ * each body moved and turned. Nothing for a [dt] not finite and above
+ * nought. */
 F3D_API void f3d_debris_step(F3dDebris *debris,
                              const F3dDebrisSettings *settings, f3d_real dt);
 
@@ -1522,12 +1590,15 @@ typedef struct F3dCloth F3dCloth;
 #define F3D_CLOTH_MAX_BALLS 16u
 
 typedef struct F3dClothSettings {
+  /* Gravity xyz, m/s². */
   f3d_real gravity[3];
   /* The air's velocity, and how fast a point drifts to it, per second. */
   f3d_real wind[3];
+  /* How fast a point drifts to the wind, per second. */
   f3d_real drag;
   /* Per second, as v / (1 + c dt). */
   f3d_real damping;
+  /* The floor's height, m. */
   f3d_real floor_y;
   /* How far from a ball or the floor a point is held. */
   f3d_real thickness;
@@ -1545,11 +1616,17 @@ typedef struct F3dClothSettings {
 F3D_API F3dCloth *f3d_cloth_create(const f3d_real *points, uint32_t point_count,
                                    const uint32_t *edges, const f3d_real *compliance,
                                    uint32_t edge_count);
+
+/* Frees the cloth. Null is allowed. */
 F3D_API void f3d_cloth_destroy(F3dCloth *cloth);
+
+/* How many points the cloth has. */
 F3D_API uint32_t f3d_cloth_point_count(const F3dCloth *cloth);
 
 /* How many colours the constraints took. */
 F3D_API uint32_t f3d_cloth_colour_count(const F3dCloth *cloth);
+
+/* How many constraints hold the cloth: the edge count it was made with. */
 F3D_API uint32_t f3d_cloth_edge_count(const F3dCloth *cloth);
 
 /* The constraints as they are solved, colour by colour: each one's pair of
@@ -1609,10 +1686,13 @@ F3D_API uint32_t f3d_cloth_read(const F3dCloth *cloth, f3d_real *out, uint32_t c
 #define F3D_CLOTH_GROUND 3u
 
 typedef struct F3dClothSolveSettings {
+  /* Gravity xyz, m/s². */
   f3d_real gravity[3];
   /* The air's velocity, and how hard it pushes: N per m² of a triangle per
    * m/s of air through it along its normal. Nought: no wind. */
   f3d_real wind[3];
+  /* How hard the wind pushes: N per m² of a triangle per m/s of air
+   * through it along its normal; nought for no wind. */
   f3d_real wind_drag;
   /* The fraction of a point's velocity taken away each substep. */
   f3d_real damping;
@@ -1628,6 +1708,8 @@ typedef struct F3dClothSolveSettings {
   f3d_real self_friction;
   /* At least one each, or the step does nothing. */
   uint32_t substeps;
+  /* Passes over the constraints, the layers and the obstacles a substep;
+   * at least one, or the step does nothing. */
   uint32_t iterations;
 } F3dClothSolveSettings;
 
@@ -1659,6 +1741,9 @@ F3D_API int f3d_cloth_set_obstacles(F3dCloth *cloth, const f3d_real *records,
 /* Every point's position, velocity and inverse mass, F3D_CLOTH_STATE_FLOATS
  * reals apiece, from [state], or into it. */
 F3D_API void f3d_cloth_write_state(F3dCloth *cloth, const f3d_real *state);
+
+/* Every point's position, velocity and inverse mass, F3D_CLOTH_STATE_FLOATS
+ * reals apiece, into [state], which has room for them all. */
 F3D_API void f3d_cloth_read_state(const F3dCloth *cloth, f3d_real *state);
 
 /* Each substep: damping, gravity and the wind into a predicted position;
@@ -1686,10 +1771,12 @@ typedef struct F3dFluid F3dFluid;
 #define F3D_FLUID_FLOATS 4u
 
 typedef struct F3dFluidSettings {
+  /* Gravity xyz, m/s². */
   f3d_real gravity[3];
   /* The tank's corners: no particle centre comes nearer its walls than
    * half the spacing. */
   f3d_real tank_min[3];
+  /* The tank's highest corner xyz, m, opposite tank_min. */
   f3d_real tank_max[3];
   /* XSPH: how far a particle's velocity goes to its neighbours' a substep. */
   f3d_real viscosity;
@@ -1697,13 +1784,18 @@ typedef struct F3dFluidSettings {
   f3d_real relaxation;
   /* At least one each: substeps a step, density passes a substep. */
   uint32_t substeps;
+  /* Density passes a substep; nought is taken as one. */
   uint32_t iterations;
 } F3dFluidSettings;
 
 /* Room for [capacity] particles [spacing] apart at rest; null for none, a
  * spacing not above nought, or no memory. */
 F3D_API F3dFluid *f3d_fluid_create(uint32_t capacity, f3d_real spacing);
+
+/* Frees the fluid. Null is allowed. */
 F3D_API void f3d_fluid_destroy(F3dFluid *fluid);
+
+/* How many particles the fluid has room for. */
 F3D_API uint32_t f3d_fluid_capacity(const F3dFluid *fluid);
 
 /* The density at rest, in particles of mass one per cubic metre. */
@@ -1713,6 +1805,12 @@ F3D_API f3d_real f3d_fluid_rest_density(const F3dFluid *fluid);
  * slots, round and round once full. Returns the slot the first went in. */
 F3D_API uint32_t f3d_fluid_add(F3dFluid *fluid, const f3d_real *data, uint32_t count);
 
+/* Steps every particle [dt] seconds on, in the settings' substeps: each
+ * moved by its velocity and gravity to a predicted position, held near the
+ * density at rest over the settings' passes, kept inside the tank, its
+ * velocity taken from where it went and blended with its neighbours' by
+ * the viscosity. Nothing for a [dt] not finite and above nought, or no
+ * particles. */
 F3D_API void f3d_fluid_step(F3dFluid *fluid, const F3dFluidSettings *settings, f3d_real dt);
 
 /* Every particle added, F3D_FLUID_FLOATS reals apiece, into [out]: up to
@@ -1759,19 +1857,24 @@ F3D_API uint32_t f3d_fluid_read(const F3dFluid *fluid, f3d_real *out, uint32_t c
 #define F3D_LIQUID_PARTICLE_FLOATS 6u
 
 typedef struct F3dLiquidParticleSettings {
+  /* Gravity xyz, m/s². */
   f3d_real gravity[3];
   /* The spacing at rest; the kernel reaches twice that. */
   f3d_real spacing;
   /* kg / m³, and m² / s. */
   f3d_real density;
+  /* The liquid's kinematic viscosity, m² / s. */
   f3d_real kinematic_viscosity;
   /* Akinci's cohesion coefficient; the density kernel summed over the rest
    * lattice; and Σ|∇C|² over it, for the artificial pressure. */
   f3d_real cohesion;
+  /* The density kernel summed over the rest lattice. */
   f3d_real lattice_sum;
+  /* Σ|∇C|² over the rest lattice, for the artificial pressure. */
   f3d_real rest_stiffness;
   /* Seconds a substep, and how many. */
   f3d_real dt;
+  /* How many substeps a call makes. */
   uint32_t substeps;
   /* Density passes a substep. */
   uint32_t iterations;
@@ -1791,7 +1894,9 @@ F3D_API int f3d_liquid_particles(f3d_real *state, uint32_t count, const f3d_real
 #define F3D_LIQUID_PARCEL_FLOATS 17u
 
 typedef struct F3dLiquidStreamSettings {
+  /* Gravity xyz, m/s². */
   f3d_real gravity[3];
+  /* The step, seconds. */
   f3d_real dt;
   /* σ(1 + cos θ) / ρ of the stream's liquid: a parcel off a wall is held
    * to it while slower than the root of this over its thickness. */
@@ -1809,10 +1914,13 @@ F3D_API int f3d_liquid_parcels(f3d_real *parcels, uint32_t count, const f3d_real
 #define F3D_LIQUID_MODE_FLOATS 6u
 
 typedef struct F3dLiquidWaveSettings {
+  /* The step, seconds. */
   f3d_real dt;
   /* The gravity felt, m/s², and the liquid's mean depth. */
   f3d_real g;
+  /* The liquid's mean depth, m. */
   f3d_real depth;
+  /* The liquid's kinematic viscosity, m² / s. */
   f3d_real kinematic_viscosity;
   /* σ / ρ. */
   f3d_real tension;
@@ -1850,7 +1958,9 @@ F3D_API void f3d_liquid_pipes(f3d_real *pipes, uint32_t count, f3d_real dt);
 #define F3D_LIQUID_OTHER 3u
 
 typedef struct F3dLiquidFloatSettings {
+  /* Gravity xyz, m/s². */
   f3d_real gravity[3];
+  /* The step, seconds. */
   f3d_real dt;
 } F3dLiquidFloatSettings;
 
@@ -1911,12 +2021,22 @@ F3D_API int f3d_body_move_kinematic(F3dWorld *world, F3dBody body, f3d_real x,
                                     f3d_real qy, f3d_real qz, f3d_real qw,
                                     f3d_real dt);
 
+/* Sets the body's velocity to (x, y, z), m/s, and wakes it. 0 for a handle
+ * not valid or a value not finite. */
 F3D_API int f3d_body_set_velocity(F3dWorld *world, F3dBody body, f3d_real x,
                                   f3d_real y, f3d_real z);
+
+/* The body's velocity, m/s, into out[0..2]. 0 for a handle not valid. */
 F3D_API int f3d_body_get_velocity(const F3dWorld *world, F3dBody body,
                                   f3d_real *out);
+
+/* Puts the body at (x, y, z), metres from the world's origin, and wakes
+ * it. 0 for a handle not valid or a value not finite. */
 F3D_API int f3d_body_set_position(F3dWorld *world, F3dBody body, f3d_real x,
                                   f3d_real y, f3d_real z);
+
+/* The body's position, metres from the world's origin, into out[0..2]. 0
+ * for a handle not valid. */
 F3D_API int f3d_body_get_position(const F3dWorld *world, F3dBody body,
                                   f3d_real *out);
 
@@ -1928,6 +2048,9 @@ F3D_API int f3d_body_get_world_position(const F3dWorld *world, F3dBody body,
  * cannot: a point, a fixed body, or one whose rotation is locked. */
 F3D_API int f3d_body_set_angular_velocity(F3dWorld *world, F3dBody body,
                                           f3d_real x, f3d_real y, f3d_real z);
+
+/* The body's spin, radians per second about the world's axes, into
+ * out[0..2]. 0 for a handle not valid. */
 F3D_API int f3d_body_get_angular_velocity(const F3dWorld *world, F3dBody body,
                                           f3d_real *out);
 
@@ -1935,6 +2058,9 @@ F3D_API int f3d_body_get_angular_velocity(const F3dWorld *world, F3dBody body,
  * identity. */
 F3D_API int f3d_body_set_orientation(F3dWorld *world, F3dBody body, f3d_real x,
                                      f3d_real y, f3d_real z, f3d_real w);
+
+/* The body's orientation, a unit quaternion xyzw, into out[0..3]. 0 for a
+ * handle not valid. */
 F3D_API int f3d_body_get_orientation(const F3dWorld *world, F3dBody body,
                                      f3d_real *out);
 
@@ -1998,6 +2124,9 @@ F3D_API int f3d_body_set_drag(F3dWorld *world, F3dBody body,
  * origin, which spins the body as well. */
 F3D_API int f3d_body_apply_impulse(F3dWorld *world, F3dBody body, f3d_real x,
                                    f3d_real y, f3d_real z);
+
+/* An impulse (x, y, z), N s, at (px, py, pz) relative to the world's
+ * origin: it moves the body and spins it about its centre as well. */
 F3D_API int f3d_body_apply_impulse_at(F3dWorld *world, F3dBody body,
                                       f3d_real x, f3d_real y, f3d_real z,
                                       f3d_real px, f3d_real py, f3d_real pz);
@@ -2006,6 +2135,9 @@ F3D_API int f3d_body_apply_impulse_at(F3dWorld *world, F3dBody body,
  * the next step and spent by it; added up when added twice. */
 F3D_API int f3d_body_add_force(F3dWorld *world, F3dBody body, f3d_real x,
                                f3d_real y, f3d_real z);
+
+/* The bus: a torque (x, y, z), N m, about the world's axes, held over the
+ * next step and spent by it; added up when added twice. */
 F3D_API int f3d_body_add_torque(F3dWorld *world, F3dBody body, f3d_real x,
                                 f3d_real y, f3d_real z);
 
@@ -2086,13 +2218,20 @@ typedef struct F3dProgram F3dProgram;
  * this build does not read, or no memory. */
 F3D_API F3dProgram *f3d_program_load(const uint8_t *bytes, uint32_t length);
 
+/* Frees the program. Null is allowed. */
 F3D_API void f3d_program_free(F3dProgram *program);
 
 /* How many inputs it reads, how many numbers input [input] is, and how
  * many numbers its answer is (one to four). */
 F3D_API uint32_t f3d_program_input_count(const F3dProgram *program);
+
+/* How many numbers input [input] is; nought for a null program or an
+ * input it does not read. */
 F3D_API uint32_t f3d_program_input_width(const F3dProgram *program,
                                          uint32_t input);
+
+/* How many numbers the program's answer is, one to four; nought for a
+ * null program. */
 F3D_API uint32_t f3d_program_result_width(const F3dProgram *program);
 
 /* Runs it on [inputs], each input's numbers in its order, in the coherent
@@ -2148,6 +2287,8 @@ F3D_API int f3d_shallow_set_law(F3dWorld *world, F3dShallow water,
  * until the step says so. */
 F3D_API int f3d_body_set_temperature(F3dWorld *world, F3dBody body,
                                      f3d_real kelvin);
+
+/* The body's mean temperature, K, into [out]. 0 for a handle not valid. */
 F3D_API int f3d_body_get_temperature(const F3dWorld *world, F3dBody body,
                                      f3d_real *out);
 
@@ -2171,8 +2312,14 @@ F3D_API int f3d_body_add_heat(F3dWorld *world, F3dBody body, f3d_real joules);
  * set one part; 0 for a part it does not have. */
 F3D_API int f3d_body_get_part_temperature(F3dWorld *world, F3dBody body,
                                           uint32_t part, f3d_real *out);
+
+/* Sets part [part] to [kelvin] all through. 0 for a part the body does not
+ * have, or a temperature not finite and above nought. */
 F3D_API int f3d_body_set_part_temperature(F3dWorld *world, F3dBody body,
                                           uint32_t part, f3d_real kelvin);
+
+/* One into [out] while part [part] burns, nought while it does not. 0 for
+ * a part the body does not have. */
 F3D_API int f3d_body_is_part_burning(F3dWorld *world, F3dBody body,
                                      uint32_t part, int *out);
 
@@ -2200,6 +2347,8 @@ F3D_API int f3d_body_add_heat_at(F3dWorld *world, F3dBody body, f3d_real x,
  * Water holds the body at its boiling point until it has boiled away,
  * which is how it puts a fire out. Its heat is counted, not its weight. */
 F3D_API int f3d_body_add_water(F3dWorld *world, F3dBody body, f3d_real kg);
+
+/* The water on the body, kg, into [out]. 0 for a handle not valid. */
 F3D_API int f3d_body_get_water(const F3dWorld *world, F3dBody body,
                                f3d_real *out);
 

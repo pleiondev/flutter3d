@@ -330,6 +330,9 @@ final class _Bind extends ExpressionVisitor<Expression> {
 /// the better path: the core reads it every step at the body's own
 /// temperature, with nothing to pass.
 final class NativeMaterialTracker {
+  /// A tracker of [body]'s [material] in [world], passing a value again once
+  /// it has moved by more than [threshold] of the one last passed, a
+  /// fraction (a thousandth unless given). Nothing is passed until [update].
   NativeMaterialTracker(
     this.world,
     this.body,
@@ -337,8 +340,14 @@ final class NativeMaterialTracker {
     this.threshold = 1e-3,
   });
 
+  /// The world the body is in, which [update] passes the values to.
   final NativeWorld world;
+
+  /// The body whose material is kept.
   final NativeBody body;
+
+  /// The material whose laws [update] evaluates; a property it gives no
+  /// law for is left as the core has it.
   final PhysicalMaterial material;
 
   /// How far a value moves, as a share of the one last passed, before it

@@ -27,6 +27,10 @@ import 'native_physics.dart';
 /// particle is not written back at all, so it stays at the double the mesh
 /// holds rather than the single-precision copy the core stepped.
 final class NativeClothSimulation extends ClothSimulation {
+  /// The core's copy of [mesh]. Throws an [ArgumentError] for a mesh of no
+  /// particles, a constraint out of range or from a particle to itself,
+  /// more constraints at one particle than the core colours, a triangle
+  /// out of range, or when the core has no memory.
   NativeClothSimulation(this.mesh)
     : _held = (cloth: _make(mesh), state: c.F32s.alloc(_stateLength(mesh))) {
     _finalizer.attach(this, _held, detach: this);
@@ -341,6 +345,7 @@ final class NativeClothRefusal {
     notBitExact,
   ];
 
+  /// The reason's name, as [toString] prints it.
   final String name;
 
   @override
@@ -350,8 +355,10 @@ final class NativeClothRefusal {
 /// [NativeClothSimulation.step] refused: the owner falls back to
 /// `DartCloth`, which steps the same mesh.
 final class NativeClothRefusedException extends CapabilityException {
+  /// A refusal for [reason], told as [message].
   const NativeClothRefusedException(this.reason, this.message);
 
+  /// Why the step was refused.
   final NativeClothRefusal reason;
 
   @override

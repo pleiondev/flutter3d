@@ -10,8 +10,13 @@ import 'dart:typed_data';
 /// Where the browser fetches the core and its worker from; unused natively.
 const String defaultPhysicsCoreUrl =
     'assets/packages/flutter3d_physics_native/web/f3d_physics.wasm';
+
+/// URL of the browser's threads build of the core; unused natively.
 const String defaultPhysicsCoreThreadsUrl =
     'assets/packages/flutter3d_physics_native/web/f3d_physics_threads.wasm';
+
+/// URL of the browser's worker script for the threads build; unused
+/// natively.
 const String defaultPhysicsWorkerUrl =
     'assets/packages/flutter3d_physics_native/web/f3d_worker.js';
 

@@ -9,27 +9,43 @@ import 'dart:ffi';
 
 @Native<Uint32 Function()>(symbol: 'f3d_abi_version', isLeaf: true)
 external int _f3d_abi_version();
+
+/// `F3D_ABI_VERSION`, so a binding can refuse a library it was not written
+/// against.
 int f3d_abi_version() => _f3d_abi_version();
 
 @Native<Uint32 Function()>(symbol: 'f3d_real_bytes', isLeaf: true)
 external int _f3d_real_bytes();
+
+/// sizeof(`f3d_real`): 4, or 8 in a build with `F3D_REAL_DOUBLE`.
 int f3d_real_bytes() => _f3d_real_bytes();
 
 @Native<Pointer<Void> Function(Uint32)>(symbol: 'f3d_buffer_alloc')
 external Pointer<Void> _f3d_buffer_alloc(int bytes);
+
+/// [bytes] of the core's own memory, 16-byte aligned, or null. For a caller
+/// with no allocator of its own to hand the core a buffer from — the
+/// WebAssembly module's JavaScript side, which has no malloc to call.
 int f3d_buffer_alloc(int bytes) => _f3d_buffer_alloc(bytes).address;
 
 @Native<Void Function(Pointer<Void>)>(symbol: 'f3d_buffer_free')
 external void _f3d_buffer_free(Pointer<Void> buffer);
+
+/// Gives back what [f3d_buffer_alloc] handed out. Null is allowed.
 void f3d_buffer_free(int buffer) =>
     _f3d_buffer_free(Pointer.fromAddress(buffer));
 
 @Native<Pointer<Void> Function()>(symbol: 'f3d_world_create')
 external Pointer<Void> _f3d_world_create();
+
+/// A world with gravity (0, -9.81, 0), still air at 293.15 K and 1.204 kg/m³,
+/// its origin at nought; or null when out of memory.
 int f3d_world_create() => _f3d_world_create().address;
 
 @Native<Void Function(Pointer<Void>)>(symbol: 'f3d_world_destroy')
 external void _f3d_world_destroy(Pointer<Void> world);
+
+/// Frees the world and everything in it. Null is allowed.
 void f3d_world_destroy(int world) =>
     _f3d_world_destroy(Pointer.fromAddress(world));
 
@@ -43,6 +59,9 @@ external void _f3d_world_set_gravity(
   double y,
   double z,
 );
+
+/// Sets the world's gravity to (x, y, z), m/s², from the next step on; (0,
+/// -9.81, 0) for a new world.
 void f3d_world_set_gravity(int world, double x, double y, double z) =>
     _f3d_world_set_gravity(Pointer.fromAddress(world), x, y, z);
 
@@ -51,6 +70,8 @@ void f3d_world_set_gravity(int world, double x, double y, double z) =>
   isLeaf: true,
 )
 external void _f3d_world_get_gravity(Pointer<Void> world, Pointer<Void> out);
+
+/// Writes the world's gravity into out[0..2].
 void f3d_world_get_gravity(int world, int out) => _f3d_world_get_gravity(
   Pointer.fromAddress(world),
   Pointer.fromAddress(out),
@@ -65,6 +86,9 @@ external int _f3d_world_set_air(
   double temperature,
   double density,
 );
+
+/// The air's temperature, K, and density, kg/m³. 0 and nothing changed for a
+/// value that is not finite and positive.
 int f3d_world_set_air(int world, double temperature, double density) =>
     _f3d_world_set_air(Pointer.fromAddress(world), temperature, density);
 
@@ -73,6 +97,8 @@ int f3d_world_set_air(int world, double temperature, double density) =>
   isLeaf: true,
 )
 external void _f3d_world_get_air(Pointer<Void> world, Pointer<Void> out);
+
+/// Writes the air's temperature and density into out[0..1].
 void f3d_world_get_air(int world, int out) =>
     _f3d_world_get_air(Pointer.fromAddress(world), Pointer.fromAddress(out));
 
@@ -86,6 +112,8 @@ external void _f3d_world_set_wind(
   double y,
   double z,
 );
+
+/// The wind everywhere, m/s, added to the grid's where there is one.
 void f3d_world_set_wind(int world, double x, double y, double z) =>
     _f3d_world_set_wind(Pointer.fromAddress(world), x, y, z);
 
@@ -113,6 +141,12 @@ external int _f3d_world_set_wind_grid(
   int nz,
   Pointer<Void> velocities,
 );
+
+/// A wind field: [nx] × [ny] × [nz] samples of velocity, three reals each, x
+/// fastest, the first at (ox, oy, oz) relative to the origin and [cell] metres
+/// apart, read trilinearly and held at its edge beyond it. Copied. 0 and the
+/// old field kept when out of memory or for a size or spacing that is not
+/// positive; [velocities] null clears the field.
 int f3d_world_set_wind_grid(
   int world,
   double ox,
@@ -146,6 +180,8 @@ external void _f3d_world_sample_wind(
   double z,
   Pointer<Void> out,
 );
+
+/// The wind at (x, y, z) relative to the origin, into out[0..2].
 void f3d_world_sample_wind(int world, double x, double y, double z, int out) =>
     _f3d_world_sample_wind(
       Pointer.fromAddress(world),
@@ -164,6 +200,10 @@ external int _f3d_world_set_sleep(
   double speed,
   double time,
 );
+
+/// How long, s, a body must stay slower than [speed], m/s and rad/s, to fall
+/// asleep. 0 for a value that is negative or not finite; a [time] of nought
+/// turns sleep off. Defaults: 0.05 and 0.5.
 int f3d_world_set_sleep(int world, double speed, double time) =>
     _f3d_world_set_sleep(Pointer.fromAddress(world), speed, time);
 
@@ -172,6 +212,8 @@ int f3d_world_set_sleep(int world, double speed, double time) =>
   isLeaf: true,
 )
 external void _f3d_world_get_origin(Pointer<Void> world, Pointer<Void> out);
+
+/// Writes the world's origin, in doubles, into out[0..2].
 void f3d_world_get_origin(int world, int out) =>
     _f3d_world_get_origin(Pointer.fromAddress(world), Pointer.fromAddress(out));
 
@@ -185,6 +227,10 @@ external void _f3d_world_shift_origin(
   double dy,
   double dz,
 );
+
+/// Moves the origin by (dx, dy, dz) and every body, and the wind grid, the
+/// other way, so nothing moves in the world. Positions near the new origin get
+/// back the precision their distance from the old one cost.
 void f3d_world_shift_origin(int world, double dx, double dy, double dz) =>
     _f3d_world_shift_origin(Pointer.fromAddress(world), dx, dy, dz);
 
@@ -196,6 +242,14 @@ external int _f3d_world_create_hull(
   Pointer<Void> points,
   int count,
 );
+
+/// A convex hull of [count] points, three reals each, for bodies to be shaped
+/// as: built here, and moved so its centre of mass, taken as solid, is at the
+/// origin — [f3d_world_get_hull_offset] says by how much. Many bodies can share
+/// one; a world keeps its hulls as long as it lives, and they are in its
+/// snapshots. Returns the hull, numbered from one; nought for fewer than four
+/// points not all in one plane, a point not finite, more than 4096 points, or
+/// no memory.
 int f3d_world_create_hull(int world, int points, int count) =>
     _f3d_world_create_hull(
       Pointer.fromAddress(world),
@@ -213,6 +267,16 @@ external int _f3d_world_create_mesh(
   Pointer<Void> indices,
   int triangleCount,
 );
+
+/// A triangle mesh of [vertexCount] vertices, three reals each, and
+/// [triangleCount] triangles, three indices each, wound counter-clockwise seen
+/// from the side bodies touch: level geometry, terrain, walls. One sided — a
+/// body behind a triangle passes through it — and shared vertices make it
+/// whole: two triangles that share an edge by index slide a body across it
+/// without a bump, where two that only meet do not. Returns the mesh, numbered
+/// from one; nought for no triangles, an index past the vertices, a vertex not
+/// finite, more than a million triangles, or no memory. Kept by the world for
+/// as long as it lives, in its snapshots.
 int f3d_world_create_mesh(
   int world,
   int vertices,
@@ -243,6 +307,19 @@ external int _f3d_world_create_compound(
   Pointer<Void> parts,
   int count,
 );
+
+/// A compound of [count] parts, each a sphere, box, capsule, cylinder, cone or
+/// hull: its kind in [kinds], its hull in [hulls] (read only for a hull, and
+/// null allowed when there is none), and `F3D_COMPOUND_PART_FLOATS` reals in
+/// [parts]. The parts are taken as one solid of even density, overlaps counted
+/// twice, and moved together so its centre of mass is at the origin —
+/// [f3d_world_get_compound_offset] says by how much. Its contacts are every
+/// part's against the other shape, joined into the pair's one manifold along
+/// the deepest part's normal, as a mesh's triangles are. Returns the compound,
+/// numbered from one; nought for no parts, more than `F3D_COMPOUND_MOST_PARTS`,
+/// a kind not listed, a size, a place or a turn not finite, a size a shape of
+/// that kind refuses, a hull not in the world, or no memory. Kept by the world
+/// for as long as it lives, in its snapshots.
 int f3d_world_create_compound(
   int world,
   int kinds,
@@ -266,6 +343,8 @@ external int _f3d_world_get_compound_offset(
   int compound,
   Pointer<Void> out,
 );
+
+/// What was subtracted from every part's place in [compound], into out[0..2].
 int f3d_world_get_compound_offset(int world, int compound, int out) =>
     _f3d_world_get_compound_offset(
       Pointer.fromAddress(world),
@@ -278,6 +357,8 @@ int f3d_world_get_compound_offset(int world, int compound, int out) =>
   isLeaf: true,
 )
 external int _f3d_world_compound_part_count(Pointer<Void> world, int compound);
+
+/// How many parts [compound] has.
 int f3d_world_compound_part_count(int world, int compound) =>
     _f3d_world_compound_part_count(Pointer.fromAddress(world), compound);
 
@@ -286,6 +367,9 @@ int f3d_world_compound_part_count(int world, int compound) =>
   isLeaf: true,
 )
 external int _f3d_world_mesh_triangle_count(Pointer<Void> world, int mesh);
+
+/// How many triangles [mesh] has, and how many of their edges it found
+/// internal: shared with a neighbour across a flat or hollow fold.
 int f3d_world_mesh_triangle_count(int world, int mesh) =>
     _f3d_world_mesh_triangle_count(Pointer.fromAddress(world), mesh);
 
@@ -294,6 +378,9 @@ int f3d_world_mesh_triangle_count(int world, int mesh) =>
   isLeaf: true,
 )
 external int _f3d_world_mesh_internal_edges(Pointer<Void> world, int mesh);
+
+/// How many of [mesh]'s edges it found internal, each counted once though two
+/// triangles share it; nought for a mesh the world does not hold.
 int f3d_world_mesh_internal_edges(int world, int mesh) =>
     _f3d_world_mesh_internal_edges(Pointer.fromAddress(world), mesh);
 
@@ -306,6 +393,8 @@ external int _f3d_world_get_hull_offset(
   int hull,
   Pointer<Void> out,
 );
+
+/// What was subtracted from every point of [hull], into out[0..2].
 int f3d_world_get_hull_offset(int world, int hull, int out) =>
     _f3d_world_get_hull_offset(
       Pointer.fromAddress(world),
@@ -318,6 +407,8 @@ int f3d_world_get_hull_offset(int world, int hull, int out) =>
   isLeaf: true,
 )
 external int _f3d_world_hull_vertex_count(Pointer<Void> world, int hull);
+
+/// How many of the points [hull] was made from are its corners.
 int f3d_world_hull_vertex_count(int world, int hull) =>
     _f3d_world_hull_vertex_count(Pointer.fromAddress(world), hull);
 
@@ -326,16 +417,44 @@ int f3d_world_hull_vertex_count(int world, int hull) =>
   isLeaf: true,
 )
 external int _f3d_world_body_count(Pointer<Void> world);
+
+/// How many bodies the world holds.
 int f3d_world_body_count(int world) =>
     _f3d_world_body_count(Pointer.fromAddress(world));
 
 @Native<Void Function(Pointer<Void>, Float)>(symbol: 'f3d_world_step')
 external void _f3d_world_step(Pointer<Void> world, double dt);
+
+/// Advances the world by [dt] seconds. Nothing happens for a dt that is not
+/// finite and positive.
+///
+/// First the contacts where the bodies stand, what began and ended touching,
+/// and the islands that sleep and wake. Then the solver, in substeps of dt /
+/// substeps, each as Box2D v3 takes it: every awake dynamic body's velocity
+/// integrated, the contacts warm-started from what they pushed with last,
+/// solved with a soft bias that pushes overlap out, the bodies moved, and the
+/// contacts solved again with no bias; restitution after the last. Then heat.
+///
+/// Within a substep, a body moves as before: semi-implicit Euler, as
+/// flutter3d_physics steps: the velocity gains gravity, the wind's drag and the
+/// forces added since the last step, all times dt, and the spin the torques;
+/// then the position gains the new velocity times dt and the orientation turns
+/// by the spin, its angular momentum carried through. Every body's heat: what
+/// crossed each contact, what the bus brought, the fire's share, convection to
+/// the moving air and radiation to it, the water on it boiling off at 373.15 K
+/// first. Forces, torques and heat added through the bus are held over every
+/// substep and spent by the step.
 void f3d_world_step(int world, double dt) =>
     _f3d_world_step(Pointer.fromAddress(world), dt);
 
 @Native<Int32 Function(Pointer<Void>, Uint32)>(symbol: 'f3d_world_set_threads')
 external int _f3d_world_set_threads(Pointer<Void> world, int threads);
+
+/// Steps the world on [threads] threads, the caller one of them, from the next
+/// step on: the tree's queries and the narrow phase split among them. The world
+/// steps to the same bits on any number. 0 for none, more than 64, or threads
+/// that would not start, leaving it as it was; in the WebAssembly build, 0 for
+/// more than one. Not in a snapshot.
 int f3d_world_set_threads(int world, int threads) =>
     _f3d_world_set_threads(Pointer.fromAddress(world), threads);
 
@@ -344,6 +463,9 @@ int f3d_world_set_threads(int world, int threads) =>
   isLeaf: true,
 )
 external int _f3d_world_threads(Pointer<Void> world);
+
+/// How many threads the world steps on, the caller's among them: one until
+/// [f3d_world_set_threads] gives it more.
 int f3d_world_threads(int world) =>
     _f3d_world_threads(Pointer.fromAddress(world));
 
@@ -352,11 +474,19 @@ int f3d_world_threads(int world) =>
   isLeaf: true,
 )
 external int _f3d_world_set_fast(Pointer<Void> world, int fast);
+
+/// The fast mode, off for a new world: the contacts coloured each step so that
+/// no two of a colour share a moving body, and solved a colour at a time, each
+/// colour's contacts at once on every thread, the stages of a step met at
+/// barriers. Solved in another order than the deterministic mode's, so to other
+/// bits — but to the same bits on any number of threads. In a snapshot.
 int f3d_world_set_fast(int world, int fast) =>
     _f3d_world_set_fast(Pointer.fromAddress(world), fast);
 
 @Native<Int32 Function(Pointer<Void>)>(symbol: 'f3d_world_fast', isLeaf: true)
 external int _f3d_world_fast(Pointer<Void> world);
+
+/// One while the world steps in the fast mode, nought in the deterministic one.
 int f3d_world_fast(int world) => _f3d_world_fast(Pointer.fromAddress(world));
 
 @Native<Uint32 Function(Pointer<Void>, Pointer<Void>, Pointer<Void>, Uint32)>(
@@ -369,6 +499,11 @@ external int _f3d_world_read_transforms(
   Pointer<Void> handles,
   int capacity,
 );
+
+/// Writes every body's transform, `F3D_TRANSFORM_FLOATS` reals apiece, into
+/// [transforms], and its handle into [handles] when that is not null, in the
+/// world's slot order. At most [capacity] bodies; returns how many were
+/// written.
 int f3d_world_read_transforms(
   int world,
   int transforms,
@@ -391,6 +526,11 @@ external int _f3d_world_read_fires(
   Pointer<Void> handles,
   int capacity,
 );
+
+/// Every fire, `F3D_FIRE_FLOATS` reals apiece, as [f3d_world_read_transforms]
+/// does: a burning body's, or one a burning part of a compound, at that part,
+/// so a compound can name the same body more than once. What a smoke grid takes
+/// its sources from.
 int f3d_world_read_fires(int world, int fires, int handles, int capacity) =>
     _f3d_world_read_fires(
       Pointer.fromAddress(world),
@@ -415,6 +555,12 @@ external int _f3d_world_read_events(
   Pointer<Void> kinds,
   int capacity,
 );
+
+/// Moves up to [capacity] events, oldest first, into [bodies], [others] (the
+/// second body of an event between two, nought for the rest; may be null) and
+/// [kinds], and returns how many. What is not read stays for the next call. A
+/// contact's handles are as they were when it ended, so one ended by a body's
+/// removal names a body no longer there.
 int f3d_world_read_events(
   int world,
   int bodies,
@@ -434,6 +580,10 @@ int f3d_world_read_events(
   isLeaf: true,
 )
 external int _f3d_world_set_substeps(Pointer<Void> world, int substeps);
+
+/// How many substeps a step is solved in, one to sixty-four; default 4. More
+/// holds tall stacks and fast bodies better and costs that many times the
+/// solver. 0 for a count out of range.
 int f3d_world_set_substeps(int world, int substeps) =>
     _f3d_world_set_substeps(Pointer.fromAddress(world), substeps);
 
@@ -442,6 +592,10 @@ int f3d_world_set_substeps(int world, int substeps) =>
   isLeaf: true,
 )
 external int _f3d_world_set_speculative(Pointer<Void> world, int enabled);
+
+/// Soft continuous collision, on by default: a contact reaches as far as its
+/// two bodies can close in a step, so a body stops at a wall it would cross in
+/// one. 0 turns it off.
 int f3d_world_set_speculative(int world, int enabled) =>
     _f3d_world_set_speculative(Pointer.fromAddress(world), enabled);
 
@@ -450,6 +604,10 @@ int f3d_world_set_speculative(int world, int enabled) =>
   isLeaf: true,
 )
 external int _f3d_world_set_contact_margin(Pointer<Void> world, double margin);
+
+/// How near two shapes must come to make a contact, m; a contact inside it but
+/// not touching has a negative depth. 0 for a margin that is negative or not
+/// finite. Default 0.02.
 int f3d_world_set_contact_margin(int world, double margin) =>
     _f3d_world_set_contact_margin(Pointer.fromAddress(world), margin);
 
@@ -477,6 +635,11 @@ external int _f3d_world_query_box(
   Pointer<Void> out,
   int capacity,
 );
+
+/// Every body whose shape's box overlaps the box from (lx, ly, lz) to (hx, hy,
+/// hz), relative to the origin: up to [capacity] of them, those of the lowest
+/// slots, written into [out] in slot order. Returns how many there are, which
+/// may be more than it wrote. Bodies with no shape are never found.
 int f3d_world_query_box(
   int world,
   double lx,
@@ -504,6 +667,8 @@ int f3d_world_query_box(
   isLeaf: true,
 )
 external int _f3d_world_contact_count(Pointer<Void> world);
+
+/// Contact points the last step found, over every pair.
 int f3d_world_contact_count(int world) =>
     _f3d_world_contact_count(Pointer.fromAddress(world));
 
@@ -517,6 +682,10 @@ external int _f3d_world_read_contacts(
   Pointer<Void> pairs,
   int capacity,
 );
+
+/// Writes up to [capacity] contact points, `F3D_CONTACT_FLOATS` reals apiece,
+/// into [contacts], and each one's two bodies into [pairs] two at a time when
+/// that is not null, in order of the pair's slots; returns how many.
 int f3d_world_read_contacts(int world, int contacts, int pairs, int capacity) =>
     _f3d_world_read_contacts(
       Pointer.fromAddress(world),
@@ -530,6 +699,9 @@ int f3d_world_read_contacts(int world, int contacts, int pairs, int capacity) =>
   isLeaf: true,
 )
 external int _f3d_world_contact_report_count(Pointer<Void> world);
+
+/// Reports the last step made, one a manifold that touches now or touched the
+/// step before: what a game's contact events are made of.
 int f3d_world_contact_report_count(int world) =>
     _f3d_world_contact_report_count(Pointer.fromAddress(world));
 
@@ -549,6 +721,14 @@ external int _f3d_world_read_contact_reports(
   Pointer<Void> parts,
   int capacity,
 );
+
+/// Writes up to [capacity] reports, `F3D_REPORT_FLOATS` reals apiece, into
+/// [reals]; each one's two bodies into [pairs] two at a time; and its
+/// manifold's part (nought, or one for a second face) and its `F3dContactPhase`
+/// into [parts] two at a time. In order of the pair's slots, then the part. An
+/// ended report has where it last touched, no impulse and no velocity; its
+/// handles are as they were then. A world restored has none until it steps.
+/// Returns how many were written.
 int f3d_world_read_contact_reports(
   int world,
   int reals,
@@ -568,6 +748,8 @@ int f3d_world_read_contact_reports(
   isLeaf: true,
 )
 external int _f3d_world_events_dropped(Pointer<Void> world);
+
+/// Events dropped because `F3D_EVENT_CAPACITY` were waiting unread.
 int f3d_world_events_dropped(int world) =>
     _f3d_world_events_dropped(Pointer.fromAddress(world));
 
@@ -593,6 +775,25 @@ external int _f3d_vehicle_create(
   double fy,
   double fz,
 );
+
+/// A vehicle on [chassis]: wheels that hang from it on springs, each a ray cast
+/// down from where its suspension is fixed, its tyre gripping the road where
+/// the ray lands. (ux, uy, uz) is the chassis's up and (fx, fy, fz) its
+/// forward, both in its own frame: a wheel's suspension runs along the down, it
+/// steers about the up and rolls along the forward. Each step, after the
+/// contacts and before the solver, every wheel that touches pushes the chassis
+/// up by its spring and damper, along the road by its drive, its brake and its
+/// rolling resistance, and across it to hold it from sliding sideways, as much
+/// as the grip times the spring's force allows together; what it stands on is
+/// pushed back, when that moves. The springs and dampers are solved together
+/// and implicitly, so the chassis on them is a damped oscillator of its own
+/// mass at any step, however light it is or stiff they are. Rolling resistance
+/// holds as a brake of the coefficient times the load does: a car left on a
+/// slope gentler than the coefficient stays, on a steeper one rolls, and
+/// coasting slows at the coefficient times g. A chassis asleep stays so until
+/// it is given a wheel's input. Nought for a chassis not in the world or not
+/// dynamic, axes not finite, nought long or not square to each other, or no
+/// memory. In a snapshot.
 int f3d_vehicle_create(
   int world,
   int chassis,
@@ -618,6 +819,9 @@ int f3d_vehicle_create(
   isLeaf: true,
 )
 external int _f3d_vehicle_destroy(Pointer<Void> world, int vehicle);
+
+/// Takes the vehicle out; its chassis stays. A vehicle whose chassis is taken
+/// out goes with it.
 int f3d_vehicle_destroy(int world, int vehicle) =>
     _f3d_vehicle_destroy(Pointer.fromAddress(world), vehicle);
 
@@ -626,6 +830,9 @@ int f3d_vehicle_destroy(int world, int vehicle) =>
   isLeaf: true,
 )
 external int _f3d_vehicle_is_valid(Pointer<Void> world, int vehicle);
+
+/// One while [vehicle] is in the world and its chassis with it, nought
+/// otherwise.
 int f3d_vehicle_is_valid(int world, int vehicle) =>
     _f3d_vehicle_is_valid(Pointer.fromAddress(world), vehicle);
 
@@ -638,6 +845,13 @@ external int _f3d_vehicle_add_wheel(
   int vehicle,
   Pointer<Void> wheel,
 );
+
+/// Adds a wheel of `F3D_WHEEL_FLOATS` reals; returns its index from nought, or
+/// -1 for a vehicle not in the world, one with `F3D_VEHICLE_MOST_WHEELS`
+/// already, or a value not finite, a length negative, or a radius, a stiffness
+/// or a grip not positive, or a damping negative. Its tyre is
+/// `F3D_WHEEL_WIDTH_SHARE` of its radius wide, its rolling resistance
+/// `F3D_WHEEL_ROLLING_DEFAULT`.
 int f3d_vehicle_add_wheel(int world, int vehicle, int wheel) =>
     _f3d_vehicle_add_wheel(
       Pointer.fromAddress(world),
@@ -655,6 +869,11 @@ external int _f3d_vehicle_add_wheel_with(
   Pointer<Void> wheel,
   int count,
 );
+
+/// [f3d_vehicle_add_wheel] with [count] reals, from `F3D_WHEEL_FLOATS` to
+/// `F3D_WHEEL_FLOATS_ALL`: those past [count] take their defaults. -1 as
+/// [f3d_vehicle_add_wheel], and for a count out of that range, a width negative
+/// or a rolling resistance negative.
 int f3d_vehicle_add_wheel_with(int world, int vehicle, int wheel, int count) =>
     _f3d_vehicle_add_wheel_with(
       Pointer.fromAddress(world),
@@ -675,6 +894,11 @@ external int _f3d_vehicle_set_wheel(
   double drive,
   double brake,
 );
+
+/// What the driver asks of wheel [wheel]: its steering angle, radians about the
+/// up, positive to the left of forward; the force its drive pushes along the
+/// road with, N, negative backwards; and the force its brake holds with, N, not
+/// negative. Held until set again. Wakes the chassis.
 int f3d_vehicle_set_wheel(
   int world,
   int vehicle,
@@ -696,6 +920,8 @@ int f3d_vehicle_set_wheel(
   isLeaf: true,
 )
 external int _f3d_vehicle_wheel_count(Pointer<Void> world, int vehicle);
+
+/// How many wheels the vehicle has.
 int f3d_vehicle_wheel_count(int world, int vehicle) =>
     _f3d_vehicle_wheel_count(Pointer.fromAddress(world), vehicle);
 
@@ -709,6 +935,9 @@ external int _f3d_vehicle_read_wheels(
   Pointer<Void> out,
   int capacity,
 );
+
+/// Writes up to [capacity] wheels, `F3D_WHEEL_STATE_FLOATS` reals apiece, as
+/// the last step left them, into [out]; returns how many.
 int f3d_vehicle_read_wheels(int world, int vehicle, int out, int capacity) =>
     _f3d_vehicle_read_wheels(
       Pointer.fromAddress(world),
@@ -739,6 +968,23 @@ external int _f3d_shallow_create(
   double oz,
   Pointer<Void> ground,
 );
+
+/// Water over [nx] × [nz] cells [cell] metres square, the first cell's corner
+/// at (ox, oy, oz) and x then z across; [ground] is the height of the ground at
+/// each cell's centre above oy, nx × nz of them, x fastest. It starts dry.
+///
+/// It is shallow water: in each column the water moves as one, as a stream, a
+/// pond or a flood does, its depth carried by what flows across the column's
+/// faces — so not a drop is made or lost but by springs, open edges and what is
+/// taken off — and its flow pushed by the slope of its surface and held back by
+/// the ground's roughness. Where it runs off a drop steeper than it is wide it
+/// leaves the grid as spray, falls, and lands in the water or on the ground
+/// below, a waterfall. A dynamic body in it stands in the columns it fills, so
+/// the surface rises round it and waves run from a stone dropped in; it is held
+/// up by what it displaces, dragged by the flow as its Reynolds number says,
+/// made heavier to speed up by the water it must move with it, and pushes back
+/// on the flow as hard as the flow drags it, so a boat leaves a wake. Nought
+/// for sizes or a cell out of range, a ground not finite, or no memory.
 int f3d_shallow_create(
   int world,
   int nx,
@@ -764,6 +1010,9 @@ int f3d_shallow_create(
   isLeaf: true,
 )
 external int _f3d_shallow_destroy(Pointer<Void> world, int water);
+
+/// Takes the water out; the bodies that floated in it are dry again. 0 for a
+/// water not in the world.
 int f3d_shallow_destroy(int world, int water) =>
     _f3d_shallow_destroy(Pointer.fromAddress(world), water);
 
@@ -772,6 +1021,8 @@ int f3d_shallow_destroy(int world, int water) =>
   isLeaf: true,
 )
 external int _f3d_shallow_is_valid(Pointer<Void> world, int water);
+
+/// One while [water] is in the world, nought otherwise.
 int f3d_shallow_is_valid(int world, int water) =>
     _f3d_shallow_is_valid(Pointer.fromAddress(world), water);
 
@@ -784,6 +1035,10 @@ external int _f3d_shallow_set_ground(
   int water,
   Pointer<Void> ground,
 );
+
+/// The ground again, as [f3d_shallow_create] took it: dug or built up. The
+/// water over each cell stays as deep, so its surface moves with the ground and
+/// runs off where it now stands higher than its neighbours'.
 int f3d_shallow_set_ground(int world, int water, int ground) =>
     _f3d_shallow_set_ground(
       Pointer.fromAddress(world),
@@ -803,6 +1058,9 @@ external int _f3d_shallow_fill(
   double z1,
   double level,
 );
+
+/// Every cell within the box from (x0, z0) to (x1, z1) filled to [level] above
+/// oy, or drained to it where it stands above: a pond put in place.
 int f3d_shallow_fill(
   int world,
   int water,
@@ -825,6 +1083,12 @@ external int _f3d_shallow_fill_basin(
   double z,
   double level,
 );
+
+/// The basin the cell (x, z) is in filled to [level] above oy: that cell and
+/// every one reached from it, side by side, over ground below [level] and
+/// through no wall — a lagoon filled to its rim, not the sea beyond the ridge.
+/// How many cells it filled; nought for (x, z) off the grid, on ground above
+/// [level], a wall, or a value not finite.
 int f3d_shallow_fill_basin(
   int world,
   int water,
@@ -842,6 +1106,10 @@ external int _f3d_shallow_set_depth(
   int water,
   Pointer<Void> depth,
 );
+
+/// Each cell's depth, nx × nz, x fastest, m, nought or more: the water as a
+/// game saved it, or made it. A wall keeps what it holds. 0 for a depth not
+/// finite or below nought.
 int f3d_shallow_set_depth(int world, int water, int depth) =>
     _f3d_shallow_set_depth(
       Pointer.fromAddress(world),
@@ -861,6 +1129,9 @@ external int _f3d_shallow_pour(
   double radius,
   double volume,
 );
+
+/// [volume] m³ poured in at (x, z) over a disc of [radius], or taken out where
+/// it is negative, as far as there is water to take.
 int f3d_shallow_pour(
   int world,
   int water,
@@ -882,6 +1153,12 @@ external int _f3d_shallow_set_source(
   double radius,
   double rate,
 );
+
+/// Spring [index]: [rate] m³/s welling up at (x, z) over a disc of [radius],
+/// every step, or drawn off where the rate is negative, as far as there is
+/// water to draw; a rate of nought stops it. A spring and a drain of one rate
+/// make a current between them through water that keeps its level. 0 for an
+/// index past `F3D_SHALLOW_MOST_SOURCES` or a value not finite.
 int f3d_shallow_set_source(
   int world,
   int water,
@@ -910,6 +1187,10 @@ external int _f3d_shallow_set_bed(
   double roughness,
   int openEdges,
 );
+
+/// Manning's roughness of the ground, s/m^(1/3): about 0.03 for a stream's bed,
+/// 0.012 for smooth concrete; and whether water reaching the grid's edge runs
+/// off it, else the edge is a wall.
 int f3d_shallow_set_bed(
   int world,
   int water,
@@ -933,6 +1214,15 @@ external int _f3d_shallow_set_edge(
   int kind,
   double value,
 );
+
+/// Edge [side] of the grid — 0 at x = 0, 1 at the far x, 2 at z = 0, 3 at the
+/// far z — made an `F3D_EDGE_` [kind] with [value]: a discharge in m³/s for
+/// `F3D_EDGE_FLOW`, shared over the edge's wet cells by their conveyance
+/// h^(5/3) (Manning's, at one slope and roughness), or over all of them while
+/// it is dry; a height above oy for `F3D_EDGE_LEVEL`; unread for the others.
+/// [f3d_shallow_set_bed] sets all four to wall or open. What crosses an edge
+/// counts in [f3d_shallow_volume]'s `lost`, out less in. 0 for a side past 3, a
+/// kind past `F3D_EDGE_LEVEL` or a value not finite.
 int f3d_shallow_set_edge(
   int world,
   int water,
@@ -964,6 +1254,15 @@ external int _f3d_shallow_set_outlet(
   double width,
   double coefficient,
 );
+
+/// Outlet [index]: a sharp-crested weir [width] m long, its crest [crest] above
+/// oy, at the cell (x, z) is in. Where the surface there stands a head H over
+/// the crest it takes Q = ⅔·C_d·√(2g)·width·H^1.5 out of the water (Poleni's
+/// weir law), C_d Rehbock's 0.611 + 0.075·H/P with P the crest's height over
+/// the cell's ground, or [coefficient] where it is above nought; never more
+/// than would bring the surface below the crest. What it takes counts in
+/// `lost`. A width of nought stops it. 0 for an index past
+/// `F3D_SHALLOW_MOST_OUTLETS` or a value not finite, or a width below nought.
 int f3d_shallow_set_outlet(
   int world,
   int water,
@@ -1006,6 +1305,13 @@ external int _f3d_shallow_set_drain(
   double area,
   double coefficient,
 );
+
+/// Outlet [index] made a drain instead: an opening of [area] m², its invert
+/// [invert] above oy, at the cell (x, z) is in — a culvert's mouth, a grate, a
+/// sluice. Where the surface stands a head H over the invert it takes Q =
+/// C_d·A·√(2gH) (Torricelli), C_d a sharp-edged orifice's 0.61 or [coefficient]
+/// where it is above nought; never more than would bring the surface below the
+/// invert. 0 as [f3d_shallow_set_outlet].
 int f3d_shallow_set_drain(
   int world,
   int water,
@@ -1036,6 +1342,12 @@ external int _f3d_shallow_set_cells(
   Pointer<Void> roughness,
   Pointer<Void> walls,
 );
+
+/// Each cell's own Manning roughness, nx × nz, x fastest, negative for the
+/// water's own ([f3d_shallow_set_bed]); and which cells are walls, nonzero for
+/// a wall: no water crosses into or out of a wall, nothing lands in it, and
+/// what it held when it was made one stays in it. Either may be null to leave
+/// it as it is. 0 for a roughness not finite.
 int f3d_shallow_set_cells(int world, int water, int roughness, int walls) =>
     _f3d_shallow_set_cells(
       Pointer.fromAddress(world),
@@ -1053,6 +1365,8 @@ external int _f3d_shallow_info(
   int water,
   Pointer<Void> out,
 );
+
+/// `F3D_SHALLOW_INFO_FLOATS` reals about the last step into [out].
 int f3d_shallow_info(int world, int water, int out) => _f3d_shallow_info(
   Pointer.fromAddress(world),
   water,
@@ -1068,6 +1382,13 @@ external int _f3d_world_set_water_rest(
   double energy,
   double seconds,
 );
+
+/// When the world's waters rest — stop being stepped until something stirs
+/// them: once no cell has held more than [energy] J/m² of motion and of surface
+/// standing off its neighbours', ½ρh|u|² + ½ρg(η − η̄)², for [seconds], with
+/// nothing feeding, draining or moving in it. A [seconds] of nought keeps them
+/// always stepped. Defaults 5e-4 J/m² — a metre of water moving a millimetre a
+/// second — and one second. 0 for a value negative or not finite.
 int f3d_world_set_water_rest(int world, double energy, double seconds) =>
     _f3d_world_set_water_rest(Pointer.fromAddress(world), energy, seconds);
 
@@ -1082,6 +1403,15 @@ external int _f3d_shallow_set_fluid(
   double viscosity,
   double tension,
 );
+
+/// What the water is: its density, kg/m³, its viscosity, Pa·s, and its surface
+/// tension, N/m — 998.2, 1.002e-3 and 0.0728 for water at 20 °C, as it starts
+/// (flutter3d_physics' catalogue, `f3d`.water). The density is what a body in
+/// it is held up by and pushes against; the viscosity is what its drag answers
+/// to at a body's Reynolds number, what mixes its flow, and the ground's
+/// laminar hold on it where it runs thin and slow, so honey or lava creeps down
+/// a slope as a film; with the tension, it is what its spray and sheets break
+/// up by. 0 for a value not finite and above nought.
 int f3d_shallow_set_fluid(
   int world,
   int water,
@@ -1105,6 +1435,10 @@ external int _f3d_shallow_get_fluid(
   int water,
   Pointer<Void> out,
 );
+
+/// What the water is now, into [out]: its density, kg/m³, viscosity, Pa·s, and
+/// surface tension, N/m — as [f3d_shallow_set_fluid] set them, with what its
+/// laws ([f3d_shallow_set_law]) last wrote over them.
 int f3d_shallow_get_fluid(int world, int water, int out) =>
     _f3d_shallow_get_fluid(
       Pointer.fromAddress(world),
@@ -1124,6 +1458,20 @@ external int _f3d_shallow_set_heat(
   double expansion,
   int boils,
 );
+
+/// What heat sees of the water: its [temperature], K; its [specificHeat], J/(kg
+/// K), [conductivity], W/(m K), and volumetric [expansion], 1/K — water's at 20
+/// °C as it starts, 4182, 0.598 and 2.07e-4, at the air's temperature; and
+/// [boils] nonzero for a liquid that boils as water does at one atmosphere. The
+/// share of a body under its surface gives it heat by forced and free
+/// convection with these and the water's density and viscosity; a body hotter
+/// than 373.15 K in water that boils, by boiling — nucleate (Rohsenow) up to
+/// the critical flux (Zuber), film (Bromley) past Leidenfrost's point and the
+/// two joined between — or by convection, whichever carries more. A body's
+/// surface under water does not burn: its fire is held to what stands above,
+/// and goes out under. The water is a reservoir: what it takes neither warms it
+/// nor boils it away. 0 for a value not finite, a temperature, specific heat or
+/// conductivity not above nought, or an expansion below nought.
 int f3d_shallow_set_heat(
   int world,
   int water,
@@ -1153,6 +1501,9 @@ external int _f3d_shallow_sample(
   double z,
   Pointer<Void> out,
 );
+
+/// The surface at (x, z): its height above oy, the depth there, and the flow's
+/// velocity x and z, into out[0..3]; 0 outside the grid.
 int f3d_shallow_sample(int world, int water, double x, double z, int out) =>
     _f3d_shallow_sample(
       Pointer.fromAddress(world),
@@ -1172,6 +1523,9 @@ external int _f3d_shallow_read(
   Pointer<Void> surface,
   Pointer<Void> depth,
 );
+
+/// Every cell's surface height above oy, and its depth, nx × nz of each, x
+/// fastest; either may be null. Where it is dry the surface is the ground.
 int f3d_shallow_read(int world, int water, int surface, int depth) =>
     _f3d_shallow_read(
       Pointer.fromAddress(world),
@@ -1189,6 +1543,8 @@ external int _f3d_shallow_read_flow(
   int water,
   Pointer<Void> velocity,
 );
+
+/// Every cell's flow, its velocity x and z, two reals a cell.
 int f3d_shallow_read_flow(int world, int water, int velocity) =>
     _f3d_shallow_read_flow(
       Pointer.fromAddress(world),
@@ -1201,6 +1557,10 @@ int f3d_shallow_read_flow(int world, int water, int velocity) =>
   isLeaf: true,
 )
 external int _f3d_shallow_set_external(Pointer<Void> world, int water, int on);
+
+/// [on] nonzero: [water]'s columns are stepped elsewhere from the next step,
+/// the core keeping what is round them; nought: the core steps them again. 0
+/// for a water that is not, or no memory.
 int f3d_shallow_set_external(int world, int water, int on) =>
     _f3d_shallow_set_external(Pointer.fromAddress(world), water, on);
 
@@ -1220,6 +1580,13 @@ external int _f3d_shallow_take_external(
   Pointer<Void> filled,
   Pointer<Void> params,
 );
+
+/// What the core did to [water] since the last take, handed over and cleared:
+/// the change to each depth, x velocity and z velocity, into [changes] (nx·nz +
+/// (nx + 1)·nz + nx·(nz + 1) reals) when not null; what bodies fill of each
+/// column, m³, into [filled] (nx·nz) when not null; the step to run there into
+/// [params] (`F3D_SHALLOW_EXTERNAL_PARAMS`) when not null. Answers the
+/// `F3D_EXTERNAL_` bits, nought for a water not stepped elsewhere.
 int f3d_shallow_take_external(
   int world,
   int water,
@@ -1243,6 +1610,10 @@ external int _f3d_shallow_read_state(
   int water,
   Pointer<Void> out,
 );
+
+/// Every real of [water] as the core keeps them: ground, depth, x velocities, z
+/// velocities, what bodies fill, roughness and walls, in the order
+/// [f3d_shallow_create] documents its block.
 int f3d_shallow_read_state(int world, int water, int out) =>
     _f3d_shallow_read_state(
       Pointer.fromAddress(world),
@@ -1259,6 +1630,9 @@ external int _f3d_shallow_put_state(
   int water,
   Pointer<Void> state,
 );
+
+/// The depths, x velocities and z velocities stepped elsewhere, as the core is
+/// to mirror them: nx·nz + (nx + 1)·nz + nx·(nz + 1) reals.
 int f3d_shallow_put_state(int world, int water, int state) =>
     _f3d_shallow_put_state(
       Pointer.fromAddress(world),
@@ -1276,6 +1650,11 @@ external int _f3d_shallow_throw_lips(
   Pointer<Void> lips,
   double dt,
 );
+
+/// The water that went over [water]'s lips while stepped elsewhere for [dt]
+/// seconds, `F3D_LIP_FLOATS` reals a face, thrown as sheets of spray as the
+/// core throws its own; where there is no room for a piece, its water goes back
+/// on the lip and into the changes.
 int f3d_shallow_throw_lips(int world, int water, int lips, double dt) =>
     _f3d_shallow_throw_lips(
       Pointer.fromAddress(world),
@@ -1294,6 +1673,9 @@ external int _f3d_shallow_volume(
   Pointer<Void> held,
   Pointer<Void> lost,
 );
+
+/// The water it holds, m³, in its cells and in the air as spray; and what has
+/// run off its open edges since it was made.
 int f3d_shallow_volume(int world, int water, int held, int lost) =>
     _f3d_shallow_volume(
       Pointer.fromAddress(world),
@@ -1312,6 +1694,20 @@ external int _f3d_world_read_spray(
   Pointer<Void> waters,
   int capacity,
 );
+
+/// The world's falling water, `F3D_SPRAY_FLOATS` reals a piece, up to
+/// [capacity] of them; the water each came off into [waters] when not null.
+/// Returns how many.
+///
+/// Off a cliff each face of the lip throws one piece of sheet a step: the water
+/// that crossed it in the step, at the speed it crossed with, falling freely.
+/// Its thickness is not imposed but follows from continuity. The sheet breaks
+/// into drops of 1.89 times its thickness where the ripples on it, growing at
+/// Weber's rate 1 / (√(ρe³/σ) + 3μe/σ), have grown twelve e-foldings (Grant and
+/// Middleman). Where a piece lands hard enough it splashes part of itself back
+/// up (Mundo's K = Oh·Re^1.25 past 57.7), and a sheet plunging into water drags
+/// air down with it as bubbles, Bin's Q_air / Q = 0.04·Fr^0.28·(H/e)^0.4 of
+/// what it brings, Fr = v₀²/(g·e₀).
 int f3d_world_read_spray(int world, int spray, int waters, int capacity) =>
     _f3d_world_read_spray(
       Pointer.fromAddress(world),
@@ -1330,6 +1726,11 @@ external int _f3d_world_read_bubbles(
   Pointer<Void> waters,
   int capacity,
 );
+
+/// The world's bubbles in water, `F3D_BUBBLE_FLOATS` reals a cloud, up to
+/// [capacity]; the water each is in into [waters] when not null. A cloud rises
+/// at its bubbles' terminal speed, is carried by the flow, and is gone when it
+/// reaches the surface. Returns how many.
 int f3d_world_read_bubbles(int world, int bubbles, int waters, int capacity) =>
     _f3d_world_read_bubbles(
       Pointer.fromAddress(world),
@@ -1340,6 +1741,24 @@ int f3d_world_read_bubbles(int world, int bubbles, int waters, int capacity) =>
 
 @Native<Uint32 Function(Pointer<Void>, Uint64)>(symbol: 'f3d_multibody_create')
 external int _f3d_multibody_create(Pointer<Void> world, int root);
+
+/// A multibody rooted at [root]: a tree of bodies held to each other by joints
+/// in reduced coordinates — each link's place is its parent's and its joint's
+/// angle or travel, and nothing else — so however long the chain and however
+/// heavy its end, no joint comes apart. A fixed root is a fixed base: a crane,
+/// a robot arm, a chain from a ceiling; a dynamic root floats, with six degrees
+/// of freedom of its own: a ragdoll, a vehicle with a trailer.
+///
+/// The links stay ordinary bodies: they collide, sleep together, and are in
+/// snapshots. Each step the solver moves them as it moves every body, contacts
+/// and all; then the multibody reads its joints' coordinates off where they
+/// stand, puts every link back where those coordinates say, and replaces their
+/// velocities with the nearest the joints allow — weighted by every link's mass
+/// and inertia — before its motors and limits act on the joints' speeds. A link
+/// does not collide with its parent.
+///
+/// The root is link nought. Nought for a body not in the world, or one that is
+/// a link already, or no memory.
 int f3d_multibody_create(int world, int root) =>
     _f3d_multibody_create(Pointer.fromAddress(world), root);
 
@@ -1348,6 +1767,9 @@ int f3d_multibody_create(int world, int root) =>
   isLeaf: true,
 )
 external int _f3d_multibody_destroy(Pointer<Void> world, int multibody);
+
+/// Takes the multibody out; its links' bodies stay in the world, no longer held
+/// to one another. 0 for a multibody not in the world.
 int f3d_multibody_destroy(int world, int multibody) =>
     _f3d_multibody_destroy(Pointer.fromAddress(world), multibody);
 
@@ -1356,6 +1778,8 @@ int f3d_multibody_destroy(int world, int multibody) =>
   isLeaf: true,
 )
 external int _f3d_multibody_is_valid(Pointer<Void> world, int multibody);
+
+/// One while [multibody] is in the world, nought otherwise.
 int f3d_multibody_is_valid(int world, int multibody) =>
     _f3d_multibody_is_valid(Pointer.fromAddress(world), multibody);
 
@@ -1387,6 +1811,16 @@ external int _f3d_multibody_add_link(
   double uy,
   double uz,
 );
+
+/// Adds [body] as a link under link [parent], held by a joint of [type] —
+/// fixed, revolute, prismatic or spherical — at the anchor (ax, ay, az) and
+/// along the axis (ux, uy, uz), both relative to the origin and taken where the
+/// bodies stand now, which is the joint's nought. Returns the link's index, or
+/// -1 for a multibody or a parent not there, a body not dynamic or a link
+/// already, a type it does not take, a value not finite, an axis of nought for
+/// a revolute or prismatic joint, or a multibody with
+/// `F3D_MULTIBODY_MOST_LINKS` links or `F3D_MULTIBODY_MOST_DOFS` degrees of
+/// freedom already.
 int f3d_multibody_add_link(
   int world,
   int multibody,
@@ -1425,6 +1859,10 @@ external int _f3d_multibody_set_limits(
   double lower,
   double upper,
 );
+
+/// Limits on a revolute link's angle, radians, or a prismatic link's travel, m;
+/// [enabled] nought takes them off. 0 for another kind of link, or a lower
+/// above the upper.
 int f3d_multibody_set_limits(
   int world,
   int multibody,
@@ -1453,6 +1891,12 @@ external int _f3d_multibody_set_motor(
   double speed,
   double force,
 );
+
+/// A motor on a revolute or prismatic link: it drives the joint at [speed],
+/// rad/s or m/s, through each step, with at most [force], N m or N. A motor of
+/// speed nought strong enough for its load holds the joint where it is. It
+/// knows no place: what moves the joint past its force is not taken back — that
+/// is a servo's. [enabled] nought takes it off.
 int f3d_multibody_set_motor(
   int world,
   int multibody,
@@ -1481,6 +1925,16 @@ external int _f3d_multibody_set_servo(
   double stiffness,
   double damping,
 );
+
+/// A servo on a revolute or prismatic link: a spring of [stiffness], N m per
+/// radian or N/m, above nought, pulling the joint to its mark, and a damper of
+/// [damping] times critical, nought or more, on its speed against the mark's —
+/// critical for the inertia the joint moves through the whole tree. The mark
+/// starts at [target], radians or m, and moves at the link's motor's speed; the
+/// motor's force bounds the servo's, and without a motor it is unbounded. A
+/// load L held still deflects the joint L / stiffness from its mark. Solved
+/// implicitly, stable however stiff. [enabled] nought takes it off, leaving the
+/// motor. 0 for another kind of link, or a value out of range.
 int f3d_multibody_set_servo(
   int world,
   int multibody,
@@ -1511,6 +1965,11 @@ external int _f3d_multibody_set_cone(
   double swing,
   double twist,
 );
+
+/// A cone on a spherical link: its axis — the one given when it was added —
+/// swings at most [swing] from where the parent holds it, in (0, π], and the
+/// link twists about that axis at most [twist] either way, in [0, π]. [enabled]
+/// nought takes it off. 0 for another kind of link, or a value out of range.
 int f3d_multibody_set_cone(
   int world,
   int multibody,
@@ -1532,6 +1991,8 @@ int f3d_multibody_set_cone(
   isLeaf: true,
 )
 external int _f3d_multibody_link_count(Pointer<Void> world, int multibody);
+
+/// How many links, and how many degrees of freedom.
 int f3d_multibody_link_count(int world, int multibody) =>
     _f3d_multibody_link_count(Pointer.fromAddress(world), multibody);
 
@@ -1540,6 +2001,9 @@ int f3d_multibody_link_count(int world, int multibody) =>
   isLeaf: true,
 )
 external int _f3d_multibody_dof_count(Pointer<Void> world, int multibody);
+
+/// How many degrees of freedom the multibody has, a floating root's six among
+/// them; nought for a multibody not in the world.
 int f3d_multibody_dof_count(int world, int multibody) =>
     _f3d_multibody_dof_count(Pointer.fromAddress(world), multibody);
 
@@ -1553,6 +2017,12 @@ external int _f3d_multibody_read_joint(
   int link,
   Pointer<Void> out,
 );
+
+/// Link [link]'s joint as the last step left it, into out[0..7]: for a revolute
+/// or prismatic joint its angle or travel and its speed, the rest nought; for a
+/// spherical joint its turn as a quaternion xyzw in the parent's frame and its
+/// spin xyz relative to the parent, in the world; nought for a fixed joint and
+/// the root.
 int f3d_multibody_read_joint(int world, int multibody, int link, int out) =>
     _f3d_multibody_read_joint(
       Pointer.fromAddress(world),
@@ -1587,6 +2057,16 @@ external int _f3d_joint_create(
   double uy,
   double uz,
 );
+
+/// A joint of [type] between [a] and [b], at the anchor (ax, ay, az) and along
+/// the axis (ux, uy, uz), both relative to the origin and taken where the
+/// bodies are now: what it holds them to is how they stand. The axis is the
+/// hinge's or the slider's, or the one a spherical joint's cone and twist are
+/// measured about; a fixed joint does not read it. Wakes both. Nought for a
+/// body not in the world, a body joined to itself, a value not finite, a
+/// revolute or prismatic joint with no axis, or a distance joint, which is
+/// [f3d_joint_create_distance]'s. Joined bodies do not collide with each other
+/// unless [f3d_joint_set_collide] says so.
 int f3d_joint_create(
   int world,
   int type,
@@ -1635,6 +2115,9 @@ external int _f3d_joint_create_distance(
   double by,
   double bz,
 );
+
+/// A distance joint from (ax, ay, az) on [a] to (bx, by, bz) on [b], held at
+/// the length between them now.
 int f3d_joint_create_distance(
   int world,
   int a,
@@ -1659,6 +2142,8 @@ int f3d_joint_create_distance(
 
 @Native<Int32 Function(Pointer<Void>, Uint64)>(symbol: 'f3d_joint_destroy')
 external int _f3d_joint_destroy(Pointer<Void> world, int joint);
+
+/// Takes the joint out, waking its bodies. A body's joints go with it.
 int f3d_joint_destroy(int world, int joint) =>
     _f3d_joint_destroy(Pointer.fromAddress(world), joint);
 
@@ -1667,6 +2152,8 @@ int f3d_joint_destroy(int world, int joint) =>
   isLeaf: true,
 )
 external int _f3d_joint_is_valid(Pointer<Void> world, int joint);
+
+/// One while [joint] is in the world, nought for one taken out or never made.
 int f3d_joint_is_valid(int world, int joint) =>
     _f3d_joint_is_valid(Pointer.fromAddress(world), joint);
 
@@ -1675,6 +2162,8 @@ int f3d_joint_is_valid(int world, int joint) =>
   isLeaf: true,
 )
 external int _f3d_world_joint_count(Pointer<Void> world);
+
+/// How many joints the world holds now.
 int f3d_world_joint_count(int world) =>
     _f3d_world_joint_count(Pointer.fromAddress(world));
 
@@ -1689,6 +2178,10 @@ external int _f3d_joint_set_limits(
   double lower,
   double upper,
 );
+
+/// Limits on a revolute joint's angle, radians, a prismatic joint's travel, m,
+/// or a spherical joint's twist about its axis, radians: lower no more than
+/// upper; [enabled] nought takes them off.
 int f3d_joint_set_limits(
   int world,
   int joint,
@@ -1713,6 +2206,10 @@ external int _f3d_joint_set_cone(
   int enabled,
   double angle,
 );
+
+/// A spherical joint's swing held inside a cone: B's axis no more than [angle]
+/// radians, above nought and at most π, from A's — a shoulder, a hip, a neck.
+/// With twist limits it is a ragdoll's joint.
 int f3d_joint_set_cone(int world, int joint, int enabled, double angle) =>
     _f3d_joint_set_cone(Pointer.fromAddress(world), joint, enabled, angle);
 
@@ -1726,6 +2223,10 @@ external int _f3d_joint_set_friction(
   int enabled,
   double torque,
 );
+
+/// A spherical joint's friction: B turning against A resisted with at most
+/// [torque], N m, nought or more — what lets a ragdoll come to rest. A revolute
+/// or prismatic joint has it as a motor of speed nought.
 int f3d_joint_set_friction(int world, int joint, int enabled, double torque) =>
     _f3d_joint_set_friction(Pointer.fromAddress(world), joint, enabled, torque);
 
@@ -1761,6 +2262,17 @@ external int _f3d_joint_set_swing(
   double side,
   double otherSide,
 );
+
+/// A spherical joint's swing held inside four limits, radians, each above
+/// nought and below 3: B's axis measured from the neutral direction (nx, ny,
+/// nz), as a turn towards (fx, fy, fz) — made square to it — of at most
+/// [ahead], away from it of at most [behind], and towards neutral × ahead and
+/// away from that of at most [side] and [otherSide], with an ellipse through
+/// the four between them. Both directions are in the world and taken into A's
+/// frame as A stands now, as an axis is when a joint is made; the neutral need
+/// not be B's axis now. A neck that bends forward further than back, a hip that
+/// lifts the thigh ahead further than out: the limits of an anatomy rather than
+/// a cone. It holds beside the cone and the twist limits.
 int f3d_joint_set_swing(
   int world,
   int joint,
@@ -1801,6 +2313,11 @@ external int _f3d_joint_set_damping(
   int enabled,
   double damping,
 );
+
+/// Viscous damping of a spherical or revolute joint: B turning against A
+/// resisted with [damping], N m s per radian, nought or more, times how fast it
+/// turns — what a joint's tissue does, where friction holds against a fixed
+/// torque. Solved implicitly, so no value is too much for the step.
 int f3d_joint_set_damping(int world, int joint, int enabled, double damping) =>
     _f3d_joint_set_damping(Pointer.fromAddress(world), joint, enabled, damping);
 
@@ -1815,6 +2332,12 @@ external int _f3d_joint_set_limit_softness(
   double stiffness,
   double ratio,
 );
+
+/// Soft limits on a spherical or revolute joint: past its twist or hinge
+/// limits, its cone or its swing limits, it is held back by a spring of
+/// [stiffness], N m per radian, above nought, at damping ratio [ratio] — the
+/// tissue at the end of a joint's range — rather than by its own stiff one.
+/// [enabled] nought makes them hard again.
 int f3d_joint_set_limit_softness(
   int world,
   int joint,
@@ -1855,6 +2378,17 @@ external int _f3d_joint_set_limit_stiffness(
   double side,
   double otherSide,
 );
+
+/// How a soft limit's tissue stiffens past the limit, and how stiff it is at
+/// each one. Past a limit by δ radians the joint is held back by (k0 /
+/// [growth]) (exp([growth] δ) − 1) N m, stiffening as k0 exp(growth δ) — the
+/// shape passive moments take past the end of a joint's range — with [growth],
+/// per radian, nought or more and at most 100: nought is the linear spring k0
+/// δ. k0 is the stiffness at the limit: [lower] and [upper] at a twist's or a
+/// hinge's two limits, [ahead], [behind], [side] and [otherSide] at a swing's
+/// four, each N m per radian, nought or more; nought, and the cone, take the
+/// stiffness of [f3d_joint_set_limit_softness], which is what makes a limit
+/// soft at all. [enabled] nought for one stiffness, linear, everywhere.
 int f3d_joint_set_limit_stiffness(
   int world,
   int joint,
@@ -1905,6 +2439,18 @@ external int _f3d_joint_set_drive(
   double damping,
   double maxTorque,
 );
+
+/// A drive on a spherical or revolute joint: B pulled towards a turn against A
+/// — (qx, qy, qz, qw), A's orientation undone and then B's, as the joint's own
+/// starting turn is; it need not be unit, and is made so — with [stiffness], N
+/// m per radian it is turned from there, and held back with [damping], N m s
+/// per radian, as fast as it turns, the two together at most [maxTorque] N m,
+/// each nought or more. A hinge is pulled about its axis alone. What a muscle's
+/// tone does: an active torque, bounded, holding a posture; solved implicitly,
+/// so no stiffness is too much for the step, and before the limits, which have
+/// the last word. All three are scaled by the drive's level, which a drive
+/// turned on starts at 1 and [f3d_joint_set_drive_fade] lets fall; set again
+/// while on, the drive keeps its level. [enabled] nought takes it off.
 int f3d_joint_set_drive(
   int world,
   int joint,
@@ -1939,6 +2485,13 @@ external int _f3d_joint_set_drive_fade(
   double floor,
   double fade,
 );
+
+/// How a drive's level goes from where it is now to [floor], nought or more, as
+/// exp(−t / [fade]), [fade] in seconds: a body knocked out, its tone falling
+/// over a few tenths of a second to what a corpse keeps, or one coming round,
+/// its tone rising back to 1. [fade] nought holds the level where it is. While
+/// the level is still on its way, the joint's bodies do not sleep. 0 for a
+/// joint with no drive.
 int f3d_joint_set_drive_fade(int world, int joint, double floor, double fade) =>
     _f3d_joint_set_drive_fade(Pointer.fromAddress(world), joint, floor, fade);
 
@@ -1951,6 +2504,9 @@ external int _f3d_joint_get_drive_level(
   int joint,
   Pointer<Void> out,
 );
+
+/// A drive's level now, into out: 1 when it was turned on, nought for a joint
+/// with no drive.
 int f3d_joint_get_drive_level(int world, int joint, int out) =>
     _f3d_joint_get_drive_level(
       Pointer.fromAddress(world),
@@ -1969,6 +2525,9 @@ external int _f3d_joint_set_motor(
   double speed,
   double maxForce,
 );
+
+/// A motor driving a revolute or prismatic joint at [speed], rad/s or m/s, with
+/// at most [maxForce], N m or N.
 int f3d_joint_set_motor(
   int world,
   int joint,
@@ -1994,6 +2553,12 @@ external int _f3d_joint_set_spring(
   double hertz,
   double damping,
 );
+
+/// A spring pulling a revolute joint to its starting angle, a prismatic one to
+/// its starting place, or a distance joint to its length, at [hertz] and
+/// damping ratio [damping]. On a distance joint the spring is what makes it not
+/// a rod: at nought hertz it pulls not at all, and only the least and most
+/// lengths hold.
 int f3d_joint_set_spring(
   int world,
   int joint,
@@ -2019,6 +2584,9 @@ external int _f3d_joint_set_length(
   double least,
   double most,
 );
+
+/// A distance joint's rest [length] and the [least] and [most] its spring may
+/// stretch it to.
 int f3d_joint_set_length(
   int world,
   int joint,
@@ -2042,6 +2610,8 @@ external int _f3d_joint_set_collide(
   int joint,
   int collide,
 );
+
+/// Whether the joined bodies collide with each other.
 int f3d_joint_set_collide(int world, int joint, int collide) =>
     _f3d_joint_set_collide(Pointer.fromAddress(world), joint, collide);
 
@@ -2054,6 +2624,10 @@ external int _f3d_joint_get_value(
   int joint,
   Pointer<Void> out,
 );
+
+/// A revolute joint's angle from where it started, radians in (−π, π]; a
+/// spherical joint's twist about its axis, the same way; a prismatic joint's
+/// travel, m; a distance joint's length, m. 0 for the others.
 int f3d_joint_get_value(int world, int joint, int out) => _f3d_joint_get_value(
   Pointer.fromAddress(world),
   joint,
@@ -2069,6 +2643,9 @@ external int _f3d_joint_get_swing(
   int joint,
   Pointer<Void> out,
 );
+
+/// A spherical joint's swing: the angle between B's axis and A's, radians from
+/// nought to π. 0 for the others.
 int f3d_joint_get_swing(int world, int joint, int out) => _f3d_joint_get_swing(
   Pointer.fromAddress(world),
   joint,
@@ -2085,6 +2662,13 @@ external int _f3d_joint_set_break(
   double force,
   double torque,
 );
+
+/// How hard the joint may hold before it lets go: [force], N, all it pushes B
+/// with as [f3d_joint_get_force] says it, and [torque], N m, what its locked
+/// turns hold B with as [f3d_joint_get_torque] says it. At the end of a step
+/// that held past either, the joint is taken out, its bodies woken, and
+/// `F3D_EVENT_JOINT_BROKEN` raised. Nought for either is never; a new joint
+/// breaks on neither. 0 for a value negative or not finite.
 int f3d_joint_set_break(int world, int joint, double force, double torque) =>
     _f3d_joint_set_break(Pointer.fromAddress(world), joint, force, torque);
 
@@ -2097,6 +2681,9 @@ external int _f3d_joint_get_torque(
   int joint,
   Pointer<Void> out,
 );
+
+/// The torque the joint held B's locked turns with over the last substep, N m,
+/// in the world, into out[0..2].
 int f3d_joint_get_torque(int world, int joint, int out) =>
     _f3d_joint_get_torque(
       Pointer.fromAddress(world),
@@ -2113,6 +2700,10 @@ external int _f3d_joint_get_force(
   int joint,
   Pointer<Void> out,
 );
+
+/// The force the joint pushed B with over the last substep, N, in the world,
+/// into out[0..2]; nought before the world has stepped. 0 for a joint not in
+/// the world.
 int f3d_joint_get_force(int world, int joint, int out) => _f3d_joint_get_force(
   Pointer.fromAddress(world),
   joint,
@@ -2149,6 +2740,10 @@ external int _f3d_world_ray_cast(
   Pointer<Void> body,
   Pointer<Void> hit,
 );
+
+/// The nearest body a ray meets from (ox, oy, oz) along (dx, dy, dz) within
+/// [maxDistance] — the direction need not be a unit — into [body] and [hit]; 1
+/// when it meets one. Meshes are seen from their front only.
 int f3d_world_ray_cast(
   int world,
   double ox,
@@ -2209,6 +2804,9 @@ external int _f3d_world_ray_cast_all(
   Pointer<Void> hits,
   int capacity,
 );
+
+/// Every body the ray meets, nearest first, up to [capacity] of them into
+/// [bodies] and [hits]; returns how many it meets.
 int f3d_world_ray_cast_all(
   int world,
   double ox,
@@ -2279,6 +2877,11 @@ external int _f3d_world_overlap_shape(
   Pointer<Void> out,
   int capacity,
 );
+
+/// Every body overlapping a shape of [kind] — a sphere, box, capsule, cylinder
+/// or cone, a, b, c as for a body — rounded by [rounding], at (px, py, pz)
+/// turned by the quaternion (qx, qy, qz, qw): up to [capacity] of them, in slot
+/// order; returns how many.
 int f3d_world_overlap_shape(
   int world,
   int kind,
@@ -2363,6 +2966,9 @@ external int _f3d_world_cast_shape(
   Pointer<Void> body,
   Pointer<Void> hit,
 );
+
+/// The first body that shape meets moved by (tx, ty, tz) without turning, into
+/// [body] and [hit] with the fraction of the move it got; 1 when it meets one.
 int f3d_world_cast_shape(
   int world,
   int kind,
@@ -2451,6 +3057,28 @@ external int _f3d_world_move_character(
   Pointer<Void> ground,
   Pointer<Void> steppedUp,
 );
+
+/// Moves an upright shape — a character: [kind] and its sizes a, b, c as
+/// [f3d_world_cast_shape] takes them, a capsule's radius and straight half
+/// height or a box's half extents — from position[0..2] by (dx, dy, dz),
+/// sliding along what it meets, and writes where it ends into position.
+/// velocity[0..2] is the character's, in and out: the speed into everything it
+/// met is taken out of it, as the speed into a wall is gone for good. Ground is
+/// what it stands on whose normal's height is at least [maxSlopeCos]; steeper
+/// is wall, which it slides along and does not climb. With
+/// `F3D_CHARACTER_MAY_STEP` in [options], a move that met something tries a
+/// step up to [stepHeight] and keeps it only if it got further along (dx, dz)
+/// than sliding did — only when a wall stopped it, and not when something
+/// overhead stops the lift — writing how far it was lifted into [steppedUp]; it
+/// keeps to ground it is walking down within that height. It starts by moving
+/// out of anything it is inside, along the deepest overlap's normal, the speed
+/// into it taken out too. The ground's normal goes into ground[0..2] and its
+/// body into [groundBody] (nought when in the air). Returns `F3D_CHARACTER_`
+/// bits. A body on a layer in [fromAbove] is a floor from above and nothing
+/// else: met only with a normal whose height is at least [maxSlopeCos], and not
+/// when it starts inside one — passed through jumping up into it, walking into
+/// its side, or falling on from inside it. Kinematic: nothing pushes it, and it
+/// moves nothing.
 int f3d_world_move_character(
   int world,
   int kind,
@@ -2495,11 +3123,15 @@ int f3d_world_move_character(
 
 @Native<Pointer<Void> Function(Uint32)>(symbol: 'f3d_particles_create')
 external Pointer<Void> _f3d_particles_create(int capacity);
+
+/// [capacity] slots, all dead; null for none or no memory.
 int f3d_particles_create(int capacity) =>
     _f3d_particles_create(capacity).address;
 
 @Native<Void Function(Pointer<Void>)>(symbol: 'f3d_particles_destroy')
 external void _f3d_particles_destroy(Pointer<Void> particles);
+
+/// Frees the particles. Null is allowed.
 void f3d_particles_destroy(int particles) =>
     _f3d_particles_destroy(Pointer.fromAddress(particles));
 
@@ -2508,6 +3140,8 @@ void f3d_particles_destroy(int particles) =>
   isLeaf: true,
 )
 external int _f3d_particles_capacity(Pointer<Void> particles);
+
+/// How many slots the particles have.
 int f3d_particles_capacity(int particles) =>
     _f3d_particles_capacity(Pointer.fromAddress(particles));
 
@@ -2520,6 +3154,9 @@ external int _f3d_particles_emit(
   Pointer<Void> particlesData,
   int count,
 );
+
+/// [count] particles into the next slots: each its position xyz, velocity xyz,
+/// and life, seven reals. Returns the slot the first went into.
 int f3d_particles_emit(int particles, int particlesData, int count) =>
     _f3d_particles_emit(
       Pointer.fromAddress(particles),
@@ -2536,6 +3173,12 @@ external void _f3d_particles_step(
   Pointer<Void> forces,
   double dt,
 );
+
+/// Steps every living particle by [dt]: its velocity gains gravity, drifts
+/// towards the wind as v' = w + (v + g dt − w) / (1 + drag dt), its position
+/// gains the velocity, and below the floor it is put back on it, its fall
+/// turned back by the restitution and its slide slowed by the friction; its
+/// life loses dt.
 void f3d_particles_step(int particles, int forces, double dt) =>
     _f3d_particles_step(
       Pointer.fromAddress(particles),
@@ -2552,6 +3195,9 @@ external int _f3d_particles_read(
   Pointer<Void> out,
   int capacity,
 );
+
+/// Every slot, `F3D_PARTICLE_FLOATS` reals apiece, into [out]: up to
+/// [capacity]; returns how many.
 int f3d_particles_read(int particles, int out, int capacity) =>
     _f3d_particles_read(
       Pointer.fromAddress(particles),
@@ -2561,10 +3207,14 @@ int f3d_particles_read(int particles, int out, int capacity) =>
 
 @Native<Pointer<Void> Function(Uint32)>(symbol: 'f3d_debris_create')
 external Pointer<Void> _f3d_debris_create(int capacity);
+
+/// [capacity] empty slots; null for none or no memory.
 int f3d_debris_create(int capacity) => _f3d_debris_create(capacity).address;
 
 @Native<Void Function(Pointer<Void>)>(symbol: 'f3d_debris_destroy')
 external void _f3d_debris_destroy(Pointer<Void> debris);
+
+/// Frees the debris. Null is allowed.
 void f3d_debris_destroy(int debris) =>
     _f3d_debris_destroy(Pointer.fromAddress(debris));
 
@@ -2573,6 +3223,8 @@ void f3d_debris_destroy(int debris) =>
   isLeaf: true,
 )
 external int _f3d_debris_capacity(Pointer<Void> debris);
+
+/// How many slots the debris has.
 int f3d_debris_capacity(int debris) =>
     _f3d_debris_capacity(Pointer.fromAddress(debris));
 
@@ -2585,6 +3237,10 @@ external int _f3d_debris_add(
   Pointer<Void> data,
   int count,
 );
+
+/// [count] bodies into the next slots, `F3D_DEBRIS_INPUT_FLOATS` reals apiece,
+/// unturned; a radius or mass of nought or less empties the slot. Returns the
+/// slot the first went into.
 int f3d_debris_add(int debris, int data, int count) => _f3d_debris_add(
   Pointer.fromAddress(debris),
   Pointer.fromAddress(data),
@@ -2600,6 +3256,9 @@ external int _f3d_debris_set_statics(
   Pointer<Void> data,
   int count,
 );
+
+/// The still shapes, replacing the last; 0 when there are more than
+/// `F3D_DEBRIS_MAX_STATICS`.
 int f3d_debris_set_statics(int debris, int data, int count) =>
     _f3d_debris_set_statics(
       Pointer.fromAddress(debris),
@@ -2615,6 +3274,11 @@ external void _f3d_debris_step(
   Pointer<Void> settings,
   double dt,
 );
+
+/// Steps every body [dt] seconds on, in the settings' substeps: gravity and the
+/// speed limit, then the contacts between bodies and with the still shapes,
+/// solved by impulses from the same velocities, then damping, and each body
+/// moved and turned. Nothing for a [dt] not finite and above nought.
 void f3d_debris_step(int debris, int settings, double dt) => _f3d_debris_step(
   Pointer.fromAddress(debris),
   Pointer.fromAddress(settings),
@@ -2630,6 +3294,9 @@ external int _f3d_debris_read(
   Pointer<Void> out,
   int capacity,
 );
+
+/// Every slot, `F3D_DEBRIS_FLOATS` reals apiece, into [out]: up to [capacity];
+/// returns how many.
 int f3d_debris_read(int debris, int out, int capacity) => _f3d_debris_read(
   Pointer.fromAddress(debris),
   Pointer.fromAddress(out),
@@ -2652,6 +3319,12 @@ external Pointer<Void> _f3d_cloth_create(
   Pointer<Void> compliance,
   int edgeCount,
 );
+
+/// A cloth of [pointCount] points, `F3D_CLOTH_FLOATS` reals apiece, held by
+/// [edgeCount] constraints: the pairs of points in [edges], each held at the
+/// distance it starts at with its own compliance, m/N (nought: rigid). Null for
+/// no points, a point out of range, an edge from a point to itself, or no
+/// memory.
 int f3d_cloth_create(
   int points,
   int pointCount,
@@ -2668,6 +3341,8 @@ int f3d_cloth_create(
 
 @Native<Void Function(Pointer<Void>)>(symbol: 'f3d_cloth_destroy')
 external void _f3d_cloth_destroy(Pointer<Void> cloth);
+
+/// Frees the cloth. Null is allowed.
 void f3d_cloth_destroy(int cloth) =>
     _f3d_cloth_destroy(Pointer.fromAddress(cloth));
 
@@ -2676,6 +3351,8 @@ void f3d_cloth_destroy(int cloth) =>
   isLeaf: true,
 )
 external int _f3d_cloth_point_count(Pointer<Void> cloth);
+
+/// How many points the cloth has.
 int f3d_cloth_point_count(int cloth) =>
     _f3d_cloth_point_count(Pointer.fromAddress(cloth));
 
@@ -2684,6 +3361,8 @@ int f3d_cloth_point_count(int cloth) =>
   isLeaf: true,
 )
 external int _f3d_cloth_colour_count(Pointer<Void> cloth);
+
+/// How many colours the constraints took.
 int f3d_cloth_colour_count(int cloth) =>
     _f3d_cloth_colour_count(Pointer.fromAddress(cloth));
 
@@ -2692,6 +3371,8 @@ int f3d_cloth_colour_count(int cloth) =>
   isLeaf: true,
 )
 external int _f3d_cloth_edge_count(Pointer<Void> cloth);
+
+/// How many constraints hold the cloth: the edge count it was made with.
 int f3d_cloth_edge_count(int cloth) =>
     _f3d_cloth_edge_count(Pointer.fromAddress(cloth));
 
@@ -2711,6 +3392,12 @@ external void _f3d_cloth_edges(
   Pointer<Void> compliance,
   Pointer<Void> colourStart,
 );
+
+/// The constraints as they are solved, colour by colour: each one's pair of
+/// points into [pairs], its length into [rest] and its compliance into
+/// [compliance], edge-count apiece; where each colour starts into
+/// [colourStart], colour-count and one. What a GPU's cloth is made from, so the
+/// colouring is done in one place.
 void f3d_cloth_edges(
   int cloth,
   int pairs,
@@ -2734,6 +3421,9 @@ external int _f3d_cloth_set_balls(
   Pointer<Void> balls,
   int count,
 );
+
+/// The balls, x y z radius apiece, replacing the last; 0 when more than
+/// `F3D_CLOTH_MAX_BALLS`.
 int f3d_cloth_set_balls(int cloth, int balls, int count) =>
     _f3d_cloth_set_balls(
       Pointer.fromAddress(cloth),
@@ -2752,6 +3442,8 @@ external void _f3d_cloth_move_point(
   double y,
   double z,
 );
+
+/// Puts point [index] at [x y z], still: how a pinned point is carried.
 void f3d_cloth_move_point(int cloth, int index, double x, double y, double z) =>
     _f3d_cloth_move_point(Pointer.fromAddress(cloth), index, x, y, z);
 
@@ -2763,6 +3455,10 @@ external void _f3d_cloth_step(
   Pointer<Void> settings,
   double dt,
 );
+
+/// Each substep: gravity, damping and the wind into the velocity, the points
+/// moved by it, every constraint colour by colour, the balls and the floor, and
+/// the velocity from where the points went.
 void f3d_cloth_step(int cloth, int settings, double dt) => _f3d_cloth_step(
   Pointer.fromAddress(cloth),
   Pointer.fromAddress(settings),
@@ -2778,6 +3474,9 @@ external int _f3d_cloth_read(
   Pointer<Void> out,
   int capacity,
 );
+
+/// Every point, `F3D_CLOTH_FLOATS` reals apiece, into [out]: up to [capacity];
+/// returns how many.
 int f3d_cloth_read(int cloth, int out, int capacity) => _f3d_cloth_read(
   Pointer.fromAddress(cloth),
   Pointer.fromAddress(out),
@@ -2793,6 +3492,10 @@ external int _f3d_cloth_set_triangles(
   Pointer<Void> corners,
   int count,
 );
+
+/// The triangles the wind blows on and a round obstacle keeps outside it, three
+/// corners apiece, replacing the last; 0, and none kept, when a corner is out
+/// of range or there is no memory.
 int f3d_cloth_set_triangles(int cloth, int corners, int count) =>
     _f3d_cloth_set_triangles(
       Pointer.fromAddress(cloth),
@@ -2805,6 +3508,10 @@ int f3d_cloth_set_triangles(int cloth, int corners, int count) =>
   isLeaf: true,
 )
 external void _f3d_cloth_set_rest(Pointer<Void> cloth, Pointer<Void> xyz);
+
+/// The rest shape self-collision asks which points are neighbours, xyz a point:
+/// two closer there than the self-thickness are left to their constraints.
+/// Where the points were made, until this is called.
 void f3d_cloth_set_rest(int cloth, int xyz) =>
     _f3d_cloth_set_rest(Pointer.fromAddress(cloth), Pointer.fromAddress(xyz));
 
@@ -2816,6 +3523,9 @@ external void _f3d_cloth_set_compliance(
   Pointer<Void> cloth,
   Pointer<Void> compliance,
 );
+
+/// Every constraint's compliance, m/N, in the order [f3d_cloth_create] was
+/// given them.
 void f3d_cloth_set_compliance(int cloth, int compliance) =>
     _f3d_cloth_set_compliance(
       Pointer.fromAddress(cloth),
@@ -2827,6 +3537,9 @@ void f3d_cloth_set_compliance(int cloth, int compliance) =>
   isLeaf: true,
 )
 external void _f3d_cloth_set_lengths(Pointer<Void> cloth, Pointer<Void> length);
+
+/// Every constraint's length, in the same order: for a cloth whose rest lengths
+/// are not the distances it was made at.
 void f3d_cloth_set_lengths(int cloth, int length) => _f3d_cloth_set_lengths(
   Pointer.fromAddress(cloth),
   Pointer.fromAddress(length),
@@ -2841,6 +3554,10 @@ external int _f3d_cloth_set_obstacles(
   Pointer<Void> records,
   int length,
 );
+
+/// The obstacles, [length] reals of records laid out as above, replacing the
+/// last; 0, and the last kept, for a record of no kind, cut short, or a ground
+/// of fewer than two by two samples or no cell, or no memory.
 int f3d_cloth_set_obstacles(int cloth, int records, int length) =>
     _f3d_cloth_set_obstacles(
       Pointer.fromAddress(cloth),
@@ -2853,6 +3570,9 @@ int f3d_cloth_set_obstacles(int cloth, int records, int length) =>
   isLeaf: true,
 )
 external void _f3d_cloth_write_state(Pointer<Void> cloth, Pointer<Void> state);
+
+/// Every point's position, velocity and inverse mass, `F3D_CLOTH_STATE_FLOATS`
+/// reals apiece, from [state], or into it.
 void f3d_cloth_write_state(int cloth, int state) => _f3d_cloth_write_state(
   Pointer.fromAddress(cloth),
   Pointer.fromAddress(state),
@@ -2863,6 +3583,9 @@ void f3d_cloth_write_state(int cloth, int state) => _f3d_cloth_write_state(
   isLeaf: true,
 )
 external void _f3d_cloth_read_state(Pointer<Void> cloth, Pointer<Void> state);
+
+/// Every point's position, velocity and inverse mass, `F3D_CLOTH_STATE_FLOATS`
+/// reals apiece, into [state], which has room for them all.
 void f3d_cloth_read_state(int cloth, int state) => _f3d_cloth_read_state(
   Pointer.fromAddress(cloth),
   Pointer.fromAddress(state),
@@ -2877,6 +3600,12 @@ external void _f3d_cloth_solve(
   Pointer<Void> settings,
   double dt,
 );
+
+/// Each substep: damping, gravity and the wind into a predicted position; then
+/// `iterations` times the constraints colour by colour, the layers apart and
+/// the points out of the obstacles; friction against what the obstacles pushed;
+/// and the velocity from where the points went. Pinned points, of inverse mass
+/// nought, are not moved.
 void f3d_cloth_solve(int cloth, int settings, double dt) => _f3d_cloth_solve(
   Pointer.fromAddress(cloth),
   Pointer.fromAddress(settings),
@@ -2885,11 +3614,16 @@ void f3d_cloth_solve(int cloth, int settings, double dt) => _f3d_cloth_solve(
 
 @Native<Pointer<Void> Function(Uint32, Float)>(symbol: 'f3d_fluid_create')
 external Pointer<Void> _f3d_fluid_create(int capacity, double spacing);
+
+/// Room for [capacity] particles [spacing] apart at rest; null for none, a
+/// spacing not above nought, or no memory.
 int f3d_fluid_create(int capacity, double spacing) =>
     _f3d_fluid_create(capacity, spacing).address;
 
 @Native<Void Function(Pointer<Void>)>(symbol: 'f3d_fluid_destroy')
 external void _f3d_fluid_destroy(Pointer<Void> fluid);
+
+/// Frees the fluid. Null is allowed.
 void f3d_fluid_destroy(int fluid) =>
     _f3d_fluid_destroy(Pointer.fromAddress(fluid));
 
@@ -2898,6 +3632,8 @@ void f3d_fluid_destroy(int fluid) =>
   isLeaf: true,
 )
 external int _f3d_fluid_capacity(Pointer<Void> fluid);
+
+/// How many particles the fluid has room for.
 int f3d_fluid_capacity(int fluid) =>
     _f3d_fluid_capacity(Pointer.fromAddress(fluid));
 
@@ -2906,6 +3642,8 @@ int f3d_fluid_capacity(int fluid) =>
   isLeaf: true,
 )
 external double _f3d_fluid_rest_density(Pointer<Void> fluid);
+
+/// The density at rest, in particles of mass one per cubic metre.
 double f3d_fluid_rest_density(int fluid) =>
     _f3d_fluid_rest_density(Pointer.fromAddress(fluid));
 
@@ -2914,6 +3652,9 @@ double f3d_fluid_rest_density(int fluid) =>
   isLeaf: true,
 )
 external int _f3d_fluid_add(Pointer<Void> fluid, Pointer<Void> data, int count);
+
+/// [count] particles, `F3D_FLUID_INPUT_FLOATS` reals apiece, into the next
+/// slots, round and round once full. Returns the slot the first went in.
 int f3d_fluid_add(int fluid, int data, int count) => _f3d_fluid_add(
   Pointer.fromAddress(fluid),
   Pointer.fromAddress(data),
@@ -2928,6 +3669,12 @@ external void _f3d_fluid_step(
   Pointer<Void> settings,
   double dt,
 );
+
+/// Steps every particle [dt] seconds on, in the settings' substeps: each moved
+/// by its velocity and gravity to a predicted position, held near the density
+/// at rest over the settings' passes, kept inside the tank, its velocity taken
+/// from where it went and blended with its neighbours' by the viscosity.
+/// Nothing for a [dt] not finite and above nought, or no particles.
 void f3d_fluid_step(int fluid, int settings, double dt) => _f3d_fluid_step(
   Pointer.fromAddress(fluid),
   Pointer.fromAddress(settings),
@@ -2943,6 +3690,9 @@ external int _f3d_fluid_read(
   Pointer<Void> out,
   int capacity,
 );
+
+/// Every particle added, `F3D_FLUID_FLOATS` reals apiece, into [out]: up to
+/// [capacity]; returns how many.
 int f3d_fluid_read(int fluid, int out, int capacity) => _f3d_fluid_read(
   Pointer.fromAddress(fluid),
   Pointer.fromAddress(out),
@@ -2959,6 +3709,11 @@ external int _f3d_liquid_particles(
   int length,
   Pointer<Void> settings,
 );
+
+/// Moves [count] particles, `F3D_LIQUID_PARTICLE_FLOATS` reals apiece, on by
+/// the settings' substeps against the walls, [length] reals of records laid out
+/// as above. 1, or 0 and nothing moved for a record of no kind or cut short, or
+/// no memory.
 int f3d_liquid_particles(
   int state,
   int count,
@@ -2983,6 +3738,9 @@ external int _f3d_liquid_parcels(
   int length,
   Pointer<Void> settings,
 );
+
+/// Flies [count] parcels, `F3D_LIQUID_PARCEL_FLOATS` reals apiece, on by one
+/// step against the walls; 1, or 0 and nothing moved as for particles.
 int f3d_liquid_parcels(
   int parcels,
   int count,
@@ -3006,6 +3764,9 @@ external void _f3d_liquid_modes(
   int count,
   Pointer<Void> settings,
 );
+
+/// Rings [count] modes, `F3D_LIQUID_MODE_FLOATS` reals apiece, the lowest
+/// first, on by the settings' step.
 void f3d_liquid_modes(int modes, int count, int settings) => _f3d_liquid_modes(
   Pointer.fromAddress(modes),
   count,
@@ -3017,6 +3778,10 @@ void f3d_liquid_modes(int modes, int count, int settings) => _f3d_liquid_modes(
   isLeaf: true,
 )
 external void _f3d_liquid_pipes(Pointer<Void> pipes, int count, double dt);
+
+/// Drives [count] pipes on by [dt]: each column accelerated by the pressure
+/// across it over its inertance, held back implicitly by Hagen–Poiseuille's
+/// friction and its end losses; nothing through an end above its surface.
 void f3d_liquid_pipes(int pipes, int count, double dt) =>
     _f3d_liquid_pipes(Pointer.fromAddress(pipes), count, dt);
 
@@ -3030,6 +3795,11 @@ external int _f3d_liquid_floats(
   int count,
   Pointer<Void> settings,
 );
+
+/// Applies [count] pushes in order to [bodies]: each lifts its body by the
+/// weight of the liquid it displaces, then slows it by the drag of the part
+/// under, implicitly, with White's sphere coefficient. 1, or 0 and nothing
+/// moved for a body out of range or a shape of no kind.
 int f3d_liquid_floats(
   int bodies,
   int bodyCount,
@@ -3049,6 +3819,8 @@ int f3d_liquid_floats(
   isLeaf: true,
 )
 external int _f3d_world_snapshot_size(Pointer<Void> world);
+
+/// Bytes [f3d_world_snapshot_write] needs for the world as it is.
 int f3d_world_snapshot_size(int world) =>
     _f3d_world_snapshot_size(Pointer.fromAddress(world));
 
@@ -3061,6 +3833,12 @@ external int _f3d_world_snapshot_write(
   Pointer<Void> buffer,
   int size,
 );
+
+/// Writes the world's whole state into [buffer] and returns the bytes written,
+/// or nought when [size] is too small. A world restored from it steps to the
+/// same bits the original does. The format is versioned field by field
+/// (`f3d_snapshot`.c says how): a snapshot from 1.0.0 on is read by every later
+/// 1.x core, one from before 1.0.0 by none.
 int f3d_world_snapshot_write(int world, int buffer, int size) =>
     _f3d_world_snapshot_write(
       Pointer.fromAddress(world),
@@ -3076,6 +3854,11 @@ external int _f3d_world_restore(
   Pointer<Void> buffer,
   int size,
 );
+
+/// Puts the world back as [buffer] says. 1, or 0 and the world unchanged for a
+/// buffer that is not a snapshot this core reads: not a snapshot, damaged, from
+/// before 1.0.0, or from a later major. Handles kept from before name what they
+/// named when the snapshot was taken.
 int f3d_world_restore(int world, int buffer, int size) => _f3d_world_restore(
   Pointer.fromAddress(world),
   Pointer.fromAddress(buffer),
@@ -3093,6 +3876,11 @@ external int _f3d_body_create(
   double pz,
   double mass,
 );
+
+/// A body of [type] at (px, py, pz) with [mass] kilograms, at rest, unrotated,
+/// a point of inert material at the air's temperature. Nought when the world
+/// cannot grow, or when a dynamic body is given a mass that is not finite and
+/// positive. A fixed body's mass is its thermal mass only, and may be nought.
 int f3d_body_create(
   int world,
   int type,
@@ -3107,6 +3895,9 @@ int f3d_body_create(
   isLeaf: true,
 )
 external int _f3d_body_destroy(Pointer<Void> world, int body);
+
+/// Takes [body] out of the world. 1 when it was there, 0 for a stale or foreign
+/// handle.
 int f3d_body_destroy(int world, int body) =>
     _f3d_body_destroy(Pointer.fromAddress(world), body);
 
@@ -3115,6 +3906,8 @@ int f3d_body_destroy(int world, int body) =>
   isLeaf: true,
 )
 external int _f3d_body_is_valid(Pointer<Void> world, int body);
+
+/// 1 while [body] names a body in [world].
 int f3d_body_is_valid(int world, int body) =>
     _f3d_body_is_valid(Pointer.fromAddress(world), body);
 
@@ -3144,6 +3937,12 @@ external int _f3d_body_move_kinematic(
   double qw,
   double dt,
 );
+
+/// A kinematic body sent to (x, y, z) turned to (qx, qy, qz, qw) over the next
+/// [dt] seconds: its velocity and spin set to carry it there, so what it meets
+/// on the way is pushed as by anything moving that fast. 0 for a body not
+/// kinematic, a value not finite, a turn of nought length or a [dt] not above
+/// nought.
 int f3d_body_move_kinematic(
   int world,
   int body,
@@ -3179,6 +3978,9 @@ external int _f3d_body_set_velocity(
   double y,
   double z,
 );
+
+/// Sets the body's velocity to (x, y, z), m/s, and wakes it. 0 for a handle not
+/// valid or a value not finite.
 int f3d_body_set_velocity(int world, int body, double x, double y, double z) =>
     _f3d_body_set_velocity(Pointer.fromAddress(world), body, x, y, z);
 
@@ -3191,6 +3993,8 @@ external int _f3d_body_get_velocity(
   int body,
   Pointer<Void> out,
 );
+
+/// The body's velocity, m/s, into out[0..2]. 0 for a handle not valid.
 int f3d_body_get_velocity(int world, int body, int out) =>
     _f3d_body_get_velocity(
       Pointer.fromAddress(world),
@@ -3209,6 +4013,9 @@ external int _f3d_body_set_position(
   double y,
   double z,
 );
+
+/// Puts the body at (x, y, z), metres from the world's origin, and wakes it. 0
+/// for a handle not valid or a value not finite.
 int f3d_body_set_position(int world, int body, double x, double y, double z) =>
     _f3d_body_set_position(Pointer.fromAddress(world), body, x, y, z);
 
@@ -3221,6 +4028,9 @@ external int _f3d_body_get_position(
   int body,
   Pointer<Void> out,
 );
+
+/// The body's position, metres from the world's origin, into out[0..2]. 0 for a
+/// handle not valid.
 int f3d_body_get_position(int world, int body, int out) =>
     _f3d_body_get_position(
       Pointer.fromAddress(world),
@@ -3237,6 +4047,8 @@ external int _f3d_body_get_world_position(
   int body,
   Pointer<Void> out,
 );
+
+/// The position in the world's own coordinates, origin added, in doubles.
 int f3d_body_get_world_position(int world, int body, int out) =>
     _f3d_body_get_world_position(
       Pointer.fromAddress(world),
@@ -3255,6 +4067,9 @@ external int _f3d_body_set_angular_velocity(
   double y,
   double z,
 );
+
+/// Radians per second about the world's axes. Nothing turns a body that cannot:
+/// a point, a fixed body, or one whose rotation is locked.
 int f3d_body_set_angular_velocity(
   int world,
   int body,
@@ -3272,6 +4087,9 @@ external int _f3d_body_get_angular_velocity(
   int body,
   Pointer<Void> out,
 );
+
+/// The body's spin, radians per second about the world's axes, into out[0..2].
+/// 0 for a handle not valid.
 int f3d_body_get_angular_velocity(int world, int body, int out) =>
     _f3d_body_get_angular_velocity(
       Pointer.fromAddress(world),
@@ -3291,6 +4109,8 @@ external int _f3d_body_set_orientation(
   double z,
   double w,
 );
+
+/// A quaternion xyzw, normalised on the way in; a zero one is the identity.
 int f3d_body_set_orientation(
   int world,
   int body,
@@ -3309,6 +4129,9 @@ external int _f3d_body_get_orientation(
   int body,
   Pointer<Void> out,
 );
+
+/// The body's orientation, a unit quaternion xyzw, into out[0..3]. 0 for a
+/// handle not valid.
 int f3d_body_get_orientation(int world, int body, int out) =>
     _f3d_body_get_orientation(
       Pointer.fromAddress(world),
@@ -3328,6 +4151,10 @@ external int _f3d_body_set_shape(
   double b,
   double c,
 );
+
+/// The body's shape, as `F3dShapeKind` says what a, b and c are. Its inertia
+/// follows from its mass, its surface and drag from its size. 0 for a size that
+/// is not finite and positive where the kind reads it.
 int f3d_body_set_shape(
   int world,
   int body,
@@ -3346,6 +4173,9 @@ external int _f3d_body_get_inertia(
   int body,
   Pointer<Void> out,
 );
+
+/// The moments of inertia about the body's own axes, kg m², into out[0..2]: the
+/// whole tensor for every shape but a hull, which also has products of inertia.
 int f3d_body_get_inertia(int world, int body, int out) => _f3d_body_get_inertia(
   Pointer.fromAddress(world),
   body,
@@ -3361,6 +4191,8 @@ external int _f3d_body_get_inertia_tensor(
   int body,
   Pointer<Void> out,
 );
+
+/// The whole inertia tensor in the body's axes: xx, yy, zz, xy, xz, yz.
 int f3d_body_get_inertia_tensor(int world, int body, int out) =>
     _f3d_body_get_inertia_tensor(
       Pointer.fromAddress(world),
@@ -3377,6 +4209,11 @@ external int _f3d_body_set_rounding(
   int body,
   double radius,
 );
+
+/// Rounds the body's shape out by [radius]: the shape grown by a ball, so a box
+/// gets rounded edges and corners and rolls off them as a real crate does. Its
+/// inertia, surface and drag are the shape it rounds out to. 0 for a radius
+/// negative or not finite, or for a point.
 int f3d_body_set_rounding(int world, int body, double radius) =>
     _f3d_body_set_rounding(Pointer.fromAddress(world), body, radius);
 
@@ -3385,6 +4222,9 @@ int f3d_body_set_rounding(int world, int body, double radius) =>
   isLeaf: true,
 )
 external int _f3d_body_set_hull(Pointer<Void> world, int body, int hull);
+
+/// Shapes the body as [hull], one [f3d_world_create_hull] returned. 0 for a
+/// hull the world does not hold.
 int f3d_body_set_hull(int world, int body, int hull) =>
     _f3d_body_set_hull(Pointer.fromAddress(world), body, hull);
 
@@ -3397,6 +4237,11 @@ external int _f3d_body_set_compound(
   int body,
   int compound,
 );
+
+/// Shapes the body as [compound], one [f3d_world_create_compound] returned: its
+/// mass spread through the parts, its inertia theirs about the centre of mass.
+/// A body's rounding rounds every part further. 0 for a compound the world does
+/// not hold.
 int f3d_body_set_compound(int world, int body, int compound) =>
     _f3d_body_set_compound(Pointer.fromAddress(world), body, compound);
 
@@ -3405,6 +4250,9 @@ int f3d_body_set_compound(int world, int body, int compound) =>
   isLeaf: true,
 )
 external int _f3d_body_set_mesh(Pointer<Void> world, int body, int mesh);
+
+/// Shapes a fixed body as [mesh]. 0 for a mesh the world does not hold, or a
+/// body that is not fixed: an open mesh has no inside to weigh.
 int f3d_body_set_mesh(int world, int body, int mesh) =>
     _f3d_body_set_mesh(Pointer.fromAddress(world), body, mesh);
 
@@ -3417,6 +4265,8 @@ external int _f3d_body_get_mass(
   int body,
   Pointer<Void> out,
 );
+
+/// Kilograms: less, once it has burnt.
 int f3d_body_get_mass(int world, int body, int out) => _f3d_body_get_mass(
   Pointer.fromAddress(world),
   body,
@@ -3428,6 +4278,8 @@ int f3d_body_get_mass(int world, int body, int out) => _f3d_body_get_mass(
   isLeaf: true,
 )
 external int _f3d_body_lock_rotation(Pointer<Void> world, int body, int locked);
+
+/// 1 keeps the body from turning, whatever its shape.
 int f3d_body_lock_rotation(int world, int body, int locked) =>
     _f3d_body_lock_rotation(Pointer.fromAddress(world), body, locked);
 
@@ -3441,6 +4293,9 @@ external int _f3d_body_set_damping(
   double linear,
   double angular,
 );
+
+/// Per second, the share of velocity and of spin taken away, each as 1 / (1 +
+/// dt · damping). Nought, the default, keeps them.
 int f3d_body_set_damping(int world, int body, double linear, double angular) =>
     _f3d_body_set_damping(Pointer.fromAddress(world), body, linear, angular);
 
@@ -3453,6 +4308,9 @@ external int _f3d_body_set_drag(
   int body,
   double coefficient,
 );
+
+/// The drag coefficient against the wind; nought, the default, takes the
+/// shape's own: 0.47 a sphere, 1.05 a box, 0.6 a capsule.
 int f3d_body_set_drag(int world, int body, double coefficient) =>
     _f3d_body_set_drag(Pointer.fromAddress(world), body, coefficient);
 
@@ -3467,6 +4325,9 @@ external int _f3d_body_apply_impulse(
   double y,
   double z,
 );
+
+/// An impulse, N s, through the centre, or at (px, py, pz) relative to the
+/// origin, which spins the body as well.
 int f3d_body_apply_impulse(int world, int body, double x, double y, double z) =>
     _f3d_body_apply_impulse(Pointer.fromAddress(world), body, x, y, z);
 
@@ -3492,6 +4353,9 @@ external int _f3d_body_apply_impulse_at(
   double py,
   double pz,
 );
+
+/// An impulse (x, y, z), N s, at (px, py, pz) relative to the world's origin:
+/// it moves the body and spins it about its centre as well.
 int f3d_body_apply_impulse_at(
   int world,
   int body,
@@ -3523,6 +4387,9 @@ external int _f3d_body_add_force(
   double y,
   double z,
 );
+
+/// The bus: a force, N, or a torque, N m, about the world's axes, held over the
+/// next step and spent by it; added up when added twice.
 int f3d_body_add_force(int world, int body, double x, double y, double z) =>
     _f3d_body_add_force(Pointer.fromAddress(world), body, x, y, z);
 
@@ -3537,6 +4404,9 @@ external int _f3d_body_add_torque(
   double y,
   double z,
 );
+
+/// The bus: a torque (x, y, z), N m, about the world's axes, held over the next
+/// step and spent by it; added up when added twice.
 int f3d_body_add_torque(int world, int body, double x, double y, double z) =>
     _f3d_body_add_torque(Pointer.fromAddress(world), body, x, y, z);
 
@@ -3545,6 +4415,13 @@ int f3d_body_add_torque(int world, int body, double x, double y, double z) =>
   isLeaf: true,
 )
 external int _f3d_body_set_bullet(Pointer<Void> world, int body, int bullet);
+
+/// Hard continuous collision for [body]: after the solve it is swept from where
+/// the step began to where it ended against every body but another bullet, and
+/// put back at its first time of impact, its velocity kept. For what is small
+/// and fast — a bullet, a puck — and what soft collision might still let
+/// through, and what spins fast enough to turn through a wall in one step. Its
+/// turn is swept with it.
 int f3d_body_set_bullet(int world, int body, int bullet) =>
     _f3d_body_set_bullet(Pointer.fromAddress(world), body, bullet);
 
@@ -3557,6 +4434,9 @@ external int _f3d_body_set_friction(
   int body,
   double friction,
 );
+
+/// Coulomb's coefficient, nought up; default 0.6. A pair slides on the
+/// geometric mean of its two, so either can make it slippery.
 int f3d_body_set_friction(int world, int body, double friction) =>
     _f3d_body_set_friction(Pointer.fromAddress(world), body, friction);
 
@@ -3569,6 +4449,10 @@ external int _f3d_body_set_restitution(
   int body,
   double restitution,
 );
+
+/// The share of the approach speed that comes back, nought to one; default
+/// nought. A pair bounces with the larger of its two, and nothing bounces that
+/// met slower than a metre a second.
 int f3d_body_set_restitution(int world, int body, double restitution) =>
     _f3d_body_set_restitution(Pointer.fromAddress(world), body, restitution);
 
@@ -3581,6 +4465,15 @@ external int _f3d_body_set_loss_factor(
   int body,
   double lossFactor,
 );
+
+/// The loss factor η of what [body] is made of, nought up; nought, the default,
+/// for none. A contact damps as a spring and dashpot of damping ratio ζ = η / 2
+/// does, and comes back with at most exp(−π ζ / √(1 − ζ²)) of its approach,
+/// nought from ζ = 1 on: the larger η of a pair takes from the restitution it
+/// would bounce with, and never adds to it. Set up rather than state, as a law
+/// is: not in a snapshot, kept across a restore, and a world that sets none
+/// steps to the bits it did before. 1, or 0 for a stale handle or a value not
+/// finite or below nought.
 int f3d_body_set_loss_factor(int world, int body, double lossFactor) =>
     _f3d_body_set_loss_factor(Pointer.fromAddress(world), body, lossFactor);
 
@@ -3594,6 +4487,10 @@ external int _f3d_body_set_collision_filter(
   int layer,
   int mask,
 );
+
+/// What the body is, [layer], and what it meets, [mask]: two bodies collide
+/// when each one's layer has a bit in the other's mask. Defaults 1 and every
+/// bit.
 int f3d_body_set_collision_filter(int world, int body, int layer, int mask) =>
     _f3d_body_set_collision_filter(
       Pointer.fromAddress(world),
@@ -3607,6 +4504,10 @@ int f3d_body_set_collision_filter(int world, int body, int layer, int mask) =>
   isLeaf: true,
 )
 external int _f3d_body_is_asleep(Pointer<Void> world, int body);
+
+/// 1 while the body sleeps. Bodies sleep and wake by islands: those joined by
+/// their contacts sleep when all of them have been still for the sleep time,
+/// and wake together when any of them moves.
 int f3d_body_is_asleep(int world, int body) =>
     _f3d_body_is_asleep(Pointer.fromAddress(world), body);
 
@@ -3615,6 +4516,8 @@ int f3d_body_is_asleep(int world, int body) =>
   isLeaf: true,
 )
 external int _f3d_body_wake(Pointer<Void> world, int body);
+
+/// Wakes the body, and starts its sleep clock again.
 int f3d_body_wake(int world, int body) =>
     _f3d_body_wake(Pointer.fromAddress(world), body);
 
@@ -3623,6 +4526,8 @@ int f3d_body_wake(int world, int body) =>
   isLeaf: true,
 )
 external int _f3d_material_preset(int kind, Pointer<Void> out);
+
+/// A material's typical values into [out]. 0 for a kind there is none of.
 int f3d_material_preset(int kind, int out) =>
     _f3d_material_preset(kind, Pointer.fromAddress(out));
 
@@ -3635,6 +4540,11 @@ external int _f3d_body_set_material(
   int body,
   Pointer<Void> material,
 );
+
+/// What the body is made of. Its fuel is its mass times the material's fuel
+/// fraction, counted from now. 0 for a value out of its range. A fixed body of
+/// no thermal mass — no mass and no water — is a reservoir: it gives and takes
+/// heat through its contacts and keeps its temperature.
 int f3d_body_set_material(int world, int body, int material) =>
     _f3d_body_set_material(
       Pointer.fromAddress(world),
@@ -3651,6 +4561,9 @@ external int _f3d_body_get_material(
   int body,
   Pointer<Void> out,
 );
+
+/// What the body is made of now, into [out]: as set, with what its laws
+/// ([f3d_body_set_law]) last wrote over it.
 int f3d_body_get_material(int world, int body, int out) =>
     _f3d_body_get_material(
       Pointer.fromAddress(world),
@@ -3663,11 +4576,17 @@ int f3d_body_get_material(int world, int body, int out) =>
   isLeaf: true,
 )
 external Pointer<Void> _f3d_program_load(Pointer<Void> bytes, int length);
+
+/// The program [bytes] hold, checked: every lane it reads in range and written
+/// before it is read. Null for bytes that are not one, a version this build
+/// does not read, or no memory.
 int f3d_program_load(int bytes, int length) =>
     _f3d_program_load(Pointer.fromAddress(bytes), length).address;
 
 @Native<Void Function(Pointer<Void>)>(symbol: 'f3d_program_free', isLeaf: true)
 external void _f3d_program_free(Pointer<Void> program);
+
+/// Frees the program. Null is allowed.
 void f3d_program_free(int program) =>
     _f3d_program_free(Pointer.fromAddress(program));
 
@@ -3676,6 +4595,9 @@ void f3d_program_free(int program) =>
   isLeaf: true,
 )
 external int _f3d_program_input_count(Pointer<Void> program);
+
+/// How many inputs it reads, how many numbers input `input` is, and how many
+/// numbers its answer is (one to four).
 int f3d_program_input_count(int program) =>
     _f3d_program_input_count(Pointer.fromAddress(program));
 
@@ -3684,6 +4606,9 @@ int f3d_program_input_count(int program) =>
   isLeaf: true,
 )
 external int _f3d_program_input_width(Pointer<Void> program, int input);
+
+/// How many numbers input [input] is; nought for a null program or an input it
+/// does not read.
 int f3d_program_input_width(int program, int input) =>
     _f3d_program_input_width(Pointer.fromAddress(program), input);
 
@@ -3692,6 +4617,9 @@ int f3d_program_input_width(int program, int input) =>
   isLeaf: true,
 )
 external int _f3d_program_result_width(Pointer<Void> program);
+
+/// How many numbers the program's answer is, one to four; nought for a null
+/// program.
 int f3d_program_result_width(int program) =>
     _f3d_program_result_width(Pointer.fromAddress(program));
 
@@ -3704,6 +4632,10 @@ external int _f3d_program_run(
   Pointer<Void> inputs,
   Pointer<Void> out,
 );
+
+/// Runs it on [inputs], each input's numbers in its order, in the coherent SI
+/// unit of its dimension, and writes the answer to [out]: returns how many
+/// numbers it wrote, 0 for a null program.
 int f3d_program_run(int program, int inputs, int out) => _f3d_program_run(
   Pointer.fromAddress(program),
   Pointer.fromAddress(inputs),
@@ -3721,6 +4653,17 @@ external int _f3d_body_set_law(
   Pointer<Void> bytes,
   int length,
 );
+
+/// Reads [property] of [body]'s material through the law [bytes] hold, a
+/// program of one input, the body's temperature in K, or of none, and one
+/// answer in the property's SI unit. Every step begins by writing its value at
+/// the temperature the body starts the step at into the material, in the order
+/// the laws were set; a value out of the property's range (a specific heat or
+/// conductivity not above nought, an emissivity outside nought to one, anything
+/// not finite) leaves the one before. Null [bytes] takes the law off, leaving
+/// the value last written. 0 for a stale body, a property there is none of (a
+/// liquid's: [f3d_shallow_set_law]), a program that is not one of one input and
+/// one answer, or no memory. A world nobody gave a law steps as before.
 int f3d_body_set_law(
   int world,
   int body,
@@ -3746,6 +4689,18 @@ external int _f3d_shallow_set_law(
   Pointer<Void> bytes,
   int length,
 );
+
+/// Reads [property] of [water] — `F3D_LAW_DENSITY`, `F3D_LAW_VISCOSITY` or
+/// `F3D_LAW_SURFACE_TENSION` — through the law [bytes] hold, as
+/// [f3d_body_set_law] reads a body's: a program of one input, the water's
+/// temperature in K ([f3d_shallow_set_heat]), or of none, and one answer in the
+/// property's SI unit. Every step begins by writing its value at that
+/// temperature over what [f3d_shallow_set_fluid] set, so warm glycerol runs and
+/// cold honey creeps; a value not finite and above nought leaves the one
+/// before. Null [bytes] takes the law off, leaving the value last written. 0
+/// for a water that is not one, a property a water has not, a program that is
+/// not one of one input and one answer, or no memory. A water nobody gave a law
+/// is what [f3d_shallow_set_fluid] made it.
 int f3d_shallow_set_law(
   int world,
   int water,
@@ -3769,6 +4724,10 @@ external int _f3d_body_set_temperature(
   int body,
   double kelvin,
 );
+
+/// Kelvin: the body's mean, what the heat in it says. Set, the body is that
+/// temperature all through, and it does not light a fire or put one out until
+/// the step says so.
 int f3d_body_set_temperature(int world, int body, double kelvin) =>
     _f3d_body_set_temperature(Pointer.fromAddress(world), body, kelvin);
 
@@ -3781,6 +4740,8 @@ external int _f3d_body_get_temperature(
   int body,
   Pointer<Void> out,
 );
+
+/// The body's mean temperature, K, into [out]. 0 for a handle not valid.
 int f3d_body_get_temperature(int world, int body, int out) =>
     _f3d_body_get_temperature(
       Pointer.fromAddress(world),
@@ -3797,6 +4758,12 @@ external int _f3d_body_get_surface_temperature(
   int body,
   Pointer<Void> out,
 );
+
+/// Kelvin: its surface's over the last step. Heat reaches into a body from its
+/// surface over a layer that thickens with the square root of time, so a thick
+/// body's surface runs ahead of its mean — a log's catches in a flame while its
+/// middle is cold — and a small or conductive body's is its mean. It is the
+/// surface that catches fire, goes out, radiates and meets other bodies.
 int f3d_body_get_surface_temperature(int world, int body, int out) =>
     _f3d_body_get_surface_temperature(
       Pointer.fromAddress(world),
@@ -3809,6 +4776,9 @@ int f3d_body_get_surface_temperature(int world, int body, int out) =>
   isLeaf: true,
 )
 external int _f3d_body_add_heat(Pointer<Void> world, int body, double joules);
+
+/// The bus: joules into the body over the next step, or out of it for a
+/// negative amount.
 int f3d_body_add_heat(int world, int body, double joules) =>
     _f3d_body_add_heat(Pointer.fromAddress(world), body, joules);
 
@@ -3822,6 +4792,12 @@ external int _f3d_body_get_part_temperature(
   int part,
   Pointer<Void> out,
 );
+
+/// A compound's parts each have a temperature, water, fuel and fire of their
+/// own, so a beam burns from the end the fire reached; the body's own
+/// temperature is theirs weighted by what each holds, and it burns while any
+/// part does. Part nought of any other body is the body. These read and set one
+/// part; 0 for a part it does not have.
 int f3d_body_get_part_temperature(int world, int body, int part, int out) =>
     _f3d_body_get_part_temperature(
       Pointer.fromAddress(world),
@@ -3840,6 +4816,9 @@ external int _f3d_body_set_part_temperature(
   int part,
   double kelvin,
 );
+
+/// Sets part [part] to [kelvin] all through. 0 for a part the body does not
+/// have, or a temperature not finite and above nought.
 int f3d_body_set_part_temperature(
   int world,
   int body,
@@ -3862,6 +4841,9 @@ external int _f3d_body_is_part_burning(
   int part,
   Pointer<Void> out,
 );
+
+/// One into [out] while part [part] burns, nought while it does not. 0 for a
+/// part the body does not have.
 int f3d_body_is_part_burning(int world, int body, int part, int out) =>
     _f3d_body_is_part_burning(
       Pointer.fromAddress(world),
@@ -3892,6 +4874,16 @@ external int _f3d_body_hold_flame(
   double area,
   double temperature,
 );
+
+/// A flame held to the body at (x, y, z) through the next step: [flux], W/m²,
+/// over [area], m², from gas at [temperature], K — a match, a pilot flame, a
+/// blowtorch held to a crate. It heats the part nearest the point by flux times
+/// area, and that spot catches as any spot heated harder than the rest does: in
+/// the time a thick solid takes to reach its ignition temperature under that
+/// flux, never if the flux is below what its surface loses there or the gas is
+/// cooler than it catches at. Held again each step while it is held; a later
+/// hold in the same step replaces it. 0 for a value not finite or below nought,
+/// or a temperature not above nought.
 int f3d_body_hold_flame(
   int world,
   int body,
@@ -3924,6 +4916,9 @@ external int _f3d_body_add_heat_at(
   double z,
   double joules,
 );
+
+/// [joules] into the body where (x, y, z) is: into the part of a compound whose
+/// centre is nearest it, into any other body whole. A torch held to one end.
 int f3d_body_add_heat_at(
   int world,
   int body,
@@ -3938,6 +4933,11 @@ int f3d_body_add_heat_at(
   isLeaf: true,
 )
 external int _f3d_body_add_water(Pointer<Void> world, int body, double kg);
+
+/// The bus: kilograms of water onto the body, at the air's temperature and
+/// mixed with the body's heat at once, or off it for a negative amount. Water
+/// holds the body at its boiling point until it has boiled away, which is how
+/// it puts a fire out. Its heat is counted, not its weight.
 int f3d_body_add_water(int world, int body, double kg) =>
     _f3d_body_add_water(Pointer.fromAddress(world), body, kg);
 
@@ -3950,6 +4950,8 @@ external int _f3d_body_get_water(
   int body,
   Pointer<Void> out,
 );
+
+/// The water on the body, kg, into [out]. 0 for a handle not valid.
 int f3d_body_get_water(int world, int body, int out) => _f3d_body_get_water(
   Pointer.fromAddress(world),
   body,
@@ -3965,6 +4967,8 @@ external int _f3d_body_get_fuel(
   int body,
   Pointer<Void> out,
 );
+
+/// Kilograms that can still burn.
 int f3d_body_get_fuel(int world, int body, int out) => _f3d_body_get_fuel(
   Pointer.fromAddress(world),
   body,
@@ -3980,6 +4984,8 @@ external int _f3d_body_is_burning(
   int body,
   Pointer<Void> out,
 );
+
+/// 1 while the body burns, into *out.
 int f3d_body_is_burning(int world, int body, int out) => _f3d_body_is_burning(
   Pointer.fromAddress(world),
   body,
@@ -3995,6 +5001,10 @@ external int _f3d_body_get_heat_release(
   int body,
   Pointer<Void> out,
 );
+
+/// Watts the fire gave off over the last step, past what its flame gave back to
+/// the body: the flame's radiant share of it leaves as radiation, the rest as
+/// the hot gas of its plume.
 int f3d_body_get_heat_release(int world, int body, int out) =>
     _f3d_body_get_heat_release(
       Pointer.fromAddress(world),
@@ -4012,6 +5022,11 @@ external int _f3d_body_get_submerged(
   Pointer<Void> volume,
   Pointer<Void> water,
 );
+
+/// What of the body stands in a liquid, as the water's last step measured it:
+/// the m³ under the surface into [volume], which water into [water] — nought
+/// for none, when [volume] is nought too. The water holds it up by that volume
+/// times its density and gravity. Either may be null.
 int f3d_body_get_submerged(int world, int body, int volume, int water) =>
     _f3d_body_get_submerged(
       Pointer.fromAddress(world),
@@ -4036,6 +5051,12 @@ external int _f3d_body_get_char(
   Pointer<Void> depth,
   Pointer<Void> temperature,
 );
+
+/// The char a fire has left on the body: the share of its surface under char,
+/// nought to one, into [share]; how deep the char has grown, at its deepest, m,
+/// into [depth]; and the char's surface temperature, K, into [temperature] —
+/// over its fire what the burning patch's heat balance gives it, elsewhere its
+/// surface's. Char stays when the fire goes out. Any may be null.
 int f3d_body_get_char(
   int world,
   int body,
@@ -4060,6 +5081,14 @@ external int _f3d_body_set_burner(
   double kgPerSecond,
   Pointer<Void> fuel,
 );
+
+/// A burner: [kgPerSecond] of [fuel] fed to the body and burnt on it — a torch,
+/// a brazier, a fire someone tends — giving off that times the fuel's heat of
+/// combustion with its flame, whatever the body is made of and whether or not
+/// it has fuel of its own. The flame stands over the whole body (a compound's
+/// first part) and heats it as its own fire would. Null [fuel] burns the body's
+/// own material; nought turns it off. 0 for a rate out of range or a fuel that
+/// does not burn.
 int f3d_body_set_burner(int world, int body, double kgPerSecond, int fuel) =>
     _f3d_body_set_burner(
       Pointer.fromAddress(world),
@@ -4080,6 +5109,15 @@ external int _f3d_world_explode(
   double joules,
   double kg,
 );
+
+/// An explosion of [joules] at (x, y, z), from a charge of [kg]; nought kg
+/// takes the TNT equivalent, a kilogram per 4.184 MJ. Its products carry TNT's
+/// Gurney share of the energy, 0.69, outwards as momentum √(2·E_G·m), and each
+/// body in their way takes the share of it its solid angle is, as an impulse
+/// away from the centre — the area it shows over 4πr² far off; the rest of the
+/// energy is heat, of which each body takes its solid angle's share as much as
+/// its emissivity does. Neither passes what stands between. How many bodies it
+/// reached.
 int f3d_world_explode(
   int world,
   double x,

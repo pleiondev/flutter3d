@@ -37,6 +37,7 @@ import 'native_world.dart';
 /// `base`, so a member added here later arrives with a default. Shared by
 /// nothing: one field is in one [NativeForceFields].
 abstract base class NativeForceField {
+  /// A field; the subclass gives its [name] and [apply].
   const NativeForceField();
 
   /// What the field is called: unique among the fields of one world, and
@@ -111,8 +112,10 @@ final class NativeForceContext {
 /// [apply] just before. With no field it adds nothing and saves nothing, so
 /// a world that never gains one steps and saves exactly as it did.
 final class NativeForceFields {
+  /// No fields yet, over [world].
   NativeForceFields(this.world) : _context = NativeForceContext._(world);
 
+  /// The world the fields push on and [step] steps.
   final NativeWorld world;
   final NativeForceContext _context;
   final List<NativeForceField> _fields = <NativeForceField>[];
@@ -121,7 +124,10 @@ final class NativeForceFields {
   List<NativeForceField> get fields =>
       List<NativeForceField>.unmodifiable(_fields);
 
+  /// Whether there is no field, so a step adds nothing and saves nothing.
   bool get isEmpty => _fields.isEmpty;
+
+  /// Whether there is at least one field.
   bool get isNotEmpty => _fields.isNotEmpty;
 
   /// How many steps the fields have been applied to.
@@ -196,6 +202,8 @@ final class NativeForceFields {
 /// pulls nothing after — the state it saves, so a restored world's spring
 /// is broken or whole as it was.
 final class NativeSpring extends NativeForceField {
+  /// A spring called [name] between [a] and [b]; undamped and unbreakable
+  /// unless [damping] and [breakingForce] are given.
   NativeSpring({
     required this.name,
     required this.a,
@@ -209,7 +217,11 @@ final class NativeSpring extends NativeForceField {
   @override
   final String name;
 
+  /// The first body it pulls; it pulls the second, [b], equally the other
+  /// way.
   final NativeBody a;
+
+  /// The second body it pulls.
   final NativeBody b;
 
   /// The distance between the centres it pulls nothing at, in metres.
