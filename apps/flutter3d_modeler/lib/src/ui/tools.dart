@@ -82,8 +82,13 @@ const Set<String> kStrokeTools = <String>{
 /// now (`screen/uv_wiring.dart`), and [ModelerMode.ready] stays on the enum
 /// for the next mode that is drawn before it is reachable.
 enum ModelerMode {
+  /// Whole objects: select, add, move, rotate, scale.
   object('Object', Icons.category_outlined, 1, ready: true, inEssential: true),
+
+  /// A mesh's elements, at the level [MeshSubmode] picks.
   mesh('Mesh', Icons.hexagon_outlined, 1, ready: true),
+
+  /// Materials and their texture graphs.
   material(
     'Material',
     Icons.palette_outlined,
@@ -95,7 +100,10 @@ enum ModelerMode {
   // Mesh the hand-over draws it as, for the reason the four below are: the
   // rail, the panel and the picture are all replaced, and a sub-mode here
   // changes the element level and nothing else.
+  /// Seams and the unwrap, beside the UV layout.
   uv('UV', Icons.grid_on_outlined, 4, ready: true),
+
+  /// Sculpting brushes over a subdivided surface.
   sculpt('Sculpt', Icons.brush_outlined, 4, ready: true),
   // `pro-rt-03`/`pro-rt-07`, `pro-pt-05`, `pro-sim-06`, `pro-rn-04`: the
   // four screens whose panels were built before a mode switch could reach
@@ -103,11 +111,22 @@ enum ModelerMode {
   // reason `AnimationSubmode`'s own doc comment gives about what a sub-mode
   // is: these are four different workflows over one document, not one
   // workflow looked at four grains.
+  /// Drawing a new low-poly surface over a source mesh.
   retopo('Retopo', Icons.grid_4x4_outlined, 4, ready: true),
+
+  /// Painting texture layers onto the surface.
   paint('Paint', Icons.format_paint_outlined, 4, ready: true),
+
+  /// Cloth, rigid bodies and particles, baked into a cache.
   simulation('Simulate', Icons.waves_outlined, 4, ready: true),
+
+  /// Rigs, weights, clips and morphs, under [AnimationSubmode].
   animation('Animation', Icons.animation_outlined, 3, ready: true),
+
+  /// A rendered still, tile by tile.
   render('Render', Icons.camera_outlined, 4, ready: true),
+
+  /// The lights, the sky and the look of the scene.
   scene('Scene', Icons.light_mode_outlined, 2, ready: true, inEssential: true);
 
   const ModelerMode(
@@ -127,6 +146,7 @@ enum ModelerMode {
   /// lands is how half a interface ends up translated.
   final String label;
 
+  /// The mode's icon, in the switcher and on the phone's navigation bar.
   final IconData icon;
 
   /// Which phase of the plan brings this mode to life — what an agent asking
@@ -182,14 +202,24 @@ const List<ModelerMode> kPhoneModes = <ModelerMode>[
 /// mesh and this is a state of the interface, and the day a fourth level
 /// arrives in one of them it will not arrive in the other.
 enum MeshSubmode {
+  /// Picking and editing vertices.
   vertex('Vertex', Icons.scatter_plot_outlined, LogicalKeyboardKey.digit1),
+
+  /// Picking and editing edges.
   edge('Edge', Icons.timeline_outlined, LogicalKeyboardKey.digit2),
+
+  /// Picking and editing faces.
   face('Face', Icons.pentagon_outlined, LogicalKeyboardKey.digit3);
 
   const MeshSubmode(this.label, this.icon, this.shortcut);
 
+  /// What the switcher's segment says.
   final String label;
+
+  /// The segment's icon.
   final IconData icon;
+
+  /// The key that switches to this level.
   final LogicalKeyboardKey shortcut;
 }
 
@@ -208,21 +238,35 @@ enum MeshSubmode {
 /// take this as an argument and switch their whole answer on it, the same
 /// "replaced wholesale" rule the mode switch itself already follows.
 enum AnimationSubmode {
+  /// Posing joints and keying the clip.
   pose('Pose', Icons.accessibility_new_outlined, LogicalKeyboardKey.digit1),
+
+  /// Painting skin weights.
   weights('Weights', Icons.gradient_outlined, LogicalKeyboardKey.digit2),
+
+  /// Mapping one rig's clip onto another.
   retarget('Retarget', Icons.sync_alt_outlined, LogicalKeyboardKey.digit3),
+
+  /// Morph targets and their drivers.
   morphs('Morphs', Icons.face_outlined, LogicalKeyboardKey.digit4);
 
   const AnimationSubmode(this.label, this.icon, this.shortcut);
 
+  /// What the switcher's segment says.
   final String label;
+
+  /// The segment's icon.
   final IconData icon;
+
+  /// The key that switches to this sub-mode.
   final LogicalKeyboardKey shortcut;
 }
 
 /// One button, wherever it is shown.
 @immutable
 final class ModelerTool {
+  /// A tool for the table. [id] is what the rest of the application knows it
+  /// by.
   const ModelerTool({
     required this.id,
     required this.label,
@@ -236,6 +280,8 @@ final class ModelerTool {
   /// rename of the label, which is the point of having it.
   final String id;
 
+  /// What the button is called; the rail and the palette put it in the
+  /// tooltip's first line.
   final String label;
 
   /// One sentence saying what pressing this actually does — `ux-18`.
@@ -251,6 +297,7 @@ final class ModelerTool {
   /// added.
   final String about;
 
+  /// The button's icon.
   final IconData icon;
 
   /// The key that arms it. One key, not a combination: the modelling keys are

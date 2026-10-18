@@ -32,8 +32,10 @@ Future<GalleryItem?> showGallery(
 
 /// The grid.
 class GalleryScreen extends StatefulWidget {
+  /// A grid of what every one of [sources] answers with.
   const GalleryScreen({super.key, required this.sources});
 
+  /// Where the items come from: the recipes, a cached download, an API.
   final List<GallerySource> sources;
 
   @override

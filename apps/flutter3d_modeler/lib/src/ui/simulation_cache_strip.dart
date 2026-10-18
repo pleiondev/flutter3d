@@ -16,6 +16,8 @@ import '../../../l10n/app_localizations.dart';
 /// [targetFrameCount] — an empty strip for a bake nobody has started, and a
 /// fully filled one once every target frame is cached.
 final class SimulationCacheStrip extends StatelessWidget {
+  /// A strip for [bakedFrameCount] of [targetFrameCount] frames. A negative
+  /// baked count is refused by an assert.
   const SimulationCacheStrip({
     super.key,
     required this.bakedFrameCount,

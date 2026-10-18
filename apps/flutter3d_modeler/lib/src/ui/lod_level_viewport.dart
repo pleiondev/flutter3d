@@ -28,6 +28,7 @@ import '../staging.dart';
 
 /// [mesh] in a viewport of its own, turning with [leader].
 class LodLevelViewport extends StatefulWidget {
+  /// A viewport drawing [mesh], level [lodIndex], through [renderer].
   const LodLevelViewport({
     super.key,
     required this.renderer,

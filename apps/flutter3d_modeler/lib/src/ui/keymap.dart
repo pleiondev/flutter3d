@@ -32,13 +32,22 @@ import 'tools.dart';
 
 /// Something the application does that is not a tool on the rail.
 enum ModelerAction {
+  /// Save the document.
   save,
+
+  /// Undo the last command.
   undo,
+
+  /// Redo the last undone command.
   redo,
+
+  /// Export again, the export a person repeats into the game.
   export,
 
   /// Put the camera on what is selected, or on everything.
   frameSelection,
+
+  /// Put the camera on everything.
   frameAll,
 
   /// Object ⇄ Mesh, the one switch a modeller makes most.
@@ -48,17 +57,28 @@ enum ModelerAction {
   /// thinking, which was bound to nothing at all.
   delete,
 
+  /// Select every object, or every element at the current level.
   selectAll,
+
+  /// Clear the selection.
   selectNone,
+
+  /// Select what is not selected and nothing that is.
   invertSelection,
 
   /// Play and pause the timeline.
   playPause,
 
+  /// Look at the model from the front.
   viewFront,
+
+  /// Look at the model from the side.
   viewSide,
+
+  /// Look at the model from above.
   viewTop,
 
+  /// Show the shortcut help, the list of every key in the live preset.
   shortcutHelp,
 
   /// `ux-25`'s own palette: everything the editor can do, by name.
@@ -66,6 +86,8 @@ enum ModelerAction {
 
   /// `ux-27`: fold the properties panel away, and the tool rail.
   foldPanel,
+
+  /// Fold the tool rail away, or back.
   foldRail,
 
   /// `ux-28`: one ring of neighbours more, and one less.
@@ -76,24 +98,30 @@ enum ModelerAction {
   /// shift in front of it. Select-linked, which is a bare `L`, *is* a rail
   /// tool for exactly that reason.
   growSelection,
+
+  /// One ring of neighbours less.
   shrinkSelection,
 
   /// `ux-24`: the weight brush's own reach, `[` narrower and `]` wider —
   /// the two keys the field spends on exactly this, and the two nothing
   /// else in this application wants.
   brushNarrower,
+
+  /// The weight brush wider.
   brushWider,
 }
 
 /// What a key means in one preset.
 @immutable
 final class Keymap {
+  /// A keymap for [preset] from its tool keys and action keys.
   const Keymap({
     required this.preset,
     required this.tools,
     required this.actions,
   });
 
+  /// Which preset this table is.
   final KeymapPreset preset;
 
   /// Tool id to the key that arms it. A tool with no entry has no key in

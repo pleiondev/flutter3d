@@ -2,17 +2,19 @@
 /// `weight_gradient.dart` paints the mesh with — `screen 13`'s own top-right
 /// chip.
 ///
-/// **A standalone widget, not yet placed in the viewport.** Deciding when the
-/// weights view is actually on is `S5`'s own row — the sub-mode's panel and
-/// brush live there — so nothing in this pass adds this to `ready_parts.
-/// dart`'s own `Stack`; this file is built and tested on its own, ready for
-/// that row to drop in beside `MeasurementReportOverlay`.
+/// **On screen only in the weights view.** Deciding when that view is on is
+/// `S5`'s row, which puts this in `ready_parts.dart`'s own `Stack` while the
+/// animation mode is in its weights sub-mode, beside
+/// `MeasurementReportOverlay`; this file knows nothing about modes and is
+/// tested on its own.
 library;
 
 import 'package:flutter/material.dart';
 
 /// The gradient bar's own size, `screen 13`'s own "140×8".
 const double kWeightLegendWidth = 140;
+
+/// The gradient bar's height, `screen 13`'s "8".
 const double kWeightLegendHeight = 8;
 
 /// The five stops as sRGB `Color`s, for a widget to paint directly — a
@@ -32,6 +34,7 @@ const List<Color> kWeightLegendColors = <Color>[
 /// child of the `Stack` that holds the viewport, not a widget a caller wraps
 /// in `Positioned` itself.
 class WeightLegend extends StatelessWidget {
+  /// The legend; it reads nothing but the theme.
   const WeightLegend({super.key});
 
   @override

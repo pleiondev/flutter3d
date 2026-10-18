@@ -17,6 +17,7 @@ import 'package:flutter/material.dart';
 
 /// One short line on the panel surface, for a corner of the viewport.
 final class ViewportChip extends StatelessWidget {
+  /// A chip saying [said].
   const ViewportChip(this.said, {super.key});
 
   /// What it says, in the language the interface is in.

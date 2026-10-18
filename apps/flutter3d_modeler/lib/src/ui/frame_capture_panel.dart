@@ -24,6 +24,7 @@ import 'metrics_overlay.dart' show kMetricsOverlayBackground;
 
 /// The capture panel, in the state the screen has it in.
 class FrameCapturePanel extends StatelessWidget {
+  /// The panel showing [capture], or that one is [waiting].
   const FrameCapturePanel({
     super.key,
     required this.capture,
@@ -37,6 +38,7 @@ class FrameCapturePanel extends StatelessWidget {
   /// Whether a capture has been asked for and has not answered.
   final bool waiting;
 
+  /// The capture button was pressed: take the next frame.
   final VoidCallback onCapture;
 
   @override

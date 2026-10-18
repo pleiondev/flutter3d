@@ -28,7 +28,12 @@ import 'animation_graphs_list.dart';
 import 'constraints_list.dart';
 import 'skeleton_tree.dart';
 
+/// The animation mode's side panel: the actions, then the held object's
+/// skeleton and its constraints when it has one, then the animation graphs.
+/// Every selection is the caller's and arrives as a field.
 class AnimationPanel extends StatelessWidget {
+  /// A panel over [clips] and [objects]; the skeleton sections are left out
+  /// while [skeleton] is null.
   const AnimationPanel({
     super.key,
     required this.clips,
@@ -67,20 +72,38 @@ class AnimationPanel extends StatelessWidget {
   /// `ModelerShell.bottom` and this panel's own action list always agree on
   /// it.
   final int? selectedClip;
+
+  /// Called with the index of the clip picked in the action list.
   final ValueChanged<int> onSelectClip;
 
+  /// The selected joint, by its [ModelObject.id], or null for none.
   final int? selectedJoint;
+
+  /// Called with the [ModelObject.id] of the joint picked in the skeleton
+  /// tree.
   final ValueChanged<int> onSelectJoint;
 
+  /// The index of the selected constraint in [skeleton]'s constraints, or
+  /// null for none.
   final int? selectedConstraint;
+
+  /// Called with the index of the constraint picked in the list.
   final ValueChanged<int> onSelectConstraint;
+
+  /// Called with the index of the constraint whose remove button was
+  /// pressed. Null leaves the rows without one.
   final ValueChanged<int>? onRemoveConstraint;
 
   /// The project's animation graphs, and what sets and removes one; the
   /// section is shown when both are given.
   final Map<String, Map<String, Object?>> animationGraphs;
+
+  /// Sets graph `name` to `graph` and answers the refusal, or null when it
+  /// landed — [AnimationGraphsList.onSet].
   final String? Function(String name, Map<String, Object?> graph)?
   onSetAnimationGraph;
+
+  /// Removes the named graph — [AnimationGraphsList.onRemove].
   final ValueChanged<String>? onRemoveAnimationGraph;
 
   String _jointName(int jointId) {

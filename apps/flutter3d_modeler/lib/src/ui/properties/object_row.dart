@@ -15,6 +15,7 @@ import '../theme.dart';
 /// One line of the object list: the name, what it is made of, and whether it
 /// is selected.
 class ObjectRow extends StatelessWidget {
+  /// A row for [object], highlighted when [selected].
   const ObjectRow({
     super.key,
     required this.object,
@@ -24,8 +25,14 @@ class ObjectRow extends StatelessWidget {
     this.unshowable,
   });
 
+  /// The object the row names.
   final ModelObject object;
+
+  /// Whether the object is in the selection; the row is highlighted when it
+  /// is.
   final bool selected;
+
+  /// The row was tapped.
   final VoidCallback onTap;
 
   /// What a double-click does — the outliner's own rename in place

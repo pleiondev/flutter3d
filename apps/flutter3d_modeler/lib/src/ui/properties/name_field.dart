@@ -13,9 +13,14 @@ import '../theme.dart';
 
 /// The object's name, editable.
 class NameField extends StatefulWidget {
+  /// A field showing [name].
   const NameField({super.key, required this.name, required this.onRenamed});
 
+  /// The object's current name; the field goes back to it when the edit is
+  /// empty or unchanged.
   final String name;
+
+  /// The field was committed with a new, non-empty name, trimmed.
   final void Function(String to) onRenamed;
 
   @override

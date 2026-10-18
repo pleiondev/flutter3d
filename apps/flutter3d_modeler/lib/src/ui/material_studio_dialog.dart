@@ -29,22 +29,34 @@ import 'roomy_dialog.dart';
 
 /// Which body the material is shown on.
 enum MaterialStudioBody {
+  /// The default parametric sphere.
   sphere('Sphere'),
+
+  /// The default parametric cuboid.
   cube('Cube'),
+
+  /// The teapot from `flutter3d_samples`.
   teapot('Teapot'),
+
+  /// The held object's own mesh.
   thisObject('This object');
 
   const MaterialStudioBody(this.label);
 
+  /// What the body's chip says.
   final String label;
 }
 
 /// One of the row's own "три пресета" — a name for the chip, and the sky it
 /// draws.
 final class MaterialStudioSkyPreset {
+  /// A preset called [name] that lights the studio with [sky].
   const MaterialStudioSkyPreset({required this.name, required this.sky});
 
+  /// What the preset's chip says: Studio, Daylight or Sunset.
   final String name;
+
+  /// The sky the studio's environment map is built from.
   final SkySettings sky;
 }
 
@@ -103,9 +115,13 @@ List<MaterialStudioSkyPreset> materialStudioSkyPresets() =>
 /// widget behind it at all — instead of driving a whole dialog to prove one
 /// line of cleanup runs.
 final class MaterialStudioEnvironment {
+  /// An environment for [scene] on [device], with nothing bound until [apply].
   MaterialStudioEnvironment({required this.device, required this.scene});
 
+  /// Where the environment texture is built and released.
   final GraphicsDevice device;
+
+  /// The studio's scene, whose environment, levels and ambient [apply] sets.
   final Scene scene;
 
   TextureHandle? _handle;

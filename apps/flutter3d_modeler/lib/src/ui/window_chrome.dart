@@ -50,6 +50,7 @@ bool get hasNativeWindowChrome =>
 /// rebuilds its whole screen once a frame and a platform message per frame for
 /// a title nobody renamed would be a message channel used as a spin loop.
 class DocumentWindowTitle extends StatefulWidget {
+  /// The window titled after [name], marked when [isDirty], around [child].
   const DocumentWindowTitle({
     super.key,
     required this.name,
@@ -65,6 +66,7 @@ class DocumentWindowTitle extends StatefulWidget {
   /// Whether it has unsaved changes.
   final bool isDirty;
 
+  /// The screen the title belongs to, drawn unchanged.
   final Widget child;
 
   /// Overridable so a test can listen on a channel of its own.

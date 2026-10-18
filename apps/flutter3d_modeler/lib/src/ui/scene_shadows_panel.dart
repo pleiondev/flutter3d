@@ -19,6 +19,7 @@ import '../scene_mode.dart';
 
 /// The shadow toggle, and the status it drives.
 final class SceneShadowsPanel extends StatelessWidget {
+  /// The toggle over [shadows], with [status] beneath it.
   const SceneShadowsPanel({
     super.key,
     required this.shadows,
@@ -30,8 +31,11 @@ final class SceneShadowsPanel extends StatelessWidget {
   /// a promise: see `SceneLighting.shadows`'s own doc comment.
   final bool shadows;
 
+  /// How many lights there are, how many cast shadows and the cap on them,
+  /// and whether that reads as a warning.
   final SceneStatus status;
 
+  /// Shadows were switched on or off for the scene.
   final ValueChanged<bool> onShadowsChanged;
 
   @override

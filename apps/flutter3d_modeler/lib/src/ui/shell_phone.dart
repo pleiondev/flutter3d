@@ -24,6 +24,7 @@ import 'tools.dart';
 
 /// The phone shell: a bottom `NavigationBar` for modes, a FAB for tools.
 class ModelerPhoneShell extends StatelessWidget {
+  /// The phone shell around the parts it is handed.
   const ModelerPhoneShell({
     super.key,
     required this.mode,
@@ -46,24 +47,39 @@ class ModelerPhoneShell extends StatelessWidget {
   /// with no window title behind it at all, which is exactly why it cannot
   /// be the shell that leaves this out.
   final String documentName;
+
+  /// Whether [documentName] has unsaved changes, which marks the label.
   final bool isDirty;
 
+  /// The mode on screen, the selected destination of the navigation bar.
   final ModelerMode mode;
+
+  /// A destination of the navigation bar was picked.
   final ValueChanged<ModelerMode> onMode;
 
   /// Which set of modes the switcher offers — `ux-37`. Full by default, so a
   /// caller that has not been told about workspaces shows what it always did.
   final Workspace workspace;
 
+  /// The element level mesh mode edits at.
   final MeshSubmode submode;
+
+  /// An element level was picked.
   final ValueChanged<MeshSubmode> onSubmode;
 
   /// The id of the armed tool, from [ModelerTool.id]. Null is the pointer.
   final String? activeTool;
+
+  /// A tool was picked from the FAB's tool sheet, by its [ModelerTool.id].
   final ValueChanged<String> onTool;
 
+  /// The picture, filling the space above the navigation bar.
   final Widget viewport;
+
+  /// The properties panel, in the bottom sheet.
   final Widget properties;
+
+  /// The status line.
   final Widget status;
 
   /// What a desktop puts at the right of its top bar. A phone has no top bar

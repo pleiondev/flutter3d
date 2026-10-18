@@ -62,6 +62,7 @@ typedef TextureSlotController = ({
 /// The selected object's materials, and the fields of whichever it is
 /// painted with.
 class MaterialPanel extends StatelessWidget {
+  /// The panel over [materials], with [activeIndex]'s fields below the list.
   const MaterialPanel({
     super.key,
     required this.materials,
@@ -85,6 +86,7 @@ class MaterialPanel extends StatelessWidget {
   /// which is a button of its own — `ux-40`.
   final ValueChanged<int?> onAssign;
 
+  /// The "Add material" link was pressed.
   final VoidCallback onAddMaterial;
 
   /// A field of [activeIndex]'s own material committed —

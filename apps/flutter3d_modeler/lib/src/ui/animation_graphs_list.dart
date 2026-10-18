@@ -20,6 +20,8 @@ import '../../l10n/app_localizations.dart';
 
 /// The project's graphs, and an editor for one.
 final class AnimationGraphsList extends StatefulWidget {
+  /// A list of [graphs] with an empty editor under it; the graphs change
+  /// only through [onSet] and [onRemove].
   const AnimationGraphsList({
     super.key,
     required this.graphs,
@@ -33,6 +35,8 @@ final class AnimationGraphsList extends StatefulWidget {
   /// Sets graph `name` to `graph`; the refusal, or null when it landed.
   final String? Function(String name, Map<String, Object?> graph) onSet;
 
+  /// Called with a graph's name when its remove button is pressed;
+  /// removing it from the project is the caller's.
   final ValueChanged<String> onRemove;
 
   @override

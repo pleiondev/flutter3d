@@ -36,6 +36,8 @@ typedef RenderPassRow = ({String name, bool enabled, bool fixed});
 
 /// Screen 12's own panel: the chain, and the button that runs it.
 class RenderPanel extends StatelessWidget {
+  /// The panel for one render mode; it holds nothing, and every press goes
+  /// out through a callback.
   const RenderPanel({
     super.key,
     required this.passes,
@@ -64,6 +66,8 @@ class RenderPanel extends StatelessWidget {
   /// How many tiles are done, and how many there are — zero total means no
   /// render is running.
   final int tilesDone;
+
+  /// How many tiles the render has in all; zero when no render is running.
   final int tilesTotal;
 
   /// Stop the render. Null while none is running.
@@ -126,6 +130,8 @@ class RenderPanel extends StatelessWidget {
 /// a bar somewhere else on the screen answers it worse than the picture
 /// filling in does.
 class RenderResult extends StatelessWidget {
+  /// The render's picture, or an empty frame before one; the progress is
+  /// drawn over it until [tilesDone] reaches [tilesTotal].
   const RenderResult({
     super.key,
     this.result,
@@ -136,7 +142,11 @@ class RenderResult extends StatelessWidget {
   /// What came back, or null before anything has.
   final ui.Image? result;
 
+  /// How many tiles of the render are finished.
   final int tilesDone;
+
+  /// How many tiles the render has in all; zero when none is running, which
+  /// hides the progress.
   final int tilesTotal;
 
   bool get _running => tilesTotal > 0 && tilesDone < tilesTotal;

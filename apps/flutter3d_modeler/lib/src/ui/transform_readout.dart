@@ -16,6 +16,8 @@ import 'package:flutter/material.dart';
 
 /// [readout] over [hints], carried at [at] inside a picture of [within].
 class TransformReadout extends StatelessWidget {
+  /// The label saying [readout], placed off [at] and flipped where it would
+  /// leave [within].
   const TransformReadout({
     super.key,
     required this.readout,

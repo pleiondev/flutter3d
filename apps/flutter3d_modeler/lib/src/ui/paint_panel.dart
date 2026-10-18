@@ -36,6 +36,8 @@ typedef PaintLayerRow = ({String name, String blend, bool visible});
 /// Screen 18's own panel: the flattened canvas, the layers, the palette and
 /// the masks.
 class PaintPanel extends StatelessWidget {
+  /// The panel for one paint session; every edit comes back through a
+  /// callback, and nothing here holds the stack.
   const PaintPanel({
     super.key,
     required this.layers,
@@ -60,6 +62,9 @@ class PaintPanel extends StatelessWidget {
 
   /// Which layer a stroke lands on.
   final int selectedLayer;
+
+  /// A layer row was tapped: the index, bottom-first, that strokes should
+  /// land on from now on.
   final ValueChanged<int> onSelectLayer;
 
   /// Add an empty layer above the stack.
@@ -67,13 +72,20 @@ class PaintPanel extends StatelessWidget {
 
   /// The brush's own colour, straight-alpha RGBA `0..1`.
   final List<double> color;
+
+  /// A swatch was picked: the new brush colour, straight-alpha RGBA `0..1`.
   final ValueChanged<List<double>> onColour;
 
   /// In logical pixels, the cursor's own diameter.
   final double radius;
+
+  /// The cursor's diameter was dragged, in logical pixels.
   final ValueChanged<double> onRadius;
 
+  /// How much of the brush colour one stroke lays down, `0..1`.
   final double strength;
+
+  /// The strength slider moved, with the new value `0..1`.
   final ValueChanged<double> onStrength;
 
   /// The masks this project has, by the name their image carries — the
@@ -82,6 +94,8 @@ class PaintPanel extends StatelessWidget {
 
   /// Which one gates the stroke, or null for none.
   final String? mask;
+
+  /// A mask was picked by name, or null when the stroke should be ungated.
   final ValueChanged<String?> onMask;
 
   /// The flattened canvas as it stands, or null before anything is painted.

@@ -31,6 +31,7 @@ double clipDurationSeconds(ProjectClip clip) {
 /// clip" prompt instead of an empty list, since a library with nothing
 /// imported yet is not the same thing as a file with no clips in it.
 class ClipLibrary extends StatefulWidget {
+  /// The column over [source]; the search text is the only state it keeps.
   const ClipLibrary({
     super.key,
     required this.source,
@@ -45,6 +46,8 @@ class ClipLibrary extends StatefulWidget {
 
   /// Which of [RetargetSource.clips] is open in the two viewports below.
   final int? selectedClipIndex;
+
+  /// Called with the index into [RetargetSource.clips] of the card tapped.
   final ValueChanged<int> onSelectClip;
 
   /// `retarget.import`'s own rail tool, reachable a second way from here —

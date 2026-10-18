@@ -21,7 +21,12 @@ import 'theme.dart';
 import 'timeline_panel.dart';
 import 'transport_bar.dart';
 
+/// The animation mode's bottom strip: a [TransportBar] on top and, below
+/// it, the open clip's keys or the selected track's curves, as [editMode]
+/// says. Holds no state; every edit is reported through a callback.
 class AnimationBottom extends StatelessWidget {
+  /// A strip for the clip at [clipIndex], or for no clip when both it and
+  /// [clip] are null.
   const AnimationBottom({
     super.key,
     this.clipIndex,
@@ -53,28 +58,52 @@ class AnimationBottom extends StatelessWidget {
   /// pops the viewport when a clip is picked), but draws the transport bar
   /// alone over a placeholder in place of [TimelinePanel]/[CurveEditor].
   final int? clipIndex;
+
+  /// The clip at [clipIndex] in the project, or null alongside it.
   final ProjectClip? clip;
 
   /// The playhead, in whole frames — see this file's own class comment for
   /// why this is a `ValueListenable` rather than a plain `int`.
   final ValueListenable<int> frame;
 
+  /// The clip's frame rate, in frames per second: what turns [frame] into a
+  /// time in seconds for the timeline and the curves.
   final double fps;
 
+  /// Whether the clip is playing, and its loop and speed, as the transport
+  /// bar shows them.
   final Playback playback;
+
+  /// Whether the lower half shows keys ([TimelinePanel]) or curves
+  /// ([CurveEditor]).
   final TimelineEditMode editMode;
+
+  /// Called when the `Keys`/`Curves` toggle is flipped.
   final ValueChanged<TimelineEditMode> onEditMode;
+
+  /// Called by the play/pause button.
   final VoidCallback onPlayPause;
 
   /// The loop toggle — null disables it rather than guessing at a wrap mode
   /// nobody wired.
   final ValueChanged<bool>? onLoopChanged;
+
+  /// Called with the speed picked from the transport bar's menu, a
+  /// multiplier of the clip's own rate. Null disables the menu.
   final ValueChanged<double>? onSpeedChanged;
 
+  /// The index of the selected track in [clip], or null. The curves view
+  /// draws only this track and shows a placeholder while it is null.
   final int? selectedTrack;
+
+  /// The index of the selected key within [selectedTrack], or null.
   final int? selectedKey;
 
+  /// Called when keys are dragged along the timeline; moving them is the
+  /// caller's.
   final ValueChanged<MoveKeys>? onMoveKeys;
+
+  /// Called with a time in seconds when the timeline's ruler is scrubbed.
   final ValueChanged<double>? onSeek;
 
   /// `ux-46`: [add] is shift, "and this one too" rather than "instead".
@@ -83,8 +112,15 @@ class AnimationBottom extends StatelessWidget {
   /// `ux-46`'s own three, handed straight to `TimelinePanel` — see that
   /// widget for what each is and why it is reported rather than kept.
   final Set<(int, int)> selectedKeys;
+
+  /// Whether a dragged key snaps to whole frames.
   final bool frameSnap;
+
+  /// The timeline's horizontal zoom: how many logical pixels one second of
+  /// the clip takes.
   final double pixelsPerSecond;
+
+  /// Called with a new [pixelsPerSecond] when the timeline is zoomed.
   final ValueChanged<double>? onZoom;
 
   /// [TimelinePanel.onSetKey]'s own tap-to-key, forwarded straight through —
@@ -94,6 +130,9 @@ class AnimationBottom extends StatelessWidget {
 
   /// [CurveEditor.onSetKey] — a key dragged vertically in `Curves` mode.
   final ValueChanged<SetKey>? onSetKeyValue;
+
+  /// [CurveEditor.onSetTangent] — a key's tangent handle dragged in
+  /// `Curves` mode.
   final ValueChanged<SetTangent>? onSetTangent;
 
   @override

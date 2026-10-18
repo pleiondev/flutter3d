@@ -85,6 +85,7 @@ class _KeyDrag {
 /// The scrubber, the per-track rows and the drag-to-move-a-key interaction —
 /// `anim-07`'s own `TimelinePanel`.
 class TimelinePanel extends StatefulWidget {
+  /// The panel over [clip], with its playhead at [time].
   const TimelinePanel({
     super.key,
     required this.clipIndex,
@@ -110,14 +111,22 @@ class TimelinePanel extends StatefulWidget {
   /// every [MoveKeys] this panel builds, unread otherwise.
   final int clipIndex;
 
+  /// The clip whose tracks are the rows and whose keys are the diamonds.
   final ProjectClip clip;
 
   /// The playhead, in seconds.
   final double time;
 
+  /// Frames a second: where the ruler ticks fall and, with [frameSnap], where
+  /// a dragged key lands.
   final double fps;
 
+  /// How far apart a second is drawn, in logical pixels: the zoom. A wheel
+  /// over the panel reports the next one through [onZoom], clamped between
+  /// [kTimelineZoomOut] and [kTimelineZoomIn].
   final double pixelsPerSecond;
+
+  /// The time ruler's height, in logical pixels.
   final double rulerHeight;
 
   /// Width of the label column at the left of each row.
@@ -127,7 +136,10 @@ class TimelinePanel extends StatefulWidget {
   /// itself.
   final String Function(int trackIndex, ProjectTrack track) labelOf;
 
+  /// The track of the single selected key, or null when none is selected.
   final int? selectedTrack;
+
+  /// The selected key's index inside [selectedTrack], or null.
   final int? selectedKey;
 
   /// Every key picked, as `(track, key)` pairs — `ux-46`.
@@ -470,6 +482,8 @@ class _TimelinePanelState extends State<TimelinePanel> {
 /// Below the first a clip is a smear nobody can aim a key at; past the
 /// second one frame fills the window and the ruler has nothing to label.
 const double kTimelineZoomOut = 4.0;
+
+/// The widest zoom; see [kTimelineZoomOut].
 const double kTimelineZoomIn = 2000.0;
 
 /// The time ruler: tick marks at every whole frame's own second, and the

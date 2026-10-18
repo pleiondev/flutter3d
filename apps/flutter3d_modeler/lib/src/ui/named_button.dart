@@ -22,12 +22,15 @@ import 'package:flutter/material.dart';
 
 /// [child] — an [IconButton], ordinarily — announced as [label].
 class NamedButton extends StatelessWidget {
+  /// Wraps [child] so it is announced as [label].
   const NamedButton({super.key, required this.label, required this.child});
 
   /// What a screen reader says. The words a person would use for the thing,
   /// not the icon: "Remove this light", never "close".
   final String label;
 
+  /// The control being named — an [IconButton], ordinarily, whose tap this
+  /// label then rides on.
   final Widget child;
 
   @override

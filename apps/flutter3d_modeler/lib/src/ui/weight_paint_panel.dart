@@ -27,6 +27,8 @@ import '../../l10n/app_localizations.dart';
 /// The brush parameters, the held vertex's own influences, and the skeleton's
 /// own bone list — screen 13's whole right panel.
 class WeightPaintPanel extends StatelessWidget {
+  /// The panel for one weight-painting session; every change goes out
+  /// through a callback.
   const WeightPaintPanel({
     super.key,
     required this.mode,
@@ -50,19 +52,35 @@ class WeightPaintPanel extends StatelessWidget {
   /// Whether the armed brush overwrites (`assign`) or accumulates (`paint`)
   /// — `weights.paint`'s and `weights.assign`'s own two rail tools.
   final PaintWeightsMode mode;
+
+  /// A mode segment was pressed, which arms the matching rail tool.
   final ValueChanged<PaintWeightsMode> onModeChanged;
 
   /// In logical pixels — what a stroke's own `radiusPixels` reads.
   final double radius;
+
+  /// The radius slider moved, in logical pixels.
   final ValueChanged<double> onRadiusChanged;
 
   /// 0 to 1, `PaintWeights.strength`'s own range.
   final double strength;
+
+  /// The strength slider moved, `0..1`.
   final ValueChanged<double> onStrengthChanged;
 
+  /// Whether a stroke is also painted mirrored across the model's symmetry
+  /// plane, onto the mirrored joints. Read when the stroke opens.
   final bool mirror;
+
+  /// The mirror box was ticked or cleared.
   final ValueChanged<bool> onMirrorChanged;
+
+  /// Whether every vertex a stroke touched is pruned to the profile's
+  /// influence budget and renormalized once the stroke is done. Read when the
+  /// stroke opens.
   final bool normalize;
+
+  /// The normalize box was ticked or cleared.
   final ValueChanged<bool> onNormalizeChanged;
 
   /// Every object in the project — read only for a joint's own

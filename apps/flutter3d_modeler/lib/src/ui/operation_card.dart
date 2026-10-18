@@ -35,6 +35,8 @@ import 'theme.dart';
 /// `_ModelerScreenState`. A new command arriving re-opens it: dismissing last
 /// operation's card should not also hide the next one.
 class OperationCard extends StatefulWidget {
+  /// A card for [command], open until it is dismissed or a new command
+  /// arrives.
   const OperationCard({
     super.key,
     required this.command,

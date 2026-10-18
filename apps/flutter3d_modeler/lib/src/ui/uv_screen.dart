@@ -58,6 +58,7 @@ const double _narrowStrip = 264;
 /// Screen 06: the 3D view on the left, the UV layout and its own panel on
 /// the right.
 final class UvScreen extends StatelessWidget {
+  /// The screen around [viewport]; every choice goes out through a callback.
   const UvScreen({
     super.key,
     required this.viewport,
@@ -83,13 +84,23 @@ final class UvScreen extends StatelessWidget {
   /// The unwrap's own islands, read off the mesh by [buildUvIslandData].
   final List<UvIslandData> islands;
 
+  /// Every unwrap method this build can run, for the method picker.
   final List<UnwrapMethod> methods;
+
+  /// The method the next unwrap runs with.
   final UnwrapMethod method;
+
+  /// Another method was picked.
   final ValueChanged<UnwrapMethod> onMethodChanged;
 
+  /// The gap packed islands leave each other, in the `[0, 1]` UV square's
+  /// units.
   final double margin;
+
+  /// A new margin was set.
   final ValueChanged<double> onMarginChanged;
 
+  /// The island drawn as selected, by its id, or null for none.
   final int? selectedIslandId;
 
   /// An island was picked, whether by a tap on [UvLayoutView] or a row in
@@ -102,8 +113,14 @@ final class UvScreen extends StatelessWidget {
   /// comments there. All optional, so a caller that only wants the picture
   /// and the list builds this exactly as it did before they existed.
   final bool? autoPack;
+
+  /// The auto-pack tick was changed.
   final ValueChanged<bool>? onAutoPackChanged;
+
+  /// Run the unwrap. Null hides the button.
   final VoidCallback? onUnwrap;
+
+  /// Why the unwrap cannot run, or null when it can.
   final String? unwrapRefusal;
 
   @override

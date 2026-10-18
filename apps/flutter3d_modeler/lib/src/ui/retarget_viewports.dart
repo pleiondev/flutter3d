@@ -27,6 +27,7 @@ import '../staging.dart';
 /// `overlay: false` on both, since neither has a gizmo, a wireframe or a
 /// floor grid to spend a `MeshOverlay` on.
 class RetargetViewports extends StatefulWidget {
+  /// The pair, drawn with [renderer]; neither one takes a pointer.
   const RetargetViewports({
     super.key,
     required this.renderer,

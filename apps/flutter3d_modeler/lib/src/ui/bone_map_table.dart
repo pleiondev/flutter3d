@@ -24,9 +24,11 @@ import 'package:flutter3d_model_core/flutter3d_model_core.dart' show BoneMap;
 
 import '../../../l10n/app_localizations.dart';
 
-/// One row: [source]'s own bone name, and whatever [boneMap] answers for
-/// it.
+/// One row per name in [sourceNames]: the source skeleton's bone, and
+/// whatever [boneMap] answers for it.
 class BoneMapTable extends StatelessWidget {
+  /// A table over [sourceNames] read through [boneMap]; it changes neither,
+  /// and reports a person's choices through [onAutoMap] and [onMapBone].
   const BoneMapTable({
     super.key,
     required this.sourceNames,
@@ -41,6 +43,8 @@ class BoneMapTable extends StatelessWidget {
   /// built this table.
   final List<String> sourceNames;
 
+  /// Which target bone each source bone drives; a name it has no answer
+  /// for is shown unmapped and counts against the matched total.
   final BoneMap boneMap;
 
   /// `retarget.autoMap`'s own rail button, reachable a second way from

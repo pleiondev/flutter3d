@@ -18,6 +18,7 @@ import '../settings.dart' show Workspace;
 /// How wide the properties panel is and whether the viewport is split, for
 /// one workspace.
 final class DockLayout {
+  /// A layout; the defaults are a 250-pixel panel and one unsplit viewport.
   const DockLayout({
     this.propertiesWidth = 250,
     this.splitViewport = false,
@@ -61,6 +62,7 @@ final class DockLayout {
   /// edited settings file cannot produce a view of no pixels.
   final double viewportSplit;
 
+  /// This layout with the given fields replaced.
   DockLayout copyWith({
     double? propertiesWidth,
     bool? splitViewport,
@@ -71,6 +73,8 @@ final class DockLayout {
     viewportSplit: viewportSplit ?? this.viewportSplit,
   );
 
+  /// The three fields under their own names, as [DockLayout.fromJson] reads
+  /// them.
   Map<String, Object?> toJson() => <String, Object?>{
     'propertiesWidth': propertiesWidth,
     'splitViewport': splitViewport,

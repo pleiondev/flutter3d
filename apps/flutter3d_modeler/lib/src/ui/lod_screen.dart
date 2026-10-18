@@ -28,6 +28,7 @@ typedef LodViewportBuilder =
 /// Three thirds of [object], each fed [LodMeshCache.meshFor] at a different
 /// level, and a [LodZoneBar] underneath.
 class LodScreen extends StatelessWidget {
+  /// Thirds of [object] at [levelCount] levels, over the zone bar.
   const LodScreen({
     super.key,
     required this.object,

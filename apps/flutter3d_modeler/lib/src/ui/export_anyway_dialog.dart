@@ -4,8 +4,8 @@
 /// application deciding what somebody's model is for. It names what will be
 /// wrong rather than counting it: "3 problems" is a number nobody can act on.
 ///
-/// **Stays English.** There is no ARB entry for this one yet — that is a
-/// separate line, not this one.
+/// Its title and buttons come from the ARB files like the rest of the
+/// interface; the refusal and the issues are said in the export's own words.
 ///
 /// **Its own file so a test can build it**, the same reason [RecoveryDialog]
 /// left `main.dart`.
@@ -16,14 +16,21 @@ import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
 import '../../../l10n/app_localizations.dart';
 
+/// The dialog itself: what [blocked] refuses, the first five [issues], and
+/// a choice of cancelling or exporting anyway. Opened with [show].
 class ExportAnywayDialog extends StatelessWidget {
+  /// A dialog over [blocked] and its [issues].
   const ExportAnywayDialog({
     required this.blocked,
     required this.issues,
     super.key,
   });
 
+  /// The refusal the export ran into.
   final ExportBlocked blocked;
+
+  /// What is wrong with the model; the dialog names the first five and counts
+  /// the rest.
   final List<ExportIssue> issues;
 
   /// Shows the dialog and answers whether to export anyway. `false` for a

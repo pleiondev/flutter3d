@@ -166,6 +166,8 @@ List<int> outlinerSelection({
 
 /// The object list, as a tree.
 class Outliner extends StatelessWidget {
+  /// A tree of [objects], with [selected] highlighted; every change goes out
+  /// through a callback.
   const Outliner({
     super.key,
     required this.objects,
@@ -179,13 +181,19 @@ class Outliner extends StatelessWidget {
     this.hiddenByParent = const <int>{},
   });
 
+  /// The project's objects; a row's indent comes from its parent.
   final List<ModelObject> objects;
+
+  /// The ids of the selected objects.
   final List<int> selected;
 
   /// A row was clicked, with whatever modifier was held.
   final void Function(int id, OutlinerPick how) onPick;
 
+  /// A row's eye was toggled: object [id] is now shown when `to` is true.
   final void Function(int id, bool to) onVisible;
+
+  /// A row's lock was toggled: object [id] is now locked when `to` is true.
   final void Function(int id, bool to) onLocked;
 
   /// A row was renamed in place — `ux-14`'s own double-click.

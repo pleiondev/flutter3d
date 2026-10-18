@@ -76,8 +76,11 @@ class _Drag {
       _Drag(keyIndex: keyIndex, target: target, y: newY);
 }
 
-/// `S2`'s own curve editor over one [track]'s own [component].
+/// `S2`'s own curve editor over one component of [track], picked with the
+/// chips above the graph.
 class CurveEditor extends StatefulWidget {
+  /// An editor over [track], track [trackIndex] of clip [clipIndex], drawn at
+  /// [pixelsPerSecond] with the playhead at [currentTime].
   const CurveEditor({
     super.key,
     required this.clipIndex,
@@ -95,8 +98,12 @@ class CurveEditor extends StatefulWidget {
   /// Carried straight into every [SetKey]/[SetTangent] this widget builds,
   /// unread otherwise.
   final int clipIndex;
+
+  /// Which of the clip's tracks [track] is, carried into every [SetKey] and
+  /// [SetTangent] the same way as [clipIndex].
   final int trackIndex;
 
+  /// The track whose keys are drawn and dragged.
   final AnimationTrack track;
 
   /// Which key a drag started on is selected on its own — this is only the
@@ -113,10 +120,19 @@ class CurveEditor extends StatefulWidget {
   /// the horizontal axis out from under a person's eye.
   final double pixelsPerSecond;
 
+  /// How many points the curve line is drawn through, across the track's
+  /// whole time span.
   final int sampleCount;
 
+  /// A key was pressed or dragged, by its index in the track.
   final ValueChanged<int>? onSelectKey;
+
+  /// A key's value was dragged: the command that writes it. Null leaves the
+  /// keys where they are.
   final ValueChanged<SetKey>? onSetKey;
+
+  /// A cubic key's tangent handle was dragged: the command that writes it.
+  /// Null leaves the handles where they are.
   final ValueChanged<SetTangent>? onSetTangent;
 
   @override
@@ -347,6 +363,7 @@ class _CurveEditorState extends State<CurveEditor> {
                     painter: _CurveEditorPainter(
                       table: table,
                       component: _component,
+                      sampleCount: widget.sampleCount,
                       pixelsPerSecond: widget.pixelsPerSecond,
                       handleLength: _handleLength,
                       selectedKey: selectedKey,
@@ -382,6 +399,7 @@ class _CurveEditorPainter extends CustomPainter {
   const _CurveEditorPainter({
     required this.table,
     required this.component,
+    required this.sampleCount,
     required this.pixelsPerSecond,
     required this.handleLength,
     required this.selectedKey,
@@ -397,6 +415,7 @@ class _CurveEditorPainter extends CustomPainter {
 
   final KeyTable table;
   final int component;
+  final int sampleCount;
   final double pixelsPerSecond;
   final double handleLength;
   final int? selectedKey;
@@ -425,7 +444,7 @@ class _CurveEditorPainter extends CustomPainter {
       ..color = lineColor
       ..strokeWidth = 1.6
       ..style = PaintingStyle.stroke;
-    final samples = curveSamples(table, component, sampleCount: 120);
+    final samples = curveSamples(table, component, sampleCount: sampleCount);
     if (samples.length > 1) {
       final path = Path();
       for (var i = 0; i < samples.length; i++) {
@@ -525,6 +544,7 @@ class _CurveEditorPainter extends CustomPainter {
   bool shouldRepaint(covariant _CurveEditorPainter oldDelegate) =>
       !identical(oldDelegate.table, table) ||
       oldDelegate.component != component ||
+      oldDelegate.sampleCount != sampleCount ||
       oldDelegate.selectedKey != selectedKey ||
       oldDelegate.drag != drag ||
       oldDelegate.range != range ||

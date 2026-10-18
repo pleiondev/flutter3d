@@ -58,10 +58,18 @@ Future<void> showLegalScreen(
       LegalScreen(bundle: bundle, openedAt: openedAt),
 );
 
+/// The six legal documents, a list on one side and the one picked on the
+/// other. Opened with [showLegalScreen].
 class LegalScreen extends StatefulWidget {
+  /// The screen over [bundle], showing [openedAt] first.
   const LegalScreen({super.key, this.bundle, this.openedAt});
 
+  /// Where the documents are read from: the root bundle when null, a test's
+  /// own otherwise.
   final AssetBundle? bundle;
+
+  /// The file name of the document to show first, the licence agreement when
+  /// null.
   final String? openedAt;
 
   @override

@@ -17,18 +17,6 @@ import '../play/play_template.dart';
 import 'theme.dart';
 import 'undo_redo_buttons.dart';
 
-/// What the Add menu calls each of `AddPrimitive.primitiveKinds`, and the
-/// icon beside it — `ux-31`.
-///
-/// **`box` is an argument and "Box" is a word.** The menu printed the command
-/// argument verbatim, so a list of five lowercase keys was the first thing
-/// somebody new met — the same string an agent passes over MCP, shown to a
-/// person as though it were an interface. The ids are still what everything
-/// runs on; this is the layer between them and a menu.
-///
-/// `tools_test.dart`'s own sibling check holds every kind to having one,
-/// since a primitive added to the command without an entry here would be a
-/// menu row printing a key again.
 /// [kind]'s own word in [l]'s language, or null for a kind this build has
 /// no entry for — `ux-22`.
 ///
@@ -44,6 +32,18 @@ String? primitiveLabel(AppLocalizations l, String kind) => switch (kind) {
   _ => kPrimitiveLabels[kind]?.label,
 };
 
+/// What the Add menu calls each of `AddPrimitive.primitiveKinds`, and the
+/// icon beside it — `ux-31`.
+///
+/// **`box` is an argument and "Box" is a word.** The menu printed the command
+/// argument verbatim, so a list of five lowercase keys was the first thing
+/// somebody new met — the same string an agent passes over MCP, shown to a
+/// person as though it were an interface. The ids are still what everything
+/// runs on; this is the layer between them and a menu.
+///
+/// `tools_test.dart`'s own sibling check holds every kind to having one,
+/// since a primitive added to the command without an entry here would be a
+/// menu row printing a key again.
 const Map<String, ({String label, IconData icon})> kPrimitiveLabels =
     <String, ({String label, IconData icon})>{
       'box': (label: 'Box', icon: Icons.check_box_outline_blank),
@@ -56,6 +56,7 @@ const Map<String, ({String label, IconData icon})> kPrimitiveLabels =
 /// What sits at the right of the top bar: adding a shape, opening, saving,
 /// exporting, and the small utility icons beside them.
 class TopBarActions extends StatelessWidget {
+  /// The actions for one screen; every press goes out through a callback.
   const TopBarActions({
     super.key,
     required this.canUndo,
@@ -87,7 +88,10 @@ class TopBarActions extends StatelessWidget {
     required this.onReportProblem,
   });
 
+  /// Whether there is a step to undo; the Undo button is disabled otherwise.
   final bool canUndo;
+
+  /// Whether there is a step to redo; the Redo button is disabled otherwise.
   final bool canRedo;
 
   /// What ⌘Z would take back, or null when there is nothing to.
@@ -96,12 +100,16 @@ class TopBarActions extends StatelessWidget {
   /// What ⇧⌘Z would put back, or null when there is nothing to.
   final String? redoSays;
 
+  /// Undo the last step.
   final VoidCallback onUndo;
+
+  /// Redo the last undone step.
   final VoidCallback onRedo;
 
   /// One of [AddPrimitive.primitiveKinds] was picked from the "Add" menu.
   final ValueChanged<String> onAddPrimitive;
 
+  /// Open a file in place of the current document.
   final VoidCallback onOpen;
 
   /// `tut-08`'s own entry: brings a second file in beside what is already
@@ -109,6 +117,7 @@ class TopBarActions extends StatelessWidget {
   /// replacement.
   final VoidCallback onImport;
 
+  /// Save the document.
   final VoidCallback onSave;
 
   /// Whether the open document has unsaved changes — `ux-30`, which is what
@@ -123,7 +132,10 @@ class TopBarActions extends StatelessWidget {
   /// comment for why that gate is UX only, never the real one.
   final VoidCallback? onSaveToCabinet;
 
+  /// The Export menu picked a format.
   final ValueChanged<ExportFormat> onExport;
+
+  /// Open the material studio.
   final VoidCallback onMaterialStudio;
 
   /// `S9`'s own entry: opens screen 19's full-screen "preview like in the
@@ -156,8 +168,13 @@ class TopBarActions extends StatelessWidget {
   /// its own — gets.
   final ValueChanged<bool>? onSplitViewport;
 
+  /// Open the shortcut help.
   final VoidCallback onShortcutHelp;
+
+  /// Open the start screen.
   final VoidCallback onStartScreen;
+
+  /// Open the problem report.
   final VoidCallback onReportProblem;
 
   /// Opens `ux-09`'s own settings screen. Null in a test that has no

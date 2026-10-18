@@ -30,14 +30,20 @@ import 'roomy_dialog.dart';
 /// What the dialog hands back when confirmed — [AddLathe]'s own two
 /// user-facing fields, read off the profile authored inside.
 final class LatheChoice {
+  /// A lathe of [profile] turned in [segments] steps.
   const LatheChoice({
     required this.profile,
     required this.segments,
     required this.closedProfile,
   });
 
+  /// Points in the (radius, height) half-plane, bottom to top.
   final List<Vector2> profile;
+
+  /// How many steps the turn takes round the axis, at least three.
   final int segments;
+
+  /// Whether the last point joins back to the first, as a torus's does.
   final bool closedProfile;
 }
 

@@ -38,16 +38,15 @@ Future<ModelerSettings?> showSettingsScreen(
   Future<String> Function()? onClearLocalData,
 }) => showDialog<ModelerSettings>(
   context: context,
-  builder: (BuildContext context) => SettingsScreen(
+  builder: (BuildContext context) => _SettingsScreen(
     settings: current,
     onShowLegal: onShowLegal,
     onClearLocalData: onClearLocalData,
   ),
 );
 
-class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({
-    super.key,
+class _SettingsScreen extends StatefulWidget {
+  const _SettingsScreen({
     required this.settings,
     this.onShowLegal,
     this.onClearLocalData,
@@ -63,10 +62,10 @@ class SettingsScreen extends StatefulWidget {
   final Future<String> Function()? onClearLocalData;
 
   @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
+  State<_SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
+class _SettingsScreenState extends State<_SettingsScreen> {
   late ModelerSettings _draft = widget.settings;
 
   /// Asks first, then clears, then says what went.

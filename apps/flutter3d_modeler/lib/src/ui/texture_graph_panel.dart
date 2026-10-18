@@ -117,6 +117,7 @@ double _asDouble(Object? value) => switch (value) {
 /// than opening a file picker: picking a file is disk access, which belongs
 /// to whatever app-level code already owns it, not to a presentational row.
 final class HintRow extends StatelessWidget {
+  /// A row editing [field] as [hint] says it should be edited.
   const HintRow({
     super.key,
     required this.field,
@@ -128,6 +129,8 @@ final class HintRow extends StatelessWidget {
   /// The node field this hints at — one of [TextureNode.hints]' own keys.
   final String field;
 
+  /// What kind of control the field wants — a range, a choice, a colour or
+  /// a texture — and its limits.
   final MaterialHint hint;
 
   /// The field's own JSON value right now — a number, a string, or a list of
@@ -539,6 +542,8 @@ final class _LinksPainter extends CustomPainter {
 /// `mat-13`'s own panel: a material's `TextureGraph`, node by node, over an
 /// `InteractiveViewer` canvas — collapsed to one header row by default.
 final class TextureGraphPanel extends StatefulWidget {
+  /// The panel over [graph]; every edit goes out through a callback, and the
+  /// new graph comes back in.
   const TextureGraphPanel({
     super.key,
     required this.graph,
@@ -568,6 +573,8 @@ final class TextureGraphPanel extends StatefulWidget {
   /// background — [JobButton]'s own contract.
   final double? bakeProgress;
 
+  /// Whether the panel opens expanded rather than as its one header row.
+  /// Read once, when the panel is first built.
   final bool initiallyExpanded;
 
   /// The "Add" menu picked [kind]; [fields] and [position] are

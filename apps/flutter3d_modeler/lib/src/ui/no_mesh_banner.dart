@@ -13,6 +13,7 @@ import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
 
 /// The banner, and the button that makes the mesh.
 class NoMeshBanner extends StatelessWidget {
+  /// A banner for [object]; it decides from that alone what to say.
   const NoMeshBanner({
     super.key,
     required this.object,

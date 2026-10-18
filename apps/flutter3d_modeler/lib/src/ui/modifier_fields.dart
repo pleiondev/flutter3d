@@ -25,13 +25,18 @@ import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
 /// [IntHint], a `double` for a [DoubleHint], a three-element `List<double>`
 /// for a [Vector3Hint], the enum's own name for a [ChoiceHint].
 class ModifierFields extends StatelessWidget {
+  /// The fields of [modifier].
   const ModifierFields({
     super.key,
     required this.modifier,
     required this.onSet,
   });
 
+  /// The modifier whose hinted fields are shown.
   final Modifier modifier;
+
+  /// A field was committed: its key and the value in the type its hint asks
+  /// for.
   final void Function(String field, Object? value) onSet;
 
   /// What the field is called in the panel — the hint's key with its camel

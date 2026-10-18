@@ -43,6 +43,7 @@ enum ProfileEditTool {
 
   const ProfileEditTool(this.label);
 
+  /// What the tool's chip says.
   final String label;
 }
 
@@ -80,14 +81,22 @@ Offset profileEditorToLocal(Vector2 model, Size size, double axisMargin) =>
 /// [gridSpacing] — visual only, nothing snaps to it; the profile's own snap
 /// is [snappedToAxis]'s "привязка 40", not a grid cell.
 class ProfileEditorPainter extends CustomPainter {
+  /// A painter for [curve] on a canvas whose axis sits [axisMargin] in.
   const ProfileEditorPainter({
     required this.curve,
     this.axisMargin = 24.0,
     this.gridSpacing = 40.0,
   });
 
+  /// The profile being drawn: its points, its bent segments and their
+  /// handles.
   final ProfileCurve curve;
+
+  /// How far the axis of revolution sits from the left edge, and the
+  /// profile's zero from the bottom one, in logical pixels.
   final double axisMargin;
+
+  /// How far apart the background grid's lines are, in logical pixels.
   final double gridSpacing;
 
   @override
@@ -229,6 +238,7 @@ final class _SegmentHandleDrag extends _DragTarget {
 /// "add a point here" and drags that new point from the same gesture, so a
 /// stationary tap and a drag-to-place both go through one path.
 class ProfileEditor extends StatefulWidget {
+  /// An editor over [curve] that reports every change through [onChanged].
   const ProfileEditor({
     super.key,
     required this.curve,
@@ -237,9 +247,18 @@ class ProfileEditor extends StatefulWidget {
     this.axisMargin = 24.0,
   });
 
+  /// The profile as it stands; the editor holds no copy of its own.
   final ProfileCurve curve;
+
+  /// Which tool a gesture is read with.
   final ProfileEditTool tool;
+
+  /// Called with the profile as it should be after a gesture — a point
+  /// added, moved or bent.
   final ValueChanged<ProfileCurve> onChanged;
+
+  /// How far the axis of revolution sits from the left edge, and the
+  /// profile's zero from the bottom one, in logical pixels.
   final double axisMargin;
 
   @override

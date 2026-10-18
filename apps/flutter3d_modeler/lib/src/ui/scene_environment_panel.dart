@@ -16,6 +16,8 @@ import 'named_button.dart';
 
 /// The project's own sky preset, and its ambient level.
 final class SceneEnvironmentPanel extends StatelessWidget {
+  /// The panel over [environment] and [ambientIntensity]; changes go out
+  /// through the callbacks and are applied by the caller.
   const SceneEnvironmentPanel({
     super.key,
     required this.environment,
@@ -27,9 +29,17 @@ final class SceneEnvironmentPanel extends StatelessWidget {
     this.onClearPanorama,
   });
 
+  /// Which sky preset the project lights with.
   final SceneEnvironmentPreset environment;
+
+  /// The project's flat ambient term, `SceneLighting.ambientIntensity`: the
+  /// document's own opinion of the viewport's ambient, not a second light.
   final double ambientIntensity;
+
+  /// A different sky preset was picked.
   final ValueChanged<SceneEnvironmentPreset> onEnvironmentChanged;
+
+  /// A new ambient level was typed.
   final ValueChanged<double> onAmbientChanged;
 
   /// What the project's own panorama is called, or null for none — `ux-49`.

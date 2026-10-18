@@ -18,13 +18,17 @@ import '../../display_modes.dart';
 
 /// Where a rotation or a scale from the transform grid is centred.
 class PivotAndSpaceChips extends StatelessWidget {
+  /// The pivot chips, showing [pivot] picked.
   const PivotAndSpaceChips({
     super.key,
     required this.pivot,
     required this.onPivot,
   });
 
+  /// The pivot currently picked.
   final PivotChip pivot;
+
+  /// A pivot chip was tapped.
   final ValueChanged<PivotChip> onPivot;
 
   @override
@@ -58,9 +62,13 @@ class PivotAndSpaceChips extends StatelessWidget {
 
 /// Whose axes a rotation from the transform grid is given in.
 class SpaceChips extends StatelessWidget {
+  /// The space chips, showing [space] picked.
   const SpaceChips({super.key, required this.space, required this.onSpace});
 
+  /// The space currently picked.
   final TransformSpace space;
+
+  /// A space chip was tapped.
   final ValueChanged<TransformSpace> onSpace;
 
   @override

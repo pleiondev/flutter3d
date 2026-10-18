@@ -20,6 +20,7 @@ import '../../../l10n/app_localizations.dart';
 /// What the person chose, or null from [showSaveAsScreen] when they backed
 /// out of the dialog without saving.
 final class SaveAsChoice {
+  /// A choice to save, with or without the history.
   const SaveAsChoice({required this.includeHistory});
 
   /// `doc-31d`'s own `history` section: written when true, left out of the

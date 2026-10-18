@@ -18,6 +18,7 @@ import 'theme.dart';
 /// action per row — left off entirely, rather than disabled, when a caller
 /// has nothing to wire it to yet.
 class ConstraintsList extends StatelessWidget {
+  /// A list of [constraints], with [selected] highlighted.
   const ConstraintsList({
     super.key,
     required this.constraints,
@@ -27,16 +28,20 @@ class ConstraintsList extends StatelessWidget {
     this.onRemove,
   });
 
+  /// The held object's IK constraints, in the order they are solved.
   final List<IkConstraint> constraints;
 
   /// A joint id's own display name — [ModelObject.name] wherever a caller
   /// has objects to read it from. Falls back to the bare id.
   final String Function(int jointId)? nameOf;
 
+  /// Which row is highlighted, by its index in [constraints]; null for none.
   final int? selected;
 
+  /// A row was tapped, by its index.
   final ValueChanged<int> onSelect;
 
+  /// The cross on a row was pressed, by its index. Null leaves the cross out.
   final ValueChanged<int>? onRemove;
 
   String _jointLabel(int jointId) => nameOf?.call(jointId) ?? '$jointId';

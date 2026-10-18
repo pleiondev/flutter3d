@@ -38,6 +38,7 @@ bool hasRoomForDialogs(BuildContext context) =>
 /// having to leave room at the bottom; [onClose] is what the app bar's own
 /// leading × does, which is the same thing the wide shape's Cancel does.
 class RoomyDialog extends StatelessWidget {
+  /// A dialog titled [title] that picks its shape from the window's width.
   const RoomyDialog({
     super.key,
     required this.title,
@@ -49,6 +50,8 @@ class RoomyDialog extends StatelessWidget {
     this.height,
   });
 
+  /// What the dialog is called: the wide shape's heading, the full-screen
+  /// shape's app bar.
   final String title;
 
   /// The desktop body, laid out inside a [width] × [height] box.
@@ -58,11 +61,18 @@ class RoomyDialog extends StatelessWidget {
   /// same pieces down the screen rather than across it.
   final Widget narrow;
 
+  /// Closes the dialog without its work — the full-screen shape's leading ×.
   final VoidCallback onClose;
+
+  /// The dialog's own buttons: along the bottom of the wide shape, in the
+  /// app bar of the full-screen one.
   final List<Widget> actions;
 
   /// The desktop body's own size. Both or neither.
   final double? width;
+
+  /// The desktop body's height, in logical pixels. Null lets the body size
+  /// itself.
   final double? height;
 
   @override

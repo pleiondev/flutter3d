@@ -43,6 +43,7 @@ Color _zoneColor(BuildContext context, int lodIndex) {
 /// carried straight onto the strip with nothing remapped, so a marker's
 /// position on screen is the number it reports.
 class LodZoneBar extends StatelessWidget {
+  /// A strip with one marker per entry of [lods].
   const LodZoneBar({
     super.key,
     required this.lods,

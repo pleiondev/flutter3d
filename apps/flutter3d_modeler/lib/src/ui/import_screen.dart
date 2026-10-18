@@ -34,6 +34,8 @@ import 'theme.dart';
 /// Leaving all three off keeps the object as `ImportedGeometry`,
 /// byte-for-byte, which is this project's own stated default.
 final class ImportChoice {
+  /// A choice of [unit], [upAxis] and the three fixes; the source stays
+  /// unlinked unless [linkToSource] is passed.
   const ImportChoice({
     required this.unit,
     required this.upAxis,
@@ -43,10 +45,20 @@ final class ImportChoice {
     this.linkToSource = false,
   });
 
+  /// What one unit in the file is, scaled to the project's metres.
   final ImportUnit unit;
+
+  /// Which of the file's axes points up.
   final UpAxis upAxis;
+
+  /// Whether coincident vertices weld at `importMeshData`'s default epsilon
+  /// rather than only exact duplicates.
   final bool weld;
+
+  /// Whether normals are recalculated once the objects land.
   final bool fixNormals;
+
+  /// Whether every imported object is triangulated.
   final bool triangulate;
 
   /// Keep the file this came from, so it can be read again — `ux-48`.

@@ -27,6 +27,9 @@ import '../../l10n/app_localizations.dart';
 /// What the person chose, or null from [showExportScreen] when they backed
 /// out without exporting.
 final class ExportChoice {
+  /// A choice of [format] and [bakeTransforms]; the rest default to PNG
+  /// textures, the whole document, modifiers applied and no warnings
+  /// acknowledged.
   const ExportChoice({
     required this.format,
     required this.bakeTransforms,
@@ -43,6 +46,7 @@ final class ExportChoice {
   /// is what the file has carried since `ux-13`.
   final bool applyModifiers;
 
+  /// Which file format to write.
   final ExportFormat format;
 
   /// `ui-17`'s own "запечь трансформации узлов": [bakeAllTransforms] runs

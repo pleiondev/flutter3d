@@ -11,11 +11,14 @@ library;
 
 import 'package:flutter/material.dart';
 
-/// Reads its two sentences straight from a live [ModelHistory] rather than a
-/// copy: this is built fresh on every `ModelerReady` rebuild, which is every
-/// time a command lands or is undone, so there is nowhere for the text to go
-/// stale.
+/// Undo and redo, each with a tooltip saying what it would do.
+///
+/// Handed its two sentences rather than reading them itself; the caller reads
+/// them off the live `ModelHistory` on every `ModelerReady` rebuild, which is
+/// every time a command lands or is undone, so there is nowhere for the text
+/// to go stale.
 class UndoRedoButtons extends StatelessWidget {
+  /// The pair, with each button's state and sentence handed in.
   const UndoRedoButtons({
     super.key,
     required this.canUndo,
@@ -26,7 +29,10 @@ class UndoRedoButtons extends StatelessWidget {
     required this.onRedo,
   });
 
+  /// Whether there is a step to undo; the button is greyed out otherwise.
   final bool canUndo;
+
+  /// Whether there is a step to redo; the button is greyed out otherwise.
   final bool canRedo;
 
   /// What ⌘Z would take back, or null when there is nothing to.
@@ -35,7 +41,10 @@ class UndoRedoButtons extends StatelessWidget {
   /// What ⇧⌘Z would put back, or null when there is nothing to.
   final String? redoSays;
 
+  /// Undo the last step.
   final VoidCallback onUndo;
+
+  /// Redo the last undone step.
   final VoidCallback onRedo;
 
   @override

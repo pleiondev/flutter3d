@@ -34,8 +34,12 @@ String _bytes(int n) {
 /// Screen 19's own budget bars — four rows over a single
 /// `ProfileBudgetReport`.
 class BudgetBars extends StatelessWidget {
+  /// Bars for [report], one per budget it checks.
   const BudgetBars({super.key, required this.report});
 
+  /// The held model's usage against the export profile's limits:
+  /// triangles, joints, texture memory and influences per vertex, each a
+  /// used and a limit.
   final ProfileBudgetReport report;
 
   @override

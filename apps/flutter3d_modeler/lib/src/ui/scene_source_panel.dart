@@ -20,6 +20,8 @@ import 'theme.dart';
 
 /// The lights, and the selected one's own fields.
 final class SceneSourcePanel extends StatelessWidget {
+  /// The panel over [lights]; every edit goes out through a callback, by the
+  /// light's index.
   const SceneSourcePanel({
     super.key,
     required this.lights,
@@ -34,6 +36,7 @@ final class SceneSourcePanel extends StatelessWidget {
     required this.onConeChanged,
   });
 
+  /// The project's lights, in the order the list shows them.
   final List<ProjectLight> lights;
 
   /// Which light's own fields are shown below the list, or null when none
@@ -43,14 +46,22 @@ final class SceneSourcePanel extends StatelessWidget {
   /// The light at this index was tapped in the list.
   final ValueChanged<int> onSelect;
 
+  /// Add a light at the end of the list.
   final VoidCallback onAdd;
 
   /// The light at this index should be dropped — `RemoveLight`'s own index.
   final ValueChanged<int> onRemove;
 
+  /// The light at this index was switched to another type.
   final void Function(int index, LightType type) onTypeChanged;
+
+  /// The light at this index has a new intensity.
   final void Function(int index, double value) onIntensityChanged;
+
+  /// The light at this index has a new range, in metres.
   final void Function(int index, double value) onRangeChanged;
+
+  /// The light at this index was told to cast shadows, or not to.
   final void Function(int index, bool value) onShadowChanged;
 
   /// The outer cone half-angle, in radians — meaningless off a spot light,

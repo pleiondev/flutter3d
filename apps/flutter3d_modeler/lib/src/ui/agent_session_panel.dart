@@ -41,6 +41,8 @@ import 'theme.dart';
 /// The tool-call feed and the author-badged history, screen 26's own right
 /// column.
 class AgentSessionPanel extends StatefulWidget {
+  /// The panel over [calls] and [history], both read live; the agent's steps
+  /// are taken back through [onUndoAgentSteps], never by the panel itself.
   const AgentSessionPanel({
     super.key,
     required this.calls,
@@ -378,6 +380,8 @@ String _elapsedLabel(Duration elapsed) {
 /// Screen 26's own contact sheet, drawn into `ModelerShell.bottom` — see
 /// this file's own library comment for what it actually shows and why.
 class AgentContactSheet extends StatelessWidget {
+  /// The sheet over [calls]: at most six of the newest pictures, newest
+  /// first, and a placeholder line while there are none.
   const AgentContactSheet({super.key, required this.calls});
 
   /// The same feed [AgentSessionPanel] reads — only the entries carrying a

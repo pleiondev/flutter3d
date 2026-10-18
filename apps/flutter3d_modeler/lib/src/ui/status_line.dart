@@ -42,6 +42,13 @@ enum StatusTone {
   }
 }
 
+/// The separator [grouped] puts between thousands.
+///
+/// U+2009, written as an escape rather than as itself: an invisible character
+/// in source is one nobody can see is wrong, and this file already lost half an
+/// hour to a test that compared it against an ordinary space.
+const String thinSpace = '\u2009';
+
 /// [count] with its thousands grouped, for a number a person reads rather than
 /// computes with.
 ///
@@ -52,11 +59,6 @@ enum StatusTone {
 /// when the real one lands. The thin space is what the rest of this interface
 /// already uses and is right in both languages it will ship in; when `ui-22`
 /// brings a formatter, this is one call site to change.
-/// U+2009, written as an escape rather than as itself: an invisible character
-/// in source is one nobody can see is wrong, and this file already lost half an
-/// hour to a test that compared it against an ordinary space.
-const String thinSpace = '\u2009';
-
 String grouped(int count) {
   final digits = count.abs().toString();
   final out = StringBuffer(count < 0 ? '-' : '');
@@ -76,7 +78,10 @@ String grouped(int count) {
 /// use for anything else on them.
 typedef TextureBudgetStatus = ({int usedBytes, int budgetBytes});
 
+/// The strip along the bottom of the shell: what just happened, the mesh's
+/// counts, whether it will export, and the export button.
 class StatusLine extends StatelessWidget {
+  /// A status line saying [said] over a document read as [readiness].
   const StatusLine({
     super.key,
     required this.said,

@@ -55,6 +55,7 @@ typedef ScreenQuad = List<Offset>;
 /// The source mesh itself is drawn by the viewport underneath, at
 /// [sourceAlpha] — this paints only what is on top of it.
 class RetopoOverlay extends CustomPainter {
+  /// A painter for [quads] over a source shown at [sourceAlpha].
   const RetopoOverlay({
     required this.quads,
     required this.sourceAlpha,
@@ -73,6 +74,8 @@ class RetopoOverlay extends CustomPainter {
   /// The quad being placed, with however many corners are down so far.
   final ScreenQuad? active;
 
+  /// The stroke width of the ribbons, in logical pixels; the active quad's
+  /// corner dots are twice it across.
   final double ribbon;
 
   @override

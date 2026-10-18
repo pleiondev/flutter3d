@@ -58,6 +58,7 @@ String fixLabelFor(AppLocalizations l, MeshIssueKind kind) => switch (kind) {
 
 /// The mesh's own health, a row per thing that is wrong.
 class MeshHealthPanel extends StatelessWidget {
+  /// A row for each of [issues], or a line saying there are none.
   const MeshHealthPanel({
     super.key,
     required this.issues,

@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 /// The measurement report overlay: a monospace card pinned to the viewport's
 /// top-left corner.
 class MeasurementReportOverlay extends StatelessWidget {
+  /// A card showing [said].
   const MeasurementReportOverlay({super.key, required this.said});
 
   /// The report's own text, already assembled.

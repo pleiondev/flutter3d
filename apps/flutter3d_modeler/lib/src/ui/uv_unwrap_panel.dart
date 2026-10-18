@@ -16,6 +16,7 @@ import '../uv_unwrap_layout.dart';
 
 /// The unwrap's own method, margin and island list, in one panel.
 final class UvUnwrapPanel extends StatelessWidget {
+  /// The panel over [methods], [margin] and [islands].
   const UvUnwrapPanel({
     super.key,
     required this.methods,
@@ -38,17 +39,23 @@ final class UvUnwrapPanel extends StatelessWidget {
   /// is another entry a caller hands over, not a change to this file.
   final List<UnwrapMethod> methods;
 
+  /// The method the next unwrap runs with, selected in the picker.
   final UnwrapMethod method;
+
+  /// Another method was picked.
   final ValueChanged<UnwrapMethod> onMethodChanged;
 
   /// [UnwrapCommand.margin]'s own units: the gap the packed `[0, 1]` square's
   /// own islands leave each other.
   final double margin;
+
+  /// A new margin was set, in the same units as [margin].
   final ValueChanged<double> onMarginChanged;
 
   /// The unwrap's own islands, in the same order [UvLayoutView] draws them.
   final List<UvIslandData> islands;
 
+  /// The island highlighted in the list, by its id, or null for none.
   final int? selectedIslandId;
 
   /// A row in the list was tapped. Null leaves the list unselectable, the
@@ -60,6 +67,8 @@ final class UvUnwrapPanel extends StatelessWidget {
   /// a caller with nowhere to keep the answer wants instead of a tick that
   /// does not stay ticked.
   final bool? autoPack;
+
+  /// The tick was changed. See [autoPack] for when the row shows.
   final ValueChanged<bool>? onAutoPackChanged;
 
   /// The Unwrap button under the three settings it reads. Null hides it: the

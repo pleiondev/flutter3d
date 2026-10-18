@@ -29,6 +29,8 @@ const double kViewportSmallest = 160;
 
 /// The document, drawn twice.
 class SplitViewports extends StatefulWidget {
+  /// The pair, side by side while [split] holds and [primary] alone while it
+  /// does not.
   const SplitViewports({
     super.key,
     required this.renderer,
@@ -39,6 +41,7 @@ class SplitViewports extends StatefulWidget {
     this.frames,
   });
 
+  /// The renderer both views draw with.
   final Renderer renderer;
 
   /// Handed to the second view — see [ModelerViewport.frames]. The first

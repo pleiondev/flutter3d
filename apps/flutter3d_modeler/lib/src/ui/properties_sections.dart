@@ -12,11 +12,24 @@ import 'tools.dart';
 
 /// One section the properties panel can show.
 enum PropertiesSection {
+  /// How the viewport shades — material, normals, wireframe. Every mode
+  /// shows it.
   display,
+
+  /// Perspective or orthographic, and the standard views. Every mode shows
+  /// it.
   view,
+
+  /// The object list — object mode's.
   objects,
+
+  /// The selected object's transform grid — object mode's.
   transform,
+
+  /// The modifier stack — object mode's.
   modifiers,
+
+  /// The compact material row — object mode's, and material mode's too.
   materials,
 
   /// `ux-40`'s own row: the rest of the RenderMaterial workspace — a live preview
@@ -25,14 +38,33 @@ enum PropertiesSection {
   /// is the compact row a person fixing a mesh needs and not a screen they
   /// have to scroll past to reach the modifier stack.
   materialWorkspace,
+
+  /// The last-operation card, with its arguments to amend — mesh mode's.
   lastOperation,
+
+  /// What is selected in the mesh, counted — mesh mode's.
   selection,
+
+  /// The mesh's vertex, edge and face counts — mesh mode's.
   mesh,
+
+  /// The triangle count against the project profile's budget. Every mode
+  /// shows it.
   budget,
+
+  /// The clip and skeleton panel — what the pose sub-mode shows.
   animation,
+
+  /// The scene's lights — scene mode's.
   sceneSources,
+
+  /// The shadow toggle and its status — scene mode's.
   sceneShadows,
+
+  /// The sky preset and the ambient level — scene mode's.
   sceneEnvironment,
+
+  /// Bloom and exposure — scene mode's.
   scenePost,
 
   /// `ui-40d`'s own row: the weight-paint sub-mode's own panel — brush

@@ -66,6 +66,8 @@ Future<void> showPlay(
 
 /// The running game.
 class PlayScreen extends StatefulWidget {
+  /// The game for [template], running against the project [projectNow]
+  /// answers.
   const PlayScreen({
     super.key,
     required this.renderer,
@@ -74,11 +76,14 @@ class PlayScreen extends StatefulWidget {
     this.control,
   });
 
+  /// The renderer the game draws with; the game's world is built on its
+  /// device.
   final Renderer renderer;
 
   /// The live document, read fresh on every Reload.
   final ModelProject Function() projectNow;
 
+  /// Which game the project is played as, and what the hint line names.
   final PlayTemplate template;
 
   /// `ux-52`: where this screen registers itself so an agent can reload,
