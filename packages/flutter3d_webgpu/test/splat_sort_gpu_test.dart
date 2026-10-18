@@ -29,7 +29,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_webgpu/engine_shaders.dart';
 import 'package:flutter3d_webgpu/flutter3d_webgpu_web.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart' hide Colors;
 
 const int _width = 96;
 const int _height = 96;

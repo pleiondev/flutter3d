@@ -60,6 +60,15 @@ pretending otherwise.
   origin, as when the camera watches it from that far, stays within 2 mm
   over five seconds.
   Without the shift the same scene at 5 km is out by up to 41 mm.
+- **A matrix is `vector_math`'s float32 `Matrix4`.** It is what a node's
+  local and world matrices, a camera's view and projection and every GPU
+  upload take, and it stays: a double-precision matrix would change every
+  signature that names one. `package:flutter/widgets.dart` exports
+  another class of the same name, `vector_math_64`'s. The `flutter3d`
+  facade exports the engine's, with `Aabb3`, `Frustum` and the vectors, so
+  a file that imports both writes `hide Matrix4` on the Flutter import
+  (`flutter3d_lints`'s `hide_flutter_matrix4` offers it) and crosses with
+  `toFlutter()` and `toEngine()` where a widget's `Transform` meets a node.
 
 ### Who owns a vector
 

@@ -153,6 +153,10 @@ There are widgets for groups (`Node3D`), shapes (`Mesh3D`, with `onTap`), models
 </div>
 
 <div class="note">
+<p><strong>Two classes called <code>Matrix4</code>.</strong> <code>material.dart</code> exports Flutter's, which holds doubles; the engine's signatures take <code>vector_math</code>'s, which holds 32-bit floats and which <code>flutter3d.dart</code> exports. A file that writes <code>Matrix4</code> and imports both hides Flutter's: <code>import 'package:flutter/material.dart' hide Matrix4;</code>. Where a <code>Transform</code> widget meets a node, <code>toFlutter()</code> and <code>toEngine()</code> cross between the two. With <code>flutter3d_lints</code> enabled, <code>hide_flutter_matrix4</code> points at the import and offers the fix.</p>
+</div>
+
+<div class="note">
 <p><strong>The viewer widget arrives in rc.2.</strong> A model viewer in one widget, with its own camera, lights and loading state, is part of <code>1.0.0-rc.2</code>. In rc.1 the four lines above are the viewer.</p>
 </div>
 

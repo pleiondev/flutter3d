@@ -18,7 +18,6 @@ import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// One lit wall, and whatever [entities] the test puts beside it.
 Level _level({List<Map<String, Object?>> entities = const []}) =>

@@ -98,6 +98,8 @@ enum MigrationMatch {
 
 /// One migration a resolved unit can be checked against.
 final class MigrationRule {
+  /// A table entry, as `table.g.dart` writes one for each row of the
+  /// migration table.
   const MigrationRule({
     required this.id,
     required this.kind,
@@ -181,6 +183,9 @@ final class MigrationRule {
 
   /// The table entry's id: also the anchor of its line in the guide.
   final String id;
+
+  /// What kind of change the entry is, which decides what the scan matches
+  /// and whether it can write the edit.
   final MigrationKind kind;
 
   /// The package that declared [type] at the release migrated from.

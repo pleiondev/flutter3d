@@ -5,7 +5,6 @@ library;
 import 'package:flame/components.dart' show Component;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart' show Actor, ActorSystem;
-import 'package:vector_math/vector_math.dart' show Matrix4, Vector3;
 
 import '../host/step_clock.dart';
 

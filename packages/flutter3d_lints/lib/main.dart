@@ -10,14 +10,17 @@ library;
 import 'package:analysis_server_plugin/plugin.dart';
 import 'package:analysis_server_plugin/registry.dart';
 
+import 'src/import_rules.dart';
+import 'src/import_scan.dart';
 import 'src/migration/migration_rules.dart';
 import 'src/rules.dart';
 
 /// What the analysis server loads.
 final Plugin plugin = _Flutter3dLintsPlugin();
 
-/// The rules for code a fixed step runs, registered as warnings, and the
-/// migration diagnostics for code written against flutter3d 0.8.
+/// The rules for code a fixed step runs, the two import rules
+/// ([EngineImportRules]), all registered as warnings, and the migration
+/// diagnostics for code written against flutter3d 0.8.
 ///
 /// **Warnings, so enabling the plugin is enabling them.** A rule registered
 /// as a lint is off until each project names it under `diagnostics:`; these
@@ -36,6 +39,9 @@ final class _Flutter3dLintsPlugin extends Plugin {
       registry.registerWarningRule(rule);
     }
     registry
+      ..registerWarningRule(AvoidEngineInternalImports())
+      ..registerWarningRule(HideFlutterMatrix4())
+      ..registerFixForRule(HideFlutterMatrix4.code, HideFlutterMatrix4Fix.new)
       ..registerWarningRule(Flutter3dMigrationRule())
       ..registerWarningRule(ManualMigrationRule())
       ..registerFixForRule(Flutter3dMigrationRule.code, ApplyMigration.new);

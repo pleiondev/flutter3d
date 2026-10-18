@@ -8,9 +8,18 @@ import 'migration_rule.dart';
 
 /// One replacement in a file's text.
 final class MigrationEdit {
+  /// Replaces [length] characters at [offset] with [replacement].
   const MigrationEdit(this.offset, this.length, this.replacement);
+
+  /// Where the replaced text starts, in UTF-16 code units from the start of
+  /// the file.
   final int offset;
+
+  /// How much text is replaced, in UTF-16 code units; nought for an
+  /// insertion.
   final int length;
+
+  /// The text written in its place; empty for a deletion.
   final String replacement;
 
   @override
@@ -19,6 +28,7 @@ final class MigrationEdit {
 
 /// One use of the code that a [MigrationRule] matches.
 final class MigrationFinding {
+  /// A use of [rule]'s code, with what the scan can do about it.
   const MigrationFinding({
     required this.rule,
     required this.offset,
@@ -27,10 +37,14 @@ final class MigrationFinding {
     required this.todo,
   });
 
+  /// The table entry the use matches.
   final MigrationRule rule;
 
-  /// Where the use is: what the diagnostic underlines.
+  /// Where the use is: what the diagnostic underlines, in UTF-16 code units
+  /// from the start of the file.
   final int offset;
+
+  /// How long the underlined use is, in UTF-16 code units.
   final int length;
 
   /// What carries the migration out, in this file; empty for a rule a

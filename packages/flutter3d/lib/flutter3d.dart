@@ -1053,9 +1053,22 @@ export 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
 // The simulation, the physics and the audio are not re-exported: a game
 // that steps a level names `flutter3d_sim`, or takes `flutter3d_game`, the
 // one facade, which re-exports what a first game uses of them.
-// `Colors` is Flutter's name; the vectors come without vector_math's own.
+// The vector_math types the engine's signatures name, and only those:
+// `Colors` is Flutter's name too. `Matrix4` is among them although
+// `widgets.dart` exports another class of that name (`vector_math_64`'s,
+// double precision): a file importing both hides Flutter's
+// (`flutter3d_lints`'s `hide_flutter_matrix4`), and `matrix4_flutter.dart`
+// crosses between the two.
 export 'package:vector_math/vector_math.dart'
-    show Matrix3, Quaternion, Vector2, Vector3, Vector4;
+    show
+        Aabb3,
+        Frustum,
+        Matrix3,
+        Matrix4,
+        Quaternion,
+        Vector2,
+        Vector3,
+        Vector4;
 
 // What could not go with the hardware list above, each because it needs
 // something this package may name and that one may not: the two Flutter-named
@@ -1072,6 +1085,7 @@ export 'src/engine/assets/model_asset.dart';
 export 'src/engine/assets/model_wardrobe.dart';
 export 'src/engine/assets/revalidated_asset.dart';
 export 'src/engine/linear_color_flutter.dart';
+export 'src/engine/matrix4_flutter.dart';
 
 // Particles are `package:flutter3d_particles` and are named nowhere here.
 // The engine defines what a contributor is; what draws through one is not its

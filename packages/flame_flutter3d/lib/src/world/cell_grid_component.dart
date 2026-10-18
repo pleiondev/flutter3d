@@ -3,7 +3,6 @@ import 'dart:async' show scheduleMicrotask;
 import 'package:flame/collisions.dart';
 import 'package:flutter3d/flutter3d.dart' as engine show RenderMaterial;
 import 'package:flutter3d/flutter3d.dart';
-import 'package:vector_math/vector_math.dart' show Matrix4, Vector3;
 
 import '../host/has_flutter3d.dart';
 import '../transform/object3d_component.dart';

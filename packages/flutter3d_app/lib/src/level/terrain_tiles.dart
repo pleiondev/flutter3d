@@ -24,7 +24,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_level_scene/flutter3d_level_scene.dart'
     show meshDataOf;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// Every tile of [tiles] as a node, and the levels they draw at.
 final class TerrainTiles {

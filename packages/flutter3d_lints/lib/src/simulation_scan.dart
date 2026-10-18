@@ -36,6 +36,7 @@ List<SimulationFinding> scanSimulationCode(CompilationUnit unit) {
 
 /// One thing a step may not do, where it was found.
 final class SimulationFinding {
+  /// A breach of [rule] over the source range [offset]…[offset] + [length].
   const SimulationFinding({
     required this.rule,
     required this.offset,
@@ -46,8 +47,10 @@ final class SimulationFinding {
   /// The rule's name: one of [SimulationRules.all].
   final String rule;
 
-  /// Where in the source the offending node starts, and how long it is.
+  /// Where in the source the offending node starts, in UTF-16 code units.
   final int offset;
+
+  /// How long the offending node is, in UTF-16 code units.
   final int length;
 
   /// What was reached for, in a few words: `DateTime.now()`, `math.sin`.

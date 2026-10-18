@@ -21,6 +21,12 @@ final class Decoders extends ModelDecoders
   List<MaterialDecoder> withMaterialDecoders({List<MaterialDecoder> decoders = const <MaterialDecoder>[]})
   Registration addMaterialDecoder(MaterialDecoder decoder)
 
+extension EngineMatrix4ToFlutter on engine.Matrix4
+  flutter.Matrix4 toFlutter()
+
+extension FlutterMatrix4ToEngine on flutter.Matrix4
+  engine.Matrix4 toEngine()
+
 final class ImpostorPart
   const ImpostorPart({required this.card, required this.albedo, required this.normalDepth})
   final DeviceMesh card
@@ -1132,4 +1138,4 @@ export package:flutter3d_plugin_api/flutter3d_plugin_api.dart show Assimilation,
   VmExtensions
   WorldPositionCodec
 
-export package:vector_math/vector_math.dart show Matrix3, Quaternion, Vector2, Vector3, Vector4 (outside this repository)
+export package:vector_math/vector_math.dart show Aabb3, Frustum, Matrix3, Matrix4, Quaternion, Vector2, Vector3, Vector4 (outside this repository)

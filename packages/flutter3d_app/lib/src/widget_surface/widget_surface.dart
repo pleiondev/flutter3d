@@ -3,7 +3,6 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/widgets.dart' hide Matrix4;
 import 'package:flutter3d/flutter3d.dart';
-import 'package:vector_math/vector_math.dart' hide Colors;
 
 import 'platform_texture.dart';
 import 'widget_surface_pipeline.dart';

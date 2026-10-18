@@ -1,5 +1,13 @@
 ## 1.0.0-rc.1
 
+- **The `vector_math` types the engine's signatures name are exported**:
+  `Matrix4`, `Aabb3` and `Frustum` join `Matrix3`, `Quaternion` and the
+  vectors, so a game writes a node's matrix without importing
+  `vector_math` itself. `Matrix4` is the single-precision one the engine
+  uploads, a different class from the one `widgets.dart` exports: a file
+  that imports both hides Flutter's (`flutter3d_lints` points at the
+  import and offers the fix), and `toEngine()` and `toFlutter()` cross
+  between the two where a `Transform` widget meets a node.
 - **`MaterialComputePlacement` is re-exported**, what
   `MaterialComputeKernel.place` answers.
 - **Every loader is handed what the engine's plugins brought.**

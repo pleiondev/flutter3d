@@ -4,7 +4,6 @@ import 'dart:ui' as ui;
 import 'package:flame/components.dart' show Sprite, TextPaint;
 import 'package:flutter3d/flutter3d.dart' as engine show RenderMaterial;
 import 'package:flutter3d/flutter3d.dart';
-import 'package:vector_math/vector_math.dart' show Matrix4;
 
 /// The pictures sprite billboards are drawn with, shared: one texture and
 /// one material for each image, one card for each part of an image a frame

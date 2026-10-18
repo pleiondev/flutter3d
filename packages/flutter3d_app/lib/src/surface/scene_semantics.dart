@@ -27,7 +27,6 @@ library;
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
-import 'package:vector_math/vector_math.dart' show Aabb3;
 
 /// One object, as the accessibility layer will meet it.
 @immutable

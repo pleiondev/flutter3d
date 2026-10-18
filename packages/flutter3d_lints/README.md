@@ -27,6 +27,13 @@ With a resolver the rules ask what a name is, not how it is spelled:
 own called `Random` is not. A comment or a string that names a forbidden
 call is not a call and is not reported.
 
+Two more are about how a project imports the engine, anywhere in it:
+
+| Rule | Reports | Instead |
+|---|---|---|
+| `avoid_engine_internal_imports` | an import of an engine package's `internal.dart`, `builtin.dart` or `src/` | the package's public library: the others are outside semver and change in a minor |
+| `hide_flutter_matrix4` | a Flutter import that brings `widgets.dart`'s `Matrix4` into a file that also imports the engine's and writes `Matrix4` | `hide Matrix4` on the Flutter import (the quick fix), and `toFlutter()` where a widget wants Flutter's |
+
 ## Enabling it
 
 The rules ship as an analysis server plugin (Dart 3.10 and later). List the
@@ -100,9 +107,10 @@ runs it as one step of the whole migration. The guide is at
 
 ## For tooling of your own
 
-`package:flutter3d_lints/flutter3d_lints.dart` exports `scanSimulationCode`,
-which takes a parsed or resolved `CompilationUnit` and returns the findings,
-and the rules' names in `SimulationRules`. The rules as the analysis server
+`package:flutter3d_lints/flutter3d_lints.dart` exports `scanSimulationCode`
+and `scanEngineImports`, which take a parsed or resolved `CompilationUnit`
+and return the findings, and the rules' names in `SimulationRules` and
+`EngineImportRules`. The rules as the analysis server
 takes them are this package's own: they extend a class of
 `analysis_server_plugin`, which is at 0.x, and the analyzer loads them
 through `main.dart`.

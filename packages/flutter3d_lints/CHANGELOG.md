@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1
 
+- **Two import rules.** `avoid_engine_internal_imports` warns on an
+  import of an engine package's `internal.dart`, `builtin.dart` or
+  `src/` from a project's own code: those are outside semver and change
+  in a minor. `hide_flutter_matrix4` warns where Flutter's `Matrix4` and
+  the engine's meet in one file with neither hidden, and its quick fix
+  adds `hide Matrix4` to the Flutter import. `scanEngineImports` runs
+  both over a unit for tooling of one's own.
 - **The engine's number, outside the 1.0 promise.** Its signatures carry
   types of a package before 1.0 or of one that takes a major a year, so a
   release of that package may break this API in a minor, and the break is

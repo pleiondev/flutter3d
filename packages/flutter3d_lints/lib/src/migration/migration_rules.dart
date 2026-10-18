@@ -36,6 +36,7 @@ abstract final class MigrationCodes {
 /// flutter3d_lints:migrate` applies all of them across a project, through
 /// the same scan.
 final class Flutter3dMigrationRule extends AnalysisRule {
+  /// The rule, under [MigrationCodes.fixable].
   Flutter3dMigrationRule()
     : super(
         name: MigrationCodes.fixable,
@@ -44,6 +45,7 @@ final class Flutter3dMigrationRule extends AnalysisRule {
             'change can be written for you.',
       );
 
+  /// The diagnostic, with the table entry's message as its argument.
   static const LintCode code = LintCode(
     MigrationCodes.fixable,
     '{0}',
@@ -68,6 +70,7 @@ final class Flutter3dMigrationRule extends AnalysisRule {
 
 /// The uses a person has to change: [Flutter3dMigrationRule]'s other half.
 final class ManualMigrationRule extends AnalysisRule {
+  /// The rule, under [MigrationCodes.manual].
   ManualMigrationRule()
     : super(
         name: MigrationCodes.manual,
@@ -76,6 +79,8 @@ final class ManualMigrationRule extends AnalysisRule {
             'person has to decide.',
       );
 
+  /// The diagnostic, with the entry's message and the guide's link as its
+  /// two arguments.
   static const LintCode code = LintCode(
     MigrationCodes.manual,
     '{0}',
@@ -121,6 +126,7 @@ final class _Reporter extends SimpleAstVisitor<void> {
 /// The quick fix for [Flutter3dMigrationRule]: the scan's own edits for the use the
 /// diagnostic is on.
 final class ApplyMigration extends ResolvedCorrectionProducer {
+  /// A fix producer for one diagnostic, as the plugin registry builds it.
   ApplyMigration({required super.context});
 
   static const FixKind _kind = FixKind(

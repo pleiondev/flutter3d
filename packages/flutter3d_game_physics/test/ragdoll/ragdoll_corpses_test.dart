@@ -15,7 +15,6 @@ import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// The fixtures' hero as an instance standing 1.8 m tall on the origin.
 Future<ModelInstance> _hero() async {

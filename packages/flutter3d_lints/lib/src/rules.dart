@@ -28,6 +28,7 @@ List<AnalysisRule> simulationRules() => <AnalysisRule>[
 /// of steps; a system that reads it computes something else on every run,
 /// and a replay of a recorded run stops being the run.
 final class StepReadsNoClock extends AnalysisRule {
+  /// The rule, under [SimulationRules.clock].
   StepReadsNoClock()
     : super(
         name: SimulationRules.clock,
@@ -36,6 +37,7 @@ final class StepReadsNoClock extends AnalysisRule {
             'Stopwatch are different on every run.',
       );
 
+  /// The diagnostic, a warning, with the call it found, `DateTime.now()` or `Stopwatch()` as its argument.
   static const LintCode code = LintCode(
     SimulationRules.clock,
     '{0} reads the wall clock, which a step may not: a replay of the run '
@@ -63,6 +65,7 @@ final class StepReadsNoClock extends AnalysisRule {
 /// trial; an unseeded one is seeded from the machine, and a secure one from
 /// the operating system, and neither comes back.
 final class StepTakesSeededRandom extends AnalysisRule {
+  /// The rule, under [SimulationRules.seededRandom].
   StepTakesSeededRandom()
     : super(
         name: SimulationRules.seededRandom,
@@ -71,6 +74,7 @@ final class StepTakesSeededRandom extends AnalysisRule {
             'GameRandom, or Random(seed).',
       );
 
+  /// The diagnostic, a warning, with the constructor it found as its argument.
   static const LintCode code = LintCode(
     SimulationRules.seededRandom,
     '{0} is seeded by the machine, so a replay rolls other dice.',
@@ -98,6 +102,7 @@ final class StepTakesSeededRandom extends AnalysisRule {
 /// of forty checkpoints between two platforms. `Portable` answers the same
 /// questions out of the arithmetic IEEE 754 pins.
 final class StepUsesPortableMath extends AnalysisRule {
+  /// The rule, under [SimulationRules.portableMath].
   StepUsesPortableMath()
     : super(
         name: SimulationRules.portableMath,
@@ -106,6 +111,7 @@ final class StepUsesPortableMath extends AnalysisRule {
             'transcendental: dart:math answers with the platform\'s libm.',
       );
 
+  /// The diagnostic, a warning, with the function it found, as `math.sin` as its argument.
   static const LintCode code = LintCode(
     SimulationRules.portableMath,
     '{0} answers with the platform\'s libm, so two platforms step to '
@@ -133,6 +139,7 @@ final class StepUsesPortableMath extends AnalysisRule {
 /// [StepUsesPortableMath] already knows a bare `sin` is `dart:math`'s; what
 /// this adds is that a reader of the file can see it too.
 final class StepPrefixesDartMath extends AnalysisRule {
+  /// The rule, under [SimulationRules.prefixedMath].
   StepPrefixesDartMath()
     : super(
         name: SimulationRules.prefixedMath,
@@ -141,6 +148,7 @@ final class StepPrefixesDartMath extends AnalysisRule {
             'call into it reads as one.',
       );
 
+  /// The diagnostic, a warning, with the import as written as its argument.
   static const LintCode code = LintCode(
     SimulationRules.prefixedMath,
     "dart:math is imported without a prefix, so a bare sin(x) does not read "
