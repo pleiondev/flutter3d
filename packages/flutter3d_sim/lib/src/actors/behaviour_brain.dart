@@ -35,10 +35,14 @@ import 'brain.dart';
 /// member added in a 1.x release arrives with a body and nothing that mixes
 /// it in has to change.
 abstract base mixin class HasBehaviorTree {
+  /// The tree the brain runs, shared by every actor running it.
   BehaviorTree get tree;
 }
 
+/// A brain that is a behaviour tree: it ticks [tree] over the actor's
+/// [Blackboard] and keeps what it heard and when it was hurt on the board.
 final class BehaviorBrain extends Brain implements HasBehaviorTree {
+  /// A brain running [tree].
   BehaviorBrain(this.tree);
 
   /// Shared by every actor that runs it; see [BehaviorTree].

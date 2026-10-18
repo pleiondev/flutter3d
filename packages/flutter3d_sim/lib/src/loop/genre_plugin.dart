@@ -269,6 +269,8 @@ abstract base class GenrePlugin<S extends Object> extends Flutter3dPlugin {
 /// sets it before every step, so a step allocates nothing for it; a genre
 /// reads it during the step and does not keep it.
 final class GenreStepContext<S extends Object> {
+  /// A context for [simulation] at the loop's step [context]; both are
+  /// reset before each step.
   GenreStepContext(this.simulation, {required this.context});
 
   /// The run being stepped.
@@ -283,6 +285,7 @@ final class GenreStepContext<S extends Object> {
 ///
 /// One object, for the reason [GenreStepContext] gives.
 final class GenrePublishContext<S extends Object> {
+  /// A context publishing [simulation]'s events onto [bus].
   const GenrePublishContext(this.simulation, {required this.bus});
 
   /// The run whose events are published.
@@ -297,6 +300,7 @@ final class GenrePublishContext<S extends Object> {
 ///
 /// One object, for the reason [GenreStepContext] gives.
 final class GenreRestoreContext<S extends Object> {
+  /// A context putting [state] back into [simulation].
   const GenreRestoreContext(this.simulation, {required this.state});
 
   /// The run being restored.

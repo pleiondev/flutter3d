@@ -14,6 +14,10 @@ import 'wfc.dart';
 /// different. The rules travel as JSON ([toJson], [LevelRules.fromJson]),
 /// which is how they cross into an isolate and in from a tool.
 final class LevelRules {
+  /// Rules for a four by three grid of 16-metre cells by default.
+  ///
+  /// Asserts that a [room] is narrower than its [cell] and a [corridor]
+  /// narrower than a room.
   const LevelRules({
     this.columns = 4,
     this.rows = 3,
@@ -29,6 +33,7 @@ final class LevelRules {
   }) : assert(room < cell, 'a room fills less than its cell, or no corridor'),
        assert(corridor < room, 'a doorway narrower than the wall it is in');
 
+  /// Reads what [toJson] wrote; a key left out takes its default.
   factory LevelRules.fromJson(Map<String, Object?> json) {
     double number(String key, double fallback) =>
         (json[key] as num?)?.toDouble() ?? fallback;
@@ -64,6 +69,8 @@ final class LevelRules {
 
   /// Cells across (x) and down (z).
   final int columns;
+
+  /// Count of cells down the grid, along z; three by default.
   final int rows;
 
   /// A cell's side, in metres; what is left between two rooms is the
@@ -112,6 +119,7 @@ final class LevelRules {
         },
       };
 
+  /// These rules as JSON, every field written, `name` only when set.
   Map<String, Object?> toJson() => <String, Object?>{
     'columns': columns,
     'rows': rows,
@@ -133,6 +141,7 @@ final class LevelRules {
 /// What [LevelRules.perRoom] scatters in a room: an entity row and how many
 /// of it.
 final class RoomScatter {
+  /// [count] copies of [entity] in each room.
   const RoomScatter({required this.entity, required this.count});
 
   /// The entity row each copy is made from, as a level file writes one.
@@ -173,6 +182,7 @@ final class RoomScatter {
 ///
 /// A class rather than a record, so a later field is not a break.
 final class Generated {
+  /// An outcome: [level] (or null) from [seed], and what [says] about it.
   const Generated({
     required this.level,
     required this.seed,

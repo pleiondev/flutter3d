@@ -13,6 +13,7 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
 /// Sparse: only steps that published something are written, since most
 /// steps of most runs publish nothing.
 final class EventTrace {
+  /// An empty trace, for [observe] to fill.
   EventTrace() : _steps = <int>[], _counts = <int>[], _digests = <int>[];
 
   EventTrace._parts(this._steps, this._counts, this._digests);
@@ -72,6 +73,7 @@ final class EventTrace {
   /// Each of [steps]' digest (`StepEventSummary.digest`).
   List<int> get digests => List<int>.unmodifiable(_digests);
 
+  /// Whether no step has published anything yet.
   bool get isEmpty => _steps.isEmpty;
 
   /// Writes down step [step]'s events. A step that published nothing writes
@@ -128,6 +130,8 @@ final class EventTrace {
     return null;
   }
 
+  /// This trace as JSON: parallel lists of steps, counts and digests, each
+  /// digest eight hexadecimal digits.
   Map<String, Object?> toJson() => <String, Object?>{
     'steps': List<int>.of(_steps),
     'counts': List<int>.of(_counts),
@@ -139,6 +143,7 @@ final class EventTrace {
 
 /// The first step at which two runs' events differed.
 final class EventDivergence {
+  /// What each run published at [step]; a digest is null for none.
   const EventDivergence({
     required this.step,
     required this.expectedCount,
@@ -147,11 +152,17 @@ final class EventDivergence {
     required this.foundDigest,
   });
 
+  /// The step at which the two runs' events differed.
   final int step;
+
+  /// Count of events the expected run published at [step]; nought for
+  /// none.
   final int expectedCount;
 
   /// Null when the expected run published nothing at [step].
   final int? expectedDigest;
+
+  /// Count of events this run published at [step]; nought for none.
   final int foundCount;
 
   /// Null when this run published nothing at [step].
@@ -170,6 +181,7 @@ final class EventDivergence {
 
 /// Thrown when an event trace cannot be read.
 final class EventTraceFormatException extends Flutter3dFormatException {
+  /// An exception saying, in [message], what was wrong with the trace.
   const EventTraceFormatException(this.message);
 
   @override

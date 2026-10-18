@@ -37,6 +37,7 @@ import 'brain.dart';
 /// snapshot; a field here would be one value for every actor at once and
 /// gone on a restore.
 abstract base class BehaviorLeaf {
+  /// Lets a subclass be const.
   const BehaviorLeaf();
 
   /// Decides, on the steps the actor thinks on.
@@ -70,6 +71,7 @@ typedef Consideration = double Function(BehaviorContext context);
 /// actor's board while [tick] runs, is JSON-shaped, and is in every
 /// snapshot. It is forgotten when the composite leaves the running path.
 abstract base class BehaviorComposite {
+  /// Lets a subclass be const.
   const BehaviorComposite();
 
   /// Decides, ticking whichever of the tick's children it chooses, in the
@@ -80,15 +82,25 @@ abstract base class BehaviorComposite {
   BehaviorStatus tick(BehaviorCompositeTick tick);
 }
 
+/// Builds a leaf kind's code from a node's fields, once when a tree is
+/// read.
 typedef LeafBuilder = BehaviorLeaf Function(BehaviorParameters params);
+
+/// Builds a consideration kind's code from a node's fields, once when a
+/// tree is read.
 typedef ConsiderationBuilder =
     Consideration Function(BehaviorParameters params);
+
+/// Builds a composite kind's code from a node's fields, once when a tree
+/// is read.
 typedef CompositeBuilder =
     BehaviorComposite Function(BehaviorParameters params);
 
 /// A node's own fields, read with the problems written down rather than
 /// thrown, so that a document is checked in one pass.
 final class BehaviorParameters {
+  /// The fields of one node's row, with where it is in the document and
+  /// the list its problems are added to.
   BehaviorParameters(this._row, this._where, this._problems);
 
   final Map<Object?, Object?> _row;
@@ -128,6 +140,8 @@ final class BehaviorParameters {
   Object? value(String name) => _row[name];
 }
 
+/// The table from a node's `kind` to its code: leaves, considerations and
+/// composites, the standard ones and a game's own.
 final class BehaviorKinds {
   /// The standard kinds, which a game adds its own to.
   BehaviorKinds() {
@@ -194,6 +208,8 @@ final class BehaviorKinds {
     _composites[kind] = build;
   }
 
+  /// The builder registered for the composite [kind], or null; null too
+  /// for the six the reader owns.
   CompositeBuilder? compositeBuilder(String kind) => _composites[kind];
 
   /// Says what the consideration kind [kind] is. See [leaf] for [replace].
@@ -208,8 +224,10 @@ final class BehaviorKinds {
     _considerations[kind] = build;
   }
 
+  /// The builder registered for the leaf [kind], or null for none.
   LeafBuilder? leafBuilder(String kind) => _leaves[kind];
 
+  /// The builder registered for the consideration [kind], or null for none.
   ConsiderationBuilder? considerationBuilder(String kind) =>
       _considerations[kind];
 
@@ -221,6 +239,7 @@ final class BehaviorKinds {
     ..._leaves.keys,
   ]..sort()).join(', ');
 
+  /// The consideration kinds, sorted and joined by commas, for a refusal.
   String describeKnownConsiderations() =>
       (_considerations.keys.toList()..sort()).join(', ');
 

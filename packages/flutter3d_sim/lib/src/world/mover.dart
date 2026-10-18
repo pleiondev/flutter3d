@@ -59,6 +59,9 @@ final class MoverState {
 /// second position, because that is what an editor can show as a drag handle
 /// and what survives moving the whole thing three metres left.
 abstract base class Mover extends Mechanism {
+  /// A mover over [collider], resting where the collider is now and going
+  /// [travel] metres when open, at [speed] (two metres a second) and
+  /// holding for [wait] (three seconds). Makes the collider kinematic.
   Mover({
     super.name,
     required this.collider,
@@ -112,12 +115,15 @@ abstract base class Mover extends Mechanism {
   /// needs the dwell time and not merely the state.
   double get heldFor => _held;
 
+  /// Where it is in its trip, worked out from [progress] and [goal].
   MoverState get state {
     if (_progress <= 0.0) return MoverState.closed;
     if (_progress >= 1.0) return MoverState.open;
     return goal > _progress ? MoverState.opening : MoverState.closing;
   }
 
+  /// Whether it has not reached its [goal]; true also while it stalls
+  /// against a body.
   bool get isMoving => _progress != goal;
 
   /// What [isMoving] said when this last reported itself.
@@ -256,6 +262,7 @@ abstract base class Mover extends Mechanism {
 /// a door with two buttons and a trigger should be locked from all three, and
 /// the alternative is remembering to write the key on each of them.
 final class Door extends Mover {
+  /// A door, locked by [key] when one is given.
   Door({
     super.name,
     required super.collider,
@@ -276,6 +283,7 @@ final class Door extends Mover {
   /// The key colour this door demands, or null when it opens for anyone.
   final String? key;
 
+  /// Whether it demands a key; it stays locked even once opened.
   bool get isLocked => key != null;
 
   @override
@@ -307,6 +315,7 @@ final class Door extends Mover {
 /// door again holds it open, calling a lift again while it is up sends it back
 /// down. A lift is a toggle; a door is a request.
 final class Lift extends Mover {
+  /// A lift at the lift's default speed and wait.
   Lift({
     super.name,
     required super.collider,
@@ -352,6 +361,7 @@ final class Lift extends Mover {
 /// document's vocabulary is not a Dart identifier and every level ever authored
 /// uses it.
 final class MovingPlatform extends Mover {
+  /// A platform that sets off for the far end at once.
   MovingPlatform({
     super.name,
     required super.collider,

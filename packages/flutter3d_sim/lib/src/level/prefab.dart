@@ -42,6 +42,7 @@ typedef PrefabOverrides = Map<String, Map<String, Object?>>;
 /// a torch post with its light, a guard post with its patrol, a door with
 /// its button — and those are entities.
 final class Prefab {
+  /// A template of [entities], given ids unique within it.
   Prefab({
     List<EntityDef>? entities,
     Map<String, Object?> source = const <String, Object?>{},
@@ -54,6 +55,8 @@ final class Prefab {
        // ignore: prefer_initializing_formals
        _source = source;
 
+  /// Reads a template from its row, keeping the row for [toJson]. Throws
+  /// a [LevelFormatException] for an entity it cannot read.
   factory Prefab.fromJson(Map<String, Object?> json) => Prefab(
     entities: json.objects('entities').map(EntityDef.fromJson).toList(),
     source: json,
@@ -65,6 +68,7 @@ final class Prefab {
   /// The template's entities, in the order an instance expands them.
   final List<EntityDef> entities;
 
+  /// The template as a row, written through the row it was read from.
   Map<String, Object?> toJson() => writeThrough(_source, <WriteThroughField>[
     WriteThroughField(
       'entities',
@@ -592,6 +596,8 @@ List<LevelIssue> prefabIssues(Level level) {
 /// played level. A value is what JSON holds: a string, a number, a bool, a
 /// list or an object of those.
 final class PrefabAttributes {
+  /// The row's [own] attributes and its model's [nodes]', both empty by
+  /// default.
   const PrefabAttributes({
     this.own = const <String, Object?>{},
     this.nodes = const <String, Map<String, Object?>>{},
@@ -658,8 +664,10 @@ final class PrefabAttributes {
 /// An entity [findByAttribute] found, and the node of its model that
 /// carries the attribute when the entity itself does not.
 final class AttributeMatch {
+  /// A match on [entity], at [node] of its model when given.
   const AttributeMatch(this.entity, {this.node});
 
+  /// The entity whose attribute, or whose model node's, matched.
   final EntityDef entity;
 
   /// The node's path in the entity's model; null when the attribute is the

@@ -7,6 +7,8 @@ import 'level.dart';
 /// its own file for the same reason [SurfaceBuilder] is: it is a data
 /// structure the generator leans on, not part of what a brush or a level is.
 final class BrushIndex {
+  /// An index of [level]'s solid, non-ramp brushes in square buckets
+  /// [cellSize] metres on a side.
   BrushIndex(this.level, this.cellSize) {
     for (var i = 0; i < level.brushes.length; i++) {
       final brush = level.brushes[i];
@@ -34,6 +36,7 @@ final class BrushIndex {
     }
   }
 
+  /// The level whose brushes are indexed, by their index in its list.
   final Level level;
 
   /// A bucket's side across the ground, in metres.

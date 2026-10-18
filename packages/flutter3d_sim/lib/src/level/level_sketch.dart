@@ -374,6 +374,8 @@ final class LevelSketch {
 /// door written `RoomDoor('north', 1.2, 0.9, 2.1)` swaps its width and its
 /// height without a word from the analyzer.
 final class RoomDoor {
+  /// An opening [width] by [height] metres in the [side] wall, [offset]
+  /// along it.
   const RoomDoor({
     required this.side,
     required this.offset,

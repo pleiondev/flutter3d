@@ -36,6 +36,8 @@ import 'input_state.dart';
 /// same whatever the player who watches it has bound — and whatever the
 /// player who recorded it had.
 final class InputFrame {
+  /// A frame; every field defaults to nothing happening, so `InputFrame()`
+  /// is an idle step.
   const InputFrame({
     this.pressed = const <String>[],
     this.released = const <String>[],
@@ -51,6 +53,11 @@ final class InputFrame {
     this.external = const <ExternalStateInput>[],
   });
 
+  /// Reads what [toJson] wrote; an absent key reads as nothing happening.
+  ///
+  /// Throws an [InputTapeFormatException] for a dual axis that is not a
+  /// pair of numbers. [external] is left empty: [InputTape.fromJson] fills
+  /// it.
   factory InputFrame.fromJson(Map<String, Object?> json) => InputFrame(
     pressed: <String>[
       for (final name in json['pressed'] as List<Object?>? ?? const <Object?>[])
@@ -110,6 +117,9 @@ final class InputFrame {
   /// tape that stored indices into a list this package knows about could not
   /// carry a shooter's `reload`.
   final List<String> pressed;
+
+  /// Names of the [GameAction]s that let go this step, as [pressed] names
+  /// those that became held.
   final List<String> released;
 
   /// [InputState.moveAxis]'s `x`, strafing right: a unitless fraction of
@@ -222,6 +232,8 @@ final class InputFrame {
       lookX == 0.0 &&
       lookY == 0.0;
 
+  /// This frame as JSON, leaving out every field at its default and
+  /// [external], which [InputTape.toJson] writes beside the frames.
   Map<String, Object?> toJson() => <String, Object?>{
     if (pressed.isNotEmpty) 'pressed': pressed,
     if (released.isNotEmpty) 'released': released,
@@ -245,6 +257,7 @@ final class InputFrame {
 /// A [DualAxisAction]'s pair in one [InputFrame], as [InputFrame.dualAxes]
 /// holds it.
 final class DualAxisValue {
+  /// The pair ([x], [y]), written as recorded, with no clamping.
   const DualAxisValue({required this.x, required this.y});
 
   /// The first number: a unitless fraction of full deflection for a stick,
@@ -299,6 +312,8 @@ final class DualAxisValue {
 /// upgraded by `ActionSet.upgradeTape`, which [InputTapePlayback] calls
 /// when it is given the game's set.
 final class InputTape extends FormatDocument {
+  /// A tape of [frames] from generator state [seed]; no frames gives an
+  /// empty, growable list for a recorder to fill.
   InputTape({
     required this.seed,
     List<InputFrame>? frames,
@@ -448,8 +463,11 @@ final class InputTape extends FormatDocument {
   /// The version [toJson] writes: the lowest that says what the frames hold.
   int get writtenVersion => frames.any((frame) => frame.needsVersion2) ? 2 : 1;
 
+  /// Count of fixed steps the tape covers, one per frame.
   int get steps => frames.length;
 
+  /// This tape as JSON at [writtenVersion], with the external inputs under
+  /// `externalInputs` and unknown keys read from a later build kept.
   Map<String, Object?> toJson() => <String, Object?>{
     ...format.envelope(version: writtenVersion, requires: requires),
     'seed': seed,
@@ -469,8 +487,11 @@ final class InputTape extends FormatDocument {
 /// that step and **before** the step runs. Recording afterwards records the
 /// latches the step has already cleared, which is a tape of nothing happening.
 final class InputTapeRecorder {
+  /// A recorder writing a fresh tape that starts from generator state
+  /// [seed].
   InputTapeRecorder({required int seed}) : tape = InputTape(seed: seed);
 
+  /// The tape being written; [record] appends to its frames.
   final InputTape tape;
 
   /// Forgets every entry from step [steps] on, keeping the first [steps].
@@ -576,6 +597,7 @@ final class InputTapePlayback {
   InputTapePlayback.tape(InputTape tape, {ActionSet? actions})
     : tape = actions == null ? tape : actions.upgradeTape(tape);
 
+  /// The tape played, already upgraded when an [ActionSet] was given.
   final InputTape tape;
 
   int _step = 0;
@@ -584,9 +606,17 @@ final class InputTapePlayback {
   /// ones it is silent about.
   final Set<String> _axesSpoken = <String>{};
   final Set<String> _dualAxesSpoken = <String>{};
+
+  /// Index of the next frame [applyTo] plays: the count played so far.
   int get step => _step;
+
+  /// Whether every frame has been played; [applyTo] then does nothing.
   bool get isFinished => _step >= tape.frames.length;
 
+  /// Writes the next frame into [input] and moves on one step.
+  ///
+  /// Gets through [InputState.muted], which is put back as it was. Does
+  /// nothing once [isFinished].
   void applyTo(InputState input) {
     if (isFinished) return;
     final frame = tape.frames[_step++];
@@ -664,6 +694,7 @@ final class InputTapePlayback {
 
 /// Thrown when an input tape cannot be read.
 final class InputTapeFormatException extends Flutter3dFormatException {
+  /// An exception saying, in [message], what was wrong with the tape.
   const InputTapeFormatException(this.message);
 
   @override

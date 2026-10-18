@@ -40,6 +40,7 @@ import 'level.dart';
 /// Bytes that are not a lightmap this build can read: too short, the wrong
 /// magic, a version from a newer build, or fewer pixels than the header says.
 final class LightmapFormatException extends Flutter3dFormatException {
+  /// An exception saying, in [message], what was wrong with the bytes.
   const LightmapFormatException(this.message);
 
   @override
@@ -58,6 +59,10 @@ final class LightmapFormatException extends Flutter3dFormatException {
 /// package would have to reach back into the level format for every one of
 /// those, and the renderer already reads it from here.
 final class Lightmap {
+  /// A [width] by [height] map baked at [texelsPerMeter] from the level
+  /// hashing to [levelHash]; black when [pixels] is null.
+  ///
+  /// Throws an [ArgumentError] when [pixels] is not four bytes a texel.
   Lightmap({
     required this.width,
     required this.height,
@@ -123,6 +128,7 @@ final class Lightmap {
     );
   }
 
+  /// The newest sidecar version this build reads and writes.
   static const int formatVersion = 1;
 
   /// The lightmap as a format: `f3d.lightmap`, bytes rather than JSON, told
@@ -143,8 +149,11 @@ final class Lightmap {
   static const List<int> magic = <int>[0x46, 0x33, 0x44, 0x4C];
 
   static const int _headerBytes = 4 + 4 + 4 + 4 + 4 + 4;
+
+  /// Width of the map in texels.
   final int width;
 
+  /// Height of the map in texels.
   final int height;
 
   /// The density it was baked at: texels per metre of face.
@@ -156,8 +165,11 @@ final class Lightmap {
   /// RGBM, four bytes a texel, row-major from the top-left.
   final Uint8List pixels;
 
+  /// Count of texels: [width] times [height].
   int get texelCount => width * height;
 
+  /// Whether this map was baked from something other than [level] as it is
+  /// now, and so wants baking again.
   bool isStaleFor(Level level) => levelHash != hashOf(level);
 
   /// The irradiance stored at a texel.

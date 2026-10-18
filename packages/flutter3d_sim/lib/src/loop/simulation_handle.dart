@@ -15,6 +15,7 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 /// A simulation that cannot do what was asked of it through its handle: a
 /// rewind past what it keeps, a query on a handle already disposed.
 final class SimulationCapabilityException extends CapabilityException {
+  /// An exception saying, in [message], what the simulation could not do.
   const SimulationCapabilityException(this.message);
 
   @override
@@ -37,6 +38,7 @@ typedef SimulationAnswer = Object? Function(SimulationQuestion question);
 /// is at, the seat that asked — without breaking an answer written against
 /// 1.0.
 final class SimulationQuestion {
+  /// A question about [world], asked with [arguments] (null for none).
   const SimulationQuestion(this.world, {this.arguments});
 
   /// The simulation's world, between two steps.
@@ -55,6 +57,7 @@ final class SimulationQuestion {
 /// arguments. Filled by `flutter3d_sim`'s `SimQueries`, which `EngineLoop`
 /// owns and hands to plugins: `host.registry<SimulationQueryRegistry>()`.
 abstract base class SimulationQueryRegistry extends PluginRegistry {
+  /// Lets the engine's registry extend this.
   const SimulationQueryRegistry();
 
   /// Says how the question [name] is answered. Throws an [ArgumentError]
@@ -88,6 +91,7 @@ abstract base class SimulationQueryRegistry extends PluginRegistry {
 /// sends [PublishedState.toWire] and reads it back with
 /// [PublishedState.fromWire].
 abstract base class SimulationHandle {
+  /// Lets a subclass be const.
   const SimulationHandle();
 
   /// The latest state the simulation published; [PublishedState.empty]

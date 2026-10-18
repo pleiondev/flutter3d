@@ -22,6 +22,7 @@ import 'nav_grid.dart';
 
 /// Somewhere to walk, and the way there.
 final class Navigation {
+  /// Navigation over a grid already baked, with no field built yet.
   Navigation(NavGrid grid) : _grid = grid;
 
   /// Bakes the level's architecture. See [NavGrid.bake] for what [issues]

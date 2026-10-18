@@ -64,8 +64,12 @@ final class Powers {
   /// Forgets everything, for a run starting over.
   void clear() => _running.clear();
 
+  /// Each running power with its seconds left, for a save.
   Map<String, Object?> save() => <String, Object?>{..._running};
 
+  /// Replaces the running powers with those [from] holds. Anything that is
+  /// not a map leaves none; an entry without a name and seconds above
+  /// nought is skipped.
   void restore(Object? from) {
     _running.clear();
     if (from is! Map) return;

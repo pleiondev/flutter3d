@@ -69,6 +69,7 @@ import 'snapshot.dart' show Snapshot;
 /// than being skipped: a `Vector3` handed to this by mistake would otherwise
 /// hash to nothing at all and two different worlds would agree.
 final class StateDigest {
+  /// A digest of nothing yet, at the FNV-1a offset basis.
   StateDigest();
 
   /// The digest of one value, for the common case of asking once.
@@ -319,6 +320,7 @@ String contentDigestHex(Map<String, Object?> json) =>
 
 /// Thrown when a [DigestTrace] cannot be read back at all.
 final class DigestTraceFormatException extends Flutter3dFormatException {
+  /// An exception saying, in [message], what was wrong with the trace.
   const DigestTraceFormatException(this.message);
 
   @override
@@ -330,6 +332,8 @@ final class DigestTraceFormatException extends Flutter3dFormatException {
 
 /// Where two runs of the same tape parted company.
 final class Divergence {
+  /// A disagreement at checkpoint [step]; either digest is null when that
+  /// side had no checkpoint there.
   const Divergence({
     required this.step,
     required this.expected,
@@ -373,6 +377,8 @@ final class Divergence {
 /// stopped matching, and the defect is between that checkpoint and the one
 /// before.
 final class DigestTrace {
+  /// An empty trace taking a checkpoint every [every] steps, 25 by
+  /// default. Asserts [every] is above nought.
   DigestTrace({this.every = 25})
     : _steps = <int>[],
       _digests = <int>[],

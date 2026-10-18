@@ -14,6 +14,8 @@ import 'level.dart';
 /// the renderer. So the engine reports a fixture and the application decides
 /// what a fixture looks like.
 final class Fixture {
+  /// A box of [size] metres for [entity], drawn with [material]; it stands
+  /// at [at], else at the collider, else at the origin. Vectors are copied.
   Fixture({
     required this.entity,
     required Vector3 size,
@@ -38,6 +40,7 @@ final class Fixture {
 
   final Vector3 _at;
 
+  /// The box's full extent along each axis, in metres.
   final Vector3 size;
 
   /// Name of an entry in the level's materials.
@@ -57,6 +60,8 @@ final class Fixture {
 /// parameter list because every [EntityKind.spawn] takes the same set and most
 /// kinds use one of it.
 final class SpawnContext {
+  /// A context spawning into [world], [actors] and [mechanisms], telling
+  /// the hooks given.
   SpawnContext({
     required this.world,
     required this.actors,
@@ -65,8 +70,13 @@ final class SpawnContext {
     this.onFixture,
   });
 
+  /// The collision world placed boxes go into.
   final CollisionWorld world;
+
+  /// Where spawned actors are added.
   final ActorSystem actors;
+
+  /// Where spawned mechanisms are added, and what they wire to by name.
   final MechanismWorld mechanisms;
 
   /// The level being spawned — what an entity's names resolve against, a

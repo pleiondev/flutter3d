@@ -19,6 +19,8 @@ import '../nav/navmesh/navmesh_config.dart';
 /// Says nothing of a level with no start or no exit: those are other rules'
 /// to say ([ExactlyOne], [AtLeastOne]).
 final class ExitReachable extends LevelRule {
+  /// A rule baking its mesh for the body [config] describes, the default
+  /// settings when not given.
   const ExitReachable({this.config = const NavMeshSettings()});
 
   /// What the mesh is baked as: the body that has to make the walk.

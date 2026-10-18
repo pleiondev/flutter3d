@@ -4,9 +4,14 @@ import 'dart:typed_data';
 ///
 /// See [writeThrough] for what is done with it.
 final class WriteThroughField {
+  /// The field [key] with [value]; added to a document that lacks it
+  /// unless [whenAbsent] is false.
   const WriteThroughField(this.key, this.value, {this.whenAbsent = true});
 
+  /// The document's key for this field.
   final String key;
+
+  /// The value this object would write, JSON-shaped.
   final Object? value;
 
   /// Whether to add this key to a document that did not carry it.

@@ -10,6 +10,7 @@ import 'mechanism.dart';
 /// a level pack wanting a failing fluorescent tube should write a class rather
 /// than add a flag to a flicker that was only ever meant to be a torch.
 abstract base class LightBehavior {
+  /// Lets a subclass be const.
   const LightBehavior();
 
   /// Brightness multiplier at [time] seconds, for the fixture identified by
@@ -23,6 +24,7 @@ abstract base class LightBehavior {
 
 /// Steady. A lamp, a stained window with daylight behind it.
 final class SteadyLight extends LightBehavior {
+  /// A light at full brightness, always.
   const SteadyLight();
 
   @override
@@ -42,6 +44,8 @@ final class SteadyLight extends LightBehavior {
 /// bright a torch is reads the same number on every machine. The renderer
 /// takes the brightness from here; nothing here draws.
 final class FlameFlicker extends LightBehavior {
+  /// A flicker dipping by [depth] (0.22) about [rate] (seven) times a
+  /// second.
   const FlameFlicker({this.depth = 0.22, this.rate = 7.0});
 
   /// How far it dips below full, from 0 to 1.
@@ -63,6 +67,7 @@ final class FlameFlicker extends LightBehavior {
 
 /// A slow swell, for something magical rather than burning.
 final class PulseLight extends LightBehavior {
+  /// A swell dipping by [depth] (0.35) once every [period] (3.5) seconds.
   const PulseLight({this.depth = 0.35, this.period = 3.5});
 
   /// How far it dips below full, from 0 to 1.
@@ -85,6 +90,8 @@ final class PulseLight extends LightBehavior {
 /// number rather than two that drift apart. A torch whose flame stays bright
 /// while its light dims is a torch nobody believes.
 final class LightFixture extends Mechanism {
+  /// A fixture driving [light], steady, lit and at phase nought unless
+  /// told otherwise.
   LightFixture({
     super.name,
     required this.light,
@@ -97,6 +104,8 @@ final class LightFixture extends Mechanism {
   /// decorative fixture — an unlit sconce — names none.
   final String? light;
 
+  /// How the brightness moves with time while nothing [measure]s the
+  /// fixture.
   final LightBehavior behavior;
 
   /// Offsets this fixture's phase; unitless, a [PulseLight] reads it as a

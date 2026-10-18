@@ -6,6 +6,7 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 /// a data structure the world leans on rather than part of what an entity or a
 /// component is.
 final class ComponentStore {
+  /// An empty store for components of [type], not yet registered.
   ComponentStore(this.type);
 
   /// The Dart type stored here, for messages.
@@ -44,5 +45,7 @@ final class ComponentStore {
   /// rather than building one.
   bool get inPlace => codec is InPlaceCodec<Object>;
 
+  /// Whether the type has been given a codec or deliberately excluded; a
+  /// save refuses a world holding a type for which neither is true.
   bool get isRegistered => codec != null || excludedBecause != null;
 }

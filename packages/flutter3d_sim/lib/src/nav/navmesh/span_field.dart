@@ -23,9 +23,14 @@ const int nullArea = 0;
 
 /// One run of solid voxels in a column, `[min, max)` in voxels.
 final class SolidSpan {
+  /// A span from voxel [min] up to, not including, [max], topped by
+  /// [area].
   SolidSpan(this.min, this.max, this.area);
 
+  /// The lowest voxel of the run, counted up from the lattice's origin.
   final int min;
+
+  /// The voxel just above the run: the span's top, where a floor would be.
   final int max;
 
   /// What the top of this span is, as a walking surface; [nullArea] when it
@@ -40,6 +45,8 @@ final class SolidSpan {
 /// rounded up, terrain widening it — and kept by the mesh, so that a part of
 /// it baked again later lands on the same cells.
 final class NavLattice {
+  /// A lattice with its lowest corner at the origin given and [columns] by
+  /// [rows] cells.
   const NavLattice({
     required this.originX,
     required this.originY,
@@ -115,10 +122,14 @@ final class NavLattice {
 
   /// That corner's Z, in metres.
   final double originZ;
+
+  /// Count of cells along X; nought for [empty].
   final int columns;
 
+  /// Count of cells along Z; nought for [empty].
   final int rows;
 
+  /// Whether the lattice has no cells at all.
   bool get isEmpty => columns == 0 || rows == 0;
 
   @override
@@ -168,16 +179,23 @@ final class SpanField {
 
   /// A voxel's height, in metres.
   final double cellHeight;
+
+  /// Count of this field's columns along X.
   final int columns;
+
+  /// Count of this field's rows along Z.
   final int rows;
 
   /// The lattice column and row of this field's column `(0, 0)`.
   final int offsetX;
+
+  /// The lattice row of this field's row nought.
   final int offsetZ;
 
   /// Per column, `cz * columns + cx`, merged and sorted by height.
   final List<List<SolidSpan>> spans;
 
+  /// Whether the field has no columns at all.
   bool get isEmpty => columns == 0 || rows == 0;
 
   /// Rasterises the solid [brushes] and the [ground] into columns of spans,

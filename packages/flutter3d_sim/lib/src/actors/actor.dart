@@ -41,6 +41,9 @@ import 'brain.dart';
 import 'damageable.dart';
 import 'health.dart';
 
+/// The handle on one actor's entity: what a collider's `userData` holds,
+/// so a hit, a blast or a lift can ask it `is Damageable` or `is Rider`.
+/// Every field it answers is a component read.
 final class Actor with Damageable, Rider {
   /// Made by [ActorSystem.spawn] and nowhere else.
   ///
@@ -49,7 +52,10 @@ final class Actor with Damageable, Rider {
   /// route damage past the thing that counts deaths.
   Actor(this.entities, this.entity, {this.name});
 
+  /// The world the actor's components live in.
   final EcsWorld entities;
+
+  /// The actor's entity in [entities]; its index is [ordinal].
   final Entity entity;
 
   /// The level entity this was spawned from, when it named one — `null` for
@@ -71,6 +77,8 @@ final class Actor with Damageable, Rider {
   /// the same game, and nobody has to remember to assign it.
   int get ordinal => entity.index;
 
+  /// Whether [entity] is still alive in [entities]; false once despawned,
+  /// though the handle may still be held.
   bool get exists => entities.isAlive(entity);
 
   /// The capsule that walks, or null for something that does not.

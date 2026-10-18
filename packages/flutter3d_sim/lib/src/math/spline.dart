@@ -25,6 +25,11 @@ import 'tolerances.dart';
 /// it passed would otherwise silently invalidate the arc-length table, and the
 /// symptom would be a curve that reports distances for a shape it no longer has.
 final class CatmullRom {
+  /// A curve through copies of [points], closed and at [tension] one half
+  /// by default, measured with [samplesPerSegment] samples a segment.
+  ///
+  /// Throws an [ArgumentError] for fewer than three points on a closed
+  /// curve or two on an open one, or fewer than two samples a segment.
   CatmullRom(
     List<Vector3> points, {
     this.closed = true,

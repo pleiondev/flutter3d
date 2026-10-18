@@ -16,6 +16,7 @@ import 'level_issue.dart';
 /// degenerate, something to stand on, something to see by. Anything about
 /// *which entities* a level ought to contain arrives here.
 abstract base class LevelRule {
+  /// Lets a subclass be const.
   const LevelRule();
 
   /// Adds what is wrong with the check's level to its [LevelCheck.out].
@@ -29,6 +30,7 @@ abstract base class LevelRule {
 /// kinds, the document's version — without breaking a rule written against
 /// 1.0.
 final class LevelCheck {
+  /// A check of [level], adding problems to [out].
   const LevelCheck({required this.level, required this.out});
 
   /// The level being checked.
@@ -43,8 +45,11 @@ final class LevelCheck {
 /// The rule a player spawn wants: none and the player starts at the origin,
 /// which is usually inside the floor; two and nothing decides which is used.
 final class ExactlyOne extends LevelRule {
+  /// A rule that a level has exactly one entity of [type], saying
+  /// [because] when it has none.
   const ExactlyOne(this.type, {this.because});
 
+  /// The entity type counted.
   final String type;
 
   /// What goes wrong when the count is not one. Worth saying, because "there
@@ -71,10 +76,18 @@ final class ExactlyOne extends LevelRule {
 
 /// There should be at least one of a type, or the level is missing something.
 final class AtLeastOne extends LevelRule {
+  /// A rule that a level has an entity of [type], reported at [severity]
+  /// (a warning by default) with [because] when it has none.
   const AtLeastOne(this.type, {this.because, this.severity = Severity.warning});
 
+  /// The entity type looked for.
   final String type;
+
+  /// What goes wrong without one, added to the issue; null says nothing
+  /// more.
   final String? because;
+
+  /// How bad a level with none is.
   final Severity severity;
 
   @override

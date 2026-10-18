@@ -12,8 +12,10 @@ import 'tape.dart';
 /// with would be a body from a previous run blocking the one being made, which
 /// is the one thing it must never do.
 final class Playback {
+  /// A playback of [tape].
   Playback(this.tape);
 
+  /// The recording played back, its poses in time order.
   final Tape tape;
 
   /// Fills [out] with where the body was at [time].

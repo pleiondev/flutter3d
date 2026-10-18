@@ -8,6 +8,9 @@ typedef ButtonPair = ({GameAction negative, GameAction positive});
 
 /// One action a game declares, with what a player is shown for it.
 final class ActionDeclaration {
+  /// Declares [action], rebindable by default.
+  ///
+  /// Asserts that [fromButtons] is given only for an [AxisAction].
   const ActionDeclaration(
     this.action, {
     this.label,
@@ -18,6 +21,7 @@ final class ActionDeclaration {
          'only an axis was ever recorded as two buttons',
        );
 
+  /// The action declared, of any of the three kinds.
   final InputAction<Object> action;
 
   /// What a rebinding screen calls it. Null shows [InputAction.name].
@@ -51,12 +55,15 @@ final class ActionDeclaration {
 /// it can declare its actions and a tape can be upgraded against them on a
 /// server.
 final class ActionSet {
+  /// A set called [name] declaring [declarations], kept in the order given.
   const ActionSet(this.name, this.declarations);
 
   /// The set's name, written into a saved action map so a file from one game
   /// is not read as another's.
   final String name;
 
+  /// Each action with its label and flags, in the order a rebinding screen
+  /// lists them.
   final List<ActionDeclaration> declarations;
 
   /// What every game with a body declares: walking and looking, and the
@@ -90,6 +97,7 @@ final class ActionSet {
     return null;
   }
 
+  /// Whether this set declares [action], matched by kind and name.
   bool contains(InputAction<Object> action) => declarationOf(action) != null;
 
   /// The action called [name] of [kind] — for a saved file, which names

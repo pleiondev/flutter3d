@@ -9,11 +9,16 @@ import 'tape.dart';
 /// Where one body was at one recorded step: what [PoseRecorder.record] is
 /// handed. The vectors are copied, so a caller may pass the body's own.
 final class BodyPose {
+  /// Body [name] at [position], turned by [rotation].
   const BodyPose(this.name, this.position, this.rotation);
 
   /// The body's name, stable for the run: `'runner'`, `'crate#3'`.
   final String name;
+
+  /// Where the body is, in metres in the world.
   final Vector3 position;
+
+  /// The body's rotation, a unit quaternion.
   final Quaternion rotation;
 }
 
@@ -21,8 +26,10 @@ final class BodyPose {
 /// rotation, in [PoseRecord.bodies] order — null for a body that was not
 /// there at that step.
 final class PoseRecordFrame {
+  /// The frame taken after [step], holding [bodies].
   const PoseRecordFrame(this.step, this.bodies);
 
+  /// The step the frame was taken after.
   final int step;
 
   /// Seven numbers a body — `x, y, z, qx, qy, qz, qw` — or null. Shorter
@@ -48,6 +55,8 @@ final class PoseRecordFrame {
 /// body here is a place and a quaternion, and [track] turns one of them back
 /// into the ghost's [Tape] for anything already drawing ghosts.
 final class PoseRecord {
+  /// A record of [frames] taken every [every] steps of [stepSeconds]
+  /// seconds, naming [bodies]; both lists are copied unmodifiable.
   PoseRecord({
     required this.every,
     required this.stepSeconds,
@@ -147,11 +156,14 @@ final class PoseRecord {
   /// In step order, one per recorded step.
   final List<PoseRecordFrame> frames;
 
+  /// Whether no frame was recorded.
   bool get isEmpty => frames.isEmpty;
 
   /// The step of the last frame, which is where a viewer's scrubber ends.
   int get lastStep => frames.isEmpty ? 0 : frames.last.step;
 
+  /// This record as JSON: positions to the millimetre, quaternions to four
+  /// decimals, and an absent body as one null.
   Map<String, Object?> toJson() => <String, Object?>{
     'every': every,
     'dt': stepSeconds,
@@ -209,9 +221,12 @@ final class PoseRecord {
 /// Writes a [PoseRecord] down as a run is played: every [every]th step,
 /// whichever bodies the caller hands it.
 final class PoseRecorder {
+  /// A recorder taking a frame every [every] steps (four by default) of
+  /// [stepSeconds] (a sixtieth). Asserts [every] is above nought.
   PoseRecorder({this.every = 4, this.stepSeconds = 1.0 / 60.0})
     : assert(every > 0, 'a frame every no steps is no record');
 
+  /// Count of steps between frames.
   final int every;
 
   /// The simulation's fixed step, in seconds.
@@ -260,6 +275,7 @@ final class PoseRecorder {
   /// Forgets frames after [step]: a run rewound and lived again from there.
   void forgetAfter(int step) => _frames.removeWhere((f) => f.step > step);
 
+  /// Count of frames recorded so far.
   int get length => _frames.length;
 
   /// The record so far.
@@ -273,6 +289,7 @@ final class PoseRecorder {
 
 /// Thrown when a pose record cannot be read.
 final class PoseRecordFormatException extends Flutter3dFormatException {
+  /// An exception saying, in [message], what was wrong with the record.
   const PoseRecordFormatException(this.message);
 
   @override

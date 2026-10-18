@@ -59,6 +59,7 @@ abstract final class InputAction<T extends Object> {
   /// What it is called, in a tape, a saved action map and a rebind screen.
   String get name;
 
+  /// Which of the three kinds of value it carries; fixed by the subclass.
   ActionKind get kind;
 }
 
@@ -71,6 +72,7 @@ abstract final class InputAction<T extends Object> {
 /// composite bindings in `flutter3d_game` — and so does a stick's one axis
 /// or a band under a thumb, and the simulation reads one number either way.
 final class AxisAction implements InputAction<double> {
+  /// A one-number action called [name]; two with one name are one action.
   const AxisAction(this.name);
 
   @override
@@ -96,6 +98,7 @@ final class AxisAction implements InputAction<double> {
 /// what [InputState.moveAxis] and [InputState.lookDelta] already were — those
 /// stay, and answer for these.
 final class DualAxisAction implements InputAction<Vector2> {
+  /// A two-number action called [name], a position unless [isDelta].
   const DualAxisAction(this.name, {this.isDelta = false});
 
   @override
@@ -159,6 +162,7 @@ final class DualAxisAction implements InputAction<Vector2> {
 /// It is the button kind of [InputAction]; [AxisAction] and [DualAxisAction]
 /// are the other two.
 final class GameAction implements InputAction<bool> {
+  /// A button action called [name]; two with one name are one action.
   const GameAction(this.name);
 
   /// What it is called, in a saved config and in a rebind screen.
@@ -168,9 +172,16 @@ final class GameAction implements InputAction<bool> {
   @override
   ActionKind get kind => ActionKind.button;
 
+  /// While held, adds one to the `y` of [InputState.moveAxis].
   static const GameAction moveForward = GameAction('moveForward');
+
+  /// While held, takes one from the `y` of [InputState.moveAxis].
   static const GameAction moveBack = GameAction('moveBack');
+
+  /// While held, takes one from the `x` of [InputState.moveAxis].
   static const GameAction moveLeft = GameAction('moveLeft');
+
+  /// While held, adds one to the `x` of [InputState.moveAxis].
   static const GameAction moveRight = GameAction('moveRight');
 
   /// Held, not tapped: sprinting ends the moment the key comes up.
@@ -183,7 +194,7 @@ final class GameAction implements InputAction<bool> {
   /// Buttons, levers, doors, and reading the notes on the walls.
   static const GameAction use = GameAction('use');
 
-  /// The six every game in this repository has needed, for a rebind screen that
+  /// The seven every game in this repository has needed, for a rebind screen that
   /// wants to list them. A genre adds its own; there is no registry, and that is
   /// deliberate — a list nobody has to keep up to date cannot fall behind.
   static const List<GameAction> common = <GameAction>[

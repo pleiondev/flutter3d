@@ -10,6 +10,12 @@ import '../../math/tolerances.dart';
 /// on everything downstream, and the conversion is one division and one
 /// rounding apiece — operations IEEE 754 pins — so they do agree.
 final class NavMeshSettings {
+  /// Settings for a body 1.7 metres tall and 0.3 wide stepping 0.4, on
+  /// half-metre cells, untiled, unless told otherwise.
+  ///
+  /// Asserts a positive cell size and height, a tile size of nought or
+  /// more, at least three corners a polygon, and an edge error under half
+  /// a cell for a tiled mesh.
   const NavMeshSettings({
     this.cellSize = 0.5,
     this.cellHeight = 0.1,

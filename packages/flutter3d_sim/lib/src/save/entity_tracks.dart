@@ -109,11 +109,16 @@ final class EntityLayout {
 
 /// One component of one entity, named as an [EntityLayout] names them.
 final class EntityComponent {
+  /// Component [component] of entity [entity].
   const EntityComponent(this.entity, this.component);
 
+  /// The entity's key, as the [EntityLayout] reads it from a snapshot.
   final String entity;
+
+  /// The component's name, the id its codec writes it under.
   final String component;
 
+  /// This pair as JSON: `{"entity", "component"}`.
   Map<String, Object?> toJson() => <String, Object?>{
     'entity': entity,
     'component': component,
@@ -134,8 +139,10 @@ final class EntityComponent {
 
 /// A component's value from [step] on, until the next sample says otherwise.
 final class TrackSample {
+  /// A sample of [value] from [step], present unless [present] is false.
   const TrackSample(this.step, this.value, {this.present = true});
 
+  /// The step the value took effect from.
   final int step;
 
   /// What the component held; meaningless when not [present].
@@ -144,23 +151,18 @@ final class TrackSample {
   /// False from the step the entity lost the component, or was despawned.
   final bool present;
 
+  /// This sample as JSON: the step, and the value or `"absent": true`.
   Map<String, Object?> toJson() => <String, Object?>{
     'step': step,
     if (present) 'value': value else 'absent': true,
   };
 }
 
-/// What every entity's components did over a run, one lane per component.
-///
-/// **Changes, not samples.** A lane holds a sample only at the steps its
-/// value changed, so a thousand steps of a door that never moved is one
-/// entry, and the steps at which something did happen are exactly the marks
-/// a scrubber wants to draw. Observing every step costs a snapshot read per
-/// step and nothing per entity that stood still.
 /// The first and the last of a run of steps, both included.
 ///
 /// A class rather than a record, so a later field is not a break.
 final class StepSpan {
+  /// The span from [first] to [last], both included.
   const StepSpan({required this.first, required this.last});
 
   /// The first step.
@@ -180,9 +182,19 @@ final class StepSpan {
   String toString() => 'StepSpan($first..$last)';
 }
 
+/// What every entity's components did over a run, one lane of
+/// [TrackSample]s per component.
+///
+/// **Changes, not samples.** A lane holds a sample only at the steps its
+/// value changed, so a thousand steps of a door that never moved is one
+/// entry, and the steps at which something did happen are exactly the marks
+/// a scrubber wants to draw. Observing every step costs a snapshot read per
+/// step and nothing per entity that stood still.
 final class EntityTracks {
+  /// Empty tracks, reading snapshots through [layout].
   EntityTracks(this.layout);
 
+  /// How a snapshot is read into entities and their components.
   final EntityLayout layout;
 
   final Map<String, Map<String, List<TrackSample>>> _lanes =

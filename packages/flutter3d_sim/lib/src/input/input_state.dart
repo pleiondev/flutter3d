@@ -82,12 +82,16 @@ final class InputState {
   /// caller owns.
   Vector2 get lookDelta => _lookDelta.clone();
 
+  /// Whether [action] is down now: some press has not been released yet, or
+  /// a toggled action is latched on.
   bool held(GameAction action) => _held.contains(action);
 
   /// True for the one step that consumes a press, even if the button was already
   /// released again by then.
   bool pressed(GameAction action) => _pressedLatch.contains(action);
 
+  /// True for the one step that consumes a release of [action], even if it
+  /// was pressed again by then.
   bool released(GameAction action) => _releasedLatch.contains(action);
 
   /// What became held and what let go this step, for something that has to
@@ -103,6 +107,8 @@ final class InputState {
   Iterable<GameAction> get pressedThisStep =>
       List<GameAction>.unmodifiable(_pressedLatch);
 
+  /// What let go this step, as an unmodifiable list: the release side of
+  /// [pressedThisStep].
   Iterable<GameAction> get releasedThisStep =>
       List<GameAction>.unmodifiable(_releasedLatch);
 
@@ -210,6 +216,10 @@ final class InputState {
   /// moment the replay's own history takes over.
   bool muted = false;
 
+  /// Adds one hold on [action] and latches it as pressed for the next step.
+  ///
+  /// For an action made to latch by [setToggled], flips it on or off
+  /// instead. Does nothing while [muted].
   void press(GameAction action) {
     if (muted) return;
     if (_toggled.contains(action)) {
@@ -432,6 +442,8 @@ final class InputState {
     _lookDelta.setValues(_lookDelta.x + dx, _lookDelta.y + dy);
   }
 
+  /// Asks for the numbered [slot]; read by the next step as [slotRequest].
+  /// A later request before that step replaces it. Ignored while [muted].
   void requestSlot(int slot) {
     if (muted) return;
     _slotRequest = slot;

@@ -6,6 +6,8 @@
 /// reports the transition on every subsequent hit produces eight death
 /// animations, eight corpses and eight counts towards the level's kill total.
 final class Health {
+  /// Health of [maximum] hit points, starting at [current] (full when
+  /// null) with no armour by default. Asserts [maximum] is above nought.
   Health(this.maximum, {double? current, this.armor = 0.0})
     : assert(maximum > 0.0),
       _current = current ?? maximum;
@@ -22,20 +24,26 @@ final class Health {
 
   /// What is left, in hit points, the same unit as [maximum].
   double get current => _current;
+
+  /// Whether any hit points are left.
   bool get isAlive => _current > 0.0;
+
+  /// Whether none are left: [current] is at nought.
   bool get isDead => !isAlive;
 
   /// Whether the death transition has already been reported.
   bool _mourned = false;
 
-  /// Applies [amount] and returns true on the hit that killed — once, and only
-  /// for that hit.
+  /// What a snapshot keeps of this health: what is left, the armour and
+  /// whether the death was already announced, for [restore].
   Map<String, Object?> save() => <String, Object?>{
     'current': _current,
     'armour': armor,
     'mourned': _mourned,
   };
 
+  /// Puts back what [save] wrote; a field missing from [from] keeps its
+  /// value.
   void restore(Map<String, Object?> from) {
     _current = (from['current'] as num?)?.toDouble() ?? _current;
     armor = (from['armour'] as num?)?.toDouble() ?? armor;
@@ -45,6 +53,9 @@ final class Health {
     _mourned = from['mourned'] == true;
   }
 
+  /// Takes [amount] hit points, armour absorbing [armorShare] of it while
+  /// it lasts. True only on the hit that kills; false for every other hit,
+  /// for an amount of nought or less, and once dead.
   bool damage(double amount) {
     if (amount <= 0.0 || _mourned) return false;
 

@@ -37,6 +37,8 @@ import 'level.dart';
 
 /// One face's place in the atlas and its frame in the world.
 final class LightmapFace {
+  /// Face [face] of brush [brush], framed in the world and placed at
+  /// ([x], [y]) in the atlas.
   const LightmapFace({
     required this.brush,
     required this.face,
@@ -55,12 +57,20 @@ final class LightmapFace {
   /// Index of the brush in `Level.brushes`, and which of
   /// [BrushGeometry.faceAxes] this is.
   final int brush;
+
+  /// Index of the face in [BrushGeometry.faceAxes], nought to five.
   final int face;
 
   /// The face's corner at texel `(0, 0)`, and the unit axes texels run along.
   final Vector3 origin;
+
+  /// The unit axis texel `x` runs along, in the world.
   final Vector3 u;
+
+  /// The unit axis texel `y` runs along, in the world.
   final Vector3 v;
+
+  /// The face's outward normal, a unit vector in the world.
   final Vector3 normal;
 
   /// The face's size along [u] and [v], in metres.
@@ -71,10 +81,17 @@ final class LightmapFace {
 
   /// The rectangle of texels this face owns.
   final int x;
+
+  /// The top row of the face's rectangle in the atlas, in texels.
   final int y;
+
+  /// Width of the face's rectangle, in texels.
   final int width;
+
+  /// Height of the face's rectangle, in texels.
   final int height;
 
+  /// Count of texels the face owns: [width] times [height].
   int get texelCount => width * height;
 }
 
@@ -99,8 +116,13 @@ final class LightmapLayout {
   /// Texels along a metre of face.
   final double texelsPerMeter;
 
+  /// Width of the atlas, in texels; at most [maxSize].
   final int width;
+
+  /// Height of the atlas, in texels; at most [maxSize].
   final int height;
+
+  /// Every planned face, in the order they were planned.
   final List<LightmapFace> faces;
   final Map<(int, int), LightmapFace> _byFace;
 
@@ -109,6 +131,8 @@ final class LightmapLayout {
 
   /// Where the reserved texel is: the one every unplanned vertex points at.
   static const int reservedX = 0;
+
+  /// The reserved texel's row, with [reservedX] its column.
   static const int reservedY = 0;
 
   /// The largest atlas this will plan. Past it the level wants a lower
@@ -119,8 +143,11 @@ final class LightmapLayout {
   static int get maxSize => _maxSize;
   static const int _maxSize = 4096;
 
+  /// Count of texels in the atlas: [width] times [height].
   int get texelCount => width * height;
 
+  /// Where face [face] of brush [brush] is planned, or null for one that
+  /// is not: a ramp's faces, or a brush the plan did not include.
   LightmapFace? faceOf(int brush, int face) => _byFace[(brush, face)];
 
   /// The second texture coordinate of a face's corner, where `su` and `sv`
@@ -323,6 +350,7 @@ final class _Planned {
 /// what [LightmapLayout.uvAt], [LightmapLayout.uvOfPoint] and
 /// [LightmapLayout.neutralUv] answer.
 final class LightmapUv {
+  /// The coordinate ([u], [v]), each a fraction of the atlas.
   const LightmapUv({required this.u, required this.v});
 
   /// Across the atlas, a fraction of its width from 0 to 1.
@@ -345,6 +373,7 @@ final class LightmapUv {
 /// A texel of a [LightmapFace], counted from the face's own corner: what
 /// [LightmapLayout.texelOf] answers.
 final class LightmapTexel {
+  /// The texel ([x], [y]) of a face, from its own corner.
   const LightmapTexel({required this.x, required this.y});
 
   /// Texels along the face's `u` axis, from 0 to its width less one.

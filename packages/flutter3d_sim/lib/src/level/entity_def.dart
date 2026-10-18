@@ -30,6 +30,9 @@ import 'level_ids.dart';
 /// that is not reserved is a property, and it still reads; it is written
 /// back in the new shape.
 final class EntityDef {
+  /// An entity of [type] at [position] (the origin when null, copied
+  /// otherwise), facing [yaw] radians. A null [id] is derived from the
+  /// type, name, position and yaw.
   EntityDef({
     required this.type,
     String? id,
@@ -128,8 +131,12 @@ final class EntityDef {
   /// a prefab override, the editor's selection. See [LevelIds]; given when
   /// the entity is made, derived from what it is otherwise.
   final String id;
+
+  /// The kind of thing it is, as `EntityKinds` knows it: `torch`,
+  /// `playerSpawn`, a game's own word. Never empty.
   final String type;
 
+  /// Where it stands, in metres in the level's frame.
   final Vector3 position;
 
   /// Facing, in radians about Y. Nothing in this game tilts.
@@ -190,23 +197,33 @@ final class EntityDef {
     'name',
   };
 
+  /// The text property [key], or null when it is absent. A value that is
+  /// not text throws a [TypeError].
   String? string(String key) => properties[key] as String?;
 
+  /// The number property [key] as a double, or null when it is absent or
+  /// not a number.
   double? number(String key) {
     final value = properties[key];
     if (value is num) return value.toDouble();
     return null;
   }
 
+  /// The number property [key] truncated to an int, or null when it is
+  /// absent or not a number.
   int? integer(String key) {
     final value = properties[key];
     if (value is num) return value.toInt();
     return null;
   }
 
+  /// The bool property [key], or [orElse] when it is absent. A value that
+  /// is not a bool throws a [TypeError].
   bool flag(String key, {bool orElse = false}) =>
       properties[key] as bool? ?? orElse;
 
+  /// The property [key] as a vector from its first three numbers, or null
+  /// when it is not a list of at least three.
   Vector3? vector(String key) {
     final value = properties[key];
     if (value is! List || value.length < 3) return null;
@@ -221,6 +238,8 @@ final class EntityDef {
   EntityDef withId(String id) =>
       EntityDef.fromJson(<String, Object?>{...toJson(), 'id': id});
 
+  /// This entity as a level row in the format-3 shape, written through the
+  /// row it was read from so unknown keys survive.
   Map<String, Object?> toJson() => writeThrough(_source, <WriteThroughField>[
     WriteThroughField('id', id),
     WriteThroughField('type', type),

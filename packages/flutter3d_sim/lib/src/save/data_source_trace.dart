@@ -3,6 +3,7 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
 
 /// Thrown when a [DataSourceTrace] cannot be read back at all.
 final class DataSourceTraceFormatException extends Flutter3dFormatException {
+  /// An exception saying, in [message], what was wrong with the trace.
   const DataSourceTraceFormatException(this.message);
 
   @override
@@ -27,10 +28,14 @@ final class DataSourceTraceFormatException extends Flutter3dFormatException {
 /// parallel, additive channel — the same reasoning [Demo]'s own
 /// [DigestTrace] already sits beside [InputTape] rather than inside it.
 final class DataSourceTrace {
+  /// An empty trace, for [record] to fill.
   DataSourceTrace() : _steps = <int>[], _values = <Map<String, Object?>>[];
 
   DataSourceTrace._parts(this._steps, this._values);
 
+  /// Reads what [toJson] wrote. Throws a [DataSourceTraceFormatException]
+  /// when steps or values are missing, differ in number, or an entry is not
+  /// a step number and a map. The order of steps is not checked.
   factory DataSourceTrace.fromJson(Map<String, Object?> json) {
     final rawSteps = json['steps'];
     final rawValues = json['values'];
@@ -129,6 +134,7 @@ final class DataSourceTrace {
     return branch;
   }
 
+  /// This trace as JSON: parallel lists of `steps` and `values`.
   Map<String, Object?> toJson() => <String, Object?>{
     'steps': List<int>.of(_steps),
     'values': _values.map((v) => Map<String, Object?>.of(v)).toList(),

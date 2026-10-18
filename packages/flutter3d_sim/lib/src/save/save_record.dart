@@ -21,7 +21,11 @@ import 'save_schema.dart';
 import 'snapshot.dart';
 import 'state_digest.dart' show contentDigestHex;
 
+/// One saved run: the level, the snapshot, how far the run got, the schema
+/// its fields are at, and a digest to tell two copies apart.
 final class SaveRecord {
+  /// A record of [run] in [level], at step nought and schema nought unless
+  /// told otherwise.
   SaveRecord({
     required this.level,
     required this.run,
@@ -33,6 +37,7 @@ final class SaveRecord {
   /// never kept apart.
   final String level;
 
+  /// The run's state, with the plugins it needs.
   final Snapshot run;
 
   /// How far the run has got, in simulation steps across all its levels.
@@ -145,9 +150,12 @@ sealed class SaveRead {
   const SaveRead();
 }
 
+/// The document held a save, brought up to the game's schema.
 final class SaveFound extends SaveRead {
+  /// A save found as [record], written at schema [upgradedFrom].
   const SaveFound(this.record, {required this.upgradedFrom});
 
+  /// The save, at the schema this build writes.
   final SaveRecord record;
 
   /// The schema the document was written at. Less than `record.schema` when
@@ -155,9 +163,12 @@ final class SaveFound extends SaveRead {
   final int upgradedFrom;
 }
 
+/// The document is not a save this build can use, and why.
 final class SaveNotRead extends SaveRead {
+  /// A refusal for [reason]; [newer] when it came from a later build.
   const SaveNotRead(this.reason, {this.newer = false});
 
+  /// A sentence saying what was wrong with the document.
   final String reason;
 
   /// From a newer build: somebody's real progress, to be left alone rather

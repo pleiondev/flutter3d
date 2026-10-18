@@ -18,10 +18,14 @@ final class CellHeap {
   /// The cost of the entry [pop] last returned.
   int poppedCost = 0;
 
+  /// Whether no entries are left, stale ones included.
   bool get isEmpty => _size == 0;
 
+  /// Drops every entry, keeping the storage for the next sweep.
   void clear() => _size = 0;
 
+  /// Adds [cell] at [cost]; a cell already in the heap is added again,
+  /// and the dearer entry is skipped when it comes up.
   void push(int cell, int cost) {
     if (_size == _cell.length) {
       _cell = Int32List(_size * 2)..setRange(0, _size, _cell);
@@ -38,6 +42,8 @@ final class CellHeap {
     }
   }
 
+  /// Removes and answers the cheapest cell, its cost in [poppedCost]. The
+  /// heap must not be empty.
   int pop() {
     final top = _cell[0];
     poppedCost = _cost[0];

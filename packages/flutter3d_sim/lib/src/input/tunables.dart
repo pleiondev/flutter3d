@@ -26,6 +26,8 @@ import 'input_state.dart';
 /// `jump.of(tunables)` rather than `tunables['jump']` — and both read the
 /// same table.
 final class Tunables {
+  /// A table of the tunables named in [defaults], each starting at its
+  /// value there. The map is copied.
   Tunables(Map<String, double> defaults)
     : defaults = Map<String, double>.unmodifiable(defaults),
       _values = Map<String, double>.of(defaults);

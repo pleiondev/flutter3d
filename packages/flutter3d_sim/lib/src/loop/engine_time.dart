@@ -18,6 +18,8 @@ const double standardStepRate = 60.0;
 /// world preset hands one of these to the `EngineLoop`; a change to it is a
 /// change to the simulation and is journalled like one.
 final class WorldTiming {
+  /// A timing of [stepRate] steps per second, [standardStepRate] by
+  /// default. Asserts the rate is above nought.
   const WorldTiming({this.stepRate = standardStepRate})
     : assert(stepRate > 0.0, 'a world steps at some rate');
 
@@ -64,6 +66,7 @@ final class CatchUp {
     : assert(maxStepsPerFrame > 0),
       assert(backlog >= 0.0);
 
+  /// Most steps one frame runs, five by default; always above nought.
   final int maxStepsPerFrame;
 
   /// Simulated seconds that may wait for a later frame. Nought announces
@@ -91,6 +94,7 @@ final class TimeLostReason {
   /// The frame brought more steps than the catch-up policy allows.
   static const TimeLostReason overBudget = TimeLostReason._('overBudget');
 
+  /// The stable name, and what [toString] and a [TimeLost] report write.
   final String name;
 
   @override
@@ -105,6 +109,7 @@ final class TimeLostReason {
 /// differ. What a game does about it — a "running slowly" notice, a pacing
 /// report — is presentation.
 final class TimeLost extends BusEvent {
+  /// An announcement of [seconds] (and [steps]) not run, for [reason].
   const TimeLost({
     required this.seconds,
     required this.steps,
@@ -117,6 +122,7 @@ final class TimeLost extends BusEvent {
   /// Whole steps not run; nought for a long frame shorter than a step.
   final int steps;
 
+  /// Why the time was not run: a long frame, or over the catch-up budget.
   final TimeLostReason reason;
 
   @override

@@ -106,6 +106,10 @@ final class ShadowCasting {
 /// sweep handles exactly, and what a grid indexes without thinking. The cost is
 /// that there are no slopes, and vertical movement comes from stairs and lifts.
 final class Brush {
+  /// A block of [size] metres centred on [center]; both are copied.
+  ///
+  /// [shadowCasting], when given, wins over [castsShadow]. A null [id] is
+  /// derived from the centre, size and material.
   Brush({
     String? id,
     required Vector3 center,
@@ -146,6 +150,10 @@ final class Brush {
              material,
            ]);
 
+  /// Reads a brush from its level row, keeping the row for [toJson].
+  ///
+  /// Throws a [LevelFormatException] for an `id` that is not text, an
+  /// unknown shadow mode or an unknown ramp direction.
   factory Brush.fromJson(Map<String, Object?> json) => Brush(
     id: switch (json['id']) {
       null => null,
@@ -198,7 +206,10 @@ final class Brush {
   /// [writeThrough].
   final Map<String, Object?> _source;
 
+  /// The middle of the block, in metres in the level's frame.
   final Vector3 center;
+
+  /// The block's full extent along each axis, in metres.
   final Vector3 size;
 
   /// Name of an entry in [Level.materials]. What this brush **looks** like.
@@ -320,10 +331,16 @@ final class Brush {
 
   /// Whether this brush is a ramp rather than a block.
   bool get isRamp => ramp != null;
+
+  /// Half of [size] on each axis, in metres, as a fresh vector.
   Vector3 get halfExtents => size / 2.0;
 
+  /// The block's lowest corner on every axis, in metres, as a fresh
+  /// vector.
   Vector3 get min => center - halfExtents;
 
+  /// The block's highest corner on every axis, in metres, as a fresh
+  /// vector.
   Vector3 get max => center + halfExtents;
 
   /// How much volume this brush shares with [other]. Zero when they only
@@ -356,6 +373,8 @@ final class Brush {
       .firstWhere((MapEntry<String, WedgeUphill> e) => e.value == uphill)
       .key;
 
+  /// This brush as a level row, written through the row it was read from
+  /// so unknown keys and the document's own spellings survive.
   Map<String, Object?> toJson() {
     // A document that spelled the mode out goes on spelling it out, and does
     // not grow a boolean beside a word that already says more than it could.

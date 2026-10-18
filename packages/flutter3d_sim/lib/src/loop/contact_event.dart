@@ -24,6 +24,8 @@ import 'game_event.dart';
 /// [feature] — so a tape replays them as the run made them, whichever core
 /// stepped it ([publishAll]).
 final class ContactEvent extends GameEvent {
+  /// A contact between bodies [bodyA] and [bodyB]; [feature] tells apart
+  /// several contacts of one pair and defaults to nought.
   ContactEvent({
     required this.bodyA,
     required this.bodyB,

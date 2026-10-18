@@ -74,6 +74,7 @@ abstract base class _SurfaceKind extends EntityKind {
 ///
 /// Drawn where the game turns decals on (`RenderSettings.decals`).
 final class DecalKind extends _SurfaceKind {
+  /// The `decal` kind.
   const DecalKind() : super(EntityTypes.decal);
 
   @override
@@ -102,6 +103,7 @@ final class DecalKind extends _SurfaceKind {
 ///  * `resolution` — a fraction of the view the reflection is drawn at;
 ///    half.
 final class ReflectorKind extends _SurfaceKind {
+  /// The `reflector` kind.
   const ReflectorKind() : super(EntityTypes.reflector);
 
   @override
@@ -134,6 +136,7 @@ final class ReflectorKind extends _SurfaceKind {
 ///  * `fovY` — vertical degrees; sixty.
 ///  * `once` — true to take the picture once rather than every frame.
 final class CameraScreenKind extends _SurfaceKind {
+  /// The `camera_screen` kind.
   const CameraScreenKind() : super(EntityTypes.cameraScreen);
 
   @override

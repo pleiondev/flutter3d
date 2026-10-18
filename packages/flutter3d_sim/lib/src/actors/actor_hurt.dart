@@ -9,6 +9,7 @@ import 'actor.dart';
 /// carried everything an event carries, and having it be the event is what
 /// stops the two from drifting.
 final class ActorHurt extends GameEvent {
+  /// [actor] took [amount] hit points of damage, dealt by [from].
   ActorHurt(this.actor, this.amount, {this.from});
 
   /// The name it is declared and published under.
@@ -22,6 +23,7 @@ final class ActorHurt extends GameEvent {
     decode: (_) => null,
   );
 
+  /// The actor hurt; written to the codec as its ordinal.
   final Actor actor;
 
   /// The damage, in hit points, the game's own unit of `Health`.
@@ -55,6 +57,7 @@ final class ActorHurt extends GameEvent {
 /// actors thought was added and wiped again in the same step. Nothing
 /// downstream ever saw it — no death sound, no sparks, no count.
 final class ActorDied extends GameEvent {
+  /// [actor] died, killed by [from].
   const ActorDied(this.actor, {this.from});
 
   /// The name it is declared and published under.
@@ -66,6 +69,7 @@ final class ActorDied extends GameEvent {
     decode: (_) => null,
   );
 
+  /// The actor that died; written to the codec as its ordinal.
   final Actor actor;
 
   /// Whoever killed it, as the collider's `userData`, or null for a death with

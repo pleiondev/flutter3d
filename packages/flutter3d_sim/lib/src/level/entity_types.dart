@@ -8,6 +8,7 @@
 /// Kept as constants next to the kinds that implement them so a document, a
 /// validator and an editor all spell them the same way.
 abstract final class EntityTypes {
+  /// Where the player starts — see `PlayerSpawnKind`; a level needs one.
   static const String playerSpawn = 'player_spawn';
 
   /// A key. The *pickup* that grants one is a shooter's — see
@@ -15,11 +16,23 @@ abstract final class EntityTypes {
   /// gathers keys to answer whether a locked door names one that exists,
   /// and locking a thing behind a token is not one genre's idea.
   static const String key = 'key';
+
+  /// A block that opens when asked and closes itself — a `Door`.
   static const String door = 'door';
+
+  /// A block that travels to the far end when called and back — a `Lift`.
   static const String lift = 'lift';
+
+  /// A block that goes back and forth for ever — a `MovingPlatform`.
   static const String platform = 'platform';
+
+  /// A panel that fires its target on use — a `Button`.
   static const String button = 'button';
+
+  /// A volume that fires its target when walked into — a `TriggerVolume`.
   static const String trigger = 'trigger';
+
+  /// The way out of the level — an `Exit`.
   static const String exit = 'exit';
 
   /// A point the room is reflected from — see `ReflectionProbeKind`. The

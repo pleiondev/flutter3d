@@ -39,6 +39,7 @@ import 'package:vector_math/vector_math.dart';
 /// A class rather than a record, so a key can take another field in a
 /// minor (an easing of its own, a roll) without breaking a reader.
 final class CameraKey {
+  /// A key reached on [step]; [fovY] is in radians.
   const CameraKey({
     required this.step,
     required this.at,
@@ -81,6 +82,7 @@ final class CameraKey {
 /// A class rather than a record, so a key can take another field in a
 /// minor (an easing of its own, a roll) without breaking a reader.
 final class SubtitleCue {
+  /// A subtitle of [text] shown from step [from] up to step [to].
   const SubtitleCue({required this.from, required this.to, required this.text});
 
   /// The first step it is shown on.
@@ -113,6 +115,7 @@ final class SubtitleCue {
 /// A class rather than a record, so a key can take another field in a
 /// minor (an easing of its own, a roll) without breaking a reader.
 final class FadeKey {
+  /// A fade to [value], a fraction from nought to one, reached on [step].
   const FadeKey({required this.step, required this.value});
 
   /// The step it is reached on.
@@ -138,6 +141,7 @@ final class FadeKey {
 /// A class rather than a record, so a key can take another field in a
 /// minor (an easing of its own, a roll) without breaking a reader.
 final class SignalCue {
+  /// A signal [name] with [data], fired on [step].
   const SignalCue({required this.step, required this.name, required this.data});
 
   /// The step it fires on.
@@ -212,6 +216,8 @@ final class ActorCueKind {
 /// A class rather than a record, so a key can take another field in a
 /// minor (an easing of its own, a roll) without breaking a reader.
 final class ActorCue {
+  /// A cue telling [actor] to [kind] from [step]; [at] and [clip] are null
+  /// for a kind that needs neither.
   const ActorCue({
     required this.step,
     required this.actor,
@@ -258,6 +264,7 @@ final class ActorCue {
 ///
 /// A class rather than a record, so a later field is not a break.
 final class SequenceRead {
+  /// A result holding [sequence], or null with the [problems] found.
   const SequenceRead({required this.sequence, required this.problems});
 
   /// The sequence, or null when the document has problems.
@@ -294,7 +301,11 @@ final class Sequence {
   /// speed between them.
   final bool ease;
 
+  /// The subtitles in document order, each ending after it starts.
   final List<SubtitleCue> subtitles;
+
+  /// The fade's keys in step order, each after the one before; empty when
+  /// the screen is never faded.
   final List<FadeKey> fades;
 
   /// In step order, and in document order where two share a step.
@@ -307,7 +318,7 @@ final class Sequence {
   /// Reads [json] for a game stepping [stepsPerSecond] times a second, or
   /// refuses it with every problem and where it is.
   ///
-  /// `{"seconds": 12, "camera": {"keys": [{"t", "at", "look", "fovY"}],
+  /// `{"seconds": 12, "camera": {"keys": [{"t", "at", "look", "fov"}],
   /// "ease": true}, "subtitles": [{"from", "to", "text"}], "fade": [{"t",
   /// "value"}], "signals": [{"t", "name", "data"}], "actors": [{"t",
   /// "actor", "do", "at", "clip"}]}` — every part but
@@ -393,7 +404,7 @@ final class Sequence {
           final step = moment(row, 't', where);
           final at = vector(row, 'at', where);
           final look = vector(row, 'look', where);
-          // The file writes degrees under `fovY`; the engine takes radians,
+          // The file writes degrees under `fov`; the engine takes radians,
           // converted here, at the reader.
           final degrees = row.containsKey('fov')
               ? number(row, 'fov', where)

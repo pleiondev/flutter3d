@@ -61,6 +61,10 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 /// [restore] first when the digest right after restoring is not the digest
 /// the step began from.
 final class DeterminismCheck {
+  /// A check of every [every] steps, one by default. Give [capture],
+  /// [restore] and [digest] together or none of them.
+  ///
+  /// Asserts that [every] is above nought.
   const DeterminismCheck({
     this.capture,
     this.restore,
@@ -92,6 +96,8 @@ final class DeterminismCheck {
 
 /// Where two runs of one step parted.
 final class StepDivergence {
+  /// A divergence at [step], for [reason]; the system fields are null when
+  /// no one system is to blame.
   const StepDivergence({
     required this.step,
     required this.reason,
@@ -124,8 +130,10 @@ final class StepDivergence {
 /// Thrown by `EngineLoop` when a [DeterminismCheck] with no `onDivergence`
 /// finds two runs of a step that differ.
 final class DeterminismError extends Error {
+  /// An error reporting [divergence].
   DeterminismError(this.divergence);
 
+  /// Where the two runs parted, and why.
   final StepDivergence divergence;
 
   @override

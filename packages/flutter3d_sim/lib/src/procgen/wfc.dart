@@ -8,6 +8,7 @@ import '../save/game_random.dart';
 /// are the same word — a doorway against a doorway, a wall against a wall —
 /// which is the whole of the adjacency a tile set has to state.
 final class WfcTile {
+  /// A tile [name] with four [sockets], chosen at [weight], one by default.
   const WfcTile(this.name, {required this.sockets, this.weight = 1.0});
 
   /// What the tile is called, for whoever turns a solved grid into a level.

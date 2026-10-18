@@ -22,12 +22,21 @@ import 'open_field.dart';
 
 /// One region's outline: corners as lattice `(x, y, z)`, flattened.
 final class Contour {
+  /// The outline of [region], a walking surface of [area], through
+  /// [vertices].
   Contour(this.region, this.area, this.vertices);
 
+  /// The id of the region outlined, as the region pass numbered it.
   final int region;
+
+  /// The region's walking surface; never [nullArea].
   final int area;
+
+  /// The corners in order, three whole numbers each: cells across, voxels
+  /// up, cells along, in the lattice's numbering.
   final Int32List vertices;
 
+  /// Count of corners: a third of the length of [vertices].
   int get length => vertices.length ~/ 3;
 }
 

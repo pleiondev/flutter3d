@@ -24,9 +24,13 @@ abstract final class Resimulation {
 
 /// The level handed in is not the one the run was recorded in.
 final class ResimulationLevelChanged extends Resimulation {
+  /// The level's hash [found] differs from the [recorded] one.
   const ResimulationLevelChanged({required this.found, required this.recorded});
 
+  /// [Level.digestHex] of the level handed in.
   final String found;
+
+  /// The hash the run names its level by, [Demo.levelHash].
   final String recorded;
 }
 
@@ -35,6 +39,8 @@ final class ResimulationLevelChanged extends Resimulation {
 /// The host chooses the recorded one first — `choosePhysics` in the native
 /// package — and is told this only where that one cannot be had.
 final class ResimulationOnOtherPhysics extends Resimulation {
+  /// The run was [recorded] on one backend and this process is [running]
+  /// another.
   const ResimulationOnOtherPhysics({
     required this.recorded,
     required this.running,
@@ -51,6 +57,7 @@ final class ResimulationOnOtherPhysics extends Resimulation {
 /// ([HeadlessGame.simulation]): the same input plays out differently here, so
 /// it is not played at all.
 final class ResimulationOnOtherSimulation extends Resimulation {
+  /// A refusal for [reason].
   const ResimulationOnOtherSimulation(this.reason);
 
   /// Why, in the words of `Demo.refusalOn`.
@@ -60,13 +67,16 @@ final class ResimulationOnOtherSimulation extends Resimulation {
 /// A fresh run of the level does not start where the recording started: the
 /// demo began mid-run, or the game's spawning has changed since.
 final class ResimulationStartDiffers extends Resimulation {
+  /// The one answer of its kind; it carries nothing.
   const ResimulationStartDiffers();
 }
 
 /// The replay parted from the checkpoints the run was recorded with.
 final class ResimulationDiverged extends Resimulation {
+  /// A replay that parted at [divergence], with checkpoints [every] steps.
   const ResimulationDiverged(this.divergence, {required this.every});
 
+  /// The first checkpoint whose digest differed from the recorded one.
   final Divergence divergence;
 
   /// How far apart checkpoints were, so the answer can bracket the defect.
@@ -78,6 +88,7 @@ final class ResimulationDiverged extends Resimulation {
 
 /// The replay retraced every checkpoint, and here is what it saw on the way.
 final class ResimulationRetraced extends Resimulation {
+  /// A replay that agreed with every checkpoint, with what it saw.
   const ResimulationRetraced({
     required this.run,
     required this.steps,
@@ -90,15 +101,20 @@ final class ResimulationRetraced extends Resimulation {
   /// [HeadlessRun.outcome] are the metrics a caller asks of it.
   final HeadlessRun run;
 
+  /// Count of fixed steps played, the demo's whole length.
   final int steps;
+
+  /// Count of checkpoints compared on the way, all of which agreed.
   final int checkpoints;
 
   /// Where [HeadlessRun.position] was in plan every so many steps, and once
   /// more at the last step, so a run's end is where its trail ends.
   final List<TrailPoint> trail;
 
+  /// [StateDigest] of the run's save after the last step.
   final int finalDigest;
 
+  /// How the run ended, [HeadlessRun.outcome] of [run].
   RunOutcome get outcome => run.outcome;
 }
 

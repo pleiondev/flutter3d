@@ -32,6 +32,9 @@ import 'time_source.dart';
 /// scaled, logged or hand-moved one, so a laboratory at a tenth of real speed
 /// still draws every refresh and steps a tenth as often.
 final class FrameCadence {
+  /// A cadence held to [cap] frames a second on a display of [refreshRate]
+  /// hertz, timed by [time] (the wall clock when null). A [cap] or rate
+  /// that is null, nought or less, or not finite counts as not given.
   FrameCadence({double? cap, double? refreshRate, TimeSource? time})
     : _cap = _positive(cap),
       _refreshRate = _positive(refreshRate),

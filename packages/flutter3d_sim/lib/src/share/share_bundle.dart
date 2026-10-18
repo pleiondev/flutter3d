@@ -25,6 +25,10 @@ import '../save/state_digest.dart';
 /// every document strangers upload, so the server takes a SHA-256 of the bytes
 /// [toJson] writes.
 final class ShareBundle extends FormatDocument {
+  /// A bundle of [level] for [game], with an optional [run] and [title].
+  ///
+  /// Throws a [ShareFormatException] when [level] cannot be read as a
+  /// [Level], or when [run] was recorded in another version of it.
   ShareBundle({
     required this.game,
     required this.level,
@@ -175,6 +179,8 @@ final class ShareBundle extends FormatDocument {
     }
   }
 
+  /// This bundle as JSON in the `f3d.share` envelope; the bytes the server
+  /// hashes to file it.
   Map<String, Object?> toJson() => write(<String, Object?>{
     'game': game,
     if (title != null) 'title': title,
@@ -186,6 +192,7 @@ final class ShareBundle extends FormatDocument {
 
 /// Thrown when a bundle cannot be read, or would not mean what it says.
 final class ShareFormatException extends Flutter3dFormatException {
+  /// An exception saying, in [message], what was wrong with the bundle.
   const ShareFormatException(this.message);
 
   @override

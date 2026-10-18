@@ -64,55 +64,106 @@ final class XrHand {
 final class XrHandJoint {
   const XrHandJoint._(this.name, this.index);
 
+  /// Centre of the palm, OpenXR index 0. WebXR does not track it.
   static const XrHandJoint palm = XrHandJoint._('palm', 0);
+
+  /// Joint between the forearm and the hand, OpenXR index 1.
   static const XrHandJoint wrist = XrHandJoint._('wrist', 1);
+
+  /// Base of the thumb at the wrist (the carpometacarpal joint), index 2.
   static const XrHandJoint thumbMetacarpal = XrHandJoint._(
     'thumbMetacarpal',
     2,
   );
+
+  /// Thumb's knuckle (the metacarpophalangeal joint), index 3.
   static const XrHandJoint thumbProximal = XrHandJoint._('thumbProximal', 3);
+
+  /// Thumb's last joint before the tip (interphalangeal), index 4.
   static const XrHandJoint thumbDistal = XrHandJoint._('thumbDistal', 4);
+
+  /// End of the thumb, past the last joint, index 5.
   static const XrHandJoint thumbTip = XrHandJoint._('thumbTip', 5);
+
+  /// Base of the index finger's metacarpal bone in the palm, index 6.
   static const XrHandJoint indexMetacarpal = XrHandJoint._(
     'indexMetacarpal',
     6,
   );
+
+  /// Index finger's knuckle, where it meets the palm, index 7.
   static const XrHandJoint indexProximal = XrHandJoint._('indexProximal', 7);
+
+  /// Index finger's middle joint, index 8.
   static const XrHandJoint indexIntermediate = XrHandJoint._(
     'indexIntermediate',
     8,
   );
+
+  /// Index finger's joint nearest the tip, index 9.
   static const XrHandJoint indexDistal = XrHandJoint._('indexDistal', 9);
+
+  /// End of the index finger, index 10.
   static const XrHandJoint indexTip = XrHandJoint._('indexTip', 10);
+
+  /// Base of the middle finger's metacarpal bone in the palm, index 11.
   static const XrHandJoint middleMetacarpal = XrHandJoint._(
     'middleMetacarpal',
     11,
   );
+
+  /// Middle finger's knuckle, where it meets the palm, index 12.
   static const XrHandJoint middleProximal = XrHandJoint._('middleProximal', 12);
+
+  /// Middle finger's middle joint, index 13.
   static const XrHandJoint middleIntermediate = XrHandJoint._(
     'middleIntermediate',
     13,
   );
+
+  /// Middle finger's joint nearest the tip, index 14.
   static const XrHandJoint middleDistal = XrHandJoint._('middleDistal', 14);
+
+  /// End of the middle finger, index 15.
   static const XrHandJoint middleTip = XrHandJoint._('middleTip', 15);
+
+  /// Base of the ring finger's metacarpal bone in the palm, index 16.
   static const XrHandJoint ringMetacarpal = XrHandJoint._('ringMetacarpal', 16);
+
+  /// Ring finger's knuckle, where it meets the palm, index 17.
   static const XrHandJoint ringProximal = XrHandJoint._('ringProximal', 17);
+
+  /// Ring finger's middle joint, index 18.
   static const XrHandJoint ringIntermediate = XrHandJoint._(
     'ringIntermediate',
     18,
   );
+
+  /// Ring finger's joint nearest the tip, index 19.
   static const XrHandJoint ringDistal = XrHandJoint._('ringDistal', 19);
+
+  /// End of the ring finger, index 20.
   static const XrHandJoint ringTip = XrHandJoint._('ringTip', 20);
+
+  /// Base of the little finger's metacarpal bone in the palm, index 21.
   static const XrHandJoint littleMetacarpal = XrHandJoint._(
     'littleMetacarpal',
     21,
   );
+
+  /// Little finger's knuckle, where it meets the palm, index 22.
   static const XrHandJoint littleProximal = XrHandJoint._('littleProximal', 22);
+
+  /// Little finger's middle joint, index 23.
   static const XrHandJoint littleIntermediate = XrHandJoint._(
     'littleIntermediate',
     23,
   );
+
+  /// Little finger's joint nearest the tip, index 24.
   static const XrHandJoint littleDistal = XrHandJoint._('littleDistal', 24);
+
+  /// End of the little finger, index 25, the last OpenXR names.
   static const XrHandJoint littleTip = XrHandJoint._('littleTip', 25);
 
   /// Every value this version names, in OpenXR's order. A later version
@@ -281,15 +332,34 @@ final class XrPoses extends Assimilation {
 final class XrControl {
   const XrControl._(this.name);
 
+  /// Index-finger trigger: an analogue value from nought to one.
   static const XrControl trigger = XrControl._('trigger');
+
+  /// Grip button under the middle finger, analogue on most controllers.
   static const XrControl squeeze = XrControl._('squeeze');
+
+  /// Thumb stick: two axes and a click.
   static const XrControl thumbstick = XrControl._('thumbstick');
+
+  /// Circular touch surface under the thumb: two axes, touch and click.
   static const XrControl touchpad = XrControl._('touchpad');
+
+  /// Lower face button on the right controller, wire name `a`.
   static const XrControl buttonA = XrControl._('a');
+
+  /// Upper face button on the right controller, wire name `b`.
   static const XrControl buttonB = XrControl._('b');
+
+  /// Lower face button on the left controller, wire name `x`.
   static const XrControl buttonX = XrControl._('x');
+
+  /// Upper face button on the left controller, wire name `y`.
   static const XrControl buttonY = XrControl._('y');
+
+  /// Application menu button; the system button is the runtime's own.
   static const XrControl menu = XrControl._('menu');
+
+  /// Touch-only rest for the thumb beside the face buttons.
   static const XrControl thumbrest = XrControl._('thumbrest');
 
   /// A tracked hand's thumb and index finger together.

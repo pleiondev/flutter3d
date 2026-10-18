@@ -267,11 +267,13 @@ final class Snapshots extends SnapshotRegistry {
 /// before the stamps were captured is a digest of the world's `save()`, and
 /// those keep verifying.
 final class WorldSnapshotPart extends SnapshotPart {
+  /// The part capturing and restoring [world].
   const WorldSnapshotPart(this.world);
 
   /// The part version from which the capture holds the change stamps.
   static const int changesVersion = 2;
 
+  /// The world saved and restored.
   final EcsWorld world;
 
   @override

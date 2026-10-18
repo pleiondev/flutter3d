@@ -50,8 +50,12 @@ typedef BrushFace = ({
 /// generator that removed those would eventually remove one that was visible,
 /// and a hole in a wall is far worse than a triangle nobody sees.
 final class BrushGeometry {
+  /// A builder that drops hidden faces and indexes brushes in 8-metre
+  /// cells, unless told otherwise.
   const BrushGeometry({this.cullHiddenFaces = true, this.cellSize = 8.0});
 
+  /// Whether a face whose centre is strictly inside another solid brush is
+  /// left out.
   final bool cullHiddenFaces;
 
   /// Cell side for the index used to find neighbouring brushes.
@@ -454,6 +458,7 @@ final class BrushGeometry {
 /// outward normal and the two axes across the face, all unit vectors, with
 /// `cross(u, v) == normal`.
 final class BrushFaceAxes {
+  /// A face facing [normal], with [u] and [v] across it.
   const BrushFaceAxes({required this.normal, required this.u, required this.v});
 
   /// The face's outward normal, a unit vector in the block's frame.

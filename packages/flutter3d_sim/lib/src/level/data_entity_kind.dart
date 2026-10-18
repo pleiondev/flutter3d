@@ -86,6 +86,8 @@ final class _EntityKindsSection extends DataSection {
 /// `EntityKind.place` does for the engine's own. What it does when something
 /// enters that box is a system's job, written in Wasm or Dart.
 final class DataEntityKind extends EntityKind {
+  /// A kind of [type] declared by plugin [owner], requiring no property
+  /// and placing no box unless told otherwise.
   const DataEntityKind(
     super.type, {
     required this.owner,
@@ -138,6 +140,8 @@ final class DataEntityKind extends EntityKind {
   /// The box it occupies, or null for a kind that is only a marker.
   final ColliderKind? collider;
 
+  /// The declaration as [DataEntityKind.fromJson] reads it, leaving out
+  /// what is empty.
   Map<String, Object?> toJson() => <String, Object?>{
     'type': type,
     if (requires.isNotEmpty) 'requires': requires,

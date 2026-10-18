@@ -101,6 +101,13 @@ part 'subsystems.dart';
 /// and the plugin that added it — whose two runs differ. Armed inside an
 /// `assert`, so a release build steps once whatever it was handed.
 final class EngineLoop extends LoopRegistry {
+  /// A loop reading [input], stepping [world] (a fresh one when null) and
+  /// installing [plugins] in order.
+  ///
+  /// [materials] null takes the first [MaterialCatalog] in [registries], or
+  /// the built-in one. [reconcileWindow] is in steps (600, ten seconds at
+  /// 60 Hz) and [stepEventLimit] is the most events one step may publish
+  /// (4096); both must be above nought. [longestFrame] is in seconds.
   EngineLoop({
     required this.input,
     EcsWorld? world,
@@ -192,6 +199,8 @@ final class EngineLoop extends LoopRegistry {
     return at == 0 ? const <String>[] : <String>[chain[at - 1].name];
   }
 
+  /// What devices write into and each step reads, and what a tape plays
+  /// back into.
   final InputState input;
 
   /// The simulation's world: what every system is handed as
@@ -1648,8 +1657,10 @@ final class _Context extends LoopContext {
 /// The floating origin, as the world's resource while it is away from the
 /// world origin: what puts it back on a restore.
 final class WorldOrigin {
+  /// An origin standing at [at].
   const WorldOrigin(this.at);
 
+  /// Where the floating origin is, in world units in double precision.
   final WorldPosition at;
 
   /// How it is written in a snapshot.

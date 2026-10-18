@@ -15,12 +15,16 @@ import 'level.dart';
 /// are the same brushes every time, because everything a kit decides by chance
 /// it decides with [GameRandom] seeded from [seed].
 final class LevelRecipe {
+  /// A recipe for kit [kind], seed nought and no params unless given.
   const LevelRecipe({
     required this.kind,
     this.seed = 0,
     this.params = const <String, Object?>{},
   });
 
+  /// Reads a recipe row. Throws a [LevelFormatException] for a missing
+  /// `kind` or `params` that are not an object; the kind is not checked
+  /// against [levelKits] until [expandRecipes].
   factory LevelRecipe.fromJson(Map<String, Object?> json) {
     final kind = json.textOrNull('kind');
     if (kind == null) {
@@ -49,6 +53,7 @@ final class LevelRecipe {
   /// The kit's own settings. See each kit for what it reads.
   final Map<String, Object?> params;
 
+  /// The recipe row as written, `params` left out when empty.
   Map<String, Object?> toJson() => <String, Object?>{
     'kind': kind,
     'seed': seed,
@@ -164,6 +169,9 @@ Level _recipesExpanded(Level level) {
 ///    the floor, clear of the walls by `margin` and of every doorway's
 ///    approach, and not on top of each other.
 abstract final class RoomKit {
+  /// Draws [recipe]'s room and its clutter into [sketch]. Throws a
+  /// [LevelFormatException] for a missing `size` or a param it cannot
+  /// read.
   static void build(LevelSketch sketch, LevelRecipe recipe) {
     final p = recipe.params;
     final at = _vector(p, 'at', const <double>[0.0, 0.0, 0.0]);
@@ -202,6 +210,9 @@ abstract final class RoomKit {
 /// [RoomKit] reads them. Clutter keeps to the walls and leaves the middle
 /// third of the width open, since a corridor blocked across is a wall.
 abstract final class CorridorKit {
+  /// Draws [recipe]'s corridor and its clutter into [sketch]. Throws a
+  /// [LevelFormatException] for a missing `from` or `to`, or a param it
+  /// cannot read.
   static void build(LevelSketch sketch, LevelRecipe recipe) {
     final p = recipe.params;
     final from = _vector(p, 'from', null);
@@ -254,6 +265,9 @@ abstract final class CorridorKit {
 ///    gives each a yaw of its own.
 ///  * or `brush` — `{size, material, …}`, placed with its base on the floor.
 abstract final class ScatterKit {
+  /// Draws [recipe]'s copies into [sketch]. Throws a [LevelFormatException]
+  /// unless exactly one of `entity` and `brush` is given, or for a missing
+  /// `at` or `size`.
   static void build(LevelSketch sketch, LevelRecipe recipe) {
     final p = recipe.params;
     final at = _vector(p, 'at', null);

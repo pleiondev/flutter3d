@@ -35,10 +35,16 @@ import '../save/snapshot.dart' show SnapshotFormatException;
 final class BehaviorStatus {
   const BehaviorStatus._(this.name);
 
+  /// The node did what it was for: a sequence goes on to its next child, a
+  /// selector stops here.
   static const BehaviorStatus success = BehaviorStatus._('success');
 
+  /// The node could not: a sequence stops here, a selector tries its next
+  /// child.
   static const BehaviorStatus failure = BehaviorStatus._('failure');
 
+  /// The node is not done: the tree stops here this tick, and the actor
+  /// goes on acting on this leaf until a later tick decides.
   static const BehaviorStatus running = BehaviorStatus._('running');
 
   /// Every value this version names, in declaration order. A later version
@@ -66,7 +72,11 @@ final class BehaviorStatus {
   String toString() => 'BehaviorStatus.$name';
 }
 
+/// One actor's memory for its behaviour tree: named JSON-shaped values,
+/// its own clock, and where in the tree it was, all saved with it.
 final class Blackboard {
+  /// A board holding [values], each put through [set], so one a snapshot
+  /// cannot hold throws an [ArgumentError].
   Blackboard({Map<String, Object?>? values}) : _values = <String, Object?>{} {
     values?.forEach(set);
   }
@@ -110,8 +120,10 @@ final class Blackboard {
   /// Every key with a value.
   Iterable<String> get keys => _values.keys;
 
+  /// Whether [key] holds a value; a key set to null holds none.
   bool has(String key) => _values.containsKey(key);
 
+  /// The value under [key], as stored, or null when there is none.
   Object? operator [](String key) => _values[key];
 
   /// Puts [value] under [key], or removes the key for `null`.
@@ -135,6 +147,7 @@ final class Blackboard {
     _values[key] = value;
   }
 
+  /// Forgets [key]; nothing happens for a key with no value.
   void remove(String key) => _values.remove(key);
 
   /// The number under [key], or null when there is none.
@@ -164,6 +177,8 @@ final class Blackboard {
     statuses.clear();
   }
 
+  /// The whole board as JSON: values, clock, tree digest, node memory,
+  /// cooldowns and the last path with its statuses.
   Map<String, Object?> toJson() => <String, Object?>{
     'values': Map<String, Object?>.of(_values),
     'clock': clock,

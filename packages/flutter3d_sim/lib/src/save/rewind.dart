@@ -52,6 +52,10 @@ import 'snapshot.dart';
 /// [keyframe] stays for a buffer filled by hand — rebuilt from a recording
 /// played outside a loop — and takes the same loop capture.
 final class RewindBuffer {
+  /// A buffer for a loop at [stepsPerSecond], keeping [history] seconds
+  /// (ten by default) with a keyframe every [keyframeEvery] steps (once a
+  /// second when null); [seed] starts its tape. Asserts both rates are
+  /// above nought.
   RewindBuffer({
     required this.stepsPerSecond,
     this.history = 10.0,
@@ -275,6 +279,8 @@ final class RewindBuffer {
 
 /// A moment in the recent past, and how to get there.
 final class RewindPoint {
+  /// A point before [step], reached by playing [replayed] of [frames] from
+  /// [snapshot].
   const RewindPoint({
     required this.step,
     required this.snapshot,
@@ -296,6 +302,8 @@ final class RewindPoint {
   /// the point and the rest after it.
   final List<InputFrame> frames;
 
+  /// The generator seed the buffer's tape was started with, carried into
+  /// both tapes made here.
   final int seed;
 
   /// The entries from the keyframe to the point, as a tape: restore

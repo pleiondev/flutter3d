@@ -27,6 +27,7 @@ abstract final class ProbeRegion {
   /// The wire name: `point`, `section`, `body`, or a later build's.
   String get kind;
 
+  /// This region as JSON, with its `kind`, as [fromJson] reads.
   Map<String, Object?> toJson();
 
   /// Reads what [toJson] wrote. A kind this build does not know is kept.
@@ -63,8 +64,10 @@ abstract final class ProbeRegion {
 
 /// One point of the world, in its own double-precision frame.
 final class ProbePoint extends ProbeRegion {
+  /// The point [at].
   const ProbePoint(this.at);
 
+  /// Where the probe reads, in metres in the world's frame.
   final WorldPosition at;
 
   @override
@@ -84,6 +87,7 @@ final class ProbeSection extends ProbeRegion {
   /// unit length; its direction is what counts.
   const ProbeSection({required this.origin, required this.normal});
 
+  /// A point the plane passes through, in metres in the world's frame.
   final WorldPosition origin;
 
   /// The plane's facing, as three numbers in the world's frame.
@@ -102,6 +106,7 @@ final class ProbeSection extends ProbeRegion {
 
 /// The body the probe is on: the entity carrying the [Probe].
 final class ProbeBody extends ProbeRegion {
+  /// The one body region; it carries nothing, the entity says which body.
   const ProbeBody();
 
   @override
@@ -249,6 +254,7 @@ final class Probe {
   static ExpressionScope scopeFor(Unit unit) =>
       ExpressionScope.quantities(<String, Unit>{'x': unit, 't': Unit.second});
 
+  /// This probe as JSON, leaving out `derived` when there is none.
   Map<String, Object?> toJson() => <String, Object?>{
     'id': id,
     'quantity': quantity,
@@ -267,6 +273,7 @@ final class Probe {
 /// breaks no sampler. Made by the engine: `base`, so a member added later
 /// arrives with a default.
 abstract base class ProbeSample {
+  /// Lets the engine's sample extend this.
   const ProbeSample();
 
   /// The probe being read.
@@ -291,6 +298,7 @@ abstract base class ProbeSample {
 /// `base`, so a member added later arrives with a default; [sample] takes
 /// one growing context.
 abstract base class ProbeSampler {
+  /// Lets a subclass be const.
   const ProbeSampler();
 
   /// A sampler that calls [sample].
@@ -314,6 +322,7 @@ final class _FunctionSampler extends ProbeSampler {
 /// The samplers of one engine, by quantity id: a solver that owns a
 /// quantity registers what reads it. `host.registry<ProbeSamplers>()`.
 final class ProbeSamplers extends PluginRegistry {
+  /// An engine's table, with no sampler registered.
   ProbeSamplers() : _scope = null, _byQuantity = <String, ProbeSampler>{};
 
   ProbeSamplers._scoped(ProbeSamplers of, PluginScope scope)

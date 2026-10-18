@@ -26,6 +26,8 @@ import 'level_issue.dart';
 ///     defaultSize: Vector3(0.22, 0.5, 0.22));
 /// ```
 final class LightFixtureKind extends EntityKind {
+  /// A fixture kind of [type], with the behaviour and size its entities
+  /// get when they do not say; [defaultSize] is copied.
   LightFixtureKind(
     super.type, {
     required this.defaultBehavior,
@@ -35,6 +37,8 @@ final class LightFixtureKind extends EntityKind {
   /// How this kind behaves when the document does not say.
   final LightBehavior defaultBehavior;
 
+  /// The fixture's box, in metres along each axis, when the document gives
+  /// no `size`.
   final Vector3 defaultSize;
 
   @override

@@ -4,9 +4,14 @@ import 'share_bundle.dart';
 
 /// One HTTP request, as [RunService] makes it.
 final class RunRequest {
+  /// A [method] request to [uri], carrying [body] when there is one.
   const RunRequest(this.method, this.uri, {this.body});
 
+  /// HTTP verb in capitals: `GET` or `POST` for the calls [RunService]
+  /// makes.
   final String method;
+
+  /// Absolute address, [RunService.base] resolved against the route.
   final Uri uri;
 
   /// JSON, or null for a request with no body.
@@ -15,9 +20,13 @@ final class RunRequest {
 
 /// What came back: the status and the body as text.
 final class RunResponse {
+  /// A response with HTTP [status] and [body] as text.
   const RunResponse(this.status, this.body);
 
+  /// HTTP status code; [RunService] takes 200 to 299 as success.
   final int status;
+
+  /// Response body as text, expected to be a JSON object; empty for none.
   final String body;
 }
 
@@ -39,16 +48,22 @@ sealed class ServiceAnswer<T> {
   const ServiceAnswer();
 }
 
+/// Done, with what the service gave back.
 final class ServiceDone<T> extends ServiceAnswer<T> {
+  /// A call that succeeded with [value].
   const ServiceDone(this.value);
 
+  /// What the call produced: a filed bundle, an opened one, a message.
   final T value;
 }
 
 /// Not done, and why — in the server's words when it answered.
 final class ServiceRefused<T> extends ServiceAnswer<T> {
+  /// A call that failed for [reason].
   const ServiceRefused(this.reason);
 
+  /// One sentence for a person: the server's `message` when it sent one,
+  /// otherwise what went wrong on the way.
   final String reason;
 }
 
@@ -71,6 +86,7 @@ final class ShareStatus {
   /// Taken down; the code answers with the reason.
   static const ShareStatus removed = ShareStatus._('removed');
 
+  /// Every status this build knows, in declaration order.
   static const List<ShareStatus> values = <ShareStatus>[
     published,
     pending,
@@ -94,6 +110,7 @@ final class ShareStatus {
 
 /// A bundle the service has filed: the code to hand out and where it stands.
 final class SharedBundle {
+  /// A filed bundle, as the service described it.
   const SharedBundle({
     required this.code,
     required this.address,
@@ -106,6 +123,7 @@ final class SharedBundle {
   /// The SHA-256 of the bundle's bytes, which is what it is filed under.
   final String address;
 
+  /// Where moderation has it; only [ShareStatus.published] can be opened.
   final ShareStatus status;
 }
 
@@ -119,11 +137,14 @@ final class SharedBundle {
 /// Every call answers rather than throws: an unreachable server, a refusal and
 /// a reply that is not JSON are all a [ServiceRefused] with a sentence.
 final class RunService {
+  /// A client of the service at [base], sending through [transport].
   RunService({required this.base, required this.transport});
 
   /// Where the service is, e.g. `https://runs.pleion.dev/`.
   final Uri base;
 
+  /// What sends each request; anything it throws becomes a
+  /// [ServiceRefused] saying the server could not be reached.
   final RunTransport transport;
 
   /// Files [bundle] and answers with its code.

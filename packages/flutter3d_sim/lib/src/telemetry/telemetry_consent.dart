@@ -12,11 +12,14 @@ library;
 /// A game keeps this in its own settings document beside volumes and
 /// bindings; [toJson] is the part of that document it owns.
 final class TelemetryConsent {
+  /// No answer yet: [allows] says no to every policy.
   const TelemetryConsent.notAsked() : _yes = null, policy = null, at = null;
 
+  /// A yes to [policy], given [at].
   TelemetryConsent.granted({required String this.policy, required this.at})
     : _yes = true;
 
+  /// A no to [policy], given [at].
   TelemetryConsent.declined({required String this.policy, required this.at})
     : _yes = false;
 
@@ -59,6 +62,8 @@ final class TelemetryConsent {
   /// Whether a run may be sent under [currentPolicy].
   bool allows(String currentPolicy) => isGranted && policy == currentPolicy;
 
+  /// The answer as JSON: `answer` is `granted`, `declined` or `notAsked`,
+  /// with `policy` and `at` (ISO 8601, UTC) when there was an answer.
   Map<String, Object?> toJson() => <String, Object?>{
     'answer': switch (_yes) {
       true => 'granted',

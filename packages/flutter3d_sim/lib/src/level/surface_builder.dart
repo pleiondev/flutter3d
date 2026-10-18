@@ -9,6 +9,8 @@ import 'brush_surface.dart';
 /// [BrushSurface] passes through while its faces are being emitted, before it
 /// is frozen into typed arrays by [finish].
 final class SurfaceBuilder {
+  /// An empty builder for [material]'s triangles, without lightmap
+  /// coordinates unless [lightmapped].
   SurfaceBuilder(
     this.material, {
     required this.shadowCasting,
@@ -18,7 +20,10 @@ final class SurfaceBuilder {
     this.brush,
   });
 
+  /// The level material every triangle here is drawn with.
   final String material;
+
+  /// How the finished surface takes part in the shadow pass.
   final ShadowCasting shadowCasting;
 
   /// [Brush.drawOrder] of every brush these triangles came from.
@@ -43,9 +48,16 @@ final class SurfaceBuilder {
   final List<double> _lightmapUvs = <double>[];
   final List<int> _indices = <int>[];
 
+  /// Count of vertices added so far; the index the next one gets.
   int get vertexCount => _positions.length ~/ 3;
+
+  /// Whether any triangle has been added.
   bool get isNotEmpty => _indices.isNotEmpty;
 
+  /// Adds a vertex at ([x], [y], [z]) metres with normal ([nx], [ny],
+  /// [nz]), tangent ([tx], [ty], [tz]) of handedness −1 and texture
+  /// coordinate ([u], [v]). The lightmap coordinate is kept only when
+  /// [lightmapped].
   void addVertex(
     double x,
     double y,
@@ -85,6 +97,7 @@ final class SurfaceBuilder {
     ]);
   }
 
+  /// The triangles so far, frozen into typed arrays.
   BrushSurface finish() => BrushSurface(
     material: material,
     shadowCasting: shadowCasting,

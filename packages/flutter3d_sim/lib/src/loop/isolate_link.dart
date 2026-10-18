@@ -47,6 +47,7 @@ abstract final class LinkWords {
 /// The view's end of the link to a simulation's isolate. Not exported: made
 /// by `openIsolateLink`, held by `IsolateSimulation`.
 abstract base class IsolateLink {
+  /// Lets the platform's link extend this.
   IsolateLink();
 
   /// The simulation's version and the state it published first, as its

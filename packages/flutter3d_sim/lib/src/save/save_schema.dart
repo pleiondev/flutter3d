@@ -31,6 +31,7 @@ typedef SaveMigration = Map<String, Object?> Function(Map<String, Object?> run);
 
 /// A game's save schema: the migrations from version 0 to now.
 final class SaveSchema {
+  /// A schema of [migrations], none by default (version nought).
   const SaveSchema({this.migrations = const <SaveMigration>[]});
 
   /// `migrations[n]` takes a version-`n` run to version `n + 1`.
@@ -76,14 +77,19 @@ sealed class SaveUpgrade {
 
 /// The run at the current version, and the version it was written at.
 final class SaveUpgraded extends SaveUpgrade {
+  /// The fields [run] at the current version, written at [from].
   const SaveUpgraded(this.run, {required this.from});
 
+  /// The run's fields at [SaveSchema.version], a fresh map.
   final Map<String, Object?> run;
+
+  /// The schema version the run was written at.
   final int from;
 }
 
 /// Why the run cannot be read by this build.
 final class SaveRefused extends SaveUpgrade {
+  /// A refusal for [reason]; [newer] when it came from a later build.
   const SaveRefused(this.reason, {this.newer = false});
 
   /// A sentence, in the words a log line or a bug report wants.

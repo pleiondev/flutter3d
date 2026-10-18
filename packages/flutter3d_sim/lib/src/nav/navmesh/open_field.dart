@@ -9,6 +9,8 @@ import 'span_field.dart';
 /// the previous one turned a quarter the same way round, so `dir + 1` and
 /// `dir + 3` are the two turns the contour walk takes.
 const List<int> dirX = <int>[-1, 0, 1, 0];
+
+/// The Z step of each direction in [dirX]'s order: nought, +1, nought, −1.
 const List<int> dirZ = <int>[0, 1, 0, -1];
 
 /// One open span per floor: from the top of a solid span up to the bottom of
@@ -30,12 +32,18 @@ final class OpenField {
     required this.links,
   });
 
+  /// Count of columns along X.
   final int columns;
+
+  /// Count of rows along Z.
   final int rows;
 
   /// The lattice column and row of this field's column `(0, 0)`: nought for
   /// a whole level, the window's corner for a part of one baked again.
   final int offsetX;
+
+  /// The lattice row of this field's row nought, as [offsetX] is its
+  /// column.
   final int offsetZ;
 
   /// Spans of column `c` are `cellStart[c]` up to `cellStart[c + 1]`.
@@ -43,6 +51,9 @@ final class OpenField {
 
   /// In voxels.
   final Int32List floor;
+
+  /// Per span, the bottom of the solid above its floor, in voxels;
+  /// `SpanField.sky` under open sky.
   final Int32List ceiling;
 
   /// The walking surface, or [nullArea] once a filter has refused the span.
@@ -51,6 +62,7 @@ final class OpenField {
   /// `links[span * 4 + dir]`: the span stepped onto in that direction, or −1.
   final Int32List links;
 
+  /// Count of open spans, refused ones included.
   int get spanCount => floor.length;
 
   /// The span an agent reaches from [span] in [dir], or −1 when it reaches

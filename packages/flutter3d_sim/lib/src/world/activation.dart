@@ -6,6 +6,8 @@ import 'package:flutter3d_physics/flutter3d_physics.dart';
 /// it calls, which hands it to whatever that lift relays to — so a locked door
 /// three relays away still knows whose keys to check.
 final class Activation {
+  /// An activation by [by] carrying [keys]; by nobody, with no keys, when
+  /// not given.
   const Activation({this.by, this.keys = const <String>{}});
 
   /// The body that did it, when there was one. Null for a mechanism switched

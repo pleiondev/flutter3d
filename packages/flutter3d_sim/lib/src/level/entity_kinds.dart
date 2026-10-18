@@ -10,6 +10,7 @@ import 'entity_kind.dart';
 /// `flutter3d_plugin_api` until 1.0.0-rc.1, which named a slot nothing in
 /// the contract used.
 abstract base class EntityKindRegistry extends PluginRegistry {
+  /// Lets [EntityKinds] extend this.
   const EntityKindRegistry();
 }
 

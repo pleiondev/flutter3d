@@ -56,6 +56,7 @@ final class _Line {
 
 /// The velocity [Avoidance.velocity] picks for a body, in plan.
 final class AvoidanceVelocity {
+  /// A velocity of ([x], [z]) metres per second in plan.
   const AvoidanceVelocity({required this.x, required this.z});
 
   /// Along the world's X axis, in metres per second.
@@ -81,6 +82,8 @@ double _det(double ax, double az, double bx, double bz) => ax * bz - az * bx;
 
 /// How a body picks a velocity that keeps it clear of its neighbours.
 final class Avoidance {
+  /// Avoidance looking 1.5 seconds ahead at up to eight bodies within five
+  /// metres, by default. Asserts [timeHorizon] is above nought.
   const Avoidance({
     this.timeHorizon = 1.5,
     this.neighborDistance = 5.0,

@@ -20,6 +20,7 @@ export 'signal.dart';
 /// again. Splitting them is what lets one door reopen because a monster stood
 /// in it while no one was looking.
 abstract base class Mechanism {
+  /// A mechanism called [name], or unnamed (and so never saved) when null.
   Mechanism({this.name});
 
   /// What other entities call this one, when anything does.
@@ -36,6 +37,8 @@ abstract base class Mechanism {
     return world;
   }
 
+  /// Switches this on, on behalf of [by], and says what came of it: done,
+  /// refused with a reason, or nothing to do.
   ActivationOutcome activate(Activation by);
 
   /// Advances by [dt]. Called every simulation step, for every mechanism.
@@ -117,6 +120,7 @@ final class MechanismEvents {
 /// player is looking at. Passing it separately to each of them would mean every
 /// call site could pass a different one.
 final class MechanismWorld {
+  /// An empty level's machinery over [collisions].
   MechanismWorld(this.collisions);
 
   /// The physics this level runs on.
@@ -141,6 +145,8 @@ final class MechanismWorld {
   /// of being quietly missed, which is the better of the two answers.
   List<Mechanism> get all => _allView;
 
+  /// Adds [mechanism] to this world and answers it. A name already taken
+  /// now finds the new one.
   T add<T extends Mechanism>(T mechanism) {
     mechanism._world = this;
     _all.add(mechanism);
@@ -150,6 +156,7 @@ final class MechanismWorld {
     return mechanism;
   }
 
+  /// The mechanism called [name], or null when none is.
   Mechanism? operator [](String name) => _byName[name];
 
   /// Switches on whatever answers to [name].
@@ -179,6 +186,7 @@ final class MechanismWorld {
   /// than replaced, so a caller that drains them every step allocates nothing.
   final MechanismEvents events = MechanismEvents._();
 
+  /// Steps every mechanism by [dt] seconds, in the order they were added.
   void step(double dt) {
     for (var i = 0; i < _all.length; i++) {
       _all[i].step(dt);

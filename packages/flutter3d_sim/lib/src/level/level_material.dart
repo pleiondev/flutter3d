@@ -17,6 +17,7 @@ final LinearColor _defaultBaseColor = LinearColor.fromSrgb(0.5, 0.5, 0.5);
 
 /// How a surface is shaded, named so brushes can share one.
 final class LevelMaterial {
+  /// A material, mid grey and rough unless told otherwise.
   LevelMaterial({
     LinearColor? baseColor,
     this.roughness = 0.85,
@@ -40,6 +41,9 @@ final class LevelMaterial {
        // ignore: prefer_initializing_formals
        _source = source;
 
+  /// Reads a material from its level row, the base colour in sRGB, keeping
+  /// the row for [toJson]. Throws a [LevelFormatException] for a field of
+  /// the wrong shape.
   factory LevelMaterial.fromJson(Map<String, Object?> json) => LevelMaterial(
     baseColor: switch (json.vector4(
       'baseColor',
@@ -234,6 +238,8 @@ final class LevelMaterial {
     ),
   };
 
+  /// This material as a level row, written through the row it was read
+  /// from.
   Map<String, Object?> toJson() => writeThrough(_source, <WriteThroughField>[
     WriteThroughField('baseColor', switch (storedBaseColor) {
       SrgbColor(:final r, :final g, :final b, :final a) => <double>[r, g, b, a],

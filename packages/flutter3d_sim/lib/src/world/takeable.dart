@@ -25,6 +25,8 @@ import 'mechanism.dart';
 /// in it would have taken that away. Keeping the names cost the games nothing —
 /// neither application changed a line when this arrived.
 abstract base class Takeable extends Mechanism with CollisionListener {
+  /// A takeable over [collider], which it turns into a trigger listening to
+  /// itself.
   Takeable({
     super.name,
     required this.collider,
@@ -50,6 +52,8 @@ abstract base class Takeable extends Mechanism with CollisionListener {
   final bool retryWhileTouching;
 
   bool _taken = false;
+
+  /// Whether someone has taken it; a restore can put it back.
   bool get isTaken => _taken;
 
   /// Taken during this step, for whoever is collecting the step's events.

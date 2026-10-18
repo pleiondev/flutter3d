@@ -54,6 +54,8 @@ abstract base class ActorStrides {
 /// so a step allocates nothing for it; strides read it during the call and
 /// do not keep it, nor its [wish].
 final class ActorStride {
+  /// A stride for [actor], wishing [wish], over [dt] seconds; reset before
+  /// each call.
   ActorStride({required this.actor, required this.wish, required this.dt});
 
   /// The actor being stepped.
@@ -71,6 +73,7 @@ final class ActorStride {
 ///
 /// One object, for the reason [ActorStride] gives.
 final class ActorStridesRestore {
+  /// A restore of [from] onto the restored [actors].
   const ActorStridesRestore(this.from, {required this.actors});
 
   /// What [ActorStrides.save] wrote; null when it wrote nothing.
@@ -84,6 +87,7 @@ final class ActorStridesRestore {
 ///
 /// One object, for the reason [ActorStride] gives.
 final class ActorGesture {
+  /// The gesture [name] asked of [actor].
   const ActorGesture(this.actor, this.name);
 
   /// The actor to make the gesture.

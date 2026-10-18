@@ -71,8 +71,14 @@ final class HeightfieldTiles {
     }
   }
 
+  /// The terrain the tiles are cut from.
   final Heightfield field;
+
+  /// Count of cells along each side of a tile, a power of two.
   final int tileCells;
+
+  /// Count of resolutions a tile can be built at; level `l` takes every
+  /// `2^l`th sample.
   final int levels;
 
   /// Tiles along X.
@@ -334,6 +340,8 @@ final class HeightfieldTiles {
 /// is [band] beyond the threshold, and moving back waits until it is [band]
 /// inside; in between, it keeps whatever it had.
 final class TileLevelChooser {
+  /// A chooser over [levels] levels, level 0 reaching [nearest] metres,
+  /// with a [band] of 0.15 by default.
   const TileLevelChooser({
     required this.nearest,
     required this.levels,
@@ -342,6 +350,8 @@ final class TileLevelChooser {
 
   /// How far level 0 reaches, in metres.
   final double nearest;
+
+  /// Count of levels to choose among; the answer is below it.
   final int levels;
 
   /// The fraction of a threshold a tile has to cross it by.

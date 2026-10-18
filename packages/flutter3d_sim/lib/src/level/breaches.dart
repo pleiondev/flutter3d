@@ -105,6 +105,9 @@ List<Brush> subtractBox(Brush brush, Aabb3 hole) {
 /// came out of, and the geometry hands each face of a piece the texels of the
 /// face it is part of.
 final class Breaches {
+  /// No holes yet in [level], whose colliders already in [world] are
+  /// adopted for the swap. [breakable] null cuts every solid non-ramp
+  /// brush.
   Breaches(this.level, this.world, {bool Function(Brush)? breakable})
     : breakable = breakable ?? _solidWalls,
       brushes = List<Brush>.of(level.brushes),
@@ -112,7 +115,10 @@ final class Breaches {
     _adoptColliders();
   }
 
+  /// The level as authored, which [restore] goes back to.
   final Level level;
+
+  /// The collision world holding the brushes' colliders, swapped on a cut.
   final CollisionWorld world;
 
   /// Which brushes a blast can cut. The default is every solid brush that is

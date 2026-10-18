@@ -18,6 +18,11 @@ import 'dart:math' as math;
 /// value in, because a coin, a headshot and a clean sector are worth what the
 /// game says and there is no shared answer.
 final class Scoring {
+  /// Scoring with a two-second [window], a [step] of a half and a
+  /// [ceiling] of eight by default.
+  ///
+  /// Asserts [window] is above nought, [step] not negative and [ceiling]
+  /// at least one.
   Scoring({this.window = 2.0, this.step = 0.5, this.ceiling = 8.0})
     : assert(window > 0.0, 'a chain with no window cannot be broken'),
       assert(step >= 0.0, 'a chain that pays less each time is not a chain'),
@@ -120,6 +125,7 @@ final class Scoring {
     _bestChain = 0.0;
   }
 
+  /// The total, the run in hand and the best run, for a save.
   Map<String, Object?> save() => <String, Object?>{
     'total': _total,
     'chain': _chain,
@@ -128,6 +134,7 @@ final class Scoring {
     'best': _bestChain,
   };
 
+  /// Puts back what [save] wrote; a missing field reads nought.
   void restore(Map<String, Object?> from) {
     _total = (from['total'] as num?)?.toDouble() ?? 0.0;
     _chain = (from['chain'] as num?)?.toDouble() ?? 0.0;

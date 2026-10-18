@@ -18,9 +18,12 @@ import 'level_issue.dart';
 /// takes, and a document that does not read is a validation error with every
 /// problem in it, not a cutscene that silently does nothing.
 final class CutsceneKind extends EntityKind {
+  /// The `cutscene` kind, reading its documents for [stepsPerSecond].
   const CutsceneKind({required this.stepsPerSecond})
     : super(EntityTypes.cutscene);
 
+  /// The game's step rate, in steps per second, its documents' moments are
+  /// read for.
   final int stepsPerSecond;
 
   SequenceRead _read(EntityDef entity) => Sequence.read(

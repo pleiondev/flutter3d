@@ -10,6 +10,8 @@ import 'entity_kind.dart';
 /// Grouped because all three place a [ColliderKind.trigger] and drive a
 /// [Signal] or [Exit] from it, rather than a kinematic body.
 final class ButtonKind extends EntityKind {
+  /// The `button` kind: a panel with a `target`, locked by an optional
+  /// `key`.
   const ButtonKind() : super(EntityTypes.button);
 
   /// A panel, not a block: a button is something on a wall.
@@ -56,7 +58,10 @@ final class ButtonKind extends EntityKind {
   }
 }
 
+/// An invisible volume that fires its `target` when the player, or with
+/// `anyone` any body, walks in; once only unless `once` is false.
 final class TriggerKind extends EntityKind {
+  /// The `trigger` kind: a sized volume with a `target`.
   const TriggerKind() : super(EntityTypes.trigger);
 
   @override
@@ -99,7 +104,10 @@ final class TriggerKind extends EntityKind {
   }
 }
 
+/// The way out: a volume only the player sets off, 1.5 by 2.5 by 1.5
+/// metres unless sized, leading to `next` and locked by an optional `key`.
 final class ExitKind extends EntityKind {
+  /// The `exit` kind.
   const ExitKind() : super(EntityTypes.exit);
 
   @override

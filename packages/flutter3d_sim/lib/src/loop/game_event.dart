@@ -42,6 +42,7 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 /// folds in, so two runs that differ in an event's fields differ in their
 /// digests at that step.
 abstract base class GameEvent extends BusEvent {
+  /// Lets a subclass be const.
   const GameEvent();
 
   /// The name the event is declared and published under, and its identity
@@ -67,6 +68,7 @@ abstract base class GameEvent extends BusEvent {
 /// steps; [Delivered.sequence] counts the events published since [step] was
 /// last set.
 final class DirectBus extends EventRegistry {
+  /// A bus with nothing declared, no subscribers and [step] at nought.
   DirectBus();
 
   final List<EventDeclaration> _declared = <EventDeclaration>[];

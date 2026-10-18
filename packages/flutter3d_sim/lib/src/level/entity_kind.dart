@@ -50,6 +50,8 @@ abstract base class EntityKind {
   /// False by default: a light fixture, a trigger volume and a spawn point are
   /// all perfectly happy inside solid rock.
   bool get mustBeReachable => false;
+
+  /// A kind for entities of [type].
   const EntityKind(this.type);
 
   /// The string that appears in a level document.
@@ -196,6 +198,8 @@ abstract base class EntityKind {
     }
   }
 
+  /// Reports that the text property [key] an entity has to show is missing
+  /// or empty.
   void requireText(
     EntityDef entity,
     LevelScope scope,
@@ -223,6 +227,7 @@ abstract base class EntityKind {
 /// entity of an unknown type as what it is to them: a coordinate with a word
 /// attached, and checks nothing about it of its own.
 final class OpenKind extends EntityKind {
+  /// A kind that accepts [type] and checks and spawns nothing.
   const OpenKind(super.type);
 }
 
@@ -232,6 +237,7 @@ final class OpenKind extends EntityKind {
 /// **One object, so a minor can hand a kind more** — the registry of kinds,
 /// the document's version — without breaking a kind written against 1.0.
 final class EntityCheck {
+  /// A check of [entity] in [scope], adding problems to [out].
   const EntityCheck({
     required this.entity,
     required this.scope,
@@ -253,6 +259,7 @@ final class EntityCheck {
 ///
 /// One object, for the reason [EntityCheck] gives.
 final class EntitySpawn {
+  /// A spawn of [entity] into [context].
   const EntitySpawn({required this.entity, required this.context});
 
   /// The entity being brought into the world.

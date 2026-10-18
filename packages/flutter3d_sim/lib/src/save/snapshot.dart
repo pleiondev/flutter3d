@@ -34,6 +34,7 @@ import 'package:vector_math/vector_math.dart';
 
 /// Thrown when a snapshot cannot be read at all.
 final class SnapshotFormatException extends Flutter3dFormatException {
+  /// An exception saying, in [message], what was wrong with the snapshot.
   const SnapshotFormatException(this.message);
   @override
   final String message;
@@ -41,9 +42,18 @@ final class SnapshotFormatException extends Flutter3dFormatException {
   String toString() => 'SnapshotFormatException: $message';
 }
 
+/// A saved state: the game's own fields in [data], and the plugins it
+/// [requires], written in the `f3d.save` envelope.
 final class Snapshot {
+  /// A snapshot of [data], requiring no plugin unless [requires] names
+  /// some.
   const Snapshot(this.data, {this.requires = const <String>[]});
 
+  /// Reads what [toJson] wrote, lifting an older envelope and taking the
+  /// envelope's keys off [data].
+  ///
+  /// Throws a [SnapshotFormatException] for a missing or impossible
+  /// version, a newer one, or a `requires` that is not a list of names.
   factory Snapshot.fromJson(Map<String, Object?> json) {
     final version = json[versionKey];
     if (version is! num) {
@@ -158,26 +168,34 @@ final class Snapshot {
 /// Free functions rather than an encoder object: every one of them is two
 /// lines, and the systems that call them have nothing else in common.
 extension SnapshotFields on Map<String, Object?> {
+  /// The number under [key] as a double, or [orElse] when it is not a
+  /// number.
   double number(String key, {double orElse = 0.0}) {
     final value = this[key];
     return value is num ? value.toDouble() : orElse;
   }
 
+  /// The number under [key] truncated to an int, or [orElse] when it is
+  /// not a finite number.
   int integer(String key, {int orElse = 0}) {
     final value = this[key];
     return value is num && value.isFinite ? value.toInt() : orElse;
   }
 
+  /// The bool under [key], or [orElse] when it is not a bool.
   bool flag(String key, {bool orElse = false}) {
     final value = this[key];
     return value is bool ? value : orElse;
   }
 
+  /// The string under [key], or null when it is not a string.
   String? text(String key) {
     final value = this[key];
     return value is String ? value : null;
   }
 
+  /// Every map in the list under [key], cast to string keys; entries that
+  /// are not maps are skipped, and anything but a list gives none.
   List<Map<String, Object?>> rows(String key) {
     final value = this[key];
     if (value is! List) return const <Map<String, Object?>>[];

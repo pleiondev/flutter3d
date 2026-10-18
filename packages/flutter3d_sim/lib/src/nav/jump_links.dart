@@ -46,6 +46,8 @@ import 'nav_grid.dart';
 /// is asked by a field that keys its cache on it, and two bodies that jump
 /// alike should share a field however else they differ.
 final class JumpReach {
+  /// A reach from take-off speed, gravity and run speed. Asserts [gravity]
+  /// is above nought.
   const JumpReach({
     required this.jumpSpeed,
     required this.gravity,
@@ -120,6 +122,7 @@ final class JumpReach {
 
 /// One jump the grid allows: from a cell, to a cell, and what it costs a body.
 final class JumpLink {
+  /// A jump from cell [from] to cell [to], [rise] metres up across [gap].
   const JumpLink({
     required this.from,
     required this.to,
@@ -129,6 +132,8 @@ final class JumpLink {
 
   /// The take-off cell, and the landing cell.
   final int from;
+
+  /// Index of the landing cell in the grid.
   final int to;
 
   /// Floor height of [to] less floor height of [from], in metres. Positive

@@ -89,6 +89,8 @@ import 'state_digest.dart';
 /// is read as version 1, the simulation 1.0.0 shipped
 /// ([SimulationVersion.firstOf]).
 final class Demo {
+  /// A run of [tape] from [start] in the level [level] digesting to
+  /// [levelHash]; every optional part defaults to absent or empty.
   const Demo({
     required this.level,
     required this.levelHash,
@@ -379,6 +381,8 @@ final class Demo {
     return <Map<String, Object?>>[for (final i in order) all[i]];
   }
 
+  /// This run as a `.f3drun` document at [writtenVersion]; the tape's
+  /// external inputs go to the top level, not inside the tape.
   Map<String, Object?> toJson() => <String, Object?>{
     ...format.envelope(version: writtenVersion),
     'level': level,
@@ -726,6 +730,7 @@ final class Demo {
 /// digest alone would make the file unplayable everywhere but the machine
 /// that recorded it, on the afternoon it was recorded.
 final class DemoLevelSwap {
+  /// [level] put under the run before tape step [step].
   const DemoLevelSwap({required this.step, required this.level});
 
   /// **The digest is checked against the document**, as
@@ -777,13 +782,18 @@ final class DemoLevelSwap {
     }
     return DemoLevelSwap(step: step, level: level);
   }
+
+  /// Count of tape frames played before the swap, from nought to the
+  /// tape's length.
   final int step;
 
+  /// The whole level swapped in, as the editor sent it.
   final Level level;
 
   /// [Level.digestHex] of [level], what the editor and the timeline call it.
   String get levelHash => level.digestHex;
 
+  /// The swap as JSON: its step, the level's hash and the whole document.
   Map<String, Object?> toJson() => <String, Object?>{
     'step': step,
     'levelHash': levelHash,
@@ -793,6 +803,7 @@ final class DemoLevelSwap {
 
 /// Thrown when a demo cannot be read at all.
 final class DemoFormatException extends Flutter3dFormatException {
+  /// An exception saying, in [message], what was wrong with the run.
   const DemoFormatException(this.message);
 
   @override

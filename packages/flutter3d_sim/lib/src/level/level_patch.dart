@@ -16,8 +16,12 @@ const List<String> patchedLists = <String>['brushes', 'lights', 'entities'];
 /// the row at [at], digests it, and refuses the patch when it is not the row
 /// [was] names.
 final class RowEdit {
+  /// An edit of [list] at [at]: an insert without [was], a removal without
+  /// [row], a replacement with both.
   const RowEdit({required this.list, required this.at, this.was, this.row});
 
+  /// Reads what [toJson] wrote. A missing `list` or `at`, or a field of the
+  /// wrong type, throws a [TypeError].
   factory RowEdit.fromJson(Map<String, Object?> json) => RowEdit(
     list: json['list']! as String,
     at: (json['at']! as num).toInt(),
@@ -38,9 +42,13 @@ final class RowEdit {
   /// The row put in or replacing; null for a row taken out.
   final Map<String, Object?>? row;
 
+  /// Whether this edit puts a new row in: there is no [was].
   bool get inserts => was == null;
+
+  /// Whether this edit takes a row out: there is no [row].
   bool get removes => row == null;
 
+  /// This edit as JSON, leaving out `was` and `row` when null.
   Map<String, Object?> toJson() => <String, Object?>{
     'list': list,
     'at': at,
@@ -66,6 +74,8 @@ final class RowEdit {
 /// side has and the other does not goes whole as a field too: the patch then
 /// says what the document says rather than inventing an empty one.
 final class LevelPatch {
+  /// A patch from the level digesting to [base] to the one digesting to
+  /// [hash]; every kind of change left out is none.
   const LevelPatch({
     required this.base,
     required this.hash,
@@ -74,6 +84,8 @@ final class LevelPatch {
     this.fields = const <String, Object?>{},
   });
 
+  /// Reads what [toJson] wrote. A missing `base` or `hash`, or a field of
+  /// the wrong type, throws a [TypeError].
   factory LevelPatch.fromJson(Map<String, Object?> json) => LevelPatch(
     base: json['base']! as String,
     hash: json['hash']! as String,
@@ -165,6 +177,7 @@ final class LevelPatch {
   /// Whether the patch changes nothing.
   bool get isEmpty => rows.isEmpty && materials.isEmpty && fields.isEmpty;
 
+  /// This patch as JSON, leaving out the kinds of change that are empty.
   Map<String, Object?> toJson() => <String, Object?>{
     'base': base,
     'hash': hash,
@@ -408,9 +421,13 @@ sealed class LevelPatchResult {
 /// The patch applied: [level] is the version it makes, and [diff] what that
 /// changed for the running game.
 final class LevelPatched extends LevelPatchResult {
+  /// The patched [level] and its [diff].
   const LevelPatched(this.level, this.diff);
 
+  /// The level the patch makes, digesting to [LevelPatch.hash].
   final Level level;
+
+  /// What changed, read off the patch's edits.
   final LevelDiff diff;
 }
 
@@ -418,7 +435,9 @@ final class LevelPatched extends LevelPatchResult {
 /// that is not the one it was made against, a row that is not the one it
 /// names, or a result that is not the level it was meant to make.
 final class LevelPatchRefused extends LevelPatchResult {
+  /// A refusal for [reason].
   const LevelPatchRefused(this.reason);
 
+  /// Where the patch stopped applying, as a sentence.
   final String reason;
 }

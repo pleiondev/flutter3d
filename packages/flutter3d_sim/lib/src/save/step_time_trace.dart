@@ -19,6 +19,8 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
 /// [Stopwatch]; a caller already holding a duration from somewhere else
 /// calls [observe] directly.
 final class StepTimeTrace {
+  /// An empty trace keeping every [every]th step, every step by default.
+  /// Asserts [every] is above nought.
   StepTimeTrace({this.every = 1})
     : assert(every > 0, 'a sample every no steps is no samples');
 
@@ -144,6 +146,7 @@ final class StepTimeTrace {
 
 /// Thrown when a [StepTimeTrace] cannot be read back at all.
 final class StepTimeTraceFormatException extends Flutter3dFormatException {
+  /// An exception saying, in [message], what was wrong with the trace.
   const StepTimeTraceFormatException(this.message);
 
   @override

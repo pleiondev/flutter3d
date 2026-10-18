@@ -39,6 +39,7 @@ import 'span_field.dart';
 
 /// A jump from one polygon to another the walk does not join.
 final class NavMeshLink {
+  /// A jump from polygon [from] at [start] to polygon [to] at [end].
   const NavMeshLink({
     required this.from,
     required this.to,
@@ -50,10 +51,15 @@ final class NavMeshLink {
 
   /// The polygons it leaves and lands on.
   final int from;
+
+  /// Index of the polygon it lands on.
   final int to;
 
   /// Where the body takes off and where it lands, on the floors.
   final Vector3 start;
+
+  /// Where the body lands, on the landing polygon's floor, in metres in
+  /// the world.
   final Vector3 end;
 
   /// The landing's height less the take-off's, in metres. Positive is up.

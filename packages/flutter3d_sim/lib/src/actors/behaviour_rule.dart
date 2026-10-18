@@ -16,8 +16,12 @@ import 'behaviour_tree.dart';
 /// registers one and a broken one in a game that does not, and only the game
 /// knows which it is.
 final class BehaviorsRead extends LevelRule {
+  /// A rule reading trees against [kinds], with entities naming them under
+  /// [property].
   const BehaviorsRead(this.kinds, {this.property = 'behavior'});
 
+  /// The game's leaf, consideration and composite kinds, which a tree must
+  /// read against.
   final BehaviorKinds kinds;
 
   /// The entity property that names a tree: `behavior`, which a level

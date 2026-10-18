@@ -35,18 +35,26 @@ import 'health.dart';
 
 /// The capsule that walks, slides along walls and falls off ledges.
 final class Body {
+  /// The component holding [controller].
   Body(this.controller);
+
+  /// The controller that moves the actor, owning its collider.
   final CharacterController controller;
 }
 
 /// Health that can run out.
 final class Vitality {
+  /// The component holding [health].
   Vitality(this.health);
+
+  /// The actor's health; restored in place, never rebuilt.
   final Health health;
 }
 
 /// Which way it faces, how fast it comes round, and where its eye sits.
 final class Facing {
+  /// A facing along −Z, turning six radians a second, the eye at 0.32 of
+  /// the half-height, unless given.
   Facing({this.yaw = 0.0, this.turnRate = 6.0, this.eyeFraction = 0.32});
 
   /// Radians about Y. Zero looks along −Z.
@@ -67,7 +75,10 @@ final class Facing {
 /// or by a player and never moved by physics. A `Physical` is the other kind:
 /// nothing decides for it, and everything happens to it.
 final class Physical {
+  /// The component holding [body].
   Physical(this.body);
+
+  /// The rigid body the world moves; restored in place.
   final RigidBody body;
 }
 
@@ -80,13 +91,19 @@ final class Physical {
 /// from the save, which therefore writes the bytes it always did. Set on
 /// every actor with a body by `ActorSystem.spawn`.
 final class Gait {
+  /// The component reading [controller].
   Gait(this.controller);
+
+  /// The body's controller, read for the stair climbed and the ground.
   final CharacterController controller;
 }
 
 /// What decides where it is going.
 final class Thinking {
+  /// The component holding [brain].
   Thinking(this.brain);
+
+  /// The brain stepping the actor; a game may swap in another.
   Brain brain;
 }
 
@@ -222,6 +239,7 @@ void registerActorComponents(EcsWorld entities) {
 /// another isolate. [at] is in the simulation's local frame, relative to
 /// [PublishedState.origin]; [worldAt] adds the two in double precision.
 final class PublishedActor {
+  /// An actor's published reading; not climbing and grounded by default.
   const PublishedActor({
     required this.at,
     required this.yaw,

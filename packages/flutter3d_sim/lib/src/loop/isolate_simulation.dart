@@ -19,6 +19,8 @@ import 'simulation_handle.dart';
 /// [local] builds the handle in this isolate, which is what a game on the web
 /// does with the factory it hands [IsolateSimulation.open] elsewhere.
 final class SimulationSetup {
+  /// A setup of [loop] fed through [applyInput], keeping [history] steps of
+  /// captures (none by default).
   SimulationSetup({
     required this.loop,
     required this.applyInput,

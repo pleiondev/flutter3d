@@ -39,6 +39,8 @@ DifferingPath? firstDifferingPath(Object? a, Object? b, {String prefix = ''}) {
 /// Where two JSON-shaped values first differ, and what each holds there:
 /// what [firstDifferingPath] answers.
 final class DifferingPath {
+  /// The first difference, at [path], with [a] and [b] what each side
+  /// holds there.
   const DifferingPath({required this.path, required this.a, required this.b});
 
   /// The address of the first leaf that differs, keys joined by `.` and list

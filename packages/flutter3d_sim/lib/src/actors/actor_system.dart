@@ -71,12 +71,18 @@ export 'actor_hurt.dart';
 /// where it is, and the body it belongs to, if any.
 typedef FocusPoint = ({Vector3 at, Collider? body});
 
+/// Every actor in a level: spawning them, stepping their brains and bodies
+/// towards the foci, counting the hurt and the dead, and saving it all.
 final class ActorSystem {
+  /// A system over [world], drawing its dice from [random], keeping actors
+  /// in [entities] (a world of its own when null), with the actor
+  /// components registered there.
   ActorSystem({required this.world, required this.random, EcsWorld? entities})
     : entities = entities ?? EcsWorld() {
     registerActorComponents(this.entities);
   }
 
+  /// The collision world the actors' bodies move in and look through.
   final CollisionWorld world;
 
   /// Where actors live. Shared with everything else that has moved across, so
@@ -214,6 +220,8 @@ final class ActorSystem {
   /// With several foci: inside a brain, the one this actor attends to; outside
   /// [step], the first.
   Vector3 get focus => _foci[_focusIndex].clone();
+
+  /// The body [focus] belongs to, or null for a focus that is only a point.
   Collider? get focusBody => _fociBodies[_focusIndex];
 
   /// Which focus the actor being thought about attends to, by its index in
@@ -382,6 +390,8 @@ final class ActorSystem {
     _handles.remove(actor.entity.index);
   }
 
+  /// Count of actors still alive; corpses count among [actors] but not
+  /// here.
   int get aliveCount {
     var count = 0;
     for (final actor in actors) {
@@ -718,6 +728,8 @@ final class ActorSystem {
 
   // MARK: - What a brain may do
 
+  /// Asks that the actor being stepped walk along [direction] this step,
+  /// as its brain's wish; read back as [heading].
   void steer(Actor actor, Vector3 direction) => _wish.setFrom(direction);
 
   /// Walk towards a point that is not the focus.
@@ -998,6 +1010,9 @@ final class ActorSystem {
   /// staring through a wall is the tell that gives a flow field away.
   Vector3 get heading => _wish.clone();
 
+  /// Turns [actor] towards the direction ([x], [z]) on the ground, by at
+  /// most its turn rate over [dt] seconds. Does nothing for a zero
+  /// direction or an actor with no facing.
   void turnTowards(Actor actor, double x, double z, double dt) {
     if (x == 0.0 && z == 0.0) return;
     if (actor.facing == null) return;
@@ -1077,6 +1092,9 @@ final class ActorSystem {
       ],
   };
 
+  /// Puts back what [save] wrote: the tick, the strides and the last foci.
+  /// Anything that is not a map is ignored; foci that do not read are
+  /// dropped together.
   void restore(Object? from) {
     if (from is! Map) return;
     final tick = from['tick'];

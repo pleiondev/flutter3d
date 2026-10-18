@@ -62,6 +62,8 @@ import 'mechanism.dart';
 /// constraints instead of enforcing them, which is the honest trade: what was
 /// duplicated was never the six calls, it was the paragraph explaining them.
 final class WorldStep {
+  /// The phases of a step over [collision], with the optional parts a
+  /// game has.
   WorldStep({
     required this.collision,
     this.mechanisms,
@@ -69,8 +71,15 @@ final class WorldStep {
     this.raise,
   });
 
+  /// The collision world the phases update and reindex.
   final CollisionWorld collision;
+
+  /// The level's machinery, stepped and published; null for a game with
+  /// none.
   final MechanismWorld? mechanisms;
+
+  /// The rigid bodies [index] steps after the reindex; null for a game with
+  /// no dynamics.
   final RigidDynamics? dynamics;
 
   /// Where the step's own events go: what [dynamics] touched, as one

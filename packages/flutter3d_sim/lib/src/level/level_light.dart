@@ -12,6 +12,9 @@ final Vector3 _origin = Vector3.zero();
 
 /// A light placed by the level rather than by the renderer.
 final class LevelLight {
+  /// A light of [type] (point by default) at [position], pointing along
+  /// [direction] (down by default); both are copied. [castsShadow] null
+  /// casts for a directional light only, and a null [id] is derived.
   LevelLight({
     String? id,
     this.type = LightType.point,
@@ -39,6 +42,9 @@ final class LevelLight {
              position?.z ?? 0.0,
            ]);
 
+  /// Reads a light from its level row, keeping the row for [toJson].
+  /// Throws a [LevelFormatException] for an unknown type or an `id` that is
+  /// not text.
   factory LevelLight.fromJson(Map<String, Object?> json) {
     final word = json.textOrNull('type');
     final type = word == null
@@ -75,8 +81,15 @@ final class LevelLight {
   /// What this light is called by the editor and by tools. See [LevelIds].
   final String id;
 
+  /// What shape of light it is: point, spot, directional, or a plugin's
+  /// kind written as the built-in shape it is lit as.
   final LightType type;
+
+  /// Where a point or spot light stands, in metres in the level's frame.
   final Vector3 position;
+
+  /// Which way a spot or directional light points, in the level's frame;
+  /// down unless the document says otherwise.
   final Vector3 direction;
 
   /// The light's colour, in linear light. Its brightness is [intensity]'s:
@@ -115,12 +128,15 @@ final class LevelLight {
   /// default keeps every existing level's picture.
   final bool castsShadow;
 
+  /// What other entities call this light, a light fixture among them;
+  /// null for none.
   final String? name;
 
   /// This light under another [id], everything else as it is.
   LevelLight withId(String id) =>
       LevelLight.fromJson(<String, Object?>{...toJson(), 'id': id});
 
+  /// This light as a level row, written through the row it was read from.
   Map<String, Object?> toJson() => writeThrough(_source, <WriteThroughField>[
     WriteThroughField('id', id),
     WriteThroughField(

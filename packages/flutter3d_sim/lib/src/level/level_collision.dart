@@ -144,6 +144,7 @@ extension LevelCollision on Level {
 /// A class rather than a record, so a later field — the spawn's id, say —
 /// is not a break.
 final class PlayerStart {
+  /// A start at [position], facing [yaw] radians.
   const PlayerStart({required this.position, required this.yaw});
 
   /// Where, in the level's frame. The caller's own copy.

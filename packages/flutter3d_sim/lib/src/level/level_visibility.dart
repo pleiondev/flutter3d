@@ -158,8 +158,13 @@ final class LevelVisibility extends FormatDocument {
   /// The corner of the grid, in world space.
   final Vector3 origin;
 
+  /// Count of cells along X.
   final int countX;
+
+  /// Count of cells along Y.
   final int countY;
+
+  /// Count of cells along Z.
   final int countZ;
 
   /// What the table was baked from: a hash of the level's brushes.
@@ -322,6 +327,8 @@ final class LevelVisibility extends FormatDocument {
     return hash;
   }
 
+  /// The table as a `.visibility.json` document, the sets packed into one
+  /// list of words.
   Map<String, Object?> toJson() {
     final words = _pvs.isEmpty ? 0 : _pvs.first.length;
     final all = Uint32List(_pvs.length * words);
@@ -529,6 +536,7 @@ final class LevelVisibility extends FormatDocument {
 
 /// Thrown when a visibility table cannot be read at all.
 final class VisibilityFormatException extends Flutter3dFormatException {
+  /// An exception saying, in [message], what was wrong with the table.
   const VisibilityFormatException(this.message);
 
   @override

@@ -12,6 +12,7 @@ import 'sequence.dart';
 /// A cutscene's signal, fired on its step: [signal] and the document's
 /// [data] for it, for the game to answer — a sound, a clip, a door.
 final class SequenceSignal extends GameEvent {
+  /// The signal [signal], fired with [data].
   const SequenceSignal(this.signal, this.data);
 
   /// The name it is declared and published under. Which signal it is, is
@@ -38,7 +39,10 @@ final class SequenceSignal extends GameEvent {
     },
   );
 
+  /// The signal's name as the document wrote it, what the game answers to.
   final String signal;
+
+  /// What the document gave the signal, as plain values; empty for none.
   final Map<String, Object?> data;
 
   @override
@@ -74,11 +78,13 @@ final class SequenceSignal extends GameEvent {
 /// player by `SequenceView`, in `flutter3d_camera`, and the bars and the
 /// overlay are `flutter3d_game_ui`'s.
 final class SequencePlayer with ActorDirector {
+  /// A player at the start of [sequence], publishing onto [events].
   SequencePlayer(this.sequence, {this.events});
 
   /// How near its mark counts as on it, in metres, for an actor sent to one.
   static const double onMark = 0.3;
 
+  /// The cutscene played.
   final Sequence sequence;
 
   /// The bus the signals are published onto as they fire, or null for a
@@ -92,6 +98,8 @@ final class SequencePlayer with ActorDirector {
   /// The step the cutscene has reached.
   int get step => _step;
 
+  /// Whether the last step has been played; [advance] then does nothing
+  /// and no actor is directed.
   bool get isFinished => _step >= sequence.steps;
 
   /// How many steps are left: what a skip steps the game through.
@@ -148,6 +156,7 @@ final class SequencePlayer with ActorDirector {
     }
   }
 
+  /// The player's whole state: `{"step": step}`, what [restore] reads.
   Map<String, Object?> save() => <String, Object?>{'step': _step};
 
   /// Puts the step back; the signals up to it count as fired, so none fires

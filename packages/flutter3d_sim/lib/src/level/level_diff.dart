@@ -23,6 +23,7 @@ import 'level.dart';
 /// under [simulation] is judged by the whole part, not by a guess at which of
 /// its fields the game reads.
 final class LevelDiff {
+  /// A diff of the parts given; every part left out is unchanged.
   const LevelDiff({
     this.lights = const <int>[],
     this.lightCountChanged = false,
@@ -65,6 +66,7 @@ final class LevelDiff {
   /// Whether the change can be patched in without a timeline branch.
   bool get isPresentationOnly => simulation.isEmpty;
 
+  /// The diff as JSON, every field written, for an editor or a log.
   Map<String, Object?> toJson() => <String, Object?>{
     'lights': lights,
     'lightCountChanged': lightCountChanged,

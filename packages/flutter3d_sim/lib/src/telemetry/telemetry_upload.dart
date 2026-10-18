@@ -11,6 +11,7 @@ import 'telemetry_consent.dart';
 
 /// Thrown when an upload cannot be read.
 final class TelemetryUploadFormatException extends Flutter3dFormatException {
+  /// An exception saying, in [message], what was wrong with the upload.
   const TelemetryUploadFormatException(this.message);
 
   @override
@@ -24,6 +25,7 @@ final class TelemetryUploadFormatException extends Flutter3dFormatException {
 ///
 /// A class rather than a record, so a later field is not a break.
 final class PreparedUpload {
+  /// An outcome of preparing: [upload], or null, and the sentence [says].
   const PreparedUpload({required this.upload, required this.says});
 
   /// The upload, or null when the player did not agree or there is no run.
@@ -130,11 +132,16 @@ final class TelemetryUpload extends FormatDocument {
 
   static const Set<String> _known = <String>{'game', 'consent', 'run'};
 
+  /// The game's name, so the server knows which game to re-simulate with.
   final String game;
 
+  /// The run, with [Demo.recordedBy] dropped.
   final Demo demo;
 
+  /// The consent wording the player agreed to and the run is sent under.
   final String policy;
+
+  /// When the player agreed to [policy], written in UTC.
   final DateTime consentedAt;
   @override
   FormatSpec get spec => format;
@@ -202,6 +209,8 @@ final class TelemetryUpload extends FormatDocument {
     );
   }
 
+  /// This upload as JSON in the `f3d.telemetry` envelope: the game, the
+  /// consent and the run.
   Map<String, Object?> toJson() => write(<String, Object?>{
     'game': game,
     'consent': <String, Object?>{
@@ -215,8 +224,10 @@ final class TelemetryUpload extends FormatDocument {
 /// What a server gave back for an accepted run: its number there, and the key
 /// that takes it back out.
 final class TelemetryReceipt {
+  /// A receipt for run [run], erased with [eraseKey].
   const TelemetryReceipt({required this.run, required this.eraseKey});
 
+  /// The run's id on the server, what a heatmap of it names it by.
   final int run;
 
   /// Shown to nobody but the player who sent the run. With it, and only with
@@ -231,6 +242,7 @@ final class TelemetryReceipt {
 /// retry time): a [TelemetrySink] somebody writes returns one, and a record
 /// it returned could never gain a field.
 final class TelemetrySent {
+  /// An answer; [receipt] is null unless the server took the run.
   const TelemetrySent({required this.did, required this.says, this.receipt});
 
   /// Whether the server took the run.
@@ -265,8 +277,11 @@ final class TelemetrySent {
 /// of `tasks/1.0-api-review.md`), so a member added in a minor arrives with a
 /// default body and every sink keeps compiling.
 abstract base class TelemetrySink {
+  /// Lets a subclass be const.
   const TelemetrySink();
 
+  /// Sends [upload] and answers whether it was taken. Answers rather than
+  /// throws: an unreachable server is a [TelemetrySent] with `did` false.
   Future<TelemetrySent> deliver(TelemetryUpload upload);
 }
 
@@ -281,10 +296,17 @@ typedef JsonPost =
 /// Sends uploads to a server's `POST /api/telemetry/runs`, which the
 /// reference server in `cloud/` answers.
 final class HttpTelemetrySink extends TelemetrySink {
+  /// A sink posting to [endpoint] through [post].
+  ///
+  /// A run counts as taken only on status 201 with a JSON body carrying
+  /// `run` and `eraseKey`.
   const HttpTelemetrySink({required this.endpoint, required this.post});
 
   /// The server's runs endpoint, in full.
   final Uri endpoint;
+
+  /// What makes the POST; anything it throws is reported as the server not
+  /// being reached.
   final JsonPost post;
 
   @override
@@ -338,6 +360,8 @@ final class HttpTelemetrySink extends TelemetrySink {
 /// [send] reads [consent] at the moment of sending, and the sink is never
 /// called without a grant to [policy].
 final class TelemetryUploader {
+  /// An uploader for [game] under [policy], reading [consent] on each send
+  /// and delivering to [sink].
   TelemetryUploader({
     required this.game,
     required this.policy,
@@ -355,8 +379,13 @@ final class TelemetryUploader {
   /// withdraws mid-session stops the next run, not the next launch.
   final TelemetryConsent Function() consent;
 
+  /// Where an agreed run is delivered.
   final TelemetrySink sink;
 
+  /// Sends [demo] through [sink] when [consent] allows [policy] now.
+  ///
+  /// Otherwise, or for a run with no steps, answers `did` false with the
+  /// reason and never calls the sink.
   Future<TelemetrySent> send(Demo demo) async {
     final prepared = TelemetryUpload.prepare(
       game: game,

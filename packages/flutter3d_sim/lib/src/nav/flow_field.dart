@@ -50,6 +50,9 @@ import 'nav_grid.dart';
 
 /// The distance to the goal from everywhere, and which way is downhill.
 final class FlowField {
+  /// A field over [grid] for a body [minClearance] cells wide and
+  /// [minHeadroom] metres tall, jumping with [jump] when given. Nothing is
+  /// reachable until the first sweep.
   FlowField(
     this.grid, {
     this.minClearance = 1,
@@ -77,6 +80,7 @@ final class FlowField {
   static int get maxGoals => _maxGoals;
   static const int _maxGoals = 127;
 
+  /// The walk grid the field is swept over, one cost per cell.
   final NavGrid grid;
 
   /// How wide the body is, in cells. See [NavGrid.clearanceForRadius].
@@ -126,6 +130,9 @@ final class FlowField {
   /// error. 10 and 14 are the usual pair: 14/10 is within half a percent of √2.
   static const int _straight = 10;
   static const int _diagonal = 14;
+
+  /// The cost of a cell no route reaches: far above any real route, ten
+  /// to a straight step and fourteen to a diagonal.
   static const int unreachable = 1 << 29;
 
   /// What a jump costs over and above its distance: two cells' worth, so a
@@ -157,6 +164,8 @@ final class FlowField {
   final Vector3 _center = Vector3.zero();
   final CellHeap _heap = CellHeap();
 
+  /// Whether this field's body can stand in cell [index]: walkable, wide
+  /// enough (or a link's end) and tall enough.
   bool fits(int index) =>
       grid.isWalkable(index) &&
       (grid.clearanceAt(index) >= minClearance || _linkEnds.contains(index)) &&

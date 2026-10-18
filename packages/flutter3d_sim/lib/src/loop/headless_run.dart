@@ -33,6 +33,7 @@ import 'run_outcome.dart';
 /// (decision 5 of `tasks/1.0-api-review.md`), so a member added in a minor
 /// arrives with a default body and every game keeps compiling.
 abstract base class RestorableRun extends HeadlessRun {
+  /// Lets a subclass be const.
   const RestorableRun();
 
   /// Puts the run back to [snapshot], one this run's [save] wrote.
@@ -45,6 +46,7 @@ abstract base class RestorableRun extends HeadlessRun {
 /// (decision 5 of `tasks/1.0-api-review.md`), so a member added in a minor
 /// arrives with a default body and every game keeps compiling.
 abstract base class HeadlessRun {
+  /// Lets a subclass be const.
   const HeadlessRun();
 
   /// Advances the run one fixed step of [dt] seconds, reading the
@@ -81,6 +83,7 @@ abstract base class HeadlessRun {
 /// (decision 5 of `tasks/1.0-api-review.md`), so a member added in a minor
 /// arrives with a default body and every game keeps compiling.
 abstract base class HeadlessGame {
+  /// Lets a subclass be const.
   const HeadlessGame();
 
   /// What the tool calls it in a sentence: `shooter`, `platformer`.
@@ -113,6 +116,7 @@ abstract base class HeadlessGame {
 /// **One object, so a minor can hand a game more** — a seed, the tape being
 /// played — without breaking a game written against 1.0.
 final class HeadlessStart {
+  /// A start of [level] in [world], reading [input].
   const HeadlessStart({
     required this.level,
     required this.world,
@@ -131,6 +135,7 @@ final class HeadlessStart {
 
 /// One verb an [OrderedGame] takes: what it does, and the numbers it reads.
 final class GameOrder {
+  /// An order described by [description], taking no arguments by default.
   const GameOrder({
     required this.description,
     this.arguments = const <String, String>{},
@@ -158,6 +163,7 @@ final class GameOrder {
 ///
 /// **Extended outside this package**, on the terms [HeadlessGame] gives.
 abstract base class OrderedGame extends HeadlessGame {
+  /// Lets a subclass be const.
   const OrderedGame();
 
   /// The orders this game takes, by verb: `move`, `attack`.
@@ -166,8 +172,10 @@ abstract base class OrderedGame extends HeadlessGame {
 
 /// One order as a step reads it: the verb and its numbers.
 final class GivenOrder {
+  /// The order [verb] with [arguments].
   const GivenOrder(this.verb, this.arguments);
 
+  /// Which order it is, a key of [OrderedGame.orders]: `move`, `attack`.
   final String verb;
 
   /// The arguments given; one left out is not here.

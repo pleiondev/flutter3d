@@ -31,6 +31,8 @@ import 'state_digest.dart';
 /// constructor with three functions is the form for a simulation with no
 /// loop.
 final class ReplaySide {
+  /// A side of a simulation with no loop, played from [start] by [tape]
+  /// into [input], stepped, restored and captured by the functions given.
   ReplaySide({
     required this.start,
     required this.tape,
@@ -66,6 +68,8 @@ final class ReplaySide {
   /// One entry per step, played into [input] before each.
   final InputTape tape;
 
+  /// What the tape is played into; muted against devices while the side
+  /// plays.
   final InputState input;
 
   /// Runs one fixed step of this side's simulation.
@@ -145,11 +149,13 @@ final class ReplaySide {
 sealed class TapeBisection {
   const TapeBisection();
 
+  /// The answer as JSON, with `agree` true or false, for a tool to show.
   Map<String, Object?> toJson();
 }
 
 /// The two runs were the same state after every step both tapes have.
 final class TapesAgree extends TapeBisection {
+  /// Agreement over [steps] steps of tapes [stepsA] and [stepsB] long.
   const TapesAgree({
     required this.steps,
     required this.stepsA,
@@ -159,7 +165,10 @@ final class TapesAgree extends TapeBisection {
   /// How many steps were compared: the shorter tape's length.
   final int steps;
 
+  /// Count of steps on the first side's tape.
   final int stepsA;
+
+  /// Count of steps on the second side's tape.
   final int stepsB;
 
   @override
@@ -179,6 +188,7 @@ final class TapesAgree extends TapeBisection {
 
 /// The first step after which the two runs were different states.
 final class TapesDiverge extends TapeBisection {
+  /// A divergence after [step] steps, first at [path].
   const TapesDiverge({
     required this.step,
     required this.inputsDiffer,
@@ -204,7 +214,10 @@ final class TapesDiverge extends TapeBisection {
   /// (`7.Health.hp`), into the raw snapshot otherwise (`random`).
   final String path;
 
+  /// What the first side holds at [path].
   final Object? expected;
+
+  /// What the second side holds at [path].
   final Object? found;
 
   /// Every entity component that differs at [step], in order; empty when no
@@ -376,6 +389,7 @@ TraceBracket? bracketFromTraces(DigestTrace a, DigestTrace b) {
 /// The steps [bracketFromTraces] narrows a search to, in [bisectTapes]'
 /// counting: pass them as its `agreedAt` and `differsAt`.
 final class TraceBracket {
+  /// The bracket from [agreedAt] to [differsAt] steps.
   const TraceBracket({required this.agreedAt, required this.differsAt});
 
   /// The step count after which both runs are known to agree.

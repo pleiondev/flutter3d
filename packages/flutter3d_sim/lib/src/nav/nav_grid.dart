@@ -92,7 +92,11 @@ final class NavGrid {
 
   /// A cell's side, in metres.
   final double cellSize;
+
+  /// Count of cells along X.
   final int columns;
+
+  /// Count of cells along Z.
   final int rows;
 
   /// The shortest agent the bake considered. A cell with less room than this
@@ -137,14 +141,21 @@ final class NavGrid {
     return into[cell] ?? const <int>[];
   }
 
+  /// Count of cells in the grid, walkable or not: [columns] times [rows].
   int get cellCount => columns * rows;
 
   /// True when there is nothing to walk on anywhere — an empty level, or one
   /// built entirely from non-solid decoration.
   bool get isEmpty => cellCount == 0;
 
+  /// The index of the cell in column [cx] and row [cz]; rows run along Z.
+  /// Not checked against the grid's bounds.
   int cellIndex(int cx, int cz) => cz * columns + cx;
+
+  /// The column of cell [index], counted along X from nought.
   int cellX(int index) => index % columns;
+
+  /// The row of cell [index], counted along Z from nought.
   int cellZ(int index) => index ~/ columns;
 
   /// The cell containing a world point, or `-1` when it is off the grid.
@@ -157,6 +168,7 @@ final class NavGrid {
     return cz * columns + cx;
   }
 
+  /// The cell under [world], by its X and Z, or `-1` off the grid.
   int cellAt(Vector3 world) => cellAtPoint(world.x, world.z);
 
   /// The height of the surface in a cell. Meaningless where [isWalkable] is
@@ -174,6 +186,7 @@ final class NavGrid {
   /// [clearanceForRadius] to ask whether a body of a given width fits.
   int clearanceAt(int index) => _clearance[index];
 
+  /// Whether cell [index] has a floor with any room above it.
   bool isWalkable(int index) => _headroom[index] > 0.0;
 
   /// The centre of a cell, at its floor height, as a fresh vector. For a

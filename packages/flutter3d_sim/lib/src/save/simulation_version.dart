@@ -11,8 +11,11 @@ import 'pose_record.dart';
 /// reported as a bug in the simulation that played it. [poses] is the record
 /// written beside the tape, which plays on any build: a viewer draws that.
 final class ReplayException extends Flutter3dFormatException {
+  /// A refusal for [reason], with the run's [poses] when it has them.
   const ReplayException(this.reason, {this.poses});
 
+  /// Why the tape is not replayed, as a sentence: which simulation it was
+  /// recorded on and which this build runs.
   final String reason;
 
   /// The run's pose record, or null for a run written without one.
@@ -30,6 +33,7 @@ final class ReplayException extends Flutter3dFormatException {
 
 /// Thrown when a run names a simulation that is not one.
 final class SimulationVersionFormatException extends Flutter3dFormatException {
+  /// An exception saying, in [message], what was wrong with the name.
   const SimulationVersionFormatException(this.message);
 
   @override

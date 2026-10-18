@@ -24,6 +24,11 @@
 /// they were not tuned against a player, and the doc on each says what it would
 /// take to settle it. A game that ships should tune its own and say so.
 final class Difficulty {
+  /// A difficulty called [name]; every axis left out is as at [normal].
+  ///
+  /// Asserts that the damage multipliers are not negative,
+  /// [opponentReaction] is above nought and [assistance] is from nought to
+  /// one.
   const Difficulty(
     this.name, {
     this.damageTaken = 1.0,

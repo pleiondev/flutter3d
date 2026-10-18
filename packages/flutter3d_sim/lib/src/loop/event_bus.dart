@@ -2,6 +2,7 @@ part of 'engine_loop.dart';
 
 /// What one step published on the step channel, digested.
 final class StepEventSummary {
+  /// The summary of [step]; [events] defaults to none.
   const StepEventSummary({
     required this.step,
     required this.count,
@@ -10,6 +11,7 @@ final class StepEventSummary {
     this.events = const <BusEvent>[],
   });
 
+  /// Number of the step summarised, counted from the loop's start.
   final int step;
 
   /// How many events the step published.
@@ -28,6 +30,8 @@ final class StepEventSummary {
   /// for a step that published nothing.
   final int digest;
 
+  /// Whether this was a step run again by a rollback rather than run for
+  /// the first time.
   final bool resimulated;
 }
 

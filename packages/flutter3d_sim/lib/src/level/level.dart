@@ -52,6 +52,8 @@ export 'render_settings_patch.dart';
 /// in it. A key this build does not know is kept and written back where it
 /// was.
 final class Level extends FormatDocument {
+  /// A level called [name] (`untitled` by default); every list and map
+  /// left out is empty, with no fog and no change to the world.
   Level({
     this.name = 'untitled',
     List<Brush>? brushes,
@@ -371,14 +373,19 @@ final class Level extends FormatDocument {
   /// it may open the document.
   final Heightfield? heightfield;
 
+  /// What the level is called, on a menu and in a run's record.
   final String name;
 
+  /// Every block of geometry the document spells out, in document order.
   final List<Brush> brushes;
 
+  /// Every entity the document spells out, in document order.
   final List<EntityDef> entities;
 
+  /// Every light the document spells out, in document order.
   final List<LevelLight> lights;
 
+  /// The materials brushes name, by name.
   final Map<String, LevelMaterial> materials;
 
   /// The fog's colour, in linear light.
@@ -413,6 +420,9 @@ final class Level extends FormatDocument {
   /// south). What a twin's site, an outdoor AR anchor or a map overlay lines
   /// the level up by; [worldOver] makes it the world's.
   final GeoOrigin? geoOrigin;
+
+  /// The track a game plays in this level, by the game's own name for it;
+  /// null for none.
   final String? music;
 
   /// Which level follows this one, if any.
@@ -656,9 +666,11 @@ final class Level extends FormatDocument {
     }
   }
 
+  /// The entities of [type], in document order, as a lazy view.
   Iterable<EntityDef> ofType(String type) =>
       entities.where((EntityDef e) => e.type == type);
 
+  /// The first entity called [name], or null when none is.
   EntityDef? named(String name) {
     for (final entity in entities) {
       if (entity.name == name) return entity;

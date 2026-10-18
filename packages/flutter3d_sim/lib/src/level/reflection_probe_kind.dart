@@ -25,6 +25,7 @@ import 'level_issue.dart';
 ///  * `near`, `far` — where each face's view begins and ends; five centimetres
 ///    and two hundred metres.
 final class ReflectionProbeKind extends EntityKind {
+  /// The `reflection_probe` kind.
   const ReflectionProbeKind() : super(EntityTypes.reflectionProbe);
 
   /// The near and far planes a document that names neither ends up with.

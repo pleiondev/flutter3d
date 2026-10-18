@@ -39,6 +39,8 @@ String? surfaceUnder(Collider? collider) {
 /// nothing in particular — or worse, as a default of zero — would turn a
 /// straight into an ice rink the day somebody added a sound.
 base class SurfaceTable<T> {
+  /// A table of the values given by surface word, answering [fallback] for
+  /// any other word.
   const SurfaceTable(this._byName, {required this.fallback});
 
   final Map<String, T> _byName;
@@ -58,5 +60,6 @@ base class SurfaceTable<T> {
   /// whether a floor is worth a sound.
   bool knows(String surface) => _byName.containsKey(surface);
 
+  /// Every surface word the table has a value for.
   Iterable<String> get names => _byName.keys;
 }

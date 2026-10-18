@@ -19,6 +19,8 @@ import 'mechanism.dart';
 /// `ActorSystem.director` — and lets go when it ends, or when a restore puts
 /// the run back before it began.
 final class Cutscene extends Mechanism {
+  /// A cutscene of [sequence] directing [actors], played only once unless
+  /// [once] is false.
   Cutscene({
     super.name,
     required Sequence sequence,

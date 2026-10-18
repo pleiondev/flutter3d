@@ -8,6 +8,8 @@ import 'entity_kind.dart';
 /// [EntityKind.requireTravel], a kinematic collider and a `speed`/`wait` pair —
 /// and differ only in which [Mover] they hand it to.
 final class DoorKind extends EntityKind {
+  /// The `door` kind: a sized block with a `travel`, opened on request and
+  /// locked by an optional `key`.
   const DoorKind() : super(EntityTypes.door);
 
   @override
@@ -41,7 +43,9 @@ final class DoorKind extends EntityKind {
   }
 }
 
+/// Travels to the far end when called and back, as a [Lift].
 final class LiftKind extends EntityKind {
+  /// The `lift` kind: a sized block with a `travel`.
   const LiftKind() : super(EntityTypes.lift);
 
   @override
@@ -75,6 +79,8 @@ final class LiftKind extends EntityKind {
 
 /// Moves on its own timetable rather than waiting to be called.
 final class PlatformKind extends EntityKind {
+  /// The `platform` kind: a sized block with a `travel`, started `phase`
+  /// seconds into its cycle.
   const PlatformKind() : super(EntityTypes.platform);
 
   @override

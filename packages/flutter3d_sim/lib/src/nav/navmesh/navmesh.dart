@@ -114,9 +114,14 @@ final class NavMesh {
     return out;
   }();
 
+  /// Most corners one polygon has, as the bake's settings fixed it; at
+  /// least three.
   int get maxVerticesPerPolygon => config.maxVerticesPerPolygon;
 
+  /// Count of vertices the polygons share.
   int get vertexCount => _vertices.length ~/ 3;
+
+  /// Count of polygons in the mesh.
   int get polygonCount => _areas.length;
 
   /// True when there is nowhere to stand: an empty level, or one whose every
@@ -126,7 +131,11 @@ final class NavMesh {
   /// A vertex on the lattice, in cells across and voxels up. Whole numbers,
   /// which is what a test compares and what [digest] is taken of.
   int latticeX(int vertex) => _vertices[vertex * 3];
+
+  /// The height of [vertex] on the lattice, in voxels up.
   int latticeY(int vertex) => _vertices[vertex * 3 + 1];
+
+  /// The Z of [vertex] on the lattice, in cells along.
   int latticeZ(int vertex) => _vertices[vertex * 3 + 2];
 
   /// A vertex in the world.

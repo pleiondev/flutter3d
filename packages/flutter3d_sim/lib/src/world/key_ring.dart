@@ -33,12 +33,17 @@ final class KeyRing with KeyHolder {
   /// Adds one, and says whether it was new.
   bool add(String key) => _held.add(key);
 
+  /// Whether the key of colour [key] is held.
   bool has(String key) => _held.contains(key);
 
+  /// Drops every key held.
   void clear() => _held.clear();
 
+  /// The keys held, sorted, for a save; what [restore] reads.
   List<String> save() => _held.toList()..sort();
 
+  /// Replaces the keys held with those [from] lists. Anything that is not
+  /// a list leaves none; an entry that is not a string is skipped.
   void restore(Object? from) {
     _held.clear();
     if (from is! List) return;

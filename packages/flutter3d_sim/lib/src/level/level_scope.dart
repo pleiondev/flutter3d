@@ -8,12 +8,14 @@ import 'level.dart';
 /// set is gathered once — and so what a kind is allowed to look at stays a
 /// short, readable list.
 final class LevelScope {
+  /// The scope of [level], with its key colours gathered once.
   LevelScope(this.level)
     : keys = <String>{
         for (final key in level.ofType(EntityTypes.key))
           if (key.string('color') != null) key.string('color')!,
       };
 
+  /// The level being looked at.
   final Level level;
 
   /// Every key colour some pickup in this level provides.

@@ -12,13 +12,16 @@ import 'pose.dart';
 /// [seconds] is what the recorded thing took, and is the reason anybody keeps
 /// the tape: a lap time, a run's clock, a personal best.
 final class Tape {
+  /// A recording of [poses] of a thing that took [seconds].
   const Tape({required this.poses, required this.seconds});
 
+  /// The samples in time order, a few a second.
   final List<GhostFrame> poses;
 
   /// What the recorded thing took, in seconds.
   final double seconds;
 
+  /// Whether the recording holds no pose.
   bool get isEmpty => poses.isEmpty;
 
   /// How long the recording runs for, which is not always [seconds]: the last

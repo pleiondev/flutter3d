@@ -37,6 +37,8 @@ import 'package:vector_math/vector_math.dart';
 import 'actor.dart';
 import 'actor_system.dart';
 
+/// What decides for an actor: where to go, what to do when hurt, heard or
+/// killed. Every hook has a default that does nothing.
 abstract base class Brain {
   /// Decides. Called on the steps the system chooses to think on — see
   /// [ActorSystem.thinkInterval], which is why deciding may be expensive and
@@ -71,6 +73,7 @@ abstract base class Brain {
   /// Whatever has to survive a save. Empty for a brain with no memory.
   Map<String, Object?> save() => const <String, Object?>{};
 
+  /// Puts back what [save] wrote. Does nothing by default.
   void restore(Map<String, Object?> from) {}
 }
 
@@ -82,6 +85,7 @@ abstract base class Brain {
 /// reads it during the call and does not keep it: its mind is the system's
 /// and moves on to the next actor.
 final class BrainHurt {
+  /// The hurt of [amount] to the actor behind [mind].
   const BrainHurt({required this.mind, required this.amount});
 
   /// The actor's mind; who did it is its [Mind.hurtBy].
@@ -98,6 +102,8 @@ final class BrainHurt {
 /// reads it during the call and does not keep it, nor its vector — a brain
 /// that keeps the place clones it.
 final class BrainNoise {
+  /// A noise at [at] heard by the actor behind [mind]; both are reset
+  /// before each actor is told.
   BrainNoise({required this.mind, required this.at});
 
   /// The actor's mind.
@@ -114,8 +120,11 @@ final class BrainNoise {
 /// writes is entitled to the whole engine. This is the surface a decision
 /// actually needs.
 final class Mind {
+  /// The mind [system] hands each brain in turn; [actor] is set before
+  /// each call.
   Mind(this.system);
 
+  /// The actors' system, which carries out what the mind asks for.
   final ActorSystem system;
 
   /// Whose decision this is.

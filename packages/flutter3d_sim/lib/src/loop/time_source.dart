@@ -19,6 +19,7 @@ library;
 /// `base`, so a member added later arrives with a default: a source of a
 /// game's own extends this.
 abstract base class TimeSource {
+  /// Lets a subclass be const.
   const TimeSource();
 
   /// The wall clock, as the display's vsync measures it.
@@ -60,6 +61,7 @@ abstract base class TimeSource {
 /// and set it before every frame, so a frame allocates nothing for it; a
 /// source reads it during the call and does not keep it.
 final class FrameSpan {
+  /// A span from [from] to [to], both nought by default.
   FrameSpan({this.from = Duration.zero, this.to = Duration.zero});
 
   /// When the last frame was drawn.
@@ -152,6 +154,7 @@ final class LogTime extends TimeSource {
 /// What [advance] queued is handed to the next frame, all of it, and the
 /// frames after bring nothing until it is called again.
 final class ManualTime extends TimeSource {
+  /// A source with nothing queued.
   ManualTime();
 
   double _owed = 0.0;

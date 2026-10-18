@@ -19,6 +19,8 @@ import 'tally.dart';
 /// takes: a game that counts something this package never heard of adds a line
 /// rather than a class.
 final class RunStats {
+  /// Stats counting under each name of [counting] the events its test
+  /// accepts; none when null.
   RunStats({Map<String, bool Function(GameEvent)>? counting})
     : _counting = <String, bool Function(GameEvent)>{...?counting};
 
@@ -71,11 +73,13 @@ final class RunStats {
     elapsed = 0.0;
   }
 
+  /// The clock and the counts, for a save; the counters are not saved.
   Map<String, Object?> save() => <String, Object?>{
     'elapsed': elapsed,
     'tally': tally.save(),
   };
 
+  /// Puts back what [save] wrote; a missing clock reads nought.
   void restore(Map<String, Object?> from) {
     elapsed = (from['elapsed'] as num?)?.toDouble() ?? 0.0;
     final counts = from['tally'];

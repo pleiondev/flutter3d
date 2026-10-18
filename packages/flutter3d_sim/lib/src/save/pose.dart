@@ -7,6 +7,8 @@ import 'snapshot.dart';
 ///
 /// A place, a facing and an up. Enough to draw a body again and no more.
 final class GhostFrame {
+  /// A frame at the origin, facing yaw nought with the world's up, at
+  /// [time] seconds, unless told otherwise.
   GhostFrame({this.time = 0.0, this.yaw = 0.0});
 
   /// **Read leniently, because this is a file from somebody's disk.** Every
@@ -30,6 +32,7 @@ final class GhostFrame {
   /// Seconds since the recording started.
   double time;
 
+  /// Where the body was, in metres in the world; written in place.
   final Vector3 position = Vector3.zero();
 
   /// Which way it was facing, in radians about the vertical.
@@ -42,6 +45,7 @@ final class GhostFrame {
   /// would stand it upright through a turn it was clearly leaning into.
   final Vector3 up = Vector3(0.0, 1.0, 0.0);
 
+  /// Copies [other]'s time, yaw, position and up into this frame.
   void setFrom(GhostFrame other) {
     time = other.time;
     yaw = other.yaw;
@@ -49,6 +53,8 @@ final class GhostFrame {
     up.setFrom(other.up);
   }
 
+  /// This frame as JSON under short keys, each number rounded to three
+  /// decimal places.
   Map<String, Object?> toJson() => <String, Object?>{
     't': _round(time),
     'p': <double>[_round(position.x), _round(position.y), _round(position.z)],

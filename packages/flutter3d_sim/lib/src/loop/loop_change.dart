@@ -17,11 +17,14 @@ abstract base class LoopChange {
   /// The boundary it was made at: after [step] steps had run.
   int get step;
 
+  /// Whether a replay must make this change to arrive where the run did;
+  /// false for one that only paces or decorates the run.
   bool get affectsSimulation;
 
   /// The same change at another step.
   LoopChange at(int step);
 
+  /// This change as JSON, with its `kind` and `step`, as [fromJson] reads.
   Map<String, Object?> toJson();
 
   /// Reads a change back, or throws a [LoopChangeFormatException] saying why not.
@@ -74,6 +77,7 @@ abstract base class LoopChange {
 /// state whatever it does with this, and a replay that wants to look the
 /// same slows down where the run did.
 final class LoopTimeScale extends LoopChange {
+  /// A change to time scale [scale] after [step] steps.
   const LoopTimeScale({required this.step, required this.scale}) : super._();
 
   @override
@@ -108,6 +112,7 @@ final class LoopTimeScale extends LoopChange {
 
 /// The world's step rate became [rate] at [step].
 final class LoopStepRate extends LoopChange {
+  /// A change to step rate [rate] after [step] steps.
   const LoopStepRate({required this.step, required this.rate}) : super._();
 
   @override
@@ -143,8 +148,11 @@ final class LoopStepRate extends LoopChange {
 
 /// A plugin was switched or the plugins reordered: [change].
 final class LoopPluginChange extends LoopChange {
+  /// The loop's record of [change].
   const LoopPluginChange(this.change) : super._();
 
+  /// What was switched or reordered, and at which step; [step] and
+  /// [affectsSimulation] are its.
   final PluginChange change;
 
   @override
@@ -169,6 +177,7 @@ final class LoopPluginChange extends LoopChange {
 
 /// Thrown when a recorded loop change cannot be read.
 final class LoopChangeFormatException extends Flutter3dFormatException {
+  /// An exception saying, in [message], what was wrong with the change.
   const LoopChangeFormatException(this.message);
 
   @override

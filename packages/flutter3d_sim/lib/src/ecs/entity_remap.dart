@@ -38,6 +38,7 @@ library;
 /// A class rather than a record, so a later field — the names it moved, say
 /// — is not a break.
 final class EntityRemap {
+  /// A result of the rewritten [save] and the names [dropped].
   const EntityRemap({required this.save, required this.dropped});
 
   /// The save, rewritten to the new indices.

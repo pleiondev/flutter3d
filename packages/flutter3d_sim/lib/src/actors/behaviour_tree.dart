@@ -60,6 +60,7 @@ final class BehaviorContext {
   /// The actor's mind: its body, its focus, and what it may ask for.
   late Mind mind;
 
+  /// The ticking actor's board: its memory, read and written by leaves.
   late Blackboard board;
 
   /// Which node is ticking, by its number in the tree.
@@ -86,6 +87,7 @@ final class BehaviorContext {
 /// ([BehaviorLeaf.goal]): a record could never gain the field a later
 /// overlay wants to show, and a class adds it without breaking a leaf.
 final class BehaviorView {
+  /// A view of [actor] among [system], with its [board].
   const BehaviorView({
     required this.actor,
     required this.system,
@@ -171,6 +173,8 @@ final class BehaviorCompositeTick {
   final BehaviorChildren children;
 }
 
+/// A behaviour tree read from a document: shared by every actor running
+/// it, each keeping its own state on its [Blackboard].
 final class BehaviorTree {
   BehaviorTree._(this._root, this._nodes, this.digestHex, this.json)
     : _statusOf = List<BehaviorStatus?>.filled(_nodes.length, null) {

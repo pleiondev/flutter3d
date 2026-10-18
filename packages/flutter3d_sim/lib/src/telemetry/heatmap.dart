@@ -14,6 +14,7 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
 /// One sample of where a run was, in plan: a point of a [HeatmapTrail], a
 /// [ResimulationRetraced] trail or a playtest run's path.
 final class TrailPoint {
+  /// A point at ([x], [z]) in metres in the level's frame.
   const TrailPoint({required this.x, required this.z});
 
   /// Along the world's X axis, in metres.
@@ -35,6 +36,7 @@ final class TrailPoint {
 
 /// The path of one run across a level, as [Heatmap.bin] takes it.
 final class HeatmapTrail {
+  /// A trail of [run]; not ending badly unless [endedBadly] says so.
   const HeatmapTrail({
     required this.run,
     required this.steps,
@@ -63,6 +65,7 @@ final class HeatmapTrail {
 
 /// One cell of a [Heatmap].
 final class HeatmapCell {
+  /// The cell at ([x], [z]) in cell coordinates, with its counts.
   const HeatmapCell({
     required this.x,
     required this.z,
@@ -72,6 +75,9 @@ final class HeatmapCell {
 
   /// In cells, not metres: multiply by [Heatmap.cellSize].
   final int x;
+
+  /// Index of the cell along Z, in cells as [x]: the floor of the metre
+  /// coordinate over [Heatmap.cellSize].
   final int z;
 
   /// How many positions landed here.
@@ -85,6 +91,7 @@ final class HeatmapCell {
 
 /// Where a run was lost.
 final class HeatmapEnd {
+  /// Run [run] lost at [step], last seen at ([x], [z]).
   const HeatmapEnd({
     required this.run,
     required this.step,
@@ -92,7 +99,10 @@ final class HeatmapEnd {
     required this.z,
   });
 
+  /// The run's number, as [HeatmapTrail.run]; written as `seed` in JSON.
   final int run;
+
+  /// The step the run stopped at, its [HeatmapTrail.steps].
   final int step;
 
   /// Where the run was last, across, in metres in the level's frame.
@@ -104,6 +114,7 @@ final class HeatmapEnd {
 
 /// Thrown when a heatmap document cannot be read.
 final class HeatmapFormatException extends Flutter3dFormatException {
+  /// An exception saying, in [message], what was wrong with the document.
   const HeatmapFormatException(this.message);
 
   @override
@@ -113,7 +124,11 @@ final class HeatmapFormatException extends Flutter3dFormatException {
   String toString() => 'HeatmapFormatException: $message';
 }
 
+/// Many runs of one level binned into square cells: how often each cell
+/// was visited and by how many runs, where runs were lost, and how they
+/// ended.
 final class Heatmap {
+  /// A heatmap of the given parts; [Heatmap.bin] builds one from trails.
   const Heatmap({
     required this.cellSize,
     required this.cells,
@@ -221,8 +236,15 @@ final class Heatmap {
 
   /// A cell's side, in metres.
   final double cellSize;
+
+  /// Every cell at least one position landed in, in no set order; a cell
+  /// absent here had no samples.
   final List<HeatmapCell> cells;
+
+  /// Where each run that ended badly was lost; written as `deaths`.
   final List<HeatmapEnd> ends;
+
+  /// Count of runs per outcome word, including named outcomes at nought.
   final Map<String, int> outcomes;
 
   /// How many runs went in.

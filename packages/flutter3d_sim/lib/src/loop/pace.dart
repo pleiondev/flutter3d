@@ -18,6 +18,8 @@ import 'dart:math' as math;
 /// twelve frames a second. This is not a tuning warning; it is the game running
 /// at a speed nobody chose.
 final class Pace {
+  /// A pace judged over a [window] of three seconds and a [tolerance] of
+  /// half a second by default. Asserts both are above nought.
   Pace({this.window = 3.0, this.tolerance = 0.5})
     : assert(window > 0.0),
       assert(tolerance > 0.0);

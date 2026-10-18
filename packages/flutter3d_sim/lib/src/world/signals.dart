@@ -7,6 +7,8 @@ import 'mechanism.dart';
 /// the crosshair still finds it. A button that blocked movement would be a
 /// button players get stuck on.
 final class Button extends Signal {
+  /// A button over [collider], which it turns into a trigger; locked by
+  /// [key] when one is given.
   Button({
     super.name,
     required super.target,
@@ -18,6 +20,7 @@ final class Button extends Signal {
     collider.userData = this;
   }
 
+  /// The panel the crosshair's ray finds; a trigger, so nothing bumps it.
   final Collider collider;
 
   /// A key the player must be carrying, or null.
@@ -39,6 +42,8 @@ final class Button extends Signal {
 /// a thin trigger between two steps without being noticed — the world's sweep
 /// found the overlap, and this only has to hear about it.
 final class TriggerVolume extends Signal with CollisionListener {
+  /// A volume over [collider], which it turns into a trigger listening to
+  /// itself.
   TriggerVolume({
     super.name,
     required super.target,
@@ -51,6 +56,7 @@ final class TriggerVolume extends Signal with CollisionListener {
       ..listener = this;
   }
 
+  /// The volume a body walks into; its `userData` is this trigger.
   final Collider collider;
 
   /// The last thing this told the player, for the frame it happened on.

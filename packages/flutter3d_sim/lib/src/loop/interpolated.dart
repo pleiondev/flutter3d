@@ -18,6 +18,10 @@ import '../math/motion.dart';
 /// project: it is called once per drawn object per frame, and returning a fresh
 /// [Vector3] there is a guaranteed allocation on the hottest path there is.
 final class InterpolatedVector3 {
+  /// A value standing still at [initial], or at the origin when null.
+  ///
+  /// Asserts that [stepLimit] (metres) is not negative and [stepRecovery]
+  /// (seconds) is above nought.
   InterpolatedVector3({
     Vector3? initial,
     this.stepLimit = 0.0,
@@ -130,6 +134,7 @@ final class InterpolatedVector3 {
 /// way and almost a full turn the other, and a plain lerp always picks the long
 /// one. A monster turning to face the player crosses that boundary constantly.
 final class InterpolatedAngle {
+  /// An angle standing still at [initial] radians.
   InterpolatedAngle([double initial = 0.0])
     : _previous = initial,
       _current = initial;
@@ -140,16 +145,22 @@ final class InterpolatedAngle {
   /// The latest pushed angle, in radians.
   double get current => _current;
 
+  /// Records a new simulated angle in radians, keeping the one before it to
+  /// blend from.
   void push(double value) {
     _previous = _current;
     _current = value;
   }
 
+  /// Sets both endpoints to [value] radians, so the next frame shows no
+  /// turn: for a spawn or a teleport.
   void jumpTo(double value) {
     _previous = value;
     _current = value;
   }
 
+  /// The angle in radians blended by [alpha], clamped to nought to one,
+  /// along the shorter way round between the last two pushes.
   double read(double alpha) {
     final t = alpha.clamp(0.0, 1.0);
     return _previous + shortestAngle(_previous, _current) * t;

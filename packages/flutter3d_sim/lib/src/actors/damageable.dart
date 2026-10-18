@@ -50,6 +50,7 @@ abstract base mixin class Damageable {
 /// **One object, so a minor can hand a target more** — what kind of harm,
 /// where it landed — without breaking a target written against 1.0.
 final class Damage {
+  /// Damage of [amount], dealt by [from] (null for nobody).
   const Damage({required this.amount, this.from});
 
   /// How much health it takes, in the units the health counts in.

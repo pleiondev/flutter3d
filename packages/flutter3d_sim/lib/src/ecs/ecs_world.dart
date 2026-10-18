@@ -46,6 +46,7 @@ import 'component_store.dart';
 
 /// The simulation's world. See the library doc.
 final class EcsWorld extends SimWorld {
+  /// An empty world: no entities and no component types registered.
   EcsWorld() {
     _components = _Components(this, null);
   }
